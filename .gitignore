@@ -1,0 +1,31 @@
+.vercel
+node_modules
+dist
+.env
+.env.local
+
+# Assinatura do Android — nunca deve ir pro controle de versão
+android-twa/*.keystore
+android-twa/key.properties
+
+# Build artifacts (Android/Gradle)
+android-twa/.gradle
+android-twa/build
+android-twa/app/build
+android-twa/local.properties
+
+# Build artifacts (iOS/Xcode)
+ios/App/Pods
+ios/App/build
+ios/App/DerivedData
+ios/**/xcuserdata
+ios/**/*.xcuserstate
+ios/App/App.xcodeproj/project.xcworkspace/xcshareddata
+
+# Binários compilados do Android (regeneráveis a partir do código-fonte)
+android-twa/*.apk
+android-twa/*.aab
+android-twa/*.idsig
+
+# Config local do Claude Code (específica desta máquina)
+.claude/settings.local.json

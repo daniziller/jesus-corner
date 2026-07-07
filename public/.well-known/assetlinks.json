@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.jesuscorner.app",
+    "sha256_cert_fingerprints": [
+      "77:7F:60:5A:CC:DA:D7:41:37:57:B5:95:10:8D:C0:B8:C7:C3:D2:7A:38:B4:96:26:12:1F:D9:D9:A1:DD:EF:38"
+    ]
+  }
+}]

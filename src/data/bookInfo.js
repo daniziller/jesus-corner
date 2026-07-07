@@ -1,0 +1,1072 @@
+// Contexto, localização, curiosidades e perguntas de reflexão por livro da
+// Bíblia — usado nas abas "Contexto", "Mapa" e "Curiosidades" da tela de
+// Leitura, e na sessão de reflexão que fecha cada livro. Um conjunto por
+// livro (não por sessão): o cenário histórico/geográfico de um livro vale
+// para todas as suas sessões. Conteúdo de conhecimento geral sobre a Bíblia
+// (autoria tradicional, época, geografia), não é o texto bíblico em si.
+
+export const BOOK_INFO = {
+  'Gênesis': {
+    context: 'Primeiro livro da Bíblia: narra a criação, a queda da humanidade, o dilúvio e a história dos patriarcas Abraão, Isaque, Jacó e José. Tradicionalmente atribuído a Moisés.',
+    location: { name: 'Mesopotâmia, Canaã e Egito', icon: "Landmark", description: 'A história viaja de Ur (atual Iraque) até Canaã (Israel) e termina no Egito, ao longo de várias gerações.' },
+    curiosities: [
+      'É o único livro da Bíblia que cobre milhares de anos de história em poucos capítulos.',
+      'A palavra "Gênesis" vem do grego e significa "origem" ou "princípio".',
+      'José, o penúltimo patriarca, passa mais capítulos em cena do que qualquer outro personagem do livro.',
+      'O relato do dilúvio de Noé tem paralelos com outras histórias de inundação da antiga Mesopotâmia, como o Épico de Gilgamesh.',
+    ],
+    reflectionQuestions: [
+      'Como a forma que Deus criou o mundo e as pessoas muda a maneira como você vê a si mesmo e aos outros?',
+      'O que a história da queda de Adão e Eva revela sobre a natureza do pecado e suas consequências?',
+      'Qual promessa feita a Abraão mais te marcou, e por quê?',
+      'Ao ver José perdoando os irmãos que o traíram, o que isso te desafia a fazer com alguém que te machucou?',
+    ],
+  },
+  'Êxodo': {
+    context: 'Conta a escravidão dos israelitas no Egito, a liderança de Moisés, as dez pragas, a travessia do Mar Vermelho e a entrega dos Dez Mandamentos no monte Sinai.',
+    location: { name: 'Egito e deserto do Sinai', icon: "Waves", description: 'Do Egito, o povo atravessa o Mar Vermelho e passa a viajar pela península do Sinai rumo a Canaã.' },
+    curiosities: [
+      'O nome hebraico do livro é "Shemot" ("Nomes"), tirado da primeira frase do texto.',
+      'A construção do Tabernáculo ocupa boa parte da segunda metade do livro, com instruções bem detalhadas.',
+      'Não há consenso histórico sobre a data exata do Êxodo; estimativas variam entre os séculos XV e XIII a.C.',
+      'É neste livro que aparece pela primeira vez o nome divino revelado a Moisés na sarça ardente.',
+    ],
+    reflectionQuestions: [
+      'O que a libertação do Egito ensina sobre como Deus enxerga a opressão e a injustiça?',
+      'Como os Dez Mandamentos ainda moldam sua ideia de certo e errado hoje?',
+      'Por que você acha que Deus quis habitar no meio do povo através do Tabernáculo?',
+      'Em que áreas da sua vida você ainda "se sente escravo", e o que esse livro te ensina sobre confiar na libertação de Deus?',
+    ],
+  },
+  'Levítico': {
+    context: 'Um manual de leis para os sacerdotes (levitas) sobre sacrifícios, pureza ritual e santidade, entregue enquanto Israel ainda acampava ao pé do monte Sinai.',
+    location: { name: 'Deserto do Sinai', icon: "Tent", description: 'Toda a ação (ou melhor, todas as instruções) acontece em um único acampamento, ao pé do monte Sinai.' },
+    curiosities: [
+      'É o livro com a menor variedade de narrativa da Bíblia: quase todo o texto é lei e instrução.',
+      'O capítulo 16 descreve o Dia da Expiação (Yom Kipur), até hoje a data mais sagrada do calendário judaico.',
+      'A expressão "Sejam santos, porque eu sou santo" aparece repetidamente como tema central do livro.',
+      'Muitas leis alimentares (kashrut) praticadas no judaísmo têm origem neste livro.',
+    ],
+    reflectionQuestions: [
+      'O que as leis de sacrifício revelam sobre a seriedade do pecado e o custo do perdão?',
+      'Como o chamado "sejam santos, porque eu sou santo" desafia sua rotina diária?',
+      'Por que você acha que Deus deu tantos detalhes sobre pureza e sacrifício a um povo recém-liberto?',
+      'De que forma o Dia da Expiação aponta para algo maior que se cumpriria depois, em Jesus?',
+    ],
+  },
+  'Números': {
+    context: 'Relata os 40 anos de peregrinação de Israel pelo deserto, incluindo dois recenseamentos do povo (censos), rebeliões e a preparação para entrar em Canaã.',
+    location: { name: 'Deserto entre o Sinai e Canaã', icon: "Compass", description: 'Cobre a longa jornada errante do Sinai até as planícies de Moabe, na fronteira com a Terra Prometida.' },
+    curiosities: [
+      'O nome vem dos dois censos populacionais registrados no livro (daí "Números").',
+      'A história de Balaão e sua jumenta falante está neste livro (capítulos 22–24).',
+      'Uma geração inteira morre no deserto por falta de fé, e só os mais jovens entram em Canaã.',
+      'A famosa bênção sacerdotal ("O Senhor te abençoe e te guarde...") aparece pela primeira vez aqui.',
+    ],
+    reflectionQuestions: [
+      'O que os 40 anos de deserto ensinam sobre as consequências da falta de fé?',
+      'Como a história de Balaão mostra que os planos de Deus não podem ser impedidos?',
+      'O que você aprende ao ver uma geração inteira perder a promessa por causa da murmuração?',
+      'Que medos ou comparações você tem deixado guiar suas decisões em vez de confiar em Deus?',
+    ],
+  },
+  'Deuteronômio': {
+    context: 'Últimos discursos de Moisés a Israel antes de sua morte, revisando a Lei e preparando o povo para conquistar Canaã sob a liderança de Josué.',
+    location: { name: 'Planícies de Moabe', icon: "Mountain", description: 'Israel acampa do lado leste do rio Jordão, olhando para a Terra Prometida sem ainda ter entrado nela.' },
+    curiosities: [
+      'O nome significa "segunda lei" em grego, porque repete e explica leis já dadas em Êxodo e Levítico.',
+      'É o livro mais citado por Jesus no Novo Testamento.',
+      'Termina com a morte de Moisés, que vê a Terra Prometida de longe mas nunca entra nela.',
+      'O "Shemá" ("Ouve, ó Israel...", capítulo 6) é até hoje a oração central do judaísmo.',
+    ],
+    reflectionQuestions: [
+      'Por que Moisés insiste tanto em "lembrar" o que Deus já fez antes de entrar na Terra Prometida?',
+      'O que o Shemá ("Ouve, ó Israel...") te ensina sobre amar a Deus de forma integral?',
+      'Como Moisés terminar sua vida vendo a promessa de longe, sem entrar nela, te faz pensar sobre fidelidade sem recompensa imediata?',
+      'O que significa "escolher a vida", como o livro convida o povo a fazer?',
+    ],
+  },
+
+  'Josué': {
+    context: 'Narra a conquista de Canaã pelos israelitas sob o comando de Josué, sucessor de Moisés, incluindo a queda de Jericó e a divisão da terra entre as tribos.',
+    location: { name: 'Canaã (atual Israel/Palestina)', icon: "Map", description: 'A ação se concentra na travessia do Jordão e na conquista de cidades como Jericó e Ai.' },
+    curiosities: [
+      'A queda dos muros de Jericó, após sete dias de marcha, é um dos episódios mais conhecidos do livro.',
+      'Raabe, uma mulher de Jericó, ajuda os espiões israelitas e é depois citada no Novo Testamento (Mateus 1).',
+      'O livro descreve em detalhe a divisão de terras entre as doze tribos de Israel.',
+      'Termina com o famoso desafio de Josué: "Escolhei hoje a quem sirvais".',
+    ],
+    reflectionQuestions: [
+      'O que a queda de Jericó ensina sobre obediência mesmo quando o plano de Deus parece estranho?',
+      'Como a fé de Raabe, uma estrangeira, desafia ideias de quem "merece" fazer parte do povo de Deus?',
+      'O que significa, na prática, "ser forte e corajoso" como Deus pediu a Josué?',
+      'Ao final do livro, Josué desafia o povo a escolher a quem servir. O que você escolheria hoje, e por quê?',
+    ],
+  },
+  'Juízes': {
+    context: 'Cobre um período turbulento em que Israel, sem um rei, é liderado por "juízes" — líderes militares e espirituais como Débora, Gideão e Sansão.',
+    location: { name: 'Canaã, sob domínio tribal', icon: "Swords", description: 'As histórias se espalham por diferentes regiões de Israel, cada uma sob a ameaça de um povo vizinho diferente.' },
+    curiosities: [
+      'A frase "cada um fazia o que era certo aos seus próprios olhos" resume o clima moral do livro.',
+      'Débora é a única mulher listada como juíza e líder militar de Israel no livro.',
+      'Sansão, o juiz mais famoso, tem sua força associada aos seus cabelos, nunca cortados por voto de nazireu.',
+      'O livro cobre cerca de 300 anos de história, com ciclos repetidos de pecado, opressão e libertação.',
+    ],
+    reflectionQuestions: [
+      'Por que o ciclo de pecado, opressão, clamor e libertação se repete tantas vezes no livro?',
+      'O que a frase "cada um fazia o que era certo aos seus próprios olhos" revela sobre viver sem referência a Deus?',
+      'Como líderes imperfeitos como Sansão ainda foram usados por Deus, e o que isso diz sobre a graça?',
+      'Que hábito ou ideia você tem deixado guiar sua vida no lugar de Deus?',
+    ],
+  },
+  'Rute': {
+    context: 'Uma história pessoal ambientada na época dos juízes: a moabita Rute permanece fiel à sua sogra Noemi e encontra um novo lar em Belém.',
+    location: { name: 'Moabe e Belém', icon: "Wheat", description: 'A história começa em Moabe (atual Jordânia) e se desenrola nos campos de cevada perto de Belém.' },
+    curiosities: [
+      'É um dos dois livros da Bíblia com nome de mulher (o outro é Ester).',
+      'Rute era estrangeira (moabita), mas se torna bisavó do rei Davi.',
+      'O livro é lido tradicionalmente na festa judaica de Shavuot (Pentecostes).',
+      'A frase de Rute a Noemi, "Aonde fores irei" (1:16), é usada até hoje em cerimônias de casamento.',
+    ],
+    reflectionQuestions: [
+      'O que a lealdade de Rute a Noemi ensina sobre compromisso em tempos difíceis?',
+      'Como a história de Rute, uma estrangeira, aponta para a inclusão de todos os povos no plano de Deus?',
+      'O que o papel de Boaz como "resgatador" te ensina sobre o cuidado de Deus com quem parece esquecido?',
+      'Onde você tem visto a mão de Deus trabalhando "nos bastidores" da sua própria história, como aconteceu com Rute?',
+    ],
+  },
+  '1 Samuel': {
+    context: 'Conta a transição de Israel de uma confederação de tribos para uma monarquia, com as histórias do profeta Samuel, do rei Saul e da ascensão de Davi.',
+    location: { name: 'Reino de Israel (Central)', icon: "Crown", description: 'As histórias se passam em cidades como Silo, Belém e nas colinas onde Davi foge de Saul.' },
+    curiosities: [
+      'A história de Davi e Golias, o gigante filisteu, está no capítulo 17.',
+      'Samuel é o último dos juízes e o primeiro grande profeta depois de Moisés.',
+      'Saul se torna o primeiro rei de Israel, ungido por Samuel a contragosto.',
+      'A amizade entre Davi e Jônatas, filho de Saul, é um dos relacionamentos mais marcantes do livro.',
+    ],
+    reflectionQuestions: [
+      'O que a oração de Ana antes do nascimento de Samuel ensina sobre entregar desejos profundos a Deus?',
+      'Por que o povo pedir um rei "como as outras nações" foi, ao mesmo tempo, uma rejeição a Deus?',
+      'O que a coragem de Davi diante de Golias revela sobre confiar no tamanho de Deus, não no do problema?',
+      'Como a amizade entre Davi e Jônatas te desafia a pensar sobre lealdade mesmo quando custa caro?',
+    ],
+  },
+  '2 Samuel': {
+    context: 'Narra o reinado de Davi como rei de Israel: suas vitórias militares, a expansão do reino, e também seus erros graves, como o caso com Bate-Seba.',
+    location: { name: 'Jerusalém e reino de Israel', icon: "Castle", description: 'Davi conquista Jerusalém e faz dela a capital política e religiosa do reino unido.' },
+    curiosities: [
+      'É neste livro que Jerusalém se torna, pela primeira vez, capital de Israel.',
+      'Deus promete a Davi que sua dinastia duraria para sempre — a chamada "aliança davídica".',
+      'A rebelião do próprio filho de Davi, Absalão, ocupa boa parte da segunda metade do livro.',
+      'Originalmente, 1 e 2 Samuel eram um único livro na Bíblia hebraica.',
+    ],
+    reflectionQuestions: [
+      'O que o sucesso de Davi como rei e sua queda com Bate-Seba ensinam sobre os perigos do poder sem prestação de contas?',
+      'Como a aliança de Deus com Davi (uma dinastia eterna) aponta para algo maior que se cumpriria em Jesus?',
+      'O que a reação de Davi ao ser confrontado por Natã ensina sobre arrependimento genuíno?',
+      'Como a rebelião de Absalão contra o próprio pai te faz pensar sobre as consequências que carregamos mesmo depois do perdão?',
+    ],
+  },
+  '1 Reis': {
+    context: 'Começa com o reinado de Salomão e a construção do primeiro Templo, e termina com a divisão do reino em Israel (norte) e Judá (sul).',
+    location: { name: 'Jerusalém e reino dividido', icon: "Landmark", description: 'O centro é o Templo em Jerusalém; depois da divisão, a narrativa alterna entre os dois reinos.' },
+    curiosities: [
+      'O Templo de Salomão, descrito em detalhe, levou sete anos para ser construído.',
+      'A visita da Rainha de Sabá a Salomão, para testar sua sabedoria, está neste livro.',
+      'Depois de Salomão, o reino se divide em dois: Israel ao norte e Judá ao sul.',
+      'O profeta Elias, incluindo seu confronto com os profetas de Baal no monte Carmelo, aparece pela primeira vez aqui.',
+    ],
+    reflectionQuestions: [
+      'O que o pedido de Salomão por sabedoria (em vez de riqueza ou poder) ensina sobre prioridades?',
+      'Como a divisão do reino, logo depois de tanta prosperidade, mostra a fragilidade de conquistas sem fidelidade a Deus?',
+      'O que o confronto de Elias com os profetas de Baal no monte Carmelo ensina sobre coragem para tomar posição?',
+      'Em que área da sua vida você tem, como Salomão no fim da vida, se deixado influenciar por coisas que te afastam de Deus?',
+    ],
+  },
+  '2 Reis': {
+    context: 'Continua a história dos reinos de Israel e Judá até suas quedas: Israel é destruído pela Assíria e, mais tarde, Judá é levado ao cativeiro babilônico.',
+    location: { name: 'Israel, Judá, Assíria e Babilônia', icon: "Building", description: 'A narrativa termina com a queda de Jerusalém e o exílio do povo para a Babilônia.' },
+    curiosities: [
+      'Registra a queda de Samaria (reino do norte) em 722 a.C., pelos assírios.',
+      'Termina com a destruição de Jerusalém e do Templo em 586 a.C., pelos babilônios.',
+      'O profeta Eliseu, sucessor de Elias, realiza diversos milagres registrados neste livro.',
+      'O rei Josias promove uma grande reforma religiosa depois de encontrar o "Livro da Lei" perdido no Templo.',
+    ],
+    reflectionQuestions: [
+      'O que a queda de Israel e depois de Judá ensina sobre as consequências de décadas de infidelidade?',
+      'Como os milagres de Eliseu mostram o cuidado de Deus mesmo em tempos de grande decadência espiritual?',
+      'O que a reforma do rei Josias, ao redescobrir a Palavra de Deus, te desafia a pensar sobre o valor de conhecer as Escrituras?',
+      'Que "reformas" você sente que precisa fazer na sua vida depois de ler este livro?',
+    ],
+  },
+  '1 Crônicas': {
+    context: 'Revisa a história de Israel desde Adão até o reinado de Davi, com foco especial em genealogias, no Templo e na organização do culto.',
+    location: { name: 'Jerusalém', icon: "Scroll", description: 'Escrito depois do exílio babilônico, olha para trás, para a Jerusalém do tempo de Davi, como referência de identidade.' },
+    curiosities: [
+      'Os primeiros nove capítulos são quase inteiramente listas genealógicas.',
+      'Foi escrito bem depois de 1 e 2 Samuel/Reis, provavelmente após o retorno do exílio.',
+      'Dá muito mais espaço aos preparativos de Davi para a construção do Templo do que os livros de Samuel.',
+      'Praticamente não menciona os fracassos de Davi, focando em seu legado positivo.',
+    ],
+    reflectionQuestions: [
+      'Por que você acha que tantas genealogias foram registradas logo no início do livro?',
+      'O que o cuidado de Davi em preparar tudo para o Templo, mesmo sabendo que não o construiria, ensina sobre investir em algo maior que você mesmo?',
+      'Este livro escolhe lembrar principalmente o lado positivo de Davi. O que isso te ensina sobre como Deus enxerga quem se arrepende?',
+      'Que legado você gostaria de deixar para as próximas gerações, como Davi deixou para Salomão?',
+    ],
+  },
+  '2 Crônicas': {
+    context: 'Continua de 1 Crônicas: cobre o reinado de Salomão, a construção do Templo, e a história do reino de Judá até o exílio babilônico.',
+    location: { name: 'Reino de Judá', icon: "Landmark", description: 'Foca exclusivamente no reino do sul, Judá, e na dinastia de Davi, ignorando o reino do norte.' },
+    curiosities: [
+      'É o último livro na ordem da Bíblia hebraica (Tanakh), embora não seja o último cronologicamente.',
+      'Dedica atenção especial às reformas religiosas de reis como Ezequias e Josias.',
+      'Termina com o decreto do rei persa Ciro permitindo o retorno dos judeus a Jerusalém.',
+      'Repete e complementa boa parte do conteúdo de 1 e 2 Reis, mas com ênfase no culto e no Templo.',
+    ],
+    reflectionQuestions: [
+      'O que as reformas religiosas de reis como Ezequias e Josias ensinam sobre a importância de lideranças que buscam a Deus?',
+      'Como o livro conecta obediência com bênção e desobediência com consequência ao longo da história dos reis de Judá?',
+      'O que o decreto do rei Ciro, permitindo o retorno dos judeus, revela sobre Deus agindo até através de líderes pagãos?',
+      'Onde você vê Deus trabalhando através de circunstâncias ou pessoas inesperadas na sua própria vida?',
+    ],
+  },
+  'Esdras': {
+    context: 'Relata o retorno dos judeus do exílio babilônico a Jerusalém e a reconstrução do Templo, liderada por Zorobabel e depois pelo sacerdote Esdras.',
+    location: { name: 'Babilônia e Jerusalém', icon: "Footprints", description: 'Acompanha duas levas de retorno da Babilônia até Jerusalém, já sob o domínio do Império Persa.' },
+    curiosities: [
+      'O retorno foi possível graças a um decreto do rei persa Ciro, o Grande.',
+      'A reconstrução do Templo enfrentou anos de oposição de povos vizinhos antes de ser concluída.',
+      'Esdras era ao mesmo tempo sacerdote e escriba, especialista na Lei de Moisés.',
+      'Parte do livro (4:8–6:18 e 7:12–26) foi escrita originalmente em aramaico, não em hebraico.',
+    ],
+    reflectionQuestions: [
+      'O que o retorno do exílio ensina sobre a fidelidade de Deus em cumprir promessas, mesmo depois de muito tempo?',
+      'Como o povo enfrentar oposição para reconstruir o Templo te desafia a pensar sobre perseverança em projetos que importam para Deus?',
+      'O que o compromisso de Esdras em estudar e ensinar a Lei revela sobre a importância de conhecer a Palavra antes de ensiná-la?',
+      'Que "reconstrução" você sente que Deus está te chamando a fazer agora?',
+    ],
+  },
+  'Neemias': {
+    context: 'Neemias, copeiro do rei persa, obtém permissão para voltar a Jerusalém e liderar a reconstrução dos muros da cidade, apesar da forte oposição.',
+    location: { name: 'Jerusalém', icon: "Construction", description: 'A ação se concentra na reconstrução das muralhas de Jerusalém, concluída em apenas 52 dias.' },
+    curiosities: [
+      'Os muros de Jerusalém foram reconstruídos em apenas 52 dias, segundo o texto.',
+      'Neemias organizou os trabalhadores em turnos, metade construindo e metade de guarda armada.',
+      'O livro inclui uma grande renovação da aliança e leitura pública da Lei por Esdras.',
+      'Neemias e Esdras, apesar de terem livros separados, atuaram no mesmo período histórico.',
+    ],
+    reflectionQuestions: [
+      'O que a reação de Neemias ao ouvir sobre Jerusalém em ruínas (chorar, jejuar, orar e depois agir) ensina sobre lidar com más notícias?',
+      'Como o povo trabalhar "com uma mão na obra e outra na espada" ilustra viver de forma prática e espiritual ao mesmo tempo?',
+      'O que a renovação da aliança e a leitura pública da Lei revelam sobre a importância de relembrar compromissos com Deus?',
+      'Que "muro" (proteção, limite, compromisso) você precisa reconstruir na sua vida hoje?',
+    ],
+  },
+  'Ester': {
+    context: 'Conta a história de Ester, uma jovem judia que se torna rainha da Pérsia e arrisca a vida para salvar seu povo de um plano de extermínio.',
+    location: { name: 'Susã, capital da Pérsia', icon: "Crown", description: 'Toda a história se passa na corte real persa, na cidade de Susã (atual Irã).' },
+    curiosities: [
+      'É o único livro da Bíblia que nunca menciona o nome de Deus diretamente.',
+      'Deu origem à festa judaica de Purim, celebrada até hoje.',
+      'Ester escondeu sua identidade judaica até o momento decisivo de interceder pelo povo.',
+      'O vilão da história, Hamã, acaba sendo enforcado na própria forca que preparou para Mardoqueu.',
+    ],
+    reflectionQuestions: [
+      'Por que você acha que o nome de Deus nunca aparece explicitamente no livro, mesmo com Sua presença sendo tão evidente?',
+      'O que a frase de Mardoqueu, "quem sabe não foi para um momento como este que você chegou a rainha", ensina sobre propósito?',
+      'Como a coragem de Ester em arriscar a vida pelo seu povo te desafia a agir mesmo com medo?',
+      'Onde você sente que Deus pode estar te colocando "para um momento como este" na sua própria vida?',
+    ],
+  },
+
+  'Jó': {
+    context: 'Um dos livros mais antigos da Bíblia: explora o sofrimento humano através da história de Jó, um homem justo que perde tudo e questiona a Deus.',
+    location: { name: 'Terra de Uz', icon: "Tornado", description: 'A localização exata de "Uz" é incerta, mas fica provavelmente ao leste de Canaã, perto do deserto.' },
+    curiosities: [
+      'A maior parte do livro é composta por longos poemas — diálogos entre Jó e seus amigos.',
+      'Deus só responde a Jó no final, e não explica diretamente o motivo do sofrimento.',
+      'É frequentemente citado como um dos maiores exemplos de literatura de sabedoria do mundo antigo.',
+      'Jó recupera o dobro do que havia perdido ao final da narrativa.',
+    ],
+    reflectionQuestions: [
+      'Como os amigos de Jó erraram ao tentar explicar o sofrimento dele, e o que isso ensina sobre como (não) consolar alguém que sofre?',
+      'O que a resposta de Deus a Jó — mostrando Sua grandeza em vez de explicar o "porquê" — revela sobre confiar mesmo sem respostas completas?',
+      'Como Jó continuar fiel a Deus mesmo sem entender o motivo do seu sofrimento desafia sua própria fé em momentos difíceis?',
+      'O que significa, pra você, adorar a Deus mesmo quando as circunstâncias não fazem sentido?',
+    ],
+  },
+  'Salmos': {
+    context: 'Uma coleção de 150 poemas e cânticos de louvor, lamento e súplica, usados na adoração de Israel. Muitos são atribuídos ao rei Davi.',
+    location: { name: 'Templo de Jerusalém', icon: "Music", description: 'Boa parte dos salmos foi composta para ser cantada no culto no Templo de Jerusalém.' },
+    curiosities: [
+      'É o livro mais longo da Bíblia em número de capítulos (150).',
+      'Nem todos os salmos são de Davi: outros autores incluem Asafe, os filhos de Coré e Moisés.',
+      'O Salmo 119 é o capítulo mais longo de toda a Bíblia, estruturado como um acróstico hebraico.',
+      'Os salmos incluem desde louvor alegre até lamentos de profunda angústia — quase todo o espectro de emoções humanas.',
+    ],
+    reflectionQuestions: [
+      'Qual salmo mais tocou você durante essa leitura, e por quê?',
+      'Como os salmos de lamento te ensinam que é possível ser honesto com Deus sobre dor, raiva ou dúvida?',
+      'O que os salmos de louvor revelam sobre colocar o foco em quem Deus é, e não só no que Ele faz?',
+      'Que oração ou desabafo você escreveria hoje para descrever sua relação com Deus?',
+    ],
+  },
+  'Provérbios': {
+    context: 'Uma coletânea de ditados curtos e conselhos práticos sobre sabedoria, atribuídos principalmente ao rei Salomão.',
+    location: { name: 'Corte real de Jerusalém', icon: "BookMarked", description: 'Reflete a tradição de "literatura de sabedoria" ensinada nas cortes reais do Oriente Próximo antigo.' },
+    curiosities: [
+      'Provérbios 31, sobre a "mulher virtuosa", é estruturado como um acróstico em hebraico (cada verso começa com uma letra do alfabeto).',
+      'A "Sabedoria" é personificada como uma mulher que convida as pessoas a segui-la (capítulo 8).',
+      'Nem todos os provérbios são de Salomão — os capítulos finais citam Agur e o rei Lemuel.',
+      'A frase "o temor do Senhor é o princípio do conhecimento" resume o tema central do livro.',
+    ],
+    reflectionQuestions: [
+      'Qual provérbio te desafiou mais a mudar uma atitude prática do dia a dia?',
+      'Como a personificação da Sabedoria como alguém que "convida" as pessoas a segui-la muda sua forma de buscar sabedoria?',
+      'O que o livro ensina sobre a diferença entre ser "sábio" e ser apenas "inteligente"?',
+      'Em que área prática da sua vida (dinheiro, palavras, relacionamentos) você mais precisa aplicar a sabedoria deste livro?',
+    ],
+  },
+  'Eclesiastes': {
+    context: 'Uma reflexão filosófica sobre o sentido da vida, escrita por alguém que se apresenta como "o Pregador", tradicionalmente identificado com Salomão.',
+    location: { name: 'Jerusalém', icon: "Wind", description: 'Escrito na perspectiva de um rei em Jerusalém que já experimentou riqueza, prazer e poder.' },
+    curiosities: [
+      'A palavra hebraica traduzida como "vaidade" ("hevel") significa literalmente "vapor" ou "fumaça" — algo passageiro.',
+      'É um dos livros mais filosóficos e existencialistas de toda a Bíblia.',
+      'Termina concluindo que a verdadeira sabedoria é temer a Deus e guardar seus mandamentos.',
+      'Inspirou a famosa passagem "Para tudo há um tempo", popularizada até fora de contextos religiosos.',
+    ],
+    reflectionQuestions: [
+      'O que "tudo é passageiro" (vaidade) revela sobre onde você tem buscado sentido para sua vida?',
+      'Como a conclusão do livro — temer a Deus e guardar Seus mandamentos — responde à busca do autor por propósito?',
+      'O que mudaria na sua rotina se você levasse a sério que o tempo é limitado?',
+      'Onde você tem buscado satisfação em coisas que, segundo o livro, não vão durar?',
+    ],
+  },
+  'Cântico dos Cânticos': {
+    context: 'Um poema de amor entre um casal, celebrando a beleza do amor romântico e físico. Tradicionalmente atribuído a Salomão.',
+    location: { name: 'Israel rural', icon: "Heart", description: 'As imagens do poema remetem a vinhedos, jardins e pastagens da zona rural de Israel.' },
+    curiosities: [
+      'É o único livro da Bíblia inteiramente dedicado ao amor romântico, sem mencionar Deus diretamente.',
+      'Seu nome significa "o mais excelente dos cânticos" em hebraico.',
+      'Tradições judaicas e cristãs também o leem de forma alegórica, como símbolo do amor entre Deus e seu povo.',
+      'É um dos livros mais curtos do Antigo Testamento, com apenas 8 capítulos.',
+    ],
+    reflectionQuestions: [
+      'O que este livro ensina sobre a beleza e o valor do amor e da intimidade dentro do propósito de Deus?',
+      'Como a forma poética e apaixonada do texto desafia uma visão fria ou envergonhada sobre o romance?',
+      'Se você aplicar o livro de forma alegórica (o amor de Deus por Seu povo), o que isso revela sobre a intensidade desse amor?',
+      'O que você aprendeu sobre valorizar e cuidar dos relacionamentos importantes da sua vida?',
+    ],
+  },
+
+  'Isaías': {
+    context: 'Um dos maiores profetas de Israel, Isaías anuncia julgamento sobre a infidelidade do povo, mas também consolo e a promessa de um futuro Messias.',
+    location: { name: 'Reino de Judá', icon: "Flame", description: 'Isaías profetiza em Jerusalém durante décadas turbulentas, com a ameaça da Assíria e depois da Babilônia.' },
+    curiosities: [
+      'É o livro profético mais citado no Novo Testamento.',
+      'Contém algumas das profecias messiânicas mais conhecidas, como "um menino nos nasceu" (9:6).',
+      'É dividido por estudiosos em duas grandes partes, com tons e temas diferentes (capítulos 1–39 e 40–66).',
+      'Rolos completos de Isaías estão entre os manuscritos mais bem preservados encontrados em Qumran (Manuscritos do Mar Morto).',
+    ],
+    reflectionQuestions: [
+      'O que as profecias sobre um Messias sofredor (como em Isaías 53) revelam sobre o plano de Deus muito antes de Jesus nascer?',
+      'Como o livro equilibra julgamento severo e consolo profundo ao mesmo tempo?',
+      'O que significa, pra você, a promessa de que Deus faz "novas todas as coisas"?',
+      'Em que área da sua vida você mais precisa ouvir a mensagem de consolo e esperança deste livro?',
+    ],
+  },
+  'Jeremias': {
+    context: 'Conhecido como o "profeta chorão", Jeremias alerta Judá sobre a iminente destruição de Jerusalém e testemunha pessoalmente sua queda.',
+    location: { name: 'Jerusalém', icon: "CloudRain", description: 'Jeremias profetiza em Jerusalém nos últimos anos antes da cidade cair para os babilônios, em 586 a.C.' },
+    curiosities: [
+      'É o segundo livro mais longo da Bíblia em número de palavras, depois dos Salmos.',
+      'Jeremias foi perseguido, preso e até jogado em uma cisterna de lama por causa de suas mensagens impopulares.',
+      'Anuncia a "Nova Aliança" (31:31-34), um conceito central para a teologia cristã posterior.',
+      'Seu escriba, Baruque, registrou boa parte das profecias ditadas por Jeremias.',
+    ],
+    reflectionQuestions: [
+      'O que a perseverança de Jeremias, mesmo sendo perseguido por sua mensagem, ensina sobre ser fiel mesmo quando é impopular?',
+      'Como a promessa de uma "Nova Aliança", escrita no coração, muda a forma de se relacionar com Deus?',
+      'O que os lamentos sinceros de Jeremias (o "profeta chorão") ensinam sobre trazer suas próprias tristezas a Deus?',
+      'Que mensagem difícil você já precisou dizer (ou ouvir) que, no fundo, vinha de um lugar de amor?',
+    ],
+  },
+  'Lamentações': {
+    context: 'Uma série de poemas de luto pela destruição de Jerusalém e do Templo pelos babilônios, tradicionalmente atribuídos a Jeremias.',
+    location: { name: 'Ruínas de Jerusalém', icon: "Building", description: 'Escrito logo após a queda de Jerusalém em 586 a.C., refletindo sobre a cidade em ruínas.' },
+    curiosities: [
+      'Quatro dos cinco capítulos são acrósticos: cada verso ou estrofe segue a ordem do alfabeto hebraico.',
+      'É lido tradicionalmente no judaísmo no dia de jejum de Tisha B\'Av, que lamenta a destruição dos Templos.',
+      'Apesar do tom de luto, contém um dos versos mais esperançosos da Bíblia: "Grande é a tua fidelidade" (3:23).',
+      'É um dos livros mais curtos do Antigo Testamento, com apenas 5 capítulos.',
+    ],
+    reflectionQuestions: [
+      'Como este livro ensina que é possível lamentar profundamente e ainda assim confiar em Deus?',
+      'O que a frase "grande é a tua fidelidade", no meio de tanta dor, revela sobre onde ancorar a esperança?',
+      'Por que você acha que era importante, para o povo, ter um espaço formal para lamentar a perda de Jerusalém?',
+      'Que perda ou dor você ainda precisa levar a Deus de forma honesta, como o autor fez?',
+    ],
+  },
+  'Ezequiel': {
+    context: 'Profeta e sacerdote exilado na Babilônia, Ezequiel tem visões dramáticas sobre o julgamento de Israel e a esperança de restauração futura.',
+    location: { name: 'Babilônia', icon: "Eye", description: 'Ezequiel profetiza entre os exilados judeus às margens do rio Quebar, na Babilônia.' },
+    curiosities: [
+      'Contém algumas das visões mais estranhas e simbólicas da Bíblia, como a "roda dentro de roda" (capítulo 1).',
+      'A visão do "vale de ossos secos" (capítulo 37) é uma das imagens mais famosas de esperança de restauração.',
+      'Ezequiel realizou diversas ações simbólicas incomuns para ilustrar suas mensagens, como deitar-se de lado por longos períodos.',
+      'É o único profeta que também se identifica claramente como sacerdote.',
+    ],
+    reflectionQuestions: [
+      'O que as visões estranhas e simbólicas de Ezequiel ensinam sobre a forma como Deus às vezes se comunica de maneiras inesperadas?',
+      'Como a visão do "vale de ossos secos" fala sobre a capacidade de Deus trazer vida onde parecia não haver esperança?',
+      'Por que você acha que Deus pediu a Ezequiel ações tão incomuns para comunicar Suas mensagens?',
+      'Onde na sua vida você sente que precisa da promessa de restauração desse livro?',
+    ],
+  },
+  'Daniel': {
+    context: 'Conta a história de Daniel e seus amigos, jovens judeus exilados na Babilônia que permanecem fiéis a Deus, além de visões proféticas sobre impérios futuros.',
+    location: { name: 'Babilônia e Pérsia', icon: "PawPrint", description: 'A ação se passa nas cortes reais da Babilônia e, depois, do Império Medo-Persa.' },
+    curiosities: [
+      'A história de Daniel na cova dos leões é um dos episódios mais conhecidos do livro.',
+      'O livro é escrito em duas línguas: parte em hebraico e parte em aramaico.',
+      'As visões de Daniel sobre impérios futuros influenciaram fortemente a literatura apocalíptica posterior, incluindo o Apocalipse.',
+      'Seus três amigos, Sadraque, Mesaque e Abednego, sobrevivem a uma fornalha ardente sem se queimar.',
+    ],
+    reflectionQuestions: [
+      'O que a fidelidade de Daniel e seus amigos, mesmo vivendo em uma cultura hostil à sua fé, ensina sobre manter convicções em ambientes difíceis?',
+      'Como a proteção de Deus na cova dos leões e na fornalha ardente fala sobre Sua presença em momentos de perigo?',
+      'O que as visões de Daniel sobre impérios que viriam e passariam ensinam sobre a soberania de Deus sobre a história?',
+      'Em que situação você precisa da mesma coragem de Daniel para permanecer fiel, mesmo sob pressão?',
+    ],
+  },
+  'Oseias': {
+    context: 'Profeta cuja própria vida — casado com uma mulher infiel — se torna metáfora viva da relação entre Deus e um Israel que o abandona por outros deuses.',
+    location: { name: 'Reino de Israel (norte)', icon: "HeartCrack", description: 'Oseias profetiza no reino do norte, Israel, nos anos que antecedem sua destruição pela Assíria.' },
+    curiosities: [
+      'É o único profeta cuja vida pessoal (o casamento com Gômer) se torna a principal ilustração de sua mensagem.',
+      'Usa metáforas familiares — casamento, paternidade — para descrever o amor de Deus por Israel.',
+      'É o primeiro dos doze "profetas menores" na ordem da Bíblia.',
+      'A frase "quero misericórdia, e não sacrifícios" (6:6) é citada por Jesus no Novo Testamento.',
+    ],
+    reflectionQuestions: [
+      'O que o casamento de Oseias com uma mulher infiel revela sobre o amor persistente de Deus por um povo que O abandona?',
+      'Como a frase "quero misericórdia, e não sacrifícios" desafia uma fé baseada só em rituais?',
+      'O que este livro ensina sobre a diferença entre religião externa e um relacionamento verdadeiro com Deus?',
+      'Em que área você tem sido, como Israel, infiel a Deus mesmo sendo amado por Ele?',
+    ],
+  },
+  'Joel': {
+    context: 'Diante de uma devastadora praga de gafanhotos, Joel convoca o povo ao arrependimento e anuncia o "Dia do Senhor" e o derramamento futuro do Espírito.',
+    location: { name: 'Reino de Judá', icon: "Bug", description: 'Profetiza em Judá, provavelmente em Jerusalém, após uma praga agrícola severa.' },
+    curiosities: [
+      'É um dos livros proféticos mais curtos, com apenas 3 capítulos.',
+      'Sua profecia sobre o Espírito derramado "sobre toda a carne" (2:28-29) é citada por Pedro no livro de Atos.',
+      'Há pouco consenso entre estudiosos sobre a data exata em que foi escrito.',
+      'Usa a imagem de uma praga de gafanhotos como sinal do julgamento divino.',
+    ],
+    reflectionQuestions: [
+      'O que a praga de gafanhotos, usada como sinal de julgamento, ensina sobre prestar atenção aos "avisos" na sua própria vida?',
+      'Como a promessa do Espírito derramado "sobre toda a carne" aponta para o que aconteceria depois em Pentecostes?',
+      'O que significa, na prática, o chamado de Joel ao arrependimento genuíno (rasgar o coração, não as vestes)?',
+      'Que área da sua vida precisa desse tipo de arrependimento sincero hoje?',
+    ],
+  },
+  'Amós': {
+    context: 'Um simples pastor de ovelhas chamado por Deus para denunciar a injustiça social e a hipocrisia religiosa no próspero reino de Israel.',
+    location: { name: 'Reino de Israel (norte)', icon: "Users", description: 'Amós era de Judá (sul), mas foi enviado para profetizar contra o reino rico e opressor de Israel (norte).' },
+    curiosities: [
+      'Amós não era profeta profissional nem filho de profeta — se descreve como pastor e cultivador de figos.',
+      'É conhecido por sua forte defesa da justiça social e denúncia da opressão aos pobres.',
+      'A frase "corra a justiça como as águas" (5:24) foi usada por Martin Luther King Jr. em seus discursos.',
+      'Profetiza durante um período de grande prosperidade econômica em Israel, pouco antes de sua queda.',
+    ],
+    reflectionQuestions: [
+      'O que o fato de Amós ser um simples pastor, não um profeta profissional, ensina sobre quem Deus pode usar?',
+      'Como a denúncia de Amós contra a injustiça social te desafia a olhar para os mais vulneráveis ao seu redor?',
+      'O que significa "corra a justiça como as águas" na prática do seu dia a dia?',
+      'Onde você percebe prosperidade material andando junto com indiferença espiritual, como no Israel da época de Amós?',
+    ],
+  },
+  'Obadias': {
+    context: 'O livro mais curto do Antigo Testamento: uma única profecia de julgamento contra Edom, nação vizinha que traiu Judá em um momento de crise.',
+    location: { name: 'Edom (ao sul do Mar Morto)', icon: "Mountain", description: 'Edom era um reino montanhoso ao sul do Mar Morto, descendente de Esaú, irmão de Jacó.' },
+    curiosities: [
+      'Tem apenas 21 versículos — é o menor livro de todo o Antigo Testamento.',
+      'Denuncia Edom por ter se alegrado e até ajudado na queda de Jerusalém.',
+      'Edom era descendente de Esaú, o que torna o conflito quase "familiar" entre nações.',
+      'Termina anunciando a restauração final de Israel.',
+    ],
+    reflectionQuestions: [
+      'Por que a "alegria" de Edom com a queda de Jerusalém foi tão grave aos olhos de Deus?',
+      'O que este livro ensina sobre como tratamos parentes ou "irmãos" em momentos de fraqueza deles?',
+      'Como a brevidade do livro (o menor do Antigo Testamento) não diminui a seriedade da sua mensagem sobre orgulho e julgamento?',
+      'Onde você já se alegrou, mesmo que em silêncio, com a queda ou o fracasso de alguém?',
+    ],
+  },
+  'Jonas': {
+    context: 'A famosa história do profeta que foge de sua missão de pregar à cidade de Nínive, é engolido por um grande peixe, e finalmente obedece.',
+    location: { name: 'Nínive, capital da Assíria', icon: "Fish", description: 'Jonas tenta fugir para Társis (a oeste), mas acaba sendo enviado a Nínive (atual Iraque), capital assíria.' },
+    curiosities: [
+      'Diferente de outros livros proféticos, é quase inteiramente narrativa, não coleção de discursos.',
+      'Jonas é o único profeta que tenta ativamente fugir da missão que Deus lhe dá.',
+      'Nínive era a capital de um império que os israelitas viam como inimigo cruel — daí a relutância de Jonas em avisá-los.',
+      'O livro termina com uma pergunta de Deus a Jonas, sem resposta registrada — um final propositalmente aberto.',
+    ],
+    reflectionQuestions: [
+      'O que a tentativa de Jonas de fugir da missão que Deus deu revela sobre preconceitos que carregamos contra certas pessoas ou grupos?',
+      'Como o arrependimento de Nínive, uma cidade inimiga, desafia a ideia de que algumas pessoas estão "longe demais" da graça de Deus?',
+      'O que a raiva de Jonas com a misericórdia de Deus para com Nínive ensina sobre nosso próprio coração?',
+      'Existe algum grupo ou pessoa que você, como Jonas, resiste em ver recebendo a graça de Deus?',
+    ],
+  },
+  'Miquéias': {
+    context: 'Contemporâneo de Isaías, Miquéias denuncia a corrupção das lideranças de Judá e anuncia tanto julgamento quanto a promessa de um governante que nasceria em Belém.',
+    location: { name: 'Reino de Judá', icon: "Building", description: 'Miquéias era de Moresete, uma cidade pequena na região rural de Judá, longe da capital.' },
+    curiosities: [
+      'A profecia de que o Messias nasceria em Belém (5:2) é citada nos evangelhos sobre o nascimento de Jesus.',
+      'O verso "praticar a justiça, amar a misericórdia e andar humildemente com Deus" (6:8) resume o coração da mensagem do livro.',
+      'Miquéias, vindo do interior, fala em nome dos camponeses explorados pelas elites urbanas.',
+      'Profetizou durante o mesmo período turbulento que Isaías, com a ameaça assíria pairando sobre Judá.',
+    ],
+    reflectionQuestions: [
+      'O que a denúncia de Miquéias contra líderes corruptos ensina sobre a responsabilidade de quem está em posição de poder?',
+      'Como a frase "praticar a justiça, amar a misericórdia e andar humildemente com Deus" resume o que Deus espera de nós?',
+      'Por que a profecia do nascimento do Messias em Belém, uma cidade pequena, é tão significativa?',
+      'Em que área da sua vida você precisa mais equilíbrio entre justiça, misericórdia e humildade?',
+    ],
+  },
+  'Naum': {
+    context: 'Anuncia a queda da poderosa Nínive, capital da Assíria — a mesma cidade que se arrependera na época de Jonas, mas que voltou a agir com crueldade.',
+    location: { name: 'Nínive, capital da Assíria', icon: "Zap", description: 'O livro celebra antecipadamente a destruição de Nínive, que de fato caiu em 612 a.C.' },
+    curiosities: [
+      'Funciona quase como uma "sequência" de Jonas: décadas depois, Nínive volta a fazer o mal e é finalmente julgada.',
+      'É conhecido por sua poesia vívida e violenta ao descrever a queda da cidade.',
+      'A profecia se cumpriu historicamente: Nínive foi destruída por babilônios e medos em 612 a.C.',
+      'Praticamente não há registro biográfico sobre o próprio profeta Naum.',
+    ],
+    reflectionQuestions: [
+      'Por que era importante, para o povo oprimido por Nínive, ouvir que a justiça de Deus finalmente chegaria?',
+      'O que a queda repetida de Nínive (depois de já ter se arrependido na época de Jonas) ensina sobre a importância de não voltar aos velhos padrões?',
+      'Como este livro equilibra a ideia de um Deus paciente com a de um Deus que também julga o mal persistente?',
+      'Onde você precisa confiar que Deus fará justiça em uma situação que está além do seu controle?',
+    ],
+  },
+  'Habacuque': {
+    context: 'Um profeta que dialoga abertamente com Deus, questionando por que Ele permite a injustiça e usaria uma nação ainda mais cruel (Babilônia) para julgar Judá.',
+    location: { name: 'Reino de Judá', icon: "HelpCircle", description: 'Escrito em Judá pouco antes da invasão babilônica, no fim do século VII a.C.' },
+    curiosities: [
+      'É estruturado como um diálogo direto entre o profeta e Deus, algo incomum entre os profetas.',
+      'A frase "o justo viverá pela fé" (2:4) se tornou central na teologia do apóstolo Paulo.',
+      'Termina com um dos hinos de louvor mais confiantes da Bíblia, apesar das circunstâncias sombrias.',
+      'Reconhece abertamente suas dúvidas sobre a justiça de Deus, algo raro na literatura profética.',
+    ],
+    reflectionQuestions: [
+      'O que o diálogo direto de Habacuque com Deus, questionando Suas ações, ensina sobre trazer dúvidas honestas à Sua presença?',
+      'Como a frase "o justo viverá pela fé" te desafia a confiar em Deus mesmo sem entender totalmente Seus planos?',
+      'O que o hino final de confiança, apesar de circunstâncias terríveis, ensina sobre adorar a Deus mesmo sem respostas?',
+      'Que pergunta difícil você gostaria de fazer a Deus, como Habacuque fez?',
+    ],
+  },
+  'Sofonias': {
+    context: 'Bisneto de um rei de Judá, Sofonias anuncia o "Dia do Senhor" como julgamento iminente, mas também promete restauração para um remanescente fiel.',
+    location: { name: 'Reino de Judá', icon: "Scale", description: 'Profetiza em Jerusalém durante o reinado do rei Josias, antes das grandes reformas religiosas dele.' },
+    curiosities: [
+      'É um dos poucos profetas cuja genealogia real é detalhada no próprio texto (1:1).',
+      'Profetizou durante o reinado do jovem rei Josias, provavelmente antes das reformas religiosas dele.',
+      'Termina com um dos poucos cânticos de pura alegria entre os profetas menores (3:14-17).',
+      'A expressão "Dia do Senhor" aparece repetidamente como tema central do livro.',
+    ],
+    reflectionQuestions: [
+      'O que o anúncio do "Dia do Senhor" como julgamento e esperança ao mesmo tempo revela sobre o caráter de Deus?',
+      'Como a promessa de um "remanescente fiel" te ensina sobre a importância de permanecer fiel mesmo quando poucos o fazem?',
+      'O que o cântico de alegria no final do livro (Deus se alegrando sobre Seu povo) muda na sua imagem de Deus?',
+      'Em que área você precisa se lembrar que Deus também se alegra em você, não só te corrige?',
+    ],
+  },
+  'Ageu': {
+    context: 'Incentiva os judeus recém-retornados do exílio a retomarem a reconstrução do Templo de Jerusalém, que havia sido abandonada.',
+    location: { name: 'Jerusalém pós-exílio', icon: "Construction", description: 'Profetiza em Jerusalém logo depois do retorno do exílio babilônico, por volta de 520 a.C.' },
+    curiosities: [
+      'É datado com mais precisão que quase qualquer outro livro profético: menciona meses e anos exatos do reinado persa.',
+      'Sua pregação teve efeito imediato: a reconstrução do Templo foi retomada poucos dias depois.',
+      'É um dos três profetas que atuaram depois do retorno do exílio (com Zacarias e Malaquias).',
+      'É um dos livros mais curtos do Antigo Testamento, com apenas 2 capítulos.',
+    ],
+    reflectionQuestions: [
+      'O que a exortação de Ageu — parar de cuidar só das próprias casas e retomar a obra de Deus — desafia sobre suas prioridades atuais?',
+      'Como a resposta imediata do povo à pregação de Ageu ensina sobre a importância de agir rápido diante de um chamado?',
+      'Por que reconstruir o Templo era tão importante para a identidade espiritual do povo?',
+      'Que "obra de Deus" você tem adiado enquanto cuida só dos seus próprios projetos?',
+    ],
+  },
+  'Zacarias': {
+    context: 'Contemporâneo de Ageu, tem uma série de visões simbólicas incentivando a reconstrução do Templo e anunciando esperança messiânica futura.',
+    location: { name: 'Jerusalém pós-exílio', icon: "Bird", description: 'Profetiza em Jerusalém na mesma época de Ageu, logo após o retorno do exílio babilônico.' },
+    curiosities: [
+      'Contém diversas profecias messiânicas citadas nos relatos da paixão de Jesus, como a entrada num jumentinho (9:9).',
+      'É um dos livros proféticos com mais visões simbólicas e apocalípticas, ao lado de Daniel e Ezequiel.',
+      'É dividido por estudiosos em duas partes bem distintas em estilo (capítulos 1–8 e 9–14).',
+      'A menção a "trinta moedas de prata" (11:12-13) ecoa na história da traição de Judas no Novo Testamento.',
+    ],
+    reflectionQuestions: [
+      'O que as visões simbólicas de Zacarias sobre o futuro ensinam sobre a esperança em meio à reconstrução?',
+      'Como as profecias messiânicas deste livro (como a entrada em um jumentinho) se conectam com o que você já sabe sobre Jesus?',
+      'O que significa, na prática, o chamado do livro para o povo confiar em Deus e retomar a obra?',
+      'Onde você precisa de uma visão maior de esperança para continuar um projeto ou situação difícil?',
+    ],
+  },
+  'Malaquias': {
+    context: 'Último livro do Antigo Testamento: repreende o povo e os sacerdotes por negligência religiosa, e anuncia a vinda de um mensageiro antes do "Dia do Senhor".',
+    location: { name: 'Jerusalém pós-exílio', icon: "Megaphone", description: 'Escrito em Jerusalém cerca de um século depois do retorno do exílio, quando o entusiasmo inicial já havia esfriado.' },
+    curiosities: [
+      'É o último livro na ordem cristã do Antigo Testamento, logo antes dos evangelhos.',
+      'Denuncia sacerdotes que ofereciam animais doentes e defeituosos em sacrifício, em vez do melhor do rebanho.',
+      'Sua profecia sobre um "Elias" que viria antes do Dia do Senhor é associada a João Batista no Novo Testamento.',
+      'É escrito em formato de diálogo: Deus faz uma acusação, o povo questiona, e Deus responde.',
+    ],
+    reflectionQuestions: [
+      'O que a denúncia de Malaquias contra oferendas de "segunda categoria" ensina sobre dar a Deus o melhor, não o que sobra?',
+      'Como o formato de diálogo do livro (Deus acusa, o povo questiona, Deus responde) te ajuda a refletir sobre suas próprias desculpas espirituais?',
+      'O que a promessa de um mensageiro antes do "Dia do Senhor" (cumprida em João Batista) ensina sobre Deus preparar o caminho antes de agir?',
+      'Em que área você tem oferecido a Deus o que sobra, em vez do seu melhor?',
+    ],
+  },
+
+  'Mateus': {
+    context: 'Escrito com forte ênfase em mostrar Jesus como o Messias prometido ao povo judeu, citando o Antigo Testamento mais que qualquer outro evangelho.',
+    location: { name: 'Galileia e Judeia', icon: "Cross", description: 'Acompanha o ministério de Jesus principalmente na Galileia (norte) e Judeia (sul, com Jerusalém).' },
+    curiosities: [
+      'É o evangelho com mais citações diretas do Antigo Testamento, reforçando Jesus como cumprimento das profecias.',
+      'Contém o Sermão do Monte (capítulos 5–7), um dos maiores discursos de Jesus registrados.',
+      'É o único evangelho que narra a visita dos magos do Oriente ao menino Jesus.',
+      'Tradicionalmente atribuído ao apóstolo Mateus, um ex-cobrador de impostos.',
+    ],
+    reflectionQuestions: [
+      'O que Jesus cumprir tantas profecias do Antigo Testamento revela sobre o plano de Deus sendo maior do que imaginamos?',
+      'Como o Sermão do Monte desafia sua forma de viver no dia a dia?',
+      'O que a visita dos magos, gentios que vieram adorar Jesus, ensina sobre quem está incluído no plano de Deus?',
+      'Qual ensino de Jesus neste evangelho mais te confrontou nesta leitura?',
+    ],
+  },
+  'Marcos': {
+    context: 'O evangelho mais curto e de ritmo mais acelerado, retratando Jesus em ação constante — como servo que cura, ensina e, por fim, se entrega na cruz.',
+    location: { name: 'Galileia e Judeia', icon: "Zap", description: 'Segue Jesus em movimento rápido entre vilarejos da Galileia até a chegada final em Jerusalém.' },
+    curiosities: [
+      'É considerado por muitos estudiosos o evangelho mais antigo, escrito possivelmente na década de 60 d.C.',
+      'Usa a palavra "imediatamente" dezenas de vezes, dando à narrativa um ritmo urgente.',
+      'Tradicionalmente associado a João Marcos, que teria registrado as lembranças do apóstolo Pedro.',
+      'É o evangelho mais curto dos quatro, com apenas 16 capítulos.',
+    ],
+    reflectionQuestions: [
+      'O que o ritmo acelerado do evangelho, com Jesus sempre em ação, revela sobre a urgência da Sua missão?',
+      'Como Jesus servir, mesmo sendo o Filho de Deus, desafia sua ideia de liderança e grandeza?',
+      'O que os discípulos entenderem tão pouco, tantas vezes, ensina sobre a paciência de Deus com nosso próprio processo de fé?',
+      'De que forma você pode "servir" de um jeito mais parecido com Jesus essa semana?',
+    ],
+  },
+  'Lucas': {
+    context: 'Escrito por um médico grego, apresenta Jesus com atenção especial aos pobres, marginalizados e mulheres, com um relato detalhado do nascimento de Jesus.',
+    location: { name: 'Galileia, Judeia e Samaria', icon: "Baby", description: 'Cobre a jornada de Jesus por regiões diversas, incluindo a Samaria, geralmente evitada por judeus da época.' },
+    curiosities: [
+      'É o único evangelho escrito por um autor não-judeu, tradicionalmente identificado como o médico Lucas.',
+      'Contém as parábolas mais conhecidas exclusivas deste evangelho, como o Filho Pródigo e o Bom Samaritano.',
+      'É o evangelho com o relato mais detalhado do nascimento de Jesus, incluindo os pastores e o cântico de Maria.',
+      'Lucas também escreveu o livro de Atos, como uma continuação direta de seu evangelho.',
+    ],
+    reflectionQuestions: [
+      'O que a atenção especial de Jesus aos pobres, mulheres e marginalizados revela sobre quem é bem-vindo no Reino de Deus?',
+      'Como as parábolas do Filho Pródigo e do Bom Samaritano desafiam sua forma de perdoar e amar o próximo?',
+      'O que os detalhes do nascimento de Jesus (pastores, o cântico de Maria) ensinam sobre humildade no plano de Deus?',
+      'Existe alguém que você tem tratado como "menos importante" que Jesus, nesse evangelho, trataria com dignidade?',
+    ],
+  },
+  'João': {
+    context: 'Diferente dos outros três evangelhos, foca em sinais e longos discursos de Jesus para revelar sua identidade divina como o "Filho de Deus".',
+    location: { name: 'Judeia e Galileia', icon: "Lightbulb", description: 'Dá mais atenção a viagens de Jesus a Jerusalém do que os outros evangelhos.' },
+    curiosities: [
+      'Não tem nenhuma das parábolas encontradas nos outros três evangelhos — usa longos discursos e "sinais" (milagres) em seu lugar.',
+      'Começa com um prólogo teológico profundo: "No princípio era o Verbo..." (1:1).',
+      'É o único evangelho que registra explicitamente sete "sinais" (milagres) selecionados com propósito teológico.',
+      'Contém as sete famosas declarações "Eu sou" de Jesus, como "Eu sou o caminho, a verdade e a vida".',
+    ],
+    reflectionQuestions: [
+      'O que os sete sinais (milagres) escolhidos por João revelam, cada um, sobre quem Jesus realmente é?',
+      'Como as declarações "Eu sou" de Jesus (caminho, verdade, vida, entre outras) respondem a perguntas que você mesmo já se fez?',
+      'O que significa, na prática, "crer" em Jesus da forma como João descreve ao longo do livro?',
+      'Qual das declarações "Eu sou" de Jesus mais fala com o momento que você está vivendo agora?',
+    ],
+  },
+
+  'Atos': {
+    context: 'Escrito por Lucas como continuação de seu evangelho, narra o nascimento da igreja cristã e sua expansão de Jerusalém até Roma.',
+    location: { name: 'Do Império Romano ao Mediterrâneo', icon: "Globe", description: 'Acompanha viagens missionárias por Jerusalém, Antioquia, Ásia Menor, Grécia e finalmente Roma.' },
+    curiosities: [
+      'Descreve o dia de Pentecostes, quando o Espírito Santo é derramado sobre os primeiros cristãos.',
+      'Registra a conversão de Saulo (mais tarde chamado Paulo), de perseguidor a maior missionário do cristianismo primitivo.',
+      'Termina de forma abrupta, com Paulo preso em Roma, aguardando julgamento.',
+      'Detalha três grandes viagens missionárias de Paulo pelo Mediterrâneo.',
+    ],
+    reflectionQuestions: [
+      'O que o dia de Pentecostes ensina sobre o papel do Espírito Santo na vida da igreja e na sua própria vida?',
+      'Como a transformação de Saulo, de perseguidor a missionário, te dá esperança sobre pessoas que você acha "impossíveis" de mudar?',
+      'O que a coragem da igreja primitiva, mesmo sob perseguição, ensina sobre viver sua fé hoje?',
+      'Que "próximo passo" de fé Deus pode estar te chamando a dar, como fez com os apóstolos?',
+    ],
+  },
+
+  'Romanos': {
+    context: 'Carta de Paulo à igreja de Roma, considerada sua obra teológica mais completa sobre pecado, graça e salvação pela fé.',
+    location: { name: 'Roma', icon: "Landmark", description: 'Escrita por Paulo (provavelmente de Corinto) para uma igreja que ele nunca havia visitado, na capital do império.' },
+    curiosities: [
+      'É frequentemente considerada a exposição teológica mais sistemática de todo o Novo Testamento.',
+      'A frase "o justo viverá pela fé" (1:17), citada de Habacuque, se tornou central na Reforma Protestante.',
+      'Foi provavelmente escrita a partir de Corinto, durante a terceira viagem missionária de Paulo.',
+      'Termina com uma longa lista de saudações pessoais a membros da igreja de Roma.',
+    ],
+    reflectionQuestions: [
+      'O que Paulo ensina sobre a diferença entre ser salvo pela fé e ser salvo por esforço próprio?',
+      'Como saber que "nada pode nos separar do amor de Deus" muda a forma como você encara os dias difíceis?',
+      'O que significa, na prática, "não se conformar com este mundo, mas transformar-se pela renovação da mente"?',
+      'Em que área da sua vida você ainda tenta "se salvar" pelo próprio esforço, em vez de descansar na graça?',
+    ],
+  },
+  '1 Coríntios': {
+    context: 'Paulo corrige divisões, imoralidade e confusões práticas na turbulenta igreja de Corinto, além de ensinar sobre amor, dons espirituais e ressurreição.',
+    location: { name: 'Corinto', icon: "Sailboat", description: 'Escrita para a igreja de Corinto, cidade portuária grega conhecida por sua riqueza e vida moralmente relaxada.' },
+    curiosities: [
+      'Contém o "capítulo do amor" (13), um dos textos mais lidos em casamentos até hoje.',
+      'Corinto era uma cidade cosmopolita e próspera, o que explica muitos dos problemas éticos endereçados na carta.',
+      'Aborda questões bem práticas do cotidiano da igreja, como comida sacrificada a ídolos e processos judiciais entre crentes.',
+      'Tem um longo capítulo (15) dedicado inteiramente à defesa da ressurreição dos mortos.',
+    ],
+    reflectionQuestions: [
+      'O que o "capítulo do amor" (13) revela sobre como o amor deveria moldar todas as suas atitudes, não só as palavras?',
+      'Como as divisões e imoralidade na igreja de Corinto se parecem com desafios que comunidades cristãs ainda enfrentam hoje?',
+      'O que a defesa da ressurreição no capítulo 15 muda na forma como você encara a morte e a esperança?',
+      'Em que relacionamento ou comunidade você precisa aplicar mais amor "que tudo sofre, tudo crê, tudo espera"?',
+    ],
+  },
+  '2 Coríntios': {
+    context: 'Uma carta mais pessoal, em que Paulo defende sua autoridade apostólica diante de críticos e fala abertamente sobre suas próprias fraquezas e sofrimentos.',
+    location: { name: 'Corinto (via Macedônia)', icon: "Mail", description: 'Escrita da Macedônia, depois de Paulo receber notícias sobre a reação da igreja à sua carta anterior.' },
+    curiosities: [
+      'É considerada a carta mais emocionalmente pessoal de Paulo entre todas as suas epístolas.',
+      'Contém a famosa lista dos sofrimentos de Paulo como missionário (capítulo 11).',
+      'Fala sobre um "espinho na carne" que Paulo carregava, cuja natureza exata nunca é revelada.',
+      'Alguns estudiosos acreditam que combina partes de mais de uma carta original de Paulo aos coríntios.',
+    ],
+    reflectionQuestions: [
+      'O que Paulo falar abertamente sobre suas fraquezas ensina sobre vulnerabilidade e força vinda de Deus?',
+      'Como a frase "minha graça te basta" responde ao "espinho na carne" que Paulo carregava?',
+      'O que este livro ensina sobre restaurar relacionamentos machucados dentro da igreja?',
+      'Qual fraqueza sua você pode entregar a Deus, confiando que Seu poder se aperfeiçoa ali?',
+    ],
+  },
+  'Gálatas': {
+    context: 'Paulo escreve com urgência para defender que a salvação vem pela fé em Cristo, e não pela observância da lei judaica, diante de falsos mestres.',
+    location: { name: 'Galácia (atual Turquia)', icon: "Megaphone", description: 'Escrita para igrejas da região da Galácia, na Ásia Menor (atual Turquia central).' },
+    curiosities: [
+      'É conhecida por seu tom direto e até duro — Paulo chega a chamar os gálatas de "insensatos" (3:1).',
+      'A frase "já não sou eu quem vive, mas Cristo vive em mim" (2:20) é uma das mais citadas da carta.',
+      'Foi extremamente influente na Reforma Protestante, especialmente para Martinho Lutero.',
+      'Lista o "fruto do Espírito" (5:22-23), um dos trechos mais conhecidos de toda a Bíblia.',
+    ],
+    reflectionQuestions: [
+      'O que a defesa de Paulo — salvação pela fé, não pela lei — muda na forma como você vê sua relação com Deus?',
+      'Como o "fruto do Espírito" (amor, alegria, paz...) serve de "termômetro" para sua vida espiritual hoje?',
+      'O que significa, na prática, "já não sou eu quem vive, mas Cristo vive em mim"?',
+      'Em que área você ainda tenta "merecer" o amor de Deus através de regras, em vez de recebê-lo pela fé?',
+    ],
+  },
+  'Efésios': {
+    context: 'Uma carta rica em teologia sobre a identidade da igreja como corpo de Cristo, seguida de instruções práticas para a vida cristã em família e comunidade.',
+    location: { name: 'Éfeso', icon: "Amphora", description: 'Endereçada à igreja de Éfeso, importante cidade portuária e centro religioso da Ásia Menor.' },
+    curiosities: [
+      'Fala da "armadura de Deus" (capítulo 6), uma das imagens mais conhecidas do Novo Testamento.',
+      'Foi escrita por Paulo enquanto estava preso, provavelmente em Roma.',
+      'Éfeso era lar do grande templo dedicado à deusa Ártemis, uma das sete maravilhas do mundo antigo.',
+      'Tem estrutura clássica: os três primeiros capítulos tratam de doutrina, os três últimos de prática.',
+    ],
+    reflectionQuestions: [
+      'O que ser parte do "corpo de Cristo" muda na forma como você vê sua igreja ou comunidade de fé?',
+      'Como a "armadura de Deus" te ajuda a pensar sobre as batalhas espirituais que você enfrenta no dia a dia?',
+      'O que as instruções práticas sobre família e relacionamentos revelam sobre como a fé deve transbordar pra vida real?',
+      'Que peça da "armadura de Deus" você mais precisa vestir essa semana?',
+    ],
+  },
+  'Filipenses': {
+    context: 'Carta calorosa e alegre, escrita da prisão, agradecendo à igreja de Filipos por seu apoio e incentivando alegria e humildade mesmo em meio a dificuldades.',
+    location: { name: 'Filipos', icon: "Smile", description: 'Endereçada à igreja de Filipos, na Macedônia (atual Grécia), a primeira igreja fundada por Paulo na Europa.' },
+    curiosities: [
+      'É chamada de "a carta da alegria": a palavra "alegria/alegrar-se" aparece repetidamente apesar de Paulo estar preso.',
+      'Contém um dos hinos cristológicos mais antigos do Novo Testamento (2:6-11), sobre a humilhação e exaltação de Cristo.',
+      'Filipos foi a primeira cidade europeia onde Paulo fundou uma igreja, segundo o livro de Atos.',
+      'A frase "tudo posso naquele que me fortalece" (4:13) é uma das mais citadas de toda a Bíblia.',
+    ],
+    reflectionQuestions: [
+      'Como Paulo conseguir escrever sobre alegria estando na prisão desafia sua ideia de onde a alegria genuína vem?',
+      'O que o hino sobre a humildade de Cristo (2:6-11) ensina sobre servir sem buscar reconhecimento?',
+      'O que significa, na prática, "tudo posso naquele que me fortalece" — sem tirar de contexto?',
+      'Em que circunstância difícil você pode escolher alegria e contentamento, como Paulo escolheu?',
+    ],
+  },
+  'Colossenses': {
+    context: 'Paulo combate ensinos falsos que diminuíam a supremacia de Cristo, afirmando que Ele é suficiente e soberano sobre todas as coisas.',
+    location: { name: 'Colossos', icon: "Crown", description: 'Escrita para a igreja de Colossos, cidade menor da Ásia Menor que Paulo provavelmente nunca visitou pessoalmente.' },
+    curiosities: [
+      'Tem fortes semelhanças temáticas e estruturais com Efésios, escritas provavelmente na mesma época.',
+      'Contém um dos hinos mais elevados sobre a divindade de Cristo (1:15-20).',
+      'Combate uma heresia local que misturava filosofia, misticismo e regras religiosas rígidas.',
+      'Foi escrita, como Efésios e Filipenses, durante uma prisão de Paulo.',
+    ],
+    reflectionQuestions: [
+      'O que a afirmação de que Cristo é "soberano sobre todas as coisas" muda na forma como você encara outras filosofias ou crenças concorrentes?',
+      'Como este livro desafia a ideia de que precisamos de "algo a mais" além de Jesus para sermos completos?',
+      'O que significa buscar "as coisas do alto", como Paulo pede aos colossenses?',
+      'Em que área da sua vida você tem buscado plenitude em algo que não seja Cristo?',
+    ],
+  },
+  '1 Tessalonicenses': {
+    context: 'Uma das primeiras cartas de Paulo, escrita para encorajar uma jovem igreja perseguida e esclarecer dúvidas sobre a volta de Cristo.',
+    location: { name: 'Tessalônica', icon: "Hourglass", description: 'Endereçada à igreja de Tessalônica, importante cidade portuária da Macedônia (atual Grécia).' },
+    curiosities: [
+      'É considerada por muitos estudiosos a carta mais antiga de Paulo, e possivelmente do Novo Testamento inteiro.',
+      'Aborda dúvidas específicas sobre o que acontece com cristãos que morrem antes da volta de Cristo.',
+      'Paulo elogia os tessalonicenses por se tornarem exemplo para outras igrejas da região, apesar da perseguição.',
+      'Foi escrita apenas alguns meses depois de Paulo fundar a igreja, durante sua segunda viagem missionária.',
+    ],
+    reflectionQuestions: [
+      'O que o encorajamento de Paulo a uma igreja jovem e perseguida ensina sobre apoiar comunidades de fé em dificuldade?',
+      'Como a esperança sobre a volta de Cristo, mesmo para quem já morreu, muda sua forma de lidar com o luto?',
+      'O que significa, na prática, "orar sem cessar" e "em tudo dar graças", como o livro ensina?',
+      'Que exemplo dos tessalonicenses (fé, amor e perseverança) você quer imitar essa semana?',
+    ],
+  },
+  '2 Tessalonicenses': {
+    context: 'Uma carta de acompanhamento, corrigindo mal-entendidos sobre a volta de Cristo e incentivando ordem e trabalho dentro da comunidade.',
+    location: { name: 'Tessalônica', icon: "ClipboardList", description: 'Escrita pouco depois da primeira carta, para a mesma igreja de Tessalônica.' },
+    curiosities: [
+      'Corrige a ideia equivocada de que "o Dia do Senhor" já teria chegado.',
+      'Repreende diretamente quem parou de trabalhar por acreditar que o fim estava próximo demais.',
+      'Contém a frase frequentemente citada: "quem não quiser trabalhar, também não coma" (3:10).',
+      'É uma das cartas mais curtas de Paulo, com apenas 3 capítulos.',
+    ],
+    reflectionQuestions: [
+      'Por que era importante corrigir a ideia de que "o Dia do Senhor" já havia chegado?',
+      'O que a instrução de continuar trabalhando, mesmo esperando a volta de Cristo, ensina sobre viver de forma responsável enquanto se espera?',
+      'Como este livro equilibra esperança futura com responsabilidade no presente?',
+      'Em que área você tem usado "esperar por Deus" como desculpa para não agir onde deveria?',
+    ],
+  },
+  '1 Timóteo': {
+    context: 'Paulo orienta seu discípulo Timóteo, jovem líder da igreja em Éfeso, sobre organização eclesiástica, liderança e como combater falsos ensinos.',
+    location: { name: 'Éfeso', icon: "GraduationCap", description: 'Timóteo liderava a igreja em Éfeso quando recebeu esta carta de instrução pastoral de Paulo.' },
+    curiosities: [
+      'Faz parte das chamadas "cartas pastorais", junto com 2 Timóteo e Tito, voltadas à liderança da igreja.',
+      'Lista requisitos detalhados para líderes da igreja (bispos e diáconos) no capítulo 3.',
+      'Contém a frase "o amor ao dinheiro é raiz de todos os males" (6:10), frequentemente mal citada como "o dinheiro é a raiz de todo mal".',
+      'Timóteo era ainda jovem quando recebeu essa carta, e Paulo o encoraja a não deixar ninguém desprezar sua idade.',
+    ],
+    reflectionQuestions: [
+      'O que os requisitos para líderes da igreja ensinam sobre a importância do caráter, não só da habilidade?',
+      'Como a frase "o amor ao dinheiro é raiz de todos os males" desafia sua relação com posses e segurança financeira?',
+      'O que o encorajamento de Paulo a Timóteo, mesmo sendo jovem, ensina sobre servir a Deus independente da idade?',
+      'Em que área da sua vida (liderança, dinheiro, exemplo) este livro mais te desafiou?',
+    ],
+  },
+  '2 Timóteo': {
+    context: 'A última carta conhecida de Paulo, escrita da prisão pouco antes de sua morte, com um tom pessoal de despedida e encorajamento a Timóteo.',
+    location: { name: 'Roma', icon: "Lock", description: 'Escrita da prisão em Roma, no que parece ter sido o último período de vida de Paulo.' },
+    curiosities: [
+      'É considerada a última carta de Paulo antes de seu martírio em Roma.',
+      'Contém a famosa afirmação "combati o bom combate, terminei a carreira, guardei a fé" (4:7).',
+      'Tem um tom mais pessoal e emotivo que as demais cartas pastorais.',
+      'Paulo pede a Timóteo que traga seu capote e seus livros/pergaminhos antes do inverno — um detalhe bem humano da carta.',
+    ],
+    reflectionQuestions: [
+      'O que o tom pessoal e de despedida de Paulo, escrevendo da prisão, revela sobre como encarar o fim da vida com fé?',
+      'Como a frase "combati o bom combate, terminei a carreira, guardei a fé" te desafia a pensar sobre o que você quer poder dizer no final da sua jornada?',
+      'O que significa, na prática, "não se envergonhar do evangelho", como Paulo pede a Timóteo?',
+      'Que legado de fé você gostaria de deixar para a próxima geração, como Paulo deixou para Timóteo?',
+    ],
+  },
+  'Tito': {
+    context: 'Paulo orienta Tito, deixado para organizar a igreja na ilha de Creta, sobre liderança, boas obras e sã doutrina.',
+    location: { name: 'Creta', icon: "TreePalm", description: 'Tito ficou na ilha de Creta, no Mediterrâneo, para organizar as igrejas locais.' },
+    curiosities: [
+      'É a mais curta das três "cartas pastorais" de Paulo.',
+      'Cita um provérbio grego local sobre os cretenses serem "sempre mentirosos" (1:12), atribuído a um poeta cretense.',
+      'Assim como em 1 Timóteo, lista qualificações para líderes da igreja.',
+      'Enfatiza fortemente que a fé verdadeira deve se mostrar em boas obras práticas.',
+    ],
+    reflectionQuestions: [
+      'O que as instruções para diferentes grupos (idosos, jovens, líderes) ensinam sobre viver a fé de forma prática em cada fase da vida?',
+      'Como a ênfase em "boas obras" como fruto da fé, e não como meio de salvação, muda sua forma de servir?',
+      'O que significa "sã doutrina" na prática do seu dia a dia, além da teoria?',
+      'Em que grupo (família, trabalho, igreja) você pode ser um exemplo melhor de boas obras essa semana?',
+    ],
+  },
+  'Filemon': {
+    context: 'Uma carta pessoal e breve em que Paulo pede a Filemom que perdoe e receba de volta seu escravo fugitivo, Onésimo, agora como irmão em Cristo.',
+    location: { name: 'Colossos', icon: "Handshake", description: 'Endereçada a Filemom, um cristão da igreja de Colossos, dono de Onésimo.' },
+    curiosities: [
+      'É a carta mais curta de Paulo no Novo Testamento — cabe em um único capítulo.',
+      'É uma das únicas cartas do Novo Testamento endereçada principalmente a um indivíduo sobre um assunto pessoal.',
+      'Onésimo, o escravo em questão, pode ser a mesma pessoa mencionada depois em Colossenses 4:9.',
+      'Paulo pede o favor sem usar sua autoridade apostólica para exigir, apelando para o amor e a livre escolha de Filemom.',
+    ],
+    reflectionQuestions: [
+      'O que o pedido de Paulo — que Filemom recebesse Onésimo como irmão, não mais como escravo — ensina sobre o poder do evangelho em transformar relações desiguais?',
+      'Como Paulo apelar ao amor, em vez de usar sua autoridade para exigir, te ensina sobre como pedir algo difícil a alguém?',
+      'O que este livro revela sobre perdão e reconciliação prática entre pessoas magoadas?',
+      'Existe alguém que você precisa "receber de volta" como irmão, deixando de lado uma mágoa antiga?',
+    ],
+  },
+  'Hebreus': {
+    context: 'Uma carta/sermão de autor desconhecido, argumentando que Jesus é superior aos anjos, a Moisés e ao sistema sacerdotal do Antigo Testamento.',
+    location: { name: 'Destino incerto', icon: "Flame", description: 'Provavelmente escrita para cristãos de origem judaica que consideravam voltar às práticas do judaísmo antigo.' },
+    curiosities: [
+      'É o único livro do Novo Testamento cujo autor permanece desconhecido até hoje.',
+      'Contém o "capítulo da fé" (11), com uma longa lista de heróis da fé do Antigo Testamento.',
+      'Apresenta Jesus como o sumo sacerdote perfeito, cumprindo e superando todo o sistema sacrificial judaico.',
+      'Faz uso extensivo de comparações e citações do Antigo Testamento para provar seus argumentos.',
+    ],
+    reflectionQuestions: [
+      'O que Jesus ser superior a anjos, a Moisés e ao sistema sacerdotal antigo muda na forma como você O vê?',
+      'Como o "capítulo da fé" (11), com tantos exemplos do Antigo Testamento, te inspira a perseverar na sua própria caminhada?',
+      'O que significa, na prática, "correr com perseverança a corrida que nos é proposta", olhando para Jesus?',
+      'Qual exemplo de fé do capítulo 11 mais te desafiou nesta leitura?',
+    ],
+  },
+  'Tiago': {
+    context: 'Uma carta prática e direta sobre como viver a fé genuína através das obras, do controle da língua e do cuidado com os pobres.',
+    location: { name: 'Comunidades judaico-cristãs dispersas', icon: "Wrench", description: 'Endereçada "às doze tribos dispersas", ou seja, cristãos de origem judaica espalhados fora de Israel.' },
+    curiosities: [
+      'É conhecida pela frase "a fé sem obras é morta" (2:26), muito debatida ao lado dos ensinos de Paulo sobre graça.',
+      'Tradicionalmente atribuída a Tiago, irmão de Jesus e líder da igreja em Jerusalém.',
+      'Tem um estilo parecido com a literatura de sabedoria do Antigo Testamento, como Provérbios.',
+      'Dedica um capítulo inteiro ao poder — e ao perigo — da língua (capítulo 3).',
+    ],
+    reflectionQuestions: [
+      'O que "a fé sem obras é morta" ensina sobre a diferença entre crer de verdade e apenas dizer que se crê?',
+      'Como o capítulo sobre o poder da língua te desafia a pensar antes de falar?',
+      'O que este livro ensina sobre o cuidado com os pobres como expressão prática da fé?',
+      'Em que situação recente sua fé precisou (ou não) se mostrar através de uma ação concreta?',
+    ],
+  },
+  '1 Pedro': {
+    context: 'Pedro escreve para encorajar cristãos espalhados pela Ásia Menor que enfrentavam sofrimento e perseguição por sua fé.',
+    location: { name: 'Ásia Menor (atual Turquia)', icon: "Mountain", description: 'Endereçada a cristãos dispersos em várias províncias romanas da Ásia Menor.' },
+    curiosities: [
+      'Compara os cristãos a "pedras vivas" sendo edificadas em uma casa espiritual (2:5).',
+      'Foi escrita, segundo o próprio texto, "de Babilônia" — possivelmente um codinome para Roma.',
+      'Aborda diretamente como viver bem mesmo sob perseguição e injustiça social.',
+      'Tradicionalmente atribuída ao apóstolo Pedro, um dos doze discípulos originais de Jesus.',
+    ],
+    reflectionQuestions: [
+      'O que ser chamado de "pedra viva", parte de uma casa espiritual maior, muda na forma como você vê seu papel na igreja?',
+      'Como as instruções para viver bem sob perseguição e injustiça se aplicam a dificuldades que você enfrenta hoje?',
+      'O que este livro ensina sobre responder ao mal com bondade, em vez de vingança?',
+      'Em que situação difícil você pode, como os primeiros cristãos, responder com esperança em vez de amargura?',
+    ],
+  },
+  '2 Pedro': {
+    context: 'Um alerta final de Pedro contra falsos mestres e uma defesa da certeza da volta de Cristo, escrito pouco antes de sua morte.',
+    location: { name: 'Roma (provável)', icon: "TriangleAlert", description: 'Escrita provavelmente de Roma, perto do fim da vida de Pedro.' },
+    curiosities: [
+      'Tem grandes semelhanças de conteúdo com a carta de Judas, sugerindo uma relação direta entre os dois textos.',
+      'Defende que "para o Senhor um dia é como mil anos" (3:8), respondendo a dúvidas sobre a demora da volta de Cristo.',
+      'É considerada por muitos estudiosos a última carta escrita antes da morte de Pedro.',
+      'Alerta especificamente contra "falsos mestres" que distorciam os ensinos cristãos por ganância.',
+    ],
+    reflectionQuestions: [
+      'O que o alerta de Pedro contra falsos mestres ensina sobre a importância de testar o que você ouve e aprende?',
+      'Como saber que "para o Senhor um dia é como mil anos" muda sua paciência em relação às promessas de Deus?',
+      'O que significa, na prática, "crescer na graça e no conhecimento" de Jesus, como Pedro incentiva no final da carta?',
+      'Em que área da sua fé você sente que precisa crescer mais neste momento?',
+    ],
+  },
+  '1 João': {
+    context: 'Uma carta pastoral sobre amor, verdade e certeza da salvação, escrita para combater ensinos que negavam que Jesus viera "em carne".',
+    location: { name: 'Éfeso (tradição)', icon: "Heart", description: 'Tradicionalmente associada ao apóstolo João, que teria liderado igrejas na região de Éfeso.' },
+    curiosities: [
+      'Contém a afirmação direta "Deus é amor" (4:8), uma das definições mais citadas de toda a Bíblia.',
+      'Repete a palavra "amor" dezenas de vezes, mais que qualquer outro livro do Novo Testamento em proporção.',
+      'Combate o "docetismo", uma heresia antiga que negava a humanidade real de Jesus.',
+      'É atribuída ao mesmo autor do Evangelho de João, com estilo e vocabulário muito parecidos.',
+    ],
+    reflectionQuestions: [
+      'O que a afirmação "Deus é amor" muda na forma como você entende Seu caráter?',
+      'Como este livro ensina a diferenciar amor genuíno de apenas palavras bonitas?',
+      'O que significa ter "certeza da salvação", como João descreve, em vez de viver com medo e dúvida constantes?',
+      'Em que relacionamento você precisa demonstrar mais amor através de ações, não só palavras?',
+    ],
+  },
+  '2 João': {
+    context: 'Uma carta breve alertando contra falsos mestres itinerantes e reforçando a importância de andar em amor e verdade.',
+    location: { name: 'Ásia Menor (provável)', icon: "Mail", description: 'Endereçada a "a senhora eleita e seus filhos" — possivelmente uma igreja local ou uma pessoa específica.' },
+    curiosities: [
+      'É uma das duas cartas mais curtas do Novo Testamento, com apenas 13 versículos.',
+      'Não se sabe ao certo se "a senhora eleita" é uma pessoa real ou uma forma simbólica de se referir a uma igreja.',
+      'Repete temas de 1 João em formato bem mais compacto.',
+      'Orienta a comunidade a não receber em casa mestres que negassem a vinda de Cristo em carne.',
+    ],
+    reflectionQuestions: [
+      'O que o alerta contra falsos mestres itinerantes ensina sobre discernimento em quem você deixa influenciar sua fé?',
+      'Como "andar em amor e verdade" ao mesmo tempo (sem sacrificar um pelo outro) desafia sua forma de se relacionar com os outros?',
+      'Por que era importante, mesmo em uma carta tão curta, reforçar cuidado com hospitalidade e doutrina?',
+      'Em que situação você precisa equilibrar melhor amor e discernimento?',
+    ],
+  },
+  '3 João': {
+    context: 'Uma carta pessoal elogiando a hospitalidade de Gaio e criticando a atitude arrogante de Diótrefes, que rejeitava a autoridade apostólica.',
+    location: { name: 'Ásia Menor (provável)', icon: "Home", description: 'Endereçada pessoalmente a Gaio, um cristão elogiado por sua hospitalidade com missionários viajantes.' },
+    curiosities: [
+      'É o livro mais curto de toda a Bíblia em número de palavras.',
+      'É uma das únicas cartas do Novo Testamento dirigida a uma única pessoa comum (não um líder ou apóstolo).',
+      'Contrasta dois personagens: Gaio, elogiado pela hospitalidade, e Diótrefes, repreendido pelo orgulho.',
+      'Reflete a prática comum da igreja primitiva de hospedar pregadores e missionários itinerantes.',
+    ],
+    reflectionQuestions: [
+      'O que o elogio à hospitalidade de Gaio ensina sobre o valor de receber bem quem serve a Deus?',
+      'Como a atitude arrogante de Diótrefes serve de alerta contra buscar posição e controle dentro da igreja?',
+      'O que este livro, tão curto, ensina sobre o impacto de pequenos gestos de generosidade?',
+      'Você se identifica mais com Gaio ou com Diótrefes nesse momento da sua vida? Por quê?',
+    ],
+  },
+  'Judas': {
+    context: 'Um alerta urgente contra falsos mestres que haviam se infiltrado na igreja, usando exemplos do Antigo Testamento como advertência.',
+    location: { name: 'Comunidades cristãs dispersas', icon: "Siren", description: 'Não especifica um destino geográfico claro; parece endereçada a cristãos de forma mais geral.' },
+    curiosities: [
+      'Tem forte semelhança de conteúdo com 2 Pedro, levando estudiosos a debater qual influenciou qual.',
+      'Cita diretamente um livro que não está no cânon bíblico, o Livro de Enoque (versículos 14-15).',
+      'Tradicionalmente atribuída a Judas, irmão de Tiago e também irmão de Jesus.',
+      'É o penúltimo livro do Novo Testamento e um dos mais curtos de toda a Bíblia.',
+    ],
+    reflectionQuestions: [
+      'O que o alerta urgente contra falsos mestres infiltrados ensina sobre vigilância na fé?',
+      'Como os exemplos do Antigo Testamento usados por Judas reforçam que a história se repete quando ignoramos os avisos de Deus?',
+      'O que a doxologia final do livro ("Àquele que é poderoso para vos guardar...") ensina sobre confiar que Deus sustenta sua fé até o fim?',
+      'Em que área você precisa estar mais alerta contra influências que te afastam da verdade?',
+    ],
+  },
+
+  'Apocalipse': {
+    context: 'Também chamado de Revelação, é um livro profético e simbólico escrito pelo apóstolo João durante o exílio, revelando o triunfo final de Cristo sobre o mal.',
+    location: { name: 'Ilha de Patmos', icon: "TreePalm", description: 'João recebeu essas visões enquanto estava exilado na ilha grega de Patmos, no mar Egeu.' },
+    curiosities: [
+      'É o único livro totalmente profético/apocalíptico do Novo Testamento.',
+      'É endereçado a sete igrejas específicas da Ásia Menor, cada uma recebendo uma mensagem própria (capítulos 2–3).',
+      'O número "7" aparece repetidamente ao longo do livro: sete igrejas, selos, trombetas e taças.',
+      'Termina com a promessa de "novos céus e nova terra", encerrando toda a narrativa bíblica onde Gênesis começou: com a criação.',
+    ],
+    reflectionQuestions: [
+      'O que as mensagens às sete igrejas ensinam sobre os pontos fortes e fracos que Deus vê em cada comunidade de fé (inclusive a sua)?',
+      'Como a certeza do triunfo final de Cristo sobre o mal muda a forma como você encara as dificuldades do presente?',
+      'O que a promessa de "novos céus e nova terra", encerrando a Bíblia onde Gênesis começou, revela sobre o plano completo de Deus?',
+      'Depois de ler a Bíblia inteira (ou este bloco dela), qual foi a maior mudança que Deus operou em você durante essa jornada?',
+    ],
+  },
+}
