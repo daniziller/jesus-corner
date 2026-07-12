@@ -374,10 +374,11 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, l
         // laranja — "current" continua indicado só pelo ícone de status, pra
         // não sobrar destacada quando outra sessão é escolhida.
         background: isFeatured ? 'var(--olt)' : 'var(--g1)',
-        border: `0.5px solid ${isFeatured ? 'rgba(249,115,22,.45)' : isReflection ? 'rgba(168,85,247,.3)' : 'var(--g2)'}`,
+        border: `0.5px solid ${isFeatured ? 'var(--gold-soft)' : isReflection ? 'rgba(168,85,247,.3)' : 'var(--g2)'}`,
         borderRadius: 13,
         overflow: 'hidden',
         cursor: 'pointer',
+        boxShadow: isFeatured ? 'var(--shadow-premium)' : 'none',
       }}
       onClick={() => onFeature(session)}
     >
@@ -425,18 +426,18 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, l
 const styles = {
   backBtn:     { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   hero:        { height: 224, margin: '10px 14px', borderRadius: 22, overflow: 'hidden', position: 'relative', background: '#141414', flexShrink: 0, boxShadow: '0 12px 28px rgba(0,0,0,.18)' },
-  heroOrbOrange:{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#F97316', filter: 'blur(60px)', opacity: 0.5, top: -60, right: -50 },
-  heroOrbPink: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: '#EC4899', filter: 'blur(60px)', opacity: 0.3, bottom: -50, left: -40 },
+  heroOrbOrange:{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, right: -50 },
+  heroOrbPink: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -50, left: -40 },
   heroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 65%)' },
   heroContent: { position: 'absolute', bottom: 14, left: 14, right: 14 },
   heroCycle:   { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
-  heroTitle:   { fontSize: 23, fontWeight: 900, color: 'white', marginBottom: 4, letterSpacing: '-0.4px', lineHeight: 1.15 },
+  heroTitle:   { fontFamily: 'var(--font-display)', fontSize: 25, fontWeight: 700, fontStyle: 'italic', color: 'white', marginBottom: 4, letterSpacing: '-0.2px', lineHeight: 1.15 },
   heroSub:     { fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.7)' },
   heroTags:    { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 12 },
   heroTag:     { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.12)', border: '0.5px solid rgba(255,255,255,.18)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', cursor: 'pointer' },
   heroTagActive:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.4)' },
   heroTagDot:  { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 5 },
-  completeBtn: { width: '100%', background: 'var(--grad-vivid)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' },
+  completeBtn: { width: '100%', background: 'var(--grad-premium)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   completeBtnDone:{ background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
   panel:       { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 14, boxShadow: 'var(--shadow-card)' },
   panelBookLabel:{ fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },

@@ -29,3 +29,4 @@ android-twa/*.idsig
 
 # Config/estado local do Claude Code (específico desta máquina)
 .claude/
+.env*

@@ -58,7 +58,53 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
 
         <div className="dashboard-grid">
 
-          {/* Coluna esquerda: status geral (% da Bíblia + nível) */}
+          {/* Coluna primária: o que importa fazer hoje — leitura + rotina.
+              Vem primeiro no DOM (logo primeiro no mobile) porque é o que
+              o usuário quer em destaque, à frente do anel de %. */}
+          <div className="dashboard-col">
+
+            {/* Card de hoje — sessão de leitura em destaque */}
+            <div>
+              <div className="section-header">
+                <h3 className="section-title">{translate('home.todaySessionHeader', { n: todaySession.number }, lang)}</h3>
+              </div>
+              <div style={styles.todayCard} data-tour="home-today-card">
+                <div style={styles.todayAccent} />
+                <div style={styles.todayBadge}>
+                  <span style={styles.todayDot} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)' }}>{todaySession.block}</span>
+                </div>
+                <h3 style={styles.todayTitle}>{todaySession.title}</h3>
+                <p style={styles.todaySub}>{todaySession.subtitle}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{translate('home.todayProgress', undefined, lang)}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--or)' }}>{todaySession.progress}%</span>
+                </div>
+                <div style={styles.progressBar}>
+                  <div style={{ ...styles.progressFill, width: `${todaySession.progress}%` }} />
+                </div>
+                <button style={styles.continueBtn} onClick={onContinueSession}>
+                  {ctaLabel}
+                </button>
+              </div>
+            </div>
+
+            {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
+                passo é feito de verdade (oração/leitura), com um calendário
+                de histórico embutido. */}
+            <DailyRoutineCard
+              dailyRoutine={dailyRoutine}
+              todayRoutine={todayRoutine}
+              lang={lang}
+              onNavigate={onNavigate}
+              onContinueSession={onContinueSession}
+              onMarkRoutineStep={onMarkRoutineStep}
+            />
+          </div>
+
+          {/* Coluna secundária: progresso geral (% da Bíblia, nível, stats,
+              atividade dos amigos) — continua tudo aqui, só com menos peso
+              visual que a coluna de hoje/rotina. */}
           <div className="dashboard-col">
 
             {/* Destaque % da Bíblia */}
@@ -93,50 +139,8 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
               </div>
             </div>
 
-            {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
-                passo é feito de verdade (oração/leitura), com um calendário
-                de histórico embutido. Logo abaixo da métrica de % da Bíblia. */}
-            <DailyRoutineCard
-              dailyRoutine={dailyRoutine}
-              todayRoutine={todayRoutine}
-              lang={lang}
-              onNavigate={onNavigate}
-              onContinueSession={onContinueSession}
-              onMarkRoutineStep={onMarkRoutineStep}
-            />
-
             {/* Nível e XP */}
             <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
-          </div>
-
-          {/* Coluna direita: ação do dia + stats + tutorial */}
-          <div className="dashboard-col">
-
-            {/* Card de hoje */}
-            <div>
-              <div className="section-header">
-                <h3 className="section-title">{translate('home.todaySessionHeader', { n: todaySession.number }, lang)}</h3>
-              </div>
-              <div style={styles.todayCard}>
-                <div style={styles.todayAccent} />
-                <div style={styles.todayBadge}>
-                  <span style={styles.todayDot} />
-                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)' }}>{todaySession.block}</span>
-                </div>
-                <h3 style={styles.todayTitle}>{todaySession.title}</h3>
-                <p style={styles.todaySub}>{todaySession.subtitle}</p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{translate('home.todayProgress', undefined, lang)}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--or)' }}>{todaySession.progress}%</span>
-                </div>
-                <div style={styles.progressBar}>
-                  <div style={{ ...styles.progressFill, width: `${todaySession.progress}%` }} />
-                </div>
-                <button style={styles.continueBtn} onClick={onContinueSession}>
-                  {ctaLabel}
-                </button>
-              </div>
-            </div>
 
             {/* Stats */}
             <div>
@@ -456,8 +460,8 @@ function StatCard({ value, suffix, label, theme }) {
 }
 
 const styles = {
-  routineCard:        { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: 14 },
-  routineTitle:       { fontSize: 14, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
+  routineCard:        { background: 'white', border: '0.5px solid var(--gold-soft)', borderRadius: 18, boxShadow: 'var(--shadow-premium)', padding: 14 },
+  routineTitle:       { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--bk)', letterSpacing: '-0.1px' },
   routineSub:         { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
   routineCalendarToggle: { display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: 'var(--g1)', borderRadius: 20, padding: '6px 10px', fontSize: 10, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)', flexShrink: 0 },
   routineStepRow:     { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: '1.5px solid var(--g1)', background: 'var(--g1)', borderRadius: 14, padding: 10, cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left' },
@@ -473,7 +477,7 @@ const styles = {
   calendarWeekday:    { fontSize: 9, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', padding: '2px 0' },
   calendarDayCell:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '2px 0' },
   calendarDayNum:     { fontSize: 10, fontWeight: 600, color: 'var(--g6)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  calendarDayNumComplete: { background: 'var(--bk)', color: 'white', fontWeight: 800 },
+  calendarDayNumComplete: { background: 'linear-gradient(135deg, var(--gold), var(--or))', color: 'white', fontWeight: 800 },
   calendarStepDots:   { display: 'flex', gap: 2 },
   calendarStepDot:    { width: 5, height: 5, borderRadius: 1.5, flexShrink: 0 },
   calendarLegend:      { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
@@ -491,11 +495,11 @@ const styles = {
   tutorialTipPurple: { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 11, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
   tutorialOutro: { fontSize: 11, fontWeight: 700, color: 'var(--or)', textAlign: 'center' },
   hero:          { minHeight: 150, background: '#141414', position: 'relative', overflow: 'hidden', flexShrink: 0 },
-  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: '#F97316', filter: 'blur(70px)', opacity: 0.55, top: -80, right: -60 },
-  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#EC4899', filter: 'blur(70px)', opacity: 0.35, bottom: -70, left: -50 },
+  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.55, top: -80, right: -60 },
+  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.35, bottom: -70, left: -50 },
   heroContent:   { position: 'relative', zIndex: 2, padding: '18px 20px 30px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
   greeting:      { fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 3 },
-  sessionTitle:  { fontSize: 19, fontWeight: 800, color: 'white', lineHeight: 1.3, letterSpacing: '-0.2px' },
+  sessionTitle:  { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.3, letterSpacing: '-0.2px' },
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
   pctHero:       { background: 'var(--grad-vivid)', borderRadius: 22, padding: 20, display: 'flex', alignItems: 'center', gap: 18, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
@@ -506,15 +510,15 @@ const styles = {
   pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
   pctTitle:      { fontSize: 15, fontWeight: 800, color: 'white', lineHeight: 1.25, letterSpacing: '-0.2px' },
   pctSub:        { fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.7)' },
-  todayCard:     { position: 'relative', background: 'var(--white)', border: '0.5px solid var(--g1)', borderRadius: 20, padding: '16px 16px 16px 21px', overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
-  todayAccent:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'var(--grad-vivid)' },
+  todayCard:     { position: 'relative', background: 'var(--white)', border: '0.5px solid var(--gold-soft)', borderRadius: 20, padding: '16px 16px 16px 21px', overflow: 'hidden', boxShadow: 'var(--shadow-premium)' },
+  todayAccent:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg, var(--gold), var(--or))' },
   todayBadge:    { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(249,115,22,.12)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 20, padding: '3px 9px', marginBottom: 10 },
   todayDot:      { width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', animation: 'pulse 2s infinite' },
-  todayTitle:    { fontSize: 16, fontWeight: 800, color: 'var(--bk)', marginBottom: 4, lineHeight: 1.3, letterSpacing: '-0.2px' },
+  todayTitle:    { fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--bk)', marginBottom: 4, lineHeight: 1.3, letterSpacing: '-0.2px' },
   todaySub:      { fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginBottom: 12 },
   progressBar:   { height: 3, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 },
-  progressFill:  { height: '100%', background: 'var(--grad-primary)', borderRadius: 99, transition: 'width 0.6s ease' },
-  continueBtn:   { width: '100%', background: 'var(--grad-vivid)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' },
+  progressFill:  { height: '100%', background: 'var(--grad-premium)', borderRadius: 99, transition: 'width 0.6s ease' },
+  continueBtn:   { width: '100%', background: 'var(--grad-premium)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   statsRow:      { display: 'flex', gap: 8 },
   activityCard:  { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 13, boxShadow: 'var(--shadow-card)' },
   levelCard:     { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },

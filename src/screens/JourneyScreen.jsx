@@ -239,8 +239,14 @@ function BlockCard({ block, onOpenBlock, onOpenBook, lang }) {
     ? t('journey.startBlock', undefined, lang)
     : t('journey.continueBlock', undefined, lang)
 
+  const isActive = block.status === 'active'
+
   return (
-    <div style={{ ...styles.blockCard, boxShadow: `0 8px 22px ${GLOW_MAP[block.gradientKey]}` }}>
+    <div style={{
+      ...styles.blockCard,
+      boxShadow: isActive ? `var(--shadow-premium), 0 8px 22px ${GLOW_MAP[block.gradientKey]}` : `0 8px 22px ${GLOW_MAP[block.gradientKey]}`,
+      border: isActive ? '0.5px solid var(--gold-soft)' : styles.blockCard.border,
+    }}>
       {/* Topo */}
       <div style={styles.blockTop}>
         <div style={{ width: 48, height: 48, borderRadius: 14, background: gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -299,10 +305,10 @@ const styles = {
   searchResultBook:  { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
   searchResultBlock: { fontSize: 10, fontWeight: 500, color: 'var(--g4)', marginTop: 1 },
   hero:            { background: '#141414', padding: '18px 16px 30px', position: 'relative', overflow: 'hidden', flexShrink: 0 },
-  heroOrbOrange:   { position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: '#F97316', filter: 'blur(70px)', opacity: 0.5, top: -70, right: -60 },
-  heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: '#EC4899', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },
+  heroOrbOrange:   { position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -70, right: -60 },
+  heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },
   heroLabel:       { position: 'relative', fontSize: 9, fontWeight: 700, color: 'var(--or)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
-  heroTitle:       { position: 'relative', fontSize: 19, fontWeight: 800, color: 'white', marginBottom: 3, letterSpacing: '-0.3px' },
+  heroTitle:       { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 700, fontStyle: 'italic', color: 'white', marginBottom: 3, letterSpacing: '-0.2px' },
   heroDesc:        { position: 'relative', fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 13 },
   heroProgressBar: { position: 'relative', height: 6, background: 'rgba(255,255,255,.15)', borderRadius: 99, overflow: 'hidden', marginBottom: 5 },
   heroProgressFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99 },
