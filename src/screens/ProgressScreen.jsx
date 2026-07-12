@@ -2,7 +2,7 @@ import { ACCENT_MAP } from '../utils/blockColors'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
-import { computeMonthlyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
+import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
 
 export default function ProgressScreen({ session, blocks }) {
   const { lang } = session
@@ -141,16 +141,16 @@ export default function ProgressScreen({ session, blocks }) {
 }
 
 // Métrica de constância — um mini gráfico de barras com o número de dias
-// (não %) em que cada um dos 3 passos foi feito, mês a mês, pra dar uma
-// noção de uso ao longo do tempo (não só o streak atual, que zera fácil) —
-// mais a média de dias/mês com a rotina completa, num bloco de métrica à
+// (não %) em que cada um dos 3 passos foi feito, semana a semana, pra dar
+// uma noção de uso recente (não só o streak atual, que zera fácil) — mais
+// granular que uma visão mensal, mostra quedas de constância bem mais cedo.
+// Mais a média de dias/semana com a rotina completa, num bloco de métrica à
 // parte, igual aos outros cards de métrica da tela.
 function RoutineUsageCard({ dailyRoutine, lang }) {
-  const months = computeMonthlyRoutineStats(dailyRoutine ?? {}, 6)
-  const hasAnyData = months.some(m => m.prayerDays > 0 || m.readingDays > 0 || m.reflectionDays > 0)
-  const MAX_DAYS = 31 // escala fixa (não o tamanho do mês) pra comparar meses de forma justa
-  const avgFullDays = averageFullRoutineDays(months)
-  const now = new Date()
+  const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, 6)
+  const hasAnyData = weeks.some(w => w.prayerDays > 0 || w.readingDays > 0 || w.reflectionDays > 0)
+  const MAX_DAYS = 7 // escala fixa da semana (não os totalDays parciais da semana atual)
+  const avgFullDays = averageFullRoutineDays(weeks)
 
   return (
     <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
@@ -160,18 +160,18 @@ function RoutineUsageCard({ dailyRoutine, lang }) {
       {hasAnyData ? (
         <>
           <div style={styles.routineUsageChart}>
-            {months.map((m, i) => {
-              const isCurrent = m.year === now.getFullYear() && m.month === now.getMonth()
+            {weeks.map((w, i) => {
+              const isCurrent = i === weeks.length - 1
               return (
                 <div key={i} style={styles.routineUsageMonthCol}>
-                  <span style={{ ...styles.routineUsageMonthNum, ...(isCurrent ? styles.routineUsageMonthNumCurrent : {}) }}>{m.fullDays}</span>
+                  <span style={{ ...styles.routineUsageMonthNum, ...(isCurrent ? styles.routineUsageMonthNumCurrent : {}) }}>{w.fullDays}</span>
                   <div style={styles.routineUsageRings}>
-                    <StepRing days={m.prayerDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.prayer} />
-                    <StepRing days={m.readingDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reading} />
-                    <StepRing days={m.reflectionDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reflection} />
+                    <StepRing days={w.prayerDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.prayer} />
+                    <StepRing days={w.readingDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reading} />
+                    <StepRing days={w.reflectionDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reflection} />
                   </div>
                   <span style={{ ...styles.routineUsageMonthLabel, ...(isCurrent ? styles.routineUsageMonthLabelCurrent : {}) }}>
-                    {new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'short' }).format(new Date(m.year, m.month, 1)).replace('.', '')}
+                    {new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'numeric' }).format(w.start)}
                   </span>
                 </div>
               )

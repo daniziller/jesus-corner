@@ -256,9 +256,9 @@ export const STRINGS = {
       startBadge: 'A começar',
       sessionsLeftLabel: 'Sessões restantes',
       routineUsageTitle: 'Constância da rotina',
-      routineUsageSub: 'Dias por mês em que cada passo foi feito',
+      routineUsageSub: 'Dias por semana em que cada passo foi feito',
       routineUsageEmpty: 'Comece sua rotina diária pra ver sua constância aqui.',
-      routineAvgLabel: 'Média de dias/mês com a rotina completa',
+      routineAvgLabel: 'Média de dias/semana com a rotina completa',
     },
     tour: {
       welcomeTitle: "Bem-vindo(a) ao Jesus' Corner! 🙏",
@@ -623,9 +623,9 @@ export const STRINGS = {
       startBadge: 'Not started',
       sessionsLeftLabel: 'Sessions left',
       routineUsageTitle: 'Routine consistency',
-      routineUsageSub: 'Days per month each step was done',
+      routineUsageSub: 'Days per week each step was done',
       routineUsageEmpty: 'Start your daily routine to see your consistency here.',
-      routineAvgLabel: 'Avg. days/month with the full routine',
+      routineAvgLabel: 'Avg. days/week with the full routine',
     },
     tour: {
       welcomeTitle: "Welcome to Jesus' Corner! 🙏",
