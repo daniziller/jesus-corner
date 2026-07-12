@@ -41,6 +41,10 @@ export const STRINGS = {
       alreadyHaveAccount: 'Já tenho conta',
       backToLogin: 'Voltar para o login',
       passwordsDontMatch: 'As senhas não coincidem.',
+      agreeToTermsPrefix: 'Li e concordo com os ',
+      agreeToTermsMiddle: ' e a ',
+      agreeToTermsSuffix: '.',
+      mustAgreeToTerms: 'É preciso concordar com os Termos de Uso e a Política de Privacidade pra criar a conta.',
       loading: 'Aguarde…',
     },
     home: {
@@ -392,6 +396,10 @@ export const STRINGS = {
       alreadyHaveAccount: 'I already have an account',
       backToLogin: 'Back to login',
       passwordsDontMatch: "Passwords don't match.",
+      agreeToTermsPrefix: "I've read and agree to the ",
+      agreeToTermsMiddle: ' and the ',
+      agreeToTermsSuffix: '.',
+      mustAgreeToTerms: 'You need to agree to the Terms of Use and Privacy Policy to create an account.',
       loading: 'Please wait…',
     },
     home: {

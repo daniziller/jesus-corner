@@ -3,6 +3,7 @@ import { t, LANGUAGES } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { getMyProfile, updateProfile, uploadAvatar } from '../profile/profileStore'
 import { getFriendsCount } from '../friends/friendsStore'
+import { termsUrl, privacyUrl } from '../utils/legalLinks'
 
 const MAX_BIO_LENGTH = 280
 
@@ -219,12 +220,12 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
           <SettingsLink
             icon="Shield" iconBg="#EFF6FF"
             label={t('profile.privacyLabel')} sub={t('profile.privacySub')}
-            onPress={() => window.open('https://jesuscorner.app/privacidade', '_blank', 'noopener,noreferrer')}
+            onPress={() => window.open(privacyUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}
           />
           <SettingsLink
             icon="ClipboardList" iconBg="#EFF6FF"
             label={t('profile.termsLabel')} sub={t('profile.termsSub')}
-            onPress={() => window.open('https://jesuscorner.app/termos', '_blank', 'noopener,noreferrer')}
+            onPress={() => window.open(termsUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}
           />
           <SettingsLink
             icon="LogOut" iconBg="var(--rel)" iconColor="var(--re)"

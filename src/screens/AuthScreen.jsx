@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { signup, login, requestPasswordReset, resetPassword } from '../auth/authStore'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
+import { termsUrl, privacyUrl } from '../utils/legalLinks'
 
 // Data de hoje em 'YYYY-MM-DD' (formato nativo do <input type="date">) — usada
 // como max no campo de nascimento, pra impedir escolher uma data futura direto
@@ -85,8 +86,12 @@ function SignupView({ onAuthenticated, onGoLogin }) {
   // amigos; nome/foto/mensagem já ficam visíveis pra amigos de qualquer
   // forma (ver GroupsScreen.FriendProfilePanel).
   const [isPublic, setIsPublic]   = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [error, setError]         = useState('')
   const [loading, setLoading]     = useState(false)
+  // Mesmo idioma que será gravado na conta (ver chamada de signup() abaixo)
+  // — os links dos termos/privacidade abrem nesse idioma.
+  const lang = getAppLanguage() ?? 'pt'
   // Preenchido só quando o projeto exige confirmação de email — nesse caso a
   // conta foi criada mas ainda não existe sessão, então não dá pra tratar
   // como logado (ver needsEmailConfirmation em authStore.signup).
@@ -98,11 +103,15 @@ function SignupView({ onAuthenticated, onGoLogin }) {
       setError(t('auth.passwordsDontMatch'))
       return
     }
+    if (!agreedToTerms) {
+      setError(t('auth.mustAgreeToTerms'))
+      return
+    }
     setLoading(true)
     try {
       // O idioma já foi escolhido na tela inicial do app (ver LanguageSelectScreen);
       // a conta nasce nesse mesmo idioma, ajustável depois no Perfil.
-      const user = await signup({ name, email, password, birthdate, isPublic, language: getAppLanguage() ?? 'pt' })
+      const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
       setError('')
       if (user.needsEmailConfirmation) {
         setConfirmationEmail(user.email)
@@ -152,9 +161,25 @@ function SignupView({ onAuthenticated, onGoLogin }) {
         </div>
       </div>
 
+      <div style={styles.agreeRow}>
+        <input
+          type="checkbox"
+          style={styles.agreeCheckbox}
+          checked={agreedToTerms}
+          onChange={e => setAgreedToTerms(e.target.checked)}
+        />
+        <span style={styles.agreeText}>
+          {t('auth.agreeToTermsPrefix')}
+          <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.termsLabel')}</a>
+          {t('auth.agreeToTermsMiddle')}
+          <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.privacyLabel')}</a>
+          {t('auth.agreeToTermsSuffix')}
+        </span>
+      </div>
+
       {error && <p style={styles.error}>{error}</p>}
 
-      <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading}>{loading ? t('auth.loading') : t('auth.submitSignup')}</button>
+      <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading || !agreedToTerms}>{loading ? t('auth.loading') : t('auth.submitSignup')}</button>
 
       <div style={styles.linksRow}>
         <span />
@@ -307,4 +332,8 @@ const styles = {
   publicToggleRow:   { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '11px 13px' },
   publicToggleLabel: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
   publicToggleSub:   { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, lineHeight: 1.4 },
+  agreeRow:      { display: 'flex', alignItems: 'flex-start', gap: 9, padding: '2px 1px' },
+  agreeCheckbox: { width: 16, height: 16, marginTop: 1, flexShrink: 0, accentColor: 'var(--or)', cursor: 'pointer' },
+  agreeText:     { fontSize: 11, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
+  agreeLink:     { color: 'var(--or)', fontWeight: 700, textDecoration: 'none' },
 }
