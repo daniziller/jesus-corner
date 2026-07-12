@@ -156,11 +156,24 @@ const ACTS_DATA = [
   },
 ]
 
+// Duração de cada uma das 4 etapas (A·C·T·S, mesma ordem de ACTS_DATA) por
+// duração total do plano — Leve ora 10min, Padrão/Intensivo oram 15min (o
+// ACTS "clássico", com os minutos originais de cada etapa). Ver
+// PrayerScreen.jsx, que escolhe o perfil certo a partir de
+// session.plan.prayerMinutes.
+export const ACTS_DURATIONS = {
+  15: [4, 3, 4, 4],
+  10: [3, 2, 3, 2],
+}
+
 // `open`/`onToggle` são opcionais — se não vierem, o card controla o próprio
 // estado (comportamento original). O PrayerScreen passa os dois pra poder
 // auto-expandir o card do trecho ACTS em andamento conforme o cronômetro
 // avança, sem perder a possibilidade de abrir manualmente outro card.
-export default function ActsCard({ data, open: openProp, onToggle }) {
+// `minutes`, se vier, sobrescreve data.duration/durationMin no badge — é
+// como o PrayerScreen mostra a duração certa pro plano ativo (ver
+// ACTS_DURATIONS) sem precisar de 2 cópias inteiras de ACTS_DATA.
+export default function ActsCard({ data, open: openProp, onToggle, minutes }) {
   const [openState, setOpenState] = useState(false)
   const isControlled = openProp !== undefined
   const open = isControlled ? openProp : openState
@@ -195,7 +208,7 @@ export default function ActsCard({ data, open: openProp, onToggle }) {
           <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{pick(data.subtitle)}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: data.letterColor }}>{pick(data.duration)}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: data.letterColor }}>{minutes != null ? `${minutes} min` : pick(data.duration)}</span>
           <span style={{ fontSize: 13, color: 'var(--g4)', fontWeight: 600, display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .3s' }}>∨</span>
         </div>
       </div>

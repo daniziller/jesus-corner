@@ -1,29 +1,30 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import ReflectionGuideCard from '../components/reflection/ReflectionGuideCard'
-import { REFLECTION_DATA } from '../data/reflectionGuide'
+import { REFLECTION_DATA, REFLECTION_DURATIONS } from '../data/reflectionGuide'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-// Mesmo mecanismo de cronômetro por fases do PrayerScreen.jsx (ACTS), só que
-// pras 3 etapas da Reflexão Guiada (3+4+3 = 10min). Ver PrayerScreen.jsx
-// pros comentários completos sobre wake lock / relógio real / aviso sonoro
-// — a lógica aqui é a mesma, deliberadamente duplicada em vez de
-// compartilhada, pra não acoplar duas telas que evoluem por razões
-// diferentes (uma é oração, a outra é reflexão sobre a leitura do dia).
-const PHASE_BOUNDS = (() => {
+// Mesmo mecanismo de cronômetro por fases do PrayerScreen.jsx (ACTS), a
+// partir dos minutos por etapa do perfil de duração ativo (ver
+// REFLECTION_DURATIONS — Leve reflete 8min, Padrão 10min, Intensivo 15min).
+// Ver PrayerScreen.jsx pros comentários completos sobre wake lock / relógio
+// real / aviso sonoro — a lógica aqui é a mesma, deliberadamente duplicada
+// em vez de compartilhada, pra não acoplar duas telas que evoluem por
+// razões diferentes (uma é oração, a outra é reflexão sobre a leitura do dia).
+function computePhaseBounds(phaseMinutes) {
   let acc = 0
-  return REFLECTION_DATA.map(d => {
+  const bounds = REFLECTION_DATA.map((d, i) => {
     const start = acc
-    acc += d.durationMin * 60
+    acc += phaseMinutes[i] * 60
     return { id: d.id, start }
   })
-})()
-const TOTAL_SECONDS = REFLECTION_DATA.reduce((sum, d) => sum + d.durationMin * 60, 0)
+  return { bounds, totalSeconds: acc }
+}
 
-function phaseIndexAt(elapsedSeconds) {
+function phaseIndexAt(bounds, elapsedSeconds) {
   let idx = 0
-  for (let i = 0; i < PHASE_BOUNDS.length; i++) {
-    if (elapsedSeconds >= PHASE_BOUNDS[i].start) idx = i
+  for (let i = 0; i < bounds.length; i++) {
+    if (elapsedSeconds >= bounds[i].start) idx = i
   }
   return idx
 }
@@ -33,6 +34,13 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
+
+  const phaseMinutes = REFLECTION_DURATIONS[session.plan.reflectionMinutes] ?? REFLECTION_DURATIONS[10]
+  const { bounds: PHASE_BOUNDS, totalSeconds: TOTAL_SECONDS } = useMemo(
+    () => computePhaseBounds(phaseMinutes),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session.plan.reflectionMinutes]
+  )
 
   const intervalRef = useRef(null)
   const startedAtRef = useRef(null)
@@ -93,7 +101,7 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
     const now = Math.min(computeElapsed(), TOTAL_SECONDS)
     setElapsed(now)
 
-    const phaseIdx = phaseIndexAt(now)
+    const phaseIdx = phaseIndexAt(PHASE_BOUNDS, now)
     if (phaseIdx !== announcedPhaseRef.current) {
       const wasAlreadyAnnounced = announcedPhaseRef.current !== -1
       announcedPhaseRef.current = phaseIdx
@@ -217,10 +225,11 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
         {/* Roteiro acordeão — o card da etapa atual abre sozinho conforme o
             cronômetro avança, com aviso sonoro na troca (mesmo padrão do ACTS). */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {REFLECTION_DATA.map(data => (
+          {REFLECTION_DATA.map((data, i) => (
             <ReflectionGuideCard
               key={data.id}
               data={data}
+              minutes={phaseMinutes[i]}
               open={openCardId === data.id}
               onToggle={() => setOpenCardId(v => v === data.id ? null : data.id)}
             />

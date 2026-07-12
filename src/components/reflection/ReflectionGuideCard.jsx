@@ -4,8 +4,11 @@ import { currentLanguage } from '../../i18n'
 // `open`/`onToggle` são opcionais — se não vierem, o card controla o próprio
 // estado. O ReflectionScreen passa os dois pra poder auto-expandir o card
 // da etapa em andamento conforme o cronômetro avança (mesmo padrão de
-// ActsCard.jsx).
-export default function ReflectionGuideCard({ data, open: openProp, onToggle }) {
+// ActsCard.jsx). `minutes`, se vier, sobrescreve data.duration/durationMin
+// no badge — é como o ReflectionScreen mostra a duração certa pro plano
+// ativo (ver REFLECTION_DURATIONS) sem precisar de várias cópias de
+// REFLECTION_DATA.
+export default function ReflectionGuideCard({ data, open: openProp, onToggle, minutes }) {
   const [openState, setOpenState] = useState(false)
   const isControlled = openProp !== undefined
   const open = isControlled ? openProp : openState
@@ -40,7 +43,7 @@ export default function ReflectionGuideCard({ data, open: openProp, onToggle }) 
           <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{pick(data.subtitle)}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: data.letterColor }}>{pick(data.duration)}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: data.letterColor }}>{minutes != null ? `${minutes} min` : pick(data.duration)}</span>
           <span style={{ fontSize: 13, color: 'var(--g4)', fontWeight: 600, display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .3s' }}>∨</span>
         </div>
       </div>

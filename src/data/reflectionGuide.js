@@ -1,8 +1,7 @@
 // Roteiro da Reflexão Guiada diária — mesmo formato de src/components/acts/ActsCard.jsx
 // (ACTS_DATA), mas com prompts genéricos sobre a leitura do dia (não por
 // livro/passagem específica, ao contrário do ReflectionCard de fechamento de
-// livro em ReadingBlockView.jsx — são features diferentes). 3 etapas somando
-// 10 minutos, mesmo total do cronômetro em ReflectionScreen.jsx.
+// livro em ReadingBlockView.jsx — são features diferentes).
 export const REFLECTION_DATA = [
   {
     id: 'R',
@@ -119,3 +118,13 @@ export const REFLECTION_DATA = [
     verseRef: { pt: 'Tiago 1:22', en: 'James 1:22' },
   },
 ]
+
+// Duração de cada uma das 3 etapas (Reviver·Entender·Aplicar, mesma ordem
+// de REFLECTION_DATA) por duração total do plano — Leve reflete 8min,
+// Padrão 10min, Intensivo 15min. Ver ReflectionScreen.jsx, que escolhe o
+// perfil certo a partir de session.plan.reflectionMinutes.
+export const REFLECTION_DURATIONS = {
+  8:  [2, 3, 3],
+  10: [3, 4, 3],
+  15: [4, 6, 5],
+}

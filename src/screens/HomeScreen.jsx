@@ -95,7 +95,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
             <DailyRoutineCard
               dailyRoutine={dailyRoutine}
               todayRoutine={todayRoutine}
-              modules={plan.modules}
+              plan={plan}
               lang={lang}
               onNavigate={onNavigate}
               onContinueSession={onContinueSession}
@@ -268,17 +268,17 @@ function TutorialStep({ icon, time, title, desc, theme }) {
    separado, com stopPropagation, sem navegar) pra quem já orou/leu fora do
    app e só quer marcar. Reflexão não tem uma tela própria, então o toggle
    acontece direto no card, na linha inteira. ── */
-function DailyRoutineCard({ dailyRoutine, todayRoutine, modules, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
+function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
-  // Só mostra os passos que o plano ativo (Leve/Padrão/Intensivo) realmente
-  // pede naquele dia (ver PLANS[].modules em bibleBlocks.js) — Leve só
-  // mostra Leitura, Padrão soma Oração, Intensivo soma também Reflexão.
+  // Os 3 passos sempre aparecem (ver PLANS[].modules em bibleBlocks.js) — o
+  // que muda de um plano pro outro é a duração de cada um
+  // (prayerMinutes/reflectionMinutes), mostrada aqui no subtítulo.
   const allSteps = [
     {
       key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer,
       title: translate('home.routinePrayer', undefined, lang),
-      sub: translate('home.routinePrayerSub', undefined, lang),
+      sub: translate('home.routinePrayerSub', { min: plan.prayerMinutes }, lang),
       done: !!todayRoutine.prayer,
       onClick: () => onNavigate?.('prayer'),
       onToggleCheck: () => onMarkRoutineStep?.('prayer', !todayRoutine.prayer),
@@ -286,7 +286,7 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, modules, lang, onNavigat
     {
       key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading,
       title: translate('home.routineReading', undefined, lang),
-      sub: translate('home.routineReadingSub', undefined, lang),
+      sub: translate('home.routineReadingSub', { min: plan.readingMinutes }, lang),
       done: !!todayRoutine.reading,
       onClick: () => onContinueSession?.(),
       onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading),
@@ -294,13 +294,13 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, modules, lang, onNavigat
     {
       key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection,
       title: translate('home.routineReflection', undefined, lang),
-      sub: translate('home.routineReflectionSub', undefined, lang),
+      sub: translate('home.routineReflectionSub', { min: plan.reflectionMinutes }, lang),
       done: !!todayRoutine.reflection,
       onClick: () => onNavigate?.('reflection'),
       onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection),
     },
   ]
-  const steps = allSteps.filter(s => modules.includes(s.key))
+  const steps = allSteps.filter(s => plan.modules.includes(s.key))
   const doneCount = steps.filter(s => s.done).length
   // O primeiro passo ainda não feito ganha destaque — é "pra onde seguir"
   // depois de terminar o anterior.

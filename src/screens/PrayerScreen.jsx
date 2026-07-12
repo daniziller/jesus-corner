@@ -1,28 +1,29 @@
-import { useState, useEffect, useRef } from 'react'
-import ActsCard, { ACTS_DATA } from '../components/acts/ActsCard'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import ActsCard, { ACTS_DATA, ACTS_DURATIONS } from '../components/acts/ActsCard'
 import PrayerRequests from '../components/prayer/PrayerRequests'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
 // Fronteiras (em segundos, desde o início do cronômetro) de cada trecho do
-// ACTS — soma das durações sugeridas de cada card (4+3+4+4 = 15min, mesmo
-// total do cronômetro). Usado pra saber, a qualquer momento, em qual trecho
-// o cronômetro está e disparar o aviso sonoro na troca.
-const PHASE_BOUNDS = (() => {
+// ACTS, a partir dos minutos por etapa do perfil de duração ativo (ver
+// ACTS_DURATIONS — Leve ora 10min, Padrão/Intensivo oram 15min). Usado pra
+// saber, a qualquer momento, em qual trecho o cronômetro está e disparar o
+// aviso sonoro na troca.
+function computePhaseBounds(phaseMinutes) {
   let acc = 0
-  return ACTS_DATA.map(d => {
+  const bounds = ACTS_DATA.map((d, i) => {
     const start = acc
-    acc += d.durationMin * 60
+    acc += phaseMinutes[i] * 60
     return { id: d.id, start }
   })
-})()
-const TOTAL_SECONDS = ACTS_DATA.reduce((sum, d) => sum + d.durationMin * 60, 0)
+  return { bounds, totalSeconds: acc }
+}
 
-function phaseIndexAt(elapsedSeconds) {
+function phaseIndexAt(bounds, elapsedSeconds) {
   let idx = 0
-  for (let i = 0; i < PHASE_BOUNDS.length; i++) {
-    if (elapsedSeconds >= PHASE_BOUNDS[i].start) idx = i
+  for (let i = 0; i < bounds.length; i++) {
+    if (elapsedSeconds >= bounds[i].start) idx = i
   }
   return idx
 }
@@ -33,6 +34,15 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
   const email = authUser?.email
+
+  const phaseMinutes = ACTS_DURATIONS[session.plan.prayerMinutes] ?? ACTS_DURATIONS[15]
+  const { bounds: PHASE_BOUNDS, totalSeconds: TOTAL_SECONDS } = useMemo(
+    () => computePhaseBounds(phaseMinutes),
+    // phaseMinutes é um array literal novo a cada render — comparar pelo
+    // total (session.plan.prayerMinutes) é o que realmente importa aqui.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session.plan.prayerMinutes]
+  )
 
   const intervalRef = useRef(null)
   // Tempo é calculado por relógio (Date.now()), não por contagem de ticks —
@@ -109,7 +119,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
     const now = Math.min(computeElapsed(), TOTAL_SECONDS)
     setElapsed(now)
 
-    const phaseIdx = phaseIndexAt(now)
+    const phaseIdx = phaseIndexAt(PHASE_BOUNDS, now)
     if (phaseIdx !== announcedPhaseRef.current) {
       const wasAlreadyAnnounced = announcedPhaseRef.current !== -1
       announcedPhaseRef.current = phaseIdx
@@ -243,10 +253,11 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
             {/* ACTS acordeão — o card do trecho atual abre sozinho conforme
                 o cronômetro avança, com aviso sonoro na troca. */}
             <div className="block-grid">
-              {ACTS_DATA.map(data => (
+              {ACTS_DATA.map((data, i) => (
                 <ActsCard
                   key={data.id}
                   data={data}
+                  minutes={phaseMinutes[i]}
                   open={openCardId === data.id}
                   onToggle={() => setOpenCardId(v => v === data.id ? null : data.id)}
                 />
