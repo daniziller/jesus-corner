@@ -27,5 +27,5 @@ android-twa/*.apk
 android-twa/*.aab
 android-twa/*.idsig
 
-# Config local do Claude Code (específica desta máquina)
-.claude/settings.local.json
+# Config/estado local do Claude Code (específico desta máquina)
+.claude/

@@ -114,6 +114,25 @@ export function computeBookChapterCounts(sessionsByBlock) {
   return counts
 }
 
+// Conjunto dos livros (nome em português, mesma chave usada em
+// completed_keys) totalmente concluídos — todo capítulo mais a reflexão.
+// Usado pra detectar, comparando antes/depois de marcar algo como lido, se
+// um livro acabou de ser concluído (ver App.jsx, feed de atividade dos
+// amigos) — a mesma checagem que computeGamificationStats já faz pra contar
+// booksCompleted, só que devolvendo QUAIS livros, não só a contagem.
+export function computeCompletedBooks(completedSet, sessionsByBlock) {
+  const bookChapterCounts = computeBookChapterCounts(sessionsByBlock)
+  const completed = new Set()
+  for (const [book, total] of Object.entries(bookChapterCounts)) {
+    let allChaptersDone = true
+    for (let ch = 1; ch <= total; ch++) {
+      if (!completedSet.has(`${book}:${ch}`)) { allChaptersDone = false; break }
+    }
+    if (allChaptersDone && completedSet.has(`${book}:reflection`)) completed.add(book)
+  }
+  return completed
+}
+
 // Métricas de progresso que NÃO dependem de tempo/minutos: capítulos lidos,
 // livros e blocos completos, e um total de XP (10 por capítulo, +100 por
 // livro concluído, +500 por bloco concluído) que alimenta o sistema de
@@ -139,4 +158,17 @@ export function computeGamificationStats(completedSet, sessionsByBlock, blocks) 
   const xp = chaptersRead * 10 + booksCompleted * 100 + blocksCompleted * 500
 
   return { chaptersRead, totalChapters, booksCompleted, totalBooks: bookNames.length, blocksCompleted, xp }
+}
+
+// Nome de um livro no idioma pedido, a partir da chave em português (mesma
+// usada em completed_keys/payloads de atividade) — usado pro feed de
+// atividade dos amigos mostrar o nome do livro no idioma de quem está VENDO
+// o feed, não no idioma de quem completou o livro.
+export function bookNameFor(bookPt, lang) {
+  if (lang !== 'en') return bookPt
+  for (const block of BIBLE_BLOCKS) {
+    const i = block.books.indexOf(bookPt)
+    if (i !== -1) return block.booksEn[i]
+  }
+  return bookPt
 }

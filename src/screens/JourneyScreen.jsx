@@ -6,11 +6,17 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 
+// Remove acentos pra busca não exigir digitar "Êxodo" com acento certo.
+function normalizeSearch(str) {
+  return str.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, completedSet,
   onToggleSession, onToggleChapter, onSelectPlan, initialBlockId, entryMode, resumeSessionId,
 }) {
   const { lang } = session
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Bloco "aberto" (visão de leitura) — null significa visão geral (mapa de
   // blocos). Quando entryMode é 'reading' (ex: botão "Continuar sessão" na
@@ -59,11 +65,24 @@ export default function JourneyScreen({
   const totalBooks = blocks.reduce((s, b) => s + b.books.length, 0)
   const currentBookName = lang === 'en' ? activeBlock.currentBookEn : activeBlock.currentBook
 
+  // Busca de livro — achata todos os blocos numa lista única de livros
+  // pesquisáveis, independente de qual bloco/testamento eles pertencem, já
+  // que o usuário pode não saber de cabeça em qual bloco um livro está.
+  const trimmedQuery = searchQuery.trim()
+  const searchResults = trimmedQuery
+    ? blocks.flatMap(block => {
+        const names = lang === 'en' ? block.booksEn : block.books
+        return names
+          .map((displayName, i) => ({ displayName, canonicalName: block.books[i], block }))
+          .filter(entry => normalizeSearch(entry.displayName).includes(normalizeSearch(trimmedQuery)))
+      })
+    : null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingBottom: 83 }}>
 
       {/* Hero */}
-      <div style={styles.hero}>
+      <div style={styles.hero} data-tour="journey-hero">
         <div style={styles.heroOrbOrange} />
         <div style={styles.heroOrbPink} />
         <p style={styles.heroLabel}>{t('journey.heroLabel', undefined, lang)}</p>
@@ -110,35 +129,77 @@ export default function JourneyScreen({
 
         {/* Conteúdo */}
         <div style={{ padding: '13px 14px 18px', display: 'flex', flexDirection: 'column' }}>
-          <TestamentSection
-            testamentKey="at"
-            label={t('journey.oldTestament', undefined, lang)}
-            blocks={blocks.filter(b => b.id <= 4)}
-            activeBlockId={activeBlock.id}
-            onOpenBlock={openBlock}
-            onOpenBook={openBook}
-            lang={lang}
-          />
-          <TestamentSection
-            testamentKey="nt"
-            label={t('journey.newTestament', undefined, lang)}
-            blocks={blocks.filter(b => b.id >= 5)}
-            activeBlockId={activeBlock.id}
-            onOpenBlock={openBlock}
-            onOpenBook={openBook}
-            lang={lang}
-            style={{ marginTop: 12 }}
-          />
+
+          {/* Busca — digitar filtra a lista de livros de todos os blocos;
+              limpar a busca volta pra visão normal por testamento. */}
+          <div style={styles.searchWrap}>
+            <AppIcon name="Search" size={15} color="var(--g4)" style={{ flexShrink: 0 }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('journey.searchPlaceholder', undefined, lang)}
+              style={styles.searchInput}
+            />
+            {trimmedQuery && (
+              <button style={styles.searchClearBtn} onClick={() => setSearchQuery('')} aria-label="clear">
+                <AppIcon name="X" size={13} color="var(--g4)" />
+              </button>
+            )}
+          </div>
+
+          {searchResults ? (
+            searchResults.length === 0 ? (
+              <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                {searchResults.map(({ displayName, canonicalName, block }) => (
+                  <button
+                    key={`${block.id}-${canonicalName}`}
+                    style={styles.searchResultRow}
+                    onClick={() => openBook(block, canonicalName)}
+                  >
+                    <div>
+                      <p style={styles.searchResultBook}>{displayName}</p>
+                      <p style={styles.searchResultBlock}>{lang === 'en' ? block.nameEn : block.name}</p>
+                    </div>
+                    <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
+                  </button>
+                ))}
+              </div>
+            )
+          ) : (
+            <>
+              <TestamentSection
+                testamentKey="at"
+                label={t('journey.oldTestament', undefined, lang)}
+                blocks={blocks.filter(b => b.id <= 4)}
+                onOpenBlock={openBlock}
+                onOpenBook={openBook}
+                lang={lang}
+              />
+              <TestamentSection
+                testamentKey="nt"
+                label={t('journey.newTestament', undefined, lang)}
+                blocks={blocks.filter(b => b.id >= 5)}
+                onOpenBlock={openBlock}
+                onOpenBook={openBook}
+                lang={lang}
+                style={{ marginTop: 12 }}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-/* ── Seção expansível de testamento (Antigo/Novo) ── */
-function TestamentSection({ testamentKey, label, blocks, activeBlockId, onOpenBlock, onOpenBook, lang, style }) {
-  const containsActiveBlock = blocks.some(b => b.id === activeBlockId)
-  const [open, setOpen] = useState(containsActiveBlock)
+/* ── Seção expansível de testamento (Antigo/Novo) — começa sempre
+   compacta, mesmo se o bloco ativo estiver dentro dela; o usuário decide
+   quando quer ver os blocos, em vez do app abrir um dos dois sozinho. ── */
+function TestamentSection({ testamentKey, label, blocks, onOpenBlock, onOpenBook, lang, style }) {
+  const [open, setOpen] = useState(false)
 
   const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
   const totalSessions = blocks.reduce((s, b) => s + b.sessionsTotal, 0)
@@ -230,6 +291,13 @@ function BlockCard({ block, onOpenBlock, onOpenBook, lang }) {
 }
 
 const styles = {
+  searchWrap:        { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '10px 13px', marginBottom: 4 },
+  searchInput:       { flex: 1, border: 'none', background: 'none', outline: 'none', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)' },
+  searchClearBtn:    { border: 'none', background: 'var(--g2)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  searchEmptyHint:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', padding: '14px 2px', textAlign: 'center' },
+  searchResultRow:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'white', border: '0.5px solid var(--g1)', borderRadius: 13, padding: '10px 13px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },
+  searchResultBook:  { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  searchResultBlock: { fontSize: 10, fontWeight: 500, color: 'var(--g4)', marginTop: 1 },
   hero:            { background: '#141414', padding: '18px 16px 30px', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange:   { position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: '#F97316', filter: 'blur(70px)', opacity: 0.5, top: -70, right: -60 },
   heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: '#EC4899', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },

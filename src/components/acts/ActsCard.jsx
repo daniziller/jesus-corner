@@ -8,6 +8,7 @@ const ACTS_DATA = [
     title: { pt: 'Adoração', en: 'Adoration' },
     subtitle: { pt: 'Louve quem Deus é', en: 'Praise who God is' },
     duration: { pt: '4 min', en: '4 min' },
+    durationMin: 4,
     bgColor: 'rgba(249,115,22,.1)',
     letterColor: '#C2410C',
     borderColor: 'rgba(249,115,22,.4)',
@@ -45,6 +46,7 @@ const ACTS_DATA = [
     title: { pt: 'Confissão', en: 'Confession' },
     subtitle: { pt: 'Reconheça seus pecados', en: 'Acknowledge your sins' },
     duration: { pt: '3 min', en: '3 min' },
+    durationMin: 3,
     bgColor: 'rgba(220,38,38,.1)',
     letterColor: '#B91C1C',
     borderColor: 'rgba(220,38,38,.4)',
@@ -82,6 +84,7 @@ const ACTS_DATA = [
     title: { pt: 'Ação de Graças', en: 'Thanksgiving' },
     subtitle: { pt: 'Expresse gratidão', en: 'Express gratitude' },
     duration: { pt: '4 min', en: '4 min' },
+    durationMin: 4,
     bgColor: 'rgba(22,163,74,.1)',
     letterColor: '#15803D',
     borderColor: 'rgba(22,163,74,.4)',
@@ -119,6 +122,7 @@ const ACTS_DATA = [
     title: { pt: 'Súplicas', en: 'Supplication' },
     subtitle: { pt: 'Apresente seus pedidos', en: 'Bring your requests' },
     duration: { pt: '4 min', en: '4 min' },
+    durationMin: 4,
     bgColor: 'rgba(79,70,229,.1)',
     letterColor: '#4338CA',
     borderColor: 'rgba(79,70,229,.4)',
@@ -152,10 +156,21 @@ const ACTS_DATA = [
   },
 ]
 
-export default function ActsCard({ data }) {
-  const [open, setOpen] = useState(false)
+// `open`/`onToggle` são opcionais — se não vierem, o card controla o próprio
+// estado (comportamento original). O PrayerScreen passa os dois pra poder
+// auto-expandir o card do trecho ACTS em andamento conforme o cronômetro
+// avança, sem perder a possibilidade de abrir manualmente outro card.
+export default function ActsCard({ data, open: openProp, onToggle }) {
+  const [openState, setOpenState] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp : openState
   const lang = currentLanguage()
   const pick = (field) => field[lang] ?? field.pt
+
+  function handleToggle() {
+    if (isControlled) onToggle?.()
+    else setOpenState(v => !v)
+  }
 
   return (
     <div
@@ -168,7 +183,7 @@ export default function ActsCard({ data }) {
         cursor: 'pointer',
         transition: 'border-color .2s, box-shadow .2s',
       }}
-      onClick={() => setOpen(v => !v)}
+      onClick={handleToggle}
     >
       {/* Header */}
       <div style={{ padding: 13, display: 'flex', alignItems: 'center', gap: 11, userSelect: 'none' }}>

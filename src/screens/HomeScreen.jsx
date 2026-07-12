@@ -1,16 +1,27 @@
 // HomeScreen.jsx
 // Tela inicial com % da Bíblia em destaque, sessão do dia e stats
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import ActivityFeedItem from '../components/ActivityFeedItem'
+import { getFriendsActivity } from '../activity/activityStore'
+import { isDayComplete } from '../routine/routineStreak'
+import { dateKey } from '../utils/dateKey'
+import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 
-export default function HomeScreen({ session, onContinueSession }) {
+export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
     userName, biblePercent, atPercent, ntPercent,
     streak, daysLeft, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, lang,
+    dailyRoutine, todayRoutine,
   } = session
+
+  const [friendActivity, setFriendActivity] = useState([])
+  useEffect(() => {
+    getFriendsActivity(3).then(setFriendActivity).catch(err => console.error('Failed to load friend activity', err))
+  }, [])
 
   // Calcula o offset do anel SVG (circunferência = 2π×38 ≈ 238.76)
   const CIRCUMFERENCE = 238.76
@@ -41,13 +52,17 @@ export default function HomeScreen({ session, onContinueSession }) {
 
       {/* ── Corpo (sheet flutuante sobre o hero) ── */}
       <div style={styles.body}>
+
+        {/* Tutorial do método (recolhido por padrão) — logo no topo, igual ao design original */}
+        <TutorialCard lang={lang} />
+
         <div className="dashboard-grid">
 
           {/* Coluna esquerda: status geral (% da Bíblia + nível) */}
           <div className="dashboard-col">
 
             {/* Destaque % da Bíblia */}
-            <div style={styles.pctHero}>
+            <div style={styles.pctHero} data-tour="home-bible-ring">
               <div style={styles.pctHeroGlow} />
 
               {/* Anel SVG */}
@@ -77,6 +92,18 @@ export default function HomeScreen({ session, onContinueSession }) {
                 </div>
               </div>
             </div>
+
+            {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
+                passo é feito de verdade (oração/leitura), com um calendário
+                de histórico embutido. Logo abaixo da métrica de % da Bíblia. */}
+            <DailyRoutineCard
+              dailyRoutine={dailyRoutine}
+              todayRoutine={todayRoutine}
+              lang={lang}
+              onNavigate={onNavigate}
+              onContinueSession={onContinueSession}
+              onMarkRoutineStep={onMarkRoutineStep}
+            />
 
             {/* Nível e XP */}
             <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
@@ -121,8 +148,22 @@ export default function HomeScreen({ session, onContinueSession }) {
               </div>
             </div>
 
-            {/* Tutorial do método (recolhido por padrão) */}
-            <TutorialCard lang={lang} />
+            {/* Atividade dos amigos (versão compacta — a completa mora na aba Comunidade) */}
+            {friendActivity.length > 0 && (
+              <div>
+                <div className="section-header">
+                  <h3 className="section-title">{translate('activity.homeTitle', undefined, lang)}</h3>
+                  <span className="section-link" onClick={() => onNavigate?.('groups')}>{translate('activity.seeAll', undefined, lang)}</span>
+                </div>
+                <div style={styles.activityCard}>
+                  {friendActivity.map((a, i) => (
+                    <div key={a.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '0.5px solid var(--g1)' : 'none' }}>
+                      <ActivityFeedItem activity={a} lang={lang} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -216,6 +257,174 @@ function TutorialStep({ icon, time, title, desc, theme }) {
   )
 }
 
+/* ── "Sua rotina com Deus" — 3 passos diários clicáveis + calendário de
+   histórico. A linha inteira de Oração e Leitura navega pra onde o passo é
+   feito de verdade; os dois também têm um ícone-checkbox próprio (clique
+   separado, com stopPropagation, sem navegar) pra quem já orou/leu fora do
+   app e só quer marcar. Reflexão não tem uma tela própria, então o toggle
+   acontece direto no card, na linha inteira. ── */
+function DailyRoutineCard({ dailyRoutine, todayRoutine, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
+  const [showCalendar, setShowCalendar] = useState(false)
+
+  const steps = [
+    {
+      key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer,
+      title: translate('home.routinePrayer', undefined, lang),
+      sub: translate('home.routinePrayerSub', undefined, lang),
+      done: !!todayRoutine.prayer,
+      onClick: () => onNavigate?.('prayer'),
+      onToggleCheck: () => onMarkRoutineStep?.('prayer', !todayRoutine.prayer),
+    },
+    {
+      key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading,
+      title: translate('home.routineReading', undefined, lang),
+      sub: translate('home.routineReadingSub', undefined, lang),
+      done: !!todayRoutine.reading,
+      onClick: () => onContinueSession?.(),
+      onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading),
+    },
+    {
+      key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection,
+      title: translate('home.routineReflection', undefined, lang),
+      sub: translate('home.routineReflectionSub', undefined, lang),
+      done: !!todayRoutine.reflection,
+      onClick: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection),
+    },
+  ]
+  const doneCount = steps.filter(s => s.done).length
+  // O primeiro passo ainda não feito ganha destaque — é "pra onde seguir"
+  // depois de terminar o anterior.
+  const nextIndex = steps.findIndex(s => !s.done)
+
+  return (
+    <div style={styles.routineCard} data-tour="home-routine-card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+        <div>
+          <p style={styles.routineTitle}>{translate('home.routineTitle', undefined, lang)}</p>
+          <p style={styles.routineSub}>{translate('home.routineStepsCount', { done: doneCount }, lang)}</p>
+        </div>
+        <button style={styles.routineCalendarToggle} onClick={() => setShowCalendar(v => !v)}>
+          <AppIcon name="Calendar" size={13} />
+          {translate(showCalendar ? 'home.routineHideCalendar' : 'home.routineViewCalendar', undefined, lang)}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {steps.map((step, i) => {
+          const isNext = i === nextIndex
+          return (
+            <button
+              key={step.key}
+              style={{
+                ...styles.routineStepRow,
+                ...(step.done ? styles.routineStepRowDone : {}),
+                ...(isNext ? { borderColor: step.color } : {}),
+              }}
+              onClick={step.onClick}
+            >
+              {step.onToggleCheck ? (
+                <span
+                  role="button"
+                  aria-label={translate('home.routineMarkDone', undefined, lang)}
+                  style={{ ...styles.routineStepIcon, background: step.done ? step.color : 'var(--g1)', cursor: 'pointer' }}
+                  onClick={e => { e.stopPropagation(); step.onToggleCheck() }}
+                >
+                  {step.done
+                    ? <AppIcon name="Check" size={16} color="white" />
+                    : <AppIcon name={step.icon} size={16} color="var(--g4)" />}
+                </span>
+              ) : (
+                <div style={{ ...styles.routineStepIcon, background: step.done ? step.color : 'var(--g1)' }}>
+                  {step.done
+                    ? <AppIcon name="Check" size={16} color="white" />
+                    : <AppIcon name={step.icon} size={16} color="var(--g4)" />}
+                </div>
+              )}
+              <div style={{ flex: 1, textAlign: 'left' }}>
+                <p style={styles.routineStepTitle}>{step.title}</p>
+                <p style={styles.routineStepSub}>{step.done ? translate('home.routineDoneTag', undefined, lang) : step.sub}</p>
+              </div>
+              <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
+            </button>
+          )
+        })}
+      </div>
+
+      {doneCount === 3 && (
+        <p style={styles.routineAllDone}>{translate('home.routineAllDoneMsg', undefined, lang)}</p>
+      )}
+
+      {showCalendar && <RoutineCalendar dailyRoutine={dailyRoutine} lang={lang} />}
+    </div>
+  )
+}
+
+function RoutineCalendar({ dailyRoutine, lang }) {
+  const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); d.setDate(1); return d })
+
+  const year = monthCursor.getFullYear()
+  const month = monthCursor.getMonth()
+  const firstOfMonth = new Date(year, month, 1)
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const startWeekday = firstOfMonth.getDay() // 0 = domingo
+
+  const weekdayLabels = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(2024, 0, 7 + i) // uma semana qualquer começando num domingo
+    return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'narrow' }).format(d)
+  })
+  const monthLabel = new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'long', year: 'numeric' }).format(monthCursor)
+
+  const cells = []
+  for (let i = 0; i < startWeekday; i++) cells.push(null)
+  for (let day = 1; day <= daysInMonth; day++) cells.push(day)
+
+  function changeMonth(delta) {
+    setMonthCursor(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + delta); return d })
+  }
+
+  return (
+    <div style={styles.calendarWrap}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <button style={styles.calendarNavBtn} onClick={() => changeMonth(-1)} aria-label="prev"><AppIcon name="ArrowLeft" size={14} /></button>
+        <p style={styles.calendarMonthLabel}>{monthLabel}</p>
+        <button style={styles.calendarNavBtn} onClick={() => changeMonth(1)} aria-label="next"><AppIcon name="ArrowLeft" size={14} style={{ transform: 'rotate(180deg)' }} /></button>
+      </div>
+      <div style={styles.calendarGrid}>
+        {weekdayLabels.map((w, i) => <span key={i} style={styles.calendarWeekday}>{w}</span>)}
+        {cells.map((day, i) => {
+          if (day == null) return <span key={i} />
+          const dayData = dailyRoutine[dateKey(new Date(year, month, day))]
+          const complete = isDayComplete(dayData)
+          return (
+            <div key={i} style={styles.calendarDayCell}>
+              <span style={{ ...styles.calendarDayNum, ...(complete ? styles.calendarDayNumComplete : {}) }}>{day}</span>
+              <div style={styles.calendarStepDots}>
+                <span style={{ ...styles.calendarStepDot, background: dayData?.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />
+                <span style={{ ...styles.calendarStepDot, background: dayData?.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />
+                <span style={{ ...styles.calendarStepDot, background: dayData?.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div style={styles.calendarLegend}>
+        <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />
+        <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />
+        <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />
+      </div>
+    </div>
+  )
+}
+
+function LegendDot({ color, label }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ width: 6, height: 6, borderRadius: 2, background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--g5)' }}>{label}</span>
+    </span>
+  )
+}
+
 function BarRow({ label, pct, color }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -247,6 +456,27 @@ function StatCard({ value, suffix, label, theme }) {
 }
 
 const styles = {
+  routineCard:        { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: 14 },
+  routineTitle:       { fontSize: 14, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
+  routineSub:         { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
+  routineCalendarToggle: { display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: 'var(--g1)', borderRadius: 20, padding: '6px 10px', fontSize: 10, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)', flexShrink: 0 },
+  routineStepRow:     { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: '1.5px solid var(--g1)', background: 'var(--g1)', borderRadius: 14, padding: 10, cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left' },
+  routineStepRowDone: { background: 'white', borderColor: 'var(--g1)' },
+  routineStepIcon:    { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  routineStepTitle:   { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  routineStepSub:     { fontSize: 10, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
+  routineAllDone:     { fontSize: 11, fontWeight: 700, color: 'var(--or)', textAlign: 'center', marginTop: 10 },
+  calendarWrap:       { marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)' },
+  calendarNavBtn:      { width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  calendarMonthLabel: { fontSize: 12, fontWeight: 700, color: 'var(--bk)', textTransform: 'capitalize' },
+  calendarGrid:       { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' },
+  calendarWeekday:    { fontSize: 9, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', padding: '2px 0' },
+  calendarDayCell:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '2px 0' },
+  calendarDayNum:     { fontSize: 10, fontWeight: 600, color: 'var(--g6)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calendarDayNumComplete: { background: 'var(--bk)', color: 'white', fontWeight: 800 },
+  calendarStepDots:   { display: 'flex', gap: 2 },
+  calendarStepDot:    { width: 5, height: 5, borderRadius: 1.5, flexShrink: 0 },
+  calendarLegend:      { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
   tutorialCard:  { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
   tutorialToggle:{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 14, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)' },
   tutorialEmoji: { fontSize: 22, flexShrink: 0 },
@@ -286,6 +516,7 @@ const styles = {
   progressFill:  { height: '100%', background: 'var(--grad-primary)', borderRadius: 99, transition: 'width 0.6s ease' },
   continueBtn:   { width: '100%', background: 'var(--grad-vivid)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' },
   statsRow:      { display: 'flex', gap: 8 },
+  activityCard:  { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 13, boxShadow: 'var(--shadow-card)' },
   levelCard:     { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:    { fontSize: 26, flexShrink: 0 },
   levelTitle:    { fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import AppHeader from './components/AppHeader'
+import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
 import AuthScreen from './screens/AuthScreen'
@@ -7,19 +8,31 @@ import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import JourneyScreen from './screens/JourneyScreen'
+import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
 import ProgressScreen from './screens/ProgressScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
-import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys } from './utils/progress'
+import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks } from './utils/progress'
 import { levelFor, levelProgress } from './utils/levels'
+import { isAtLeast } from './utils/age'
 import { computeUnlockedAchievements } from './utils/achievements'
 import { getPrayerStats } from './prayer/prayerStatsStore'
-import { recordAccess } from './streak/streakStore'
+import { getDailyRoutine, setStepDone } from './routine/dailyRoutineStore'
+import { computeRoutineStreak } from './routine/routineStreak'
+import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { PLANS } from './data/bibleBlocks'
-import { getAppLanguage } from './i18n/appLanguageStore'
+import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
+import { detectLanguageFromIp } from './i18n/detectLanguage'
+import { t } from './i18n'
+import { getMyActiveChallenges, recordChallengeProgress } from './groups/challengesStore'
+import { getPendingGroupInvitesCount } from './groups/groupsStore'
+import { getPendingFriendRequestsCount } from './friends/friendsStore'
+import { getMyProfile, markTourSeen } from './profile/profileStore'
+import { logActivity } from './activity/activityStore'
+import TourController from './tour/TourController'
 
 function avatarInitialsOf(name) {
   const parts = name.trim().split(/\s+/)
@@ -80,8 +93,10 @@ function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, streak, planId, completedSet, prayerStats) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats) {
   const lang = authUser.language ?? 'pt'
+  const streak = computeRoutineStreak(dailyRoutine)
+  const todayRoutine = dailyRoutine[dateKey()] ?? {}
   // Sessão (e bloco) onde o usuário realmente parou — baseado no último
   // capítulo marcado como lido, não na ordem sugerida dos livros/blocos.
   const { session: currentSession, block: activeBlock } = findCurrentReadingSession(blocks, sessionsByBlock, completedSet)
@@ -140,6 +155,8 @@ function buildSession(authUser, blocks, sessionsByBlock, streak, planId, complet
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     daysLeft,
     plan,
+    dailyRoutine,
+    todayRoutine,
     todaySession: {
       number: currentSession.id,
       title: displayTitle,
@@ -154,19 +171,52 @@ function buildSession(authUser, blocks, sessionsByBlock, streak, planId, complet
 
 const DEFAULT_PRAYER_STATS = { requestsAdded: 0, requestsAnswered: 0, timerCompletions: 0 }
 
+// Pedidos de amizade + convites de grupo pendentes, somados — alimenta o
+// sino de notificações (AppHeader/Sidebar) e o indicador na aba Comunidade
+// (ver Sidebar/BottomNav, que só precisa saber se a soma é > 0).
+async function getPendingSocialCount() {
+  const [friendRequests, groupInvites] = await Promise.all([
+    getPendingFriendRequestsCount(),
+    getPendingGroupInvitesCount(),
+  ])
+  return friendRequests + groupInvites
+}
+
 export default function App() {
   // Fica true assim que a sessão do Supabase (logado ou não) e, se logado, o
   // progresso salvo, terminam de carregar — antes disso mostramos uma tela
   // de carregamento em vez de renderizar com dados parciais/errados.
   const [bootstrapped, setBootstrapped] = useState(false)
   const [authUser, setAuthUser] = useState(null)
+  // Aba Grupos liberada só pra maiores de 16 — contas sem data de nascimento
+  // (criadas antes desse campo existir) não são restringidas (ver isAtLeast).
+  const canAccessGroups = isAtLeast(authUser?.birthdate, 16)
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
   const [planId, setPlanId] = useState('standard')
   const [activeBlockId, setActiveBlockId] = useState(1)
-  const [streak, setStreak] = useState(0)
+  // Rotina diária (Oração/Leitura/Reflexão) — o streak exibido é derivado
+  // dela (ver computeRoutineStreak), não mais de um login diário.
+  const [dailyRoutine, setDailyRoutine] = useState({})
   const [prayerStats, setPrayerStats] = useState(DEFAULT_PRAYER_STATS)
+  // Foto de perfil (profiles.avatar_url) — mora fora de authUser porque não
+  // é user_metadata, é a tabela profiles (pensada pra ser visível a amigos).
+  // Refletida no Sidebar/AppHeader assim que muda (ver onProfileUpdated).
+  const [myAvatarUrl, setMyAvatarUrl] = useState(null)
+  // Tutorial interativo de primeiro acesso (ver src/tour/) — ligado quando
+  // profiles.has_seen_tour vem false do banco (só contas genuinamente
+  // novas, nunca retroativamente — ver supabase/migrations/0013_*.sql).
+  const [tourActive, setTourActive] = useState(false)
+  // Desafios de grupo ativos dos quais participo (challengeId + livros do
+  // escopo) — usado só pra decidir, ao marcar um capítulo como lido, se
+  // ele também conta pro placar de algum desafio (ver toggleSession/
+  // toggleChapter mais abaixo). Nenhuma tela de leitura precisa saber que
+  // desafios existem.
+  const [activeChallenges, setActiveChallenges] = useState([])
+  // Pedidos de amizade + convites de grupo pendentes — alimenta o sino de
+  // notificações e a bolinha na aba Comunidade.
+  const [pendingSocialCount, setPendingSocialCount] = useState(0)
   // Controla se a aba Jornada (agora também dona da Leitura) abre no mapa de
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
@@ -185,13 +235,30 @@ export default function App() {
     async function bootstrap() {
       const user = await getCurrentUser()
       if (cancelled) return
-      if (!user) { setBootstrapped(true); return }
+      if (!user) {
+        // Ninguém logado ainda — se o dispositivo também não tem idioma
+        // escolhido, tenta detectar pelo IP (Brasil → pt, resto → en) antes
+        // de decidir se mostra a tela de escolha manual. Falha silenciosa:
+        // sem detecção, cai de volta pra tela de escolha normal.
+        if (!getAppLanguage()) {
+          const detected = await detectLanguageFromIp()
+          if (!cancelled && detected) {
+            setAppLanguage(detected)
+            setAppLanguageState(detected)
+          }
+        }
+        if (!cancelled) setBootstrapped(true)
+        return
+      }
 
-      const [set, userPlanId, userStreak, stats] = await Promise.all([
+      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
-        recordAccess(user.email),
+        getDailyRoutine(),
         getPrayerStats(user.email),
+        getMyActiveChallenges(),
+        getPendingSocialCount(),
+        getMyProfile(),
       ])
       if (cancelled) return
 
@@ -199,26 +266,48 @@ export default function App() {
       setCompletedSet(set)
       setPlanId(userPlanId)
       setActiveBlockId(defaultBlockIdFor(set, userPlanId))
-      setStreak(userStreak)
+      setDailyRoutine(routine)
       setPrayerStats(stats)
+      setActiveChallenges(challenges)
+      setPendingSocialCount(pendingSocial)
+      setMyAvatarUrl(myProfile?.avatarUrl ?? null)
+      if (myProfile?.hasSeenTour === false) setTourActive(true)
       setBootstrapped(true)
     }
     bootstrap()
     return () => { cancelled = true }
   }, [])
 
-  // Mantém as estatísticas de oração em dia ao trocar de aba — evita mostrar
-  // conquistas desatualizadas depois de orar ou registrar um pedido em outra tela.
+  // Mantém as estatísticas de oração, o indicador de pendência e os
+  // desafios ativos em dia ao trocar de aba — evita mostrar conquistas
+  // desatualizadas, uma bolinha de pendência que já devia ter sumido, ou
+  // deixar de contar progresso de um desafio que outra pessoa do grupo
+  // acabou de criar enquanto eu já estava com o app aberto.
+  // dailyRoutine NÃO entra aqui de propósito: os três gatilhos que a mudam
+  // (toggleSession/toggleChapter, onPrayerCompleted, o toggle da Home) já
+  // atualizam o estado local direto via markRoutineStep — uma busca "atrasada"
+  // aqui poderia sobrescrever essa atualização otimista com um dado velho.
   useEffect(() => {
     if (!authUser?.email) return
     getPrayerStats(authUser.email).then(setPrayerStats).catch(err => {
       console.error('Failed to refresh prayer stats', err)
     })
+    getPendingSocialCount().then(setPendingSocialCount).catch(err => {
+      console.error('Failed to refresh pending social indicator', err)
+    })
+    getMyActiveChallenges().then(setActiveChallenges).catch(err => {
+      console.error('Failed to refresh active challenges', err)
+    })
   }, [authUser?.email, activeTab])
 
   // Navegação genérica entre abas — ao ir pra Jornada por essa via (menu
   // inferior, header, etc.) sempre reseta pro mapa de blocos (visão geral).
+  // A aba Grupos é restrita a maiores de 16 — a Sidebar/BottomNav já escondem
+  // o clique, mas essa checagem aqui é a segunda linha de defesa (mesmo
+  // espírito de "UI esconde, a fonte da verdade decide" já usado nas policies
+  // RLS de group_comments).
   function navigateTo(tab) {
+    if (tab === 'groups' && !canAccessGroups) return
     if (tab === 'journey') setJourneyEntryMode('overview')
     setActiveTab(tab)
   }
@@ -237,18 +326,46 @@ export default function App() {
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
-    const [set, userPlanId, stats, userStreak] = await Promise.all([
+    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getPrayerStats(user.email),
-      recordAccess(user.email),
+      getDailyRoutine(),
+      getMyActiveChallenges(),
+      getPendingSocialCount(),
+      getMyProfile(),
     ])
     setAuthUser(user)
     setCompletedSet(set)
     setPlanId(userPlanId)
     setActiveBlockId(defaultBlockIdFor(set, userPlanId))
     setPrayerStats(stats)
-    setStreak(userStreak)
+    setDailyRoutine(routine)
+    setActiveChallenges(challenges)
+    setPendingSocialCount(pendingSocial)
+    setMyAvatarUrl(myProfile?.avatarUrl ?? null)
+    if (myProfile?.hasSeenTour === false) setTourActive(true)
+  }
+
+  // Pular e concluir persistem do mesmo jeito — é um booleano só, sem
+  // "progresso parcial" pra guardar, então os dois "grudam" na hora (ver
+  // src/tour/ e supabase/migrations/0013_first_login_tour.sql).
+  function handleTourFinish() {
+    markTourSeen()
+    setTourActive(false)
+  }
+  function handleTourSkip() {
+    markTourSeen()
+    setTourActive(false)
+  }
+
+  // Chamado pelo ProfileScreen depois de salvar uma edição de perfil —
+  // atualiza name/birthdate (que vivem em authUser) e a foto na hora (UI
+  // otimista, o ProfileScreen já persistiu antes de chamar isso).
+  function handleProfileUpdated({ name, birthdate, avatarUrl }) {
+    if (!authUser) return
+    setAuthUser({ ...authUser, name, birthdate })
+    if (avatarUrl !== undefined) setMyAvatarUrl(avatarUrl)
   }
 
   function handleLogout() {
@@ -258,7 +375,24 @@ export default function App() {
     setStreak(0)
     setPlanId('standard')
     setPrayerStats(DEFAULT_PRAYER_STATS)
+    setActiveChallenges([])
+    setPendingSocialCount(false)
+    setMyAvatarUrl(null)
     setActiveTab('home')
+  }
+
+  // Chamado pelo GroupsScreen depois de qualquer ação que possa mudar
+  // desafios ativos ou pendências (aceitar convite, sair de um grupo,
+  // entrar num desafio novo) — evita esperar a próxima troca de aba pra
+  // essas listas ficarem em dia.
+  function refreshSocialState() {
+    if (!authUser?.email) return
+    Promise.all([getMyActiveChallenges(), getPendingSocialCount()])
+      .then(([challenges, pendingSocial]) => {
+        setActiveChallenges(challenges)
+        setPendingSocialCount(pendingSocial)
+      })
+      .catch(err => console.error('Failed to refresh social state', err))
   }
 
   function selectPlan(id) {
@@ -285,6 +419,65 @@ export default function App() {
     resetProgress(authUser.email).catch(err => console.error('Failed to reset progress', err))
   }
 
+  // Grava, nos desafios de grupo ativos, os capítulos que acabaram de virar
+  // concluídos nesta ação — só os que já não estavam marcados antes, e só
+  // os que pertencem ao(s) livro(s) do escopo de cada desafio. É assim que
+  // "só conta o que foi lido depois de entrar no desafio" funciona, sem
+  // precisar comparar datas (ver reading_challenge_progress na migração).
+  function recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys) {
+    if (newlyDoneKeys.length === 0 || activeChallenges.length === 0) return
+    for (const challenge of activeChallenges) {
+      const matching = newlyDoneKeys.filter(k => challenge.books.includes(k.split(':')[0]))
+      if (matching.length > 0) {
+        recordChallengeProgress(challenge.challengeId, matching).catch(err => {
+          console.error('Failed to record challenge progress', err)
+        })
+      }
+    }
+  }
+
+  // Detecta, comparando o completedSet antes/depois de uma ação, se algum
+  // livro acabou de ser concluído ou se o nível subiu — e registra cada
+  // marco no feed de atividade dos amigos (ver src/activity/activityStore.js).
+  // Nível é calculado só no client (src/utils/levels.js), então a detecção
+  // também precisa ser aqui — não dá pra fazer isso num trigger do banco sem
+  // duplicar a fórmula de XP/nível em SQL.
+  function detectAndLogMilestones(prevSet, nextSet) {
+    const prevBooks = computeCompletedBooks(prevSet, sessionsByBlock)
+    const nextBooks = computeCompletedBooks(nextSet, sessionsByBlock)
+    for (const book of nextBooks) {
+      if (!prevBooks.has(book)) {
+        logActivity('book_completed', { book }).catch(err => console.error('Failed to log activity', err))
+      }
+    }
+
+    const { blocks: nextBlocks } = deriveProgress(nextSet, planId)
+    const prevXp = computeGamificationStats(prevSet, sessionsByBlock, blocks).xp
+    const nextXp = computeGamificationStats(nextSet, sessionsByBlock, nextBlocks).xp
+    const prevLevelNum = levelFor(prevXp).level
+    const nextLevelNum = levelFor(nextXp).level
+    if (nextLevelNum > prevLevelNum) {
+      logActivity('level_up', { level: nextLevelNum }).catch(err => console.error('Failed to log activity', err))
+    }
+  }
+
+  // Marca um passo da rotina diária (oração/leitura/reflexão) como
+  // concluído — atualiza o estado local na hora (o streak/calendário da
+  // Home reagem no mesmo instante) e persiste em segundo plano. Usado tanto
+  // por gatilhos automáticos (marcar um capítulo, terminar o cronômetro de
+  // oração) quanto pelo toggle manual da reflexão na Home.
+  function markRoutineStep(step, done = true) {
+    if (!authUser) return
+    const key = dateKey()
+    setDailyRoutine(prev => {
+      const today = { ...prev[key] }
+      if (done) today[step] = true
+      else delete today[step]
+      return { ...prev, [key]: today }
+    })
+    setStepDone(step, done).catch(err => console.error('Failed to persist routine step', err))
+  }
+
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
   // quiser — nenhuma sessão ou bloco fica bloqueado esperando ordem. O
   // progresso é salvo por capítulo (não por id de sessão), então sobrevive a
@@ -293,13 +486,15 @@ export default function App() {
   function toggleSession(session, done) {
     if (!authUser) return
     const keys = sessionKeys(session)
-    setCompletedSet(prev => {
-      const next = new Set(prev)
-      keys.forEach(k => done ? next.add(k) : next.delete(k))
-      return next
-    })
+    const newlyDoneKeys = done ? keys.filter(k => !completedSet.has(k)) : []
+    const nextSet = new Set(completedSet)
+    keys.forEach(k => done ? nextSet.add(k) : nextSet.delete(k))
+    if (done) detectAndLogMilestones(completedSet, nextSet)
+    setCompletedSet(nextSet)
     const persist = done ? markKeysDone(authUser.email, keys) : markKeysUndone(authUser.email, keys)
     persist.catch(err => console.error('Failed to persist session progress', err))
+    recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
+    if (done) markRoutineStep('reading')
   }
 
   // Marca (ou desmarca) um único capítulo dentro de uma sessão — permite
@@ -308,14 +503,16 @@ export default function App() {
   function toggleChapter(session, chapter, done) {
     if (!authUser) return
     const key = `${session.book}:${chapter}`
-    setCompletedSet(prev => {
-      const next = new Set(prev)
-      if (done) next.add(key)
-      else next.delete(key)
-      return next
-    })
+    const newlyDoneKeys = done && !completedSet.has(key) ? [key] : []
+    const nextSet = new Set(completedSet)
+    if (done) nextSet.add(key)
+    else nextSet.delete(key)
+    if (done) detectAndLogMilestones(completedSet, nextSet)
+    setCompletedSet(nextSet)
     const persist = done ? markKeysDone(authUser.email, [key]) : markKeysUndone(authUser.email, [key])
     persist.catch(err => console.error('Failed to persist chapter progress', err))
+    recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
+    if (done) markRoutineStep('reading')
   }
 
   if (!bootstrapped) {
@@ -331,25 +528,26 @@ export default function App() {
     return <AuthScreen onAuthenticated={handleAuthenticated} />
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, streak, planId, completedSet, prayerStats)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats)
 
   const screens = {
-    home:    <HomeScreen    session={session} onContinueSession={continueToday} />,
-    prayer:  <PrayerScreen  session={session} authUser={authUser} />,
+    home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
+    prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} />,
+    groups:  canAccessGroups ? <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} /> : <MinAgeRestricted lang={session.lang} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} />,
-    profile: <ProfileScreen  session={session} authUser={authUser} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} />,
+    profile: <ProfileScreen  session={session} authUser={authUser} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
   }
 
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} userName={session.userName} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} pendingCount={pendingSocialCount} lang={session.lang} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}
-        <AppHeader avatarInitials={session.avatarInitials} onNavigate={navigateTo} />
+        <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} pendingCount={pendingSocialCount} lang={session.lang} />
 
         {/* Conteúdo da tela ativa */}
         <div className="app-content">
@@ -359,8 +557,33 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <1024px */}
-        <BottomNav activeTab={activeTab} onNavigate={navigateTo} />
+        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} />
       </div>
+
+      {/* Tutorial de primeiro acesso — position:fixed cobre a tela toda
+          independente de onde é montado (ver src/tour/) */}
+      {tourActive && (
+        <TourController
+          onNavigate={navigateTo}
+          currentTab={activeTab}
+          onFinish={handleTourFinish}
+          onSkip={handleTourSkip}
+          lang={session.lang}
+        />
+      )}
+    </div>
+  )
+}
+
+// Mostrada no lugar da aba Grupos pra contas de menores de 16 anos — segunda
+// linha de defesa (a Sidebar/BottomNav já impedem o clique), pro caso de
+// activeTab ficar em 'groups' por algum outro caminho (ex: sessão antiga).
+function MinAgeRestricted({ lang }) {
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
+      <AppIcon name="Lock" size={30} color="var(--g4)" />
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('groups.minAgeRestrictedTitle', undefined, lang)}</p>
+      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('groups.minAgeRestrictedSub', undefined, lang)}</p>
     </div>
   )
 }

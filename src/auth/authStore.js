@@ -18,9 +18,11 @@ function normalizeEmail(email) {
 function mapUser(authUser) {
   if (!authUser) return null
   return {
+    id: authUser.id,
     name: authUser.user_metadata?.name ?? '',
     email: authUser.email,
     language: authUser.user_metadata?.language ?? 'pt',
+    birthdate: authUser.user_metadata?.birthdate ?? null,
   }
 }
 
@@ -50,16 +52,21 @@ export async function getCurrentUser() {
 // só o usuário é criado, e ele só consegue entrar depois de clicar no link
 // enviado por email. Sinalizamos isso via needsEmailConfirmation pra que a
 // UI (AuthScreen) mostre a mensagem certa em vez de fingir que já logou.
-export async function signup({ name, email, password, language }) {
+export async function signup({ name, email, password, language, birthdate, isPublic }) {
   const cleanEmail = normalizeEmail(email)
   if (!name.trim()) throw new Error('Informe seu nome.')
   if (!isValidEmail(cleanEmail)) throw new Error('Informe um email válido.')
   if (!isValidPassword(password)) throw new Error('A senha deve ter exatamente 6 números.')
+  if (!birthdate) throw new Error('Informe sua data de nascimento.')
+  const birthDateObj = new Date(birthdate)
+  if (Number.isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
+    throw new Error('Informe uma data de nascimento válida.')
+  }
 
   const { data, error } = await supabase.auth.signUp({
     email: cleanEmail,
     password,
-    options: { data: { name: name.trim(), language: language ?? 'pt' } },
+    options: { data: { name: name.trim(), language: language ?? 'pt', birthdate, is_public: !!isPublic } },
   })
   if (error) {
     if (/already/i.test(error.message)) throw new Error('Já existe uma conta com esse email.')

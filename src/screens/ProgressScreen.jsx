@@ -1,6 +1,8 @@
 import { ACCENT_MAP } from '../utils/blockColors'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
+import { computeMonthlyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
 
 export default function ProgressScreen({ session, blocks }) {
   const { lang } = session
@@ -18,7 +20,7 @@ export default function ProgressScreen({ session, blocks }) {
           <div className="dashboard-col">
 
             {/* ── Destaque % ── */}
-            <div style={styles.bigRingCard}>
+            <div style={styles.bigRingCard} data-tour="progress-big-ring">
               <div style={styles.bigRingGlow} />
 
               <p style={styles.bigLabel}>{translate('progress.bibleComplete', undefined, lang)}</p>
@@ -58,6 +60,9 @@ export default function ProgressScreen({ session, blocks }) {
                 <MiniStat value={`${session.booksCompleted}/${session.totalBooks}`} label={translate('progress.booksCompleted', undefined, lang)} theme="green" />
               </div>
             </div>
+
+            {/* Constância da rotina — dias/mês em que cada passo foi feito */}
+            <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
 
             {/* Nível e XP */}
             <div style={styles.levelCard}>
@@ -135,6 +140,96 @@ export default function ProgressScreen({ session, blocks }) {
   )
 }
 
+// Métrica de constância — um mini gráfico de barras com o número de dias
+// (não %) em que cada um dos 3 passos foi feito, mês a mês, pra dar uma
+// noção de uso ao longo do tempo (não só o streak atual, que zera fácil) —
+// mais a média de dias/mês com a rotina completa, num bloco de métrica à
+// parte, igual aos outros cards de métrica da tela.
+function RoutineUsageCard({ dailyRoutine, lang }) {
+  const months = computeMonthlyRoutineStats(dailyRoutine ?? {}, 6)
+  const hasAnyData = months.some(m => m.prayerDays > 0 || m.readingDays > 0 || m.reflectionDays > 0)
+  const MAX_DAYS = 31 // escala fixa (não o tamanho do mês) pra comparar meses de forma justa
+  const avgFullDays = averageFullRoutineDays(months)
+  const now = new Date()
+
+  return (
+    <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)' }}>{translate('progress.routineUsageTitle', undefined, lang)}</p>
+      <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)', marginTop: 2, marginBottom: 12 }}>{translate('progress.routineUsageSub', undefined, lang)}</p>
+
+      {hasAnyData ? (
+        <>
+          <div style={styles.routineUsageChart}>
+            {months.map((m, i) => {
+              const isCurrent = m.year === now.getFullYear() && m.month === now.getMonth()
+              return (
+                <div key={i} style={styles.routineUsageMonthCol}>
+                  <span style={{ ...styles.routineUsageMonthNum, ...(isCurrent ? styles.routineUsageMonthNumCurrent : {}) }}>{m.fullDays}</span>
+                  <div style={styles.routineUsageRings}>
+                    <StepRing days={m.prayerDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.prayer} />
+                    <StepRing days={m.readingDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reading} />
+                    <StepRing days={m.reflectionDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reflection} />
+                  </div>
+                  <span style={{ ...styles.routineUsageMonthLabel, ...(isCurrent ? styles.routineUsageMonthLabelCurrent : {}) }}>
+                    {new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'short' }).format(new Date(m.year, m.month, 1)).replace('.', '')}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={styles.routineUsageLegend}>
+            <UsageLegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />
+            <UsageLegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />
+            <UsageLegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />
+          </div>
+
+          {/* Média — bloco de métrica à parte, mesmo estilo do card "Sessões restantes" */}
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)' }}>
+            <div style={{ background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.2)', borderRadius: 16, padding: 13, textAlign: 'center' }}>
+              <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)', marginBottom: 3 }}>{translate('progress.routineAvgLabel', undefined, lang)}</p>
+              <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.3px' }}>
+                {avgFullDays.toFixed(1).replace(/\.0$/, '')}
+              </p>
+            </div>
+          </div>
+        </>
+      ) : (
+        <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '10px 0' }}>
+          {translate('progress.routineUsageEmpty', undefined, lang)}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Ring pequeno estilo Apple Fitness — um por passo, por mês. O preenchimento
+// é só visual (dias/MAX_DAYS); o número que importa (dias do mês) já vem
+// escrito em cima, então o ring não precisa carregar rótulo nenhum.
+function StepRing({ days, maxDays, color, size = 16, strokeWidth = 2.5 }) {
+  const r = (size - strokeWidth) / 2
+  const c = 2 * Math.PI * r
+  const frac = maxDays ? Math.min(1, days / maxDays) : 0
+  const offset = c - frac * c
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--g2)" strokeWidth={strokeWidth} />
+      {frac > 0 && (
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
+      )}
+    </svg>
+  )
+}
+
+function UsageLegendDot({ color, label }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ width: 6, height: 6, borderRadius: 2, background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--g5)' }}>{label}</span>
+    </span>
+  )
+}
+
 function TestBar({ label, pct, color }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -182,4 +277,12 @@ const styles = {
   achievementCardUnlocked: { background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.3)' },
   achievementTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.25 },
   achievementDesc:  { fontSize: 8, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },
+  routineUsageChart:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 },
+  routineUsageMonthCol:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1 },
+  routineUsageMonthNum:   { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
+  routineUsageMonthNumCurrent: { color: 'var(--or)' },
+  routineUsageRings:      { display: 'flex', alignItems: 'center', gap: 2 },
+  routineUsageMonthLabel: { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)', textTransform: 'capitalize' },
+  routineUsageMonthLabelCurrent: { color: 'var(--or)', fontWeight: 800 },
+  routineUsageLegend:     { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
 }

@@ -33,11 +33,12 @@ export default function StudiesScreen({ session, authUser }) {
   // No celular, master (lista) e detail (detalhe/sessão) funcionam como
   // antes — uma tela cheia de cada vez, trocando via hide-on-mobile conforme
   // openStudyId. No desktop (≥1024px) as duas ficam sempre visíveis lado a
-  // lado (ver .studies-body/.studies-master/.studies-detail em index.css),
-  // então a lista nunca "desaparece" quando um estudo é aberto.
+  // lado (ver .master-detail/.master-pane/.detail-pane em index.css —
+  // padrão compartilhado com GroupsScreen.jsx), então a lista nunca
+  // "desaparece" quando um estudo é aberto.
   return (
-    <div className="studies-body">
-      <div className={`studies-master${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div className="master-detail">
+      <div className={`master-pane${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
         <div className="page-header">
           <h1 className="page-title">{t('studies.pageTitle', undefined, lang)}</h1>
         </div>
@@ -56,7 +57,7 @@ export default function StudiesScreen({ session, authUser }) {
         </div>
       </div>
 
-      <div className={`studies-detail${!openStudy ? ' hide-on-mobile' : ''}`}>
+      <div className={`detail-pane${!openStudy ? ' hide-on-mobile' : ''}`}>
         {openStudy && openSession && (
           <SessionView
             study={openStudy}
@@ -82,7 +83,7 @@ export default function StudiesScreen({ session, authUser }) {
   )
 }
 
-// Só aparece no desktop (no celular .studies-detail fica hide-on-mobile
+// Só aparece no desktop (no celular .detail-pane fica hide-on-mobile
 // enquanto nada foi aberto) — indica que é preciso escolher um estudo na
 // lista à esquerda antes de ver o conteúdo aqui.
 function StudiesEmptyState({ lang }) {

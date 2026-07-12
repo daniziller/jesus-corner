@@ -3,6 +3,13 @@ import { signup, login, requestPasswordReset, resetPassword } from '../auth/auth
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 
+// Data de hoje em 'YYYY-MM-DD' (formato nativo do <input type="date">) — usada
+// como max no campo de nascimento, pra impedir escolher uma data futura direto
+// no seletor nativo (a validação de verdade continua em authStore.signup).
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export default function AuthScreen({ onAuthenticated }) {
   const [mode, setMode] = useState('login') // 'login' | 'signup' | 'forgot'
 
@@ -70,8 +77,14 @@ function LoginView({ onAuthenticated, onGoSignup, onGoForgot }) {
 function SignupView({ onAuthenticated, onGoLogin }) {
   const [name, setName]           = useState('')
   const [email, setEmail]         = useState('')
+  const [birthdate, setBirthdate] = useState('')
   const [password, setPassword]   = useState('')
   const [confirm, setConfirm]     = useState('')
+  // Decisão de privacidade pedida já no cadastro (ajustável depois em
+  // Perfil) — perfil público libera progresso/estudo atual/grupos pros
+  // amigos; nome/foto/mensagem já ficam visíveis pra amigos de qualquer
+  // forma (ver GroupsScreen.FriendProfilePanel).
+  const [isPublic, setIsPublic]   = useState(false)
   const [error, setError]         = useState('')
   const [loading, setLoading]     = useState(false)
   // Preenchido só quando o projeto exige confirmação de email — nesse caso a
@@ -89,7 +102,7 @@ function SignupView({ onAuthenticated, onGoLogin }) {
     try {
       // O idioma já foi escolhido na tela inicial do app (ver LanguageSelectScreen);
       // a conta nasce nesse mesmo idioma, ajustável depois no Perfil.
-      const user = await signup({ name, email, password, language: getAppLanguage() ?? 'pt' })
+      const user = await signup({ name, email, password, birthdate, isPublic, language: getAppLanguage() ?? 'pt' })
       setError('')
       if (user.needsEmailConfirmation) {
         setConfirmationEmail(user.email)
@@ -120,8 +133,24 @@ function SignupView({ onAuthenticated, onGoLogin }) {
 
       <Field label={t('auth.nameLabel')} value={name} onChange={setName} placeholder={t('auth.namePlaceholder')} autoFocus />
       <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
+      <Field label={t('auth.birthdateLabel')} type="date" value={birthdate} onChange={setBirthdate} max={todayISO()} />
       <PinField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} />
       <PinField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} />
+
+      <div style={styles.publicToggleRow}>
+        <div style={{ flex: 1 }}>
+          <p style={styles.publicToggleLabel}>{t('auth.publicProfileLabel')}</p>
+          <p style={styles.publicToggleSub}>{t('auth.publicProfileSub')}</p>
+        </div>
+        <div
+          className={`toggle ${isPublic ? '' : 'off'}`}
+          onClick={() => setIsPublic(v => !v)}
+          role="switch"
+          aria-checked={isPublic}
+        >
+          <div className="toggle-thumb" />
+        </div>
+      </div>
 
       {error && <p style={styles.error}>{error}</p>}
 
@@ -219,7 +248,7 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
 }
 
 /* ── Campos reutilizáveis ── */
-function Field({ label, value, onChange, type = 'text', placeholder, autoFocus }) {
+function Field({ label, value, onChange, type = 'text', placeholder, autoFocus, max }) {
   return (
     <label style={styles.fieldWrap}>
       <span style={styles.fieldLabel}>{label}</span>
@@ -229,6 +258,7 @@ function Field({ label, value, onChange, type = 'text', placeholder, autoFocus }
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        max={max}
         onChange={e => onChange(e.target.value)}
       />
     </label>
@@ -274,4 +304,7 @@ const styles = {
   error:         { fontSize: 11, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   linksRow:      { display: 'flex', justifyContent: 'space-between', marginTop: 4 },
   link:          { fontSize: 11.5, fontWeight: 700, color: 'var(--or)', cursor: 'pointer' },
+  publicToggleRow:   { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '11px 13px' },
+  publicToggleLabel: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
+  publicToggleSub:   { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, lineHeight: 1.4 },
 }
