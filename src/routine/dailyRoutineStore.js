@@ -11,13 +11,17 @@ export async function getDailyRoutine() {
 }
 
 // Marca (ou desmarca) um passo de HOJE ('prayer' | 'reading' | 'reflection')
-// como concluído. Devolve o mapa inteiro já atualizado, pra quem chamou
-// poder atualizar o estado local sem precisar de um novo fetch.
-export async function setStepDone(step, done = true) {
+// como concluído. `planId` fica gravado junto na entrada do dia — é o que
+// permite avaliar "dia completo" pelos módulos do plano que estava ativo
+// naquele dia específico, mesmo que a pessoa troque de plano depois (ver
+// isDayComplete em src/routine/routineStreak.js). Devolve o mapa inteiro já
+// atualizado, pra quem chamou poder atualizar o estado local sem precisar
+// de um novo fetch.
+export async function setStepDone(step, done = true, planId) {
   const row = await fetchRow()
   const current = row?.daily_routine ?? {}
   const key = dateKey()
-  const today = { ...current[key] }
+  const today = { ...current[key], planId }
   if (done) today[step] = true
   else delete today[step]
   const next = { ...current, [key]: today }

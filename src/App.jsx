@@ -7,6 +7,7 @@ import AuthScreen from './screens/AuthScreen'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
+import ReflectionScreen from './screens/ReflectionScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
@@ -465,17 +466,21 @@ export default function App() {
   // concluído — atualiza o estado local na hora (o streak/calendário da
   // Home reagem no mesmo instante) e persiste em segundo plano. Usado tanto
   // por gatilhos automáticos (marcar um capítulo, terminar o cronômetro de
-  // oração) quanto pelo toggle manual da reflexão na Home.
+  // oração/reflexão) quanto pelo toggle manual que ainda existir na Home.
+  // Junto grava o plano ativo no momento — é ele que decide, dali pra
+  // frente, quais passos aquele dia específico precisa pra contar como
+  // completo (ver isDayComplete em routineStreak.js), mesmo que a pessoa
+  // troque de plano depois.
   function markRoutineStep(step, done = true) {
     if (!authUser) return
     const key = dateKey()
     setDailyRoutine(prev => {
-      const today = { ...prev[key] }
+      const today = { ...prev[key], planId }
       if (done) today[step] = true
       else delete today[step]
       return { ...prev, [key]: today }
     })
-    setStepDone(step, done).catch(err => console.error('Failed to persist routine step', err))
+    setStepDone(step, done, planId).catch(err => console.error('Failed to persist routine step', err))
   }
 
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
@@ -533,6 +538,7 @@ export default function App() {
   const screens = {
     home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} />,
+    reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} />,
     groups:  canAccessGroups ? <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} /> : <MinAgeRestricted lang={session.lang} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,

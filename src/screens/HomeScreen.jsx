@@ -15,7 +15,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
     userName, biblePercent, atPercent, ntPercent,
     streak, daysLeft, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, lang,
-    dailyRoutine, todayRoutine,
+    dailyRoutine, todayRoutine, plan,
   } = session
 
   const [friendActivity, setFriendActivity] = useState([])
@@ -95,6 +95,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
             <DailyRoutineCard
               dailyRoutine={dailyRoutine}
               todayRoutine={todayRoutine}
+              modules={plan.modules}
               lang={lang}
               onNavigate={onNavigate}
               onContinueSession={onContinueSession}
@@ -267,10 +268,13 @@ function TutorialStep({ icon, time, title, desc, theme }) {
    separado, com stopPropagation, sem navegar) pra quem já orou/leu fora do
    app e só quer marcar. Reflexão não tem uma tela própria, então o toggle
    acontece direto no card, na linha inteira. ── */
-function DailyRoutineCard({ dailyRoutine, todayRoutine, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
+function DailyRoutineCard({ dailyRoutine, todayRoutine, modules, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
-  const steps = [
+  // Só mostra os passos que o plano ativo (Leve/Padrão/Intensivo) realmente
+  // pede naquele dia (ver PLANS[].modules em bibleBlocks.js) — Leve só
+  // mostra Leitura, Padrão soma Oração, Intensivo soma também Reflexão.
+  const allSteps = [
     {
       key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer,
       title: translate('home.routinePrayer', undefined, lang),
@@ -292,9 +296,11 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, lang, onNavigate, onCont
       title: translate('home.routineReflection', undefined, lang),
       sub: translate('home.routineReflectionSub', undefined, lang),
       done: !!todayRoutine.reflection,
-      onClick: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection),
+      onClick: () => onNavigate?.('reflection'),
+      onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection),
     },
   ]
+  const steps = allSteps.filter(s => modules.includes(s.key))
   const doneCount = steps.filter(s => s.done).length
   // O primeiro passo ainda não feito ganha destaque — é "pra onde seguir"
   // depois de terminar o anterior.
@@ -305,7 +311,7 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, lang, onNavigate, onCont
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
         <div>
           <p style={styles.routineTitle}>{translate('home.routineTitle', undefined, lang)}</p>
-          <p style={styles.routineSub}>{translate('home.routineStepsCount', { done: doneCount }, lang)}</p>
+          <p style={styles.routineSub}>{translate('home.routineStepsCount', { done: doneCount, total: steps.length }, lang)}</p>
         </div>
         <button style={styles.routineCalendarToggle} onClick={() => setShowCalendar(v => !v)}>
           <AppIcon name="Calendar" size={13} />
@@ -354,7 +360,7 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, lang, onNavigate, onCont
         })}
       </div>
 
-      {doneCount === 3 && (
+      {doneCount === steps.length && (
         <p style={styles.routineAllDone}>{translate('home.routineAllDoneMsg', undefined, lang)}</p>
       )}
 

@@ -1,16 +1,30 @@
 // Funções puras sobre o mapa de rotina diária — sem I/O, fáceis de testar e
 // de reusar tanto no cálculo do streak quanto no calendário da Home.
 import { dateKey } from '../utils/dateKey'
+import { PLANS } from '../data/bibleBlocks'
 
-export function isDayComplete(day) {
-  return !!(day && day.prayer && day.reading && day.reflection)
+// Dias salvos antes da reestruturação em módulos (sem `planId` guardado)
+// continuam exigindo os 3 passos, exatamente como sempre exigiram — só dias
+// novos (com `planId` gravado por markRoutineStep) passam a ser avaliados
+// pelos módulos do plano que estava ativo naquele dia.
+const LEGACY_MODULES = ['prayer', 'reading', 'reflection']
+
+function modulesForDay(day) {
+  if (!day?.planId) return LEGACY_MODULES
+  return PLANS.find(p => p.id === day.planId)?.modules ?? LEGACY_MODULES
 }
 
-// Quantos dos 3 passos foram concluídos num dia (0-3) — usado pro calendário
-// mostrar dias parcialmente concluídos de forma diferente de dias vazios.
+export function isDayComplete(day) {
+  if (!day) return false
+  return modulesForDay(day).every(step => !!day[step])
+}
+
+// Quantos passos do plano daquele dia foram concluídos — usado pro
+// calendário mostrar dias parcialmente concluídos de forma diferente de
+// dias vazios.
 export function dayStepCount(day) {
   if (!day) return 0
-  return ['prayer', 'reading', 'reflection'].filter(step => day[step]).length
+  return modulesForDay(day).filter(step => day[step]).length
 }
 
 // Sequência de dias seguidos com os 3 passos completos, terminando hoje.
