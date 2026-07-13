@@ -99,7 +99,7 @@ export default function JourneyScreen({
           {[
             { n: `${doneSessions}/${computeTotalSessions(blocks)}`, l: t('journey.sessionsStat', undefined, lang) },
             { n: `~${session.plan.avgChapters}`, l: t('journey.chaptersPerSession', undefined, lang) },
-            { n: lang === 'en' ? `${session.daysLeft}d` : `${session.daysLeft}dias`, l: t('journey.daysRemaining', undefined, lang) },
+            { n: `${100 - session.biblePercent}%`, l: t('journey.remainingStat', undefined, lang) },
           ].map((s, i) => (
             <div key={i} style={styles.heroStat}>
               <span style={styles.heroStatN}>{s.n}</span>

@@ -104,7 +104,6 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
   const plan = { ...planRaw, label: lang === 'en' ? planRaw.labelEn : planRaw.label }
-  const daysLeft = computeTotalSessions(blocks) - overall.sessionsDone
 
   // Progresso real (capítulo a capítulo) da sessão do dia — permite mostrar
   // "Iniciar sessão" (0%), "Continuar sessão" (entre 0 e 100%) ou "Revisar
@@ -157,7 +156,6 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     xpForNext: progressToNext.xpForNext,
     achievements,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
-    daysLeft,
     plan,
     dailyRoutine,
     todayRoutine,

@@ -14,7 +14,7 @@ import { PLANS } from '../data/bibleBlocks'
 export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep, onSelectPlan }) {
   const {
     userName, biblePercent, atPercent, ntPercent,
-    streak, daysLeft, todaySession, chaptersRead,
+    streak, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, lang,
     dailyRoutine, todayRoutine, plan,
   } = session
@@ -178,7 +178,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
               <div style={styles.statsRow}>
                 <StatCard value={streak}       suffix={<AppIcon name="Flame" size={12} />} label={translate('home.streakLabel', undefined, lang)}  theme="orange" />
                 <StatCard value={level.level}  suffix=""   label={level.title}    theme="purple" />
-                <StatCard value={daysLeft} suffix={lang === 'en' ? '' : ' d'} label={translate('home.daysLeftLabel', undefined, lang)} theme="green"  />
+                <StatCard value={100 - biblePercent} suffix="%" label={translate('home.remainingLabel', undefined, lang)} theme="green"  />
               </div>
             </div>
 
