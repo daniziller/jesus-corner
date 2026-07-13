@@ -131,9 +131,12 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const displayTitle = lang === 'en' ? currentSession.titleEn : currentSession.title
   const displayPassage = lang === 'en' ? currentSession.passageEn : currentSession.passage
   const blockName = lang === 'en' ? activeBlock.nameEn : activeBlock.name
-  const blockLine = lang === 'en'
-    ? `${blockName} · Session ${currentSession.id} of ${activeBlock.sessionsTotal}`
-    : `${blockName} · Sessão ${currentSession.id} de ${activeBlock.sessionsTotal}`
+  // Plano Livre não tem "Sessão N de X" — cada sessão já é 1 capítulo só.
+  const blockLine = planId !== 'free'
+    ? (lang === 'en'
+      ? `${blockName} · Session ${currentSession.id} of ${activeBlock.sessionsTotal}`
+      : `${blockName} · Sessão ${currentSession.id} de ${activeBlock.sessionsTotal}`)
+    : blockName
 
   return {
     lang,

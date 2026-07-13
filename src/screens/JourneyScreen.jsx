@@ -122,7 +122,9 @@ export default function JourneyScreen({
             >
               <AppIcon name={p.icon} size={15} style={{ display: 'block', margin: '0 auto 3px' }} />
               {lang === 'en' ? p.labelEn : p.label}<br />
-              <span style={{ fontSize: 8, fontWeight: 500 }}>{t('journey.minPerDay', { n: p.minutesPerDay }, lang)}</span>
+              <span style={{ fontSize: 8, fontWeight: 500 }}>
+                {p.minutesPerDay == null ? t('journey.noTimeTarget', undefined, lang) : t('journey.minPerDay', { n: p.minutesPerDay }, lang)}
+              </span>
             </button>
           ))}
         </div>

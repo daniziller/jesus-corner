@@ -8,6 +8,9 @@ import AppIcon from '../icons/AppIcon'
 
 export default function ReadingBlockView({ session, authUser, blockId, blocks, sessionsByBlock, completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack }) {
   const { lang } = session
+  // Plano Livre não tem "Sessão N de X" — cada sessão já é 1 capítulo só,
+  // então a numeração de sessão não ajuda em nada, só confunde.
+  const isFreePlan = session.plan.id === 'free'
   const block = blocks.find(b => b.id === blockId) ?? blocks[0]
   const blockName = lang === 'en' ? block.nameEn : block.name
   const sessions = sessionsByBlock[block.id]
@@ -88,7 +91,7 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
             <div style={styles.heroOrbPink} />
             <div style={styles.heroOverlay} />
             <div style={styles.heroContent}>
-              <p style={styles.heroCycle}>{blockName} · {t('reading.sessionLabel', { n: heroSession.id }, lang)} {lang === 'en' ? 'of' : 'de'} {block.sessionsTotal}</p>
+              <p style={styles.heroCycle}>{isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}</p>
               <h2 style={styles.heroTitle}>{heroTitle}</h2>
               <p style={styles.heroSub}>
                 {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
@@ -159,6 +162,7 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
               completedSet={completedSet}
               onToggle={onToggleSession}
               onFeature={featureSession}
+              isFreePlan={isFreePlan}
               lang={lang}
             />
           ))}
@@ -297,7 +301,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, lang }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -346,6 +350,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               completedSet={completedSet}
               onToggle={onToggle}
               onFeature={onFeature}
+              isFreePlan={isFreePlan}
               lang={lang}
             />
           ))}
@@ -355,7 +360,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, lang }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
@@ -396,14 +401,14 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, l
           ) : isReflection ? (
             <AppIcon name="PenLine" size={13} color="white" />
           ) : (
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: isCurrent ? 'white' : 'var(--g5)' }}>{session.id}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: isCurrent ? 'white' : 'var(--g5)' }}>{isFreePlan ? session.chStart : session.id}</span>
           )}
         </div>
 
         {/* Info */}
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>
-            {isReflection ? title : `${t('reading.sessionLabel', { n: session.id }, lang)} · ${title}`}
+            {isReflection || isFreePlan ? title : `${t('reading.sessionLabel', { n: session.id }, lang)} · ${title}`}
           </p>
           <p style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--g5)' }}>
             {isReflection

@@ -67,7 +67,9 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
             {/* Card de hoje — sessão de leitura em destaque */}
             <div>
               <div className="section-header">
-                <h3 className="section-title">{translate('home.todaySessionHeader', { n: todaySession.number }, lang)}</h3>
+                <h3 className="section-title">
+                  {plan.id === 'free' ? translate('home.todayReadingHeader', undefined, lang) : translate('home.todaySessionHeader', { n: todaySession.number }, lang)}
+                </h3>
               </div>
               <div style={styles.todayCard} data-tour="home-today-card">
                 <div style={styles.todayAccent} />
@@ -302,7 +304,9 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
     {
       key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading,
       title: translate('home.routineReading', undefined, lang),
-      sub: translate('home.routineReadingSub', { min: plan.readingMinutes }, lang),
+      sub: plan.readingMinutes == null
+        ? translate('home.routineReadingSubFree', undefined, lang)
+        : translate('home.routineReadingSub', { min: plan.readingMinutes }, lang),
       done: !!todayRoutine.reading,
       onClick: () => onContinueSession?.(),
       onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading),
