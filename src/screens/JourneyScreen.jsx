@@ -112,9 +112,11 @@ export default function JourneyScreen({
       {/* Sheet flutuante sobre o hero */}
       <div style={styles.sheet}>
 
-        {/* Seletor de plano */}
+        {/* Seletor de plano — os 3 planos com meta de tempo lado a lado, e o
+            Livre embaixo, numa linha própria (é um tipo de leitura diferente,
+            não só "mais um tamanho de sessão"). */}
         <div style={styles.planSel}>
-          {PLANS.map(p => (
+          {PLANS.filter(p => p.id !== 'free').map(p => (
             <button
               key={p.id}
               style={{ ...styles.planBtn, ...(session.plan.id === p.id ? styles.planBtnActive : {}) }}
@@ -122,12 +124,21 @@ export default function JourneyScreen({
             >
               <AppIcon name={p.icon} size={15} style={{ display: 'block', margin: '0 auto 3px' }} />
               {lang === 'en' ? p.labelEn : p.label}<br />
-              <span style={{ fontSize: 8, fontWeight: 500 }}>
-                {p.minutesPerDay == null ? t('journey.noTimeTarget', undefined, lang) : t('journey.minPerDay', { n: p.minutesPerDay }, lang)}
-              </span>
+              <span style={{ fontSize: 8, fontWeight: 500 }}>{t('journey.minPerDay', { n: p.minutesPerDay }, lang)}</span>
             </button>
           ))}
         </div>
+        {PLANS.filter(p => p.id === 'free').map(p => (
+          <button
+            key={p.id}
+            style={{ ...styles.planBtnFree, ...(session.plan.id === p.id ? styles.planBtnActive : {}) }}
+            onClick={() => onSelectPlan(p.id)}
+          >
+            <AppIcon name={p.icon} size={15} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, textAlign: 'left' }}>{lang === 'en' ? p.labelEn : p.label}</span>
+            <span style={{ fontSize: 9, fontWeight: 500 }}>{t('journey.noTimeTarget', undefined, lang)}</span>
+          </button>
+        ))}
 
         {/* Conteúdo */}
         <div style={{ padding: '13px 14px 18px', display: 'flex', flexDirection: 'column' }}>
@@ -323,6 +334,7 @@ const styles = {
   planSel:         { display: 'flex', gap: 5, padding: '11px 14px', margin: '14px 14px 0', background: 'var(--g1)', borderRadius: 13, flexShrink: 0 },
   planBtn:         { flex: 1, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'white', fontFamily: 'var(--font)', lineHeight: 1.4 },
   planBtnActive:   { color: 'white', background: 'var(--grad-primary)', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
+  planBtnFree:     { display: 'flex', alignItems: 'center', gap: 8, textAlign: 'center', padding: '9px 12px', margin: '7px 14px 0', fontSize: 11, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 11, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   testamentSection:{},
   testamentHeader: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 13px', cursor: 'pointer', fontFamily: 'var(--font)' },
   testamentLabel:  { fontSize: 11.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: 0.3, textTransform: 'uppercase' },
