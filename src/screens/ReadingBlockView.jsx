@@ -308,6 +308,18 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   const allDone = doneCount === total
   const displayName = lang === 'en' ? group.sessions[0]?.bookEn : group.book
 
+  // Clicar no cabeçalho do livro (não numa sessão específica) também move o
+  // destaque (quadrado preto) pra esse livro — mesmo efeito de clicar numa
+  // sessão dele, só que escolhendo a sessão "atual" (ou a primeira
+  // pendente, ou a primeira mesmo) como destino.
+  function handleHeaderClick() {
+    setOpen(v => !v)
+    const target = group.sessions.find(s => s.status === 'current')
+      ?? group.sessions.find(s => s.status !== 'done')
+      ?? group.sessions[0]
+    onFeature(target)
+  }
+
   return (
     <div
       style={{
@@ -318,7 +330,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
         boxShadow: isCurrentBook ? 'var(--shadow-glow)' : 'var(--shadow-card)',
         cursor: 'pointer',
       }}
-      onClick={() => setOpen(v => !v)}
+      onClick={handleHeaderClick}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, userSelect: 'none' }}>
         <div style={{
