@@ -44,7 +44,7 @@ export function deriveProgress(completedSet, planId) {
     if (firstPending) firstPending.status = 'current'
 
     const total = sessions.length
-    const percent = total ? Math.round((doneCount / total) * 100) : 0
+    const percent = total ? Math.round((doneCount / total) * 1000) / 10 : 0
     const blockDone = doneCount === total
 
     // "todo" = nenhum capítulo desse bloco foi marcado ainda (nem parcialmente);
@@ -87,7 +87,7 @@ export function computeOverallStats(blocks) {
   const sum = (ids, key) => ids.reduce((s, id) => s + (blocks.find(b => b.id === id)?.[key] ?? 0), 0)
   const atIds = [1, 2, 3, 4], ntIds = [5, 6, 7, 8], allIds = [...atIds, ...ntIds]
 
-  const pct = (done, total) => (total ? Math.round((done / total) * 100) : 0)
+  const pct = (done, total) => (total ? Math.round((done / total) * 1000) / 10 : 0)
   const atDone = sum(atIds, 'sessionsDone'), atTotal = sum(atIds, 'sessionsTotal')
   const ntDone = sum(ntIds, 'sessionsDone'), ntTotal = sum(ntIds, 'sessionsTotal')
   const totalDone = sum(allIds, 'sessionsDone'), totalAll = sum(allIds, 'sessionsTotal')

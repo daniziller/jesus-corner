@@ -178,7 +178,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
               <div style={styles.statsRow}>
                 <StatCard value={streak}       suffix={<AppIcon name="Flame" size={12} />} label={translate('home.streakLabel', undefined, lang)}  theme="orange" />
                 <StatCard value={level.level}  suffix=""   label={level.title}    theme="purple" />
-                <StatCard value={100 - biblePercent} suffix="%" label={translate('home.remainingLabel', undefined, lang)} theme="green"  />
+                <StatCard value={Math.round((100 - biblePercent) * 10) / 10} suffix="%" label={translate('home.remainingLabel', undefined, lang)} theme="green"  />
               </div>
             </div>
 
