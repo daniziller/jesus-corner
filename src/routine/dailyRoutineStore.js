@@ -2,7 +2,7 @@
 // concluídos, guardado em user_data.daily_routine. Mesmo padrão "lê o blob
 // inteiro, escreve o blob inteiro de volta" das outras stores desse
 // backend (ver src/backend/userDataStore.js).
-import { fetchRow, updateRow } from '../backend/userDataStore'
+import { fetchRow, updateRow, withRowLock } from '../backend/userDataStore'
 import { dateKey } from '../utils/dateKey'
 
 export async function getDailyRoutine() {
@@ -17,14 +17,16 @@ export async function getDailyRoutine() {
 // isDayComplete em src/routine/routineStreak.js). Devolve o mapa inteiro já
 // atualizado, pra quem chamou poder atualizar o estado local sem precisar
 // de um novo fetch.
-export async function setStepDone(step, done = true, planId) {
-  const row = await fetchRow()
-  const current = row?.daily_routine ?? {}
-  const key = dateKey()
-  const today = { ...current[key], planId }
-  if (done) today[step] = true
-  else delete today[step]
-  const next = { ...current, [key]: today }
-  const updated = await updateRow({ daily_routine: next })
-  return updated?.daily_routine ?? next
+export function setStepDone(step, done = true, planId) {
+  return withRowLock(async () => {
+    const row = await fetchRow()
+    const current = row?.daily_routine ?? {}
+    const key = dateKey()
+    const today = { ...current[key], planId }
+    if (done) today[step] = true
+    else delete today[step]
+    const next = { ...current, [key]: today }
+    const updated = await updateRow({ daily_routine: next })
+    return updated?.daily_routine ?? next
+  })
 }

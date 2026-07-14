@@ -2,7 +2,7 @@
 // coluna notes, um objeto { chave: texto }). A chave é a passagem/reflexão em
 // si (não um id de sessão) para sobreviver a trocas de plano, já que os ids
 // de sessão mudam de tamanho conforme o plano escolhido.
-import { fetchRow, updateRow } from '../backend/userDataStore'
+import { fetchRow, updateRow, withRowLock } from '../backend/userDataStore'
 
 // Chave estável de uma sessão: os capítulos exatos (ou a reflexão) que ela
 // cobre, independente de qual plano gerou essa sessão.
@@ -22,10 +22,12 @@ export async function getNote(_email, key) {
   return notes[key] ?? ''
 }
 
-export async function saveNote(_email, key, text) {
-  const notes = await getNotes(_email)
-  if (text.trim()) notes[key] = text
-  else delete notes[key]
-  const updated = await updateRow({ notes })
-  return updated?.notes ?? notes
+export function saveNote(_email, key, text) {
+  return withRowLock(async () => {
+    const notes = await getNotes(_email)
+    if (text.trim()) notes[key] = text
+    else delete notes[key]
+    const updated = await updateRow({ notes })
+    return updated?.notes ?? notes
+  })
 }

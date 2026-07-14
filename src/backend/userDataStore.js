@@ -37,6 +37,22 @@ export async function fetchRow() {
   return data
 }
 
+// Serializa ciclos de "lê a linha, muda um campo, escreve a linha de volta"
+// (usados por progressStore/dailyRoutineStore/notesStore/etc. pra fazer
+// merge incremental num array ou objeto). Sem isso, duas chamadas em
+// sequência rápida (ex: marcar várias sessões de leitura seguidas)se
+// sobrepõem: a segunda lê o banco antes da escrita da primeira terminar e,
+// ao escrever de volta o que leu, apaga silenciosamente o que a primeira
+// tinha acabado de salvar. Colocar cada ciclo numa fila garante que a
+// leitura de uma chamada só aconteça depois da escrita da anterior.
+let writeQueue = Promise.resolve()
+
+export function withRowLock(operation) {
+  const result = writeQueue.then(operation, operation)
+  writeQueue = result.then(() => undefined, () => undefined)
+  return result
+}
+
 // Atualiza só os campos passados em `patch`, devolvendo a linha inteira já
 // atualizada (ou null se a escrita falhar/ninguém estiver logado).
 export async function updateRow(patch) {
