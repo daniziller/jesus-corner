@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import ActsCard, { ACTS_DATA, ACTS_DURATIONS } from '../components/acts/ActsCard'
+import ActsCard, { ACTS_DATA, phaseMinutesFor } from '../components/acts/ActsCard'
 import PrayerRequests from '../components/prayer/PrayerRequests'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
+import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+
+const DURATION_OPTIONS = [5, 10, 15, 20, 30]
 
 // Fronteiras (em segundos, desde o início do cronômetro) de cada trecho do
 // ACTS, a partir dos minutos por etapa do perfil de duração ativo (ver
@@ -33,15 +36,17 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
+  // Duração total escolhida na hora — parte do que a pessoa já escolheu
+  // antes (jc_prayer_minutes) ou, na primeira vez, do plano ativo. Trocar
+  // aqui sobrescreve o padrão do plano até a pessoa escolher de novo.
+  const [totalMinutes, setTotalMinutes] = useState(() => getSavedPrayerMinutes() ?? session.plan.prayerMinutes)
   const email = authUser?.email
 
-  const phaseMinutes = ACTS_DURATIONS[session.plan.prayerMinutes] ?? ACTS_DURATIONS[15]
+  const phaseMinutes = useMemo(() => phaseMinutesFor(totalMinutes), [totalMinutes])
   const { bounds: PHASE_BOUNDS, totalSeconds: TOTAL_SECONDS } = useMemo(
     () => computePhaseBounds(phaseMinutes),
-    // phaseMinutes é um array literal novo a cada render — comparar pelo
-    // total (session.plan.prayerMinutes) é o que realmente importa aqui.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [session.plan.prayerMinutes]
+    [totalMinutes]
   )
 
   const intervalRef = useRef(null)
@@ -204,6 +209,15 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
     setOpenCardId(null)
   }
 
+  // Troca a duração total escolhida — reinicia o cronômetro (os limites de
+  // cada etapa mudam) e lembra a escolha pra próxima vez.
+  function selectDuration(minutes) {
+    if (minutes === totalMinutes) return
+    resetTimer()
+    setTotalMinutes(minutes)
+    setSavedPrayerMinutes(minutes)
+  }
+
   const btnLabel = running ? t('prayer.pause', undefined, lang)
     : remaining === 0 ? t('prayer.done', undefined, lang)
     : elapsed > 0 ? t('prayer.resume', undefined, lang)
@@ -232,6 +246,22 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
             <div style={styles.timer}>
               <span style={styles.timerLabel}>{t('prayer.timerLabel', undefined, lang)}</span>
               <span style={styles.timerDisplay}>{fmt(remaining)}</span>
+
+              {/* Duração total — trocar aqui redivide as 4 etapas do ACTS
+                  proporcionalmente (ver phaseMinutesFor) e reinicia o cronômetro. */}
+              <span style={styles.durationLabel}>{t('prayer.durationLabel', undefined, lang)}</span>
+              <div style={styles.durationRow}>
+                {DURATION_OPTIONS.map(n => (
+                  <button
+                    key={n}
+                    style={{ ...styles.durationBtn, ...(n === totalMinutes ? styles.durationBtnActive : null) }}
+                    onClick={() => selectDuration(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   style={{
@@ -288,4 +318,8 @@ const styles = {
   timerDisplay:{ fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
   timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
   wakeLockHint:{ fontSize: 9.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
+  durationLabel: { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2 },
+  durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
+  durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
+  durationBtnActive: { background: 'var(--grad-vivid)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.35)' },
 }

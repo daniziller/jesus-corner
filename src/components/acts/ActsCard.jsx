@@ -166,6 +166,26 @@ export const ACTS_DURATIONS = {
   10: [3, 2, 3, 2],
 }
 
+// Pesos usados pra dividir qualquer duração total (escolhida livremente na
+// tela de Oração) entre as 4 etapas — mesma proporção das durações
+// curadas acima (Adoração/Ação de Graças pesam mais que Confissão/Súplicas).
+// Arredonda pelo "maior resto" pra sempre bater exatamente o total escolhido
+// e garantir pelo menos 1 minuto por etapa.
+const PHASE_WEIGHTS = [0.3, 0.2, 0.3, 0.2]
+
+export function phaseMinutesFor(totalMinutes) {
+  if (ACTS_DURATIONS[totalMinutes]) return ACTS_DURATIONS[totalMinutes]
+  const raw = PHASE_WEIGHTS.map(w => w * totalMinutes)
+  const floors = raw.map(Math.floor)
+  const remainder = totalMinutes - floors.reduce((a, b) => a + b, 0)
+  const byFractionDesc = raw
+    .map((r, i) => ({ i, frac: r - floors[i] }))
+    .sort((a, b) => b.frac - a.frac)
+  const result = [...floors]
+  for (let k = 0; k < remainder; k++) result[byFractionDesc[k].i] += 1
+  return result
+}
+
 // `open`/`onToggle` são opcionais — se não vierem, o card controla o próprio
 // estado (comportamento original). O PrayerScreen passa os dois pra poder
 // auto-expandir o card do trecho ACTS em andamento conforme o cronômetro
