@@ -5,7 +5,7 @@
 export const STRINGS = {
   pt: {
     nav: {
-      home: 'Início', prayer: 'Oração', journey: 'Jornada', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
+      home: 'Início', prayer: 'Oração', journey: 'Leitura Bíblica', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
     },
     auth: {
       tagline: 'Seu tempo. Sua fé. Sua conexão com Deus.',
@@ -392,7 +392,7 @@ export const STRINGS = {
   },
   en: {
     nav: {
-      home: 'Home', prayer: 'Prayer', journey: 'Journey', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
+      home: 'Home', prayer: 'Prayer', journey: 'Bible Reading', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
     },
     auth: {
       tagline: 'Your time. Your faith. Your connection with God.',

@@ -5,8 +5,8 @@ import NotificationBell from './NotificationBell'
 // Navegação lateral exibida só em telas ≥1024px (ver index.css) — substitui
 // o AppHeader + BottomNav do layout de celular por uma coluna fixa com logo,
 // abas e o usuário logado, no formato comum de dashboards desktop.
-const TAB_IDS = ['home', 'prayer', 'journey', 'routine', 'groups', 'studies', 'stats']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'Compass', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'groups', 'studies', 'stats']
+const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, groupsDisabled, pendingCount = 0, lang }) {
   return (
@@ -24,6 +24,7 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
           const label = t(`nav.${id}`)
           const active = activeTab === id
           const disabled = id === 'groups' && groupsDisabled
+          const featured = id === 'journey'
           return (
             <button
               key={id}
@@ -34,10 +35,10 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
               title={disabled ? t('groups.minAgeRestricted') : undefined}
             >
               <span style={{ position: 'relative', display: 'inline-flex' }}>
-                <AppIcon name={TAB_ICONS[id]} size={18} color={active ? 'var(--or)' : 'var(--g4)'} />
+                <AppIcon name={TAB_ICONS[id]} size={featured ? 22 : 18} color={active ? 'var(--or)' : 'var(--g4)'} />
                 {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
               </span>
-              <span>{label}</span>
+              <span style={featured ? { fontWeight: 700 } : undefined}>{label}</span>
             </button>
           )
         })}

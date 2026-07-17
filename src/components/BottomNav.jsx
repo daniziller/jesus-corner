@@ -1,8 +1,11 @@
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-const TAB_IDS = ['home', 'prayer', 'journey', 'routine', 'groups', 'studies', 'stats']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'Compass', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+// "journey" (Leitura Bíblica) fica centralizada na fileira — é a ação
+// principal do app — com o ícone um pouco maior pra se destacar das outras
+// abas. "routine" logo depois de "home", pra montar o dia antes de agir.
+const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'groups', 'studies', 'stats']
+const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 export default function BottomNav({ activeTab, onNavigate, groupsHasPending, groupsDisabled }) {
   return (
@@ -11,6 +14,7 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, gro
         const label = t(`nav.${id}`)
         const active = activeTab === id
         const disabled = id === 'groups' && groupsDisabled
+        const featured = id === 'journey'
         return (
           <button
             key={id}
@@ -21,7 +25,7 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, gro
             style={{ border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 }}
           >
             <span className="nav-icon" style={{ position: 'relative' }}>
-              <AppIcon name={TAB_ICONS[id]} size={20} color={active ? 'var(--or)' : 'var(--g4)'} />
+              <AppIcon name={TAB_ICONS[id]} size={featured ? 26 : 20} color={active ? 'var(--or)' : 'var(--g4)'} />
               {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
             </span>
             <span className="nav-label">{label}</span>
