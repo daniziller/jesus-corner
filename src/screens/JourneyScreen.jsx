@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { pickActiveBlock, computeTotalSessions, sessionKeys } from '../utils/progress'
@@ -13,7 +13,7 @@ function normalizeSearch(str) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onSelectPlan, initialBlockId, entryMode, resumeSessionId,
+  onToggleSession, onToggleChapter, onSelectPlan, initialBlockId, entryMode, resumeSessionId, onContinueSession,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -24,6 +24,18 @@ export default function JourneyScreen({
   // na Home (resumeSessionId), em vez do mapa.
   const [expandedBlockId, setExpandedBlockId] = useState(entryMode === 'reading' ? initialBlockId : null)
   const [initialSessionId, setInitialSessionId] = useState(entryMode === 'reading' ? resumeSessionId : null)
+
+  // O botão "Ir para a leitura de hoje" chama onContinueSession mesmo com a
+  // tela já montada (usuário já está na aba Leitura Bíblica) — os estados
+  // acima só rodam no useState inicial (na primeira montagem), então esse
+  // efeito cobre a navegação para quem já estava aqui.
+  useEffect(() => {
+    if (entryMode === 'reading') {
+      setExpandedBlockId(initialBlockId)
+      setInitialSessionId(resumeSessionId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryMode, initialBlockId, resumeSessionId])
 
   function openBlock(blockId, sessionIdToFeature = null) {
     setExpandedBlockId(blockId)
@@ -112,9 +124,11 @@ export default function JourneyScreen({
       {/* Sheet flutuante sobre o hero */}
       <div style={styles.sheet}>
 
-        {/* Seletor de plano — os 3 planos com meta de tempo lado a lado, e o
-            Livre embaixo, numa linha própria (é um tipo de leitura diferente,
-            não só "mais um tamanho de sessão"). */}
+        {/* Seletor de plano — os 3 planos com o tempo de LEITURA (não o
+            total do dia, que já inclui oração/reflexão) lado a lado, e o
+            Livre embaixo, numa linha própria, no mesmo estilo simples da
+            Home (é um tipo de leitura diferente, não só "mais um tamanho
+            de sessão"). */}
         <div style={styles.planSel}>
           {PLANS.filter(p => p.id !== 'free').map(p => (
             <button
@@ -124,7 +138,7 @@ export default function JourneyScreen({
             >
               <AppIcon name={p.icon} size={15} style={{ display: 'block', margin: '0 auto 3px' }} />
               {lang === 'en' ? p.labelEn : p.label}<br />
-              <span style={{ fontSize: 8, fontWeight: 500 }}>{t('journey.minPerDay', { n: p.minutesPerDay }, lang)}</span>
+              <span style={{ fontSize: 8, fontWeight: 500 }}>{t('journey.readingMinLabel', { n: p.readingMinutes }, lang)}</span>
             </button>
           ))}
         </div>
@@ -134,11 +148,15 @@ export default function JourneyScreen({
             style={{ ...styles.planBtnFree, ...(session.plan.id === p.id ? styles.planBtnActive : {}) }}
             onClick={() => onSelectPlan(p.id)}
           >
-            <AppIcon name={p.icon} size={15} style={{ flexShrink: 0 }} />
-            <span style={{ flex: 1, textAlign: 'left' }}>{lang === 'en' ? p.labelEn : p.label}</span>
-            <span style={{ fontSize: 9, fontWeight: 500 }}>{t('journey.noTimeTarget', undefined, lang)}</span>
+            {lang === 'en' ? p.labelEn : p.label}
           </button>
         ))}
+
+        {/* Atalho pra sessão de hoje — mesmo destino do "Continuar sessão"
+            da Home, sem precisar procurar o bloco/livro certo aqui. */}
+        <button style={styles.goToTodayBtn} onClick={() => onContinueSession?.()}>
+          {t('journey.goToToday', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
+        </button>
 
         {/* Conteúdo */}
         <div style={{ padding: '13px 14px 18px', display: 'flex', flexDirection: 'column' }}>
@@ -334,7 +352,8 @@ const styles = {
   planSel:         { display: 'flex', gap: 5, padding: '11px 14px', margin: '14px 14px 0', background: 'var(--g1)', borderRadius: 13, flexShrink: 0 },
   planBtn:         { flex: 1, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'white', fontFamily: 'var(--font)', lineHeight: 1.4 },
   planBtnActive:   { color: 'white', background: 'var(--grad-primary)', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
-  planBtnFree:     { display: 'flex', alignItems: 'center', gap: 8, textAlign: 'center', padding: '9px 12px', margin: '7px 14px 0', fontSize: 11, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 11, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  planBtnFree:     { display: 'block', width: 'calc(100% - 28px)', textAlign: 'center', padding: '7px 4px', margin: '7px 14px 0', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  goToTodayBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '10px 14px 0', border: 'none', borderRadius: 14, padding: 12, fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-premium)', boxShadow: 'var(--shadow-premium)' },
   testamentSection:{},
   testamentHeader: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 13px', cursor: 'pointer', fontFamily: 'var(--font)' },
   testamentLabel:  { fontSize: 11.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: 0.3, textTransform: 'uppercase' },

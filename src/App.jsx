@@ -542,7 +542,7 @@ export default function App() {
     prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />,
     reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
     routine: <RoutineScreen session={session} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onContinueSession={continueToday} />,
     groups:  canAccessGroups ? <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} /> : <MinAgeRestricted lang={session.lang} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} />,

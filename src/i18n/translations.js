@@ -111,6 +111,8 @@ export const STRINGS = {
       continueBlock: 'Continuar bloco →',
       minPerDay: '~{n} min/dia',
       noTimeTarget: 'No seu tempo',
+      readingMinLabel: '~{n} min de leitura',
+      goToToday: 'Ir para a leitura de hoje',
     },
     reading: {
       tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades',
@@ -498,6 +500,8 @@ export const STRINGS = {
       continueBlock: 'Continue block →',
       minPerDay: '~{n} min/day',
       noTimeTarget: 'At your own pace',
+      readingMinLabel: '~{n} min reading',
+      goToToday: "Go to today's reading",
     },
     reading: {
       tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia',
