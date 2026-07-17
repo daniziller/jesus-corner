@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import ReflectionGuideCard from '../components/reflection/ReflectionGuideCard'
-import { REFLECTION_DATA, REFLECTION_DURATIONS } from '../data/reflectionGuide'
+import { REFLECTION_DATA, phaseMinutesFor } from '../data/reflectionGuide'
+import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+
+// Inclui 8 porque é o padrão do plano Leve (session.plan.reflectionMinutes)
+// — sem ele, quem estivesse no Leve abriria a tela sem nenhum botão aceso.
+const DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
 // Mesmo mecanismo de cronômetro por fases do PrayerScreen.jsx (ACTS), a
 // partir dos minutos por etapa do perfil de duração ativo (ver
@@ -34,12 +39,15 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
+  // Duração total escolhida na hora — parte do que a pessoa já escolheu
+  // antes (jc_reflection_minutes) ou, na primeira vez, do plano ativo.
+  const [totalMinutes, setTotalMinutes] = useState(() => getSavedReflectionMinutes() ?? session.plan.reflectionMinutes)
 
-  const phaseMinutes = REFLECTION_DURATIONS[session.plan.reflectionMinutes] ?? REFLECTION_DURATIONS[10]
+  const phaseMinutes = useMemo(() => phaseMinutesFor(totalMinutes), [totalMinutes])
   const { bounds: PHASE_BOUNDS, totalSeconds: TOTAL_SECONDS } = useMemo(
     () => computePhaseBounds(phaseMinutes),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [session.plan.reflectionMinutes]
+    [totalMinutes]
   )
 
   const intervalRef = useRef(null)
@@ -180,6 +188,15 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
     setOpenCardId(null)
   }
 
+  // Troca a duração total escolhida — reinicia o cronômetro (os limites de
+  // cada etapa mudam) e lembra a escolha pra próxima vez.
+  function selectDuration(minutes) {
+    if (minutes === totalMinutes) return
+    resetTimer()
+    setTotalMinutes(minutes)
+    setSavedReflectionMinutes(minutes)
+  }
+
   const btnLabel = running ? t('reflection.pause', undefined, lang)
     : remaining === 0 ? t('reflection.done', undefined, lang)
     : elapsed > 0 ? t('reflection.resume', undefined, lang)
@@ -204,6 +221,22 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
         <div style={styles.timer}>
           <span style={styles.timerLabel}>{t('reflection.timerLabel', undefined, lang)}</span>
           <span style={styles.timerDisplay}>{fmt(remaining)}</span>
+
+          {/* Duração total — trocar aqui redivide as 3 etapas
+              proporcionalmente (ver phaseMinutesFor) e reinicia o cronômetro. */}
+          <span style={styles.durationLabel}>{t('reflection.durationLabel', undefined, lang)}</span>
+          <div style={styles.durationRow}>
+            {DURATION_OPTIONS.map(n => (
+              <button
+                key={n}
+                style={{ ...styles.durationBtn, ...(n === totalMinutes ? styles.durationBtnActive : null) }}
+                onClick={() => selectDuration(n)}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               style={{
@@ -252,4 +285,8 @@ const styles = {
   timerDisplay:{ fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
   timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
   wakeLockHint:{ fontSize: 9.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
+  durationLabel: { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2 },
+  durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
+  durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
+  durationBtnActive: { background: 'linear-gradient(135deg,#A855F7,#7C3AED)', color: 'white', boxShadow: '0 4px 12px rgba(124,58,237,.35)' },
 }

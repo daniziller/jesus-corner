@@ -8,6 +8,7 @@ import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
+import RoutineScreen from './screens/RoutineScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
@@ -540,6 +541,7 @@ export default function App() {
     home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onSelectPlan={selectPlan} />,
     prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} />,
     reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
+    routine: <RoutineScreen session={session} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} />,
     groups:  canAccessGroups ? <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} /> : <MinAgeRestricted lang={session.lang} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,

@@ -1,8 +1,8 @@
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-const TAB_IDS = ['home', 'prayer', 'journey', 'groups', 'studies', 'stats']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'Compass', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+const TAB_IDS = ['home', 'prayer', 'journey', 'routine', 'groups', 'studies', 'stats']
+const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'Compass', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 export default function BottomNav({ activeTab, onNavigate, groupsHasPending, groupsDisabled }) {
   return (

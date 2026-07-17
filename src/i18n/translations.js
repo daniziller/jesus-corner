@@ -5,7 +5,7 @@
 export const STRINGS = {
   pt: {
     nav: {
-      home: 'Início', prayer: 'Oração', journey: 'Jornada', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
+      home: 'Início', prayer: 'Oração', journey: 'Jornada', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
     },
     auth: {
       tagline: 'Seu tempo. Sua fé. Sua conexão com Deus.',
@@ -361,11 +361,23 @@ export const STRINGS = {
       denyAction: 'Respondido',
       deleteAction: 'Deletar',
     },
+    routine: {
+      pageTitle: 'Rotina',
+      heroSub: 'Escolha o tempo de cada passo e veja o total do seu dia.',
+      totalLabel: 'Tempo total hoje',
+      totalLabelFree: 'min + leitura livre',
+      sectionReading: 'Leitura',
+      sectionPrayer: 'Oração',
+      sectionReflection: 'Reflexão',
+      stepDone: 'Feito',
+      stepPending: 'A fazer',
+    },
     reflection: {
       pageTitle: 'Reflexão',
       heroTitle: 'Reflexão Guiada',
       heroSub: 'Siga as 3 etapas abaixo, uma de cada vez: Reviver, Entender e Aplicar. Toque em cada uma para ver o guia e use o cronômetro para acompanhar o tempo.',
       timerLabel: 'TEMPO DE REFLEXÃO',
+      durationLabel: 'Duração',
       pause: '⏸ Pausar',
       done: '✓ Concluído',
       resume: '▶ Continuar',
@@ -376,7 +388,7 @@ export const STRINGS = {
   },
   en: {
     nav: {
-      home: 'Home', prayer: 'Prayer', journey: 'Journey', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
+      home: 'Home', prayer: 'Prayer', journey: 'Journey', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
     },
     auth: {
       tagline: 'Your time. Your faith. Your connection with God.',
@@ -732,11 +744,23 @@ export const STRINGS = {
       denyAction: 'Responded',
       deleteAction: 'Delete',
     },
+    routine: {
+      pageTitle: 'Routine',
+      heroSub: 'Choose how long each step takes and see your total for the day.',
+      totalLabel: 'Total time today',
+      totalLabelFree: 'min + free reading',
+      sectionReading: 'Reading',
+      sectionPrayer: 'Prayer',
+      sectionReflection: 'Reflection',
+      stepDone: 'Done',
+      stepPending: 'To do',
+    },
     reflection: {
       pageTitle: 'Reflection',
       heroTitle: 'Guided Reflection',
       heroSub: 'Follow the 3 steps below, one at a time: Recall, Understand, and Apply. Tap each one to see its guide and use the timer to track your time.',
       timerLabel: 'REFLECTION TIME',
+      durationLabel: 'Duration',
       pause: '⏸ Pause',
       done: '✓ Done',
       resume: '▶ Resume',

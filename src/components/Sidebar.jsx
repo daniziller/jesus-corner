@@ -5,8 +5,8 @@ import NotificationBell from './NotificationBell'
 // Navegação lateral exibida só em telas ≥1024px (ver index.css) — substitui
 // o AppHeader + BottomNav do layout de celular por uma coluna fixa com logo,
 // abas e o usuário logado, no formato comum de dashboards desktop.
-const TAB_IDS = ['home', 'prayer', 'journey', 'groups', 'studies', 'stats']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'Compass', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+const TAB_IDS = ['home', 'prayer', 'journey', 'routine', 'groups', 'studies', 'stats']
+const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'Compass', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, groupsDisabled, pendingCount = 0, lang }) {
   return (

@@ -128,3 +128,23 @@ export const REFLECTION_DURATIONS = {
   10: [3, 4, 3],
   15: [4, 6, 5],
 }
+
+// Pesos usados pra dividir qualquer duração total (escolhida livremente na
+// tela de Reflexão) entre as 3 etapas — mesma proporção da duração curada
+// de 10min acima (Entender pesa mais que Reviver/Aplicar). Arredonda pelo
+// "maior resto" pra sempre bater exatamente o total escolhido e garantir
+// pelo menos 1 minuto por etapa. Ver ActsCard.jsx, mesmo padrão.
+const PHASE_WEIGHTS = [0.3, 0.4, 0.3]
+
+export function phaseMinutesFor(totalMinutes) {
+  if (REFLECTION_DURATIONS[totalMinutes]) return REFLECTION_DURATIONS[totalMinutes]
+  const raw = PHASE_WEIGHTS.map(w => w * totalMinutes)
+  const floors = raw.map(Math.floor)
+  const remainder = totalMinutes - floors.reduce((a, b) => a + b, 0)
+  const byFractionDesc = raw
+    .map((r, i) => ({ i, frac: r - floors[i] }))
+    .sort((a, b) => b.frac - a.frac)
+  const result = [...floors]
+  for (let k = 0; k < remainder; k++) result[byFractionDesc[k].i] += 1
+  return result
+}
