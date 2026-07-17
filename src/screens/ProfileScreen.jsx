@@ -218,6 +218,11 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
             onPress={handleResetClick}
           />
           <SettingsLink
+            icon="Mail" iconBg="var(--olt)"
+            label={t('profile.contactLabel')} sub={t('profile.contactSub')}
+            onPress={() => onNavigate('contact')}
+          />
+          <SettingsLink
             icon="Shield" iconBg="#EFF6FF"
             label={t('profile.privacyLabel')} sub={t('profile.privacySub')}
             onPress={() => window.open(privacyUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}
