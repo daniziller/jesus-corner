@@ -59,12 +59,76 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
 
         <div className="dashboard-grid">
 
-          {/* Coluna primária: o que importa fazer hoje — leitura + rotina.
-              Vem primeiro no DOM (logo primeiro no mobile) porque é o que
-              o usuário quer em destaque, à frente do anel de %. */}
+          {/* Coluna primária: métricas + rotina — vem primeiro no DOM (logo
+              primeiro no mobile) porque agora é isso que ganha destaque,
+              à frente do card de leitura do dia. */}
           <div className="dashboard-col">
 
-            {/* Card de hoje — sessão de leitura em destaque */}
+            {/* Destaque % da Bíblia */}
+            <div style={styles.pctHero} data-tour="home-bible-ring">
+              <div style={styles.pctHeroGlow} />
+
+              {/* Anel SVG */}
+              <div style={styles.ringWrap}>
+                <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
+                  <circle cx="44" cy="44" r="38" fill="none" stroke="white" strokeWidth="7"
+                    strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
+                </svg>
+                <div style={styles.ringText}>
+                  <span style={styles.ringNum}>{biblePercent}</span>
+                  <span style={styles.ringPct}>%</span>
+                </div>
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
+                <div>
+                  <p style={styles.pctLabel}>{translate('home.bibleReadLabel', undefined, lang)}</p>
+                  <p style={styles.pctTitle}>{translate('progress.bibleComplete', undefined, lang)}: {biblePercent}%</p>
+                  <p style={styles.pctSub}>{translate('home.chaptersRead', { n: chaptersRead }, lang)} · {streak} {lang === 'en' ? 'days' : 'dias'} <AppIcon name="Flame" size={11} style={{ verticalAlign: 'middle' }} /></p>
+                </div>
+                {/* Barras AT/NT */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <BarRow label="AT" pct={atPercent}  color="#FFFFFF" />
+                  <BarRow label="NT" pct={ntPercent}  color="#FFFFFF" />
+                </div>
+              </div>
+            </div>
+
+            {/* Nível e XP */}
+            <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
+
+            {/* Stats */}
+            <div>
+              <div className="section-header"><h3 className="section-title">{translate('home.thisWeek', undefined, lang)}</h3></div>
+              <div style={styles.statsRow}>
+                <StatCard value={streak}       suffix={<AppIcon name="Flame" size={12} />} label={translate('home.streakLabel', undefined, lang)}  theme="orange" />
+                <StatCard value={level.level}  suffix=""   label={level.title}    theme="purple" />
+                <StatCard value={Math.round((100 - biblePercent) * 10) / 10} suffix="%" label={translate('home.remainingLabel', undefined, lang)} theme="green"  />
+              </div>
+            </div>
+
+            {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
+                passo é feito de verdade (oração/leitura), com um calendário
+                de histórico embutido. */}
+            <DailyRoutineCard
+              dailyRoutine={dailyRoutine}
+              todayRoutine={todayRoutine}
+              plan={plan}
+              lang={lang}
+              onNavigate={onNavigate}
+              onContinueSession={onContinueSession}
+              onMarkRoutineStep={onMarkRoutineStep}
+            />
+          </div>
+
+          {/* Coluna secundária: card de leitura do dia + atividade dos
+              amigos — continua tudo aqui, só com menos peso visual que a
+              coluna de métricas/rotina agora. */}
+          <div className="dashboard-col">
+
+            {/* Card de hoje — sessão de leitura */}
             <div>
               <div className="section-header">
                 <h3 className="section-title">
@@ -118,70 +182,6 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
               </div>
             </div>
 
-            {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
-                passo é feito de verdade (oração/leitura), com um calendário
-                de histórico embutido. */}
-            <DailyRoutineCard
-              dailyRoutine={dailyRoutine}
-              todayRoutine={todayRoutine}
-              plan={plan}
-              lang={lang}
-              onNavigate={onNavigate}
-              onContinueSession={onContinueSession}
-              onMarkRoutineStep={onMarkRoutineStep}
-            />
-          </div>
-
-          {/* Coluna secundária: progresso geral (% da Bíblia, nível, stats,
-              atividade dos amigos) — continua tudo aqui, só com menos peso
-              visual que a coluna de hoje/rotina. */}
-          <div className="dashboard-col">
-
-            {/* Destaque % da Bíblia */}
-            <div style={styles.pctHero} data-tour="home-bible-ring">
-              <div style={styles.pctHeroGlow} />
-
-              {/* Anel SVG */}
-              <div style={styles.ringWrap}>
-                <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
-                  <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
-                  <circle cx="44" cy="44" r="38" fill="none" stroke="white" strokeWidth="7"
-                    strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
-                </svg>
-                <div style={styles.ringText}>
-                  <span style={styles.ringNum}>{biblePercent}</span>
-                  <span style={styles.ringPct}>%</span>
-                </div>
-              </div>
-
-              {/* Info */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
-                <div>
-                  <p style={styles.pctLabel}>{translate('home.bibleReadLabel', undefined, lang)}</p>
-                  <p style={styles.pctTitle}>{translate('progress.bibleComplete', undefined, lang)}: {biblePercent}%</p>
-                  <p style={styles.pctSub}>{translate('home.chaptersRead', { n: chaptersRead }, lang)} · {streak} {lang === 'en' ? 'days' : 'dias'} <AppIcon name="Flame" size={11} style={{ verticalAlign: 'middle' }} /></p>
-                </div>
-                {/* Barras AT/NT */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <BarRow label="AT" pct={atPercent}  color="#FFFFFF" />
-                  <BarRow label="NT" pct={ntPercent}  color="#FFFFFF" />
-                </div>
-              </div>
-            </div>
-
-            {/* Nível e XP */}
-            <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
-
-            {/* Stats */}
-            <div>
-              <div className="section-header"><h3 className="section-title">{translate('home.thisWeek', undefined, lang)}</h3></div>
-              <div style={styles.statsRow}>
-                <StatCard value={streak}       suffix={<AppIcon name="Flame" size={12} />} label={translate('home.streakLabel', undefined, lang)}  theme="orange" />
-                <StatCard value={level.level}  suffix=""   label={level.title}    theme="purple" />
-                <StatCard value={Math.round((100 - biblePercent) * 10) / 10} suffix="%" label={translate('home.remainingLabel', undefined, lang)} theme="green"  />
-              </div>
-            </div>
-
             {/* Atividade dos amigos (versão compacta — a completa mora na aba Comunidade) */}
             {friendActivity.length > 0 && (
               <div>
@@ -198,6 +198,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
                 </div>
               </div>
             )}
+
           </div>
 
         </div>
