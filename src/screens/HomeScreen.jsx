@@ -10,6 +10,8 @@ import { isDayComplete } from '../routine/routineStreak'
 import { dateKey } from '../utils/dateKey'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { PLANS } from '../data/bibleBlocks'
+import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
+import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 
 export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep, onSelectPlan }) {
   const {
@@ -306,13 +308,18 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
   const [showCalendar, setShowCalendar] = useState(false)
 
   // Os 3 passos sempre aparecem (ver PLANS[].modules em bibleBlocks.js) — o
-  // que muda de um plano pro outro é a duração de cada um
-  // (prayerMinutes/reflectionMinutes), mostrada aqui no subtítulo.
+  // que muda de um plano pro outro é a duração de cada um. Oração/Reflexão
+  // mostram a duração escolhida na aba Rotina (jc_prayer_minutes /
+  // jc_reflection_minutes), não o padrão do plano — ela fica valendo até a
+  // pessoa trocar de novo, mesmo padrão que PrayerScreen/ReflectionScreen
+  // já seguem.
+  const prayerMinutes = getSavedPrayerMinutes() ?? plan.prayerMinutes
+  const reflectionMinutes = getSavedReflectionMinutes() ?? plan.reflectionMinutes
   const allSteps = [
     {
       key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer,
       title: translate('home.routinePrayer', undefined, lang),
-      sub: translate('home.routinePrayerSub', { min: plan.prayerMinutes }, lang),
+      sub: translate('home.routinePrayerSub', { min: prayerMinutes }, lang),
       done: !!todayRoutine.prayer,
       onClick: () => onNavigate?.('prayer'),
       onToggleCheck: () => onMarkRoutineStep?.('prayer', !todayRoutine.prayer),
@@ -330,7 +337,7 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
     {
       key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection,
       title: translate('home.routineReflection', undefined, lang),
-      sub: translate('home.routineReflectionSub', { min: plan.reflectionMinutes }, lang),
+      sub: translate('home.routineReflectionSub', { min: reflectionMinutes }, lang),
       done: !!todayRoutine.reflection,
       onClick: () => onNavigate?.('reflection'),
       onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection),
