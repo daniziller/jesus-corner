@@ -31,7 +31,7 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
+export default function PrayerScreen({ session, authUser, onPrayerCompleted, onContinueSession }) {
   const { lang } = session
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
@@ -278,6 +278,13 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted }) {
                 </button>
               </div>
               {running && <p style={styles.wakeLockHint}>{t('prayer.wakeLockHint', undefined, lang)}</p>}
+
+              {/* Oração terminada — próximo passo da rotina é a Leitura. */}
+              {remaining === 0 && (
+                <button style={styles.nextStepBtn} onClick={() => onContinueSession?.()}>
+                  {t('prayer.goToReading', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
+                </button>
+              )}
             </div>
 
             {/* ACTS acordeão — o card do trecho atual abre sozinho conforme
@@ -322,4 +329,5 @@ const styles = {
   durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
   durationBtnActive: { background: 'var(--grad-vivid)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.35)' },
+  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', marginTop: 2, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'linear-gradient(135deg,#F97316,#EA580C)', boxShadow: '0 8px 20px rgba(234,88,12,.35)' },
 }

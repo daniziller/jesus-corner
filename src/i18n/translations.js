@@ -342,6 +342,7 @@ export const STRINGS = {
       start: '▶ Iniciar',
       restart: '↺ Reiniciar',
       wakeLockHint: 'Mantenha a tela ligada — o aviso sonoro toca a cada troca de etapa.',
+      goToReading: 'Ir para a Leitura',
       requestsTitle: 'Pedidos de Oração',
       praying: 'Em Oração',
       answered: 'Atendidos',
@@ -373,6 +374,7 @@ export const STRINGS = {
       stepDone: 'Feito',
       stepPending: 'A fazer',
       min: 'min',
+      start: 'Começar pela Oração',
     },
     reflection: {
       pageTitle: 'Reflexão',
@@ -727,6 +729,7 @@ export const STRINGS = {
       start: '▶ Start',
       restart: '↺ Restart',
       wakeLockHint: 'Keep your screen on — the alert sound plays at each step change.',
+      goToReading: 'Go to Reading',
       requestsTitle: 'Prayer Requests',
       praying: 'Praying',
       answered: 'Answered',
@@ -758,6 +761,7 @@ export const STRINGS = {
       stepDone: 'Done',
       stepPending: 'To do',
       min: 'min',
+      start: 'Start with Prayer',
     },
     reflection: {
       pageTitle: 'Reflection',

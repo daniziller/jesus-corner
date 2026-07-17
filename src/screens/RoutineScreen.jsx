@@ -58,6 +58,12 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
               ? `${prayerMinutes + reflectionMinutes} ${t('routine.totalLabelFree', undefined, lang)}`
               : t('routine.totalLabel', undefined, lang)}
           </span>
+          {/* Começa a rotina pelo primeiro passo (Oração) — de lá, ao
+              terminar o cronômetro, um botão leva direto pro segundo
+              passo (Leitura). */}
+          <button style={{ position: 'relative', ...styles.heroStartBtn }} onClick={() => onNavigate?.('prayer')}>
+            {t('routine.start', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
+          </button>
         </div>
 
         {/* Linha do tempo dos 3 passos de hoje */}
@@ -168,6 +174,7 @@ const styles = {
   heroTotal:   { fontSize: 38, fontWeight: 800, color: 'white', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' },
   heroTotalUnit: { fontSize: 15, fontWeight: 700 },
   heroTotalLabel: { fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginTop: 2, position: 'relative' },
+  heroStartBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, border: 'none', borderRadius: 24, padding: '11px 26px', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font)', color: 'var(--or)', cursor: 'pointer', background: 'white', boxShadow: '0 8px 20px rgba(0,0,0,.15)' },
 
   stepper:     { display: 'flex', alignItems: 'flex-start', background: 'var(--white)', borderRadius: 18, padding: '18px 10px 14px', boxShadow: 'var(--shadow-card)' },
   stepNodeWrap:{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', width: 66, padding: 0 },

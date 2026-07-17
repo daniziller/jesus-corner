@@ -539,7 +539,7 @@ export default function App() {
 
   const screens = {
     home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onSelectPlan={selectPlan} />,
-    prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} />,
+    prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />,
     reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
     routine: <RoutineScreen session={session} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} />,
