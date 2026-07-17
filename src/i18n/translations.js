@@ -88,6 +88,7 @@ export const STRINGS = {
       routineViewCalendar: 'Ver calendário',
       routineHideCalendar: 'Ocultar calendário',
       routineAllDoneMsg: 'Rotina completa hoje! Sua sequência continua. 🔥',
+      routineAdjustTimes: 'Ajustar tempos da rotina',
     },
     journey: {
       heroLabel: 'Minha jornada',
@@ -471,6 +472,7 @@ export const STRINGS = {
       routineViewCalendar: 'View calendar',
       routineHideCalendar: 'Hide calendar',
       routineAllDoneMsg: "Routine complete today! Your streak continues. 🔥",
+      routineAdjustTimes: 'Adjust routine times',
     },
     journey: {
       heroLabel: 'My journey',

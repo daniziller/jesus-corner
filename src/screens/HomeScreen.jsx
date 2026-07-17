@@ -395,6 +395,12 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
         <p style={styles.routineAllDone}>{translate('home.routineAllDoneMsg', undefined, lang)}</p>
       )}
 
+      <button style={styles.routineAdjustBtn} onClick={() => onNavigate?.('routine')}>
+        <AppIcon name="ClipboardList" size={13} />
+        {translate('home.routineAdjustTimes', undefined, lang)}
+        <AppIcon name="ChevronRight" size={13} />
+      </button>
+
       {showCalendar && <RoutineCalendar dailyRoutine={dailyRoutine} lang={lang} />}
     </div>
   )
@@ -507,6 +513,7 @@ const styles = {
   routineStepTitle:   { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
   routineStepSub:     { fontSize: 10, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
   routineAllDone:     { fontSize: 11, fontWeight: 700, color: 'var(--or)', textAlign: 'center', marginTop: 10 },
+  routineAdjustBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', background: 'none', padding: '10px 0 2px', marginTop: 4, fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   calendarWrap:       { marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)' },
   calendarNavBtn:      { width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   calendarMonthLabel: { fontSize: 12, fontWeight: 700, color: 'var(--bk)', textTransform: 'capitalize' },
