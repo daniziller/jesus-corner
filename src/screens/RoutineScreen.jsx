@@ -48,7 +48,7 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
         <p style={styles.heroSub}>{t('routine.heroSub', undefined, lang)}</p>
 
         {/* Total do dia */}
-        <div style={styles.hero}>
+        <div style={styles.hero} data-tour="routine-hero">
           <div style={styles.heroOrb} />
           <span style={{ position: 'relative', ...styles.heroTotal }}>
             {totalMinutes}<span style={styles.heroTotalUnit}> min</span>

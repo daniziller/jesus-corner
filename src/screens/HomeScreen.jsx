@@ -265,6 +265,10 @@ function TutorialCard({ lang }) {
             {translate('home.tutorialTip', undefined, lang)}
           </div>
 
+          <div style={styles.tutorialTipBlue}>
+            {translate('home.tutorialTipRoutine', undefined, lang)}
+          </div>
+
           <div style={styles.tutorialTipPurple}>
             {translate('home.tutorialTipBonus', undefined, lang)}
           </div>
@@ -538,6 +542,7 @@ const styles = {
   tutorialStepDesc:  { fontSize: 11, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginTop: 2 },
   tutorialTip:   { background: 'var(--olt)', border: '0.5px dashed rgba(249,115,22,.4)', borderRadius: 11, padding: 11, fontSize: 11, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5 },
   tutorialTipPurple: { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 11, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
+  tutorialTipBlue:   { background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '0.5px dashed rgba(59,130,246,.4)', borderRadius: 11, padding: 11, fontSize: 11, fontWeight: 500, color: '#1D4ED8', lineHeight: 1.5 },
   tutorialOutro: { fontSize: 11, fontWeight: 700, color: 'var(--or)', textAlign: 'center' },
   hero:          { minHeight: 150, background: '#141414', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.55, top: -80, right: -60 },

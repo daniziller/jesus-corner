@@ -8,6 +8,7 @@ export const TOUR_STEPS = [
   { id: 'routine',  tab: 'home',    target: 'home-routine-card',   titleKey: 'tour.routineTitle',  bodyKey: 'tour.routineBody',  shape: 'rect' },
   { id: 'bible',    tab: 'home',    target: 'home-bible-ring',     titleKey: 'tour.bibleTitle',    bodyKey: 'tour.bibleBody',    shape: 'rect' },
   { id: 'nav',      tab: 'home',    target: 'nav-tabs',            titleKey: 'tour.navTitle',      bodyKey: 'tour.navBody',      shape: 'rect' },
+  { id: 'routineTab', tab: 'routine', target: 'routine-hero',      titleKey: 'tour.routineTabTitle', bodyKey: 'tour.routineTabBody', shape: 'rect' },
   { id: 'prayer',   tab: 'prayer',  target: 'prayer-acts-card',    titleKey: 'tour.prayerTitle',   bodyKey: 'tour.prayerBody',   shape: 'rect' },
   { id: 'journey',  tab: 'journey', target: 'journey-hero',        titleKey: 'tour.journeyTitle',  bodyKey: 'tour.journeyBody',  shape: 'rect' },
   { id: 'progress', tab: 'stats',   target: 'progress-big-ring',   titleKey: 'tour.progressTitle', bodyKey: 'tour.progressBody', shape: 'rect' },
