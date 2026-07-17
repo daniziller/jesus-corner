@@ -82,6 +82,22 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
           ))}
         </div>
 
+        {/* Oração */}
+        <PickerSection title={t('routine.sectionPrayer', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer}>
+          <div style={styles.durationSel}>
+            {PRAYER_DURATION_OPTIONS.map(n => (
+              <button
+                key={n}
+                style={{ ...styles.durationBtn, ...(n === prayerMinutes ? { ...styles.durationBtnActive, background: ROUTINE_STEP_COLORS.prayer } : {}) }}
+                onClick={() => choosePrayer(n)}
+              >
+                <span style={styles.durationBtnNum}>{n}</span>
+                <span style={styles.durationBtnUnit}>{t('routine.min', undefined, lang)}</span>
+              </button>
+            ))}
+          </div>
+        </PickerSection>
+
         {/* Leitura — escolher o tempo aqui é escolher o plano */}
         <PickerSection title={t('routine.sectionReading', undefined, lang)} icon="BookOpen" color={ROUTINE_STEP_COLORS.reading}>
           <div style={styles.planSel}>
@@ -109,21 +125,6 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
           </span>
         </PickerSection>
 
-        {/* Oração */}
-        <PickerSection title={t('routine.sectionPrayer', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer}>
-          <div style={styles.durationSel}>
-            {PRAYER_DURATION_OPTIONS.map(n => (
-              <button
-                key={n}
-                style={{ ...styles.durationBtn, ...(n === prayerMinutes ? { ...styles.durationBtnActive, background: ROUTINE_STEP_COLORS.prayer } : {}) }}
-                onClick={() => choosePrayer(n)}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </PickerSection>
-
         {/* Reflexão */}
         <PickerSection title={t('routine.sectionReflection', undefined, lang)} icon="PenLine" color={ROUTINE_STEP_COLORS.reflection}>
           <div style={styles.durationSel}>
@@ -133,7 +134,8 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
                 style={{ ...styles.durationBtn, ...(n === reflectionMinutes ? { ...styles.durationBtnActive, background: ROUTINE_STEP_COLORS.reflection } : {}) }}
                 onClick={() => chooseReflection(n)}
               >
-                {n}
+                <span style={styles.durationBtnNum}>{n}</span>
+                <span style={styles.durationBtnUnit}>{t('routine.min', undefined, lang)}</span>
               </button>
             ))}
           </div>
@@ -187,6 +189,8 @@ const styles = {
   planBtnFree: { width: '100%', textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
 
   durationSel: { display: 'flex', gap: 6 },
-  durationBtn: { flex: 1, height: 34, borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'var(--g5)', background: 'var(--g1)', transition: 'background .15s, color .15s' },
+  durationBtn: { flex: 1, height: 44, borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'var(--g1)', transition: 'background .15s, color .15s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 },
   durationBtnActive: { color: 'white', border: 'none', boxShadow: 'var(--shadow-glow)' },
+  durationBtnNum:  { fontSize: 13, fontWeight: 800, lineHeight: 1 },
+  durationBtnUnit: { fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, opacity: 0.75, lineHeight: 1 },
 }

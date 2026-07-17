@@ -372,6 +372,7 @@ export const STRINGS = {
       sectionReflection: 'Reflexão',
       stepDone: 'Feito',
       stepPending: 'A fazer',
+      min: 'min',
     },
     reflection: {
       pageTitle: 'Reflexão',
@@ -756,6 +757,7 @@ export const STRINGS = {
       sectionReflection: 'Reflection',
       stepDone: 'Done',
       stepPending: 'To do',
+      min: 'min',
     },
     reflection: {
       pageTitle: 'Reflection',
