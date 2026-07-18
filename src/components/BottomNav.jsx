@@ -7,11 +7,16 @@ import AppIcon from '../icons/AppIcon'
 const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'groups', 'studies', 'stats']
 const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
-export default function BottomNav({ activeTab, onNavigate, groupsHasPending, groupsDisabled }) {
+export default function BottomNav({ activeTab, onNavigate, groupsHasPending, groupsDisabled, lang }) {
   return (
     <nav className="bottom-nav" data-tour="nav-tabs">
       {TAB_IDS.map(id => {
-        const label = t(`nav.${id}`)
+        // Passa lang explícito (vem de session.lang, que já atualiza na hora
+        // ao trocar idioma) em vez de deixar t() cair no fallback
+        // currentLanguage() — esse fallback lê um cache que só é atualizado
+        // depois que o Supabase confirma a troca, alguns instantes depois do
+        // resto da UI já ter mudado.
+        const label = t(`nav.${id}`, undefined, lang)
         const active = activeTab === id
         const disabled = id === 'groups' && groupsDisabled
         const featured = id === 'journey'

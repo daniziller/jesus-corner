@@ -21,7 +21,10 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
 
       <div className="sidebar-nav" data-tour="nav-tabs">
         {TAB_IDS.map(id => {
-          const label = t(`nav.${id}`)
+          // lang explícito — ver mesmo comentário em BottomNav.jsx (o
+          // fallback currentLanguage() fica um instante atrasado em relação
+          // ao resto da UI logo após trocar de idioma).
+          const label = t(`nav.${id}`, undefined, lang)
           const active = activeTab === id
           const disabled = id === 'groups' && groupsDisabled
           const featured = id === 'journey'
@@ -32,7 +35,7 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
               onClick={() => !disabled && onNavigate(id)}
               disabled={disabled}
               style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-              title={disabled ? t('groups.minAgeRestricted') : undefined}
+              title={disabled ? t('groups.minAgeRestricted', undefined, lang) : undefined}
             >
               <span style={{ position: 'relative', display: 'inline-flex' }}>
                 <AppIcon name={TAB_ICONS[id]} size={featured ? 22 : 18} color={active ? 'var(--or)' : 'var(--g4)'} />

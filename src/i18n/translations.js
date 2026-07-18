@@ -8,7 +8,7 @@ export const STRINGS = {
       home: 'Início', prayer: 'Oração', journey: 'Leitura Bíblica', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
     },
     auth: {
-      tagline: 'Seu tempo. Sua fé. Sua conexão com Deus.',
+      tagline: 'Seu tempo. Sua rotina. Sua conexão com Deus.',
       loginTitle: 'Entrar',
       loginSubtitle: 'Continue sua caminhada bíblica de onde parou.',
       signupTitle: 'Criar conta',
@@ -419,7 +419,7 @@ export const STRINGS = {
       home: 'Home', prayer: 'Prayer', journey: 'Bible Reading', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
     },
     auth: {
-      tagline: 'Your time. Your faith. Your connection with God.',
+      tagline: 'Your time. Your routine. Your connection with God.',
       loginTitle: 'Log in',
       loginSubtitle: 'Continue your Bible journey where you left off.',
       signupTitle: 'Create account',

@@ -568,7 +568,7 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <1024px */}
-        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} />
+        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} lang={session.lang} />
       </div>
 
       {/* Tutorial de primeiro acesso — position:fixed cobre a tela toda
