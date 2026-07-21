@@ -91,7 +91,7 @@ function StudiesEmptyState({ lang }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
       <AppIcon name="GraduationCap" size={30} color="var(--g4)" />
       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('studies.emptyStateTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('studies.emptyStateSub', undefined, lang)}</p>
+      <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('studies.emptyStateSub', undefined, lang)}</p>
     </div>
   )
 }
@@ -232,13 +232,13 @@ const styles = {
   studyCard:    { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 14, boxShadow: 'var(--shadow-card)', cursor: 'pointer' },
   studyIcon:    { width: 44, height: 44, borderRadius: 13, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   studyTitle:   { fontSize: 14.5, fontWeight: 800, color: 'var(--bk)', marginBottom: 3, letterSpacing: '-0.2px' },
-  studySubtitle:{ fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
+  studySubtitle:{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   studyMeta:    { fontSize: 10.5, fontWeight: 600, color: 'var(--g5)' },
   studyCta:     { fontSize: 11, fontWeight: 700, color: 'var(--or)' },
   sessionRow:   { display: 'flex', alignItems: 'center', gap: 11, background: 'white', border: '0.5px solid var(--g1)', borderRadius: 15, padding: 12, cursor: 'pointer', boxShadow: 'var(--shadow-card)' },
   sessionIcon:  { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sessionTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
-  sessionSub:   { fontSize: 10, fontWeight: 500, color: 'var(--g5)' },
+  sessionSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
   doneBadge:    { fontSize: 9, fontWeight: 700, color: 'var(--gr)', whiteSpace: 'nowrap' },
   hero:         { background: 'var(--grad-vivid)', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-glow)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   heroPassage:  { fontSize: 15, fontWeight: 800, color: 'white', letterSpacing: '-0.2px' },

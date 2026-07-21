@@ -101,6 +101,27 @@ body {
 ::-webkit-scrollbar { display: none; }
 * { scrollbar-width: none; }
 
+/* ── Texto grande (acessibilidade) — ver src/utils/textScaleStore.js e o
+   botão "T" no AppHeader/Sidebar. Como quase todo o app usa tamanhos em
+   px fixos nos estilos inline (não rem), a forma prática de aumentar tudo
+   de uma vez — texto, ícones, espaçamento — é escalar via zoom, em vez de
+   reescrever centenas de font-size espalhados pelos componentes.
+   Escala só .app-content-inner (o conteúdo da tela ativa), não #root:
+   o header e a barra de navegação inferior usam position:fixed, e o zoom
+   não cria um "containing block" pra eles como transform faria — zoomar
+   #root inteiro deixava a nav inferior mais larga que a tela, cortando a
+   última aba sem como rolar até ela (html/body ficam com overflow:hidden
+   de propósito). Escalando só o conteúdo evita esse problema, já que ele
+   não é fixed. overflow-x:auto em .app-content vira a rede de segurança
+   pra telas bem estreitas onde o conteúdo escalado passar da largura
+   disponível. */
+html.large-text .app-content-inner {
+  zoom: 1.15;
+}
+html.large-text .app-content {
+  overflow-x: auto;
+}
+
 /* ── Utilitários gerais ── */
 .screen {
   display: none;

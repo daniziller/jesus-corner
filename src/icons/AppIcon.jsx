@@ -20,7 +20,7 @@ import {
   Smile, ClipboardList, Lock, TreePalm, Wrench, TriangleAlert, Siren,
   Sailboat, Amphora, PawPrint, MapPin, Circle,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
-  X, ChevronRight, Pin, UserPlus, Calendar,
+  X, ChevronRight, Pin, UserPlus, Calendar, Type,
 } from 'lucide-react'
 
 const REGISTRY = {
@@ -39,7 +39,7 @@ const REGISTRY = {
   Smile, ClipboardList, Lock, TreePalm, Wrench, TriangleAlert, Siren,
   Sailboat, Amphora, PawPrint, MapPin,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
-  X, ChevronRight, Pin, UserPlus, Calendar,
+  X, ChevronRight, Pin, UserPlus, Calendar, Type,
 }
 
 export default function AppIcon({ name, size = 18, ...props }) {

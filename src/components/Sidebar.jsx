@@ -8,7 +8,10 @@ import NotificationBell from './NotificationBell'
 const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'groups', 'studies', 'stats']
 const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
-export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, groupsDisabled, pendingCount = 0, lang }) {
+const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
+const a11yBtnActiveStyle = { background: 'var(--grad-vivid)', border: 'none', boxShadow: 'var(--shadow-glow)' }
+
+export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, groupsDisabled, pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
@@ -16,7 +19,18 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
           <img src="/icons/icon-192.png" alt="" className="sidebar-logo" />
           <span className="sidebar-brand-name">JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
         </div>
-        <NotificationBell pendingCount={pendingCount} onNavigate={onNavigate} lang={lang} variant="sidebar" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            style={{ ...a11yBtnStyle, ...(largeText ? a11yBtnActiveStyle : null) }}
+            onClick={onToggleLargeText}
+            aria-pressed={largeText}
+            aria-label={t('a11y.largeTextToggle', undefined, lang)}
+            title={t('a11y.largeTextToggle', undefined, lang)}
+          >
+            <AppIcon name="Type" size={16} color={largeText ? 'white' : 'var(--g5)'} />
+          </button>
+          <NotificationBell pendingCount={pendingCount} onNavigate={onNavigate} lang={lang} variant="sidebar" />
+        </div>
       </div>
 
       <div className="sidebar-nav" data-tour="nav-tabs">

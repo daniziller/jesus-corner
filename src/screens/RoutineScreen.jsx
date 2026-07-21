@@ -167,7 +167,7 @@ function PickerSection({ title, icon, color, children }) {
 
 const styles = {
   body:        { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
-  heroSub:     { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
+  heroSub:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
 
   hero:        { position: 'relative', overflow: 'hidden', borderRadius: 22, padding: '20px 20px 18px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },

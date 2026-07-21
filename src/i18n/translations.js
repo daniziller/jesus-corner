@@ -7,6 +7,9 @@ export const STRINGS = {
     nav: {
       home: 'Início', prayer: 'Oração', journey: 'Leitura Bíblica', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
     },
+    a11y: {
+      largeTextToggle: 'Texto grande',
+    },
     auth: {
       tagline: 'Seu tempo. Sua rotina. Sua conexão com Deus.',
       loginTitle: 'Entrar',
@@ -418,6 +421,9 @@ export const STRINGS = {
   en: {
     nav: {
       home: 'Home', prayer: 'Prayer', journey: 'Bible Reading', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
+    },
+    a11y: {
+      largeTextToggle: 'Large text',
     },
     auth: {
       tagline: 'Your time. Your routine. Your connection with God.',

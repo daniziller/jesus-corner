@@ -55,7 +55,7 @@ export default function ReflectionGuideCard({ data, open: openProp, onToggle, mi
 
           {/* Descrição */}
           <p
-            style={{ fontSize: 11.5, fontWeight: 500, color: '#1C1C1E', lineHeight: 1.65, marginBottom: 11 }}
+            style={{ fontSize: 12.5, fontWeight: 500, color: '#1C1C1E', lineHeight: 1.65, marginBottom: 11 }}
             dangerouslySetInnerHTML={{ __html: pick(data.description) }}
           />
 
@@ -64,14 +64,14 @@ export default function ReflectionGuideCard({ data, open: openProp, onToggle, mi
             {pick(data.steps).map((step, i) => (
               <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', padding: '9px 11px', borderRadius: 9, background: data.stepBg }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: data.dotColor, flexShrink: 0, marginTop: 4 }} />
-                <p style={{ fontSize: 11.5, fontWeight: 500, color: '#1C1C1E', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: step }} />
+                <p style={{ fontSize: 12.5, fontWeight: 500, color: '#1C1C1E', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: step }} />
               </div>
             ))}
           </div>
 
           {/* Versículo */}
           <div style={{ borderRadius: 9, padding: '10px 12px', marginTop: 10, borderLeft: `3px solid ${data.verseBorder}`, background: data.verseBg }}>
-            <p style={{ fontSize: 11, fontWeight: 500, color: '#1C1C1E', fontStyle: 'italic', lineHeight: 1.55, marginBottom: 4 }}>
+            <p style={{ fontSize: 12.5, fontWeight: 500, color: '#1C1C1E', fontStyle: 'italic', lineHeight: 1.55, marginBottom: 4 }}>
               {pick(data.verse)}
             </p>
             <span style={{ fontSize: 10, fontWeight: 700, color: data.verseRefColor, letterSpacing: 0.3 }}>

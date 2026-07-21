@@ -145,7 +145,7 @@ function GroupsEmptyState({ lang }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
       <AppIcon name="Users" size={30} color="var(--g4)" />
       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('groups.emptyStateTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('groups.emptyStateSub', undefined, lang)}</p>
+      <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('groups.emptyStateSub', undefined, lang)}</p>
     </div>
   )
 }
@@ -422,7 +422,7 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
         </div>
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--bk)' }}>{profile.name}</p>
-          {profile.bio && <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginTop: 2 }}>{profile.bio}</p>}
+          {profile.bio && <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2 }}>{profile.bio}</p>}
         </div>
       </div>
 
@@ -433,11 +433,11 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
             <StatItemSmall value={summary.studiesCompletedCount} label={t('groups.friendStudiesLabel', undefined, lang)} />
             <StatItemSmall value={otherFriends.length} label={t('groups.friendFriendsCountLabel', undefined, lang)} />
           </div>
-          <p style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--g5)' }}>
+          <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--g5)' }}>
             {t('groups.friendCurrentlyReading', { block: activeBlockName }, lang)}
           </p>
           {summary.groups.length > 0 && (
-            <p style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--g5)' }}>
+            <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--g5)' }}>
               {t('groups.friendGroupsLabel', { groups: summary.groups.map(g => g.name).join(', ') }, lang)}
             </p>
           )}
@@ -1181,14 +1181,14 @@ function PrayerRequestComments({ requestId, isModerator, authUser, lang, onCount
 const styles = {
   input: { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none' },
   textarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5 },
-  error: { fontSize: 11, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
-  inviteSentMsg: { fontSize: 11, fontWeight: 600, color: '#15803D', background: 'rgba(22,163,74,.12)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
-  addFriendHint: { fontSize: 10.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginBottom: 10 },
-  emptyHint: { fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', padding: '4px 2px' },
+  error: { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
+  inviteSentMsg: { fontSize: 12.5, fontWeight: 600, color: '#15803D', background: 'rgba(22,163,74,.12)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
+  addFriendHint: { fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginBottom: 10 },
+  emptyHint: { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '4px 2px' },
   backBtn: { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   inviteCard: { display: 'flex', alignItems: 'center', gap: 8, background: 'white', border: '0.5px solid var(--g1)', borderRadius: 14, padding: 10, boxShadow: 'var(--shadow-card)' },
   inviteTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  inviteSub: { fontSize: 10, fontWeight: 500, color: 'var(--g5)' },
+  inviteSub: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
   acceptBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(22,163,74,.12)', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   declineBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'var(--g1)', color: 'var(--g4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   groupCard: { display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: '0.5px solid var(--g1)', borderRadius: 14, padding: 12, boxShadow: 'var(--shadow-card)', cursor: 'pointer', fontFamily: 'var(--font)', width: '100%' },
@@ -1223,7 +1223,7 @@ const styles = {
   durationChipActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white' },
   challengeMeta: { fontSize: 10, fontWeight: 500, color: 'var(--g5)' },
   challengeBooks: { fontSize: 10.5, fontWeight: 600, color: 'var(--or)', marginBottom: 6 },
-  challengeDesc: { fontSize: 11.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginBottom: 6 },
+  challengeDesc: { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginBottom: 6 },
   rankNumber: { width: 18, fontSize: 11, fontWeight: 800, color: 'var(--g4)', flexShrink: 0 },
   leaveBtn: { background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.2)', borderRadius: 12, padding: 11, fontSize: 12, fontWeight: 700, color: 'var(--re)', cursor: 'pointer', fontFamily: 'var(--font)' },
   commentCard: { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 14, padding: 12, boxShadow: 'var(--shadow-card)' },

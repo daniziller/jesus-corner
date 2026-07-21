@@ -28,6 +28,7 @@ import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
+import { getLargeTextEnabled, setLargeTextEnabled } from './utils/textScaleStore'
 import { detectLanguageFromIp } from './i18n/detectLanguage'
 import { t } from './i18n'
 import { getMyActiveChallenges, recordChallengeProgress } from './groups/challengesStore'
@@ -228,6 +229,21 @@ export default function App() {
   // Sessão específica a destacar quando entryMode é 'reading' — garante que a
   // Leitura abra featurando exatamente a mesma sessão que a Home mostrou.
   const [journeyResumeSessionId, setJourneyResumeSessionId] = useState(null)
+  // Acessibilidade: "texto grande" — por dispositivo, ver src/utils/textScaleStore.js
+  // e a regra html.large-text #root { zoom } em index.css.
+  const [largeText, setLargeText] = useState(getLargeTextEnabled)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('large-text', largeText)
+  }, [largeText])
+
+  function toggleLargeText() {
+    setLargeText(prev => {
+      const next = !prev
+      setLargeTextEnabled(next)
+      return next
+    })
+  }
 
   const { blocks, sessionsByBlock } = useMemo(() => deriveProgress(completedSet, planId), [completedSet, planId])
 
@@ -554,11 +570,11 @@ export default function App() {
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} pendingCount={pendingSocialCount} lang={session.lang} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}
-        <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} pendingCount={pendingSocialCount} lang={session.lang} />
+        <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
         {/* Conteúdo da tela ativa */}
         <div className="app-content">

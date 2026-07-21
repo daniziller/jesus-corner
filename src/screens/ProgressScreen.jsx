@@ -155,7 +155,7 @@ function RoutineUsageCard({ dailyRoutine, lang }) {
   return (
     <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)' }}>{translate('progress.routineUsageTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)', marginTop: 2, marginBottom: 12 }}>{translate('progress.routineUsageSub', undefined, lang)}</p>
+      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, marginBottom: 12 }}>{translate('progress.routineUsageSub', undefined, lang)}</p>
 
       {hasAnyData ? (
         <>
@@ -194,7 +194,7 @@ function RoutineUsageCard({ dailyRoutine, lang }) {
           </div>
         </>
       ) : (
-        <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '10px 0' }}>
+        <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '10px 0' }}>
           {translate('progress.routineUsageEmpty', undefined, lang)}
         </p>
       )}
@@ -271,12 +271,12 @@ const styles = {
   levelXp:     { fontSize: 10.5, fontWeight: 700, color: 'var(--or)' },
   levelBar:    { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
   levelBarFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
-  levelSub:    { fontSize: 10, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
+  levelSub:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
   achievementsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
   achievementCard:  { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 },
   achievementCardUnlocked: { background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.3)' },
   achievementTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.25 },
-  achievementDesc:  { fontSize: 8, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },
+  achievementDesc:  { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },
   routineUsageChart:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 },
   routineUsageMonthCol:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1 },
   routineUsageMonthNum:   { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },

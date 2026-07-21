@@ -144,7 +144,7 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
                   </div>
                 </div>
 
-                {saveError && <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' }}>{saveError}</p>}
+                {saveError && <p style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' }}>{saveError}</p>}
 
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn-primary" style={{ width: 'auto', flex: 1, padding: '10px 16px' }} onClick={saveEdit} disabled={saving}>
@@ -319,17 +319,17 @@ const styles = {
   plannerCard:  { background: 'linear-gradient(135deg,#FFF3E8,#FFE0BE)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 16, padding: 13, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'var(--font)' },
   plannerLabel: { fontSize: 10, fontWeight: 700, color: '#EA580C', marginBottom: 3, letterSpacing: 0.4 },
   plannerTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
-  plannerSub:   { fontSize: 10, fontWeight: 500, color: 'var(--g6)', marginTop: 2 },
+  plannerSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g6)', marginTop: 2 },
   langBtn:      { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   langBtnActive:{ color: 'white', background: 'var(--grad-primary)', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
   aboutNameCard:    { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 16, padding: 15 },
   aboutNameTitle:   { fontSize: 12, fontWeight: 800, color: 'var(--bk)', marginBottom: 8 },
   aboutNameVerse:   { fontSize: 12, fontWeight: 500, fontStyle: 'italic', color: 'var(--g6)', lineHeight: 1.5, marginBottom: 3 },
   aboutNameVerseRef:{ fontSize: 10, fontWeight: 700, color: 'var(--or)', marginBottom: 9 },
-  aboutNameBody:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.55 },
+  aboutNameBody:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.55 },
   editBtn:          { position: 'absolute', top: 14, right: 14, width: 28, height: 28, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   avatarEditBtn:    { position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: '50%', border: '2px solid white', background: 'var(--or)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  bioDisplay:       { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginTop: 6, maxWidth: 260 },
+  bioDisplay:       { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginTop: 6, maxWidth: 260 },
   editFieldWrap:    { display: 'flex', flexDirection: 'column', gap: 5 },
   editFieldLabel:   { fontSize: 10, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
   editInput:        { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
@@ -337,5 +337,5 @@ const styles = {
   bioCounter:       { fontSize: 9.5, fontWeight: 600, color: 'var(--g4)', textAlign: 'right' },
   publicToggleRow:  { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '10px 12px' },
   publicToggleLabel:{ fontSize: 11.5, fontWeight: 700, color: 'var(--bk)' },
-  publicToggleSub:  { fontSize: 10, fontWeight: 500, color: 'var(--g5)', marginTop: 2, lineHeight: 1.4 },
+  publicToggleSub:  { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, lineHeight: 1.4 },
 }
