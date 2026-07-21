@@ -35,15 +35,14 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
   }
 
   const TAGS = [
-    // Sessão de reflexão (fim de livro) não tem intervalo de capítulo — não
-    // faz sentido oferecer "Texto" nela.
-    ...(heroSession.type !== 'reflection' ? [{ key: 'texto', icon: 'Scroll', label: t('reading.tagText', undefined, lang) }] : []),
+    // "Texto" não fica aqui — vira um botão junto dos capítulos, ver
+    // ChapterChecklist (mais perto de onde a pessoa já está olhando).
     { key: 'contexto',     icon: 'BookOpen',   label: t('reading.tagContext', undefined, lang) },
     { key: 'mapa',         icon: 'Map',        label: t('reading.tagMap', undefined, lang) },
     { key: 'notas',        icon: 'StickyNote', label: t('reading.tagNotes', undefined, lang) },
     { key: 'curiosidades', icon: 'Lightbulb',  label: t('reading.tagTrivia', undefined, lang) },
   ]
-  const PANEL_KEYS = ['texto', 'contexto', 'mapa', 'notas', 'curiosidades']
+  const PANEL_KEYS = ['contexto', 'mapa', 'notas', 'curiosidades']
 
   const [openPanel, setOpenPanel] = useState(null)
   const [noteText, setNoteText] = useState('')
@@ -119,10 +118,19 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
             </div>
           </div>
 
-          {/* Marcação capítulo a capítulo da sessão em destaque */}
+          {/* Marcação capítulo a capítulo da sessão em destaque — o botão
+              "Texto" fica junto dos capítulos, não lá em cima no card do
+              destaque, já que é sobre eles que a pessoa está agindo. */}
           {heroSession.type !== 'reflection' && (
             <div style={{ padding: '0 14px 4px' }}>
-              <ChapterChecklist session={heroSession} completedSet={completedSet} onToggleChapter={onToggleChapter} lang={lang} />
+              <ChapterChecklist
+                session={heroSession}
+                completedSet={completedSet}
+                onToggleChapter={onToggleChapter}
+                lang={lang}
+                textOpen={openPanel === 'texto'}
+                onToggleText={() => setOpenPanel(p => (p === 'texto' ? null : 'texto'))}
+              />
             </div>
           )}
 
@@ -183,14 +191,25 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
   )
 }
 
-// Fileira de capítulos clicáveis de uma sessão — usada no destaque (sempre visível).
-function ChapterChips({ session, completedSet, onToggleChapter, lang }) {
+// Fileira de capítulos clicáveis de uma sessão — usada no destaque (sempre
+// visível). O botão "Texto" (quando informado) entra como 1o item da
+// fileira, junto dos capítulos que ele exibe.
+function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText }) {
   const chapters = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapters.push(ch)
   const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+      {onToggleText && (
+        <button
+          style={{ ...styles.chapterChip, ...styles.chapterTextBtn, ...(textOpen ? styles.chapterTextBtnActive : {}) }}
+          onClick={e => { e.stopPropagation(); onToggleText() }}
+        >
+          <AppIcon name="Scroll" size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />
+          {t('reading.tagText', undefined, lang)}
+        </button>
+      )}
       {chapters.map(ch => {
         const done = completedSet.has(`${session.book}:${ch}`)
         return (
@@ -207,7 +226,7 @@ function ChapterChips({ session, completedSet, onToggleChapter, lang }) {
   )
 }
 
-function ChapterChecklist({ session, completedSet, onToggleChapter, lang }) {
+function ChapterChecklist({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText }) {
   const chapters = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapters.push(ch)
   const doneCount = chapters.filter(ch => completedSet.has(`${session.book}:${ch}`)).length
@@ -218,7 +237,7 @@ function ChapterChecklist({ session, completedSet, onToggleChapter, lang }) {
         <p style={{ ...styles.panelBookLabel, marginBottom: 0 }}>{t('reading.chaptersOfSession', undefined, lang)}</p>
         <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)' }}>{t('reading.chaptersReadCount', { done: doneCount, total: chapters.length }, lang)}</span>
       </div>
-      <ChapterChips session={session} completedSet={completedSet} onToggleChapter={onToggleChapter} lang={lang} />
+      <ChapterChips session={session} completedSet={completedSet} onToggleChapter={onToggleChapter} lang={lang} textOpen={textOpen} onToggleText={onToggleText} />
     </div>
   )
 }
@@ -555,6 +574,8 @@ const styles = {
   notesSaveBtn:{ width: '100%', background: 'var(--grad-vivid)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' },
   chapterChip:    { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
   chapterChipDone:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
+  chapterTextBtn:      { background: 'var(--bk)', border: '0.5px solid var(--bk)', color: 'white' },
+  chapterTextBtnActive:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
   reflectionTip:  { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
   reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: '#A855F7', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   bibleTextVersionRow:  { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
