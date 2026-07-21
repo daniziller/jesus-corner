@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { signup, login, requestPasswordReset, resetPassword } from '../auth/authStore'
+import { useState, useEffect, useRef } from 'react'
+import { signup, login, requestPasswordReset, resetPassword, resendConfirmationEmail } from '../auth/authStore'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
@@ -15,7 +15,7 @@ export default function AuthScreen({ onAuthenticated }) {
   const [mode, setMode] = useState('login') // 'login' | 'signup' | 'forgot'
 
   return (
-    <div style={styles.screen}>
+    <div className="auth-screen" style={styles.screen}>
       <div style={styles.hero}>
         <div style={styles.heroOrbOrange} />
         <div style={styles.heroOrbPink} />
@@ -24,7 +24,7 @@ export default function AuthScreen({ onAuthenticated }) {
         <span style={styles.brandTagline}>{t('auth.tagline')}</span>
       </div>
 
-      <div style={styles.sheet}>
+      <div className="auth-sheet" style={styles.sheet}>
         {mode === 'login'  && <LoginView    onAuthenticated={onAuthenticated} onGoSignup={() => setMode('signup')} onGoForgot={() => setMode('forgot')} />}
         {mode === 'signup' && <SignupView   onAuthenticated={onAuthenticated} onGoLogin={() => setMode('login')} />}
         {mode === 'forgot' && <ForgotView   onAuthenticated={onAuthenticated} onGoLogin={() => setMode('login')} />}
@@ -84,8 +84,9 @@ function SignupView({ onAuthenticated, onGoLogin }) {
   // Decisão de privacidade pedida já no cadastro (ajustável depois em
   // Perfil) — perfil público libera progresso/estudo atual/grupos pros
   // amigos; nome/foto/mensagem já ficam visíveis pra amigos de qualquer
-  // forma (ver GroupsScreen.FriendProfilePanel).
-  const [isPublic, setIsPublic]   = useState(false)
+  // forma (ver GroupsScreen.FriendProfilePanel). Público por padrão — a
+  // pessoa desativa se preferir manter privado.
+  const [isPublic, setIsPublic]   = useState(true)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [error, setError]         = useState('')
   const [loading, setLoading]     = useState(false)
@@ -127,11 +128,7 @@ function SignupView({ onAuthenticated, onGoLogin }) {
 
   if (confirmationEmail) {
     return (
-      <div style={styles.form}>
-        <h1 style={styles.title}>{t('auth.confirmEmailTitle')}</h1>
-        <p style={styles.subtitle}>{t('auth.confirmEmailSubtitle', { email: confirmationEmail })}</p>
-        <button type="button" className="btn-primary" style={{ marginTop: 6 }} onClick={onGoLogin}>{t('auth.backToLogin')}</button>
-      </div>
+      <ConfirmEmailView email={confirmationEmail} onGoLogin={onGoLogin} />
     )
   }
 
@@ -186,6 +183,62 @@ function SignupView({ onAuthenticated, onGoLogin }) {
         <span style={styles.link} onClick={onGoLogin}>{t('auth.alreadyHaveAccount')}</span>
       </div>
     </form>
+  )
+}
+
+// Tela mostrada logo após o cadastro quando o Supabase exige confirmação
+// por email — cobre o caso de a pessoa não achar/não receber o email (foi
+// pro spam, demorou, digitou certo mas o provedor atrasou) com um botão de
+// reenvio. Cooldown de 30s entre reenvios evita spam e dá tempo do email
+// anterior chegar antes de pedir outro.
+function ConfirmEmailView({ email, onGoLogin }) {
+  const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error'
+  const [cooldown, setCooldown] = useState(0)
+  const intervalRef = useRef(null)
+
+  useEffect(() => () => clearInterval(intervalRef.current), [])
+
+  function startCooldown() {
+    setCooldown(30)
+    clearInterval(intervalRef.current)
+    intervalRef.current = setInterval(() => {
+      setCooldown(c => {
+        if (c <= 1) { clearInterval(intervalRef.current); return 0 }
+        return c - 1
+      })
+    }, 1000)
+  }
+
+  async function handleResend() {
+    setStatus('sending')
+    try {
+      await resendConfirmationEmail(email)
+      setStatus('sent')
+      startCooldown()
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  return (
+    <div style={styles.form}>
+      <h1 style={styles.title}>{t('auth.confirmEmailTitle')}</h1>
+      <p style={styles.subtitle}>{t('auth.confirmEmailSubtitle', { email })}</p>
+
+      {status === 'sent' && <p style={styles.resendSuccess}>{t('auth.resendEmailSuccess')}</p>}
+      {status === 'error' && <p style={styles.error}>{t('auth.resendEmailError')}</p>}
+
+      <button
+        type="button"
+        style={{ ...styles.resendBtn, ...((status === 'sending' || cooldown > 0) ? styles.resendBtnDisabled : {}) }}
+        onClick={handleResend}
+        disabled={status === 'sending' || cooldown > 0}
+      >
+        {status === 'sending' ? t('auth.loading') : cooldown > 0 ? t('auth.resendEmailCooldown', { s: cooldown }) : t('auth.resendEmailBtn')}
+      </button>
+
+      <button type="button" className="btn-primary" style={{ marginTop: 6 }} onClick={onGoLogin}>{t('auth.backToLogin')}</button>
+    </div>
   )
 }
 
@@ -327,6 +380,9 @@ const styles = {
   input:         { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '12px 13px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
   pinInput:      { letterSpacing: 6, fontSize: 16, textAlign: 'center' },
   error:         { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
+  resendSuccess: { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl, rgba(34,197,94,.1))', borderRadius: 8, padding: '8px 10px' },
+  resendBtn:     { width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 13, padding: 13, fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--bk)', cursor: 'pointer' },
+  resendBtnDisabled: { opacity: 0.55, cursor: 'default' },
   linksRow:      { display: 'flex', justifyContent: 'space-between', marginTop: 4 },
   link:          { fontSize: 11.5, fontWeight: 700, color: 'var(--or)', cursor: 'pointer' },
   publicToggleRow:   { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '11px 13px' },

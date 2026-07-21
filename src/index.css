@@ -566,6 +566,30 @@ html.large-text .app-content-inner {
     width: 100%;
     max-width: 900px;
   }
+  /* Tela de login/cadastro roda fora do .app-shell (ainda não tem sessão),
+     então sem isso os campos esticam até os 1200px de #root nessa faixa —
+     limita o cartão de formulário a uma largura de web comum e centraliza. */
+  .auth-screen {
+    align-items: center;
+    justify-content: center;
+    background: #141414;
+  }
+  .auth-screen > div:first-child {
+    max-width: 440px;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    flex-shrink: 0;
+  }
+  .auth-sheet {
+    max-width: 440px;
+    width: 100%;
+    border-radius: 0 0 20px 20px;
+    /* !important necessário: styles.sheet no AuthScreen.jsx põe flex:1 via
+       style inline, que sempre vence regra de classe — sem isso o cartão
+       esticaria até preencher os 100vh do #root nessa faixa de tela. */
+    flex: none !important;
+    max-height: calc(100vh - 220px);
+  }
 }
 
 /* ── Dashboard reflow (telas com layout em 2 colunas no desktop) ──

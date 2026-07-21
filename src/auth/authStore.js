@@ -75,6 +75,17 @@ export async function signup({ name, email, password, language, birthdate, isPub
   return { ...mapUser(data.user), needsEmailConfirmation: !data.session }
 }
 
+// Reenvia o email de confirmação de cadastro — pra quando a pessoa não
+// recebeu (caiu no spam, digitou certo mas demorou, etc.) e ainda está na
+// tela "confirme seu email" logo após o cadastro. type: 'signup' é o que
+// distingue esse reenvio do de recuperação de senha (que usa outro fluxo,
+// resetPasswordForEmail, acima).
+export async function resendConfirmationEmail(email) {
+  const cleanEmail = normalizeEmail(email)
+  const { error } = await supabase.auth.resend({ type: 'signup', email: cleanEmail })
+  if (error) throw new Error(error.message)
+}
+
 export async function login({ email, password }) {
   const cleanEmail = normalizeEmail(email)
   const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
