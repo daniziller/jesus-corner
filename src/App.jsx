@@ -607,7 +607,7 @@ export default function App() {
     contact: <ContactScreen session={session} authUser={authUser} />,
     journey: <JourneyScreen session={session} authUser={authUser} isPremium={isPremium} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onContinueSession={continueToday} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} isPremium={isPremium} onNavigate={navigateTo} onSocialChange={refreshSocialState} />,
-    studies: <StudiesScreen session={session} authUser={authUser} />,
+    studies: isPremium ? <StudiesScreen session={session} authUser={authUser} /> : <PremiumRequired lang={session.lang} onNavigate={navigateTo} />,
     stats:   <ProgressScreen session={session} blocks={blocks} isPremium={isPremium} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} />,
     profile: <ProfileScreen  session={session} authUser={authUser} isPremium={isPremium} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
@@ -616,7 +616,7 @@ export default function App() {
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} isPremium={isPremium} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}
@@ -630,7 +630,7 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <1024px */}
-        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
+        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} isPremium={isPremium} />
       </div>
 
       {/* Tutorial de primeiro acesso — position:fixed cobre a tela toda

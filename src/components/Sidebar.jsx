@@ -11,7 +11,7 @@ const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', rout
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-vivid)', border: 'none', boxShadow: 'var(--shadow-glow)' }
 
-export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText, isPremium }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
@@ -58,6 +58,11 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
               <span style={{ position: 'relative', display: 'inline-flex' }}>
                 <AppIcon name={TAB_ICONS[id]} size={featured ? 22 : 18} color={active ? 'var(--or)' : 'var(--g4)'} />
                 {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
+                {id === 'studies' && !isPremium && (
+                  <span style={{ position: 'absolute', top: -3, right: -4, width: 13, height: 13, borderRadius: '50%', background: 'var(--grad-vivid)', border: '1.5px solid var(--white, #fff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <AppIcon name="Crown" size={8} color="white" />
+                  </span>
+                )}
               </span>
               <span style={featured ? { fontWeight: 700 } : undefined}>{label}</span>
             </button>
