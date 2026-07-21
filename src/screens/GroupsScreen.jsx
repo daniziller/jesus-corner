@@ -20,6 +20,7 @@ import {
   getPrayerComments, postPrayerComment, deletePrayerComment, toggleCommentLike as togglePrayerCommentLike,
 } from '../groups/prayerRequestsStore'
 import ActivityFeedItem from '../components/ActivityFeedItem'
+import PremiumLockCard from '../components/PremiumLockCard'
 
 // Todos os 66 livros (pt/en), na mesma ordem/nomes usados em completed_keys
 // — reaproveitado do mesmo dado que já alimenta a Jornada, pra montar o
@@ -39,7 +40,7 @@ function formatDate(iso, lang) {
   return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR')
 }
 
-export default function GroupsScreen({ session, authUser, onSocialChange }) {
+export default function GroupsScreen({ session, authUser, isPremium, onNavigate, onSocialChange }) {
   const { lang } = session
   const [myGroups, setMyGroups] = useState([])
   const [groupInvites, setGroupInvites] = useState([])
@@ -78,7 +79,7 @@ export default function GroupsScreen({ session, authUser, onSocialChange }) {
         <div className="page-header"><h1 className="page-title">{t('groups.pageTitle', undefined, lang)}</h1></div>
 
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {groupInvites.length > 0 && (
+          {isPremium && groupInvites.length > 0 && (
             <div>
               <div className="section-header"><h3 className="section-title">{t('groups.pendingInvitesTitle', undefined, lang)}</h3></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -100,7 +101,21 @@ export default function GroupsScreen({ session, authUser, onSocialChange }) {
             </div>
           )}
 
-          <GroupsListSection groups={myGroups} lang={lang} onOpen={setOpenGroupId} onCreate={handleCreateGroup} />
+          {/* Grupos e desafios são premium; Amigos (logo abaixo) continua
+              livre — ver divisão combinada com o usuário. */}
+          {isPremium ? (
+            <GroupsListSection groups={myGroups} lang={lang} onOpen={setOpenGroupId} onCreate={handleCreateGroup} />
+          ) : (
+            <div>
+              <div className="section-header"><h3 className="section-title">{t('groups.myGroupsTitle', undefined, lang)}</h3></div>
+              <PremiumLockCard
+                lang={lang}
+                onNavigate={onNavigate}
+                title={t('billing.groupsLockTitle', undefined, lang)}
+                sub={t('billing.groupsLockSub', undefined, lang)}
+              />
+            </div>
+          )}
           <FriendsSection lang={lang} onChange={reload} authUser={authUser} />
 
           <div>

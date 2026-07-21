@@ -12,8 +12,8 @@ function normalizeSearch(str) {
 }
 
 export default function JourneyScreen({
-  session, authUser, blocks, sessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onSelectPlan, initialBlockId, entryMode, resumeSessionId, onContinueSession,
+  session, authUser, isPremium, blocks, sessionsByBlock, completedSet,
+  onToggleSession, onToggleChapter, onSelectPlan, initialBlockId, entryMode, resumeSessionId, onContinueSession, onNavigate,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -60,6 +60,8 @@ export default function JourneyScreen({
       <ReadingBlockView
         session={session}
         authUser={authUser}
+        isPremium={isPremium}
+        onNavigate={onNavigate}
         blockId={expandedBlockId}
         blocks={blocks}
         sessionsByBlock={sessionsByBlock}
@@ -130,17 +132,20 @@ export default function JourneyScreen({
             Home (é um tipo de leitura diferente, não só "mais um tamanho
             de sessão"). */}
         <div style={styles.planSel}>
-          {PLANS.filter(p => p.id !== 'free').map(p => (
-            <button
-              key={p.id}
-              style={{ ...styles.planBtn, ...(session.plan.id === p.id ? styles.planBtnActive : {}) }}
-              onClick={() => onSelectPlan(p.id)}
-            >
-              <AppIcon name={p.icon} size={15} style={{ display: 'block', margin: '0 auto 3px' }} />
-              {lang === 'en' ? p.labelEn : p.label}<br />
-              <span style={{ fontSize: 8, fontWeight: 500 }}>{t('journey.readingMinLabel', { n: p.readingMinutes }, lang)}</span>
-            </button>
-          ))}
+          {PLANS.filter(p => p.id !== 'free').map(p => {
+            const locked = p.premium && !isPremium
+            return (
+              <button
+                key={p.id}
+                style={{ ...styles.planBtn, ...(session.plan.id === p.id ? styles.planBtnActive : {}) }}
+                onClick={() => locked ? onNavigate?.('upgrade') : onSelectPlan(p.id)}
+              >
+                <AppIcon name={locked ? 'Crown' : p.icon} size={15} style={{ display: 'block', margin: '0 auto 3px' }} />
+                {lang === 'en' ? p.labelEn : p.label}<br />
+                <span style={{ fontSize: 8, fontWeight: 500 }}>{t('journey.readingMinLabel', { n: p.readingMinutes }, lang)}</span>
+              </button>
+            )
+          })}
         </div>
         {PLANS.filter(p => p.id === 'free').map(p => (
           <button

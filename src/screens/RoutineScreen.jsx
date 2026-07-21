@@ -16,7 +16,7 @@ import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflect
 const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
-export default function RoutineScreen({ session, onNavigate, onContinueSession, onSelectPlan }) {
+export default function RoutineScreen({ session, isPremium, onNavigate, onContinueSession, onSelectPlan }) {
   const { lang, plan, todayRoutine } = session
   const [prayerMinutes, setPrayerMinutesState] = useState(() => getSavedPrayerMinutes() ?? plan.prayerMinutes)
   const [reflectionMinutes, setReflectionMinutesState] = useState(() => getSavedReflectionMinutes() ?? plan.reflectionMinutes)
@@ -37,7 +37,7 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
   const steps = [
     { key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer, title: t('home.routinePrayer', undefined, lang), done: !!todayRoutine.prayer, onClick: () => onNavigate?.('prayer') },
     { key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading, title: t('home.routineReading', undefined, lang), done: !!todayRoutine.reading, onClick: () => onContinueSession?.() },
-    { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection, title: t('home.routineReflection', undefined, lang), done: !!todayRoutine.reflection, onClick: () => onNavigate?.('reflection') },
+    { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection, title: t('home.routineReflection', undefined, lang), done: !!todayRoutine.reflection, locked: !isPremium, onClick: () => onNavigate?.(isPremium ? 'reflection' : 'upgrade') },
   ]
 
   return (
@@ -72,7 +72,7 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
             <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', flex: i < steps.length - 1 ? 1 : 'unset' }}>
               <button onClick={step.onClick} style={styles.stepNodeWrap}>
                 <span style={{ ...styles.stepNode, background: step.done ? step.color : 'var(--g1)', borderColor: step.done ? step.color : 'var(--g2)' }}>
-                  <AppIcon name={step.done ? 'Check' : step.icon} size={17} color={step.done ? 'white' : 'var(--g4)'} />
+                  <AppIcon name={step.done ? 'Check' : step.locked ? 'Crown' : step.icon} size={17} color={step.done ? 'white' : step.locked ? 'var(--or)' : 'var(--g4)'} />
                 </span>
                 <span style={styles.stepLabel}>{step.title}</span>
                 <span style={{ ...styles.stepTag, color: step.done ? step.color : 'var(--g4)' }}>
@@ -107,15 +107,19 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
         {/* Leitura — escolher o tempo aqui é escolher o plano */}
         <PickerSection title={t('routine.sectionReading', undefined, lang)} icon="BookOpen" color={ROUTINE_STEP_COLORS.reading}>
           <div style={styles.planSel}>
-            {PLANS.filter(p => p.id !== 'free').map(p => (
-              <button
-                key={p.id}
-                style={{ ...styles.planBtn, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
-                onClick={() => onSelectPlan?.(p.id)}
-              >
-                {lang === 'en' ? p.labelEn : p.label}
-              </button>
-            ))}
+            {PLANS.filter(p => p.id !== 'free').map(p => {
+              const locked = p.premium && !isPremium
+              return (
+                <button
+                  key={p.id}
+                  style={{ ...styles.planBtn, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
+                  onClick={() => locked ? onNavigate?.('upgrade') : onSelectPlan?.(p.id)}
+                >
+                  {locked && <AppIcon name="Crown" size={9} style={{ verticalAlign: 'middle', marginRight: 2 }} />}
+                  {lang === 'en' ? p.labelEn : p.label}
+                </button>
+              )
+            })}
           </div>
           {PLANS.filter(p => p.id === 'free').map(p => (
             <button

@@ -204,12 +204,14 @@ export default function App() {
   // nascimento (criadas antes desse campo existir) não são restringidas
   // por idade (ver isAtLeast), só por assinatura.
   const meetsMinAge = isAtLeast(authUser?.birthdate, 16)
-  const canAccessRoutine = isPremium
-  const canAccessGroups = isPremium && meetsMinAge
-  const disabledTabs = [
-    ...(canAccessRoutine ? [] : ['routine']),
-    ...(canAccessGroups ? [] : ['groups']),
-  ]
+  // Rotina (Oração/Leitura) e a aba Comunidade em si voltaram a ser
+  // gratuitas — só a idade mínima trava a aba Comunidade. O que é premium
+  // agora é granular: Grupos/Desafios dentro de Comunidade, Reflexão
+  // guiada, plano Intensivo, estatísticas avançadas, Contexto/Mapa/
+  // Curiosidades e notas em mais de 1 passagem — cada um gatea a si mesmo
+  // onde é usado, em vez de travar a aba inteira aqui.
+  const canAccessGroups = meetsMinAge
+  const disabledTabs = meetsMinAge ? [] : ['groups']
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
@@ -598,15 +600,15 @@ export default function App() {
   const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats)
 
   const screens = {
-    home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onSelectPlan={selectPlan} />,
+    home:    <HomeScreen    session={session} isPremium={isPremium} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onSelectPlan={selectPlan} />,
     prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />,
-    reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
-    routine: canAccessRoutine ? <RoutineScreen session={session} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} /> : <PremiumRequired lang={session.lang} onNavigate={navigateTo} />,
+    reflection: isPremium ? <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} /> : <PremiumRequired lang={session.lang} onNavigate={navigateTo} />,
+    routine: <RoutineScreen session={session} isPremium={isPremium} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onContinueSession={continueToday} />,
-    groups:  !isPremium ? <PremiumRequired lang={session.lang} onNavigate={navigateTo} /> : !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
+    journey: <JourneyScreen session={session} authUser={authUser} isPremium={isPremium} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onContinueSession={continueToday} onNavigate={navigateTo} />,
+    groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} isPremium={isPremium} onNavigate={navigateTo} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
-    stats:   <ProgressScreen session={session} blocks={blocks} />,
+    stats:   <ProgressScreen session={session} blocks={blocks} isPremium={isPremium} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} />,
     profile: <ProfileScreen  session={session} authUser={authUser} isPremium={isPremium} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
   }
@@ -614,7 +616,7 @@ export default function App() {
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} groupsAgeBlocked={isPremium && !meetsMinAge} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}

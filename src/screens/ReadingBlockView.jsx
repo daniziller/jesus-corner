@@ -2,14 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
-import { getNote, saveNote, noteKeyFor } from '../notes/notesStore'
+import { getNotes, saveNote, noteKeyFor, canSaveNote } from '../notes/notesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import PremiumLockCard from '../components/PremiumLockCard'
 
-export default function ReadingBlockView({ session, authUser, blockId, blocks, sessionsByBlock, completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack }) {
+export default function ReadingBlockView({ session, authUser, isPremium, onNavigate, blockId, blocks, sessionsByBlock, completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack }) {
   const { lang } = session
   // Plano Livre não tem "Sessão N de X" — cada sessão já é 1 capítulo só,
   // então a numeração de sessão não ajuda em nada, só confunde.
@@ -47,21 +48,32 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
   const [openPanel, setOpenPanel] = useState(null)
   const [noteText, setNoteText] = useState('')
   const [hasSavedNote, setHasSavedNote] = useState(false)
+  // Mapa de todas as notas (não só a desta sessão) — precisa disso pra
+  // saber quantas passagens diferentes já têm nota (ver canSaveNote).
+  const [notesMap, setNotesMap] = useState({})
 
   const heroNoteKey = noteKeyFor(heroSession)
+  const notesLocked = !canSaveNote(notesMap, heroNoteKey, isPremium)
 
   useEffect(() => {
     setOpenPanel(null)
-    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); return }
-    getNote(authUser.email, heroNoteKey).then(existing => {
-      setNoteText(existing)
-      setHasSavedNote(Boolean(existing))
+    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); setNotesMap({}); return }
+    getNotes(authUser.email).then(map => {
+      setNotesMap(map)
+      setNoteText(map[heroNoteKey] ?? '')
+      setHasSavedNote(Boolean(map[heroNoteKey]))
     })
   }, [heroNoteKey, authUser?.email])
 
   function handleSaveNote(text) {
     setNoteText(text)
     setHasSavedNote(Boolean(text.trim()))
+    setNotesMap(prev => {
+      const next = { ...prev }
+      if (text.trim()) next[heroNoteKey] = text
+      else delete next[heroNoteKey]
+      return next
+    })
     saveNote(authUser?.email, heroNoteKey, text).catch(err => {
       console.error('Failed to persist note', err)
     })
@@ -112,6 +124,7 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
                     onClick={() => PANEL_KEYS.includes(tag.key) && setOpenPanel(p => (p === tag.key ? null : tag.key))}
                   >
                     <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
+                    {['contexto', 'mapa', 'curiosidades'].includes(tag.key) && !isPremium && <AppIcon name="Crown" size={9} color="var(--or)" style={{ marginLeft: 2, verticalAlign: 'middle' }} />}
                   </span>
                 ))}
               </div>
@@ -134,10 +147,21 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
             </div>
           )}
 
-          {/* Painel de texto / contexto / mapa / notas / curiosidades da sessão atual */}
+          {/* Painel de texto / contexto / mapa / notas / curiosidades da
+              sessão atual. Contexto/Mapa/Curiosidades e nota em mais de 1
+              passagem são premium — ver divisão combinada com o usuário. */}
           {openPanel === 'notas' && (
             <div style={{ padding: '0 14px 4px' }}>
-              <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
+              {notesLocked ? (
+                <PremiumLockCard
+                  lang={lang}
+                  onNavigate={onNavigate}
+                  title={t('billing.notesLockTitle', undefined, lang)}
+                  sub={t('billing.notesLockSub', undefined, lang)}
+                />
+              ) : (
+                <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
+              )}
             </div>
           )}
           {openPanel === 'texto' && (
@@ -147,7 +171,16 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
           )}
           {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
             <div style={{ padding: '0 14px 4px' }}>
-              <InfoPanel type={openPanel} books={heroBooks} />
+              {isPremium ? (
+                <InfoPanel type={openPanel} books={heroBooks} />
+              ) : (
+                <PremiumLockCard
+                  lang={lang}
+                  onNavigate={onNavigate}
+                  title={t('billing.infoPanelLockTitle', undefined, lang)}
+                  sub={t('billing.infoPanelLockSub', undefined, lang)}
+                />
+              )}
             </div>
           )}
 

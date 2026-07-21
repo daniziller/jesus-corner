@@ -13,7 +13,7 @@ import { PLANS } from '../data/bibleBlocks'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 
-export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep, onSelectPlan }) {
+export default function HomeScreen({ session, isPremium, onContinueSession, onNavigate, onMarkRoutineStep, onSelectPlan }) {
   const {
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
@@ -119,10 +119,26 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
               todayRoutine={todayRoutine}
               plan={plan}
               lang={lang}
+              isPremium={isPremium}
               onNavigate={onNavigate}
               onContinueSession={onContinueSession}
               onMarkRoutineStep={onMarkRoutineStep}
             />
+
+            {/* Divulgação da assinatura — só pra quem ainda não é assinante
+                (some sozinha quando isPremium fica true). Pedido explícito
+                do usuário: deixar a opção de assinar mais visível do que só
+                a linha enterrada no Perfil. */}
+            {!isPremium && (
+              <div style={styles.upsellBanner} onClick={() => onNavigate?.('upgrade')}>
+                <div style={styles.upsellIconWrap}><AppIcon name="Crown" size={18} color="white" /></div>
+                <div style={{ flex: 1 }}>
+                  <p style={styles.upsellTitle}>{translate('billing.homeBannerTitle', undefined, lang)}</p>
+                  <p style={styles.upsellSub}>{translate('billing.homeBannerSub', undefined, lang)}</p>
+                </div>
+                <AppIcon name="ChevronRight" size={16} color="white" />
+              </div>
+            )}
           </div>
 
           {/* Coluna secundária: card de leitura do dia + atividade dos
@@ -151,15 +167,19 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
                     Livre fica numa linha própria embaixo (é um tipo de
                     leitura diferente, não só mais um tamanho de sessão). */}
                 <div style={styles.planSel} data-tour="home-plan-select">
-                  {PLANS.filter(p => p.id !== 'free').map(p => (
-                    <button
-                      key={p.id}
-                      style={{ ...styles.planBtn, ...(plan.id === p.id ? styles.planBtnActive : {}) }}
-                      onClick={() => onSelectPlan?.(p.id)}
-                    >
-                      {lang === 'en' ? p.labelEn : p.label}
-                    </button>
-                  ))}
+                  {PLANS.filter(p => p.id !== 'free').map(p => {
+                    const locked = p.premium && !isPremium
+                    return (
+                      <button
+                        key={p.id}
+                        style={{ ...styles.planBtn, ...(plan.id === p.id ? styles.planBtnActive : {}) }}
+                        onClick={() => locked ? onNavigate?.('upgrade') : onSelectPlan?.(p.id)}
+                      >
+                        {locked && <AppIcon name="Crown" size={9} style={{ verticalAlign: 'middle', marginRight: 2 }} />}
+                        {lang === 'en' ? p.labelEn : p.label}
+                      </button>
+                    )
+                  })}
                 </div>
                 {PLANS.filter(p => p.id === 'free').map(p => (
                   <button
@@ -304,7 +324,7 @@ function TutorialStep({ icon, time, title, desc, theme }) {
    separado, com stopPropagation, sem navegar) pra quem já orou/leu fora do
    app e só quer marcar. Reflexão não tem uma tela própria, então o toggle
    acontece direto no card, na linha inteira. ── */
-function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
+function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, isPremium, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
   // Os 3 passos sempre aparecem (ver PLANS[].modules em bibleBlocks.js) — o
@@ -339,8 +359,12 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
       title: translate('home.routineReflection', undefined, lang),
       sub: translate('home.routineReflectionSub', { min: reflectionMinutes }, lang),
       done: !!todayRoutine.reflection,
-      onClick: () => onNavigate?.('reflection'),
-      onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection),
+      locked: !isPremium,
+      onClick: () => onNavigate?.(isPremium ? 'reflection' : 'upgrade'),
+      // Sem isPremium, o checkbox rápido também vira convite pra assinar em
+      // vez de marcar — não faz sentido deixar marcar "feito" um passo que
+      // a pessoa nem consegue abrir.
+      onToggleCheck: isPremium ? () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection) : () => onNavigate?.('upgrade'),
     },
   ]
   const steps = allSteps.filter(s => plan.modules.includes(s.key))
@@ -397,7 +421,9 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
                 <p style={styles.routineStepTitle}>{step.title}</p>
                 <p style={styles.routineStepSub}>{step.done ? translate('home.routineDoneTag', undefined, lang) : step.sub}</p>
               </div>
-              <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
+              {step.locked
+                ? <AppIcon name="Crown" size={14} color="var(--or)" />
+                : <AppIcon name="ChevronRight" size={15} color="var(--g4)" />}
             </button>
           )
         })}
@@ -515,6 +541,10 @@ function StatCard({ value, suffix, label, theme }) {
 }
 
 const styles = {
+  upsellBanner:   { display: 'flex', alignItems: 'center', gap: 11, background: 'var(--grad-vivid)', borderRadius: 16, padding: '13px 14px', cursor: 'pointer', boxShadow: 'var(--shadow-glow)' },
+  upsellIconWrap: { width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  upsellTitle:    { fontSize: 12.5, fontWeight: 800, color: 'white' },
+  upsellSub:      { fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.85)', marginTop: 1 },
   routineCard:        { background: 'white', border: '0.5px solid var(--gold-soft)', borderRadius: 18, boxShadow: 'var(--shadow-premium)', padding: 14 },
   routineTitle:       { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--bk)', letterSpacing: '-0.1px' },
   routineSub:         { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
