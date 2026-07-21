@@ -32,6 +32,14 @@ export default defineConfig({
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } }
+          },
+          {
+            // Texto bíblico (public/bible-text/) — não entra no precache de
+            // instalação (globPatterns não inclui .json), só fica disponível
+            // offline depois que a pessoa abre aquele livro pela 1a vez.
+            urlPattern: /\/bible-text\/.*\.json$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'bible-text-cache', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 } }
           }
         ]
       }

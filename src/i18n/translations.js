@@ -119,7 +119,10 @@ export const STRINGS = {
       goToToday: 'Ir para a leitura de hoje',
     },
     reading: {
-      tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades',
+      tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto',
+      textLoading: 'Carregando o texto...',
+      textError: 'Não foi possível carregar o texto agora. Tente de novo em instantes.',
+      textSourceEn: 'World English Bible — domínio público',
       chaptersOfSession: 'Capítulos desta sessão',
       chaptersReadCount: '{done}/{total} lidos',
       markDone: 'Marcar sessão como concluída',
@@ -534,7 +537,10 @@ export const STRINGS = {
       goToToday: "Go to today's reading",
     },
     reading: {
-      tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia',
+      tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Text',
+      textLoading: 'Loading the text...',
+      textError: "Couldn't load the text right now. Please try again shortly.",
+      textSourceEn: 'World English Bible — public domain',
       chaptersOfSession: 'Chapters in this session',
       chaptersReadCount: '{done}/{total} read',
       markDone: 'Mark session as complete',

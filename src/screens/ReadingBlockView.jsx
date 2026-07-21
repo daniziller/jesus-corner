@@ -3,6 +3,8 @@ import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNote, saveNote, noteKeyFor } from '../notes/notesStore'
+import { fetchBookText } from '../bible-text/bibleTextStore'
+import { BIBLE_VERSIONS } from '../data/bibleVersions'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -32,12 +34,15 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
   }
 
   const TAGS = [
+    // Sessão de reflexão (fim de livro) não tem intervalo de capítulo — não
+    // faz sentido oferecer "Texto" nela.
+    ...(heroSession.type !== 'reflection' ? [{ key: 'texto', icon: 'Scroll', label: t('reading.tagText', undefined, lang) }] : []),
     { key: 'contexto',     icon: 'BookOpen',   label: t('reading.tagContext', undefined, lang) },
     { key: 'mapa',         icon: 'Map',        label: t('reading.tagMap', undefined, lang) },
     { key: 'notas',        icon: 'StickyNote', label: t('reading.tagNotes', undefined, lang) },
     { key: 'curiosidades', icon: 'Lightbulb',  label: t('reading.tagTrivia', undefined, lang) },
   ]
-  const PANEL_KEYS = ['contexto', 'mapa', 'notas', 'curiosidades']
+  const PANEL_KEYS = ['texto', 'contexto', 'mapa', 'notas', 'curiosidades']
 
   const [openPanel, setOpenPanel] = useState(null)
   const [noteText, setNoteText] = useState('')
@@ -120,13 +125,18 @@ export default function ReadingBlockView({ session, authUser, blockId, blocks, s
             </div>
           )}
 
-          {/* Painel de contexto / mapa / notas / curiosidades da sessão atual */}
+          {/* Painel de texto / contexto / mapa / notas / curiosidades da sessão atual */}
           {openPanel === 'notas' && (
             <div style={{ padding: '0 14px 4px' }}>
               <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
             </div>
           )}
-          {openPanel && openPanel !== 'notas' && (
+          {openPanel === 'texto' && (
+            <div style={{ padding: '0 14px 4px' }}>
+              <BibleTextPanel session={heroSession} lang={lang} />
+            </div>
+          )}
+          {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
             <div style={{ padding: '0 14px 4px' }}>
               <InfoPanel type={openPanel} books={heroBooks} />
             </div>
@@ -245,6 +255,59 @@ function InfoPanel({ type, books }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+// Painel "Texto" do acordeão — busca o livro inteiro (cache em
+// bibleTextStore) e mostra só os capítulos da sessão em destaque, um a um,
+// fechado por padrão (só abre quando a pessoa toca na tag "Texto").
+function BibleTextPanel({ session, lang }) {
+  const bookKey = lang === 'en' ? session.bookEn : session.book
+  const version = BIBLE_VERSIONS[lang]
+  const [state, setState] = useState({ status: 'loading', chapters: null })
+
+  useEffect(() => {
+    let cancelled = false
+    setState({ status: 'loading', chapters: null })
+    fetchBookText(lang, bookKey)
+      .then(chapters => { if (!cancelled) setState({ status: 'ready', chapters }) })
+      .catch(() => { if (!cancelled) setState({ status: 'error', chapters: null }) })
+    return () => { cancelled = true }
+  }, [lang, bookKey])
+
+  const chapterNumbers = []
+  for (let ch = session.chStart; ch <= session.chEnd; ch++) chapterNumbers.push(ch)
+  const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
+
+  return (
+    <div style={styles.panel}>
+      <p style={styles.panelBookLabel}>{version.label}</p>
+
+      {state.status === 'loading' && <p style={styles.panelText}>{t('reading.textLoading', undefined, lang)}</p>}
+      {state.status === 'error' && <p style={styles.panelText}>{t('reading.textError', undefined, lang)}</p>}
+
+      {state.status === 'ready' && chapterNumbers.map(ch => {
+        const verses = state.chapters[String(ch)] ?? {}
+        const verseNumbers = Object.keys(verses).map(Number).sort((a, b) => a - b)
+        return (
+          <div key={ch} style={styles.bibleTextChapter}>
+            <p style={styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
+            <p style={styles.bibleTextBody}>
+              {verseNumbers.map(v => (
+                <span key={v}>
+                  <sup style={styles.bibleTextVerseNum}>{v}</sup>
+                  {verses[String(v)]}{' '}
+                </span>
+              ))}
+            </p>
+          </div>
+        )
+      })}
+
+      {state.status === 'ready' && (
+        <p style={styles.bibleTextAttribution}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
+      )}
     </div>
   )
 }
@@ -468,4 +531,9 @@ const styles = {
   chapterChipDone:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
   reflectionTip:  { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
   reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: '#A855F7', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  bibleTextChapter:     { marginBottom: 16, paddingTop: 12, borderTop: '0.5px solid var(--g1)' },
+  bibleTextChapterLabel:{ fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', marginBottom: 6 },
+  bibleTextBody:        { fontSize: 14, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.75 },
+  bibleTextVerseNum:    { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', marginRight: 2 },
+  bibleTextAttribution: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--g1)', fontStyle: 'italic' },
 }
