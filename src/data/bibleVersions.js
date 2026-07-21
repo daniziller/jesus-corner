@@ -1,9 +1,9 @@
 // Versões bíblicas de domínio público / uso livre disponíveis hoje — uma
-// lista por idioma (o português já tem 2, o inglês 1). A primeira da lista
-// de cada idioma é a padrão. Quando um idioma só tem 1 opção, o seletor de
-// versão não aparece na UI (ver BibleTextPanel em ReadingBlockView.jsx).
-// Adicionar uma versão nova = nova entrada aqui + nova pasta em
-// public/bible-text/ (gerada por scripts/build-bible-text.mjs).
+// lista por idioma. A primeira da lista de cada idioma é a padrão. Quando
+// um idioma só tem 1 opção, o seletor de versão não aparece na UI (ver
+// BibleTextPanel em ReadingBlockView.jsx). Adicionar uma versão nova = nova
+// entrada aqui + nova pasta em public/bible-text/ (gerada por
+// scripts/build-bible-text.mjs).
 export const BIBLE_VERSIONS = {
   en: [
     {
@@ -14,13 +14,6 @@ export const BIBLE_VERSIONS = {
     },
   ],
   pt: [
-    {
-      id: 'pt-almeida1911',
-      label: 'Almeida 1911',
-      folder: 'pt-almeida1911',
-      // Exigido pela fonte (JFAAL, CC BY 3.0 Brasil) — citar exatamente como pedido.
-      attribution: "As Escrituras em português são da JFAAL, Copyright © Marcos Cristiano Alves Ferreira. Setembro de 2024",
-    },
     {
       id: 'pt-blivre',
       label: 'Bíblia Livre (BLIVRE)',

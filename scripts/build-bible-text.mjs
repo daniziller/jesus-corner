@@ -1,8 +1,7 @@
-// Gera public/bible-text/<versao>/<slug>.json a partir de 3 fontes públicas
+// Gera public/bible-text/<versao>/<slug>.json a partir de 2 fontes públicas
 // de domínio público / uso livre (rodar 1 vez manualmente, não faz parte do
 // build/deploy):
 //   - Inglês (WEB): github.com/TehShrike/world-english-bible (66 arquivos/livro)
-//   - Português (Almeida 1911): github.com/BibliaJFAAL/JFAAL (1 arquivo, 66 livros)
 //   - Português (Bíblia Livre / BLIVRE): github.com/blivre/BibliaLivre (66
 //     arquivos/livro, formato de marcação próprio — ver parseBlivreBook)
 //
@@ -83,16 +82,6 @@ function compactWebBook(rawItems) {
   return chapters
 }
 
-function compactAlmeidaBook(bookEntry) {
-  const chapters = {}
-  for (const chapter of bookEntry.chapters) {
-    const verses = {}
-    for (const v of chapter.verses) verses[String(v.verse)] = v.text.trim()
-    chapters[String(chapter.chapter)] = verses
-  }
-  return chapters
-}
-
 function countVerses(chapters) {
   return Object.values(chapters).reduce((sum, verses) => sum + Object.keys(verses).length, 0)
 }
@@ -161,26 +150,7 @@ async function main() {
   const { pt, en } = canonicalBooks()
 
   await mkdir(new URL('en-web/', OUT_DIR), { recursive: true })
-  await mkdir(new URL('pt-almeida1911/', OUT_DIR), { recursive: true })
   await mkdir(new URL('pt-blivre/', OUT_DIR), { recursive: true })
-
-  console.log('Baixando Almeida 1911 (JFAAL)...')
-  const almeida = await fetchJson('https://raw.githubusercontent.com/BibliaJFAAL/JFAAL/main/original/1911-JFAAtualizada.json')
-  if (almeida.books.length !== 66) throw new Error(`JFAAL tem ${almeida.books.length} livros, esperava 66`)
-
-  let ptTotal = 0
-  for (let i = 0; i < 66; i++) {
-    const chapters = compactAlmeidaBook(almeida.books[i])
-    const n = countVerses(chapters)
-    if (n === 0) throw new Error(`Capítulo vazio detectado em pt: ${pt[i]}`)
-    ptTotal += n
-    const slug = slugify(pt[i])
-    await writeFile(new URL(`pt-almeida1911/${slug}.json`, OUT_DIR), JSON.stringify(chapters))
-  }
-  console.log(`PT: ${ptTotal} versículos escritos em 66 arquivos.`)
-  if (Math.abs(ptTotal - EXPECTED_TOTAL_VERSES) > 50) {
-    throw new Error(`Contagem de versículos PT (${ptTotal}) muito distante do esperado (${EXPECTED_TOTAL_VERSES})`)
-  }
 
   console.log('Baixando World English Bible (livro por livro)...')
   let enTotal = 0
