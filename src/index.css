@@ -114,12 +114,20 @@ body {
    de propósito). Escalando só o conteúdo evita esse problema, já que ele
    não é fixed. overflow-x:auto em .app-content vira a rede de segurança
    pra telas bem estreitas onde o conteúdo escalado passar da largura
-   disponível. */
-html.large-text .app-content-inner {
+   disponível.
+   O zoom 1.15 agora é o tamanho PADRÃO (sempre ligado, sem precisar tocar
+   no botão) — o botão "T" liga um segundo nível, ainda maior (1.3), pra
+   quem precisa de mais. Por isso as duas regras abaixo: a primeira sem
+   condição nenhuma (padrão), a segunda só quando html.large-text (o passo
+   extra). */
+.app-content-inner {
   zoom: 1.15;
 }
-html.large-text .app-content {
+.app-content {
   overflow-x: auto;
+}
+html.large-text .app-content-inner {
+  zoom: 1.3;
 }
 
 /* ── Utilitários gerais ── */
