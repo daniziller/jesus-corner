@@ -11,7 +11,6 @@ export const STUDIES = [
     titleEn: 'The Pentateuch',
     subtitle: 'As origens, a aliança e a lei — os cinco primeiros livros da Bíblia, num estudo profundo e prático em 10 sessões, cada livro dividido por capítulos e principais histórias.',
     subtitleEn: 'Origins, covenant, and law — the first five books of the Bible, in a deep, practical 10-session study, each book split by chapters and its main stories.',
-    minutesPerSession: 35,
     sessions: [
       {
         id: 1,

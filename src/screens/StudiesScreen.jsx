@@ -155,7 +155,7 @@ function StudyDetail({ study, lang, completedSet, onOpenSession, onBack }) {
               </div>
               <div style={{ flex: 1 }}>
                 <p style={styles.sessionTitle}>{sTitle}</p>
-                <p style={styles.sessionSub}>{passage} · {t('studies.minutesLabel', { n: study.minutesPerSession }, lang)}</p>
+                <p style={styles.sessionSub}>{passage}</p>
               </div>
               {done && <span style={styles.doneBadge}>{t('studies.sessionDoneBadge', undefined, lang)}</span>}
             </div>
@@ -184,7 +184,6 @@ function SessionView({ study, studySession, lang, isDone, onToggleDone, onBack }
       <div style={{ padding: '4px 14px 4px' }}>
         <div style={styles.hero}>
           <p style={styles.heroPassage}>{passage}</p>
-          <p style={styles.heroMinutes}>{t('studies.minutesLabel', { n: study.minutesPerSession }, lang)}</p>
         </div>
       </div>
 
@@ -240,9 +239,8 @@ const styles = {
   sessionTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
   sessionSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
   doneBadge:    { fontSize: 9, fontWeight: 700, color: 'var(--gr)', whiteSpace: 'nowrap' },
-  hero:         { background: 'var(--grad-vivid)', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-glow)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  hero:         { background: 'var(--grad-vivid)', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-glow)' },
   heroPassage:  { fontSize: 15, fontWeight: 800, color: 'white', letterSpacing: '-0.2px' },
-  heroMinutes:  { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.85)' },
   panel:        { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 14, boxShadow: 'var(--shadow-card)' },
   panelLabel:   { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   panelText:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.6 },
