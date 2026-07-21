@@ -4,12 +4,14 @@ import AppIcon from '../icons/AppIcon'
 import { getMyProfile, updateProfile, uploadAvatar } from '../profile/profileStore'
 import { getFriendsCount } from '../friends/friendsStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
+import { openBillingPortalUrl } from '../billing/subscriptionStore'
 
 const MAX_BIO_LENGTH = 280
 
-export default function ProfileScreen({ session, authUser, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
+export default function ProfileScreen({ session, authUser, isPremium, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(true)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
+  const [portalError, setPortalError] = useState('')
 
   const [profile, setProfile] = useState(null) // { bio, avatarUrl, isPublic }
   const [friendsCount, setFriendsCount] = useState(0)
@@ -84,6 +86,20 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
   function handleResetClick() {
     if (window.confirm(t('profile.resetConfirm'))) {
       onResetProgress?.()
+    }
+  }
+
+  async function handleSubscriptionClick() {
+    if (!isPremium) {
+      onNavigate?.('upgrade')
+      return
+    }
+    setPortalError('')
+    try {
+      const url = await openBillingPortalUrl()
+      window.location.href = url
+    } catch {
+      setPortalError(t('billing.managePortalError', undefined, session.lang))
     }
   }
 
@@ -182,8 +198,16 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
         </div>
 
         {/* Configurações */}
+        {portalError && <p style={styles.errorMsg}>{portalError}</p>}
+
         <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 17, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
 
+          <SettingsLink
+            icon="Crown" iconBg="var(--olt)"
+            label={t('billing.mySubscriptionLabel', undefined, session.lang)}
+            sub={isPremium ? t('billing.subscriptionActiveSub', undefined, session.lang) : t('billing.subscriptionInactiveSub', undefined, session.lang)}
+            onPress={handleSubscriptionClick}
+          />
           <SettingsToggle
             icon="Bell" iconBg="var(--olt)"
             label={t('profile.remindersLabel')} sub={t('profile.remindersSub')}
@@ -316,6 +340,7 @@ function SettingsLink({ icon, iconBg, iconColor = 'var(--or)', label, sub, onPre
 }
 
 const styles = {
+  errorMsg:     { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   plannerCard:  { background: 'linear-gradient(135deg,#FFF3E8,#FFE0BE)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 16, padding: 13, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'var(--font)' },
   plannerLabel: { fontSize: 10, fontWeight: 700, color: '#EA580C', marginBottom: 3, letterSpacing: 0.4 },
   plannerTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },

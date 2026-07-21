@@ -15,6 +15,7 @@ import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
 import ProgressScreen from './screens/ProgressScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import UpgradeScreen from './screens/UpgradeScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks } from './utils/progress'
@@ -35,6 +36,7 @@ import { getMyActiveChallenges, recordChallengeProgress } from './groups/challen
 import { getPendingGroupInvitesCount } from './groups/groupsStore'
 import { getPendingFriendRequestsCount } from './friends/friendsStore'
 import { getMyProfile, markTourSeen } from './profile/profileStore'
+import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { logActivity } from './activity/activityStore'
 import TourController from './tour/TourController'
 
@@ -193,9 +195,21 @@ export default function App() {
   // de carregamento em vez de renderizar com dados parciais/errados.
   const [bootstrapped, setBootstrapped] = useState(false)
   const [authUser, setAuthUser] = useState(null)
-  // Aba Grupos liberada só pra maiores de 16 — contas sem data de nascimento
-  // (criadas antes desse campo existir) não são restringidas (ver isAtLeast).
-  const canAccessGroups = isAtLeast(authUser?.birthdate, 16)
+  // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
+  // null enquanto não carregou ou pra quem nunca assinou.
+  const [subscription, setSubscription] = useState(null)
+  const isPremium = isPremiumActive(subscription)
+  // Rotina e Comunidade são exclusivas de assinantes; Comunidade ainda soma
+  // a restrição de idade que já existia (16+) — contas sem data de
+  // nascimento (criadas antes desse campo existir) não são restringidas
+  // por idade (ver isAtLeast), só por assinatura.
+  const meetsMinAge = isAtLeast(authUser?.birthdate, 16)
+  const canAccessRoutine = isPremium
+  const canAccessGroups = isPremium && meetsMinAge
+  const disabledTabs = [
+    ...(canAccessRoutine ? [] : ['routine']),
+    ...(canAccessGroups ? [] : ['groups']),
+  ]
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
@@ -271,7 +285,7 @@ export default function App() {
         return
       }
 
-      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile] = await Promise.all([
+      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile, mySubscription] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getDailyRoutine(),
@@ -279,6 +293,7 @@ export default function App() {
         getMyActiveChallenges(),
         getPendingSocialCount(),
         getMyProfile(),
+        getMySubscription(),
       ])
       if (cancelled) return
 
@@ -291,6 +306,7 @@ export default function App() {
       setActiveChallenges(challenges)
       setPendingSocialCount(pendingSocial)
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
+      setSubscription(mySubscription)
       if (myProfile?.hasSeenTour === false) setTourActive(true)
       setBootstrapped(true)
     }
@@ -322,15 +338,39 @@ export default function App() {
 
   // Navegação genérica entre abas — ao ir pra Jornada por essa via (menu
   // inferior, header, etc.) sempre reseta pro mapa de blocos (visão geral).
-  // A aba Grupos é restrita a maiores de 16 — a Sidebar/BottomNav já escondem
-  // o clique, mas essa checagem aqui é a segunda linha de defesa (mesmo
-  // espírito de "UI esconde, a fonte da verdade decide" já usado nas policies
-  // RLS de group_comments).
+  // Rotina e Comunidade são restritas a assinantes (Comunidade também a
+  // maiores de 16) — a Sidebar/BottomNav já escondem o clique, mas essa
+  // checagem aqui é a segunda linha de defesa (mesmo espírito de "UI
+  // esconde, a fonte da verdade decide" já usado nas policies RLS de
+  // group_comments). 'upgrade' nunca é bloqueada — é pra onde a pessoa vai
+  // justamente pra resolver o bloqueio.
   function navigateTo(tab) {
-    if (tab === 'groups' && !canAccessGroups) return
+    if (disabledTabs.includes(tab) && tab !== 'upgrade') return
     if (tab === 'journey') setJourneyEntryMode('overview')
     setActiveTab(tab)
   }
+
+  // Depois de voltar do Stripe Checkout (success_url leva pra cá com
+  // ?checkout=success) — o webhook grava a assinatura de forma assíncrona,
+  // então tenta buscar de novo algumas vezes em vez de só uma, pra dar tempo
+  // dele processar antes de desistir.
+  useEffect(() => {
+    if (!authUser) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('checkout') !== 'success') return
+    window.history.replaceState({}, '', window.location.pathname)
+    let cancelled = false
+    let attempts = 0
+    async function poll() {
+      const sub = await getMySubscription()
+      if (cancelled) return
+      setSubscription(sub)
+      attempts += 1
+      if (!isPremiumActive(sub) && attempts < 4) setTimeout(poll, 1500)
+    }
+    poll()
+    return () => { cancelled = true }
+  }, [authUser])
 
   // Botão "Continuar sessão" da Home: pula direto pra leitura do bloco que
   // contém a sessão onde o usuário realmente parou, sem passar pelo mapa.
@@ -346,7 +386,7 @@ export default function App() {
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
-    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile] = await Promise.all([
+    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile, mySubscription] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getPrayerStats(user.email),
@@ -354,6 +394,7 @@ export default function App() {
       getMyActiveChallenges(),
       getPendingSocialCount(),
       getMyProfile(),
+      getMySubscription(),
     ])
     setAuthUser(user)
     setCompletedSet(set)
@@ -364,6 +405,7 @@ export default function App() {
     setActiveChallenges(challenges)
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
+    setSubscription(mySubscription)
     if (myProfile?.hasSeenTour === false) setTourActive(true)
   }
 
@@ -398,6 +440,7 @@ export default function App() {
     setActiveChallenges([])
     setPendingSocialCount(false)
     setMyAvatarUrl(null)
+    setSubscription(null)
     setActiveTab('home')
   }
 
@@ -558,19 +601,20 @@ export default function App() {
     home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onSelectPlan={selectPlan} />,
     prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />,
     reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
-    routine: <RoutineScreen session={session} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} />,
+    routine: canAccessRoutine ? <RoutineScreen session={session} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} /> : <PremiumRequired lang={session.lang} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onContinueSession={continueToday} />,
-    groups:  canAccessGroups ? <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} /> : <MinAgeRestricted lang={session.lang} />,
+    groups:  !isPremium ? <PremiumRequired lang={session.lang} onNavigate={navigateTo} /> : !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} />,
-    profile: <ProfileScreen  session={session} authUser={authUser} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
+    upgrade: <UpgradeScreen session={session} />,
+    profile: <ProfileScreen  session={session} authUser={authUser} isPremium={isPremium} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
   }
 
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} groupsAgeBlocked={isPremium && !meetsMinAge} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}
@@ -584,7 +628,7 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <1024px */}
-        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} groupsDisabled={!canAccessGroups} lang={session.lang} />
+        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
       </div>
 
       {/* Tutorial de primeiro acesso — position:fixed cobre a tela toda
@@ -611,6 +655,25 @@ function MinAgeRestricted({ lang }) {
       <AppIcon name="Lock" size={30} color="var(--g4)" />
       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('groups.minAgeRestrictedTitle', undefined, lang)}</p>
       <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('groups.minAgeRestrictedSub', undefined, lang)}</p>
+    </div>
+  )
+}
+
+// Mostrada no lugar de Rotina/Comunidade pra quem ainda não é assinante —
+// segunda linha de defesa (mesmo espírito de MinAgeRestricted acima), pro
+// caso de activeTab ficar numa dessas abas por algum outro caminho.
+function PremiumRequired({ lang, onNavigate }) {
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
+      <AppIcon name="Crown" size={30} color="var(--g4)" />
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('billing.premiumRequiredTitle', undefined, lang)}</p>
+      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('billing.premiumRequiredSub', undefined, lang)}</p>
+      <button
+        onClick={() => onNavigate?.('upgrade')}
+        style={{ marginTop: 4, border: 'none', background: 'var(--grad-vivid)', color: 'white', borderRadius: 12, padding: '10px 20px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' }}
+      >
+        {t('billing.premiumRequiredCta', undefined, lang)}
+      </button>
     </div>
   )
 }

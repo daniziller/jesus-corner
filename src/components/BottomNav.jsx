@@ -7,7 +7,7 @@ import AppIcon from '../icons/AppIcon'
 const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'groups', 'studies', 'stats']
 const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
-export default function BottomNav({ activeTab, onNavigate, groupsHasPending, groupsDisabled, lang }) {
+export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang }) {
   return (
     <nav className="bottom-nav" data-tour="nav-tabs">
       {TAB_IDS.map(id => {
@@ -18,7 +18,7 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, gro
         // resto da UI já ter mudado.
         const label = t(`nav.${id}`, undefined, lang)
         const active = activeTab === id
-        const disabled = id === 'groups' && groupsDisabled
+        const disabled = disabledTabs.includes(id)
         const featured = id === 'journey'
         return (
           <button

@@ -11,7 +11,7 @@ const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', rout
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-vivid)', border: 'none', boxShadow: 'var(--shadow-glow)' }
 
-export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, groupsDisabled, pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], groupsAgeBlocked, pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
@@ -40,8 +40,15 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
           // ao resto da UI logo após trocar de idioma).
           const label = t(`nav.${id}`, undefined, lang)
           const active = activeTab === id
-          const disabled = id === 'groups' && groupsDisabled
+          const disabled = disabledTabs.includes(id)
           const featured = id === 'journey'
+          // Comunidade some duas travas (assinatura + idade) — a mensagem
+          // mostra a de idade só quando essa é especificamente a que falta
+          // (assinatura já ok); qualquer outro caso disabled usa a mensagem
+          // genérica de assinante.
+          const tooltip = id === 'groups' && groupsAgeBlocked
+            ? t('groups.minAgeRestricted', undefined, lang)
+            : t('billing.premiumRequiredShort', undefined, lang)
           return (
             <button
               key={id}
@@ -49,7 +56,7 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
               onClick={() => !disabled && onNavigate(id)}
               disabled={disabled}
               style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-              title={disabled ? t('groups.minAgeRestricted', undefined, lang) : undefined}
+              title={disabled ? tooltip : undefined}
             >
               <span style={{ position: 'relative', display: 'inline-flex' }}>
                 <AppIcon name={TAB_ICONS[id]} size={featured ? 22 : 18} color={active ? 'var(--or)' : 'var(--g4)'} />
