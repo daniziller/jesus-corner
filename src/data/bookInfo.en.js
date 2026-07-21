@@ -8,7 +8,24 @@
 
 export const BOOK_INFO_EN = {
   'Gênesis': {
-    context: 'The first book of the Bible: it narrates creation, humanity\'s fall, the flood, and the story of the patriarchs Abraham, Isaac, Jacob, and Joseph. Traditionally attributed to Moses.',
+    contextOverview: 'The first book of the Bible and of the Jewish Torah, Genesis narrates everything from the creation of the world to the arrival of Jacob\'s family in Egypt. Traditionally attributed to Moses, the book splits into two major parts: the primeval history of humanity (chapters 1–11, from the beginning of the world to Babel) and the story of the patriarchs (chapters 12–50, from Abraham to Joseph). Its Hebrew name, "Bereshit" ("In the beginning"), comes from the text\'s opening word, and it lays the foundation for themes that run through the whole Bible: creation, covenant, promise, and the relationship between God and humanity.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Creation', text: 'Two complementary accounts of creation: one panoramic, showing God ordering the cosmos over six days (chapter 1); the other more intimate, focused on the forming of the man and woman and the garden of Eden (chapter 2). Together, they establish that the world is intentional, good creation, and that human beings were made in God\'s image.' },
+      { chStart: 3, chEnd: 5, title: 'The Fall and Early Generations', text: 'Adam and Eve\'s disobedience in Eden introduces sin and its consequences: expulsion from the garden, hard labor, and mortality. Chapter 4 brings the Bible\'s first murder, when Cain kills his brother Abel, and chapter 5 lists a genealogy linking Adam to Noah, showing how quickly humanity — and sin — spread.' },
+      { chStart: 6, chEnd: 9, title: 'The Flood and God\'s Covenant with Noah', text: 'Facing humanity\'s widespread corruption, God decides to destroy the earth with a flood, but preserves Noah, his family, and the animals in an ark. After the waters recede, God makes the Bible\'s first explicit covenant with Noah, promising never again to destroy the earth this way, with the rainbow as its sign.' },
+      { chStart: 10, chEnd: 11, title: 'The Nations and the Tower of Babel', text: 'The "Table of Nations" (chapter 10) traces the origin of post-flood peoples, and the story of the Tower of Babel (chapter 11) explains the origin of different languages, when humanity tries to "make a name" for itself and God confuses their language, scattering them across the earth.' },
+      { chStart: 12, chEnd: 14, title: 'Abram\'s Call', text: 'God calls Abram to leave his homeland, Ur, for Canaan, promising to make him into a great nation. Chapter 14 shows Abram rescuing his nephew Lot in a war between kings, and being blessed by the mysterious priest-king Melchizedek.' },
+      { chStart: 15, chEnd: 17, title: 'The Covenants with Abraham', text: 'God formalizes his promise to Abram through a covenant ritual (chapter 15) and later institutes circumcision as the physical sign of that covenant, changing Abram\'s name to Abraham ("father of many") and Sarai\'s to Sarah (chapter 17).' },
+      { chStart: 18, chEnd: 19, title: 'Sodom and Gomorrah', text: 'Three visitors announce to Abraham that Sarah will have a son, and reveal the plan to destroy Sodom and Gomorrah for their wickedness. Abraham intercedes for the city, but only Lot and his daughters escape the destruction.' },
+      { chStart: 20, chEnd: 23, title: 'Isaac and the Purchase of Land', text: 'Isaac, the child of promise, is born, and Hagar and Ishmael are sent away. The book\'s most tense moment comes in chapter 22, when God tests Abraham by asking him to sacrifice Isaac — a test interrupted at the last instant. Chapter 23 narrates Sarah\'s death and the purchase of the first piece of land in Canaan.' },
+      { chStart: 24, chEnd: 26, title: 'Isaac\'s Marriage', text: 'A servant of Abraham is sent to find a wife for Isaac among the family\'s relatives, and Rebekah is chosen. Abraham dies, and chapter 25 narrates the birth of the twins Esau and Jacob, already announcing the rivalry between them.' },
+      { chStart: 27, chEnd: 28, title: 'Jacob Steals the Blessing', text: 'With Rebekah\'s help, Jacob deceives his blind father Isaac and steals the blessing that belonged to Esau, his older brother. Fleeing Esau\'s fury, Jacob has a dream at Bethel, where God renews with him the promise made to his grandfather Abraham.' },
+      { chStart: 29, chEnd: 31, title: 'Jacob in Paddan-Aram', text: 'Jacob works for his uncle Laban, marries Leah and Rachel (tricked into marrying both), and has most of his children. After years of work and conflict with Laban, Jacob sets out back to Canaan with his family and wealth.' },
+      { chStart: 32, chEnd: 36, title: 'Reconciliation with Esau', text: 'Before reuniting with Esau, Jacob wrestles all night with a mysterious being and receives the new name Israel. The reunion with Esau is surprisingly peaceful, and the book continues with the violence at Dinah\'s story (chapter 34) and Isaac\'s death.' },
+      { chStart: 37, chEnd: 41, title: 'Joseph Is Sold and Rises in Egypt', text: 'Jealous of their father\'s favoritism, Joseph\'s brothers sell him into slavery, and he ends up in Egypt. Despite being unjustly imprisoned, Joseph interprets Pharaoh\'s dreams and is promoted to governor, responsible for managing the years of abundance and famine.' },
+      { chStart: 42, chEnd: 45, title: 'Joseph Reveals Himself to His Brothers', text: 'Famine brings Joseph\'s brothers to Egypt looking for food, without recognizing him. After testing their character, Joseph emotionally reveals himself to his brothers and forgives them, inviting the whole family to move to Egypt.' },
+      { chStart: 46, chEnd: 50, title: 'Jacob\'s Family in Egypt', text: 'Jacob and his whole family settle in Egypt, in the region of Goshen. The book ends with Jacob\'s blessings over his sons, his death, and Joseph\'s death, who reaffirms the promise that God would bring the people back to Canaan.' },
+    ],
     location: { name: 'Mesopotamia, Canaan, and Egypt', icon: "Landmark", description: 'The story travels from Ur (modern-day Iraq) to Canaan (Israel) and ends in Egypt, spanning several generations.' },
     curiosities: [
       'It\'s the only book of the Bible that covers thousands of years of history in just a few chapters.',
@@ -24,7 +41,20 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Êxodo': {
-    context: 'Tells of the Israelites\' slavery in Egypt, Moses\' leadership, the ten plagues, the crossing of the Red Sea, and the giving of the Ten Commandments on Mount Sinai.',
+    contextOverview: 'The Bible\'s second book, Exodus narrates Israel\'s transition from an enslaved people in Egypt to an organized nation, bound together by a covenant with God. It splits into three major movements: liberation from slavery (chapters 1–15), the journey through the desert to Sinai (16–18), and the giving of the Law and instructions for the Tabernacle (19–40). The Greek name "Exodus" means "departure", and the book establishes Moses as Israel\'s great liberator and lawgiver.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Slavery and Moses\' Birth', text: 'Generations after Joseph, a new Pharaoh enslaves the Israelites, fearing their population growth. Moses is born into this context, saved from the waters of the Nile by Pharaoh\'s daughter, but later flees to Midian after killing an Egyptian.' },
+      { chStart: 3, chEnd: 4, title: 'The Burning Bush', text: 'While shepherding flocks in Midian, Moses encounters God in a bush that burns without being consumed. God reveals his name (YHWH) and commissions a reluctant Moses to free Israel from Egypt.' },
+      { chStart: 5, chEnd: 11, title: 'Moses Confronts Pharaoh', text: 'Moses and Aaron repeatedly ask Pharaoh to free the people, and each refusal brings a new plague on Egypt — water turned to blood, frogs, gnats, flies, livestock disease, boils, hail, locusts, and darkness — culminating in the threat of the final plague.' },
+      { chStart: 12, chEnd: 13, title: 'Passover and the Departure from Egypt', text: 'The tenth plague, the death of the firstborn, is avoided by the Israelites through the blood of the Passover lamb on their doorframes — the origin of the Jewish Passover. Pharaoh finally releases the people, who leave Egypt after more than 400 years.' },
+      { chStart: 14, chEnd: 15, title: 'Crossing the Red Sea', text: 'Pursued by the Egyptian army, which changes its mind, the people find themselves trapped at the Red Sea. God opens a path through the waters, Israel crosses safely, and the Egyptian army is destroyed — celebrated in the Song of Moses.' },
+      { chStart: 16, chEnd: 18, title: 'Provision in the Desert', text: 'On the way to Sinai, God provides manna and quail to feed the people and water from the rock to quench their thirst. Jethro, Moses\' father-in-law, suggests a system of judges to help manage the people\'s disputes.' },
+      { chStart: 19, chEnd: 20, title: 'Sinai and the Ten Commandments', text: 'Israel arrives at Mount Sinai, where God reveals himself amid thunder and smoke and gives the Ten Commandments — the ethical core of the covenant between God and the people.' },
+      { chStart: 21, chEnd: 24, title: 'The Covenant Laws', text: 'A series of civil and religious laws detail how the people are to live in society — from slavery to property, from justice to religious festivals — and the people formally accept the covenant with God.' },
+      { chStart: 25, chEnd: 31, title: 'Instructions for the Tabernacle', text: 'God gives Moses detailed instructions for building the Tabernacle, the portable sanctuary where he would dwell among the people, including the Ark of the Covenant and the priestly garments.' },
+      { chStart: 32, chEnd: 34, title: 'The Golden Calf', text: 'While Moses is on the mountain, the people lose patience and Aaron makes a golden calf to worship. Moses\' anger and his intercession for Israel lead to a renewal of the covenant.' },
+      { chStart: 35, chEnd: 40, title: 'Building the Tabernacle', text: 'The people contribute generously with materials, and skilled craftsmen build the Tabernacle exactly according to the instructions. The book ends with God\'s glory filling the completed tent.' },
+    ],
     location: { name: 'Egypt and the Sinai desert', icon: "Waves", description: 'From Egypt, the people cross the Red Sea and travel across the Sinai peninsula toward Canaan.' },
     curiosities: [
       'The Hebrew name of the book is "Shemot" ("Names"), taken from the text\'s opening line.',
@@ -40,7 +70,17 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Levítico': {
-    context: 'A manual of laws for the priests (Levites) on sacrifices, ritual purity, and holiness, given while Israel was still camped at the foot of Mount Sinai.',
+    contextOverview: 'The third book of the Torah, Leviticus is essentially a manual for the Levitical priests, given while Israel was still camped at the foot of Sinai, right after the Tabernacle was built (the end of Exodus). Unlike the surrounding books, it has very little narrative — it\'s almost entirely made up of laws about sacrifices, ritual purity, and holiness, reflecting the book\'s central idea: "Be holy, because I, the Lord your God, am holy."',
+    contextSections: [
+      { chStart: 1, chEnd: 7, title: 'The Sacrifice Laws', text: 'Details five types of offering — burnt offering, grain offering, fellowship offering, sin offering, and guilt offering — each with its own purpose and specific procedure for dealing with sin and worshiping God.' },
+      { chStart: 8, chEnd: 10, title: 'The Priests\' Consecration', text: 'Aaron and his sons are formally consecrated as priests through an elaborate ritual. The joy is interrupted by the sudden death of two of Aaron\'s sons, Nadab and Abihu, for offering "unauthorized fire" before the Lord.' },
+      { chStart: 11, chEnd: 15, title: 'Purity Laws', text: 'An extensive section on what is pure and impure — animals that may or may not be eaten, skin diseases, bodily discharges — establishing clear boundaries between the holy and the common in everyday life.' },
+      { chStart: 16, chEnd: 16, title: 'The Day of Atonement', text: 'The book\'s central chapter describes Yom Kippur, the only day of the year when the high priest enters the Most Holy Place to make atonement for the sins of the whole people, including the ritual of the "scapegoat".' },
+      { chStart: 17, chEnd: 20, title: 'The Holiness Code', text: 'A collection of laws on sexual conduct, social justice, and the famous command "love your neighbor as yourself", all united by the repeated call: "Be holy, because I am holy".' },
+      { chStart: 21, chEnd: 22, title: 'Laws for the Priests', text: 'Specific holiness rules for priests, who, because of their closeness to the sanctuary and sacred objects, need to maintain an even higher standard of ritual purity.' },
+      { chStart: 23, chEnd: 25, title: 'The Festivals, the Sabbath, and the Jubilee', text: 'A complete calendar of Israel\'s religious festivals (Passover, Pentecost, Tabernacles, among others), followed by the laws of the sabbatical year and the jubilee, which every 50 years returned land and freed slaves.' },
+      { chStart: 26, chEnd: 27, title: 'Blessings, Curses, and Vows', text: 'The book ends with a list of blessings for obedience and curses for disobedience to the covenant, followed by rules about vows and tithes made to the Lord.' },
+    ],
     location: { name: 'Sinai desert', icon: "Tent", description: 'All the action (or rather, all the instruction) happens in a single camp, at the foot of Mount Sinai.' },
     curiosities: [
       'It\'s the book with the least narrative variety in the Bible: almost the entire text is law and instruction.',
@@ -56,7 +96,17 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Números': {
-    context: 'Recounts Israel\'s 40 years wandering the desert, including two censuses of the people, rebellions, and preparation to enter Canaan.',
+    contextOverview: 'The fourth book of the Torah, Numbers gets its name from the two population censuses that bookend it — one at the start (chapter 1) and another near the end (chapter 26), separated by almost 40 years of wandering in the desert. It\'s the chronicle of a generation that, for lack of faith after the spies\' report, loses the right to enter the Promised Land, and of the new generation preparing to finally cross the Jordan.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'The First Census and Organizing the Camp', text: 'Israel is organized like an army, with each tribe positioned around the Tabernacle in a specific order, and the Levites receive special duties caring for the sacred objects.' },
+      { chStart: 5, chEnd: 10, title: 'Various Laws and the Departure from Sinai', text: 'A collection of laws (including the Nazirite vow and the priestly blessing) precedes Israel\'s departure from Sinai, guided by God\'s cloud, almost a year after they had arrived.' },
+      { chStart: 11, chEnd: 14, title: 'Complaints and the Twelve Spies', text: 'The people repeatedly complain about food and the hardships of the journey. The book\'s decisive moment comes when ten of the twelve spies sent into Canaan bring back a fearful report, leading the people to rebel — and God to condemn that generation to die in the desert.' },
+      { chStart: 15, chEnd: 19, title: 'Laws and Korah\'s Rebellion', text: 'More laws are given, interrupted by the rebellion of Korah, Dathan, and Abiram against the leadership of Moses and Aaron, which ends dramatically with the ground opening up to swallow the rebels.' },
+      { chStart: 20, chEnd: 21, title: 'The Journey Continues', text: 'Miriam and Aaron die, and Moses, in a moment of frustration, disobeys God by striking the rock instead of speaking to it — which will cost him entry into the Promised Land. The bronze snake also appears in these chapters.' },
+      { chStart: 22, chEnd: 25, title: 'Balaam and Balak', text: 'The Moabite king Balak hires the pagan prophet Balaam to curse Israel, but God repeatedly intervenes — including through the miraculous speech of Balaam\'s donkey — and Balaam ends up only able to bless the people.' },
+      { chStart: 26, chEnd: 30, title: 'The Second Census and Inheritance Laws', text: 'A new census marks the new generation ready to enter Canaan, and specific laws on land inheritance (including the case of Zelophehad\'s daughters) are established.' },
+      { chStart: 31, chEnd: 36, title: 'Final Preparations', text: 'The book ends with the war against Midian, the distribution of territory east of the Jordan to the tribes of Reuben, Gad, and Manasseh, and final instructions on the borders and cities of refuge in the Promised Land.' },
+    ],
     location: { name: 'Desert between Sinai and Canaan', icon: "Compass", description: 'Covers the long, wandering journey from Sinai to the plains of Moab, on the border of the Promised Land.' },
     curiosities: [
       'The name comes from the two population censuses recorded in the book (hence "Numbers").',
@@ -72,7 +122,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Deuteronômio': {
-    context: 'Moses\' final speeches to Israel before his death, reviewing the Law and preparing the people to conquer Canaan under Joshua\'s leadership.',
+    contextOverview: 'The last book of the Torah, Deuteronomy ("second law", in Greek) is structured as a series of farewell speeches by Moses to the people of Israel, on the plains of Moab, on the eve of entering Canaan. Moses recalls the journey of the last 40 years, repeats and explains the laws given at Sinai, and calls the people to a renewed commitment to the covenant — before climbing Mount Nebo, seeing the Promised Land from afar, and dying without entering it.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Moses Recalls the Journey', text: 'The first speech reviews Israel\'s history since Sinai, including the failures in the desert, as encouragement for the new generation not to repeat their parents\' mistakes.' },
+      { chStart: 5, chEnd: 11, title: 'The Call to Faithfulness', text: 'The Ten Commandments are repeated, followed by the Shema ("Hear, O Israel..."), the central prayer of Judaism to this day, and a passionate appeal for the people to love and obey God with all their heart.' },
+      { chStart: 12, chEnd: 26, title: 'Laws for Life in Canaan', text: 'The book\'s largest section details specific laws for when the people settle in the land — centralized worship, justice, kingship, warfare, and community life — updating and applying the Law from Sinai to a new reality.' },
+      { chStart: 27, chEnd: 30, title: 'Blessings, Curses, and the Renewal of the Covenant', text: 'Moses presents the people with a clear choice: blessings for obedience or curses for rebellion, ending with the famous appeal to "choose life".' },
+      { chStart: 31, chEnd: 34, title: 'The Final Words and Moses\' Death', text: 'Moses commissions Joshua as his successor, sings a prophetic song about Israel\'s future, blesses each of the tribes, and climbs Mount Nebo, where he sees the Promised Land before dying — closing the Torah with the promise still unfulfilled.' },
+    ],
     location: { name: 'Plains of Moab', icon: "Mountain", description: 'Israel camps on the east side of the Jordan river, looking at the Promised Land without having entered it yet.' },
     curiosities: [
       'The name means "second law" in Greek, since it repeats and explains laws already given in Exodus and Leviticus.',

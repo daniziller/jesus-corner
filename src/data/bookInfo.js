@@ -7,7 +7,24 @@
 
 export const BOOK_INFO = {
   'Gênesis': {
-    context: 'Primeiro livro da Bíblia: narra a criação, a queda da humanidade, o dilúvio e a história dos patriarcas Abraão, Isaque, Jacó e José. Tradicionalmente atribuído a Moisés.',
+    contextOverview: 'Primeiro livro da Bíblia e da Torá judaica, Gênesis narra desde a criação do mundo até a chegada da família de Jacó ao Egito. Tradicionalmente atribuído a Moisés, o livro se divide em duas grandes partes: a história primitiva da humanidade (capítulos 1–11, do início do mundo até Babel) e a história dos patriarcas (capítulos 12–50, de Abraão a José). Seu nome em hebraico, "Bereshit" ("No princípio"), vem da primeira palavra do texto, e lança as bases para os principais temas que atravessam toda a Bíblia: criação, aliança, promessa e a relação entre Deus e a humanidade.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'A Criação', text: 'Dois relatos complementares da criação: um panorâmico, mostrando Deus ordenando o cosmos em seis dias (capítulo 1); outro mais íntimo, focado na formação do homem e da mulher e no jardim do Éden (capítulo 2). Juntos, estabelecem que o mundo é criação intencional e boa, e que os seres humanos foram feitos à imagem de Deus.' },
+      { chStart: 3, chEnd: 5, title: 'A Queda e as Primeiras Gerações', text: 'A desobediência de Adão e Eva no Éden introduz o pecado e suas consequências: expulsão do jardim, trabalho penoso e mortalidade. O capítulo 4 traz o primeiro assassinato da Bíblia, quando Caim mata seu irmão Abel, e o capítulo 5 lista uma genealogia que liga Adão a Noé, mostrando a rápida propagação da humanidade — e do pecado.' },
+      { chStart: 6, chEnd: 9, title: 'O Dilúvio e a Aliança com Noé', text: 'Diante da corrupção generalizada da humanidade, Deus decide destruir a terra por um dilúvio, mas preserva Noé, sua família e os animais numa arca. Depois das águas baixarem, Deus faz a primeira aliança explícita da Bíblia com Noé, prometendo nunca mais destruir a terra dessa forma, com o arco-íris como sinal.' },
+      { chStart: 10, chEnd: 11, title: 'As Nações e a Torre de Babel', text: 'A "Tábua das Nações" (capítulo 10) traça a origem dos povos pós-dilúvio, e a história da Torre de Babel (capítulo 11) explica a origem das diferentes línguas, quando a humanidade tenta "fazer um nome" para si mesma e Deus confunde sua linguagem, espalhando-a pela terra.' },
+      { chStart: 12, chEnd: 14, title: 'O Chamado de Abrão', text: 'Deus chama Abrão para deixar sua terra natal, Ur, rumo a Canaã, prometendo fazer dele uma grande nação. O capítulo 14 mostra Abrão resgatando seu sobrinho Ló numa guerra entre reis, e sendo abençoado pelo misterioso sacerdote-rei Melquisedeque.' },
+      { chStart: 15, chEnd: 17, title: 'As Alianças com Abraão', text: 'Deus formaliza sua promessa a Abrão através de um rito de aliança (capítulo 15) e, mais tarde, institui a circuncisão como sinal físico dessa aliança, mudando o nome de Abrão para Abraão ("pai de multidões") e o de Sarai para Sara (capítulo 17).' },
+      { chStart: 18, chEnd: 19, title: 'Sodoma e Gomorra', text: 'Três visitantes anunciam a Abraão que Sara terá um filho, e revelam o plano de destruir Sodoma e Gomorra por sua maldade. Abraão intercede pela cidade, mas apenas Ló e suas filhas escapam da destruição.' },
+      { chStart: 20, chEnd: 23, title: 'Isaque e a Compra da Terra', text: 'Nasce Isaque, o filho da promessa, e Agar e Ismael são enviados embora. O momento mais tenso do livro acontece no capítulo 22, quando Deus testa Abraão pedindo que sacrifique Isaque — um teste interrompido no último instante. O capítulo 23 narra a morte de Sara e a compra do primeiro pedaço de terra em Canaã.' },
+      { chStart: 24, chEnd: 26, title: 'O Casamento de Isaque', text: 'Um servo de Abraão é enviado para encontrar uma esposa para Isaque entre os parentes da família, e Rebeca é escolhida. Abraão morre, e o capítulo 25 narra o nascimento dos gêmeos Esaú e Jacó, já anunciando a rivalidade entre eles.' },
+      { chStart: 27, chEnd: 28, title: 'Jacó Rouba a Bênção', text: 'Com a ajuda de Rebeca, Jacó engana seu pai cego Isaque e rouba a bênção que pertencia a Esaú, seu irmão mais velho. Fugindo da fúria de Esaú, Jacó tem um sonho em Betel, onde Deus renova com ele a promessa feita a seu avô Abraão.' },
+      { chStart: 29, chEnd: 31, title: 'Jacó em Padã-Arã', text: 'Jacó trabalha para seu tio Labão, casa-se com Lia e Raquel (enganado a se casar com as duas) e tem a maior parte de seus filhos. Depois de anos de trabalho e conflitos com Labão, Jacó parte de volta para Canaã com sua família e riquezas.' },
+      { chStart: 32, chEnd: 36, title: 'A Reconciliação com Esaú', text: 'Antes de reencontrar Esaú, Jacó luta a noite toda com um ser misterioso e recebe o novo nome de Israel. O reencontro com Esaú é surpreendentemente pacífico, e o livro segue com a violência sofrida por Diná (capítulo 34) e a morte de Isaque.' },
+      { chStart: 37, chEnd: 41, title: 'José é Vendido e Ascende no Egito', text: 'Invejosos do favoritismo do pai, os irmãos de José o vendem como escravo, e ele acaba no Egito. Apesar de ser injustamente preso, José interpreta os sonhos do faraó e é promovido a governador, responsável por administrar os anos de fartura e fome.' },
+      { chStart: 42, chEnd: 45, title: 'José se Revela aos Irmãos', text: 'A fome leva os irmãos de José ao Egito em busca de comida, sem reconhecê-lo. Depois de testar seu caráter, José se revela emocionalmente aos irmãos e os perdoa, convidando toda a família para se mudar para o Egito.' },
+      { chStart: 46, chEnd: 50, title: 'A Família de Jacó no Egito', text: 'Jacó e toda sua família se instalam no Egito, na região de Gósen. O livro termina com as bênçãos de Jacó sobre seus filhos, sua morte, e a morte de José, que reafirma a promessa de que Deus levaria o povo de volta a Canaã.' },
+    ],
     location: { name: 'Mesopotâmia, Canaã e Egito', icon: "Landmark", description: 'A história viaja de Ur (atual Iraque) até Canaã (Israel) e termina no Egito, ao longo de várias gerações.' },
     curiosities: [
       'É o único livro da Bíblia que cobre milhares de anos de história em poucos capítulos.',
@@ -23,7 +40,20 @@ export const BOOK_INFO = {
     ],
   },
   'Êxodo': {
-    context: 'Conta a escravidão dos israelitas no Egito, a liderança de Moisés, as dez pragas, a travessia do Mar Vermelho e a entrega dos Dez Mandamentos no monte Sinai.',
+    contextOverview: 'Segundo livro da Bíblia, Êxodo narra a transição de Israel de um povo escravizado no Egito para uma nação organizada, unida por uma aliança com Deus. Divide-se em três grandes movimentos: a libertação da escravidão (capítulos 1–15), a jornada pelo deserto até o Sinai (16–18) e a entrega da Lei e as instruções para o Tabernáculo (19–40). O nome grego "Êxodo" significa "saída", e o livro estabelece Moisés como o grande libertador e legislador de Israel.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'A Escravidão e o Nascimento de Moisés', text: 'Gerações depois de José, um novo faraó escraviza os israelitas, temendo seu crescimento populacional. Moisés nasce nesse contexto, é salvo das águas do Nilo pela filha do faraó, mas depois foge para Midiã após matar um egípcio.' },
+      { chStart: 3, chEnd: 4, title: 'A Sarça Ardente', text: 'Enquanto pastoreia ovelhas em Midiã, Moisés encontra Deus numa sarça que arde sem se consumir. Deus revela seu nome (YHWH) e comissiona Moisés, relutante, para libertar Israel do Egito.' },
+      { chStart: 5, chEnd: 11, title: 'Moisés Confronta Faraó', text: 'Moisés e Arão pedem repetidamente ao faraó que liberte o povo, e cada recusa traz uma nova praga sobre o Egito — água em sangue, rãs, piolhos, moscas, peste no gado, úlceras, granizo, gafanhotos e trevas — culminando na ameaça da praga final.' },
+      { chStart: 12, chEnd: 13, title: 'A Páscoa e a Saída do Egito', text: 'A décima praga, a morte dos primogênitos, é evitada pelos israelitas através do sangue do cordeiro pascal nas portas de suas casas — origem da Páscoa judaica. Faraó finalmente libera o povo, que sai do Egito depois de mais de 400 anos.' },
+      { chStart: 14, chEnd: 15, title: 'A Travessia do Mar Vermelho', text: 'Perseguido pelo exército egípcio que muda de ideia, o povo se vê encurralado no Mar Vermelho. Deus abre um caminho em meio às águas, Israel atravessa em segurança e o exército egípcio é destruído — celebrado no Cântico de Moisés.' },
+      { chStart: 16, chEnd: 18, title: 'Provisão no Deserto', text: 'No caminho para o Sinai, Deus provê maná e codornizes para alimentar o povo e água da rocha para saciar sua sede. Jetro, sogro de Moisés, sugere um sistema de juízes para ajudar a administrar as disputas do povo.' },
+      { chStart: 19, chEnd: 20, title: 'O Sinai e os Dez Mandamentos', text: 'Israel chega ao Monte Sinai, onde Deus se revela em meio a trovões e fumaça e entrega os Dez Mandamentos — o núcleo ético da aliança entre Deus e o povo.' },
+      { chStart: 21, chEnd: 24, title: 'As Leis da Aliança', text: 'Uma série de leis civis e religiosas detalha como o povo deve viver em sociedade — de escravidão a propriedade, de justiça a festas religiosas — e o povo formalmente aceita a aliança com Deus.' },
+      { chStart: 25, chEnd: 31, title: 'Instruções para o Tabernáculo', text: 'Deus dá a Moisés instruções minuciosas para construir o Tabernáculo, o santuário móvel onde habitaria em meio ao povo, incluindo a Arca da Aliança e as vestes sacerdotais.' },
+      { chStart: 32, chEnd: 34, title: 'O Bezerro de Ouro', text: 'Enquanto Moisés está no monte, o povo perde a paciência e Arão fabrica um bezerro de ouro para adorar. A ira de Moisés e a intercessão por Israel levam a uma renovação da aliança.' },
+      { chStart: 35, chEnd: 40, title: 'A Construção do Tabernáculo', text: 'O povo contribui generosamente com materiais, e artesãos talentosos constroem o Tabernáculo exatamente conforme as instruções. O livro termina com a glória de Deus enchendo a tenda concluída.' },
+    ],
     location: { name: 'Egito e deserto do Sinai', icon: "Waves", description: 'Do Egito, o povo atravessa o Mar Vermelho e passa a viajar pela península do Sinai rumo a Canaã.' },
     curiosities: [
       'O nome hebraico do livro é "Shemot" ("Nomes"), tirado da primeira frase do texto.',
@@ -39,7 +69,17 @@ export const BOOK_INFO = {
     ],
   },
   'Levítico': {
-    context: 'Um manual de leis para os sacerdotes (levitas) sobre sacrifícios, pureza ritual e santidade, entregue enquanto Israel ainda acampava ao pé do monte Sinai.',
+    contextOverview: 'Terceiro livro da Torá, Levítico é essencialmente um manual para os sacerdotes levitas, dado enquanto Israel ainda acampava ao pé do Sinai, logo após a construção do Tabernáculo (final de Êxodo). Diferente dos livros vizinhos, tem pouquíssima narrativa — é quase inteiramente composto de leis sobre sacrifícios, pureza ritual e santidade, refletindo a ideia central do livro: "Sejam santos, porque eu, o Senhor, o Deus de vocês, sou santo."',
+    contextSections: [
+      { chStart: 1, chEnd: 7, title: 'As Leis dos Sacrifícios', text: 'Detalha cinco tipos de oferta — holocausto, oferta de cereal, oferta de paz, oferta pelo pecado e oferta pela culpa — cada uma com seu propósito e procedimento específico para lidar com o pecado e adorar a Deus.' },
+      { chStart: 8, chEnd: 10, title: 'A Consagração dos Sacerdotes', text: 'Arão e seus filhos são formalmente consagrados como sacerdotes através de um rito elaborado. A alegria é interrompida pela morte súbita de dois filhos de Arão, Nadabe e Abiú, por oferecerem "fogo estranho" diante do Senhor.' },
+      { chStart: 11, chEnd: 15, title: 'Leis de Pureza', text: 'Uma extensa seção sobre o que é puro e impuro — animais que podem ou não ser comidos, doenças de pele, fluxos corporais — estabelecendo fronteiras claras entre o santo e o comum na vida cotidiana.' },
+      { chStart: 16, chEnd: 16, title: 'O Dia da Expiação', text: 'O capítulo central do livro descreve o Yom Kipur, o único dia do ano em que o sumo sacerdote entra no Lugar Santíssimo para fazer expiação pelos pecados de todo o povo, incluindo o ritual do "bode expiatório".' },
+      { chStart: 17, chEnd: 20, title: 'O Código de Santidade', text: 'Uma coleção de leis sobre comportamento sexual, justiça social, e o famoso mandamento "ame o seu próximo como a si mesmo", todas unidas pelo chamado repetido: "Sejam santos, porque eu sou santo".' },
+      { chStart: 21, chEnd: 22, title: 'Leis para os Sacerdotes', text: 'Regras específicas de santidade para os sacerdotes, que por sua proximidade com o santuário e os objetos sagrados, precisam manter um padrão ainda mais alto de pureza ritual.' },
+      { chStart: 23, chEnd: 25, title: 'As Festas, o Sábado e o Jubileu', text: 'Um calendário completo das festas religiosas de Israel (Páscoa, Pentecostes, Tabernáculos, entre outras), seguido pelas leis do ano sabático e do jubileu, que a cada 50 anos devolvia terras e libertava escravos.' },
+      { chStart: 26, chEnd: 27, title: 'Bênçãos, Maldições e Votos', text: 'O livro termina com uma lista de bênçãos pela obediência e maldições pela desobediência à aliança, seguida por regras sobre votos e dízimos feitos ao Senhor.' },
+    ],
     location: { name: 'Deserto do Sinai', icon: "Tent", description: 'Toda a ação (ou melhor, todas as instruções) acontece em um único acampamento, ao pé do monte Sinai.' },
     curiosities: [
       'É o livro com a menor variedade de narrativa da Bíblia: quase todo o texto é lei e instrução.',
@@ -55,7 +95,17 @@ export const BOOK_INFO = {
     ],
   },
   'Números': {
-    context: 'Relata os 40 anos de peregrinação de Israel pelo deserto, incluindo dois recenseamentos do povo (censos), rebeliões e a preparação para entrar em Canaã.',
+    contextOverview: 'Quarto livro da Torá, Números recebe seu nome dos dois censos populacionais que emolduram o livro — um no início (capítulo 1) e outro no fim (capítulo 26), separados por quase 40 anos de peregrinação pelo deserto. É a crônica de uma geração que, por falta de fé diante do relatório dos espias, perde o direito de entrar na Terra Prometida, e da nova geração que se prepara para finalmente atravessar o Jordão.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'O Primeiro Censo e a Organização do Acampamento', text: 'Israel é organizado como um exército, com cada tribo posicionada em torno do Tabernáculo em uma ordem específica, e os levitas recebem funções especiais de cuidado com os objetos sagrados.' },
+      { chStart: 5, chEnd: 10, title: 'Leis Diversas e a Partida do Sinai', text: 'Uma coleção de leis (incluindo o voto do nazireu e a bênção sacerdotal) precede a partida de Israel do Sinai, guiada pela nuvem de Deus, quase um ano depois de terem chegado.' },
+      { chStart: 11, chEnd: 14, title: 'Murmurações e os Doze Espias', text: 'O povo reclama repetidamente da comida e das dificuldades da jornada. O momento decisivo do livro acontece quando dez dos doze espias enviados a Canaã trazem um relatório de medo, levando o povo a se rebelar — e Deus a condenar aquela geração a morrer no deserto.' },
+      { chStart: 15, chEnd: 19, title: 'Leis e a Rebelião de Coré', text: 'Mais leis são dadas, interrompidas pela rebelião de Coré, Datã e Abirão contra a liderança de Moisés e Arão, que termina de forma dramática com a terra se abrindo para engolir os rebeldes.' },
+      { chStart: 20, chEnd: 21, title: 'A Jornada Continua', text: 'Miriã e Arão morrem, e Moisés, num momento de frustração, desobedece a Deus ao ferir a rocha em vez de falar a ela — o que lhe custará a entrada na Terra Prometida. A serpente de bronze também aparece nesses capítulos.' },
+      { chStart: 22, chEnd: 25, title: 'Balaão e Balaque', text: 'O rei moabita Balaque contrata o profeta pagão Balaão para amaldiçoar Israel, mas Deus intervém repetidamente — inclusive através da fala miraculosa da jumenta de Balaão — e Balaão só consegue abençoar o povo.' },
+      { chStart: 26, chEnd: 30, title: 'O Segundo Censo e Leis de Herança', text: 'Um novo censo marca a nova geração pronta para entrar em Canaã, e leis específicas sobre herança de terra (incluindo o caso das filhas de Zelofeade) são estabelecidas.' },
+      { chStart: 31, chEnd: 36, title: 'Preparativos Finais', text: 'O livro termina com a guerra contra Midiã, a distribuição de território a leste do Jordão para as tribos de Rúben, Gade e Manassés, e instruções finais sobre as fronteiras e cidades de refúgio na Terra Prometida.' },
+    ],
     location: { name: 'Deserto entre o Sinai e Canaã', icon: "Compass", description: 'Cobre a longa jornada errante do Sinai até as planícies de Moabe, na fronteira com a Terra Prometida.' },
     curiosities: [
       'O nome vem dos dois censos populacionais registrados no livro (daí "Números").',
@@ -71,7 +121,14 @@ export const BOOK_INFO = {
     ],
   },
   'Deuteronômio': {
-    context: 'Últimos discursos de Moisés a Israel antes de sua morte, revisando a Lei e preparando o povo para conquistar Canaã sob a liderança de Josué.',
+    contextOverview: 'Último livro da Torá, Deuteronômio ("segunda lei", em grego) é estruturado como uma série de discursos de despedida de Moisés ao povo de Israel, nas planícies de Moabe, às vésperas de entrarem em Canaã. Moisés relembra a jornada dos últimos 40 anos, repete e explica as leis dadas no Sinai, e convoca o povo a um compromisso renovado com a aliança — antes de subir ao Monte Nebo, ver a Terra Prometida de longe, e morrer sem nela entrar.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Moisés Relembra a Jornada', text: 'O primeiro discurso revisa a história de Israel desde o Sinai, incluindo os fracassos no deserto, como incentivo para que a nova geração não repita os erros de seus pais.' },
+      { chStart: 5, chEnd: 11, title: 'O Chamado à Fidelidade', text: 'Os Dez Mandamentos são repetidos, seguidos pelo Shemá ("Ouve, ó Israel..."), a oração central do judaísmo até hoje, e um apelo apaixonado para que o povo ame e obedeça a Deus de todo o coração.' },
+      { chStart: 12, chEnd: 26, title: 'Leis para a Vida em Canaã', text: 'A maior seção do livro detalha leis específicas para quando o povo se estabelecer na terra — adoração centralizada, justiça, realeza, guerra, e vida em comunidade — atualizando e aplicando a Lei do Sinai a uma nova realidade.' },
+      { chStart: 27, chEnd: 30, title: 'Bênçãos, Maldições e a Renovação da Aliança', text: 'Moisés apresenta ao povo uma escolha clara: bênçãos pela obediência ou maldições pela rebelião, terminando com o famoso apelo para "escolher a vida".' },
+      { chStart: 31, chEnd: 34, title: 'As Últimas Palavras e a Morte de Moisés', text: 'Moisés comissiona Josué como seu sucessor, entoa um cântico profético sobre o futuro de Israel, abençoa cada uma das tribos, e sobe ao Monte Nebo, onde vê a Terra Prometida antes de morrer — encerrando a Torá com a promessa ainda não cumprida.' },
+    ],
     location: { name: 'Planícies de Moabe', icon: "Mountain", description: 'Israel acampa do lado leste do rio Jordão, olhando para a Terra Prometida sem ainda ter entrado nela.' },
     curiosities: [
       'O nome significa "segunda lei" em grego, porque repete e explica leis já dadas em Êxodo e Levítico.',

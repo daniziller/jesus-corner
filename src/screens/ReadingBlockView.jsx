@@ -172,7 +172,7 @@ export default function ReadingBlockView({ session, authUser, isPremium, onNavig
           {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
             <div style={{ padding: '0 14px 4px' }}>
               {isPremium ? (
-                <InfoPanel type={openPanel} books={heroBooks} />
+                <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
               ) : (
                 <PremiumLockCard
                   lang={lang}
@@ -275,15 +275,42 @@ function ChapterChecklist({ session, completedSet, onToggleChapter, lang, textOp
   )
 }
 
-function InfoPanel({ type, books }) {
+// Contexto agora tem 2 camadas: uma visão geral do livro (sempre igual,
+// info.contextOverview) e trechos narrativos específicos por capítulo
+// (info.contextSections, cada um com chStart/chEnd) — mostra só os trechos
+// que se sobrepõem aos capítulos da sessão em destaque, então o texto muda
+// conforme a pessoa avança no livro, em vez de repetir o mesmo parágrafo em
+// toda sessão. Livros que ainda não migraram pro novo formato (só têm
+// info.context, o campo antigo) continuam funcionando — cai no fallback.
+function InfoPanel({ type, books, chStart, chEnd, lang }) {
+  const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
   return (
     <div style={styles.panel}>
-      {books.map(({ name, displayName, info }, i) => (
+      {books.map(({ name, displayName, info }, i) => {
+        const overview = info.contextOverview ?? info.context
+        const sections = (info.contextSections ?? []).filter(
+          s => chStart != null && chEnd != null && s.chStart <= chEnd && s.chEnd >= chStart
+        )
+        return (
         <div key={name} style={{ marginTop: i > 0 ? 14 : 0 }}>
           {books.length > 1 && <p style={styles.panelBookLabel}>{displayName}</p>}
 
           {type === 'contexto' && (
-            <p style={styles.panelText}>{info.context}</p>
+            <>
+              <p style={styles.panelText}>{overview}</p>
+              {sections.length > 0 && (
+                <div style={styles.contextSections}>
+                  {sections.map((s, si) => (
+                    <div key={si}>
+                      <p style={styles.contextSectionTitle}>
+                        {chLabel} {s.chStart}{s.chStart !== s.chEnd ? `–${s.chEnd}` : ''} · {s.title}
+                      </p>
+                      <p style={styles.panelText}>{s.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
           {type === 'mapa' && (
@@ -307,7 +334,8 @@ function InfoPanel({ type, books }) {
             </div>
           )}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -600,6 +628,8 @@ const styles = {
   panel:       { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 14, boxShadow: 'var(--shadow-card)' },
   panelBookLabel:{ fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   panelText:   { fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.55 },
+  contextSections:    { marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)', display: 'flex', flexDirection: 'column', gap: 11 },
+  contextSectionTitle:{ fontSize: 11, fontWeight: 700, color: 'var(--bk)', marginBottom: 3 },
   panelLocationIcon:{ width: 38, height: 38, borderRadius: 11, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   panelLocationName:{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
   panelBullet: { width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', flexShrink: 0, marginTop: 6 },
