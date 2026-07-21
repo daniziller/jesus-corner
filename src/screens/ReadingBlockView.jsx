@@ -4,7 +4,8 @@ import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNote, saveNote, noteKeyFor } from '../notes/notesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
-import { BIBLE_VERSIONS } from '../data/bibleVersions'
+import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
+import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -264,17 +265,28 @@ function InfoPanel({ type, books }) {
 // fechado por padrão (só abre quando a pessoa toca na tag "Texto").
 function BibleTextPanel({ session, lang }) {
   const bookKey = lang === 'en' ? session.bookEn : session.book
-  const version = BIBLE_VERSIONS[lang]
+  const availableVersions = BIBLE_VERSIONS[lang] ?? []
+  const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
+  const version = findBibleVersion(versionId) ?? availableVersions[0]
   const [state, setState] = useState({ status: 'loading', chapters: null })
+
+  // Reidrata a versão escolhida quando o idioma muda (ex: pessoa troca de
+  // idioma do app enquanto está com esse painel montado em outra sessão).
+  useEffect(() => { setVersionId(getSelectedVersionId(lang)) }, [lang])
+
+  function handleChangeVersion(id) {
+    setVersionId(id)
+    setSelectedVersionId(lang, id)
+  }
 
   useEffect(() => {
     let cancelled = false
     setState({ status: 'loading', chapters: null })
-    fetchBookText(lang, bookKey)
+    fetchBookText(versionId, bookKey)
       .then(chapters => { if (!cancelled) setState({ status: 'ready', chapters }) })
       .catch(() => { if (!cancelled) setState({ status: 'error', chapters: null }) })
     return () => { cancelled = true }
-  }, [lang, bookKey])
+  }, [versionId, bookKey])
 
   const chapterNumbers = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapterNumbers.push(ch)
@@ -282,7 +294,21 @@ function BibleTextPanel({ session, lang }) {
 
   return (
     <div style={styles.panel}>
-      <p style={styles.panelBookLabel}>{version.label}</p>
+      {availableVersions.length > 1 ? (
+        <div style={styles.bibleTextVersionRow}>
+          {availableVersions.map(v => (
+            <button
+              key={v.id}
+              style={{ ...styles.bibleTextVersionBtn, ...(v.id === versionId ? styles.bibleTextVersionBtnActive : {}) }}
+              onClick={() => handleChangeVersion(v.id)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p style={styles.panelBookLabel}>{version.label}</p>
+      )}
 
       {state.status === 'loading' && <p style={styles.panelText}>{t('reading.textLoading', undefined, lang)}</p>}
       {state.status === 'error' && <p style={styles.panelText}>{t('reading.textError', undefined, lang)}</p>}
@@ -531,6 +557,9 @@ const styles = {
   chapterChipDone:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
   reflectionTip:  { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
   reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: '#A855F7', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  bibleTextVersionRow:  { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
+  bibleTextVersionBtn:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '5px 11px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  bibleTextVersionBtnActive: { background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
   bibleTextChapter:     { marginBottom: 16, paddingTop: 12, borderTop: '0.5px solid var(--g1)' },
   bibleTextChapterLabel:{ fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', marginBottom: 6 },
   bibleTextBody:        { fontSize: 14, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.75 },
