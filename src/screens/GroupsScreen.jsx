@@ -279,19 +279,22 @@ function FriendsSection({ lang, onChange, authUser }) {
       </div>
 
       {adding && (
-        <form onSubmit={submitAdd} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input
-            style={styles.input}
-            type="email"
-            placeholder={t('groups.friendEmailPlaceholder', undefined, lang)}
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            autoFocus
-          />
-          <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={loading}>
-            {loading ? t('groups.loading', undefined, lang) : t('groups.send', undefined, lang)}
-          </button>
-        </form>
+        <>
+          <form onSubmit={submitAdd} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+            <input
+              style={styles.input}
+              type="email"
+              placeholder={t('groups.friendEmailPlaceholder', undefined, lang)}
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoFocus
+            />
+            <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={loading}>
+              {loading ? t('groups.loading', undefined, lang) : t('groups.send', undefined, lang)}
+            </button>
+          </form>
+          <p style={styles.addFriendHint}>{t('groups.addFriendHint', undefined, lang)}</p>
+        </>
       )}
       {error && <p style={styles.error}>{error}</p>}
       {invitedMsg && <p style={styles.inviteSentMsg}>{invitedMsg}</p>}
@@ -1180,6 +1183,7 @@ const styles = {
   textarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5 },
   error: { fontSize: 11, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
   inviteSentMsg: { fontSize: 11, fontWeight: 600, color: '#15803D', background: 'rgba(22,163,74,.12)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
+  addFriendHint: { fontSize: 10.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginBottom: 10 },
   emptyHint: { fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', padding: '4px 2px' },
   backBtn: { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   inviteCard: { display: 'flex', alignItems: 'center', gap: 8, background: 'white', border: '0.5px solid var(--g1)', borderRadius: 14, padding: 10, boxShadow: 'var(--shadow-card)' },
