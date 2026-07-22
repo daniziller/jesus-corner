@@ -14,10 +14,13 @@ import { startCheckout, activateFreeAccess, openBillingPortalUrl, isPremiumActiv
 import { formatAmount } from '../billing/formatAmount'
 
 const PRESETS = {
-  brl: { recurring: [0, 10, 20, 30, 50], onetime: [0, 50, 100, 200, 400] },
-  usd: { recurring: [0, 3, 5, 10, 15], onetime: [0, 15, 30, 60, 120] },
+  brl: { recurring: [0, 5, 10, 20, 30], onetime: [200, 400, 600, 1000] },
+  usd: { recurring: [0, 1, 3, 5, 10], onetime: [40, 75, 150, 300] },
 }
+// Mínimo real de cobrança do Stripe (recorrente, valor > 0 — R$0 vira grátis).
 const MIN_MAJOR = { brl: 0.5, usd: 0.5 }
+// Contribuição única não aceita R$0 — regra de negócio, não do Stripe.
+const MIN_ONETIME_MAJOR = { brl: 200, usd: 40 }
 
 const FEATURES = [
   { icon: 'BookOpen', key: 'featureReading' },
@@ -49,11 +52,18 @@ export default function UpgradeScreen({ session, subscription }) {
   const isRecurringActive = subscription?.access_type === 'recurring' && isPremiumActive(subscription)
 
   const presets = PRESETS[currency][mode]
-  const minMajor = MIN_MAJOR[currency]
+  const minMajor = mode === 'onetime' ? MIN_ONETIME_MAJOR[currency] : MIN_MAJOR[currency]
 
   const amountMajor = isCustom ? (parseFloat(customValue.replace(',', '.')) || 0) : selectedAmount
   const amountCents = amountMajor != null ? Math.round(amountMajor * 100) : null
-  const belowMinimum = amountCents !== null && amountCents > 0 && amountCents < minMajor * 100
+  // Recorrente: R$0 é válido (vira grátis) — só valores entre 0 e o mínimo
+  // do Stripe ficam bloqueados. Contribuição única: nunca aceita R$0, então
+  // qualquer coisa abaixo do mínimo de negócio (incluindo 0) fica bloqueada.
+  const belowMinimum = amountCents !== null && (
+    mode === 'onetime'
+      ? amountCents < minMajor * 100
+      : amountCents > 0 && amountCents < minMajor * 100
+  )
   const canSubmit = amountCents !== null && !belowMinimum && !submitting
 
   function switchMode(next) {
@@ -231,7 +241,9 @@ export default function UpgradeScreen({ session, subscription }) {
                 />
               )}
               {belowMinimum && (
-                <p style={styles.hint}>{t('billing.belowMinimumHint', { min: formatAmount(minMajor * 100, currency) }, lang)}</p>
+                <p style={styles.hint}>
+                  {t(mode === 'onetime' ? 'billing.onetimeMinimumHint' : 'billing.belowMinimumHint', { min: formatAmount(minMajor * 100, currency) }, lang)}
+                </p>
               )}
             </div>
 

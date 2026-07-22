@@ -19,6 +19,9 @@ const APP_URL = 'https://app.jesuscorner.app'
 // Cobrança mínima real do Stripe por moeda (não dá pra cobrar menos que
 // isso) — valores abaixo disso só fazem sentido como R$0 (grátis).
 const MIN_CHARGE_CENTS = { brl: 50, usd: 50 }
+// Contribuição única (vitalício) não aceita R$0 — regra de negócio, mínimo
+// bem mais alto que o piso técnico do Stripe acima.
+const MIN_ONETIME_CENTS = { brl: 20000, usd: 4000 }
 
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
 // Evita criar um Product novo no Stripe a cada checkout (o que aconteceria
@@ -63,8 +66,9 @@ export default async function handler(req, res) {
   const country = req.headers['x-vercel-ip-country']
   const currency = country === 'BR' ? 'brl' : 'usd'
 
-  if (!Number.isInteger(amountCents) || amountCents < MIN_CHARGE_CENTS[currency]) {
-    return res.status(400).json({ error: 'amount_too_low', minCents: MIN_CHARGE_CENTS[currency] })
+  const minCents = type === 'onetime' ? MIN_ONETIME_CENTS[currency] : MIN_CHARGE_CENTS[currency]
+  if (!Number.isInteger(amountCents) || amountCents < minCents) {
+    return res.status(400).json({ error: 'amount_too_low', minCents })
   }
 
   const { data: existing } = await supabase
