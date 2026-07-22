@@ -149,6 +149,11 @@ export default function UpgradeScreen({ session, subscription }) {
           <p style={{ position: 'relative', ...styles.heroSub }}>{t('billing.heroSub', undefined, lang)}</p>
         </div>
 
+        <div style={styles.missionCard}>
+          <p style={styles.missionTitle}>{t('billing.missionTitle', undefined, lang)}</p>
+          <p style={styles.missionBody}>{t('billing.missionBody', undefined, lang)}</p>
+        </div>
+
         <div style={styles.featureList}>
           {FEATURES.map(f => (
             <div key={f.key} style={styles.featureRow}>
@@ -268,6 +273,9 @@ const styles = {
   hero:        { position: 'relative', overflow: 'hidden', borderRadius: 22, padding: '22px 20px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },
   heroTitle:   { fontSize: 15, fontWeight: 800, color: 'white', marginTop: 4, letterSpacing: '-0.2px' },
+  missionCard: { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 16, padding: 15 },
+  missionTitle:{ fontSize: 12, fontWeight: 800, color: 'var(--bk)', marginBottom: 6 },
+  missionBody: { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.55 },
   heroSub:     { fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.85)', lineHeight: 1.5, maxWidth: 280 },
   featureList: { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: 'var(--shadow-card)' },
   featureRow:  { display: 'flex', alignItems: 'center', gap: 10 },
