@@ -1,9 +1,11 @@
-// Tela de assinatura — chegada tanto pelo bloqueio de Rotina/Comunidade
-// (PremiumRequired em App.jsx) quanto pelo link "Minha assinatura" no
-// Perfil. Preço mostrado já reflete a moeda certa (BRL Brasil, USD resto),
-// mas quem decide de verdade a moeda cobrada é o backend
-// (api/create-checkout-session.js, mesmo header x-vercel-ip-country) — aqui
-// é só pra mostrar o preço certo antes da pessoa clicar.
+// Tela de assinatura — o app inteiro exige assinatura ativa, então essa
+// tela aparece tanto como paywall de tela cheia (PaywallGate em App.jsx,
+// pra quem ainda não assinou) quanto pelo link "Minha assinatura" no
+// Perfil (pra quem já assina, ver/gerenciar o plano). Preço mostrado já
+// reflete a moeda certa (BRL Brasil, USD resto), mas quem decide de
+// verdade a moeda cobrada é o backend (api/create-checkout-session.js,
+// mesmo header x-vercel-ip-country) — aqui é só pra mostrar o preço certo
+// antes da pessoa clicar.
 import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -15,10 +17,10 @@ const PRICES = {
 }
 
 const FEATURES = [
-  { icon: 'ClipboardList', key: 'featureRoutine' },
+  { icon: 'BookOpen', key: 'featureReading' },
+  { icon: 'HandHeart', key: 'featurePrayer' },
+  { icon: 'GraduationCap', key: 'featureStudies' },
   { icon: 'Users', key: 'featureCommunity' },
-  { icon: 'PenLine', key: 'featureReflection' },
-  { icon: 'BarChart3', key: 'featureStats' },
 ]
 
 export default function UpgradeScreen({ session }) {

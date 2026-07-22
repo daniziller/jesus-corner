@@ -22,16 +22,6 @@ export async function getNote(_email, key) {
   return notes[key] ?? ''
 }
 
-// Grátis: até 1 passagem com nota no total (mas essa 1 nota pode ser
-// editada à vontade); Premium: ilimitado. Editar a nota que já existe
-// naquela chave sempre é permitido, mesmo sem ser premium — só criar uma
-// nota numa passagem NOVA quando já tem 1 em outro lugar é que trava.
-export function canSaveNote(notesMap, key, isPremium) {
-  if (isPremium) return true
-  if (key in notesMap) return true
-  return Object.keys(notesMap).length === 0
-}
-
 export function saveNote(_email, key, text) {
   return withRowLock(async () => {
     const notes = await getNotes(_email)

@@ -2887,8 +2887,7 @@ export const PLANS = [
     minutesPerDay: 60,
     modules: ["reading", "prayer", "reflection"],
     icon: "Rocket",
-    avgChapters: 8,
-    premium: true
+    avgChapters: 8
   },
   {
     // Leitura sem meta de tempo — cada sessão em SESSIONS_BY_PLAN.free é

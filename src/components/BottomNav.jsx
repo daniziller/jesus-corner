@@ -7,7 +7,7 @@ import AppIcon from '../icons/AppIcon'
 const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'groups', 'studies', 'stats']
 const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
-export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang, isPremium }) {
+export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang }) {
   return (
     <nav className="bottom-nav" data-tour="nav-tabs">
       {TAB_IDS.map(id => {
@@ -32,11 +32,6 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, dis
             <span className="nav-icon" style={{ position: 'relative' }}>
               <AppIcon name={TAB_ICONS[id]} size={featured ? 26 : 20} color={active ? 'var(--or)' : 'var(--g4)'} />
               {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
-              {id === 'studies' && !isPremium && (
-                <span style={{ position: 'absolute', top: -3, right: -4, width: 13, height: 13, borderRadius: '50%', background: 'var(--grad-vivid)', border: '1.5px solid var(--white, #fff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AppIcon name="Crown" size={8} color="white" />
-                </span>
-              )}
             </span>
             <span className="nav-label">{label}</span>
           </button>

@@ -8,7 +8,7 @@ import { openBillingPortalUrl } from '../billing/subscriptionStore'
 
 const MAX_BIO_LENGTH = 280
 
-export default function ProfileScreen({ session, authUser, isPremium, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
+export default function ProfileScreen({ session, authUser, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(true)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [portalError, setPortalError] = useState('')
@@ -90,10 +90,6 @@ export default function ProfileScreen({ session, authUser, isPremium, onNavigate
   }
 
   async function handleSubscriptionClick() {
-    if (!isPremium) {
-      onNavigate?.('upgrade')
-      return
-    }
     setPortalError('')
     try {
       const url = await openBillingPortalUrl()
@@ -205,7 +201,7 @@ export default function ProfileScreen({ session, authUser, isPremium, onNavigate
           <SettingsLink
             icon="Crown" iconBg="var(--olt)"
             label={t('billing.mySubscriptionLabel', undefined, session.lang)}
-            sub={isPremium ? t('billing.subscriptionActiveSub', undefined, session.lang) : t('billing.subscriptionInactiveSub', undefined, session.lang)}
+            sub={t('billing.subscriptionActiveSub', undefined, session.lang)}
             onPress={handleSubscriptionClick}
           />
           <SettingsToggle

@@ -198,18 +198,14 @@ export default function App() {
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
+  // Não existe mais versão grátis — sem assinatura ativa, PaywallGate (mais
+  // abaixo) substitui o app inteiro por uma tela única de "assine pra
+  // continuar", antes de qualquer outra rota ser montada.
   const isPremium = isPremiumActive(subscription)
-  // Rotina e Comunidade são exclusivas de assinantes; Comunidade ainda soma
-  // a restrição de idade que já existia (16+) — contas sem data de
-  // nascimento (criadas antes desse campo existir) não são restringidas
-  // por idade (ver isAtLeast), só por assinatura.
+  // Restrição de idade (16+) da Comunidade é independente da assinatura —
+  // contas sem data de nascimento (criadas antes desse campo existir) não
+  // são restringidas por idade (ver isAtLeast).
   const meetsMinAge = isAtLeast(authUser?.birthdate, 16)
-  // Rotina (Oração/Leitura) e a aba Comunidade em si voltaram a ser
-  // gratuitas — só a idade mínima trava a aba Comunidade. O que é premium
-  // agora é granular: Grupos/Desafios dentro de Comunidade, Reflexão
-  // guiada, plano Intensivo, estatísticas avançadas, Contexto/Mapa/
-  // Curiosidades e notas em mais de 1 passagem — cada um gatea a si mesmo
-  // onde é usado, em vez de travar a aba inteira aqui.
   const canAccessGroups = meetsMinAge
   const disabledTabs = meetsMinAge ? [] : ['groups']
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
@@ -599,24 +595,33 @@ export default function App() {
 
   const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats)
 
+  // O app inteiro agora exige assinatura ativa — não existe mais versão
+  // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de
+  // sair); nenhuma outra rota é montada, então não precisa de gate
+  // individual em cada tela/recurso (isPremium abaixo é sempre true depois
+  // daqui, mantido só porque telas internas ainda recebem a prop).
+  if (!isPremium) {
+    return <PaywallGate session={session} onLogout={handleLogout} />
+  }
+
   const screens = {
-    home:    <HomeScreen    session={session} isPremium={isPremium} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onSelectPlan={selectPlan} />,
+    home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onSelectPlan={selectPlan} />,
     prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />,
-    reflection: isPremium ? <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} /> : <PremiumRequired lang={session.lang} onNavigate={navigateTo} />,
-    routine: <RoutineScreen session={session} isPremium={isPremium} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} />,
+    reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
+    routine: <RoutineScreen session={session} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
-    journey: <JourneyScreen session={session} authUser={authUser} isPremium={isPremium} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onContinueSession={continueToday} onNavigate={navigateTo} />,
-    groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} isPremium={isPremium} onNavigate={navigateTo} onSocialChange={refreshSocialState} />,
-    studies: isPremium ? <StudiesScreen session={session} authUser={authUser} /> : <PremiumRequired lang={session.lang} onNavigate={navigateTo} />,
-    stats:   <ProgressScreen session={session} blocks={blocks} isPremium={isPremium} onNavigate={navigateTo} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onSelectPlan={selectPlan} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onContinueSession={continueToday} onNavigate={navigateTo} />,
+    groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
+    studies: <StudiesScreen session={session} authUser={authUser} />,
+    stats:   <ProgressScreen session={session} blocks={blocks} />,
     upgrade: <UpgradeScreen session={session} />,
-    profile: <ProfileScreen  session={session} authUser={authUser} isPremium={isPremium} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
+    profile: <ProfileScreen  session={session} authUser={authUser} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
   }
 
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} isPremium={isPremium} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}
@@ -630,7 +635,7 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <1024px */}
-        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} isPremium={isPremium} />
+        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
       </div>
 
       {/* Tutorial de primeiro acesso — position:fixed cobre a tela toda
@@ -664,20 +669,42 @@ function MinAgeRestricted({ lang }) {
 // Mostrada no lugar de Rotina/Comunidade pra quem ainda não é assinante —
 // segunda linha de defesa (mesmo espírito de MinAgeRestricted acima), pro
 // caso de activeTab ficar numa dessas abas por algum outro caminho.
-function PremiumRequired({ lang, onNavigate }) {
+// Tela única mostrada pra quem ainda não tem assinatura ativa — substitui
+// o app-shell inteiro (sem Sidebar/BottomNav, já que não há mais nenhuma
+// outra rota acessível sem assinar). Cabeçalho sempre visível (não usa a
+// classe .app-header, que soma display:none no breakpoint desktop em favor
+// da Sidebar — aqui não existe Sidebar) com logo e um jeito de sair, e o
+// corpo é a própria UpgradeScreen, reaproveitando .app-content/.app-content-inner
+// pro mesmo max-width responsivo já usado no resto do app.
+function PaywallGate({ session, onLogout }) {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
-      <AppIcon name="Crown" size={30} color="var(--g4)" />
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('billing.premiumRequiredTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('billing.premiumRequiredSub', undefined, lang)}</p>
-      <button
-        onClick={() => onNavigate?.('upgrade')}
-        style={{ marginTop: 4, border: 'none', background: 'var(--grad-vivid)', color: 'white', borderRadius: 12, padding: '10px 20px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' }}
-      >
-        {t('billing.premiumRequiredCta', undefined, lang)}
-      </button>
+    <div className="app-shell">
+      <div className="app-main" style={{ width: '100%' }}>
+        <div style={paywallStyles.header}>
+          <div style={paywallStyles.brand}>
+            <img src="/icons/icon-192.png" alt="" style={paywallStyles.logo} />
+            <span style={paywallStyles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+          </div>
+          <button onClick={onLogout} style={paywallStyles.logoutBtn}>
+            {t('profile.logoutLabel', undefined, session.lang)}
+          </button>
+        </div>
+        <div className="app-content">
+          <div className="app-content-inner">
+            <UpgradeScreen session={session} />
+          </div>
+        </div>
+      </div>
     </div>
   )
+}
+
+const paywallStyles = {
+  header:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', flexShrink: 0, background: 'var(--white)', borderBottom: '0.5px solid var(--g1)' },
+  brand:      { display: 'flex', alignItems: 'center', gap: 7 },
+  logo:       { width: 32, height: 32, borderRadius: 8, flexShrink: 0 },
+  brandName:  { fontSize: 14, fontWeight: 900, color: 'var(--bk)', letterSpacing: 0.5 },
+  logoutBtn:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 10, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
 }
 
 // Exibida enquanto verificamos se já existe uma sessão do Supabase e, se

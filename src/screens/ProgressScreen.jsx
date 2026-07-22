@@ -3,9 +3,8 @@ import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
-import PremiumLockCard from '../components/PremiumLockCard'
 
-export default function ProgressScreen({ session, blocks, isPremium, onNavigate }) {
+export default function ProgressScreen({ session, blocks }) {
   const { lang } = session
   const CIRC = 408.41  // 2π×65
   const offset = CIRC - (session.biblePercent / 100) * CIRC
@@ -62,18 +61,8 @@ export default function ProgressScreen({ session, blocks, isPremium, onNavigate 
               </div>
             </div>
 
-            {/* Constância da rotina — dias/mês em que cada passo foi feito.
-                Estatística "avançada" — premium (ver divisão combinada). */}
-            {isPremium ? (
-              <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
-            ) : (
-              <PremiumLockCard
-                lang={lang}
-                onNavigate={onNavigate}
-                title={translate('billing.statsLockTitle', undefined, lang)}
-                sub={translate('billing.statsLockSub', undefined, lang)}
-              />
-            )}
+            {/* Constância da rotina — dias/mês em que cada passo foi feito. */}
+            <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
 
             {/* Nível e XP */}
             <div style={styles.levelCard}>
@@ -122,30 +111,21 @@ export default function ProgressScreen({ session, blocks, isPremium, onNavigate 
               </div>
             </div>
 
-            {/* Conquistas — também "avançado", premium */}
-            {isPremium ? (
-              <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>
-                  {translate('progress.achievements', undefined, lang)} · {session.achievements.filter(a => a.unlocked).length}/{session.achievements.length}
-                </p>
-                <div style={styles.achievementsGrid}>
-                  {session.achievements.map(a => (
-                    <div key={a.id} style={{ ...styles.achievementCard, ...(a.unlocked ? styles.achievementCardUnlocked : {}) }}>
-                      <AppIcon name={a.icon} size={22} color={a.unlocked ? 'var(--or)' : 'var(--g4)'} style={{ opacity: a.unlocked ? 1 : 0.4 }} />
-                      <p style={{ ...styles.achievementTitle, opacity: a.unlocked ? 1 : 0.45 }}>{a.title}</p>
-                      <p style={{ ...styles.achievementDesc, opacity: a.unlocked ? 1 : 0.4 }}>{a.desc}</p>
-                    </div>
-                  ))}
-                </div>
+            {/* Conquistas */}
+            <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>
+                {translate('progress.achievements', undefined, lang)} · {session.achievements.filter(a => a.unlocked).length}/{session.achievements.length}
+              </p>
+              <div style={styles.achievementsGrid}>
+                {session.achievements.map(a => (
+                  <div key={a.id} style={{ ...styles.achievementCard, ...(a.unlocked ? styles.achievementCardUnlocked : {}) }}>
+                    <AppIcon name={a.icon} size={22} color={a.unlocked ? 'var(--or)' : 'var(--g4)'} style={{ opacity: a.unlocked ? 1 : 0.4 }} />
+                    <p style={{ ...styles.achievementTitle, opacity: a.unlocked ? 1 : 0.45 }}>{a.title}</p>
+                    <p style={{ ...styles.achievementDesc, opacity: a.unlocked ? 1 : 0.4 }}>{a.desc}</p>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <PremiumLockCard
-                lang={lang}
-                onNavigate={onNavigate}
-                title={translate('billing.achievementsLockTitle', undefined, lang)}
-                sub={translate('billing.achievementsLockSub', undefined, lang)}
-              />
-            )}
+            </div>
 
             {/* Sessões restantes */}
             <div style={{ background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.2)', borderRadius: 16, padding: 13, textAlign: 'center' }}>
