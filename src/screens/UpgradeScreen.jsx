@@ -262,7 +262,7 @@ export default function UpgradeScreen({ session, subscription }) {
 
         {error && <p style={styles.errorMsg}>{error}</p>}
 
-        <p style={styles.disclaimer}>{t('billing.testModeDisclaimer', undefined, lang)}</p>
+        <p style={styles.disclaimer}>{t('billing.securePaymentDisclaimer', undefined, lang)}</p>
       </div>
     </div>
   )

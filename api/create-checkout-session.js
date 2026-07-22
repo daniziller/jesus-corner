@@ -27,10 +27,18 @@ const MIN_ONETIME_CENTS = { brl: 20000, usd: 20000 }
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
 // Evita criar um Product novo no Stripe a cada checkout (o que aconteceria
 // se usássemos price_data.product_data em vez de price_data.product) ao
-// reaproveitar o Product já ligado ao Price mensal existente.
+// reaproveitar um Product já existente. STRIPE_PRODUCT_ID (direto, sem
+// round-trip à API) é o caminho preferido; na ausência dele, cai pro
+// caminho antigo de derivar o Product a partir do Price mensal legado —
+// mantém ambiente sem STRIPE_PRODUCT_ID configurado (ex: Preview, ainda em
+// modo teste) funcionando sem precisar mexer em nada.
 let cachedProductId = null
 async function getOrFetchProductId() {
   if (cachedProductId) return cachedProductId
+  if (process.env.STRIPE_PRODUCT_ID) {
+    cachedProductId = process.env.STRIPE_PRODUCT_ID
+    return cachedProductId
+  }
   const price = await stripe.prices.retrieve(process.env.STRIPE_PRICE_MONTHLY)
   cachedProductId = price.product
   return cachedProductId
