@@ -20,8 +20,9 @@ const APP_URL = 'https://app.jesuscorner.app'
 // isso) — valores abaixo disso só fazem sentido como R$0 (grátis).
 const MIN_CHARGE_CENTS = { brl: 50, usd: 50 }
 // Contribuição única (vitalício) não aceita R$0 — regra de negócio, mínimo
-// bem mais alto que o piso técnico do Stripe acima.
-const MIN_ONETIME_CENTS = { brl: 20000, usd: 4000 }
+// bem mais alto que o piso técnico do Stripe acima. Mesmo valor numérico
+// pras duas moedas (200), sem conversão de câmbio.
+const MIN_ONETIME_CENTS = { brl: 20000, usd: 20000 }
 
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
 // Evita criar um Product novo no Stripe a cada checkout (o que aconteceria

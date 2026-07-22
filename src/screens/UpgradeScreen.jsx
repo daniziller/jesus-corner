@@ -13,14 +13,16 @@ import AppIcon from '../icons/AppIcon'
 import { startCheckout, activateFreeAccess, openBillingPortalUrl, isPremiumActive } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 
+// Mesmos valores numéricos pras duas moedas (sem conversão de câmbio) —
+// R$5/R$10/R$20/R$30 e $5/$10/$20/$30, etc.
 const PRESETS = {
   brl: { recurring: [0, 5, 10, 20, 30], onetime: [200, 400, 600, 1000] },
-  usd: { recurring: [0, 1, 3, 5, 10], onetime: [40, 75, 150, 300] },
+  usd: { recurring: [0, 5, 10, 20, 30], onetime: [200, 400, 600, 1000] },
 }
 // Mínimo real de cobrança do Stripe (recorrente, valor > 0 — R$0 vira grátis).
 const MIN_MAJOR = { brl: 0.5, usd: 0.5 }
 // Contribuição única não aceita R$0 — regra de negócio, não do Stripe.
-const MIN_ONETIME_MAJOR = { brl: 200, usd: 40 }
+const MIN_ONETIME_MAJOR = { brl: 200, usd: 200 }
 
 const FEATURES = [
   { icon: 'BookOpen', key: 'featureReading' },
