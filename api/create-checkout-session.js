@@ -74,6 +74,7 @@ export default async function handler(req, res) {
       currency,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { metadata: { supabase_user_id: caller.id, plan } },
+      allow_promotion_codes: true,
       success_url: `${APP_URL}/?checkout=success`,
       cancel_url: `${APP_URL}/?checkout=cancel`,
     })
