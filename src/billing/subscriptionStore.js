@@ -14,7 +14,13 @@ export async function getMySubscription() {
 }
 
 export function isPremiumActive(subscription) {
-  return subscription?.status === 'active' || subscription?.status === 'trialing'
+  if (!subscription) return false
+  // Grátis e vitalício não têm ciclo de cobrança — uma vez ativados, ficam
+  // ativos pra sempre (não existe "trialing"/"past_due" pra esses tipos).
+  if (subscription.access_type === 'free' || subscription.access_type === 'lifetime') {
+    return subscription.status === 'active'
+  }
+  return subscription.status === 'active' || subscription.status === 'trialing'
 }
 
 async function authorizedPost(path, body) {
@@ -31,9 +37,16 @@ async function authorizedPost(path, body) {
 
 // Devolve a URL do Stripe Checkout — quem chamar é responsável por
 // redirecionar (window.location.href = url), já que isso sai do domínio do app.
-export async function startCheckout(plan) {
-  const { url } = await authorizedPost('/api/create-checkout-session', { plan })
+// type: 'onetime' (acesso vitalício) ou 'recurring' (contribuição mensal).
+// amountCents sempre > 0 — R$0 não passa por aqui, ver activateFreeAccess.
+export async function startCheckout({ type, amountCents }) {
+  const { url } = await authorizedPost('/api/create-checkout-session', { type, amountCents })
   return url
+}
+
+// Ativa acesso gratuito (R$0) — não envolve o Stripe, não redireciona.
+export async function activateFreeAccess() {
+  return authorizedPost('/api/activate-free-access')
 }
 
 // Devolve a URL do Stripe Billing Portal (cancelar/trocar cartão/ver fatura).

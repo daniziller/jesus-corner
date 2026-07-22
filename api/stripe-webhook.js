@@ -49,10 +49,38 @@ async function upsertFromSubscription(subscription) {
     stripe_subscription_id: subscription.id,
     status: subscription.status,
     plan,
+    access_type: 'recurring',
+    amount_cents: item?.price?.unit_amount ?? null,
+    currency: item?.price?.currency ?? null,
     current_period_end: periodEndSeconds ? new Date(periodEndSeconds * 1000).toISOString() : null,
     updated_at: new Date().toISOString(),
   })
   if (error) console.error('Failed to upsert subscription:', error.message)
+}
+
+// Pagamento único (acesso vitalício) não cria Subscription no Stripe, então
+// não dá pra reaproveitar upsertFromSubscription — grava direto a partir da
+// própria Checkout Session.
+async function upsertFromOneTimeSession(session) {
+  const userId = session.metadata?.supabase_user_id || session.client_reference_id
+  if (!userId) {
+    console.error('Stripe one-time checkout session missing supabase_user_id:', session.id)
+    return
+  }
+
+  const { error } = await supabaseAdmin.from('subscriptions').upsert({
+    user_id: userId,
+    stripe_customer_id: session.customer,
+    stripe_subscription_id: null,
+    status: 'active',
+    plan: 'lifetime',
+    access_type: 'lifetime',
+    amount_cents: session.amount_total,
+    currency: session.currency,
+    current_period_end: null,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) console.error('Failed to upsert lifetime access:', error.message)
 }
 
 export default async function handler(req, res) {
@@ -78,6 +106,8 @@ export default async function handler(req, res) {
         if (session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription)
           await upsertFromSubscription(subscription)
+        } else if (session.mode === 'payment' && session.payment_status === 'paid') {
+          await upsertFromOneTimeSession(session)
         }
         break
       }

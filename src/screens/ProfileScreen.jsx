@@ -5,10 +5,11 @@ import { getMyProfile, updateProfile, uploadAvatar } from '../profile/profileSto
 import { getFriendsCount } from '../friends/friendsStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
 import { openBillingPortalUrl } from '../billing/subscriptionStore'
+import { formatAmount } from '../billing/formatAmount'
 
 const MAX_BIO_LENGTH = 280
 
-export default function ProfileScreen({ session, authUser, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
+export default function ProfileScreen({ session, authUser, subscription, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(true)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [portalError, setPortalError] = useState('')
@@ -90,6 +91,10 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
   }
 
   async function handleSubscriptionClick() {
+    if (subscription?.access_type !== 'recurring') {
+      onNavigate('upgrade')
+      return
+    }
     setPortalError('')
     try {
       const url = await openBillingPortalUrl()
@@ -97,6 +102,15 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
     } catch {
       setPortalError(t('billing.managePortalError', undefined, session.lang))
     }
+  }
+
+  function subscriptionSub() {
+    if (subscription?.access_type === 'free') return t('billing.subscriptionFreeSub', undefined, session.lang)
+    if (subscription?.access_type === 'lifetime') return t('billing.subscriptionLifetimeSub', undefined, session.lang)
+    if (subscription?.access_type === 'recurring' && subscription.amount_cents != null && subscription.currency) {
+      return t('billing.subscriptionRecurringSub', { amount: formatAmount(subscription.amount_cents, subscription.currency) }, session.lang)
+    }
+    return t('billing.subscriptionActiveSub', undefined, session.lang)
   }
 
   const currentLang = LANGUAGES.find(l => l.id === (authUser.language ?? 'pt')) ?? LANGUAGES[0]
@@ -201,7 +215,7 @@ export default function ProfileScreen({ session, authUser, onNavigate, onLogout,
           <SettingsLink
             icon="Crown" iconBg="var(--olt)"
             label={t('billing.mySubscriptionLabel', undefined, session.lang)}
-            sub={t('billing.subscriptionActiveSub', undefined, session.lang)}
+            sub={subscriptionSub()}
             onPress={handleSubscriptionClick}
           />
           <SettingsToggle

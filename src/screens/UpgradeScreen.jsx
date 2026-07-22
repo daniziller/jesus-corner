@@ -1,20 +1,23 @@
-// Tela de assinatura — o app inteiro exige assinatura ativa, então essa
-// tela aparece tanto como paywall de tela cheia (PaywallGate em App.jsx,
-// pra quem ainda não assinou) quanto pelo link "Minha assinatura" no
-// Perfil (pra quem já assina, ver/gerenciar o plano). Preço mostrado já
-// reflete a moeda certa (BRL Brasil, USD resto), mas quem decide de
-// verdade a moeda cobrada é o backend (api/create-checkout-session.js,
-// mesmo header x-vercel-ip-country) — aqui é só pra mostrar o preço certo
-// antes da pessoa clicar.
+// Tela de assinatura — modelo de valor livre: a pessoa escolhe quanto quer
+// contribuir (inclusive R$0, que libera acesso total sem tocar o Stripe —
+// ver activateFreeAccess em ../billing/subscriptionStore) de forma
+// recorrente mensal, ou paga um valor único e ganha acesso vitalício.
+// Aparece tanto como paywall de tela cheia (PaywallGate em App.jsx, pra
+// quem ainda não ativou acesso algum) quanto pelo link "Minha assinatura"
+// no Perfil (pra quem já tem acesso, ver/trocar o valor). Moeda mostrada já
+// reflete BRL/USD certo, mas quem decide de verdade a moeda cobrada é o
+// backend (api/create-checkout-session.js, mesmo header x-vercel-ip-country).
 import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { startCheckout } from '../billing/subscriptionStore'
+import { startCheckout, activateFreeAccess, openBillingPortalUrl, isPremiumActive } from '../billing/subscriptionStore'
+import { formatAmount } from '../billing/formatAmount'
 
-const PRICES = {
-  brl: { monthly: 'R$19,90', annual: 'R$159,90', symbol: 'R$' },
-  usd: { monthly: '$6.99', annual: '$59.99', symbol: '$' },
+const PRESETS = {
+  brl: { recurring: [0, 10, 20, 30, 50], onetime: [0, 50, 100, 200, 400] },
+  usd: { recurring: [0, 3, 5, 10, 15], onetime: [0, 15, 30, 60, 120] },
 }
+const MIN_MAJOR = { brl: 0.5, usd: 0.5 }
 
 const FEATURES = [
   { icon: 'BookOpen', key: 'featureReading' },
@@ -23,10 +26,15 @@ const FEATURES = [
   { icon: 'Users', key: 'featureCommunity' },
 ]
 
-export default function UpgradeScreen({ session }) {
+export default function UpgradeScreen({ session, subscription }) {
   const { lang } = session
   const [currency, setCurrency] = useState('brl')
-  const [loadingPlan, setLoadingPlan] = useState(null)
+  const [mode, setMode] = useState('recurring')
+  const [selectedAmount, setSelectedAmount] = useState(null) // valor em unidade cheia (reais/dólares), null = nada escolhido
+  const [isCustom, setIsCustom] = useState(false)
+  const [customValue, setCustomValue] = useState('')
+  const [changingAmount, setChangingAmount] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -37,19 +45,85 @@ export default function UpgradeScreen({ session }) {
     return () => { cancelled = true }
   }, [])
 
-  async function handleSubscribe(plan) {
-    setLoadingPlan(plan)
+  const isLifetime = subscription?.access_type === 'lifetime' && subscription?.status === 'active'
+  const isRecurringActive = subscription?.access_type === 'recurring' && isPremiumActive(subscription)
+
+  const presets = PRESETS[currency][mode]
+  const minMajor = MIN_MAJOR[currency]
+
+  const amountMajor = isCustom ? (parseFloat(customValue.replace(',', '.')) || 0) : selectedAmount
+  const amountCents = amountMajor != null ? Math.round(amountMajor * 100) : null
+  const belowMinimum = amountCents !== null && amountCents > 0 && amountCents < minMajor * 100
+  const canSubmit = amountCents !== null && !belowMinimum && !submitting
+
+  function switchMode(next) {
+    setMode(next)
+    setSelectedAmount(null)
+    setIsCustom(false)
+    setCustomValue('')
+    setError('')
+  }
+
+  function pickPreset(value) {
+    setIsCustom(false)
+    setSelectedAmount(value)
+    setError('')
+  }
+
+  function pickCustom() {
+    setIsCustom(true)
+    setSelectedAmount(null)
+    setError('')
+  }
+
+  function startChangingAmount() {
+    const currentMajor = (subscription.amount_cents ?? 0) / 100
+    setMode('recurring')
+    if (PRESETS[currency].recurring.includes(currentMajor)) {
+      setIsCustom(false)
+      setSelectedAmount(currentMajor)
+    } else {
+      setIsCustom(true)
+      setCustomValue(String(currentMajor))
+    }
+    setChangingAmount(true)
+  }
+
+  async function handleSubmit() {
+    if (!canSubmit) return
+    setSubmitting(true)
     setError('')
     try {
-      const url = await startCheckout(plan)
-      window.location.href = url
+      if (amountCents === 0) {
+        await activateFreeAccess()
+        window.location.href = '/?checkout=success'
+      } else {
+        const url = await startCheckout({ type: mode === 'recurring' ? 'recurring' : 'onetime', amountCents })
+        window.location.href = url
+      }
     } catch {
-      setError(t('billing.checkoutError', undefined, lang))
-      setLoadingPlan(null)
+      setError(t(amountCents === 0 ? 'billing.activationError' : 'billing.checkoutError', undefined, lang))
+      setSubmitting(false)
     }
   }
 
-  const prices = PRICES[currency]
+  async function handleManagePayment() {
+    setError('')
+    try {
+      const url = await openBillingPortalUrl()
+      window.location.href = url
+    } catch {
+      setError(t('billing.managePortalError', undefined, lang))
+    }
+  }
+
+  const submitLabel = submitting
+    ? t(amountCents === 0 ? 'billing.activating' : 'billing.redirecting', undefined, lang)
+    : amountCents === 0
+      ? t('billing.freeBtn', undefined, lang)
+      : amountCents !== null
+        ? t(mode === 'recurring' ? 'billing.subscribeMonthlyBtn' : 'billing.subscribeOnceBtn', { amount: formatAmount(amountCents, currency) }, lang)
+        : t('billing.subscribeMonthlyBtn', { amount: '—' }, lang)
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
@@ -72,23 +146,100 @@ export default function UpgradeScreen({ session }) {
           ))}
         </div>
 
-        <div style={styles.plans}>
-          <div style={styles.planCard}>
-            <p style={styles.planLabel}>{t('billing.planMonthly', undefined, lang)}</p>
-            <p style={styles.planPrice}>{prices.monthly}<span style={styles.planPeriod}>{t('billing.perMonth', undefined, lang)}</span></p>
-            <button className="btn-primary" disabled={loadingPlan !== null} onClick={() => handleSubscribe('monthly')}>
-              {loadingPlan === 'monthly' ? t('billing.redirecting', undefined, lang) : t('billing.subscribeBtn', undefined, lang)}
-            </button>
+        {isLifetime && (
+          <div style={styles.statusCard}>
+            <AppIcon name="Crown" size={22} color="var(--or)" />
+            <p style={styles.statusTitle}>{t('billing.alreadyLifetimeTitle', undefined, lang)}</p>
+            <p style={styles.statusSub}>{t('billing.alreadyLifetimeSub', undefined, lang)}</p>
           </div>
-          <div style={{ ...styles.planCard, ...styles.planCardFeatured }}>
-            <span style={styles.planBadge}>{t('billing.bestValue', undefined, lang)}</span>
-            <p style={styles.planLabel}>{t('billing.planAnnual', undefined, lang)}</p>
-            <p style={styles.planPrice}>{prices.annual}<span style={styles.planPeriod}>{t('billing.perYear', undefined, lang)}</span></p>
-            <button className="btn-primary" disabled={loadingPlan !== null} onClick={() => handleSubscribe('annual')}>
-              {loadingPlan === 'annual' ? t('billing.redirecting', undefined, lang) : t('billing.subscribeBtn', undefined, lang)}
-            </button>
+        )}
+
+        {isRecurringActive && !changingAmount && (
+          <div style={styles.statusCard}>
+            <p style={styles.statusLabel}>{t('billing.currentContributionTitle', undefined, lang)}</p>
+            <p style={styles.statusAmount}>
+              {subscription.amount_cents != null && subscription.currency
+                ? `${formatAmount(subscription.amount_cents, subscription.currency)}${t('billing.perMonth', undefined, lang)}`
+                : '—'}
+            </p>
+            <div style={styles.statusActions}>
+              <button className="btn-secondary" style={{ width: 'auto', flex: 1 }} onClick={startChangingAmount}>
+                {t('billing.changeAmountBtn', undefined, lang)}
+              </button>
+              <button className="btn-secondary" style={{ width: 'auto', flex: 1 }} onClick={handleManagePayment}>
+                {t('billing.managePaymentBtn', undefined, lang)}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {subscription?.access_type === 'free' && subscription?.status === 'active' && (
+          <div style={styles.statusCard}>
+            <p style={styles.statusTitle}>{t('billing.alreadyFreeTitle', undefined, lang)}</p>
+            <p style={styles.statusSub}>{t('billing.alreadyFreeSub', undefined, lang)}</p>
+          </div>
+        )}
+
+        {!isLifetime && (!isRecurringActive || changingAmount) && (
+          <>
+            <div style={styles.modeToggle}>
+              <button
+                style={{ ...styles.modeBtn, ...(mode === 'recurring' ? styles.modeBtnActive : {}) }}
+                onClick={() => switchMode('recurring')}
+              >
+                {t('billing.modeRecurring', undefined, lang)}
+              </button>
+              <button
+                style={{ ...styles.modeBtn, ...(mode === 'onetime' ? styles.modeBtnActive : {}) }}
+                onClick={() => switchMode('onetime')}
+              >
+                {t('billing.modeOnetime', undefined, lang)}
+              </button>
+            </div>
+            {mode === 'onetime' && <p style={styles.modeNote}>{t('billing.onetimeNote', undefined, lang)}</p>}
+
+            <div style={styles.amountSection}>
+              <p style={styles.amountLabel}>{t('billing.amountLabel', undefined, lang)}</p>
+              <div style={styles.amountGrid}>
+                {presets.map(value => (
+                  <button
+                    key={value}
+                    style={{ ...styles.amountChip, ...(!isCustom && selectedAmount === value ? styles.amountChipActive : {}) }}
+                    onClick={() => pickPreset(value)}
+                  >
+                    {value === 0 ? formatAmount(0, currency) : formatAmount(value * 100, currency)}
+                  </button>
+                ))}
+                <button
+                  style={{ ...styles.amountChip, ...(isCustom ? styles.amountChipActive : {}) }}
+                  onClick={pickCustom}
+                >
+                  {t('billing.customAmountLabel', undefined, lang)}
+                </button>
+              </div>
+              {isCustom && (
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  autoFocus
+                  value={customValue}
+                  onChange={e => setCustomValue(e.target.value)}
+                  placeholder={formatAmount(0, currency)}
+                  style={styles.customInput}
+                />
+              )}
+              {belowMinimum && (
+                <p style={styles.hint}>{t('billing.belowMinimumHint', { min: formatAmount(minMajor * 100, currency) }, lang)}</p>
+              )}
+            </div>
+
+            <button className="btn-primary" disabled={!canSubmit} onClick={handleSubmit}>
+              {submitLabel}
+            </button>
+          </>
+        )}
 
         {error && <p style={styles.errorMsg}>{error}</p>}
 
@@ -108,13 +259,23 @@ const styles = {
   featureRow:  { display: 'flex', alignItems: 'center', gap: 10 },
   featureIcon: { width: 30, height: 30, borderRadius: 9, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   featureText: { fontSize: 12.5, fontWeight: 600, color: 'var(--bk)' },
-  plans:       { display: 'flex', gap: 10 },
-  planCard:    { flex: 1, background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: '16px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, boxShadow: 'var(--shadow-card)', position: 'relative' },
-  planCardFeatured: { border: '1.5px solid var(--or)', boxShadow: 'var(--shadow-premium)' },
-  planBadge:   { position: 'absolute', top: -10, background: 'var(--grad-vivid)', color: 'white', fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', padding: '3px 9px', borderRadius: 20, boxShadow: '0 3px 8px rgba(249,115,22,.35)' },
-  planLabel:   { fontSize: 12, fontWeight: 700, color: 'var(--g5)', marginTop: 4 },
-  planPrice:   { fontSize: 19, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' },
-  planPeriod:  { fontSize: 10.5, fontWeight: 600, color: 'var(--g4)', marginLeft: 3 },
+  statusCard:  { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center', boxShadow: 'var(--shadow-card)' },
+  statusLabel: { fontSize: 11, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3 },
+  statusAmount:{ fontSize: 22, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' },
+  statusTitle: { fontSize: 13.5, fontWeight: 800, color: 'var(--bk)' },
+  statusSub:   { fontSize: 12, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, maxWidth: 280 },
+  statusActions:{ display: 'flex', gap: 8, width: '100%', marginTop: 8 },
+  modeToggle:  { display: 'flex', gap: 6, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 4 },
+  modeBtn:     { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
+  modeBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  modeNote:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: -6 },
+  amountSection:{ display: 'flex', flexDirection: 'column', gap: 8 },
+  amountLabel: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  amountGrid:  { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
+  amountChip:  { textAlign: 'center', padding: '11px 6px', fontSize: 12.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  amountChipActive: { color: 'white', background: 'var(--grad-primary)', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
+  customInput: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 700, color: 'var(--bk)', outline: 'none', background: 'white' },
+  hint:        { fontSize: 11, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   errorMsg:    { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   disclaimer:  { fontSize: 10, fontWeight: 500, color: 'var(--g4)', textAlign: 'center', lineHeight: 1.5 },
 }

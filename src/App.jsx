@@ -601,7 +601,7 @@ export default function App() {
   // individual em cada tela/recurso (isPremium abaixo é sempre true depois
   // daqui, mantido só porque telas internas ainda recebem a prop).
   if (!isPremium) {
-    return <PaywallGate session={session} onLogout={handleLogout} />
+    return <PaywallGate session={session} subscription={subscription} onLogout={handleLogout} />
   }
 
   const screens = {
@@ -614,8 +614,8 @@ export default function App() {
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} />,
-    upgrade: <UpgradeScreen session={session} />,
-    profile: <ProfileScreen  session={session} authUser={authUser} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
+    upgrade: <UpgradeScreen session={session} subscription={subscription} />,
+    profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
   }
 
   return (
@@ -676,7 +676,7 @@ function MinAgeRestricted({ lang }) {
 // da Sidebar — aqui não existe Sidebar) com logo e um jeito de sair, e o
 // corpo é a própria UpgradeScreen, reaproveitando .app-content/.app-content-inner
 // pro mesmo max-width responsivo já usado no resto do app.
-function PaywallGate({ session, onLogout }) {
+function PaywallGate({ session, subscription, onLogout }) {
   return (
     <div className="app-shell">
       <div className="app-main" style={{ width: '100%' }}>
@@ -691,7 +691,7 @@ function PaywallGate({ session, onLogout }) {
         </div>
         <div className="app-content">
           <div className="app-content-inner">
-            <UpgradeScreen session={session} />
+            <UpgradeScreen session={session} subscription={subscription} />
           </div>
         </div>
       </div>
