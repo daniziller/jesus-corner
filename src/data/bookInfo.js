@@ -145,7 +145,15 @@ export const BOOK_INFO = {
   },
 
   'Josué': {
-    context: 'Narra a conquista de Canaã pelos israelitas sob o comando de Josué, sucessor de Moisés, incluindo a queda de Jericó e a divisão da terra entre as tribos.',
+    contextOverview: 'Sexto livro da Bíblia e primeiro dos Livros Históricos, Josué narra a conquista e ocupação de Canaã sob a liderança de Josué, sucessor de Moisés. O livro se divide em três partes: a conquista militar da terra (capítulos 1–12), a divisão da terra entre as doze tribos (13–21) e um encerramento com a despedida e morte de Josué (22–24). O tema central é o cumprimento da promessa feita séculos antes a Abraão — Deus entrega a terra, mas exige fidelidade contínua do povo.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'A Preparação e os Espias', text: 'Deus comissiona Josué após a morte de Moisés, ordenando que seja "forte e corajoso". Josué envia dois espiões a Jericó, onde são escondidos pela prostituta Raabe, que declara fé no Deus de Israel em troca de proteção para sua família.' },
+      { chStart: 3, chEnd: 5, title: 'A Travessia do Jordão', text: 'As águas do Jordão param milagrosamente quando os sacerdotes carregando a Arca entram no rio, permitindo a travessia em terreno seco. Israel monta doze pedras memoriais, circuncida a nova geração e celebra a primeira Páscoa em Canaã antes de Josué encontrar o "Comandante do Exército do Senhor".' },
+      { chStart: 6, chEnd: 8, title: 'Jericó e Ai', text: 'Jericó cai depois de sete dias marchando ao redor da cidade, seus muros desabando ao som das trombetas. O pecado secreto de Acã, que rouba despojos proibidos, causa uma derrota humilhante em Ai — corrigida somente depois que o pecado é exposto e julgado.' },
+      { chStart: 9, chEnd: 12, title: 'A Conquista de Canaã', text: 'Os gibeonitas enganam Israel para conseguir um tratado de paz. Numa batalha decisiva, o sol "para" no céu a pedido de Josué, e as campanhas militares se estendem pelo sul e pelo norte de Canaã, resultando na derrota de trinta e um reis.' },
+      { chStart: 13, chEnd: 21, title: 'A Divisão da Terra', text: 'A terra conquistada é dividida por sorteio entre as doze tribos, com Levi recebendo cidades espalhadas em vez de um território próprio. São designadas seis cidades de refúgio, onde quem matasse alguém sem intenção podia se proteger da vingança.' },
+      { chStart: 22, chEnd: 24, title: 'A Despedida de Josué', text: 'Um altar erguido pelas tribos do lado leste do Jordão quase causa uma guerra civil, até se esclarecer que era apenas um memorial. No discurso final de sua vida, Josué desafia o povo: "Escolhei hoje a quem sirvais", e a aliança com Deus é renovada em Siquém antes de sua morte.' },
+    ],
     location: { name: 'Canaã (atual Israel/Palestina)', icon: "Map", description: 'A ação se concentra na travessia do Jordão e na conquista de cidades como Jericó e Ai.' },
     curiosities: [
       'A queda dos muros de Jericó, após sete dias de marcha, é um dos episódios mais conhecidos do livro.',
@@ -161,7 +169,15 @@ export const BOOK_INFO = {
     ],
   },
   'Juízes': {
-    context: 'Cobre um período turbulento em que Israel, sem um rei, é liderado por "juízes" — líderes militares e espirituais como Débora, Gideão e Sansão.',
+    contextOverview: 'Sétimo livro da Bíblia, Juízes cobre o período turbulento entre a conquista de Canaã e o início da monarquia, quando Israel — sem um rei e sem liderança central — era governado por "juízes", líderes militares e espirituais levantados por Deus em momentos de crise. O livro segue um ciclo repetido: o povo se afasta de Deus e adora ídolos, é oprimido por um povo vizinho, clama a Deus, e um juiz surge para libertá-lo — até o ciclo recomeçar. O refrão "cada um fazia o que era certo aos seus próprios olhos" resume o clima moral da época.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'A Conquista Incompleta', text: 'Depois da morte de Josué, as tribos de Israel falham em expulsar completamente os cananeus de suas terras, deixando-os viver ao lado do povo. Essa convivência abre caminho para a idolatria que caracteriza todo o livro, e o ciclo de pecado, opressão, clamor e libertação é apresentado pela primeira vez.' },
+      { chStart: 3, chEnd: 5, title: 'Os Primeiros Juízes e Débora', text: 'Otoniel e Eúde (que mata o rei opressor Eglom com um punhal escondido) libertam Israel de invasores. A profetisa Débora, junto ao general Baraque, lidera a derrota do exército cananeu de Sísera, morto por Jael dentro de sua própria tenda.' },
+      { chStart: 6, chEnd: 8, title: 'Gideão', text: 'Chamado por um anjo enquanto se escondia dos midianitas, Gideão pede sinais (o velocino de lã) antes de aceitar a missão. Deus reduz seu exército de milhares para apenas 300 homens, garantindo que a vitória fosse claramente atribuída a Ele, não à força militar.' },
+      { chStart: 9, chEnd: 12, title: 'Abimeleque e Jefté', text: 'Abimeleque, filho de Gideão, assassina seus próprios irmãos para se tornar rei numa usurpação sangrenta que termina mal. Jefté derrota os amonitas, mas faz um voto precipitado que custa caro à sua própria filha.' },
+      { chStart: 13, chEnd: 16, title: 'Sansão', text: 'Consagrado nazireu desde o nascimento, Sansão recebe força sobrenatural associada a seus cabelos nunca cortados. Suas escolhas impulsivas e seu envolvimento com Dalila levam à perda de sua força e de sua visão, mas ele derrota os filisteus uma última vez ao morrer derrubando o templo de Dagom.' },
+      { chStart: 17, chEnd: 21, title: 'O Caos Final', text: 'Sem as histórias de um juiz central, os últimos capítulos mostram o colapso moral de Israel: a idolatria doméstica de Mica, um crime brutal em Gibeá e a guerra civil quase genocida contra a tribo de Benjamim. O livro termina com o refrão que resume tudo: não havia rei em Israel, e cada um fazia o que lhe parecia certo.' },
+    ],
     location: { name: 'Canaã, sob domínio tribal', icon: "Swords", description: 'As histórias se espalham por diferentes regiões de Israel, cada uma sob a ameaça de um povo vizinho diferente.' },
     curiosities: [
       'A frase "cada um fazia o que era certo aos seus próprios olhos" resume o clima moral do livro.',
@@ -177,7 +193,11 @@ export const BOOK_INFO = {
     ],
   },
   'Rute': {
-    context: 'Uma história pessoal ambientada na época dos juízes: a moabita Rute permanece fiel à sua sogra Noemi e encontra um novo lar em Belém.',
+    contextOverview: 'Ambientado "nos dias em que os juízes governavam", Rute é uma história pessoal e intimista em contraste com o caos nacional do livro anterior. Em apenas quatro capítulos, narra como a moabita Rute permanece fiel à sua sogra israelita Noemi, encontra proteção no parente-resgatador Boaz, e se torna, através do casamento e do nascimento de Obede, bisavó do rei Davi — ligando uma estrangeira de fé simples à linhagem real de Israel.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Rute Escolhe Noemi', text: 'Uma fome leva a família de Noemi para Moabe, onde seus filhos se casam com mulheres locais antes de morrerem, junto ao marido de Noemi. De volta a Belém, Rute recusa deixar a sogra, declarando sua lealdade ("aonde fores irei"), e começa a colher grãos nos campos de Boaz, parente de Noemi.' },
+      { chStart: 3, chEnd: 4, title: 'O Resgate de Boaz', text: 'Seguindo o conselho de Noemi, Rute pede a Boaz que exerça seu direito de "resgatador" — um parente próximo com responsabilidade de cuidar da família. Boaz resolve um impedimento legal, casa-se com Rute, e o filho do casal, Obede, se torna avô de Jessé e bisavô do rei Davi.' },
+    ],
     location: { name: 'Moabe e Belém', icon: "Wheat", description: 'A história começa em Moabe (atual Jordânia) e se desenrola nos campos de cevada perto de Belém.' },
     curiosities: [
       'É um dos dois livros da Bíblia com nome de mulher (o outro é Ester).',
@@ -193,7 +213,17 @@ export const BOOK_INFO = {
     ],
   },
   '1 Samuel': {
-    context: 'Conta a transição de Israel de uma confederação de tribos para uma monarquia, com as histórias do profeta Samuel, do rei Saul e da ascensão de Davi.',
+    contextOverview: '1 Samuel narra a transição de Israel de uma confederação de tribos, governada por juízes, para uma monarquia unificada. O livro acompanha três figuras centrais em sucessão: Samuel, o último juiz e primeiro grande profeta depois de Moisés; Saul, o primeiro rei de Israel, cuja desobediência custa seu reinado; e Davi, o jovem pastor ungido em segredo que passa a segunda metade do livro fugindo da perseguição cada vez mais paranoica de Saul.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Samuel Nasce e é Chamado', text: 'Ana, estéril, ora fervorosamente por um filho e dedica Samuel ao serviço do Senhor assim que ele é desmamado. Enquanto os filhos corruptos do sacerdote Eli desonram o culto no santuário de Silo, Deus chama o menino Samuel diretamente, anunciando julgamento sobre a casa de Eli.' },
+      { chStart: 4, chEnd: 7, title: 'A Arca é Capturada', text: 'Israel é derrotado pelos filisteus, que capturam a Arca da Aliança — mas a presença da Arca causa tanto desastre entre eles que a devolvem sete meses depois. Sob a liderança espiritual de Samuel, o povo se arrepende de sua idolatria e vence os filisteus em batalha.' },
+      { chStart: 8, chEnd: 10, title: 'Israel Pede um Rei', text: 'Já idoso, Samuel vê o povo pedir um rei "como as outras nações têm", uma rejeição implícita ao governo direto de Deus. Apesar do aviso sobre os custos de ter um rei, Saul, um jovem alto e de aparência impressionante, é escolhido por sorte divina e ungido em segredo.' },
+      { chStart: 11, chEnd: 15, title: 'O Reinado de Saul', text: 'Saul começa bem, libertando a cidade de Jabes-Gileade de um cerco amonita, mas comete dois erros graves: oferece um sacrifício que não lhe cabia fazer, e desobedece a ordem de Deus de destruir totalmente os amalequitas, poupando o rei e os melhores animais. Samuel anuncia que Deus rejeitou Saul como rei.' },
+      { chStart: 16, chEnd: 17, title: 'A Unção de Davi', text: 'Deus envia Samuel à casa de Jessé, em Belém, onde o mais novo dos filhos, Davi, um pastor de ovelhas, é ungido em segredo como o próximo rei. Pouco depois, o jovem Davi enfrenta e derrota o gigante filisteu Golias com uma funda e uma pedra, tornando-se conhecido em todo Israel.' },
+      { chStart: 18, chEnd: 20, title: 'Saul Persegue Davi', text: 'O sucesso de Davi desperta o ciúme cada vez mais violento de Saul, que tenta matá-lo várias vezes. Uma profunda amizade se forma entre Davi e Jônatas, filho de Saul, que ajuda Davi a escapar mesmo sabendo que isso significava abrir mão do próprio trono.' },
+      { chStart: 21, chEnd: 26, title: 'Davi Foge no Deserto', text: 'Foragido, Davi reúne um grupo de homens leais enquanto vive nas cavernas e desertos da Judeia. Por duas vezes tem a chance de matar Saul, que está à sua mercê, mas recusa levantar a mão contra "o ungido do Senhor".' },
+      { chStart: 27, chEnd: 31, title: 'A Morte de Saul', text: 'Davi se refugia entre os próprios filisteus para escapar de Saul, enquanto o rei, desesperado antes de uma batalha decisiva, consulta ilegalmente uma médium em En-Dor. O livro termina com a derrota de Israel no monte Gilboa e a morte de Saul e de seus filhos, incluindo Jônatas.' },
+    ],
     location: { name: 'Reino de Israel (Central)', icon: "Crown", description: 'As histórias se passam em cidades como Silo, Belém e nas colinas onde Davi foge de Saul.' },
     curiosities: [
       'A história de Davi e Golias, o gigante filisteu, está no capítulo 17.',
@@ -209,7 +239,15 @@ export const BOOK_INFO = {
     ],
   },
   '2 Samuel': {
-    context: 'Narra o reinado de Davi como rei de Israel: suas vitórias militares, a expansão do reino, e também seus erros graves, como o caso com Bate-Seba.',
+    contextOverview: 'Continuação direta de 1 Samuel (originalmente um único livro na Bíblia hebraica), 2 Samuel narra o reinado de Davi como rei de Israel — sua ascensão, a conquista de Jerusalém, a promessa de uma dinastia eterna, mas também sua queda moral com Bate-Seba e as dolorosas consequências familiares que se seguem, incluindo a rebelião de seu próprio filho Absalão. É um retrato honesto de um rei segundo o coração de Deus que, mesmo assim, comete pecados graves.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Davi Torna-se Rei', text: 'Ao saber da morte de Saul e Jônatas, Davi compõe um lamento sincero por eles, sem alegria pela própria ascensão. Ele é ungido rei de Judá, enquanto o restante de Israel permanece leal a um filho de Saul por alguns anos, numa guerra civil que só termina com a morte deste último.' },
+      { chStart: 5, chEnd: 8, title: 'Davi Rei de Todo Israel', text: 'Davi é finalmente ungido rei de todo o Israel unido e conquista Jerusalém, fazendo dela sua capital. Ele traz a Arca da Aliança para a cidade e recebe de Deus a promessa da "aliança davídica": que sua dinastia reinaria para sempre.' },
+      { chStart: 9, chEnd: 12, title: 'O Pecado de Davi', text: 'Davi mostra bondade a Mefibosete, filho aleijado de Jônatas, mas sua história vira quando ele vê Bate-Seba, comete adultério com ela e manda matar seu marido Urias para encobrir o crime. O profeta Natã confronta Davi com uma parábola, levando-o a um arrependimento genuíno e doloroso.' },
+      { chStart: 13, chEnd: 18, title: 'A Rebelião de Absalão', text: 'As consequências do pecado de Davi se espalham por sua família: seu filho Amnom estupra a irmã Tamar, e o irmão dela, Absalão, o mata em vingança. Absalão depois se rebela contra o próprio pai, tomando o trono temporariamente antes de morrer em batalha, para a dor profunda de Davi.' },
+      { chStart: 19, chEnd: 21, title: 'Reconciliação e Consequências', text: 'Davi retorna ao trono depois da morte de Absalão, mas enfrenta uma nova revolta liderada por Seba. Uma fome de três anos é atribuída a um pecado antigo de Saul contra os gibeonitas, resolvida com a entrega de sete descendentes de Saul.' },
+      { chStart: 22, chEnd: 24, title: 'Últimas Palavras de Davi', text: 'O livro termina com um cântico de louvor de Davi, uma lista de seus guerreiros mais valentes, e o relato de um censo pecaminoso que Davi ordena, trazendo uma praga sobre o povo — interrompida quando Davi compra um local que se tornaria o futuro terreno do Templo.' },
+    ],
     location: { name: 'Jerusalém e reino de Israel', icon: "Castle", description: 'Davi conquista Jerusalém e faz dela a capital política e religiosa do reino unido.' },
     curiosities: [
       'É neste livro que Jerusalém se torna, pela primeira vez, capital de Israel.',
@@ -225,7 +263,16 @@ export const BOOK_INFO = {
     ],
   },
   '1 Reis': {
-    context: 'Começa com o reinado de Salomão e a construção do primeiro Templo, e termina com a divisão do reino em Israel (norte) e Judá (sul).',
+    contextOverview: '1 Reis começa com o auge da monarquia unida sob Salomão — sua sabedoria, riqueza e a construção do primeiro Templo em Jerusalém — mas termina com a fratura do reino em dois, Israel ao norte e Judá ao sul, depois da morte de Salomão. A segunda metade do livro alterna entre os reis dos dois reinos, com destaque para o confronto entre o profeta Elias e a idolatria promovida pelo rei Acabe e sua esposa Jezabel.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Salomão Torna-se Rei', text: 'Já idoso, Davi enfrenta uma disputa pela sucessão quando seu filho Adonias tenta se autoproclamar rei. Davi garante que Salomão o suceda, e, após a morte do pai, Salomão consolida seu reinado eliminando ameaças à sua autoridade.' },
+      { chStart: 3, chEnd: 4, title: 'A Sabedoria de Salomão', text: 'Quando Deus oferece a Salomão qualquer coisa que pedisse, ele escolhe sabedoria para governar, em vez de riqueza ou longevidade — um pedido que agrada tanto a Deus que Ele concede também as outras duas. Sua sabedoria fica famosa através do julgamento entre duas mulheres que disputam um bebê.' },
+      { chStart: 5, chEnd: 8, title: 'A Construção do Templo', text: 'Com materiais e mão de obra fornecidos pelo rei Hirão de Tiro, Salomão constrói o Templo de Jerusalém ao longo de sete anos, seguindo especificações detalhadas. Na dedicação, a glória de Deus enche o local, e Salomão faz uma oração pública pedindo que Deus ouça as orações do povo voltadas para aquele lugar.' },
+      { chStart: 9, chEnd: 11, title: 'O Declínio de Salomão', text: 'A fama de Salomão atrai a visita da rainha de Sabá, impressionada com sua sabedoria e riqueza. Mas, ao longo do tempo, suas centenas de esposas estrangeiras desviam seu coração para a idolatria, e Deus anuncia que o reino seria arrancado de seus descendentes.' },
+      { chStart: 12, chEnd: 14, title: 'A Divisão do Reino', text: 'O filho de Salomão, Roboão, responde com dureza a um pedido de alívio de impostos, e dez tribos se rebelam, formando o reino do norte (Israel) sob Jeroboão. Temendo perder o povo para Jerusalém, Jeroboão institui um culto idólatra alternativo que marcaria o reino do norte por gerações.' },
+      { chStart: 15, chEnd: 19, title: 'Acabe e Elias', text: 'Uma sucessão de reis maus governa Israel, culminando em Acabe, cujo casamento com a fenícia Jezabel introduz o culto a Baal em larga escala. O profeta Elias confronta 450 profetas de Baal num duelo dramático no monte Carmelo, provando publicamente que o Senhor é Deus.' },
+      { chStart: 20, chEnd: 22, title: 'Os Últimos Anos de Acabe', text: 'Acabe vence guerras contra a Síria, mas comete uma grave injustiça ao mandar matar Nabote para tomar sua vinha, sendo confrontado por Elias. O livro termina com a morte de Acabe em batalha, cumprindo a profecia de Micaías que ele havia tentado silenciar.' },
+    ],
     location: { name: 'Jerusalém e reino dividido', icon: "Landmark", description: 'O centro é o Templo em Jerusalém; depois da divisão, a narrativa alterna entre os dois reinos.' },
     curiosities: [
       'O Templo de Salomão, descrito em detalhe, levou sete anos para ser construído.',
@@ -241,7 +288,16 @@ export const BOOK_INFO = {
     ],
   },
   '2 Reis': {
-    context: 'Continua a história dos reinos de Israel e Judá até suas quedas: Israel é destruído pela Assíria e, mais tarde, Judá é levado ao cativeiro babilônico.',
+    contextOverview: 'Continuação direta de 1 Reis, 2 Reis acompanha a história cada vez mais sombria dos reinos de Israel e Judá até suas respectivas quedas: Israel é destruído pela Assíria em 722 a.C., e Judá, apesar de reformas religiosas pontuais, cai para a Babilônia em 586 a.C., com a destruição do Templo e o exílio do povo. Ao longo do livro, os profetas Elias e Eliseu se destacam como vozes de Deus em meio à decadência espiritual das nações.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Elias e Eliseu', text: 'Elias é arrebatado ao céu num redemoinho, diante dos olhos de seu discípulo Eliseu, que recebe uma porção dobrada de seu espírito e poder. Eliseu começa seu próprio ministério com uma série de milagres, incluindo purificar águas envenenadas e multiplicar o azeite de uma viúva.' },
+      { chStart: 5, chEnd: 8, title: 'Os Milagres de Eliseu', text: 'Eliseu cura da lepra o general sírio Naamã, ao mandá-lo se lavar sete vezes no Jordão, e faz um machado de ferro perdido flutuar na água. Durante um cerco brutal a Samaria, Eliseu profetiza um alívio repentino que se cumpre da forma mais inesperada.' },
+      { chStart: 9, chEnd: 13, title: 'Jeú e a Purga de Baal', text: 'Ungido rei por ordem de Eliseu, Jeú executa um violento expurgo da casa de Acabe, incluindo a morte de Jezabel, e elimina o culto a Baal em Israel, embora mantenha a idolatria instituída por Jeroboão.' },
+      { chStart: 14, chEnd: 17, title: 'A Queda de Israel', text: 'Uma sucessão rápida de reis maus governa o reino do norte, marcada por instabilidade política e infidelidade religiosa contínua. Em 722 a.C., a Assíria conquista Samaria e leva as dez tribos do norte ao exílio, encerrando definitivamente o reino de Israel.' },
+      { chStart: 18, chEnd: 20, title: 'Ezequias e a Ameaça Assíria', text: 'O rei Ezequias promove uma reforma religiosa em Judá e enfrenta o cerco do poderoso exército assírio de Senaqueribe, que é milagrosamente derrotado depois da oração de Ezequias. Mais tarde, o rei adoece gravemente e recebe quinze anos extras de vida em resposta à oração.' },
+      { chStart: 21, chEnd: 23, title: 'Manassés e Josias', text: 'Manassés reina por décadas promovendo idolatria extrema, incluindo sacrifícios humanos, revertendo as reformas de seu pai. Seu neto Josias, ainda menino, encontra o "Livro da Lei" perdido no Templo e lidera a maior reforma religiosa da história de Judá.' },
+      { chStart: 24, chEnd: 25, title: 'A Queda de Jerusalém', text: 'Depois da morte de Josias, uma sucessão de reis fracos governa enquanto o Império Babilônico cresce em poder. Nabucodonosor cerca e destrói Jerusalém e o Templo em 586 a.C., levando a maior parte do povo para o exílio na Babilônia — o ponto mais baixo da história do Antigo Testamento.' },
+    ],
     location: { name: 'Israel, Judá, Assíria e Babilônia', icon: "Building", description: 'A narrativa termina com a queda de Jerusalém e o exílio do povo para a Babilônia.' },
     curiosities: [
       'Registra a queda de Samaria (reino do norte) em 722 a.C., pelos assírios.',
@@ -257,7 +313,15 @@ export const BOOK_INFO = {
     ],
   },
   '1 Crônicas': {
-    context: 'Revisa a história de Israel desde Adão até o reinado de Davi, com foco especial em genealogias, no Templo e na organização do culto.',
+    contextOverview: 'Escrito bem depois de Samuel e Reis, provavelmente após o retorno do exílio babilônico, 1 Crônicas revisa a história de Israel desde Adão até o reinado de Davi, com um propósito diferente dos livros anteriores: reconstruir a identidade de um povo que acabara de voltar de décadas de exílio, lembrando-o de suas raízes, de seu culto e da promessa feita à casa de Davi. O livro dá pouquíssima atenção aos fracassos de Davi, focando em seu legado como o rei que preparou tudo para o Templo.',
+    contextSections: [
+      { chStart: 1, chEnd: 9, title: 'Genealogias', text: 'Os primeiros nove capítulos são quase inteiramente listas genealógicas, traçando linhagens desde Adão até as famílias que retornaram do exílio. Mais do que uma lista árida, essas genealogias afirmam a continuidade do povo de Deus através de gerações de crise.' },
+      { chStart: 10, chEnd: 12, title: 'A Ascensão de Davi', text: 'O livro passa rapidamente pela morte de Saul para chegar a Davi, que é ungido rei por todo o Israel. Uma lista detalha seus guerreiros mais valentes, destacando o apoio militar amplo que sustentou seu reinado desde o início.' },
+      { chStart: 13, chEnd: 16, title: 'A Arca Volta a Jerusalém', text: 'Uma primeira tentativa de trazer a Arca da Aliança para Jerusalém termina em tragédia, quando Uzá é morto por tocá-la de forma indevida. Numa segunda tentativa, seguindo as instruções corretas, a Arca chega à cidade em meio a grande celebração e um cântico de louvor.' },
+      { chStart: 17, chEnd: 17, title: 'A Aliança Davídica', text: 'Quando Davi deseja construir uma casa para Deus, o profeta Natã transmite uma promessa ainda maior: Deus construiria uma "casa" para Davi — uma dinastia que reinaria para sempre, cumprida definitivamente em Jesus.' },
+      { chStart: 18, chEnd: 21, title: 'Guerras e o Censo', text: 'Davi expande e consolida o reino através de uma série de vitórias militares. Um censo populacional realizado por orgulho traz o julgamento de Deus sobre a nação, interrompido quando Davi compra a eira de Ornã — o futuro local do Templo.' },
+      { chStart: 22, chEnd: 29, title: 'Preparativos para o Templo', text: 'Sabendo que não construiria o Templo pessoalmente, Davi passa seus últimos anos reunindo materiais, organizando os levitas, músicos e sacerdotes, e instruindo publicamente Salomão e o povo antes de entregar o reino ao filho.' },
+    ],
     location: { name: 'Jerusalém', icon: "Scroll", description: 'Escrito depois do exílio babilônico, olha para trás, para a Jerusalém do tempo de Davi, como referência de identidade.' },
     curiosities: [
       'Os primeiros nove capítulos são quase inteiramente listas genealógicas.',
@@ -273,7 +337,17 @@ export const BOOK_INFO = {
     ],
   },
   '2 Crônicas': {
-    context: 'Continua de 1 Crônicas: cobre o reinado de Salomão, a construção do Templo, e a história do reino de Judá até o exílio babilônico.',
+    contextOverview: 'Continuação direta de 1 Crônicas, 2 Crônicas cobre o reinado de Salomão e a construção do Templo, e depois segue exclusivamente a história do reino de Judá (ignorando o reino do norte) até o exílio babilônico. O livro dá atenção especial às reformas religiosas de reis fiéis como Asa, Josafá, Ezequias e Josias, reforçando um padrão claro: fidelidade a Deus traz bênção, e afastamento traz consequência. Termina, de forma esperançosa, com o decreto do rei persa Ciro autorizando o retorno do povo a Jerusalém.',
+    contextSections: [
+      { chStart: 1, chEnd: 9, title: 'O Reinado de Salomão', text: 'Salomão pede sabedoria a Deus, constrói e dedica o Templo com uma oração pública, e alcança um nível de riqueza e fama que atrai até a rainha de Sabá — um retrato do auge da monarquia unida de Israel.' },
+      { chStart: 10, chEnd: 12, title: 'A Divisão do Reino', text: 'Roboão perde as dez tribos do norte com sua resposta dura ao povo, e o livro passa a acompanhar somente a linhagem davídica em Judá a partir daqui, ignorando os reis do reino separado de Israel.' },
+      { chStart: 13, chEnd: 16, title: 'Primeiros Reis de Judá', text: 'O rei Asa promove reformas religiosas importantes, removendo ídolos e renovando o altar do Senhor, e confia em Deus para vencer um exército etíope muito maior — embora, mais tarde, busque aliança com a Síria em vez de confiar novamente em Deus.' },
+      { chStart: 17, chEnd: 20, title: 'Josafá', text: 'Josafá fortalece o reino espiritualmente, enviando líderes para ensinar a Lei pelo território, mas comete o erro de se aliar por casamento à família de Acabe. Diante de uma invasão de Moabe e Amom, ele responde com oração e louvor, e vence sem precisar lutar.' },
+      { chStart: 21, chEnd: 24, title: 'Reis Instáveis', text: 'Jorão mata os próprios irmãos ao subir ao trono; sua esposa Atalia depois usurpa o trono e mata quase toda a família real, sendo derrubada anos depois em favor do jovem Joás, que reina bem enquanto guiado pelo sacerdote Joiada.' },
+      { chStart: 25, chEnd: 28, title: 'Declínio', text: 'Amazias começa bem mas se torna orgulhoso; Uzias é ferido com lepra por invadir funções sacerdotais que não lhe cabiam; e Acaz mergulha Judá numa idolatria profunda, chegando a fechar as portas do Templo.' },
+      { chStart: 29, chEnd: 32, title: 'Ezequias', text: 'Ezequias reabre e purifica o Templo, restaura a celebração da Páscoa e confia em Deus diante do cerco esmagador do exército assírio de Senaqueribe, que é derrotado sem que Judá precisasse lutar.' },
+      { chStart: 33, chEnd: 36, title: 'O Fim do Reino de Judá', text: 'Manassés reina décadas na idolatria mas se arrepende no fim da vida; seu neto Josias lidera a maior reforma religiosa da história do reino; e, depois de reis fracos sucessivos, Jerusalém cai para a Babilônia — encerrado com o decreto do rei Ciro permitindo o retorno do povo à terra.' },
+    ],
     location: { name: 'Reino de Judá', icon: "Landmark", description: 'Foca exclusivamente no reino do sul, Judá, e na dinastia de Davi, ignorando o reino do norte.' },
     curiosities: [
       'É o último livro na ordem da Bíblia hebraica (Tanakh), embora não seja o último cronologicamente.',
@@ -289,7 +363,13 @@ export const BOOK_INFO = {
     ],
   },
   'Esdras': {
-    context: 'Relata o retorno dos judeus do exílio babilônico a Jerusalém e a reconstrução do Templo, liderada por Zorobabel e depois pelo sacerdote Esdras.',
+    contextOverview: 'Esdras relata o retorno dos judeus do exílio babilônico a Jerusalém, já sob domínio do Império Persa, e a reconstrução do Templo — o cumprimento da promessa de que o exílio duraria setenta anos. O livro se divide em dois momentos separados por cerca de sessenta anos: o primeiro retorno, liderado por Zorobabel, focado em reconstruir o Templo (capítulos 1–6); e uma segunda leva, décadas depois, liderada pelo próprio Esdras, sacerdote e escriba especialista na Lei de Moisés (7–10).',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'O Decreto de Ciro', text: 'O rei persa Ciro, o Grande, emite um decreto permitindo que os judeus exilados retornem a Jerusalém e reconstruam o Templo. Uma longa lista registra os quase 50 mil que fazem a jornada de volta, liderados por Zorobabel.' },
+      { chStart: 3, chEnd: 6, title: 'A Reconstrução do Templo', text: 'O altar é reconstruído primeiro, e o alicerce do novo Templo é lançado em meio a lágrimas de alegria e de tristeza — os mais velhos se lembravam da glória do Templo de Salomão. Após anos de oposição de povos vizinhos que paralisam a obra, o Templo é finalmente concluído e dedicado.' },
+      { chStart: 7, chEnd: 8, title: 'Esdras Chega a Jerusalém', text: 'Décadas depois, Esdras lidera uma segunda leva de retorno, trazendo consigo ofertas valiosas para o Templo e uma missão de ensinar a Lei de Moisés ao povo que já vivia na terra.' },
+      { chStart: 9, chEnd: 10, title: 'A Reforma de Esdras', text: 'Ao chegar, Esdras descobre que muitos israelitas, incluindo líderes, haviam se casado com mulheres de povos idólatras vizinhos, arriscando repetir os erros que levaram ao exílio. Profundamente abalado, ele lidera uma reforma dolorosa de arrependimento coletivo.' },
+    ],
     location: { name: 'Babilônia e Jerusalém', icon: "Footprints", description: 'Acompanha duas levas de retorno da Babilônia até Jerusalém, já sob o domínio do Império Persa.' },
     curiosities: [
       'O retorno foi possível graças a um decreto do rei persa Ciro, o Grande.',
@@ -305,7 +385,14 @@ export const BOOK_INFO = {
     ],
   },
   'Neemias': {
-    context: 'Neemias, copeiro do rei persa, obtém permissão para voltar a Jerusalém e liderar a reconstrução dos muros da cidade, apesar da forte oposição.',
+    contextOverview: 'Contemporâneo de Esdras, Neemias era copeiro pessoal do rei persa Artaxerxes — um cargo de confiança — quando recebe a notícia de que os muros de Jerusalém ainda estavam em ruínas, décadas depois do retorno do exílio. O livro narra sua missão de liderar a reconstrução das muralhas apesar de forte oposição externa, seguida por uma renovação espiritual do povo através da leitura pública da Lei e de reformas sociais e religiosas.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'O Chamado de Neemias', text: 'Ao ouvir sobre a situação de Jerusalém, Neemias chora, jejua e ora por dias antes de pedir permissão ao rei para viajar e reconstruir a cidade. Ao chegar, ele inspeciona os muros destruídos à noite, em segredo, antes de revelar seu plano ao povo.' },
+      { chStart: 3, chEnd: 4, title: 'A Reconstrução Começa', text: 'O trabalho é dividido entre famílias e grupos, cada um responsável por uma seção do muro. Sambalate e Tobias, líderes vizinhos hostis, zombam e depois ameaçam atacar, levando os trabalhadores a construir com uma mão na obra e a outra segurando uma arma.' },
+      { chStart: 5, chEnd: 6, title: 'Desafios Internos e Externos', text: 'Neemias precisa confrontar uma injustiça social entre o próprio povo, onde os mais ricos cobravam juros abusivos dos mais pobres. Apesar de sabotagens, ameaças e um plano de assassinato, o muro é concluído em apenas 52 dias.' },
+      { chStart: 7, chEnd: 10, title: 'Renovação da Aliança', text: 'Um censo confirma a população da cidade recém-fortificada, e Esdras lê publicamente a Lei de Moisés para todo o povo, que chora ao compreendê-la e depois celebra a Festa dos Tabernáculos. O povo confessa seus pecados coletivamente e assina um compromisso escrito de fidelidade à aliança.' },
+      { chStart: 11, chEnd: 13, title: 'Organização Final', text: 'Jerusalém é repovoada, e o muro é dedicado numa grande celebração com música e ação de graças. Depois de uma ausência temporária, Neemias retorna para corrigir abusos que haviam voltado a surgir, incluindo casamentos mistos e a profanação do sábado.' },
+    ],
     location: { name: 'Jerusalém', icon: "Construction", description: 'A ação se concentra na reconstrução das muralhas de Jerusalém, concluída em apenas 52 dias.' },
     curiosities: [
       'Os muros de Jerusalém foram reconstruídos em apenas 52 dias, segundo o texto.',
@@ -321,7 +408,13 @@ export const BOOK_INFO = {
     ],
   },
   'Ester': {
-    context: 'Conta a história de Ester, uma jovem judia que se torna rainha da Pérsia e arrisca a vida para salvar seu povo de um plano de extermínio.',
+    contextOverview: 'Ambientado na corte do Império Persa, décadas depois do exílio babilônico, Ester conta a história de uma jovem judia que se torna rainha e arrisca a própria vida para salvar seu povo de um plano de extermínio arquitetado pelo oficial Hamã. É um dos dois livros da Bíblia com nome de mulher (o outro é Rute) e o único que nunca menciona o nome de Deus diretamente — Sua presença é vista nos "acasos" e reviravoltas que conduzem toda a trama.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Ester Torna-se Rainha', text: 'A rainha Vasti é destituída por desobedecer ao rei Xerxes, abrindo caminho para uma busca por sua substituta. Ester, uma jovem judia órfã criada pelo primo Mardoqueu, é escolhida como a nova rainha, escondendo sua identidade judaica por instrução dele.' },
+      { chStart: 3, chEnd: 4, title: 'O Plano de Hamã', text: 'Ofendido porque Mardoqueu se recusa a se curvar diante dele, o oficial Hamã convence o rei a assinar um decreto de extermínio de todos os judeus do império. Mardoqueu apela a Ester para intervir, dizendo que talvez ela tenha chegado à posição de rainha "para um momento como este".' },
+      { chStart: 5, chEnd: 7, title: 'A Coragem de Ester', text: 'Arriscando a própria vida ao se aproximar do rei sem ser chamada, Ester convida o rei e Hamã para dois banquetes privados. No segundo banquete, ela revela o plano de Hamã e sua própria identidade judaica, e Hamã acaba sendo enforcado na forca que havia preparado para Mardoqueu.' },
+      { chStart: 8, chEnd: 10, title: 'A Salvação do Povo', text: 'Como a lei persa não podia ser revogada, um novo decreto é emitido permitindo que os judeus se defendam de seus atacantes no dia marcado. A vitória do povo dá origem à festa judaica de Purim, celebrada até hoje em memória do livramento.' },
+    ],
     location: { name: 'Susã, capital da Pérsia', icon: "Crown", description: 'Toda a história se passa na corte real persa, na cidade de Susã (atual Irã).' },
     curiosities: [
       'É o único livro da Bíblia que nunca menciona o nome de Deus diretamente.',

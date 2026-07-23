@@ -145,7 +145,15 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Josué': {
-    context: 'Recounts the Israelites\' conquest of Canaan under Joshua, Moses\' successor, including the fall of Jericho and the division of the land among the tribes.',
+    contextOverview: 'The sixth book of the Bible and the first of the Historical Books, Joshua recounts the conquest and settlement of Canaan under the leadership of Joshua, Moses\' successor. The book falls into three parts: the military conquest of the land (chapters 1–12), the division of the land among the twelve tribes (13–21), and a closing section with Joshua\'s farewell and death (22–24). Its central theme is the fulfillment of the promise made centuries earlier to Abraham — God delivers the land, but demands ongoing faithfulness from the people.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Preparation and the Spies', text: 'God commissions Joshua after Moses\' death, commanding him to be "strong and courageous". Joshua sends two spies to Jericho, where they are hidden by the prostitute Rahab, who declares faith in the God of Israel in exchange for protection for her family.' },
+      { chStart: 3, chEnd: 5, title: 'Crossing the Jordan', text: 'The waters of the Jordan miraculously stop when the priests carrying the Ark step into the river, allowing the people to cross on dry ground. Israel sets up twelve memorial stones, circumcises the new generation, and celebrates the first Passover in Canaan before Joshua encounters the "Commander of the Lord\'s Army".' },
+      { chStart: 6, chEnd: 8, title: 'Jericho and Ai', text: 'Jericho falls after seven days of marching around the city, its walls collapsing at the sound of trumpets. Achan\'s hidden sin of taking forbidden plunder causes a humiliating defeat at Ai — corrected only after the sin is exposed and judged.' },
+      { chStart: 9, chEnd: 12, title: 'The Conquest of Canaan', text: 'The Gibeonites trick Israel into a peace treaty. In a decisive battle, the sun "stands still" in the sky at Joshua\'s request, and military campaigns sweep through the south and north of Canaan, resulting in the defeat of thirty-one kings.' },
+      { chStart: 13, chEnd: 21, title: 'Dividing the Land', text: 'The conquered land is divided by lot among the twelve tribes, with Levi receiving scattered towns instead of its own territory. Six cities of refuge are designated, where someone who killed another person unintentionally could be protected from revenge.' },
+      { chStart: 22, chEnd: 24, title: 'Joshua\'s Farewell', text: 'An altar built by the tribes on the east side of the Jordan nearly sparks a civil war, until it becomes clear it was only meant as a memorial. In the final speech of his life, Joshua challenges the people: "Choose this day whom you will serve", and the covenant with God is renewed at Shechem before his death.' },
+    ],
     location: { name: 'Canaan (modern-day Israel/Palestine)', icon: "Map", description: 'The action centers on crossing the Jordan and conquering cities like Jericho and Ai.' },
     curiosities: [
       'The fall of Jericho\'s walls, after seven days of marching, is one of the book\'s best-known episodes.',
@@ -161,7 +169,15 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Juízes': {
-    context: 'Covers a turbulent period when Israel, without a king, is led by "judges" — military and spiritual leaders like Deborah, Gideon, and Samson.',
+    contextOverview: 'The seventh book of the Bible, Judges covers the turbulent period between the conquest of Canaan and the start of the monarchy, when Israel — without a king or central leadership — was governed by "judges", military and spiritual leaders raised up by God in moments of crisis. The book follows a repeated cycle: the people turn away from God to worship idols, are oppressed by a neighboring people, cry out to God, and a judge arises to deliver them — until the cycle begins again. The refrain "everyone did what was right in their own eyes" sums up the moral climate of the era.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Incomplete Conquest', text: 'After Joshua\'s death, the tribes of Israel fail to fully drive out the Canaanites from their lands, leaving them to live alongside the people. This coexistence opens the door to the idolatry that marks the whole book, and the cycle of sin, oppression, crying out, and deliverance is introduced for the first time.' },
+      { chStart: 3, chEnd: 5, title: 'The Early Judges and Deborah', text: 'Othniel and Ehud (who kills the oppressive king Eglon with a hidden dagger) deliver Israel from invaders. The prophetess Deborah, alongside the general Barak, leads the defeat of the Canaanite army of Sisera, who is killed by Jael inside her own tent.' },
+      { chStart: 6, chEnd: 8, title: 'Gideon', text: 'Called by an angel while hiding from the Midianites, Gideon asks for signs (the fleece of wool) before accepting the mission. God reduces his army from thousands to just 300 men, making sure the victory could clearly be credited to Him, not military strength.' },
+      { chStart: 9, chEnd: 12, title: 'Abimelech and Jephthah', text: 'Abimelech, Gideon\'s son, murders his own brothers to become king in a bloody power grab that ends badly. Jephthah defeats the Ammonites but makes a rash vow that costs his own daughter dearly.' },
+      { chStart: 13, chEnd: 16, title: 'Samson', text: 'Consecrated as a Nazirite from birth, Samson receives supernatural strength tied to his uncut hair. His impulsive choices and involvement with Delilah lead to the loss of his strength and his sight, but he defeats the Philistines one last time as he dies pulling down the temple of Dagon.' },
+      { chStart: 17, chEnd: 21, title: 'The Final Chaos', text: 'With no central judge\'s story left to tell, the closing chapters show Israel\'s moral collapse: Micah\'s household idolatry, a brutal crime at Gibeah, and the near-genocidal civil war against the tribe of Benjamin. The book ends with the refrain that sums it all up: there was no king in Israel, and everyone did what seemed right to them.' },
+    ],
     location: { name: 'Canaan, under tribal rule', icon: "Swords", description: 'The stories spread across different regions of Israel, each under the threat of a different neighboring people.' },
     curiosities: [
       'The phrase "everyone did what was right in their own eyes" sums up the book\'s moral climate.',
@@ -177,7 +193,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Rute': {
-    context: 'A personal story set in the time of the judges: the Moabite Ruth stays faithful to her mother-in-law Naomi and finds a new home in Bethlehem.',
+    contextOverview: 'Set "in the days when the judges ruled", Ruth is a personal, intimate story that contrasts sharply with the national chaos of the previous book. In just four chapters, it tells how the Moabite Ruth stays faithful to her Israelite mother-in-law Naomi, finds protection in the kinsman-redeemer Boaz, and becomes, through marriage and the birth of Obed, King David\'s great-grandmother — linking a foreigner of simple faith to Israel\'s royal line.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Ruth Chooses Naomi', text: 'A famine drives Naomi\'s family to Moab, where her sons marry local women before all the men die, including Naomi\'s husband. Back in Bethlehem, Ruth refuses to leave her mother-in-law, declaring her loyalty ("where you go I will go"), and begins gleaning grain in the fields of Boaz, a relative of Naomi.' },
+      { chStart: 3, chEnd: 4, title: 'Boaz\'s Redemption', text: 'Following Naomi\'s advice, Ruth asks Boaz to exercise his right as "redeemer" — a close relative with a responsibility to care for the family. Boaz resolves a legal obstacle, marries Ruth, and the couple\'s son, Obed, becomes the grandfather of Jesse and great-grandfather of King David.' },
+    ],
     location: { name: 'Moab and Bethlehem', icon: "Wheat", description: 'The story begins in Moab (modern-day Jordan) and unfolds in the barley fields near Bethlehem.' },
     curiosities: [
       'It\'s one of only two books of the Bible named after a woman (the other is Esther).',
@@ -193,7 +213,17 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 Samuel': {
-    context: 'Tells of Israel\'s transition from a confederation of tribes into a monarchy, through the stories of the prophet Samuel, King Saul, and David\'s rise.',
+    contextOverview: '1 Samuel narrates Israel\'s transition from a tribal confederation, ruled by judges, into a unified monarchy. The book follows three central figures in succession: Samuel, the last judge and first great prophet since Moses; Saul, Israel\'s first king, whose disobedience costs him his reign; and David, the young shepherd anointed in secret who spends the second half of the book fleeing Saul\'s increasingly paranoid persecution.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Samuel Is Born and Called', text: 'Hannah, who is barren, prays fervently for a son and dedicates Samuel to the Lord\'s service as soon as he is weaned. While the priest Eli\'s corrupt sons dishonor worship at the Shiloh sanctuary, God calls the boy Samuel directly, announcing judgment on Eli\'s house.' },
+      { chStart: 4, chEnd: 7, title: 'The Ark Is Captured', text: 'Israel is defeated by the Philistines, who capture the Ark of the Covenant — but the Ark\'s presence causes such disaster among them that they return it seven months later. Under Samuel\'s spiritual leadership, the people repent of their idolatry and defeat the Philistines in battle.' },
+      { chStart: 8, chEnd: 10, title: 'Israel Asks for a King', text: 'Now old, Samuel watches the people demand a king "such as all the other nations have", an implicit rejection of God\'s direct rule. Despite a warning about the cost of having a king, Saul, a tall and striking young man, is chosen by divine lot and anointed in secret.' },
+      { chStart: 11, chEnd: 15, title: 'Saul\'s Reign', text: 'Saul begins well, freeing the city of Jabesh-Gilead from an Ammonite siege, but makes two serious mistakes: he offers a sacrifice that wasn\'t his to make, and disobeys the command to fully destroy the Amalekites, sparing their king and the best animals. Samuel announces that God has rejected Saul as king.' },
+      { chStart: 16, chEnd: 17, title: 'David Is Anointed', text: 'God sends Samuel to Jesse\'s house in Bethlehem, where the youngest son, David, a shepherd boy, is anointed in secret as the next king. Soon after, young David faces and defeats the Philistine giant Goliath with a sling and a stone, becoming known throughout Israel.' },
+      { chStart: 18, chEnd: 20, title: 'Saul Pursues David', text: 'David\'s success stirs up Saul\'s increasingly violent jealousy, and he tries to kill David several times. A deep friendship forms between David and Jonathan, Saul\'s son, who helps David escape even knowing it meant giving up his own claim to the throne.' },
+      { chStart: 21, chEnd: 26, title: 'David Flees in the Wilderness', text: 'On the run, David gathers a band of loyal men while living in the caves and deserts of Judea. Twice he has the chance to kill Saul, who is at his mercy, but refuses to raise a hand against "the Lord\'s anointed".' },
+      { chStart: 27, chEnd: 31, title: 'Saul\'s Death', text: 'David takes refuge among the Philistines themselves to escape Saul, while the king, desperate before a decisive battle, illegally consults a medium at Endor. The book ends with Israel\'s defeat on Mount Gilboa and the death of Saul and his sons, including Jonathan.' },
+    ],
     location: { name: 'Kingdom of Israel (Central)', icon: "Crown", description: 'The stories take place in cities like Shiloh, Bethlehem, and the hills where David flees from Saul.' },
     curiosities: [
       'The story of David and Goliath, the Philistine giant, is in chapter 17.',
@@ -209,7 +239,15 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 Samuel': {
-    context: 'Narrates David\'s reign as king of Israel: his military victories, the kingdom\'s expansion, and also his serious failures, like the affair with Bathsheba.',
+    contextOverview: 'A direct continuation of 1 Samuel (originally a single book in the Hebrew Bible), 2 Samuel narrates David\'s reign as king of Israel — his rise, the conquest of Jerusalem, the promise of an eternal dynasty, but also his moral fall with Bathsheba and the painful family consequences that follow, including the rebellion of his own son Absalom. It is an honest portrait of a king after God\'s own heart who, even so, commits grave sins.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'David Becomes King', text: 'On hearing of the deaths of Saul and Jonathan, David composes a sincere lament for them, with no joy over his own rise. He is anointed king over Judah, while the rest of Israel remains loyal to one of Saul\'s sons for a few years, in a civil war that only ends with that son\'s death.' },
+      { chStart: 5, chEnd: 8, title: 'David, King of All Israel', text: 'David is finally anointed king over a united Israel and conquers Jerusalem, making it his capital. He brings the Ark of the Covenant into the city and receives from God the promise of the "Davidic covenant": that his dynasty would reign forever.' },
+      { chStart: 9, chEnd: 12, title: 'David\'s Sin', text: 'David shows kindness to Mephibosheth, Jonathan\'s crippled son, but his story turns when he sees Bathsheba, commits adultery with her, and has her husband Uriah killed to cover up the crime. The prophet Nathan confronts David with a parable, leading him to genuine, painful repentance.' },
+      { chStart: 13, chEnd: 18, title: 'Absalom\'s Rebellion', text: 'The consequences of David\'s sin ripple through his family: his son Amnon rapes his sister Tamar, and her brother Absalom kills him in revenge. Absalom later rebels against his own father, seizing the throne temporarily before dying in battle, to David\'s deep grief.' },
+      { chStart: 19, chEnd: 21, title: 'Reconciliation and Consequences', text: 'David returns to the throne after Absalom\'s death, but faces a new revolt led by Sheba. A three-year famine is traced back to an old sin of Saul\'s against the Gibeonites, resolved by handing over seven of Saul\'s descendants.' },
+      { chStart: 22, chEnd: 24, title: 'David\'s Last Words', text: 'The book closes with a song of praise from David, a list of his mightiest warriors, and the account of a sinful census David orders, bringing a plague on the people — stopped when David buys a site that would become the future location of the Temple.' },
+    ],
     location: { name: 'Jerusalem and the kingdom of Israel', icon: "Castle", description: 'David conquers Jerusalem and makes it the political and religious capital of the united kingdom.' },
     curiosities: [
       'This is the book where Jerusalem becomes, for the first time, Israel\'s capital.',
@@ -225,7 +263,16 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 Reis': {
-    context: 'Begins with Solomon\'s reign and the building of the first Temple, and ends with the kingdom split into Israel (north) and Judah (south).',
+    contextOverview: '1 Kings opens at the height of the united monarchy under Solomon — his wisdom, wealth, and the building of the first Temple in Jerusalem — but ends with the kingdom fracturing into two after Solomon\'s death, Israel to the north and Judah to the south. The book\'s second half alternates between the kings of the two kingdoms, highlighting the clash between the prophet Elijah and the idolatry promoted by King Ahab and his wife Jezebel.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Solomon Becomes King', text: 'Now elderly, David faces a succession struggle when his son Adonijah tries to proclaim himself king. David makes sure Solomon succeeds him, and after his father\'s death, Solomon secures his reign by removing threats to his authority.' },
+      { chStart: 3, chEnd: 4, title: 'Solomon\'s Wisdom', text: 'When God offers Solomon anything he wishes for, he chooses wisdom to govern rather than wealth or long life — a request so pleasing to God that He grants the other two as well. His wisdom becomes famous through his judgment between two women disputing a baby.' },
+      { chStart: 5, chEnd: 8, title: 'Building the Temple', text: 'With materials and labor supplied by King Hiram of Tyre, Solomon builds the Temple in Jerusalem over seven years, following detailed specifications. At its dedication, God\'s glory fills the place, and Solomon offers a public prayer asking God to hear the prayers of the people directed toward that site.' },
+      { chStart: 9, chEnd: 11, title: 'Solomon\'s Decline', text: 'Solomon\'s fame draws the visit of the Queen of Sheba, impressed by his wisdom and wealth. But over time, his hundreds of foreign wives turn his heart toward idolatry, and God announces that the kingdom would be torn from his descendants.' },
+      { chStart: 12, chEnd: 14, title: 'The Kingdom Divides', text: 'Solomon\'s son Rehoboam responds harshly to a request for tax relief, and ten tribes rebel, forming the northern kingdom (Israel) under Jeroboam. Fearing he would lose the people to Jerusalem, Jeroboam sets up an alternative idolatrous worship system that would mark the northern kingdom for generations.' },
+      { chStart: 15, chEnd: 19, title: 'Ahab and Elijah', text: 'A succession of wicked kings rules Israel, culminating in Ahab, whose marriage to the Phoenician Jezebel introduces large-scale worship of Baal. The prophet Elijah confronts 450 prophets of Baal in a dramatic showdown on Mount Carmel, publicly proving that the Lord is God.' },
+      { chStart: 20, chEnd: 22, title: 'Ahab\'s Final Years', text: 'Ahab wins wars against Syria but commits a grave injustice by having Naboth killed to seize his vineyard, and is confronted by Elijah. The book ends with Ahab\'s death in battle, fulfilling the prophecy of Micaiah, whom he had tried to silence.' },
+    ],
     location: { name: 'Jerusalem and the divided kingdom', icon: "Landmark", description: 'The center is the Temple in Jerusalem; after the split, the narrative alternates between the two kingdoms.' },
     curiosities: [
       'Solomon\'s Temple, described in detail, took seven years to build.',
@@ -241,7 +288,16 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 Reis': {
-    context: 'Continues the story of the kingdoms of Israel and Judah until their falls: Israel is destroyed by Assyria and, later, Judah is taken into Babylonian captivity.',
+    contextOverview: 'A direct continuation of 1 Kings, 2 Kings follows the increasingly grim history of the kingdoms of Israel and Judah until their respective falls: Israel is destroyed by Assyria in 722 BC, and Judah, despite occasional religious reforms, falls to Babylon in 586 BC, with the destruction of the Temple and the exile of the people. Throughout the book, the prophets Elijah and Elisha stand out as voices of God amid the nations\' spiritual decline.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Elijah and Elisha', text: 'Elijah is taken up to heaven in a whirlwind, before the eyes of his disciple Elisha, who receives a double portion of his spirit and power. Elisha begins his own ministry with a series of miracles, including purifying poisoned water and multiplying a widow\'s oil.' },
+      { chStart: 5, chEnd: 8, title: 'Elisha\'s Miracles', text: 'Elisha heals the Syrian general Naaman of leprosy by having him wash seven times in the Jordan, and makes a lost iron axhead float on water. During a brutal siege of Samaria, Elisha prophesies a sudden relief that comes true in the most unexpected way.' },
+      { chStart: 9, chEnd: 13, title: 'Jehu and the Purge of Baal', text: 'Anointed king at Elisha\'s order, Jehu carries out a violent purge of Ahab\'s house, including Jezebel\'s death, and eliminates the worship of Baal in Israel, though he keeps the idolatry set up by Jeroboam.' },
+      { chStart: 14, chEnd: 17, title: 'The Fall of Israel', text: 'A rapid succession of wicked kings rules the northern kingdom, marked by political instability and continued religious unfaithfulness. In 722 BC, Assyria conquers Samaria and takes the ten northern tribes into exile, permanently ending the kingdom of Israel.' },
+      { chStart: 18, chEnd: 20, title: 'Hezekiah and the Assyrian Threat', text: 'King Hezekiah leads a religious reform in Judah and faces a siege by the powerful Assyrian army of Sennacherib, which is miraculously defeated after Hezekiah\'s prayer. Later, the king falls gravely ill and receives fifteen extra years of life in answer to prayer.' },
+      { chStart: 21, chEnd: 23, title: 'Manasseh and Josiah', text: 'Manasseh reigns for decades promoting extreme idolatry, including human sacrifice, undoing his father\'s reforms. His grandson Josiah, still a boy, finds the lost "Book of the Law" in the Temple and leads the greatest religious reform in Judah\'s history.' },
+      { chStart: 24, chEnd: 25, title: 'The Fall of Jerusalem', text: 'After Josiah\'s death, a succession of weak kings rules while the Babylonian Empire grows in power. Nebuchadnezzar besieges and destroys Jerusalem and the Temple in 586 BC, taking most of the people into exile in Babylon — the lowest point in the Old Testament\'s history.' },
+    ],
     location: { name: 'Israel, Judah, Assyria, and Babylon', icon: "Building", description: 'The narrative ends with the fall of Jerusalem and the people\'s exile to Babylon.' },
     curiosities: [
       'Records the fall of Samaria (northern kingdom) in 722 BC, to the Assyrians.',
@@ -257,7 +313,15 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 Crônicas': {
-    context: 'Reviews Israel\'s history from Adam to David\'s reign, with special focus on genealogies, the Temple, and the organization of worship.',
+    contextOverview: 'Written well after Samuel and Kings, likely after the return from Babylonian exile, 1 Chronicles reviews Israel\'s history from Adam to David\'s reign for a different purpose than the earlier books: rebuilding the identity of a people who had just returned from decades of exile, reminding them of their roots, their worship, and the promise made to David\'s house. The book gives almost no attention to David\'s failures, focusing instead on his legacy as the king who prepared everything for the Temple.',
+    contextSections: [
+      { chStart: 1, chEnd: 9, title: 'Genealogies', text: 'The first nine chapters are almost entirely genealogical lists, tracing lineages from Adam down to the families that returned from exile. Far from a dry list, these genealogies affirm the continuity of God\'s people through generations of crisis.' },
+      { chStart: 10, chEnd: 12, title: 'David\'s Rise', text: 'The book moves quickly past Saul\'s death to reach David, who is anointed king by all Israel. A detailed list names his mightiest warriors, highlighting the broad military support that sustained his reign from the start.' },
+      { chStart: 13, chEnd: 16, title: 'The Ark Returns to Jerusalem', text: 'A first attempt to bring the Ark of the Covenant into Jerusalem ends in tragedy, when Uzzah is struck down for touching it improperly. On a second attempt, following the correct instructions, the Ark arrives in the city amid great celebration and a song of praise.' },
+      { chStart: 17, chEnd: 17, title: 'The Davidic Covenant', text: 'When David wishes to build a house for God, the prophet Nathan delivers an even greater promise: God would build a "house" for David — a dynasty that would reign forever, ultimately fulfilled in Jesus.' },
+      { chStart: 18, chEnd: 21, title: 'Wars and the Census', text: 'David expands and secures the kingdom through a series of military victories. A population census taken out of pride brings God\'s judgment on the nation, halted when David buys Ornan\'s threshing floor — the future site of the Temple.' },
+      { chStart: 22, chEnd: 29, title: 'Preparing for the Temple', text: 'Knowing he would not build the Temple himself, David spends his final years gathering materials, organizing the Levites, musicians, and priests, and publicly instructing Solomon and the people before handing over the kingdom to his son.' },
+    ],
     location: { name: 'Jerusalem', icon: "Scroll", description: 'Written after the Babylonian exile, it looks back at the Jerusalem of David\'s time as a reference point for identity.' },
     curiosities: [
       'The first nine chapters are almost entirely genealogical lists.',
@@ -273,7 +337,17 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 Crônicas': {
-    context: 'Continues from 1 Chronicles: covers Solomon\'s reign, the building of the Temple, and the history of the kingdom of Judah until the Babylonian exile.',
+    contextOverview: 'A direct continuation of 1 Chronicles, 2 Chronicles covers Solomon\'s reign and the building of the Temple, then follows exclusively the history of the kingdom of Judah (ignoring the northern kingdom) until the Babylonian exile. The book gives special attention to the religious reforms of faithful kings like Asa, Jehoshaphat, Hezekiah, and Josiah, reinforcing a clear pattern: faithfulness to God brings blessing, and turning away brings consequence. It ends, hopefully, with the decree of the Persian king Cyrus authorizing the people\'s return to Jerusalem.',
+    contextSections: [
+      { chStart: 1, chEnd: 9, title: 'Solomon\'s Reign', text: 'Solomon asks God for wisdom, builds and dedicates the Temple with a public prayer, and reaches a level of wealth and fame that draws even the Queen of Sheba — a portrait of the united monarchy\'s golden age.' },
+      { chStart: 10, chEnd: 12, title: 'The Kingdom Divides', text: 'Rehoboam loses the ten northern tribes with his harsh response to the people, and from here the book follows only the Davidic line in Judah, ignoring the kings of the separated kingdom of Israel.' },
+      { chStart: 13, chEnd: 16, title: 'Early Kings of Judah', text: 'King Asa carries out important religious reforms, removing idols and renewing the Lord\'s altar, and trusts God to defeat a much larger Cushite army — though later he seeks an alliance with Syria instead of trusting God again.' },
+      { chStart: 17, chEnd: 20, title: 'Jehoshaphat', text: 'Jehoshaphat strengthens the kingdom spiritually, sending leaders to teach the Law throughout the land, but makes the mistake of allying by marriage with Ahab\'s family. Facing an invasion by Moab and Ammon, he responds with prayer and worship, and wins without having to fight.' },
+      { chStart: 21, chEnd: 24, title: 'Unstable Kings', text: 'Jehoram kills his own brothers on taking the throne; his wife Athaliah later usurps it and kills nearly the entire royal family, before being overthrown years later in favor of the young Joash, who reigns well while guided by the priest Jehoiada.' },
+      { chStart: 25, chEnd: 28, title: 'Decline', text: 'Amaziah starts well but grows proud; Uzziah is struck with leprosy for taking on priestly duties that weren\'t his; and Ahaz plunges Judah into deep idolatry, even shutting the doors of the Temple.' },
+      { chStart: 29, chEnd: 32, title: 'Hezekiah', text: 'Hezekiah reopens and purifies the Temple, restores the celebration of Passover, and trusts God in the face of the overwhelming siege by Sennacherib\'s Assyrian army, which is defeated without Judah having to fight.' },
+      { chStart: 33, chEnd: 36, title: 'The End of the Kingdom of Judah', text: 'Manasseh reigns for decades in idolatry but repents late in life; his grandson Josiah leads the greatest religious reform in the kingdom\'s history; and, after a succession of weak kings, Jerusalem falls to Babylon — closing with Cyrus\'s decree allowing the people to return to the land.' },
+    ],
     location: { name: 'Kingdom of Judah', icon: "Landmark", description: 'Focuses exclusively on the southern kingdom, Judah, and David\'s dynasty, ignoring the northern kingdom.' },
     curiosities: [
       'It\'s the last book in the order of the Hebrew Bible (Tanakh), though not the last chronologically.',
@@ -289,7 +363,13 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Esdras': {
-    context: 'Tells of the Jews\' return from Babylonian exile to Jerusalem and the rebuilding of the Temple, led by Zerubbabel and then by the priest Ezra.',
+    contextOverview: 'Ezra tells of the Jews\' return from Babylonian exile to Jerusalem, now under Persian rule, and the rebuilding of the Temple — the fulfillment of the promise that the exile would last seventy years. The book falls into two periods separated by about sixty years: the first return, led by Zerubbabel, focused on rebuilding the Temple (chapters 1–6); and a second wave, decades later, led by Ezra himself, a priest and scribe expert in the Law of Moses (7–10).',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Cyrus\'s Decree', text: 'The Persian king Cyrus the Great issues a decree allowing the exiled Jews to return to Jerusalem and rebuild the Temple. A long list records the nearly 50,000 who make the journey back, led by Zerubbabel.' },
+      { chStart: 3, chEnd: 6, title: 'Rebuilding the Temple', text: 'The altar is rebuilt first, and the foundation of the new Temple is laid amid tears of both joy and sorrow — the older generation remembered the glory of Solomon\'s Temple. After years of opposition from neighboring peoples stalling the work, the Temple is finally completed and dedicated.' },
+      { chStart: 7, chEnd: 8, title: 'Ezra Arrives in Jerusalem', text: 'Decades later, Ezra leads a second wave of returnees, bringing valuable offerings for the Temple and a mission to teach the Law of Moses to the people already living in the land.' },
+      { chStart: 9, chEnd: 10, title: 'Ezra\'s Reform', text: 'On arrival, Ezra discovers that many Israelites, including leaders, had intermarried with idolatrous neighboring peoples, risking a repeat of the mistakes that led to exile. Deeply shaken, he leads a painful reform of collective repentance.' },
+    ],
     location: { name: 'Babylon and Jerusalem', icon: "Footprints", description: 'Follows two waves of return from Babylon to Jerusalem, now under the rule of the Persian Empire.' },
     curiosities: [
       'The return was made possible by a decree from Persian king Cyrus the Great.',
@@ -305,7 +385,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Neemias': {
-    context: 'Nehemiah, cupbearer to the Persian king, gets permission to return to Jerusalem and lead the rebuilding of the city walls, despite fierce opposition.',
+    contextOverview: 'A contemporary of Ezra, Nehemiah was personal cupbearer to the Persian king Artaxerxes — a position of trust — when he receives news that Jerusalem\'s walls were still in ruins, decades after the return from exile. The book narrates his mission to lead the rebuilding of the walls despite fierce outside opposition, followed by a spiritual renewal of the people through the public reading of the Law and social and religious reforms.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Nehemiah\'s Call', text: 'On hearing about Jerusalem\'s condition, Nehemiah weeps, fasts, and prays for days before asking the king\'s permission to travel and rebuild the city. On arrival, he inspects the ruined walls at night, in secret, before revealing his plan to the people.' },
+      { chStart: 3, chEnd: 4, title: 'The Rebuilding Begins', text: 'The work is divided among families and groups, each responsible for a section of wall. Sanballat and Tobiah, hostile neighboring leaders, mock and then threaten to attack, leading the workers to build with one hand on the task and the other gripping a weapon.' },
+      { chStart: 5, chEnd: 6, title: 'Internal and External Challenges', text: 'Nehemiah has to confront social injustice among his own people, where the wealthy were charging the poor abusive interest. Despite sabotage, threats, and an assassination plot, the wall is completed in just 52 days.' },
+      { chStart: 7, chEnd: 10, title: 'Covenant Renewal', text: 'A census confirms the population of the newly fortified city, and Ezra publicly reads the Law of Moses to all the people, who weep as they understand it and then celebrate the Festival of Booths. The people confess their sins together and sign a written commitment of faithfulness to the covenant.' },
+      { chStart: 11, chEnd: 13, title: 'Final Arrangements', text: 'Jerusalem is repopulated, and the wall is dedicated in a great celebration with music and thanksgiving. After a temporary absence, Nehemiah returns to correct abuses that had crept back in, including intermarriage and the profaning of the Sabbath.' },
+    ],
     location: { name: 'Jerusalem', icon: "Construction", description: 'The action centers on rebuilding Jerusalem\'s walls, completed in just 52 days.' },
     curiosities: [
       'Jerusalem\'s walls were rebuilt in just 52 days, according to the text.',
@@ -321,7 +408,13 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Ester': {
-    context: 'Tells the story of Esther, a young Jewish woman who becomes queen of Persia and risks her life to save her people from a plot of extermination.',
+    contextOverview: 'Set in the court of the Persian Empire, decades after the Babylonian exile, Esther tells the story of a young Jewish woman who becomes queen and risks her own life to save her people from an extermination plot devised by the official Haman. It is one of only two books of the Bible named after a woman (the other is Ruth), and the only one that never mentions God\'s name directly — His presence is seen in the "coincidences" and reversals that drive the entire plot.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Esther Becomes Queen', text: 'Queen Vashti is deposed for defying King Xerxes, opening the search for her replacement. Esther, a Jewish orphan raised by her cousin Mordecai, is chosen as the new queen, concealing her Jewish identity on his instruction.' },
+      { chStart: 3, chEnd: 4, title: 'Haman\'s Plot', text: 'Offended that Mordecai refuses to bow to him, the official Haman convinces the king to sign a decree to exterminate all the Jews of the empire. Mordecai appeals to Esther to intervene, suggesting she may have come to her royal position "for such a time as this".' },
+      { chStart: 5, chEnd: 7, title: 'Esther\'s Courage', text: 'Risking her life by approaching the king unsummoned, Esther invites him and Haman to two private banquets. At the second banquet, she reveals Haman\'s plot and her own Jewish identity, and Haman ends up hanged on the very gallows he had built for Mordecai.' },
+      { chStart: 8, chEnd: 10, title: 'The People\'s Deliverance', text: 'Since Persian law could not be revoked, a new decree is issued allowing the Jews to defend themselves against their attackers on the appointed day. The people\'s victory gives rise to the Jewish festival of Purim, celebrated to this day in memory of their deliverance.' },
+    ],
     location: { name: 'Susa, capital of Persia', icon: "Crown", description: 'The whole story takes place in the Persian royal court, in the city of Susa (modern-day Iran).' },
     curiosities: [
       'It\'s the only book of the Bible that never mentions God\'s name directly.',
