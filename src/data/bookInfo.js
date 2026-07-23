@@ -917,7 +917,18 @@ export const BOOK_INFO = {
   },
 
   'Mateus': {
-    context: 'Escrito com forte ênfase em mostrar Jesus como o Messias prometido ao povo judeu, citando o Antigo Testamento mais que qualquer outro evangelho.',
+    contextOverview: 'Escrito com forte ênfase em mostrar Jesus como o Messias prometido ao povo judeu, Mateus cita o Antigo Testamento mais que qualquer outro evangelho, apresentando repetidamente Jesus como o cumprimento das profecias. O evangelho organiza o ensino de Jesus em cinco grandes discursos intercalados com narrativa — uma estrutura que ecoa os cinco livros da Torá — e termina com a Grande Comissão, enviando os discípulos a todas as nações.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Nascimento e Preparação', text: 'Uma genealogia liga Jesus a Abraão e Davi, seguida do relato de Seu nascimento, a visita dos magos do Oriente, a fuga da família para o Egito, e o início do ministério com o batismo e a tentação no deserto.' },
+      { chStart: 5, chEnd: 7, title: 'O Sermão do Monte', text: 'O primeiro e mais famoso dos cinco grandes discursos de Jesus em Mateus, abrindo com as Bem-Aventuranças e cobrindo temas como oração, perdão, riqueza e o verdadeiro significado da Lei.' },
+      { chStart: 8, chEnd: 9, title: 'Milagres e Autoridade', text: 'Uma sequência concentrada de milagres — curas, expulsão de demônios, o acalmar de uma tempestade — demonstra a autoridade de Jesus tanto sobre doenças quanto sobre a natureza.' },
+      { chStart: 10, chEnd: 12, title: 'Missão dos Discípulos e Oposição', text: 'Jesus envia os doze discípulos em missão com instruções específicas, enquanto a oposição dos líderes religiosos começa a crescer diante de Seus milagres e ensinos.' },
+      { chStart: 13, chEnd: 13, title: 'Parábolas do Reino', text: 'O terceiro grande discurso reúne uma série de parábolas sobre o Reino dos Céus, incluindo o semeador, o joio e o trigo, e o tesouro escondido no campo.' },
+      { chStart: 14, chEnd: 17, title: 'Milagres e Revelação', text: 'Jesus multiplica pães para milhares, anda sobre as águas, e Pedro finalmente O declara "o Cristo, o Filho do Deus vivo" — confirmado logo depois pela Transfiguração diante de três discípulos.' },
+      { chStart: 18, chEnd: 20, title: 'Ensino sobre a Comunidade e o Reino', text: 'O quarto discurso trata de como a comunidade de discípulos deve viver — perdão ilimitado, humildade como a de uma criança — seguido de parábolas sobre riqueza e a generosidade inesperada de Deus.' },
+      { chStart: 21, chEnd: 25, title: 'Confronto Final em Jerusalém', text: 'Jesus entra triunfalmente em Jerusalém, purifica o Templo, e entra em confrontos diretos com líderes religiosos antes do quinto discurso — uma extensa profecia sobre o fim dos tempos, no Monte das Oliveiras.' },
+      { chStart: 26, chEnd: 28, title: 'Paixão, Morte e Ressurreição', text: 'A Última Ceia, a agonia no Getsêmani, a prisão, o julgamento, a crucificação e, finalmente, a ressurreição — encerrando com a Grande Comissão, enviando os discípulos a fazer discípulos de todas as nações.' },
+    ],
     location: { name: 'Galileia e Judeia', icon: "Cross", description: 'Acompanha o ministério de Jesus principalmente na Galileia (norte) e Judeia (sul, com Jerusalém).' },
     curiosities: [
       'É o evangelho com mais citações diretas do Antigo Testamento, reforçando Jesus como cumprimento das profecias.',
@@ -933,7 +944,14 @@ export const BOOK_INFO = {
     ],
   },
   'Marcos': {
-    context: 'O evangelho mais curto e de ritmo mais acelerado, retratando Jesus em ação constante — como servo que cura, ensina e, por fim, se entrega na cruz.',
+    contextOverview: 'O evangelho mais curto e de ritmo mais acelerado dos quatro, Marcos retrata Jesus em ação quase constante — a palavra "imediatamente" aparece dezenas de vezes — como um servo que cura, ensina e, por fim, se entrega na cruz. Considerado por muitos estudiosos o evangelho mais antigo, é tradicionalmente associado a João Marcos, que teria registrado as lembranças do apóstolo Pedro.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Início do Ministério', text: 'Depois de Seu batismo por João Batista, Jesus chama Seus primeiros discípulos e começa um ministério de cura, ensino e expulsão de demônios que rapidamente atrai multidões e a oposição dos líderes religiosos.' },
+      { chStart: 4, chEnd: 6, title: 'Parábolas e Milagres de Poder', text: 'Jesus ensina através de parábolas, incluindo a do semeador, e demonstra poder sobre a natureza (acalmando uma tempestade), sobre doenças e até sobre a morte, ao ressuscitar a filha de Jairo.' },
+      { chStart: 7, chEnd: 9, title: 'Revelação Gradual', text: 'Depois de multiplicar pães duas vezes, Jesus pergunta aos discípulos quem eles dizem que Ele é — Pedro responde "o Cristo" — e logo depois é transfigurado diante de três deles, revelando Sua glória.' },
+      { chStart: 10, chEnd: 13, title: 'Caminho a Jerusalém', text: 'A caminho de Jerusalém, Jesus ensina sobre riqueza, serviço e humildade, entra triunfalmente na cidade, purifica o Templo e enfrenta confrontos diretos com os líderes religiosos.' },
+      { chStart: 14, chEnd: 16, title: 'Paixão e Ressurreição', text: 'A Última Ceia, a agonia no Getsêmani, a prisão, o julgamento, a crucificação e a descoberta do túmulo vazio encerram o evangelho com a notícia mais importante de todas: Ele ressuscitou.' },
+    ],
     location: { name: 'Galileia e Judeia', icon: "Zap", description: 'Segue Jesus em movimento rápido entre vilarejos da Galileia até a chegada final em Jerusalém.' },
     curiosities: [
       'É considerado por muitos estudiosos o evangelho mais antigo, escrito possivelmente na década de 60 d.C.',
@@ -949,7 +967,15 @@ export const BOOK_INFO = {
     ],
   },
   'Lucas': {
-    context: 'Escrito por um médico grego, apresenta Jesus com atenção especial aos pobres, marginalizados e mulheres, com um relato detalhado do nascimento de Jesus.',
+    contextOverview: 'Escrito por Lucas, um médico grego e o único autor não-judeu entre os evangelistas, este evangelho apresenta Jesus com atenção especial aos pobres, marginalizados e mulheres, incluindo o relato mais detalhado de todos sobre Seu nascimento. Lucas também escreveu o livro de Atos como continuação direta, e seu evangelho contém algumas das parábolas mais amadas da tradição cristã, exclusivas deste livro.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'O Nascimento de Jesus', text: 'Anúncios angélicos precedem o nascimento de João Batista e de Jesus; Maria visita sua parenta Isabel e canta o Magnificat; pastores humildes são os primeiros a receber a notícia do nascimento do Salvador.' },
+      { chStart: 3, chEnd: 4, title: 'Preparação para o Ministério', text: 'João Batista prepara o caminho, Jesus é batizado e uma genealogia O liga até Adão. Depois de resistir à tentação no deserto, Jesus inicia Seu ministério público em Nazaré, sua cidade natal.' },
+      { chStart: 5, chEnd: 9, title: 'Ministério na Galileia', text: 'Jesus chama Seus primeiros discípulos, realiza uma série de milagres e ensina através de parábolas, culminando na confissão de Pedro de que Ele é o Cristo, e na Transfiguração pouco depois.' },
+      { chStart: 10, chEnd: 18, title: 'A Longa Jornada a Jerusalém', text: 'Numa seção extensa e característica de Lucas, Jesus ensina através de parábolas exclusivas deste evangelho — o Bom Samaritano, o Filho Pródigo, o fariseu e o publicano — sobre amor ao próximo, graça e oração.' },
+      { chStart: 19, chEnd: 21, title: 'Jerusalém', text: 'Jesus entra triunfalmente em Jerusalém montado num jumentinho, chora sobre a cidade, purifica o Templo e enfrenta confrontos diretos com os líderes religiosos antes de um discurso profético sobre o futuro.' },
+      { chStart: 22, chEnd: 24, title: 'Paixão, Morte e Ressurreição', text: 'A Última Ceia, a agonia no monte das Oliveiras, a prisão, os julgamentos, a crucificação e a ressurreição culminam no encontro com os discípulos no caminho de Emaús e na ascensão de Jesus ao céu.' },
+    ],
     location: { name: 'Galileia, Judeia e Samaria', icon: "Baby", description: 'Cobre a jornada de Jesus por regiões diversas, incluindo a Samaria, geralmente evitada por judeus da época.' },
     curiosities: [
       'É o único evangelho escrito por um autor não-judeu, tradicionalmente identificado como o médico Lucas.',
@@ -965,7 +991,14 @@ export const BOOK_INFO = {
     ],
   },
   'João': {
-    context: 'Diferente dos outros três evangelhos, foca em sinais e longos discursos de Jesus para revelar sua identidade divina como o "Filho de Deus".',
+    contextOverview: 'Diferente dos outros três evangelhos (chamados "sinóticos" por seu conteúdo semelhante), João foca em sete "sinais" (milagres) cuidadosamente selecionados e em longos discursos de Jesus, para revelar Sua identidade divina como o "Filho de Deus". Abre com um prólogo teológico profundo — "No princípio era o Verbo" — e contém as sete famosas declarações "Eu sou" de Jesus, cada uma revelando um aspecto de quem Ele é.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'O Verbo se Fez Carne', text: 'Depois do prólogo teológico e do testemunho de João Batista, Jesus chama Seus primeiros discípulos, realiza Seu primeiro sinal nas bodas de Caná, e tem conversas transformadoras com Nicodemos e com a mulher samaritana no poço.' },
+      { chStart: 5, chEnd: 10, title: 'Sinais e Discursos', text: 'Uma série de sinais — cura de um paralítico, multiplicação dos pães, andar sobre as águas, cura de um cego de nascença — é intercalada com longos discursos onde Jesus faz declarações "Eu sou", incluindo "Eu sou o bom pastor".' },
+      { chStart: 11, chEnd: 12, title: 'A Ressurreição de Lázaro', text: 'O sétimo e mais dramático sinal — a ressurreição de Lázaro, já morto há quatro dias — provoca tanto fé quanto oposição fatal, levando diretamente à decisão dos líderes religiosos de matar Jesus.' },
+      { chStart: 13, chEnd: 17, title: 'O Discurso de Despedida', text: 'Na Última Ceia, Jesus lava os pés de Seus discípulos como exemplo de serviço, promete o Espírito Santo como Consolador, e encerra com uma longa oração intercedendo por Seus seguidores.' },
+      { chStart: 18, chEnd: 21, title: 'Paixão, Ressurreição e Epílogo', text: 'A prisão, os julgamentos diante de autoridades religiosas e romanas, a crucificação e a ressurreição são seguidas por aparições de Jesus aos discípulos, incluindo a restauração pessoal de Pedro à beira do mar.' },
+    ],
     location: { name: 'Judeia e Galileia', icon: "Lightbulb", description: 'Dá mais atenção a viagens de Jesus a Jerusalém do que os outros evangelhos.' },
     curiosities: [
       'Não tem nenhuma das parábolas encontradas nos outros três evangelhos — usa longos discursos e "sinais" (milagres) em seu lugar.',

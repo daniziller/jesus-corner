@@ -914,7 +914,18 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Mateus': {
-    context: 'Written with a strong emphasis on showing Jesus as the Messiah promised to the Jewish people, quoting the Old Testament more than any other gospel.',
+    contextOverview: 'Written with a strong emphasis on showing Jesus as the Messiah promised to the Jewish people, Matthew quotes the Old Testament more than any other gospel, repeatedly presenting Jesus as the fulfillment of prophecy. The gospel organizes Jesus\' teaching into five major discourses interspersed with narrative — a structure echoing the five books of the Torah — and ends with the Great Commission, sending the disciples to all nations.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Birth and Preparation', text: 'A genealogy links Jesus to Abraham and David, followed by the account of His birth, the visit of the magi from the East, the family\'s flight to Egypt, and the start of His ministry with His baptism and temptation in the desert.' },
+      { chStart: 5, chEnd: 7, title: 'The Sermon on the Mount', text: 'The first and most famous of Jesus\' five major discourses in Matthew, opening with the Beatitudes and covering topics like prayer, forgiveness, wealth, and the true meaning of the Law.' },
+      { chStart: 8, chEnd: 9, title: 'Miracles and Authority', text: 'A concentrated sequence of miracles — healings, casting out demons, calming a storm — demonstrates Jesus\' authority over both illness and nature.' },
+      { chStart: 10, chEnd: 12, title: 'The Disciples\' Mission and Opposition', text: 'Jesus sends the twelve disciples out on a mission with specific instructions, while opposition from religious leaders grows in response to His miracles and teaching.' },
+      { chStart: 13, chEnd: 13, title: 'Parables of the Kingdom', text: 'The third major discourse gathers a series of parables about the Kingdom of Heaven, including the sower, the weeds and the wheat, and the treasure hidden in a field.' },
+      { chStart: 14, chEnd: 17, title: 'Miracles and Revelation', text: 'Jesus multiplies bread for thousands, walks on water, and Peter finally declares Him "the Christ, the Son of the living God" — confirmed shortly after by the Transfiguration before three disciples.' },
+      { chStart: 18, chEnd: 20, title: 'Teaching on Community and the Kingdom', text: 'The fourth discourse addresses how the community of disciples should live — unlimited forgiveness, humility like a child\'s — followed by parables about wealth and God\'s unexpected generosity.' },
+      { chStart: 21, chEnd: 25, title: 'Final Confrontation in Jerusalem', text: 'Jesus enters Jerusalem triumphantly, cleanses the Temple, and enters into direct confrontations with religious leaders before the fifth discourse — an extensive prophecy about the end times, on the Mount of Olives.' },
+      { chStart: 26, chEnd: 28, title: 'Passion, Death, and Resurrection', text: 'The Last Supper, the agony in Gethsemane, the arrest, the trial, the crucifixion, and finally the resurrection — closing with the Great Commission, sending the disciples to make disciples of all nations.' },
+    ],
     location: { name: 'Galilee and Judea', icon: "Cross", description: 'Follows Jesus\' ministry mainly in Galilee (north) and Judea (south, including Jerusalem).' },
     curiosities: [
       'It\'s the gospel with the most direct quotes from the Old Testament, reinforcing Jesus as the fulfillment of prophecy.',
@@ -930,7 +941,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Marcos': {
-    context: 'The shortest and fastest-paced gospel, portraying Jesus in constant action — as a servant who heals, teaches, and finally gives himself up on the cross.',
+    contextOverview: 'The shortest and fastest-paced of the four gospels, Mark portrays Jesus in almost constant action — the word "immediately" appears dozens of times — as a servant who heals, teaches, and finally gives Himself up on the cross. Considered by many scholars to be the oldest gospel, it is traditionally associated with John Mark, said to have recorded the apostle Peter\'s memories.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'The Ministry Begins', text: 'After His baptism by John the Baptist, Jesus calls His first disciples and begins a ministry of healing, teaching, and casting out demons that quickly draws crowds and the opposition of religious leaders.' },
+      { chStart: 4, chEnd: 6, title: 'Parables and Miracles of Power', text: 'Jesus teaches through parables, including the sower, and demonstrates power over nature (calming a storm), over illness, and even over death, raising Jairus\' daughter.' },
+      { chStart: 7, chEnd: 9, title: 'Gradual Revelation', text: 'After multiplying bread twice, Jesus asks the disciples who they say He is — Peter answers "the Christ" — and shortly after is transfigured before three of them, revealing His glory.' },
+      { chStart: 10, chEnd: 13, title: 'The Road to Jerusalem', text: 'On the way to Jerusalem, Jesus teaches about wealth, service, and humility, enters the city triumphantly, cleanses the Temple, and faces direct confrontations with religious leaders.' },
+      { chStart: 14, chEnd: 16, title: 'Passion and Resurrection', text: 'The Last Supper, the agony in Gethsemane, the arrest, the trial, the crucifixion, and the discovery of the empty tomb close the gospel with the most important news of all: He is risen.' },
+    ],
     location: { name: 'Galilee and Judea', icon: "Zap", description: 'Follows Jesus moving quickly between villages of Galilee up to his final arrival in Jerusalem.' },
     curiosities: [
       'Many scholars consider it the oldest gospel, possibly written in the 60s AD.',
@@ -946,7 +964,15 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Lucas': {
-    context: 'Written by a Greek physician, it presents Jesus with special attention to the poor, the marginalized, and women, with a detailed account of Jesus\' birth.',
+    contextOverview: 'Written by Luke, a Greek physician and the only non-Jewish author among the evangelists, this gospel presents Jesus with special attention to the poor, the marginalized, and women, including the most detailed account of all of His birth. Luke also wrote the book of Acts as a direct continuation, and his gospel contains some of the most beloved parables in Christian tradition, unique to this book.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'The Birth of Jesus', text: 'Angelic announcements precede the births of John the Baptist and Jesus; Mary visits her relative Elizabeth and sings the Magnificat; humble shepherds are the first to receive the news of the Savior\'s birth.' },
+      { chStart: 3, chEnd: 4, title: 'Preparation for the Ministry', text: 'John the Baptist prepares the way, Jesus is baptized, and a genealogy links Him all the way to Adam. After resisting temptation in the desert, Jesus begins His public ministry in Nazareth, His hometown.' },
+      { chStart: 5, chEnd: 9, title: 'Ministry in Galilee', text: 'Jesus calls His first disciples, performs a series of miracles, and teaches through parables, culminating in Peter\'s confession that He is the Christ, and the Transfiguration shortly after.' },
+      { chStart: 10, chEnd: 18, title: 'The Long Journey to Jerusalem', text: 'In an extensive section characteristic of Luke, Jesus teaches through parables unique to this gospel — the Good Samaritan, the Prodigal Son, the Pharisee and the tax collector — on love for neighbor, grace, and prayer.' },
+      { chStart: 19, chEnd: 21, title: 'Jerusalem', text: 'Jesus enters Jerusalem triumphantly riding a young donkey, weeps over the city, cleanses the Temple, and faces direct confrontations with religious leaders before a prophetic speech about the future.' },
+      { chStart: 22, chEnd: 24, title: 'Passion, Death, and Resurrection', text: 'The Last Supper, the agony on the Mount of Olives, the arrest, the trials, the crucifixion, and the resurrection culminate in the encounter with the disciples on the road to Emmaus and Jesus\' ascension into heaven.' },
+    ],
     location: { name: 'Galilee, Judea, and Samaria', icon: "Baby", description: 'Covers Jesus\' journey through diverse regions, including Samaria, generally avoided by Jews of the time.' },
     curiosities: [
       'It\'s the only gospel written by a non-Jewish author, traditionally identified as the physician Luke.',
@@ -962,7 +988,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'João': {
-    context: 'Unlike the other three gospels, it focuses on signs and long discourses of Jesus to reveal his divine identity as the "Son of God".',
+    contextOverview: 'Unlike the other three gospels (called "synoptic" for their similar content), John focuses on seven carefully selected "signs" (miracles) and long discourses of Jesus, to reveal His divine identity as the "Son of God". It opens with a profound theological prologue — "In the beginning was the Word" — and contains Jesus\' seven famous "I am" statements, each revealing an aspect of who He is.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'The Word Became Flesh', text: 'After the theological prologue and John the Baptist\'s testimony, Jesus calls His first disciples, performs His first sign at the wedding in Cana, and has transformative conversations with Nicodemus and the Samaritan woman at the well.' },
+      { chStart: 5, chEnd: 10, title: 'Signs and Discourses', text: 'A series of signs — healing a paralyzed man, multiplying bread, walking on water, healing a man born blind — is interspersed with long discourses where Jesus makes "I am" statements, including "I am the good shepherd".' },
+      { chStart: 11, chEnd: 12, title: 'The Raising of Lazarus', text: 'The seventh and most dramatic sign — raising Lazarus, dead four days — provokes both faith and fatal opposition, leading directly to the religious leaders\' decision to kill Jesus.' },
+      { chStart: 13, chEnd: 17, title: 'The Farewell Discourse', text: 'At the Last Supper, Jesus washes His disciples\' feet as an example of service, promises the Holy Spirit as Comforter, and closes with a long prayer interceding for His followers.' },
+      { chStart: 18, chEnd: 21, title: 'Passion, Resurrection, and Epilogue', text: 'The arrest, the trials before religious and Roman authorities, the crucifixion, and the resurrection are followed by Jesus\' appearances to the disciples, including Peter\'s personal restoration by the sea.' },
+    ],
     location: { name: 'Judea and Galilee', icon: "Lightbulb", description: 'Gives more attention to Jesus\' trips to Jerusalem than the other gospels do.' },
     curiosities: [
       'It has none of the parables found in the other three gospels — it uses long discourses and "signs" (miracles) instead.',
