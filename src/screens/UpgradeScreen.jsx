@@ -1,7 +1,10 @@
 // Tela de assinatura — modelo de valor livre: a pessoa escolhe quanto quer
 // contribuir (inclusive R$0, que libera acesso total sem tocar o Stripe —
 // ver activateFreeAccess em ../billing/subscriptionStore) de forma
-// recorrente mensal, ou paga um valor único e ganha acesso vitalício.
+// recorrente, mensal ou anual. Contribuição única (pagamento avulso,
+// acesso vitalício) foi descontinuada como opção de compra — só fica o
+// tratamento de quem já tinha (`isLifetime` abaixo), pra essas contas
+// continuarem funcionando normalmente.
 // Aparece tanto como paywall de tela cheia (PaywallGate em App.jsx, pra
 // quem ainda não ativou acesso algum) quanto pelo link "Minha assinatura"
 // no Perfil (pra quem já tem acesso, ver/trocar o valor). Moeda mostrada já
@@ -16,13 +19,11 @@ import { formatAmount } from '../billing/formatAmount'
 // Mesmos valores numéricos pras duas moedas (sem conversão de câmbio) —
 // R$5/R$10/R$20/R$30 e $5/$10/$20/$30, etc.
 const PRESETS = {
-  brl: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300], onetime: [200, 400, 600, 1000] },
-  usd: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300], onetime: [200, 400, 600, 1000] },
+  brl: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300] },
+  usd: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300] },
 }
-// Mínimo real de cobrança do Stripe (recorrente, valor > 0 — R$0 vira grátis).
+// Mínimo real de cobrança do Stripe (valor > 0 — R$0 vira grátis).
 const MIN_MAJOR = { brl: 0.5, usd: 0.5 }
-// Contribuição única não aceita R$0 — regra de negócio, não do Stripe.
-const MIN_ONETIME_MAJOR = { brl: 200, usd: 200 }
 
 const FEATURES = [
   { icon: 'BookOpen', key: 'featureReading' },
@@ -34,7 +35,7 @@ const FEATURES = [
 export default function UpgradeScreen({ session, subscription }) {
   const { lang } = session
   const [currency, setCurrency] = useState('brl')
-  const [mode, setMode] = useState('monthly') // 'monthly' | 'annual' | 'onetime'
+  const [mode, setMode] = useState('monthly') // 'monthly' | 'annual'
   const [selectedAmount, setSelectedAmount] = useState(null) // valor em unidade cheia (reais/dólares), null = nada escolhido
   const [isCustom, setIsCustom] = useState(false)
   const [customValue, setCustomValue] = useState('')
@@ -54,18 +55,13 @@ export default function UpgradeScreen({ session, subscription }) {
   const isRecurringActive = subscription?.access_type === 'recurring' && isPremiumActive(subscription)
 
   const presets = PRESETS[currency][mode]
-  const minMajor = mode === 'onetime' ? MIN_ONETIME_MAJOR[currency] : MIN_MAJOR[currency]
+  const minMajor = MIN_MAJOR[currency]
 
   const amountMajor = isCustom ? (parseFloat(customValue.replace(',', '.')) || 0) : selectedAmount
   const amountCents = amountMajor != null ? Math.round(amountMajor * 100) : null
-  // Recorrente: R$0 é válido (vira grátis) — só valores entre 0 e o mínimo
-  // do Stripe ficam bloqueados. Contribuição única: nunca aceita R$0, então
-  // qualquer coisa abaixo do mínimo de negócio (incluindo 0) fica bloqueada.
-  const belowMinimum = amountCents !== null && (
-    mode === 'onetime'
-      ? amountCents < minMajor * 100
-      : amountCents > 0 && amountCents < minMajor * 100
-  )
+  // R$0 é válido (vira grátis) — só valores entre 0 e o mínimo do Stripe
+  // ficam bloqueados.
+  const belowMinimum = amountCents !== null && amountCents > 0 && amountCents < minMajor * 100
   const canSubmit = amountCents !== null && !belowMinimum && !submitting
 
   function switchMode(next) {
@@ -118,11 +114,8 @@ export default function UpgradeScreen({ session, subscription }) {
       if (amountCents === 0) {
         await activateFreeAccess()
         window.location.href = '/?checkout=success'
-      } else if (mode === 'onetime') {
-        const url = await startCheckout({ type: 'onetime', amountCents, currency })
-        window.location.href = url
       } else {
-        const url = await startCheckout({ type: 'recurring', interval: mode === 'annual' ? 'year' : 'month', amountCents, currency })
+        const url = await startCheckout({ interval: mode === 'annual' ? 'year' : 'month', amountCents, currency })
         window.location.href = url
       }
     } catch {
@@ -145,7 +138,7 @@ export default function UpgradeScreen({ session, subscription }) {
     }
   }
 
-  const submitBtnKey = mode === 'onetime' ? 'billing.subscribeOnceBtn' : mode === 'annual' ? 'billing.subscribeAnnualBtn' : 'billing.subscribeMonthlyBtn'
+  const submitBtnKey = mode === 'annual' ? 'billing.subscribeAnnualBtn' : 'billing.subscribeMonthlyBtn'
   const submitLabel = submitting
     ? t(amountCents === 0 ? 'billing.activating' : 'billing.redirecting', undefined, lang)
     : amountCents === 0
@@ -253,14 +246,7 @@ export default function UpgradeScreen({ session, subscription }) {
               >
                 {t('billing.modeAnnual', undefined, lang)}
               </button>
-              <button
-                style={{ ...styles.modeBtn, ...(mode === 'onetime' ? styles.modeBtnActive : {}) }}
-                onClick={() => switchMode('onetime')}
-              >
-                {t('billing.modeOnetime', undefined, lang)}
-              </button>
             </div>
-            {mode === 'onetime' && <p style={styles.modeNote}>{t('billing.onetimeNote', undefined, lang)}</p>}
 
             <div style={styles.amountSection}>
               <p style={styles.amountLabel}>{t('billing.amountLabel', undefined, lang)}</p>
@@ -296,7 +282,7 @@ export default function UpgradeScreen({ session, subscription }) {
               )}
               {belowMinimum && (
                 <p style={styles.hint}>
-                  {t(mode === 'onetime' ? 'billing.onetimeMinimumHint' : 'billing.belowMinimumHint', { min: formatAmount(minMajor * 100, currency) }, lang)}
+                  {t('billing.belowMinimumHint', { min: formatAmount(minMajor * 100, currency) }, lang)}
                 </p>
               )}
             </div>
@@ -340,7 +326,7 @@ const styles = {
   currencyBtn: { padding: '6px 12px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 7, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
   currencyBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
   modeToggle:  { display: 'flex', gap: 6, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 4 },
-  modeBtn:     { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11, lineHeight: 1.25, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
+  modeBtn:     { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
   modeBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
   modeNote:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: -6 },
   amountSection:{ display: 'flex', flexDirection: 'column', gap: 8 },

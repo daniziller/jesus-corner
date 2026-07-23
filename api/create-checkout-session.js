@@ -1,10 +1,12 @@
 // Cria uma Stripe Checkout Session pra quem já está logado no app — modelo
 // de valor livre: a pessoa escolhe o valor (nunca R$0/US$0 aqui, isso é
-// tratado sem Stripe em api/activate-free-access.js), recorrente mensal ou
-// pagamento único (acesso vitalício). Runtime Node (não edge, diferente de
-// invite-friend.js) — o SDK oficial `stripe` tem suporte Node completo pra
-// tudo que os endpoints de pagamento precisam, sem reimplementar nada
-// manualmente.
+// tratado sem Stripe em api/activate-free-access.js) e a periodicidade,
+// mensal ou anual. Contribuição única (pagamento avulso, acesso vitalício)
+// foi descontinuada — só sobrevive o tratamento de quem já tinha (ver
+// api/stripe-webhook.js e src/billing/subscriptionStore.js). Runtime Node
+// (não edge, diferente de invite-friend.js) — o SDK oficial `stripe` tem
+// suporte Node completo pra tudo que os endpoints de pagamento precisam,
+// sem reimplementar nada manualmente.
 //
 // Moeda escolhida pela pessoa na tela (BRL ou USD) — não dá pra confiar só
 // na geolocalização por IP (x-vercel-ip-country, ainda usado como sugestão
@@ -22,10 +24,6 @@ const APP_URL = 'https://app.jesuscorner.app'
 // Cobrança mínima real do Stripe por moeda (não dá pra cobrar menos que
 // isso) — valores abaixo disso só fazem sentido como R$0 (grátis).
 const MIN_CHARGE_CENTS = { brl: 50, usd: 50 }
-// Contribuição única (vitalício) não aceita R$0 — regra de negócio, mínimo
-// bem mais alto que o piso técnico do Stripe acima. Mesmo valor numérico
-// pras duas moedas (200), sem conversão de câmbio.
-const MIN_ONETIME_CENTS = { brl: 20000, usd: 20000 }
 
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
 // Evita criar um Product novo no Stripe a cada checkout (o que aconteceria
@@ -70,12 +68,8 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  const { type, interval: requestedInterval, amountCents, currency: requestedCurrency } = req.body ?? {}
-  if (type !== 'onetime' && type !== 'recurring') {
-    return res.status(400).json({ error: 'invalid_type' })
-  }
-  // Mensal ou anual — só importa quando type é 'recurring'; default 'month'
-  // se vier algo inválido/ausente.
+  const { interval: requestedInterval, amountCents, currency: requestedCurrency } = req.body ?? {}
+  // Mensal ou anual, default 'month' se vier algo inválido/ausente.
   const interval = requestedInterval === 'year' ? 'year' : 'month'
 
   // Confia na escolha explícita da pessoa; só cai pro IP se o corpo não
@@ -84,9 +78,8 @@ export default async function handler(req, res) {
     ? requestedCurrency
     : (req.headers['x-vercel-ip-country'] === 'BR' ? 'brl' : 'usd')
 
-  const minCents = type === 'onetime' ? MIN_ONETIME_CENTS[currency] : MIN_CHARGE_CENTS[currency]
-  if (!Number.isInteger(amountCents) || amountCents < minCents) {
-    return res.status(400).json({ error: 'amount_too_low', minCents })
+  if (!Number.isInteger(amountCents) || amountCents < MIN_CHARGE_CENTS[currency]) {
+    return res.status(400).json({ error: 'amount_too_low', minCents: MIN_CHARGE_CENTS[currency] })
   }
 
   const { data: existing } = await supabase
@@ -116,9 +109,8 @@ export default async function handler(req, res) {
   try {
     const productId = await getOrFetchProductId()
 
-    // Trocar de valor recorrente, ou passar a pagar uma vez só (vitalício),
-    // cancela a assinatura recorrente antiga antes de criar a nova cobrança
-    // — pra nunca ficar cobrando duas ao mesmo tempo.
+    // Trocar de valor ou de periodicidade cancela a assinatura antiga antes
+    // de criar a nova cobrança — pra nunca ficar cobrando duas ao mesmo tempo.
     if (existing?.stripe_subscription_id && existing.status !== 'canceled') {
       await stripe.subscriptions.cancel(existing.stripe_subscription_id).catch((err) => {
         console.error('Failed to cancel previous subscription:', err.message)
@@ -126,23 +118,21 @@ export default async function handler(req, res) {
     }
 
     const session = await stripe.checkout.sessions.create({
-      mode: type === 'recurring' ? 'subscription' : 'payment',
+      mode: 'subscription',
       customer: customerId,
       client_reference_id: caller.id,
       currency,
-      metadata: { supabase_user_id: caller.id, access_type: type === 'recurring' ? 'recurring' : 'lifetime' },
+      metadata: { supabase_user_id: caller.id, access_type: 'recurring' },
       line_items: [{
         price_data: {
           currency,
           unit_amount: amountCents,
           product: productId,
-          ...(type === 'recurring' ? { recurring: { interval } } : {}),
+          recurring: { interval },
         },
         quantity: 1,
       }],
-      ...(type === 'recurring'
-        ? { subscription_data: { metadata: { supabase_user_id: caller.id, access_type: 'recurring' } } }
-        : {}),
+      subscription_data: { metadata: { supabase_user_id: caller.id, access_type: 'recurring' } },
       allow_promotion_codes: true,
       success_url: `${APP_URL}/?checkout=success`,
       cancel_url: `${APP_URL}/?checkout=cancel`,

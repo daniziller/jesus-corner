@@ -37,14 +37,13 @@ async function authorizedPost(path, body) {
 
 // Devolve a URL do Stripe Checkout — quem chamar é responsável por
 // redirecionar (window.location.href = url), já que isso sai do domínio do app.
-// type: 'onetime' (acesso vitalício) ou 'recurring' (mensal ou anual).
-// interval: só relevante quando type é 'recurring' — 'month' ou 'year'.
-// amountCents sempre > 0 — R$0 não passa por aqui, ver activateFreeAccess.
-// currency: 'brl' ou 'usd', escolhida pela pessoa na tela — não dá pra
-// confiar só na geolocalização por IP pra isso (cartão de banco brasileiro
-// usado fora do Brasil, ou vice-versa, quebra a cobrança na moeda errada).
-export async function startCheckout({ type, interval, amountCents, currency }) {
-  const { url } = await authorizedPost('/api/create-checkout-session', { type, interval, amountCents, currency })
+// interval: 'month' ou 'year'. amountCents sempre > 0 — R$0 não passa por
+// aqui, ver activateFreeAccess. currency: 'brl' ou 'usd', escolhida pela
+// pessoa na tela — não dá pra confiar só na geolocalização por IP pra isso
+// (cartão de banco brasileiro usado fora do Brasil, ou vice-versa, quebra
+// a cobrança na moeda errada).
+export async function startCheckout({ interval, amountCents, currency }) {
+  const { url } = await authorizedPost('/api/create-checkout-session', { interval, amountCents, currency })
   return url
 }
 
