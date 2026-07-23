@@ -1015,7 +1015,17 @@ export const BOOK_INFO = {
   },
 
   'Atos': {
-    context: 'Escrito por Lucas como continuação de seu evangelho, narra o nascimento da igreja cristã e sua expansão de Jerusalém até Roma.',
+    contextOverview: 'Escrito por Lucas como continuação direta de seu evangelho, Atos narra o nascimento da igreja cristã no dia de Pentecostes e sua notável expansão geográfica e cultural — de um pequeno grupo de discípulos em Jerusalém até uma fé que alcança o centro do Império Romano. O livro documenta três grandes viagens missionárias de Paulo e termina, de forma propositalmente aberta, com o apóstolo preso em Roma, ainda pregando livremente enquanto aguarda julgamento.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'O Nascimento da Igreja', text: 'Depois da ascensão de Jesus, os discípulos escolhem um substituto para Judas e, no dia de Pentecostes, o Espírito Santo é derramado sobre eles, capacitando-os a falar em outras línguas e dando início à igreja com milhares de conversões.' },
+      { chStart: 3, chEnd: 7, title: 'A Igreja em Jerusalém', text: 'Pedro e João realizam curas milagrosas e pregam com ousadia apesar da oposição das autoridades religiosas. A comunidade cresce e escolhe diáconos para servir, incluindo Estêvão, que se torna o primeiro mártir cristão.' },
+      { chStart: 8, chEnd: 12, title: 'O Evangelho se Espalha', text: 'A perseguição que se segue à morte de Estêvão dispersa os crentes, levando o evangelho para além de Jerusalém — incluindo a conversão do eunuco etíope, a dramática conversão de Saulo (o futuro Paulo) a caminho de Damasco, e a visão de Pedro que abre a fé aos gentios através de Cornélio.' },
+      { chStart: 13, chEnd: 15, title: 'A Primeira Viagem Missionária e o Concílio', text: 'Paulo e Barnabé são enviados pela igreja de Antioquia na primeira viagem missionária registrada, levando o evangelho pela Ásia Menor. O sucesso entre os gentios leva a um concílio em Jerusalém para decidir se eles precisavam seguir a lei judaica.' },
+      { chStart: 16, chEnd: 18, title: 'A Segunda Viagem Missionária', text: 'Paulo leva o evangelho pela primeira vez à Europa, pregando em Filipos, Atenas (onde discursa no Areópago) e Corinto, enfrentando tanto conversões notáveis quanto perseguição intensa.' },
+      { chStart: 19, chEnd: 20, title: 'A Terceira Viagem Missionária', text: 'Paulo passa um longo período ministrando em Éfeso, provocando um tumulto entre os artesãos de ídolos locais, antes de se despedir emocionalmente dos líderes da igreja de Éfeso, sabendo que talvez nunca mais os visse.' },
+      { chStart: 21, chEnd: 26, title: 'A Prisão de Paulo', text: 'De volta a Jerusalém, Paulo é preso após um tumulto no Templo e passa por uma série de julgamentos diante de autoridades judaicas e romanas, incluindo o governador Félix, Festo e o rei Agripa, apelando finalmente ao imperador César.' },
+      { chStart: 27, chEnd: 28, title: 'A Jornada a Roma', text: 'A caminho de Roma para seu julgamento diante de César, Paulo sobrevive a um naufrágio violento. O livro termina com sua chegada a Roma, onde passa dois anos em prisão domiciliar, pregando livremente sobre o Reino de Deus.' },
+    ],
     location: { name: 'Do Império Romano ao Mediterrâneo', icon: "Globe", description: 'Acompanha viagens missionárias por Jerusalém, Antioquia, Ásia Menor, Grécia e finalmente Roma.' },
     curiosities: [
       'Descreve o dia de Pentecostes, quando o Espírito Santo é derramado sobre os primeiros cristãos.',

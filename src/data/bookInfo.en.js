@@ -1011,7 +1011,17 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Atos': {
-    context: 'Written by Luke as a continuation of his gospel, it narrates the birth of the Christian church and its expansion from Jerusalem to Rome.',
+    contextOverview: 'Written by Luke as a direct continuation of his gospel, Acts narrates the birth of the Christian church on the day of Pentecost and its remarkable geographic and cultural expansion — from a small group of disciples in Jerusalem to a faith reaching the heart of the Roman Empire. The book documents three major missionary journeys of Paul and ends, deliberately open-ended, with the apostle imprisoned in Rome, still preaching freely while awaiting trial.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'The Church Is Born', text: 'After Jesus\' ascension, the disciples choose a replacement for Judas, and on the day of Pentecost, the Holy Spirit is poured out on them, enabling them to speak in other languages and launching the church with thousands of conversions.' },
+      { chStart: 3, chEnd: 7, title: 'The Church in Jerusalem', text: 'Peter and John perform miraculous healings and preach boldly despite opposition from religious authorities. The community grows and chooses deacons to serve, including Stephen, who becomes the first Christian martyr.' },
+      { chStart: 8, chEnd: 12, title: 'The Gospel Spreads', text: 'The persecution following Stephen\'s death scatters believers, carrying the gospel beyond Jerusalem — including the conversion of the Ethiopian eunuch, Saul\'s (the future Paul\'s) dramatic conversion on the road to Damascus, and Peter\'s vision that opens the faith to Gentiles through Cornelius.' },
+      { chStart: 13, chEnd: 15, title: 'The First Missionary Journey and the Council', text: 'Paul and Barnabas are sent out by the church in Antioch on the first recorded missionary journey, carrying the gospel through Asia Minor. Their success among the Gentiles leads to a council in Jerusalem to decide whether they needed to follow Jewish law.' },
+      { chStart: 16, chEnd: 18, title: 'The Second Missionary Journey', text: 'Paul carries the gospel to Europe for the first time, preaching in Philippi, Athens (where he addresses the Areopagus), and Corinth, facing both notable conversions and intense persecution.' },
+      { chStart: 19, chEnd: 20, title: 'The Third Missionary Journey', text: 'Paul spends an extended period ministering in Ephesus, sparking a riot among local idol craftsmen, before an emotional farewell to the Ephesian church leaders, knowing he might never see them again.' },
+      { chStart: 21, chEnd: 26, title: 'Paul\'s Imprisonment', text: 'Back in Jerusalem, Paul is arrested after a riot at the Temple and goes through a series of trials before Jewish and Roman authorities, including governors Felix and Festus and King Agrippa, finally appealing to Caesar.' },
+      { chStart: 27, chEnd: 28, title: 'The Journey to Rome', text: 'On the way to Rome for his trial before Caesar, Paul survives a violent shipwreck. The book ends with his arrival in Rome, where he spends two years under house arrest, freely preaching about the Kingdom of God.' },
+    ],
     location: { name: 'From the Roman Empire to the Mediterranean', icon: "Globe", description: 'Follows missionary journeys through Jerusalem, Antioch, Asia Minor, Greece, and finally Rome.' },
     curiosities: [
       'It describes the day of Pentecost, when the Holy Spirit is poured out on the first Christians.',
