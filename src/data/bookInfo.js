@@ -1470,7 +1470,19 @@ export const BOOK_INFO = {
   },
 
   'Apocalipse': {
-    context: 'Também chamado de Revelação, é um livro profético e simbólico escrito pelo apóstolo João durante o exílio, revelando o triunfo final de Cristo sobre o mal.',
+    contextOverview: 'Também chamado de Revelação, o último livro da Bíblia é um livro profético e altamente simbólico escrito pelo apóstolo João durante o exílio na ilha de Patmos, revelando o triunfo final de Cristo sobre o mal. Endereçado originalmente a sete igrejas reais da Ásia Menor enfrentando perseguição e compromisso espiritual, o livro usa imagens vívidas — selos, trombetas, taças, bestas — para assegurar que, apesar das aparências, Deus já está no controle da história e Sua vitória final é certa. Termina encerrando toda a narrativa bíblica exatamente onde Gênesis começou: com a criação, agora restaurada.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Prólogo e Visão de Cristo', text: 'João, exilado em Patmos, recebe uma visão avassaladora de Jesus glorificado, em pé no meio de sete candelabros de ouro, e é comissionado a escrever o que vê para as sete igrejas.' },
+      { chStart: 2, chEnd: 3, title: 'Cartas às Sete Igrejas', text: 'Cristo dita sete mensagens pessoais e específicas — a Éfeso, Esmirna, Pérgamo, Tiatira, Sardes, Filadélfia e Laodiceia —, cada uma elogiando pontos fortes, corrigindo fraquezas e prometendo recompensa a quem vencer.' },
+      { chStart: 4, chEnd: 5, title: 'O Trono Celestial e o Cordeiro', text: 'João é levado ao céu numa visão do trono de Deus cercado de adoração contínua, e testemunha a única figura digna de abrir um livro selado: um Cordeiro que parece ter sido morto — Jesus, vitorioso através do sacrifício.' },
+      { chStart: 6, chEnd: 7, title: 'Os Selos e o Selamento dos 144 Mil', text: 'A abertura dos selos libera os quatro cavaleiros do apocalipse e uma série de julgamentos, interrompida por uma pausa para selar 144 mil servos de Deus e mostrar uma multidão incontável já diante do trono.' },
+      { chStart: 8, chEnd: 11, title: 'As Trombetas de Julgamento', text: 'Sete trombetas anunciam julgamentos cada vez mais intensos sobre a terra, intercalados pela missão de duas testemunhas proféticas poderosas que são mortas e depois ressuscitadas diante de todos.' },
+      { chStart: 12, chEnd: 14, title: 'A Mulher, o Dragão e as Bestas', text: 'Uma visão simbólica mostra um dragão perseguindo uma mulher e seu filho, e duas bestas que exigem adoração através de poder e engano — contrastadas com os 144 mil fiéis reunidos com o Cordeiro no monte Sião.' },
+      { chStart: 15, chEnd: 16, title: 'As Taças da Ira', text: 'Sete taças contendo os últimos e mais intensos julgamentos de Deus são derramadas sobre a terra, culminando na batalha reunida no lugar chamado Armagedom.' },
+      { chStart: 17, chEnd: 19, title: 'A Queda da Babilônia e o Retorno de Cristo', text: '"Babilônia", símbolo de todo sistema mundial corrupto e idólatra, é julgada e cai definitivamente, provocando tanto lamento quanto celebração no céu, antes da chegada triunfal de Cristo montado num cavalo branco.' },
+      { chStart: 20, chEnd: 20, title: 'O Milênio e o Julgamento Final', text: 'Satanás é preso por mil anos antes de uma rebelião final ser derrotada, e todos os mortos comparecem diante do grande trono branco para o julgamento final, com base no Livro da Vida.' },
+      { chStart: 21, chEnd: 22, title: 'Os Novos Céus e a Nova Terra', text: 'O livro — e toda a Bíblia — termina com a descrição de uma Nova Jerusalém descendo do céu, onde Deus habitará diretamente com Seu povo, sem mais lágrimas ou morte, e o rio da vida flui da árvore que cura as nações, com um convite final e aberto: "Vem!".' },
+    ],
     location: { name: 'Ilha de Patmos', icon: "TreePalm", description: 'João recebeu essas visões enquanto estava exilado na ilha grega de Patmos, no mar Egeu.' },
     curiosities: [
       'É o único livro totalmente profético/apocalíptico do Novo Testamento.',

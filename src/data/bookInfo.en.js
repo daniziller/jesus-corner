@@ -1464,7 +1464,19 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Apocalipse': {
-    context: 'Also called Revelation, it\'s a prophetic, symbolic book written by the apostle John during exile, revealing Christ\'s final triumph over evil.',
+    contextOverview: 'Also called Revelation, the Bible\'s final book is a prophetic, highly symbolic work written by the apostle John during his exile on the island of Patmos, revealing Christ\'s final triumph over evil. Originally addressed to seven real churches in Asia Minor facing persecution and spiritual compromise, the book uses vivid imagery — seals, trumpets, bowls, beasts — to assure that, despite appearances, God is already in control of history and His final victory is certain. It ends by closing the entire biblical narrative exactly where Genesis began: with creation, now restored.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Prologue and the Vision of Christ', text: 'John, exiled on Patmos, receives an overwhelming vision of the glorified Jesus, standing among seven golden lampstands, and is commissioned to write down what he sees for the seven churches.' },
+      { chStart: 2, chEnd: 3, title: 'Letters to the Seven Churches', text: 'Christ dictates seven personal, specific messages — to Ephesus, Smyrna, Pergamum, Thyatira, Sardis, Philadelphia, and Laodicea —, each praising strengths, correcting weaknesses, and promising reward to those who overcome.' },
+      { chStart: 4, chEnd: 5, title: 'The Heavenly Throne and the Lamb', text: 'John is taken up to heaven in a vision of God\'s throne surrounded by ceaseless worship, and witnesses the only figure worthy to open a sealed scroll: a Lamb that looks as if it had been slain — Jesus, victorious through sacrifice.' },
+      { chStart: 6, chEnd: 7, title: 'The Seals and the Sealing of the 144,000', text: 'Opening the seals releases the four horsemen of the apocalypse and a series of judgments, interrupted by a pause to seal 144,000 servants of God and reveal a countless multitude already standing before the throne.' },
+      { chStart: 8, chEnd: 11, title: 'The Trumpets of Judgment', text: 'Seven trumpets announce increasingly intense judgments on the earth, interspersed with the mission of two powerful prophetic witnesses who are killed and then raised back to life before everyone.' },
+      { chStart: 12, chEnd: 14, title: 'The Woman, the Dragon, and the Beasts', text: 'A symbolic vision shows a dragon pursuing a woman and her child, and two beasts demanding worship through power and deception — contrasted with the 144,000 faithful gathered with the Lamb on Mount Zion.' },
+      { chStart: 15, chEnd: 16, title: 'The Bowls of Wrath', text: 'Seven bowls containing God\'s final, most intense judgments are poured out on the earth, culminating in armies gathering for battle at the place called Armageddon.' },
+      { chStart: 17, chEnd: 19, title: 'The Fall of Babylon and Christ\'s Return', text: '"Babylon", a symbol of the whole corrupt, idolatrous world system, is judged and falls for good, provoking both lament and celebration in heaven, before the triumphant arrival of Christ riding a white horse.' },
+      { chStart: 20, chEnd: 20, title: 'The Millennium and the Final Judgment', text: 'Satan is bound for a thousand years before a final rebellion is defeated, and all the dead stand before the great white throne for the final judgment, based on the Book of Life.' },
+      { chStart: 21, chEnd: 22, title: 'The New Heaven and New Earth', text: 'The book — and the whole Bible — closes with the description of a New Jerusalem descending from heaven, where God will dwell directly with His people, with no more tears or death, and the river of life flows from the tree that heals the nations, with a final, open invitation: "Come!".' },
+    ],
     location: { name: 'Isle of Patmos', icon: "TreePalm", description: 'John received these visions while exiled on the Greek island of Patmos, in the Aegean Sea.' },
     curiosities: [
       'It\'s the only fully prophetic/apocalyptic book of the New Testament.',
