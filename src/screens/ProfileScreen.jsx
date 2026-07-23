@@ -108,7 +108,8 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
     if (subscription?.access_type === 'free') return t('billing.subscriptionFreeSub', undefined, session.lang)
     if (subscription?.access_type === 'lifetime') return t('billing.subscriptionLifetimeSub', undefined, session.lang)
     if (subscription?.access_type === 'recurring' && subscription.amount_cents != null && subscription.currency) {
-      return t('billing.subscriptionRecurringSub', { amount: formatAmount(subscription.amount_cents, subscription.currency) }, session.lang)
+      const key = subscription.plan === 'annual' ? 'billing.subscriptionRecurringAnnualSub' : 'billing.subscriptionRecurringSub'
+      return t(key, { amount: formatAmount(subscription.amount_cents, subscription.currency) }, session.lang)
     }
     return t('billing.subscriptionActiveSub', undefined, session.lang)
   }

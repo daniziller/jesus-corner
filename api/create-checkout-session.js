@@ -70,10 +70,13 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  const { type, amountCents, currency: requestedCurrency } = req.body ?? {}
+  const { type, interval: requestedInterval, amountCents, currency: requestedCurrency } = req.body ?? {}
   if (type !== 'onetime' && type !== 'recurring') {
     return res.status(400).json({ error: 'invalid_type' })
   }
+  // Mensal ou anual — só importa quando type é 'recurring'; default 'month'
+  // se vier algo inválido/ausente.
+  const interval = requestedInterval === 'year' ? 'year' : 'month'
 
   // Confia na escolha explícita da pessoa; só cai pro IP se o corpo não
   // mandar nada (cliente antigo em cache, por exemplo).
@@ -124,7 +127,7 @@ export default async function handler(req, res) {
           currency,
           unit_amount: amountCents,
           product: productId,
-          ...(type === 'recurring' ? { recurring: { interval: 'month' } } : {}),
+          ...(type === 'recurring' ? { recurring: { interval } } : {}),
         },
         quantity: 1,
       }],

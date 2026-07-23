@@ -16,8 +16,8 @@ import { formatAmount } from '../billing/formatAmount'
 // Mesmos valores numéricos pras duas moedas (sem conversão de câmbio) —
 // R$5/R$10/R$20/R$30 e $5/$10/$20/$30, etc.
 const PRESETS = {
-  brl: { recurring: [0, 5, 10, 20, 30], onetime: [200, 400, 600, 1000] },
-  usd: { recurring: [0, 5, 10, 20, 30], onetime: [200, 400, 600, 1000] },
+  brl: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300], onetime: [200, 400, 600, 1000] },
+  usd: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300], onetime: [200, 400, 600, 1000] },
 }
 // Mínimo real de cobrança do Stripe (recorrente, valor > 0 — R$0 vira grátis).
 const MIN_MAJOR = { brl: 0.5, usd: 0.5 }
@@ -34,7 +34,7 @@ const FEATURES = [
 export default function UpgradeScreen({ session, subscription }) {
   const { lang } = session
   const [currency, setCurrency] = useState('brl')
-  const [mode, setMode] = useState('recurring')
+  const [mode, setMode] = useState('monthly') // 'monthly' | 'annual' | 'onetime'
   const [selectedAmount, setSelectedAmount] = useState(null) // valor em unidade cheia (reais/dólares), null = nada escolhido
   const [isCustom, setIsCustom] = useState(false)
   const [customValue, setCustomValue] = useState('')
@@ -98,8 +98,9 @@ export default function UpgradeScreen({ session, subscription }) {
 
   function startChangingAmount() {
     const currentMajor = (subscription.amount_cents ?? 0) / 100
-    setMode('recurring')
-    if (PRESETS[currency].recurring.includes(currentMajor)) {
+    const currentMode = subscription.plan === 'annual' ? 'annual' : 'monthly'
+    setMode(currentMode)
+    if (PRESETS[currency][currentMode].includes(currentMajor)) {
       setIsCustom(false)
       setSelectedAmount(currentMajor)
     } else {
@@ -117,8 +118,11 @@ export default function UpgradeScreen({ session, subscription }) {
       if (amountCents === 0) {
         await activateFreeAccess()
         window.location.href = '/?checkout=success'
+      } else if (mode === 'onetime') {
+        const url = await startCheckout({ type: 'onetime', amountCents, currency })
+        window.location.href = url
       } else {
-        const url = await startCheckout({ type: mode === 'recurring' ? 'recurring' : 'onetime', amountCents, currency })
+        const url = await startCheckout({ type: 'recurring', interval: mode === 'annual' ? 'year' : 'month', amountCents, currency })
         window.location.href = url
       }
     } catch {
@@ -137,13 +141,14 @@ export default function UpgradeScreen({ session, subscription }) {
     }
   }
 
+  const submitBtnKey = mode === 'onetime' ? 'billing.subscribeOnceBtn' : mode === 'annual' ? 'billing.subscribeAnnualBtn' : 'billing.subscribeMonthlyBtn'
   const submitLabel = submitting
     ? t(amountCents === 0 ? 'billing.activating' : 'billing.redirecting', undefined, lang)
     : amountCents === 0
       ? t('billing.freeBtn', undefined, lang)
       : amountCents !== null
-        ? t(mode === 'recurring' ? 'billing.subscribeMonthlyBtn' : 'billing.subscribeOnceBtn', { amount: formatAmount(amountCents, currency) }, lang)
-        : t('billing.subscribeMonthlyBtn', { amount: '—' }, lang)
+        ? t(submitBtnKey, { amount: formatAmount(amountCents, currency) }, lang)
+        : t(submitBtnKey, { amount: '—' }, lang)
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
@@ -184,7 +189,7 @@ export default function UpgradeScreen({ session, subscription }) {
             <p style={styles.statusLabel}>{t('billing.currentContributionTitle', undefined, lang)}</p>
             <p style={styles.statusAmount}>
               {subscription.amount_cents != null && subscription.currency
-                ? `${formatAmount(subscription.amount_cents, subscription.currency)}${t('billing.perMonth', undefined, lang)}`
+                ? `${formatAmount(subscription.amount_cents, subscription.currency)}${t(subscription.plan === 'annual' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}`
                 : '—'}
             </p>
             <div style={styles.statusActions}>
@@ -233,10 +238,16 @@ export default function UpgradeScreen({ session, subscription }) {
 
             <div style={styles.modeToggle}>
               <button
-                style={{ ...styles.modeBtn, ...(mode === 'recurring' ? styles.modeBtnActive : {}) }}
-                onClick={() => switchMode('recurring')}
+                style={{ ...styles.modeBtn, ...(mode === 'monthly' ? styles.modeBtnActive : {}) }}
+                onClick={() => switchMode('monthly')}
               >
-                {t('billing.modeRecurring', undefined, lang)}
+                {t('billing.modeMonthly', undefined, lang)}
+              </button>
+              <button
+                style={{ ...styles.modeBtn, ...(mode === 'annual' ? styles.modeBtnActive : {}) }}
+                onClick={() => switchMode('annual')}
+              >
+                {t('billing.modeAnnual', undefined, lang)}
               </button>
               <button
                 style={{ ...styles.modeBtn, ...(mode === 'onetime' ? styles.modeBtnActive : {}) }}
@@ -325,7 +336,7 @@ const styles = {
   currencyBtn: { padding: '6px 12px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 7, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
   currencyBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
   modeToggle:  { display: 'flex', gap: 6, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 4 },
-  modeBtn:     { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
+  modeBtn:     { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11, lineHeight: 1.25, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
   modeBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
   modeNote:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: -6 },
   amountSection:{ display: 'flex', flexDirection: 'column', gap: 8 },
