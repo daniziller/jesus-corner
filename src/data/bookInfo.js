@@ -431,7 +431,17 @@ export const BOOK_INFO = {
   },
 
   'Jó': {
-    context: 'Um dos livros mais antigos da Bíblia: explora o sofrimento humano através da história de Jó, um homem justo que perde tudo e questiona a Deus.',
+    contextOverview: 'Considerado um dos livros mais antigos da Bíblia, Jó explora com profundidade poética o problema do sofrimento humano através da história de um homem justo e próspero que perde tudo — família, saúde e riqueza — e enfrenta as tentativas (falhas) de seus amigos de explicar sua dor. Estruturado majoritariamente como poesia e diálogo, o livro não oferece uma resposta simples para "por que sofremos", mas conduz o leitor a confiar na grandeza de Deus mesmo sem entender completamente Seus caminhos.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'O Prólogo', text: 'Nos bastidores do céu, Satanás desafia a integridade de Jó, sugerindo que sua fidelidade depende apenas de sua prosperidade. Com a permissão de Deus, Jó perde seus filhos, seus bens e depois sua saúde — mas se recusa a amaldiçoar a Deus.' },
+      { chStart: 3, chEnd: 3, title: 'O Lamento de Jó', text: 'Depois de sete dias de silêncio, Jó finalmente fala, amaldiçoando o dia em que nasceu e desejando nunca ter existido, num dos lamentos mais crus de toda a Bíblia.' },
+      { chStart: 4, chEnd: 14, title: 'Primeiro Ciclo de Diálogos', text: 'Elifaz, Bildade e Zofar, amigos de Jó, argumentam que seu sofrimento deve ser consequência de algum pecado escondido. Jó rejeita essa explicação simplista, defendendo sua inocência e expressando seu desejo de apresentar seu caso diretamente a Deus.' },
+      { chStart: 15, chEnd: 21, title: 'Segundo Ciclo de Diálogos', text: 'Os três amigos intensificam suas acusações, descrevendo o destino terrível dos ímpios. Jó, cada vez mais angustiado, insiste em sua integridade e questiona abertamente por que os injustos parecem prosperar enquanto ele sofre sem motivo.' },
+      { chStart: 22, chEnd: 27, title: 'Terceiro Ciclo de Diálogos', text: 'Elifaz acusa Jó diretamente de pecados específicos, sem provas. Jó responde com uma defesa ainda mais firme de sua retidão, lamentando não conseguir encontrar Deus para apresentar seu caso.' },
+      { chStart: 28, chEnd: 31, title: 'O Discurso Final de Jó', text: 'Um belo poema sobre onde encontrar verdadeira sabedoria interrompe o debate (capítulo 28). Jó encerra sua defesa relembrando sua vida de integridade e generosidade, desafiando Deus a responder suas perguntas.' },
+      { chStart: 32, chEnd: 37, title: 'Os Discursos de Eliú', text: 'Um jovem espectador até então silencioso, Eliú, intervém, criticando tanto Jó quanto seus três amigos, e apontando para a grandeza e justiça de Deus como preparação para o que vem a seguir.' },
+      { chStart: 38, chEnd: 42, title: 'A Resposta de Deus', text: 'Deus finalmente fala a Jó do meio de um turbilhão, não explicando o motivo de seu sofrimento, mas revelando Sua grandeza através de perguntas sobre a criação. Jó se humilha diante de Deus, e o livro termina com sua restauração — recebendo o dobro do que havia perdido.' },
+    ],
     location: { name: 'Terra de Uz', icon: "Tornado", description: 'A localização exata de "Uz" é incerta, mas fica provavelmente ao leste de Canaã, perto do deserto.' },
     curiosities: [
       'A maior parte do livro é composta por longos poemas — diálogos entre Jó e seus amigos.',
@@ -447,7 +457,14 @@ export const BOOK_INFO = {
     ],
   },
   'Salmos': {
-    context: 'Uma coleção de 150 poemas e cânticos de louvor, lamento e súplica, usados na adoração de Israel. Muitos são atribuídos ao rei Davi.',
+    contextOverview: 'Salmos é uma coleção de 150 poemas e cânticos de louvor, lamento e súplica, compostos ao longo de séculos por diversos autores — Davi é o mais frequente, mas também há salmos de Asafe, dos filhos de Coré, de Salomão e de Moisés. A tradição judaica organiza o livro em cinco "livros" menores (espelhando os cinco livros da Torá), cada um terminando com uma doxologia de louvor. Cobrindo quase todo o espectro da experiência humana — alegria, angústia, dúvida, gratidão, raiva e adoração —, os salmos continuam sendo usados até hoje em oração e culto.',
+    contextSections: [
+      { chStart: 1, chEnd: 41, title: 'Livro I', text: 'Majoritariamente atribuído a Davi, este primeiro conjunto contrasta o caminho do justo com o do ímpio (Salmo 1) e inclui muitos lamentos pessoais, onde o salmista clama a Deus em meio a perseguição e angústia, sempre retornando à confiança Nele.' },
+      { chStart: 42, chEnd: 72, title: 'Livro II', text: 'Inclui salmos dos filhos de Coré e de Davi, com foco maior nas necessidades da nação e do rei. Termina com o Salmo 72, uma oração por um rei justo, apontando para além de Salomão rumo a um governante ideal.' },
+      { chStart: 73, chEnd: 89, title: 'Livro III', text: 'Composto majoritariamente por Asafe, este livro lida com perguntas difíceis sobre a prosperidade dos ímpios e a aparente ausência de Deus, culminando em lamentos profundos sobre o exílio e a aparente falha da aliança davídica.' },
+      { chStart: 90, chEnd: 106, title: 'Livro IV', text: 'Abre com o único salmo atribuído a Moisés (90), refletindo sobre a brevidade da vida humana diante da eternidade de Deus, e segue com uma série de salmos que celebram o Senhor como Rei sobre toda a criação.' },
+      { chStart: 107, chEnd: 150, title: 'Livro V', text: 'O maior dos cinco livros inclui os "Salmos de Peregrinação" (120–134), cantados por quem subia a Jerusalém para as festas, o extenso Salmo 119 (uma meditação acróstica sobre a Palavra de Deus) e termina com uma sequência final de louvor irrestrito a Deus.' },
+    ],
     location: { name: 'Templo de Jerusalém', icon: "Music", description: 'Boa parte dos salmos foi composta para ser cantada no culto no Templo de Jerusalém.' },
     curiosities: [
       'É o livro mais longo da Bíblia em número de capítulos (150).',
@@ -463,7 +480,14 @@ export const BOOK_INFO = {
     ],
   },
   'Provérbios': {
-    context: 'Uma coletânea de ditados curtos e conselhos práticos sobre sabedoria, atribuídos principalmente ao rei Salomão.',
+    contextOverview: 'Provérbios é uma coletânea de ditados curtos e discursos mais longos sobre sabedoria prática para o dia a dia, atribuídos principalmente ao rei Salomão, mas incluindo também contribuições de outros sábios anônimos. Diferente da narrativa histórica, o livro ensina através de contrastes diretos — o sábio e o tolo, o justo e o ímpio, a diligência e a preguiça — todos ancorados na ideia central de que "o temor do Senhor é o princípio do conhecimento".',
+    contextSections: [
+      { chStart: 1, chEnd: 9, title: 'Convite à Sabedoria', text: 'Uma série de discursos mais longos, em vez de ditados curtos, apresenta um pai instruindo um filho a buscar a sabedoria acima de tudo. A Sabedoria e a Insensatez são personificadas como duas mulheres que convidam os simples a segui-las, cada uma levando a um destino muito diferente.' },
+      { chStart: 10, chEnd: 15, title: 'Primeira Coleção de Salomão', text: 'Aqui começam os provérbios propriamente ditos — ditados curtos e memoráveis, geralmente em dois versos que se contrastam, cobrindo temas como a língua, o trabalho, a riqueza e o caráter.' },
+      { chStart: 16, chEnd: 22, title: 'Mais Provérbios de Salomão', text: 'A coleção continua, com temas recorrentes sobre o orgulho, a humildade, a justiça e a soberania de Deus sobre os planos humanos — "o coração do homem planeja o seu caminho, mas o Senhor lhe dirige os passos".' },
+      { chStart: 23, chEnd: 29, title: 'Os Ditos dos Sábios', text: 'Uma seção identificada como "palavras dos sábios" traz conselhos mais extensos sobre temas como bebida, trabalho e justiça, seguida por mais provérbios de Salomão, copiados séculos depois pelos homens do rei Ezequias.' },
+      { chStart: 30, chEnd: 31, title: 'Agur e Lemuel', text: 'O livro termina com os ditos enigmáticos de Agur sobre os limites do conhecimento humano, as instruções do rei Lemuel transmitidas por sua mãe, e o famoso poema acróstico sobre a "mulher virtuosa" que encerra o livro.' },
+    ],
     location: { name: 'Corte real de Jerusalém', icon: "BookMarked", description: 'Reflete a tradição de "literatura de sabedoria" ensinada nas cortes reais do Oriente Próximo antigo.' },
     curiosities: [
       'Provérbios 31, sobre a "mulher virtuosa", é estruturado como um acróstico em hebraico (cada verso começa com uma letra do alfabeto).',
@@ -479,7 +503,13 @@ export const BOOK_INFO = {
     ],
   },
   'Eclesiastes': {
-    context: 'Uma reflexão filosófica sobre o sentido da vida, escrita por alguém que se apresenta como "o Pregador", tradicionalmente identificado com Salomão.',
+    contextOverview: 'Eclesiastes é uma reflexão filosófica e honesta sobre o sentido da vida, escrita por alguém que se apresenta como "o Pregador" (Qohelet, em hebraico), tradicionalmente identificado com Salomão. O autor testa exaustivamente prazer, trabalho, riqueza e sabedoria em busca de sentido duradouro, concluindo repetidamente que tudo "debaixo do sol" é "vaidade" — passageiro como vapor — antes de chegar à conclusão final: temer a Deus e guardar Seus mandamentos.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Tudo é Passageiro', text: 'O Pregador testa sistematicamente prazer, grandes projetos, riqueza e até a própria sabedoria, concluindo que nada disso, por si só, traz satisfação duradoura — tudo é "vaidade e correr atrás do vento".' },
+      { chStart: 3, chEnd: 6, title: 'Tempos e Limites', text: 'O famoso poema "para tudo há um tempo" abre esta seção, seguido de reflexões sobre a opressão que existe no mundo, a solidão, e a frustração de acumular riqueza sem conseguir realmente aproveitá-la.' },
+      { chStart: 7, chEnd: 10, title: 'Sabedoria Prática em Meio à Incerteza', text: 'Apesar do tom cético do livro, esta seção oferece conselhos práticos sobre como viver com sabedoria mesmo sem respostas completas — sobre reputação, paciência, liderança e o valor real (ainda que limitado) da sabedoria.' },
+      { chStart: 11, chEnd: 12, title: 'Conclusão', text: 'O livro encoraja viver com coragem e generosidade apesar da incerteza do futuro, e convida o leitor a "lembrar-se do Criador" na juventude. A conclusão final resume tudo: temer a Deus e guardar Seus mandamentos é o dever de toda a humanidade.' },
+    ],
     location: { name: 'Jerusalém', icon: "Wind", description: 'Escrito na perspectiva de um rei em Jerusalém que já experimentou riqueza, prazer e poder.' },
     curiosities: [
       'A palavra hebraica traduzida como "vaidade" ("hevel") significa literalmente "vapor" ou "fumaça" — algo passageiro.',
@@ -495,7 +525,12 @@ export const BOOK_INFO = {
     ],
   },
   'Cântico dos Cânticos': {
-    context: 'Um poema de amor entre um casal, celebrando a beleza do amor romântico e físico. Tradicionalmente atribuído a Salomão.',
+    contextOverview: 'O único livro da Bíblia inteiramente dedicado ao amor romântico e físico entre um casal, sem mencionar Deus diretamente. Tradicionalmente atribuído a Salomão, o poema celebra o desejo, a beleza e a intimidade dentro do casamento através de imagens ricas tiradas da natureza — vinhedos, jardins, especiarias e animais. Tradições judaicas e cristãs também o interpretam de forma alegórica, como símbolo do amor entre Deus e Seu povo.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'O Desejo e a Busca', text: 'Os amantes trocam elogios apaixonados um sobre o outro, expressando o desejo de estarem juntos. A amada sonha em procurar seu amado pela cidade à noite, refletindo a intensidade do anseio entre os dois.' },
+      { chStart: 4, chEnd: 5, title: 'Núpcias e Separação', text: 'O noivo descreve a beleza de sua amada em rica poesia, celebrando a união do casal. Um momento de distância surge quando ela hesita em atendê-lo à porta, levando a uma busca angustiada até o reencontro.' },
+      { chStart: 6, chEnd: 8, title: 'Amor Maduro e Selado', text: 'O casal reafirma seu compromisso mútuo, e o poema chega ao seu ápice com a declaração de que o amor é "forte como a morte" e que "muitas águas não podem apagá-lo" — encerrando com um convite final para que o amor continue vivo.' },
+    ],
     location: { name: 'Israel rural', icon: "Heart", description: 'As imagens do poema remetem a vinhedos, jardins e pastagens da zona rural de Israel.' },
     curiosities: [
       'É o único livro da Bíblia inteiramente dedicado ao amor romântico, sem mencionar Deus diretamente.',

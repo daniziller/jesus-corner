@@ -430,7 +430,17 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Jó': {
-    context: 'One of the oldest books of the Bible: it explores human suffering through the story of Job, a righteous man who loses everything and questions God.',
+    contextOverview: 'Considered one of the oldest books of the Bible, Job explores the problem of human suffering with deep poetry through the story of a righteous, prosperous man who loses everything — family, health, and wealth — and endures his friends\' failed attempts to explain his pain. Structured mostly as poetry and dialogue, the book offers no simple answer to "why do we suffer", but leads the reader to trust in God\'s greatness even without fully understanding His ways.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'The Prologue', text: 'Behind the scenes in heaven, Satan challenges Job\'s integrity, suggesting his faithfulness only depends on his prosperity. With God\'s permission, Job loses his children, his possessions, and then his health — but refuses to curse God.' },
+      { chStart: 3, chEnd: 3, title: 'Job\'s Lament', text: 'After seven days of silence, Job finally speaks, cursing the day he was born and wishing he had never existed, in one of the rawest laments in the entire Bible.' },
+      { chStart: 4, chEnd: 14, title: 'First Cycle of Dialogues', text: 'Job\'s friends Eliphaz, Bildad, and Zophar argue that his suffering must be the result of some hidden sin. Job rejects this simplistic explanation, defending his innocence and expressing his wish to present his case directly to God.' },
+      { chStart: 15, chEnd: 21, title: 'Second Cycle of Dialogues', text: 'The three friends intensify their accusations, describing the terrible fate of the wicked. Job, growing more anguished, insists on his integrity and openly questions why the unjust seem to prosper while he suffers for no reason.' },
+      { chStart: 22, chEnd: 27, title: 'Third Cycle of Dialogues', text: 'Eliphaz accuses Job directly of specific sins, without evidence. Job responds with an even firmer defense of his righteousness, lamenting that he cannot find God to present his case.' },
+      { chStart: 28, chEnd: 31, title: 'Job\'s Final Speech', text: 'A beautiful poem about where true wisdom is found interrupts the debate (chapter 28). Job closes his defense by recalling his life of integrity and generosity, daring God to answer his questions.' },
+      { chStart: 32, chEnd: 37, title: 'Elihu\'s Speeches', text: 'A young bystander who had been silent until now, Elihu, steps in, criticizing both Job and his three friends, and pointing to God\'s greatness and justice as preparation for what comes next.' },
+      { chStart: 38, chEnd: 42, title: 'God\'s Answer', text: 'God finally speaks to Job out of a whirlwind, not explaining the reason for his suffering, but revealing His greatness through questions about creation. Job humbles himself before God, and the book ends with his restoration — receiving double what he had lost.' },
+    ],
     location: { name: 'Land of Uz', icon: "Tornado", description: 'The exact location of "Uz" is uncertain, but it\'s likely east of Canaan, near the desert.' },
     curiosities: [
       'Most of the book is made up of long poems — dialogues between Job and his friends.',
@@ -446,7 +456,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Salmos': {
-    context: 'A collection of 150 poems and songs of praise, lament, and petition, used in Israel\'s worship. Many are attributed to King David.',
+    contextOverview: 'Psalms is a collection of 150 poems and songs of praise, lament, and petition, composed over centuries by various authors — David is the most frequent, but there are also psalms by Asaph, the sons of Korah, Solomon, and Moses. Jewish tradition organizes the book into five smaller "books" (mirroring the five books of the Torah), each ending with a doxology of praise. Covering nearly the whole spectrum of human experience — joy, anguish, doubt, gratitude, anger, and worship — the psalms are still used in prayer and worship today.',
+    contextSections: [
+      { chStart: 1, chEnd: 41, title: 'Book I', text: 'Mostly attributed to David, this first collection contrasts the way of the righteous with the way of the wicked (Psalm 1) and includes many personal laments, where the psalmist cries out to God amid persecution and distress, always returning to trust in Him.' },
+      { chStart: 42, chEnd: 72, title: 'Book II', text: 'Includes psalms by the sons of Korah and by David, with a greater focus on the needs of the nation and the king. It ends with Psalm 72, a prayer for a righteous king, pointing beyond Solomon toward an ideal ruler.' },
+      { chStart: 73, chEnd: 89, title: 'Book III', text: 'Composed mostly by Asaph, this book wrestles with hard questions about the prosperity of the wicked and God\'s apparent absence, culminating in deep laments over the exile and the seeming failure of the Davidic covenant.' },
+      { chStart: 90, chEnd: 106, title: 'Book IV', text: 'Opens with the only psalm attributed to Moses (90), reflecting on the brevity of human life against God\'s eternity, and continues with a series of psalms celebrating the Lord as King over all creation.' },
+      { chStart: 107, chEnd: 150, title: 'Book V', text: 'The largest of the five books includes the "Songs of Ascents" (120–134), sung by pilgrims going up to Jerusalem for the festivals, the lengthy Psalm 119 (an acrostic meditation on God\'s Word), and ends with a final sequence of unrestrained praise to God.' },
+    ],
     location: { name: 'Temple in Jerusalem', icon: "Music", description: 'Many of the psalms were composed to be sung in worship at the Temple in Jerusalem.' },
     curiosities: [
       'It\'s the longest book of the Bible by number of chapters (150).',
@@ -462,7 +479,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Provérbios': {
-    context: 'A collection of short sayings and practical advice about wisdom, mainly attributed to King Solomon.',
+    contextOverview: 'Proverbs is a collection of short sayings and longer discourses on practical, everyday wisdom, mainly attributed to King Solomon but also including contributions from other anonymous sages. Unlike historical narrative, the book teaches through direct contrasts — the wise and the fool, the righteous and the wicked, diligence and laziness — all anchored in the central idea that "the fear of the Lord is the beginning of knowledge".',
+    contextSections: [
+      { chStart: 1, chEnd: 9, title: 'An Invitation to Wisdom', text: 'A series of longer discourses, rather than short sayings, presents a father instructing a son to seek wisdom above all else. Wisdom and Folly are personified as two women who invite the simple to follow them, each leading to a very different destination.' },
+      { chStart: 10, chEnd: 15, title: 'Solomon\'s First Collection', text: 'Here the proverbs proper begin — short, memorable sayings, usually in two contrasting lines, covering topics like speech, work, wealth, and character.' },
+      { chStart: 16, chEnd: 22, title: 'More Proverbs of Solomon', text: 'The collection continues, with recurring themes of pride, humility, justice, and God\'s sovereignty over human plans — "in their hearts humans plan their course, but the Lord establishes their steps".' },
+      { chStart: 23, chEnd: 29, title: 'The Sayings of the Wise', text: 'A section identified as "sayings of the wise" offers longer advice on topics like drinking, work, and justice, followed by more proverbs of Solomon, copied centuries later by the men of King Hezekiah.' },
+      { chStart: 30, chEnd: 31, title: 'Agur and Lemuel', text: 'The book closes with Agur\'s enigmatic sayings on the limits of human knowledge, King Lemuel\'s instructions passed on by his mother, and the famous acrostic poem about the "virtuous woman" that ends the book.' },
+    ],
     location: { name: 'Royal court of Jerusalem', icon: "BookMarked", description: 'Reflects the "wisdom literature" tradition taught in the royal courts of the ancient Near East.' },
     curiosities: [
       'Proverbs 31, about the "virtuous woman", is structured as a Hebrew acrostic (each line starts with a letter of the alphabet).',
@@ -478,7 +502,13 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Eclesiastes': {
-    context: 'A philosophical reflection on the meaning of life, written by someone who calls himself "the Teacher", traditionally identified with Solomon.',
+    contextOverview: 'Ecclesiastes is an honest philosophical reflection on the meaning of life, written by someone who calls himself "the Teacher" (Qohelet, in Hebrew), traditionally identified with Solomon. The author exhaustively tests pleasure, work, wealth, and wisdom in search of lasting meaning, repeatedly concluding that everything "under the sun" is "vanity" — fleeting as vapor — before arriving at the final conclusion: fear God and keep His commandments.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Everything Is Fleeting', text: 'The Teacher systematically tests pleasure, great projects, wealth, and even wisdom itself, concluding that none of it, on its own, brings lasting satisfaction — it is all "vanity and a chasing after the wind".' },
+      { chStart: 3, chEnd: 6, title: 'Times and Limits', text: 'The famous poem "for everything there is a season" opens this section, followed by reflections on the oppression that exists in the world, loneliness, and the frustration of accumulating wealth without truly being able to enjoy it.' },
+      { chStart: 7, chEnd: 10, title: 'Practical Wisdom Amid Uncertainty', text: 'Despite the book\'s skeptical tone, this section offers practical advice on living wisely even without complete answers — on reputation, patience, leadership, and the real, if limited, value of wisdom.' },
+      { chStart: 11, chEnd: 12, title: 'Conclusion', text: 'The book encourages living with courage and generosity despite an uncertain future, and invites the reader to "remember your Creator" in youth. The final conclusion sums it all up: fearing God and keeping His commandments is the duty of all humanity.' },
+    ],
     location: { name: 'Jerusalem', icon: "Wind", description: 'Written from the perspective of a king in Jerusalem who had already experienced wealth, pleasure, and power.' },
     curiosities: [
       'The Hebrew word translated as "vanity" ("hevel") literally means "vapor" or "smoke" — something fleeting.',
@@ -494,7 +524,12 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Cântico dos Cânticos': {
-    context: 'A love poem between a couple, celebrating the beauty of romantic and physical love. Traditionally attributed to Solomon.',
+    contextOverview: 'The only book of the Bible entirely dedicated to romantic and physical love between a couple, without mentioning God directly. Traditionally attributed to Solomon, the poem celebrates desire, beauty, and intimacy within marriage through rich imagery drawn from nature — vineyards, gardens, spices, and animals. Jewish and Christian traditions also read it allegorically, as a symbol of the love between God and His people.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Longing and Searching', text: 'The lovers exchange passionate praises of one another, expressing their desire to be together. The beloved dreams of searching for her lover through the city at night, reflecting the intensity of their longing for each other.' },
+      { chStart: 4, chEnd: 5, title: 'Wedding and Separation', text: 'The groom describes his bride\'s beauty in rich poetry, celebrating the couple\'s union. A moment of distance arises when she hesitates to answer the door for him, leading to an anguished search until they are reunited.' },
+      { chStart: 6, chEnd: 8, title: 'Mature, Sealed Love', text: 'The couple reaffirms their mutual commitment, and the poem reaches its peak with the declaration that love is "as strong as death" and that "many waters cannot quench" it — closing with a final invitation for love to remain alive.' },
+    ],
     location: { name: 'Rural Israel', icon: "Heart", description: 'The poem\'s imagery evokes vineyards, gardens, and pastures of rural Israel.' },
     curiosities: [
       'It\'s the only book of the Bible entirely dedicated to romantic love, without mentioning God directly.',
