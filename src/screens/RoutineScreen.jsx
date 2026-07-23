@@ -16,7 +16,7 @@ import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflect
 const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
-export default function RoutineScreen({ session, onNavigate, onContinueSession, onSelectPlan }) {
+export default function RoutineScreen({ session, onNavigate, onContinueSession, onSelectPlan, onMarkRoutineStep }) {
   const { lang, plan, todayRoutine } = session
   const [prayerMinutes, setPrayerMinutesState] = useState(() => getSavedPrayerMinutes() ?? plan.prayerMinutes)
   const [reflectionMinutes, setReflectionMinutesState] = useState(() => getSavedReflectionMinutes() ?? plan.reflectionMinutes)
@@ -33,11 +33,13 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
   const totalMinutes = prayerMinutes + reflectionMinutes + (plan.readingMinutes ?? 0)
 
   // Mesma ordem/cor/ícone da DailyRoutineCard na Home — bate visualmente
-  // com o resto do app. Tocar num passo leva direto pra tela dele.
+  // com o resto do app. Tocar na linha leva direto pra tela do passo; tocar
+  // no ícone (stopPropagation, mesmo padrão da Home) marca/desmarca concluído
+  // na hora, pra quem já orou/leu/refletiu fora do app e só quer marcar.
   const steps = [
-    { key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer, title: t('home.routinePrayer', undefined, lang), done: !!todayRoutine.prayer, onClick: () => onNavigate?.('prayer') },
-    { key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading, title: t('home.routineReading', undefined, lang), done: !!todayRoutine.reading, onClick: () => onContinueSession?.() },
-    { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection, title: t('home.routineReflection', undefined, lang), done: !!todayRoutine.reflection, onClick: () => onNavigate?.('reflection') },
+    { key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer, title: t('home.routinePrayer', undefined, lang), done: !!todayRoutine.prayer, onClick: () => onNavigate?.('prayer'), onToggleCheck: () => onMarkRoutineStep?.('prayer', !todayRoutine.prayer) },
+    { key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading, title: t('home.routineReading', undefined, lang), done: !!todayRoutine.reading, onClick: () => onContinueSession?.(), onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading) },
+    { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection, title: t('home.routineReflection', undefined, lang), done: !!todayRoutine.reflection, onClick: () => onNavigate?.('reflection'), onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection) },
   ]
 
   return (
@@ -71,7 +73,12 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
           {steps.map((step, i) => (
             <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', flex: i < steps.length - 1 ? 1 : 'unset' }}>
               <button onClick={step.onClick} style={styles.stepNodeWrap}>
-                <span style={{ ...styles.stepNode, background: step.done ? step.color : 'var(--g1)', borderColor: step.done ? step.color : 'var(--g2)' }}>
+                <span
+                  role="button"
+                  aria-label={t('home.routineMarkDone', undefined, lang)}
+                  style={{ ...styles.stepNode, background: step.done ? step.color : 'var(--g1)', borderColor: step.done ? step.color : 'var(--g2)', cursor: 'pointer' }}
+                  onClick={e => { e.stopPropagation(); step.onToggleCheck() }}
+                >
                   <AppIcon name={step.done ? 'Check' : step.icon} size={17} color={step.done ? 'white' : 'var(--g4)'} />
                 </span>
                 <span style={styles.stepLabel}>{step.title}</span>
