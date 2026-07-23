@@ -545,7 +545,19 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Isaías': {
-    context: 'One of Israel\'s greatest prophets, Isaiah announces judgment over the people\'s unfaithfulness, but also comfort and the promise of a future Messiah.',
+    contextOverview: 'The longest of the prophetic books, Isaiah announces judgment over Judah\'s unfaithfulness in the face of threats from Assyria and, later, Babylon — but also deep comfort and the promise of a Messiah who would suffer for the people. Scholars often divide the book into two major parts of quite different tone: chapters 1–39, dominated by judgment and warning, and 40–66, focused on comfort and future restoration. It is the prophetic book most quoted in the New Testament.',
+    contextSections: [
+      { chStart: 1, chEnd: 5, title: 'Judgment Against Judah', text: 'The book opens with direct accusations of Judah\'s unfaithfulness and religious hypocrisy, including the parable of the vineyard that failed to produce good fruit despite the owner\'s careful tending.' },
+      { chStart: 6, chEnd: 12, title: 'Isaiah\'s Call and the Emanuel', text: 'Isaiah has a vision of God\'s glory in the temple and is commissioned as a prophet. Amid threats of war, he announces the birth of an "Emanuel" and, further on, of a ruler who would be called "Prince of Peace".' },
+      { chStart: 13, chEnd: 23, title: 'Oracles Against the Nations', text: 'A series of judgment prophecies turns against neighboring nations — Babylon, Assyria, Moab, Damascus, Egypt, Tyre — showing that the Lord rules over the whole earth, not just Israel.' },
+      { chStart: 24, chEnd: 27, title: 'The Little Apocalypse', text: 'A section with a more cosmic tone describes a universal judgment over the whole earth, followed by the promise of a final banquet and the definitive defeat of death.' },
+      { chStart: 28, chEnd: 35, title: 'Woes and Warnings', text: 'A series of "woes" warns against corrupt leaders and against trusting political alliances (such as with Egypt) instead of God, interspersed with visions of future hope.' },
+      { chStart: 36, chEnd: 39, title: 'Hezekiah and Sennacherib', text: 'A historical narrative section tells of the Assyrian siege of Jerusalem by Sennacherib, defeated after King Hezekiah\'s prayer, followed by his illness and miraculous healing, and a diplomatic mistake with Babylonian envoys.' },
+      { chStart: 40, chEnd: 48, title: 'Comfort and the Greatness of God', text: 'The book\'s tone changes radically: "Comfort, comfort my people". God is exalted as incomparable to the idols of the nations, and the Persian king Cyrus is announced, decades before his birth, as the instrument of Israel\'s deliverance.' },
+      { chStart: 49, chEnd: 55, title: 'The Suffering Servant', text: 'A series of "Servant Songs" describes a figure who would suffer and die for the people\'s sins, culminating in chapter 53 — one of the most quoted messianic prophecies in the entire Bible.' },
+      { chStart: 56, chEnd: 59, title: 'Justice and Sin', text: 'The book returns to a call for genuine social justice and for a fast that truly matters to God, alongside an honest confession of the sin that still separates the people from Him.' },
+      { chStart: 60, chEnd: 66, title: 'The Future Glory', text: 'The book ends with a glorious vision of Jerusalem\'s final restoration, culminating in the promise of "new heavens and a new earth" — a horizon of hope far beyond the immediate historical context.' },
+    ],
     location: { name: 'Kingdom of Judah', icon: "Flame", description: 'Isaiah prophesies in Jerusalem over turbulent decades, with the threat of Assyria and later Babylon.' },
     curiosities: [
       'It\'s the prophetic book most quoted in the New Testament.',
@@ -561,7 +573,17 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Jeremias': {
-    context: 'Known as the "weeping prophet", Jeremiah warns Judah of Jerusalem\'s coming destruction and personally witnesses its fall.',
+    contextOverview: 'Known as the "weeping prophet", Jeremiah ministers in Judah during the last, most turbulent decades before the fall of Jerusalem, repeatedly warning of its coming destruction — and being persecuted for it — before personally witnessing the fulfillment of his own prophecies. It is the second-longest book of the Bible by word count, blending prophecy, historical narrative, and deeply personal laments known as his "confessions".',
+    contextSections: [
+      { chStart: 1, chEnd: 6, title: 'Jeremiah\'s Call', text: 'God calls Jeremiah while still young, saying He knew him "before I formed you in the womb". The prophet\'s early messages already denounce Judah\'s spiritual unfaithfulness and warn of an enemy coming from the north.' },
+      { chStart: 7, chEnd: 10, title: 'The Temple Sermon', text: 'Jeremiah confronts the people for blindly trusting in the Temple\'s presence as a guarantee of safety, even while living in disobedience — a false religious confidence he denounces forcefully.' },
+      { chStart: 11, chEnd: 20, title: 'Persecution and Personal Laments', text: 'A conspiracy is plotted against Jeremiah\'s life, even by his own family. Interspersed with the prophecies are his "confessions" — raw prayers where he expresses deep anguish and even anger over his difficult mission.' },
+      { chStart: 21, chEnd: 29, title: 'Confronting Kings and False Prophets', text: 'Jeremiah directly confronts Judah\'s last kings over their injustice, and publicly clashes with the false prophet Hananiah, who promises a peace that would never come.' },
+      { chStart: 30, chEnd: 33, title: 'The Book of Comfort', text: 'Amid so much judgment, this section gathers remarkable promises of future restoration, including the "New Covenant" (31:31-34) — written on the heart, not on tablets of stone.' },
+      { chStart: 34, chEnd: 39, title: 'The Fall of Jerusalem', text: 'The last days before the fall are narrated in detail: Jeremiah is arrested and thrown into a muddy cistern for his unpopular messages, and the city finally falls to the Babylonians.' },
+      { chStart: 40, chEnd: 45, title: 'After the Fall', text: 'Jeremiah has the option to remain in the devastated land, but ends up being forcibly taken to Egypt by a group of remaining Jews, against his own prophetic advice.' },
+      { chStart: 46, chEnd: 52, title: 'Oracles Against the Nations and Appendix', text: 'A series of prophecies turns against foreign nations — Egypt, Babylon, and others — and the book closes with a historical appendix that repeats, in detail, the account of Jerusalem\'s fall.' },
+    ],
     location: { name: 'Jerusalem', icon: "CloudRain", description: 'Jeremiah prophesies in Jerusalem in the last years before the city fell to the Babylonians, in 586 BC.' },
     curiosities: [
       'It\'s the second-longest book of the Bible by word count, after the Psalms.',
@@ -577,7 +599,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Lamentações': {
-    context: 'A series of mourning poems over the destruction of Jerusalem and the Temple by the Babylonians, traditionally attributed to Jeremiah.',
+    contextOverview: 'Lamentations is a series of five mourning poems over the destruction of Jerusalem and the Temple by the Babylonians in 586 BC, traditionally attributed to Jeremiah. Four of the five chapters are carefully structured Hebrew acrostics — a poetic form expressing complete grief, "from A to Z". Despite its predominant tone of pain, the book holds, at its exact center, one of the most hopeful verses in the entire Bible: "Great is your faithfulness".',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'The Lonely City', text: 'Jerusalem is pictured as a lonely widow, weeping at night, remembering her days of glory while acknowledging that her suffering is a direct consequence of her own rebellion against God.' },
+      { chStart: 2, chEnd: 2, title: 'The Lord\'s Anger', text: 'The poem describes, without softening it, the intensity of God\'s anger against the city — the Temple destroyed, leaders humiliated, the people starving — as a direct consequence of the broken covenant.' },
+      { chStart: 3, chEnd: 3, title: 'Great Is Your Faithfulness', text: 'The book\'s central and longest chapter is also its most personal, swinging between deep anguish and the book\'s most famous declaration of hope: the Lord\'s mercies are new every morning.' },
+      { chStart: 4, chEnd: 4, title: 'The Siege and the Famine', text: 'A poignant account describes the horrors of the Babylonian siege — extreme hunger, the suffering of children and the elderly — contrasting the city\'s past splendor with its present devastation.' },
+      { chStart: 5, chEnd: 5, title: 'Final Prayer', text: 'The book ends with a collective prayer, asking God to remember the people\'s suffering and restore them — closing on a note of humble petition, without an easy or immediate resolution.' },
+    ],
     location: { name: 'Ruins of Jerusalem', icon: "Building", description: 'Written shortly after Jerusalem\'s fall in 586 BC, reflecting on the city in ruins.' },
     curiosities: [
       'Four of the five chapters are acrostics: each verse or stanza follows the order of the Hebrew alphabet.',
@@ -593,7 +622,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Ezequiel': {
-    context: 'A prophet and priest exiled in Babylon, Ezekiel has dramatic visions about Israel\'s judgment and the hope of future restoration.',
+    contextOverview: 'A prophet and priest exiled in Babylon, Ezekiel ministers among the already-deported Jews, before and after Jerusalem\'s final destruction, through dramatic visions and unusual symbolic acts. The book moves from inevitable judgment on the city (while it still existed) to messages of hope and future restoration after its fall, culminating in a detailed vision of a restored Temple.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Ezekiel\'s Call', text: 'Ezekiel has an overwhelming vision of God\'s glory, with living creatures and "wheels within wheels", and is commissioned as a prophetic watchman for the exiled people, even knowing his message would be rejected.' },
+      { chStart: 4, chEnd: 24, title: 'Judgment on Jerusalem', text: 'While Jerusalem still stood, Ezekiel uses striking symbolic acts — lying on his side for long periods, cutting and dividing his hair — to announce the city\'s coming destruction, culminating with news of its fall.' },
+      { chStart: 25, chEnd: 32, title: 'Oracles Against the Nations', text: 'A series of judgment prophecies turns against neighboring nations — Ammon, Moab, Edom, Philistia, Tyre, Sidon, and, with special emphasis, Egypt.' },
+      { chStart: 33, chEnd: 39, title: 'Hope and Restoration', text: 'After Jerusalem\'s fall, the tone shifts to hope: Ezekiel is confirmed as the people\'s watchman, has the famous vision of the "valley of dry bones" coming to life, and announces a new covenant of a transformed heart.' },
+      { chStart: 40, chEnd: 48, title: 'The New Temple', text: 'The book ends with an extensive, detailed vision of a future restored Temple, the return of God\'s glory to that place, and the division of the land among the tribes — a final image of complete restoration.' },
+    ],
     location: { name: 'Babylon', icon: "Eye", description: 'Ezekiel prophesies among the Jewish exiles by the Kebar river, in Babylon.' },
     curiosities: [
       'It contains some of the strangest, most symbolic visions in the Bible, like the "wheel within a wheel" (chapter 1).',
@@ -609,7 +645,15 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Daniel': {
-    context: 'Tells the story of Daniel and his friends, young Jewish exiles in Babylon who stay faithful to God, along with prophetic visions about future empires.',
+    contextOverview: 'Daniel tells the story of a young Jewish exile who rises to positions of influence in the courts of Babylon and later the Medo-Persian Empire, staying faithful to God despite pressure to conform. The book\'s first half (1–6) narrates well-known episodes of faithfulness amid persecution; the second half (7–12) records complex apocalyptic visions about empires to come, which strongly influenced later prophetic literature, including Revelation.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Daniel in the Babylonian Court', text: 'Daniel and his three friends refuse to defile themselves with food from the royal table, staying faithful to Jewish law. Daniel later interprets a disturbing dream of King Nebuchadnezzar about a statue made of different metals, representing future empires.' },
+      { chStart: 3, chEnd: 3, title: 'The Fiery Furnace', text: 'Shadrach, Meshach, and Abednego refuse to worship a golden statue built by Nebuchadnezzar and are thrown into a blazing furnace, from which they emerge unharmed, protected by a fourth figure "like a son of the gods".' },
+      { chStart: 4, chEnd: 5, title: 'Nebuchadnezzar\'s Madness and the Writing on the Wall', text: 'Nebuchadnezzar is humbled with a period of insanity for his pride, until he recognizes God\'s sovereignty. Decades later, a mysterious hand writes a message of judgment on the wall during a banquet held by King Belshazzar.' },
+      { chStart: 6, chEnd: 6, title: 'The Lions\' Den', text: 'Now elderly, Daniel continues praying openly to God despite a decree forbidding it, and is thrown into the lions\' den as punishment — emerging unharmed the next morning.' },
+      { chStart: 7, chEnd: 9, title: 'Apocalyptic Visions', text: 'Daniel has symbolic visions of four great beasts representing successive empires, of a ram and a goat in conflict, and receives the revelation of the "seventy weeks", a prophetic timeline pointing to the distant future.' },
+      { chStart: 10, chEnd: 12, title: 'The Final Vision', text: 'In one last, extensive vision, a heavenly messenger reveals to Daniel details about future conflicts between kingdoms, culminating in a prophecy about the "time of the end" and the final resurrection.' },
+    ],
     location: { name: 'Babylon and Persia', icon: "PawPrint", description: 'The action takes place in the royal courts of Babylon and, later, the Medo-Persian Empire.' },
     curiosities: [
       'Daniel in the lions\' den is one of the best-known episodes in the book.',
@@ -625,7 +669,12 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Oseias': {
-    context: 'A prophet whose own life — married to an unfaithful woman — becomes a living metaphor for the relationship between God and an Israel that abandons Him for other gods.',
+    contextOverview: 'The first of the twelve "minor prophets" in the order of the Bible, Hosea prophesies in the northern kingdom, Israel, in the years leading up to its destruction by Assyria. His own life — married, by God\'s command, to an unfaithful woman — becomes a lived metaphor for the relationship between God and a people who repeatedly abandon Him for other gods, yet whom He continues to pursue with persistent love.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Hosea\'s Marriage', text: 'God commands Hosea to marry Gomer, a woman who would be unfaithful, and gives symbolic names of judgment to the couple\'s children. Despite Gomer\'s betrayal, Hosea is instructed to redeem and love her again — a living illustration of God\'s love for Israel.' },
+      { chStart: 4, chEnd: 10, title: 'Accusations Against Israel', text: 'A long series of specific denunciations targets idolatry, the corruption of priests and leaders, and Israel\'s widespread spiritual unfaithfulness, repeatedly compared to adultery against God.' },
+      { chStart: 11, chEnd: 14, title: 'God\'s Fatherly Love', text: 'The tone shifts to a tender image of God as a father who taught Israel to walk from childhood. The book ends with a final, sincere appeal to repentance, and the promise of healing for anyone who returns.' },
+    ],
     location: { name: 'Kingdom of Israel (north)', icon: "HeartCrack", description: 'Hosea prophesies in the northern kingdom, Israel, in the years leading up to its destruction by Assyria.' },
     curiosities: [
       'He\'s the only prophet whose personal life (the marriage to Gomer) becomes the main illustration of his message.',
@@ -641,7 +690,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Joel': {
-    context: 'Facing a devastating locust plague, Joel calls the people to repentance and announces the "Day of the Lord" and the future outpouring of the Spirit.',
+    contextOverview: 'Facing a devastating locust plague ravaging the land of Judah, Joel calls the people to genuine repentance, using the agricultural disaster as a sign of the approaching "Day of the Lord". Despite being one of the shortest prophetic books, it contains one of the most quoted prophecies in the New Testament — the future outpouring of God\'s Spirit "on all people", referenced by Peter on the day of Pentecost.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'The Locust Plague and the Call to Repentance', text: 'An unprecedented locust plague devastates the land, and Joel interprets it as a sign of the coming "Day of the Lord". He calls the people to a solemn fast and to "rend your heart, not your garments", promising that God would respond with restoration and, in the future, pour out His Spirit on everyone.' },
+      { chStart: 3, chEnd: 3, title: 'Judgment of the Nations and Judah\'s Restoration', text: 'The book ends with a vision of judgment on the nations that oppressed God\'s people, and the promise that Judah would be restored and blessed with lasting abundance.' },
+    ],
     location: { name: 'Kingdom of Judah', icon: "Bug", description: 'Prophesies in Judah, likely in Jerusalem, after a severe agricultural plague.' },
     curiosities: [
       'It\'s one of the shortest prophetic books, with only 3 chapters.',
@@ -657,7 +710,12 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Amós': {
-    context: 'A simple shepherd called by God to denounce social injustice and religious hypocrisy in the prosperous kingdom of Israel.',
+    contextOverview: 'A simple shepherd and fig grower from Judah, with no formal prophetic training, Amos is called by God to denounce social injustice and religious hypocrisy in the prosperous — but spiritually bankrupt — northern kingdom of Israel. Prophesying during a period of great economic prosperity, shortly before Israel\'s fall to Assyria, he became one of the Bible\'s greatest advocates for social justice — his line "let justice roll on like a river" (5:24) was used by Martin Luther King Jr. in his speeches.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Judgment Against the Nations and Israel', text: 'A series of judgment oracles turns against Israel\'s neighboring nations, one by one, raising the listener\'s expectation — until the judgment finally lands on Israel itself, revealing that no one is exempt.' },
+      { chStart: 3, chEnd: 6, title: 'Accusations Against Israel', text: 'Amos directly denounces the oppression of the poor by the rich, the excessive luxury of the elites, and an empty religiosity — rituals kept up while justice was ignored in daily life.' },
+      { chStart: 7, chEnd: 9, title: 'Visions of Judgment and the Final Promise', text: 'Five symbolic visions of judgment — locusts, fire, a plumb line, a basket of summer fruit, and the Lord standing by the altar — announce coming destruction, but the book ends with a brief, unexpected promise of future restoration.' },
+    ],
     location: { name: 'Kingdom of Israel (north)', icon: "Users", description: 'Amos was from Judah (south), but was sent to prophesy against the rich, oppressive kingdom of Israel (north).' },
     curiosities: [
       'Amos was not a professional prophet nor a prophet\'s son — he describes himself as a shepherd and fig grower.',
@@ -673,7 +731,10 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Obadias': {
-    context: 'The shortest book of the Old Testament: a single prophecy of judgment against Edom, a neighboring nation that betrayed Judah in a moment of crisis.',
+    contextOverview: 'The shortest book of the Old Testament, with only 21 verses, Obadiah is a single prophecy of judgment against Edom, a neighboring nation descended from Esau, Jacob\'s brother, that rejoiced over — and even helped in — Jerusalem\'s destruction instead of coming to its "relative"\'s aid in crisis. The book ends by announcing Israel\'s final restoration — a reminder that pride and betrayal between "siblings" do not go unnoticed by God.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'The Judgment of Edom', text: 'God denounces Edom\'s pride, which felt untouchable in its mountain strongholds, and its betrayal in rejoicing over — and even taking part in — Jerusalem\'s fall. The book ends with the promise that the "Day of the Lord" would bring justice on all nations and final restoration for God\'s people.' },
+    ],
     location: { name: 'Edom (south of the Dead Sea)', icon: "Mountain", description: 'Edom was a mountainous kingdom south of the Dead Sea, descended from Esau, Jacob\'s brother.' },
     curiosities: [
       'It has only 21 verses — it\'s the shortest book in the entire Old Testament.',
@@ -689,7 +750,12 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Jonas': {
-    context: 'The famous story of the prophet who flees his mission to preach to the city of Nineveh, is swallowed by a great fish, and finally obeys.',
+    contextOverview: 'Unlike most prophetic books, Jonah is almost entirely narrative, telling the famous story of a prophet who actively flees the mission God gave him — to preach repentance to the cruel enemy city of Nineveh — is swallowed by a great fish, and finally obeys, only to bitterly resent it when the city repents and is spared.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Jonah Flees', text: 'Called to preach in Nineveh, Jonah flees in the opposite direction, boarding a ship for Tarshish. A violent storm threatens the ship, and the crew, discovering Jonah is responsible, throws him overboard — where he is swallowed by a great fish.' },
+      { chStart: 2, chEnd: 2, title: 'Jonah\'s Prayer', text: 'From inside the fish, Jonah prays an extensive prayer of repentance and trust, acknowledging God\'s sovereignty even in his desperate situation. The fish vomits him onto dry land.' },
+      { chStart: 3, chEnd: 4, title: 'Nineveh Repents and Jonah\'s Anger', text: 'Jonah finally preaches in Nineveh, and to his surprise, the whole city repents, from the king to the common people. Instead of joy, Jonah is furious at God\'s mercy toward his enemies — the book ends with a question from God to him, with no recorded answer.' },
+    ],
     location: { name: 'Nineveh, capital of Assyria', icon: "Fish", description: 'Jonah tries to flee to Tarshish (to the west), but ends up being sent to Nineveh (modern-day Iraq), the Assyrian capital.' },
     curiosities: [
       'Unlike other prophetic books, it\'s almost entirely narrative, not a collection of speeches.',
@@ -705,7 +771,12 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Miquéias': {
-    context: 'A contemporary of Isaiah, Micah denounces the corruption of Judah\'s leaders and announces both judgment and the promise of a ruler who would be born in Bethlehem.',
+    contextOverview: 'A contemporary of Isaiah, but from Moresheth, a small rural town far from the capital, Micah speaks on behalf of peasants exploited by Judah\'s urban elites, denouncing the corruption of leaders, priests, and false prophets. The book announces both severe judgment and two remarkable promises: a future ruler who would be born in Bethlehem, and a timeless summary of what God expects of His people — to act justly, love mercy, and walk humbly with Him.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Judgment Against Corrupt Leaders', text: 'Micah announces judgment against Samaria and Jerusalem, specifically denouncing leaders, judges, and prophets who exploited the common people instead of protecting them.' },
+      { chStart: 4, chEnd: 5, title: 'Messianic Promises', text: 'In contrast to the judgment, the book presents a vision of future peace, where nations will turn their swords into farming tools, and announces that an eternal ruler would be born in little Bethlehem — a prophecy quoted in the accounts of Jesus\' birth.' },
+      { chStart: 6, chEnd: 7, title: 'The Call to Justice', text: 'The book reaches its climax with the question of what truly pleases God, answered with the famous verse "act justly, love mercy, and walk humbly with your God" (6:8), closing with a lament and a final expression of hope in God.' },
+    ],
     location: { name: 'Kingdom of Judah', icon: "Building", description: 'Micah was from Moresheth, a small town in rural Judah, far from the capital.' },
     curiosities: [
       'The prophecy that the Messiah would be born in Bethlehem (5:2) is quoted in the gospel accounts of Jesus\' birth.',
@@ -721,7 +792,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Naum': {
-    context: 'Announces the fall of the powerful Nineveh, capital of Assyria — the same city that had repented in Jonah\'s time, but returned to acting with cruelty.',
+    contextOverview: 'Working almost like a grim "sequel" to Jonah, Nahum announces the fall of the powerful Nineveh, capital of Assyria — the same city that had repented in Jonah\'s time, but decades later returned to acting with cruelty against Judah and other nations. Known for its vivid, violent poetry, the book celebrates in advance a destruction that indeed came true historically in 612 BC.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'The Lord\'s Wrath and Goodness', text: 'The book opens by affirming God\'s character: patient and good to those who trust Him, but a relentless judge against persistent evil — setting the stage for the announcement of Nineveh\'s fall.' },
+      { chStart: 2, chEnd: 3, title: 'The Fall of Nineveh', text: 'In vivid, almost cinematic poetry, Nahum describes the final assault on Nineveh, celebrating the end of an empire known for its brutal cruelty against the peoples it conquered.' },
+    ],
     location: { name: 'Nineveh, capital of Assyria', icon: "Zap", description: 'The book celebrates in advance the destruction of Nineveh, which did indeed fall in 612 BC.' },
     curiosities: [
       'It works almost like a "sequel" to Jonah: decades later, Nineveh does evil again and is finally judged.',
@@ -737,7 +812,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Habacuque': {
-    context: 'A prophet who openly dialogues with God, questioning why He allows injustice and would use an even crueler nation (Babylon) to judge Judah.',
+    contextOverview: 'Unlike most prophets, who speak on God\'s behalf to the people, Habakkuk openly dialogues with God, questioning why He allows injustice in Judah and, even more shocking, why He would raise up an even crueler nation (Babylon) as an instrument of judgment. Written shortly before the Babylonian invasion, the book acknowledges honest doubts about God\'s justice, something rare in prophetic literature, and ends with one of the most remarkable hymns of trust in the Bible.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Habakkuk\'s Dialogue with God', text: 'Habakkuk questions God about widespread injustice in Judah, and is even more perplexed to learn that God would raise up cruel Babylon to judge His own people. God answers by affirming that the righteous will live by faith (2:4), a verse that would become central to the apostle Paul\'s theology.' },
+      { chStart: 3, chEnd: 3, title: 'Habakkuk\'s Song', text: 'The book ends with a powerful hymn of praise and trust: even if the fig tree does not bud and there is no fruit on the vines, the prophet declares he will rejoice in the Lord — a faith that does not depend on circumstances.' },
+    ],
     location: { name: 'Kingdom of Judah', icon: "HelpCircle", description: 'Written in Judah shortly before the Babylonian invasion, at the end of the 7th century BC.' },
     curiosities: [
       'It\'s structured as a direct dialogue between the prophet and God, unusual among the prophets.',
@@ -753,7 +832,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Sofonias': {
-    context: 'Great-grandson of a king of Judah, Zephaniah announces the "Day of the Lord" as imminent judgment, but also promises restoration for a faithful remnant.',
+    contextOverview: 'A great-grandson of a king of Judah, Zephaniah prophesies during the reign of the young King Josiah, likely before his major religious reforms, announcing the "Day of the Lord" as an imminent, sweeping judgment on Judah and the nations. Despite its predominantly severe tone, the book promises restoration for a faithful remnant and ends with one of the few songs of pure joy among the minor prophets — God rejoicing over His people with singing.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'The Day of the Lord Approaches', text: 'Zephaniah announces sweeping judgment on Judah for its idolatry and spiritual indifference, describing the approaching "Day of the Lord" as a time of distress and darkness.' },
+      { chStart: 2, chEnd: 3, title: 'Judgment of the Nations and the Final Restoration', text: 'The judgment extends to neighboring nations before returning to Jerusalem, but the book ends with a remarkable turn: the promise of a humble, faithful remnant, and a final song where God Himself rejoices and sings over His restored people.' },
+    ],
     location: { name: 'Kingdom of Judah', icon: "Scale", description: 'Prophesies in Jerusalem during the reign of King Josiah, before his major religious reforms.' },
     curiosities: [
       'He\'s one of the few prophets whose royal genealogy is detailed in the text itself (1:1).',
@@ -769,7 +852,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Ageu': {
-    context: 'Urges the Jews who had recently returned from exile to resume rebuilding the Temple in Jerusalem, which had been abandoned.',
+    contextOverview: 'One of three prophets who ministered after the return from exile (with Zechariah and Malachi), Haggai urges the recently returned Jews to resume rebuilding the Temple in Jerusalem, which had been abandoned amid the concerns of daily life. Dated more precisely than almost any other prophetic book — it mentions exact months and years of the Persian reign — the book records preaching that had an almost immediate response: the work resumed just days later.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'The Call to Rebuild', text: 'Haggai confronts the people for living in "paneled houses" while God\'s house remained in ruins, and the people respond almost immediately, resuming work on the Temple.' },
+      { chStart: 2, chEnd: 2, title: 'Promises of Future Glory', text: 'God promises that the glory of this second Temple would be greater than the first, and closes the book with a personal word of honor to Zerubbabel, the people\'s political leader in the rebuilding.' },
+    ],
     location: { name: 'Post-exile Jerusalem', icon: "Construction", description: 'Prophesies in Jerusalem shortly after the return from Babylonian exile, around 520 BC.' },
     curiosities: [
       'It\'s dated more precisely than almost any other prophetic book: it mentions exact months and years of the Persian reign.',
@@ -785,7 +872,13 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Zacarias': {
-    context: 'A contemporary of Haggai, he has a series of symbolic visions encouraging the rebuilding of the Temple and announcing future messianic hope.',
+    contextOverview: 'A contemporary of Haggai, Zechariah encourages the rebuilding of the Temple through a series of symbolic, apocalyptic visions, alongside Daniel and Ezekiel one of the prophetic books richest in this kind of language. Scholars often divide the book into two parts of quite different style — more immediate night visions (1–8) and more distant, messianic oracles (9–14) — which include several prophecies quoted in the passion narratives of Jesus.',
+    contextSections: [
+      { chStart: 1, chEnd: 6, title: 'The Eight Night Visions', text: 'In a single night, Zechariah receives eight symbolic visions — horsemen, horns, a man with a measuring line, a golden lampstand, a flying scroll, among others — all encouraging the rebuilding of the Temple and the people\'s spiritual purification.' },
+      { chStart: 7, chEnd: 8, title: 'Questions About Fasting and Promises of Restoration', text: 'The people ask whether they should keep observing fasts instituted during the exile, and God responds with a call to genuine justice, followed by detailed promises about Jerusalem\'s future prosperity and peace.' },
+      { chStart: 9, chEnd: 11, title: 'The First Oracle', text: 'This section contains striking messianic prophecies, including the entry of a gentle king riding on a young donkey (9:9, quoted in the gospels), and the disturbing image of a rejected shepherd sold for thirty pieces of silver.' },
+      { chStart: 12, chEnd: 14, title: 'The Second Oracle', text: 'The book ends with visions of Jerusalem in the last days — including a prophecy about "looking on the one they have pierced" — culminating in the final "Day of the Lord", when the Lord would be king over all the earth.' },
+    ],
     location: { name: 'Post-exile Jerusalem', icon: "Bird", description: 'Prophesies in Jerusalem at the same time as Haggai, shortly after the return from Babylonian exile.' },
     curiosities: [
       'It contains several messianic prophecies quoted in the passion narratives of Jesus, like the entry on a young donkey (9:9).',
@@ -801,7 +894,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Malaquias': {
-    context: 'The last book of the Old Testament: rebukes the people and priests for religious neglect, and announces the coming of a messenger before the "Day of the Lord".',
+    contextOverview: 'The last book of the Old Testament in the Christian order, written about a century after the return from exile, when the initial enthusiasm for rebuilding had already cooled. Structured as a series of dialogues — God makes an accusation, the people question it, and God responds — Malachi rebukes priests and people for religious neglect and unfaithfulness, and closes the Old Testament by announcing the coming of a messenger who would prepare the way before the "Day of the Lord".',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Accusations Against Priests and the People', text: 'God confronts the priests for offering sick, blemished animals in sacrifice, instead of the best of the flock, and denounces widespread marital unfaithfulness among the people.' },
+      { chStart: 3, chEnd: 4, title: 'The Messenger and the Day of the Lord', text: 'God promises to send a messenger who would prepare His way — associated with John the Baptist in the New Testament —, rebukes the people for withholding tithes, and the Old Testament closes with the promise that "Elijah" would come before the great and dreadful Day of the Lord.' },
+    ],
     location: { name: 'Post-exile Jerusalem', icon: "Megaphone", description: 'Written in Jerusalem about a century after the return from exile, when the initial enthusiasm had already cooled.' },
     curiosities: [
       'It\'s the last book in the Christian order of the Old Testament, right before the gospels.',

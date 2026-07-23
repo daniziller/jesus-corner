@@ -547,7 +547,19 @@ export const BOOK_INFO = {
   },
 
   'Isaías': {
-    context: 'Um dos maiores profetas de Israel, Isaías anuncia julgamento sobre a infidelidade do povo, mas também consolo e a promessa de um futuro Messias.',
+    contextOverview: 'O maior dos livros proféticos em extensão, Isaías anuncia julgamento sobre a infidelidade de Judá diante das ameaças da Assíria e, mais tarde, da Babilônia — mas também consolo profundo e a promessa de um Messias que sofreria pelo povo. Estudiosos costumam dividir o livro em duas grandes partes de tom bem diferente: os capítulos 1–39, dominados por julgamento e advertência, e 40–66, voltados ao consolo e à restauração futura. É o livro profético mais citado no Novo Testamento.',
+    contextSections: [
+      { chStart: 1, chEnd: 5, title: 'Julgamento contra Judá', text: 'O livro abre com acusações diretas contra a infidelidade e a hipocrisia religiosa de Judá, incluindo a parábola da vinha que não produziu bons frutos, apesar de todo o cuidado do dono.' },
+      { chStart: 6, chEnd: 12, title: 'O Chamado de Isaías e o Emanuel', text: 'Isaías tem uma visão da glória de Deus no templo e é comissionado como profeta. Em meio a ameaças de guerra, ele anuncia o nascimento de um "Emanuel" e, mais adiante, de um governante que seria chamado "Príncipe da Paz".' },
+      { chStart: 13, chEnd: 23, title: 'Oráculos contra as Nações', text: 'Uma série de profecias de julgamento se volta contra as nações vizinhas — Babilônia, Assíria, Moabe, Damasco, Egito, Tiro — mostrando que o Senhor governa sobre toda a terra, não apenas sobre Israel.' },
+      { chStart: 24, chEnd: 27, title: 'O Pequeno Apocalipse', text: 'Uma seção de tom mais cósmico descreve um julgamento universal sobre toda a terra, seguido pela promessa de um banquete final e da derrota definitiva da morte.' },
+      { chStart: 28, chEnd: 35, title: 'Ais e Advertências', text: 'Uma série de "ais" adverte contra líderes corruptos e contra a confiança em alianças políticas (como com o Egito) em vez de em Deus, intercalada com visões de esperança futura.' },
+      { chStart: 36, chEnd: 39, title: 'Ezequias e Senaqueribe', text: 'Uma seção narrativa histórica conta o cerco assírio de Senaqueribe a Jerusalém, derrotado depois da oração do rei Ezequias, seguido de sua doença e cura milagrosa, e um erro diplomático com embaixadores babilônios.' },
+      { chStart: 40, chEnd: 48, title: 'Consolo e a Grandeza de Deus', text: 'O tom do livro muda radicalmente: "Consolai, consolai o meu povo". Deus é exaltado como incomparável diante dos ídolos das nações, e o rei persa Ciro é anunciado, décadas antes de nascer, como o instrumento da libertação de Israel.' },
+      { chStart: 49, chEnd: 55, title: 'O Servo Sofredor', text: 'Uma série de "cânticos do Servo" descreve uma figura que sofreria e morreria pelos pecados do povo, culminando no capítulo 53 — uma das profecias messiânicas mais citadas de toda a Bíblia.' },
+      { chStart: 56, chEnd: 59, title: 'Justiça e Pecado', text: 'O livro retorna a um apelo pela justiça social genuína e por um jejum que realmente importa a Deus, junto com uma confissão honesta do pecado que ainda separa o povo dEle.' },
+      { chStart: 60, chEnd: 66, title: 'A Glória Futura', text: 'O livro termina com uma visão gloriosa da restauração final de Jerusalém, culminando na promessa de "novos céus e nova terra" — um horizonte de esperança que vai muito além do contexto histórico imediato.' },
+    ],
     location: { name: 'Reino de Judá', icon: "Flame", description: 'Isaías profetiza em Jerusalém durante décadas turbulentas, com a ameaça da Assíria e depois da Babilônia.' },
     curiosities: [
       'É o livro profético mais citado no Novo Testamento.',
@@ -563,7 +575,17 @@ export const BOOK_INFO = {
     ],
   },
   'Jeremias': {
-    context: 'Conhecido como o "profeta chorão", Jeremias alerta Judá sobre a iminente destruição de Jerusalém e testemunha pessoalmente sua queda.',
+    contextOverview: 'Conhecido como o "profeta chorão", Jeremias ministra em Judá durante as últimas e mais turbulentas décadas antes da queda de Jerusalém, alertando repetidamente sobre a destruição iminente — e sendo perseguido por isso — antes de testemunhar pessoalmente o cumprimento de suas próprias profecias. É o segundo livro mais longo da Bíblia em número de palavras, e mistura profecias, narrativa histórica e lamentos pessoais extremamente íntimos, conhecidos como suas "confissões".',
+    contextSections: [
+      { chStart: 1, chEnd: 6, title: 'O Chamado de Jeremias', text: 'Deus chama Jeremias ainda jovem, dizendo tê-lo conhecido "antes de formá-lo no ventre". As primeiras mensagens do profeta já denunciam a infidelidade espiritual de Judá e advertem sobre um inimigo vindo do norte.' },
+      { chStart: 7, chEnd: 10, title: 'O Sermão do Templo', text: 'Jeremias confronta o povo por confiar cegamente na presença do Templo como garantia de segurança, mesmo vivendo em desobediência — uma falsa confiança religiosa que ele denuncia com veemência.' },
+      { chStart: 11, chEnd: 20, title: 'Perseguição e Lamentos Pessoais', text: 'Uma conspiração é armada contra a vida de Jeremias, inclusive por sua própria família. Intercaladas com as profecias, aparecem suas "confissões" — orações cruas onde ele expressa profunda angústia e até raiva por sua missão difícil.' },
+      { chStart: 21, chEnd: 29, title: 'Confronto com Reis e Falsos Profetas', text: 'Jeremias confronta diretamente os últimos reis de Judá por sua injustiça, e entra em conflito público com o falso profeta Hananias, que promete uma paz que nunca chegaria.' },
+      { chStart: 30, chEnd: 33, title: 'O Livro da Consolação', text: 'Em meio a tanto julgamento, esta seção reúne promessas notáveis de restauração futura, incluindo a "Nova Aliança" (31:31-34) — escrita no coração, não em tábuas de pedra.' },
+      { chStart: 34, chEnd: 39, title: 'A Queda de Jerusalém', text: 'Os últimos dias antes da queda são narrados em detalhe: Jeremias é preso e jogado numa cisterna de lama por suas mensagens impopulares, e a cidade finalmente cai para os babilônios.' },
+      { chStart: 40, chEnd: 45, title: 'Depois da Queda', text: 'Jeremias tem a opção de permanecer na terra devastada, mas acaba sendo levado à força para o Egito por um grupo de judeus remanescentes, contrariando seu próprio conselho profético.' },
+      { chStart: 46, chEnd: 52, title: 'Oráculos contra as Nações e Apêndice', text: 'Uma série de profecias se volta contra nações estrangeiras — Egito, Babilônia e outras —, e o livro termina com um apêndice histórico que repete, em detalhe, o relato da queda de Jerusalém.' },
+    ],
     location: { name: 'Jerusalém', icon: "CloudRain", description: 'Jeremias profetiza em Jerusalém nos últimos anos antes da cidade cair para os babilônios, em 586 a.C.' },
     curiosities: [
       'É o segundo livro mais longo da Bíblia em número de palavras, depois dos Salmos.',
@@ -579,7 +601,14 @@ export const BOOK_INFO = {
     ],
   },
   'Lamentações': {
-    context: 'Uma série de poemas de luto pela destruição de Jerusalém e do Templo pelos babilônios, tradicionalmente atribuídos a Jeremias.',
+    contextOverview: 'Lamentações é uma série de cinco poemas de luto pela destruição de Jerusalém e do Templo pelos babilônios em 586 a.C., tradicionalmente atribuídos a Jeremias. Quatro dos cinco capítulos são acrósticos hebraicos cuidadosamente estruturados — uma forma poética que expressa luto completo, "do alfabeto A ao Z". Apesar do tom predominante de dor, o livro contém, em seu centro exato, um dos versos mais esperançosos de toda a Bíblia: "Grande é a tua fidelidade".',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'A Cidade Solitária', text: 'Jerusalém é retratada como uma viúva solitária, chorando à noite, lembrando de seus dias de glória enquanto reconhece que seu sofrimento é consequência de sua própria rebelião contra Deus.' },
+      { chStart: 2, chEnd: 2, title: 'A Ira de Deus', text: 'O poema descreve, sem suavizar, a intensidade da ira de Deus sobre a cidade — o Templo destruído, os líderes humilhados, o povo faminto — como consequência direta da aliança quebrada.' },
+      { chStart: 3, chEnd: 3, title: 'Grande é a Tua Fidelidade', text: 'O capítulo central e mais longo do livro é também o mais pessoal, alternando entre profunda angústia e a declaração de esperança mais famosa do livro: as misericórdias do Senhor se renovam a cada manhã.' },
+      { chStart: 4, chEnd: 4, title: 'O Cerco e a Fome', text: 'Um relato pungente descreve os horrores do cerco babilônico — fome extrema, sofrimento de crianças e idosos — contrastando o esplendor passado da cidade com sua devastação presente.' },
+      { chStart: 5, chEnd: 5, title: 'Oração Final', text: 'O livro termina com uma oração coletiva, pedindo que Deus se lembre do sofrimento do povo e o restaure — encerrando num tom de súplica humilde, sem uma resolução fácil ou imediata.' },
+    ],
     location: { name: 'Ruínas de Jerusalém', icon: "Building", description: 'Escrito logo após a queda de Jerusalém em 586 a.C., refletindo sobre a cidade em ruínas.' },
     curiosities: [
       'Quatro dos cinco capítulos são acrósticos: cada verso ou estrofe segue a ordem do alfabeto hebraico.',
@@ -595,7 +624,14 @@ export const BOOK_INFO = {
     ],
   },
   'Ezequiel': {
-    context: 'Profeta e sacerdote exilado na Babilônia, Ezequiel tem visões dramáticas sobre o julgamento de Israel e a esperança de restauração futura.',
+    contextOverview: 'Profeta e sacerdote exilado na Babilônia, Ezequiel ministra entre os judeus já deportados, antes e depois da destruição final de Jerusalém, através de visões dramáticas e ações simbólicas incomuns. O livro se move de um julgamento inevitável sobre a cidade (enquanto ela ainda existia) para mensagens de esperança e restauração futura depois de sua queda, culminando numa visão detalhada de um Templo restaurado.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'O Chamado de Ezequiel', text: 'Ezequiel tem uma visão avassaladora da glória de Deus, com criaturas vivas e "rodas dentro de rodas", e é comissionado como sentinela profético para o povo exilado, mesmo sabendo que sua mensagem seria rejeitada.' },
+      { chStart: 4, chEnd: 24, title: 'Julgamento sobre Jerusalém', text: 'Enquanto Jerusalém ainda existia, Ezequiel usa ações simbólicas marcantes — deitar-se de lado por longos períodos, cortar o cabelo e dividi-lo — para anunciar a destruição iminente da cidade, culminando com a notícia de sua queda.' },
+      { chStart: 25, chEnd: 32, title: 'Oráculos contra as Nações', text: 'Uma série de profecias de julgamento se volta contra nações vizinhas — Amom, Moabe, Edom, Filístia, Tiro, Sidom e, com destaque especial, o Egito.' },
+      { chStart: 33, chEnd: 39, title: 'Esperança e Restauração', text: 'Depois da queda de Jerusalém, o tom muda para esperança: Ezequiel é confirmado como sentinela do povo, tem a famosa visão do "vale de ossos secos" ganhando vida, e anuncia uma nova aliança de coração transformado.' },
+      { chStart: 40, chEnd: 48, title: 'O Novo Templo', text: 'O livro termina com uma visão extensa e detalhada de um Templo futuro restaurado, a volta da glória de Deus a esse lugar, e a divisão da terra entre as tribos — uma imagem final de restauração completa.' },
+    ],
     location: { name: 'Babilônia', icon: "Eye", description: 'Ezequiel profetiza entre os exilados judeus às margens do rio Quebar, na Babilônia.' },
     curiosities: [
       'Contém algumas das visões mais estranhas e simbólicas da Bíblia, como a "roda dentro de roda" (capítulo 1).',
@@ -611,7 +647,15 @@ export const BOOK_INFO = {
     ],
   },
   'Daniel': {
-    context: 'Conta a história de Daniel e seus amigos, jovens judeus exilados na Babilônia que permanecem fiéis a Deus, além de visões proféticas sobre impérios futuros.',
+    contextOverview: 'Daniel conta a história de um jovem judeu exilado que ascende a posições de influência nas cortes da Babilônia e depois do Império Medo-Persa, permanecendo fiel a Deus apesar da pressão para se conformar. A primeira metade do livro (1–6) narra episódios conhecidos de fidelidade em meio à perseguição; a segunda metade (7–12) registra visões apocalípticas complexas sobre impérios que viriam, que influenciaram fortemente a literatura profética posterior, incluindo o Apocalipse.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Daniel na Corte da Babilônia', text: 'Daniel e seus três amigos se recusam a se contaminar com a comida da mesa real, permanecendo fiéis às leis judaicas. Daniel depois interpreta um sonho perturbador do rei Nabucodonosor sobre uma estátua feita de diferentes metais, representando impérios futuros.' },
+      { chStart: 3, chEnd: 3, title: 'A Fornalha Ardente', text: 'Sadraque, Mesaque e Abednego se recusam a adorar uma estátua de ouro construída por Nabucodonosor e são lançados numa fornalha ardente, da qual saem ilesos, protegidos por uma quarta figura "semelhante a um filho dos deuses".' },
+      { chStart: 4, chEnd: 5, title: 'A Loucura de Nabucodonosor e a Escrita na Parede', text: 'Nabucodonosor é humilhado com um período de insanidade por seu orgulho, até reconhecer a soberania de Deus. Décadas depois, uma mão misteriosa escreve uma mensagem de julgamento na parede durante um banquete do rei Belsazar.' },
+      { chStart: 6, chEnd: 6, title: 'A Cova dos Leões', text: 'Já idoso, Daniel continua orando abertamente a Deus apesar de um decreto que o proibia, e é lançado na cova dos leões como punição — saindo ileso na manhã seguinte.' },
+      { chStart: 7, chEnd: 9, title: 'Visões Apocalípticas', text: 'Daniel tem visões simbólicas de quatro grandes bestas representando impérios sucessivos, de um carneiro e um bode em conflito, e recebe a revelação das "setenta semanas", uma cronologia profética que aponta para o futuro distante.' },
+      { chStart: 10, chEnd: 12, title: 'A Visão Final', text: 'Numa última e extensa visão, um mensageiro celestial revela a Daniel detalhes sobre conflitos futuros entre reinos, culminando numa profecia sobre o "tempo do fim" e a ressurreição final.' },
+    ],
     location: { name: 'Babilônia e Pérsia', icon: "PawPrint", description: 'A ação se passa nas cortes reais da Babilônia e, depois, do Império Medo-Persa.' },
     curiosities: [
       'A história de Daniel na cova dos leões é um dos episódios mais conhecidos do livro.',
@@ -627,7 +671,12 @@ export const BOOK_INFO = {
     ],
   },
   'Oseias': {
-    context: 'Profeta cuja própria vida — casado com uma mulher infiel — se torna metáfora viva da relação entre Deus e um Israel que o abandona por outros deuses.',
+    contextOverview: 'Primeiro dos doze "profetas menores" na ordem da Bíblia, Oseias profetiza no reino do norte, Israel, nos anos que antecedem sua destruição pela Assíria. Sua própria vida — casado por ordem de Deus com uma mulher infiel — se torna uma metáfora vivida da relação entre Deus e um povo que O abandona repetidamente por outros deuses, mas que Ele continua perseguindo com amor persistente.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'O Casamento de Oseias', text: 'Deus ordena que Oseias se case com Gômer, uma mulher que seria infiel, e dá nomes simbólicos de julgamento aos filhos do casal. Apesar da traição de Gômer, Oseias é instruído a resgatá-la e amá-la novamente — uma ilustração viva do amor de Deus por Israel.' },
+      { chStart: 4, chEnd: 10, title: 'Acusações contra Israel', text: 'Uma longa série de denúncias específicas contra a idolatria, a corrupção dos sacerdotes e líderes, e a infidelidade espiritual generalizada de Israel, comparada repetidamente a um adultério contra Deus.' },
+      { chStart: 11, chEnd: 14, title: 'O Amor Paternal de Deus', text: 'O tom muda para uma imagem terna de Deus como pai que ensinou Israel a andar desde criança. O livro termina com um apelo final e sincero ao arrependimento, e a promessa de cura para quem retornar.' },
+    ],
     location: { name: 'Reino de Israel (norte)', icon: "HeartCrack", description: 'Oseias profetiza no reino do norte, Israel, nos anos que antecedem sua destruição pela Assíria.' },
     curiosities: [
       'É o único profeta cuja vida pessoal (o casamento com Gômer) se torna a principal ilustração de sua mensagem.',
@@ -643,7 +692,11 @@ export const BOOK_INFO = {
     ],
   },
   'Joel': {
-    context: 'Diante de uma devastadora praga de gafanhotos, Joel convoca o povo ao arrependimento e anuncia o "Dia do Senhor" e o derramamento futuro do Espírito.',
+    contextOverview: 'Diante de uma devastadora praga de gafanhotos que arrasa a terra de Judá, Joel convoca o povo a um arrependimento genuíno, usando o desastre agrícola como sinal do "Dia do Senhor" que se aproxima. Apesar de ser um dos livros proféticos mais curtos, contém uma das profecias mais citadas no Novo Testamento — o derramamento futuro do Espírito de Deus "sobre toda a carne", referenciada por Pedro no dia de Pentecostes.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'A Praga de Gafanhotos e o Chamado ao Arrependimento', text: 'Uma praga de gafanhotos sem precedentes devasta a terra, e Joel a interpreta como um prenúncio do "Dia do Senhor". Ele convoca o povo a um jejum solene e a "rasgar o coração, e não as vestes", prometendo que Deus responderia com restauração e, no futuro, derramaria Seu Espírito sobre todos.' },
+      { chStart: 3, chEnd: 3, title: 'O Julgamento das Nações e a Restauração de Judá', text: 'O livro termina com uma visão de julgamento sobre as nações que oprimiram o povo de Deus, e a promessa de que Judá seria restaurada e abençoada com fartura permanente.' },
+    ],
     location: { name: 'Reino de Judá', icon: "Bug", description: 'Profetiza em Judá, provavelmente em Jerusalém, após uma praga agrícola severa.' },
     curiosities: [
       'É um dos livros proféticos mais curtos, com apenas 3 capítulos.',
@@ -659,7 +712,12 @@ export const BOOK_INFO = {
     ],
   },
   'Amós': {
-    context: 'Um simples pastor de ovelhas chamado por Deus para denunciar a injustiça social e a hipocrisia religiosa no próspero reino de Israel.',
+    contextOverview: 'Um simples pastor e cultivador de figos de Judá, sem formação profética formal, Amós é chamado por Deus para denunciar a injustiça social e a hipocrisia religiosa no próspero (mas espiritualmente falido) reino do norte, Israel. Profetizando num período de grande prosperidade econômica, pouco antes da queda de Israel para a Assíria, ele se tornou um dos maiores defensores bíblicos da justiça social — sua frase "corra a justiça como as águas" (5:24) foi usada por Martin Luther King Jr. em seus discursos.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Julgamento contra as Nações e Israel', text: 'Uma série de oráculos de julgamento se volta contra as nações vizinhas de Israel, uma por uma, elevando a expectativa do ouvinte — até o julgamento finalmente recair sobre o próprio Israel, revelando que ninguém está isento.' },
+      { chStart: 3, chEnd: 6, title: 'Acusações contra Israel', text: 'Amós denuncia diretamente a opressão dos pobres pelos ricos, o luxo excessivo das elites e uma religiosidade vazia — rituais mantidos enquanto a justiça era ignorada no dia a dia.' },
+      { chStart: 7, chEnd: 9, title: 'Visões de Julgamento e a Promessa Final', text: 'Cinco visões simbólicas de julgamento — gafanhotos, fogo, um prumo, um cesto de frutas de verão e o Senhor junto ao altar — anunciam a destruição iminente, mas o livro termina com uma breve e inesperada promessa de restauração futura.' },
+    ],
     location: { name: 'Reino de Israel (norte)', icon: "Users", description: 'Amós era de Judá (sul), mas foi enviado para profetizar contra o reino rico e opressor de Israel (norte).' },
     curiosities: [
       'Amós não era profeta profissional nem filho de profeta — se descreve como pastor e cultivador de figos.',
@@ -675,7 +733,10 @@ export const BOOK_INFO = {
     ],
   },
   'Obadias': {
-    context: 'O livro mais curto do Antigo Testamento: uma única profecia de julgamento contra Edom, nação vizinha que traiu Judá em um momento de crise.',
+    contextOverview: 'O menor livro do Antigo Testamento, com apenas 21 versículos, Obadias é uma única profecia de julgamento contra Edom, nação vizinha descendente de Esaú, irmão de Jacó, que se alegrou e até ajudou na destruição de Jerusalém em vez de socorrer seu "parente" em crise. O livro termina anunciando a restauração final de Israel — um lembrete de que orgulho e traição entre "irmãos" não passam despercebidos por Deus.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'O Julgamento de Edom', text: 'Deus denuncia o orgulho de Edom, que se sentia inatingível em suas fortalezas montanhosas, e sua traição ao se alegrar — e até participar — da queda de Jerusalém. O livro termina com a promessa de que o "Dia do Senhor" traria justiça sobre todas as nações e restauração final para o povo de Deus.' },
+    ],
     location: { name: 'Edom (ao sul do Mar Morto)', icon: "Mountain", description: 'Edom era um reino montanhoso ao sul do Mar Morto, descendente de Esaú, irmão de Jacó.' },
     curiosities: [
       'Tem apenas 21 versículos — é o menor livro de todo o Antigo Testamento.',
@@ -691,7 +752,12 @@ export const BOOK_INFO = {
     ],
   },
   'Jonas': {
-    context: 'A famosa história do profeta que foge de sua missão de pregar à cidade de Nínive, é engolido por um grande peixe, e finalmente obedece.',
+    contextOverview: 'Diferente da maioria dos livros proféticos, Jonas é quase inteiramente narrativa, contando a famosa história de um profeta que ativamente foge da missão que Deus lhe deu — pregar arrependimento à cruel cidade inimiga de Nínive — é engolido por um grande peixe, e finalmente obedece, apenas para se ressentir amargamente quando a cidade se arrepende e é poupada.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Jonas Foge', text: 'Chamado a pregar em Nínive, Jonas foge na direção oposta, embarcando num navio para Társis. Uma tempestade violenta ameaça o navio, e a tripulação, descobrindo que Jonas é o responsável, o lança ao mar — onde é engolido por um grande peixe.' },
+      { chStart: 2, chEnd: 2, title: 'A Oração de Jonas', text: 'De dentro do peixe, Jonas ora uma extensa oração de arrependimento e confiança, reconhecendo a soberania de Deus mesmo em sua situação desesperadora. O peixe o vomita em terra firme.' },
+      { chStart: 3, chEnd: 4, title: 'Nínive se Arrepende e a Raiva de Jonas', text: 'Jonas finalmente prega em Nínive, e para sua surpresa, a cidade inteira se arrepende, do rei ao povo comum. Em vez de alegria, Jonas fica furioso com a misericórdia de Deus para com seus inimigos — o livro termina com uma pergunta de Deus a ele, sem resposta registrada.' },
+    ],
     location: { name: 'Nínive, capital da Assíria', icon: "Fish", description: 'Jonas tenta fugir para Társis (a oeste), mas acaba sendo enviado a Nínive (atual Iraque), capital assíria.' },
     curiosities: [
       'Diferente de outros livros proféticos, é quase inteiramente narrativa, não coleção de discursos.',
@@ -707,7 +773,12 @@ export const BOOK_INFO = {
     ],
   },
   'Miquéias': {
-    context: 'Contemporâneo de Isaías, Miquéias denuncia a corrupção das lideranças de Judá e anuncia tanto julgamento quanto a promessa de um governante que nasceria em Belém.',
+    contextOverview: 'Contemporâneo de Isaías, mas vindo de Moresete, uma pequena cidade rural longe da capital, Miquéias fala em nome dos camponeses explorados pelas elites urbanas de Judá, denunciando a corrupção de líderes, sacerdotes e falsos profetas. O livro anuncia tanto julgamento severo quanto duas promessas notáveis: um governante futuro que nasceria em Belém, e um resumo atemporal do que Deus espera de Seu povo — praticar a justiça, amar a misericórdia e andar humildemente com Ele.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Julgamento contra Líderes Corruptos', text: 'Miquéias anuncia julgamento contra Samaria e Jerusalém, denunciando especificamente líderes, juízes e profetas que exploravam o povo comum em vez de protegê-lo.' },
+      { chStart: 4, chEnd: 5, title: 'Promessas Messiânicas', text: 'Em contraste com o julgamento, o livro apresenta uma visão de paz futura, onde as nações converterão suas espadas em ferramentas de lavoura, e anuncia que um governante eterno nasceria na pequena Belém — profecia citada nos relatos do nascimento de Jesus.' },
+      { chStart: 6, chEnd: 7, title: 'O Chamado à Justiça', text: 'O livro chega ao seu ponto culminante com a pergunta sobre o que realmente agrada a Deus, respondida com o famoso verso "praticar a justiça, amar a misericórdia e andar humildemente com teu Deus" (6:8), encerrando com um lamento e uma expressão final de esperança em Deus.' },
+    ],
     location: { name: 'Reino de Judá', icon: "Building", description: 'Miquéias era de Moresete, uma cidade pequena na região rural de Judá, longe da capital.' },
     curiosities: [
       'A profecia de que o Messias nasceria em Belém (5:2) é citada nos evangelhos sobre o nascimento de Jesus.',
@@ -723,7 +794,11 @@ export const BOOK_INFO = {
     ],
   },
   'Naum': {
-    context: 'Anuncia a queda da poderosa Nínive, capital da Assíria — a mesma cidade que se arrependera na época de Jonas, mas que voltou a agir com crueldade.',
+    contextOverview: 'Funcionando quase como uma "sequência" sombria de Jonas, Naum anuncia a queda da poderosa Nínive, capital da Assíria — a mesma cidade que se arrependera na época de Jonas, mas que décadas depois voltou a agir com crueldade contra Judá e outras nações. Conhecido por sua poesia vívida e violenta, o livro celebra antecipadamente uma destruição que de fato se cumpriu historicamente em 612 a.C.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'A Ira e a Bondade de Deus', text: 'O livro abre afirmando o caráter de Deus: paciente e bom com quem confia Nele, mas um juiz implacável contra a maldade persistente — preparando o terreno para o anúncio da queda de Nínive.' },
+      { chStart: 2, chEnd: 3, title: 'A Queda de Nínive', text: 'Numa poesia vívida e quase cinematográfica, Naum descreve o ataque final contra Nínive, celebrando o fim de um império conhecido por sua crueldade brutal contra os povos que conquistava.' },
+    ],
     location: { name: 'Nínive, capital da Assíria', icon: "Zap", description: 'O livro celebra antecipadamente a destruição de Nínive, que de fato caiu em 612 a.C.' },
     curiosities: [
       'Funciona quase como uma "sequência" de Jonas: décadas depois, Nínive volta a fazer o mal e é finalmente julgada.',
@@ -739,7 +814,11 @@ export const BOOK_INFO = {
     ],
   },
   'Habacuque': {
-    context: 'Um profeta que dialoga abertamente com Deus, questionando por que Ele permite a injustiça e usaria uma nação ainda mais cruel (Babilônia) para julgar Judá.',
+    contextOverview: 'Diferente da maioria dos profetas, que falam da parte de Deus ao povo, Habacuque dialoga abertamente com Deus, questionando por que Ele permite a injustiça em Judá e, mais chocante ainda, por que usaria uma nação ainda mais cruel (a Babilônia) como instrumento de julgamento. Escrito pouco antes da invasão babilônica, o livro reconhece dúvidas honestas sobre a justiça de Deus, algo raro na literatura profética, e termina com um dos hinos de confiança mais notáveis da Bíblia.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'O Diálogo de Habacuque com Deus', text: 'Habacuque questiona Deus sobre a injustiça generalizada em Judá, e fica ainda mais perplexo ao saber que Deus levantaria a cruel Babilônia para julgar Seu próprio povo. Deus responde afirmando que o justo viverá pela fé (2:4), um verso que se tornaria central na teologia do apóstolo Paulo.' },
+      { chStart: 3, chEnd: 3, title: 'O Cântico de Habacuque', text: 'O livro termina com um hino poderoso de louvor e confiança: mesmo que a figueira não floresça e não haja fruto nas vinhas, o profeta declara que se alegrará no Senhor — fé que não depende das circunstâncias.' },
+    ],
     location: { name: 'Reino de Judá', icon: "HelpCircle", description: 'Escrito em Judá pouco antes da invasão babilônica, no fim do século VII a.C.' },
     curiosities: [
       'É estruturado como um diálogo direto entre o profeta e Deus, algo incomum entre os profetas.',
@@ -755,7 +834,11 @@ export const BOOK_INFO = {
     ],
   },
   'Sofonias': {
-    context: 'Bisneto de um rei de Judá, Sofonias anuncia o "Dia do Senhor" como julgamento iminente, mas também promete restauração para um remanescente fiel.',
+    contextOverview: 'Bisneto de um rei de Judá, Sofonias profetiza durante o reinado do jovem rei Josias, provavelmente antes das grandes reformas religiosas dele, anunciando o "Dia do Senhor" como um julgamento iminente e abrangente sobre Judá e sobre as nações. Apesar do tom predominantemente severo, o livro promete restauração para um remanescente fiel e termina com um dos poucos cânticos de pura alegria entre os profetas menores — Deus Se alegrando sobre Seu povo com cantos.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'O Dia do Senhor se Aproxima', text: 'Sofonias anuncia um julgamento abrangente sobre Judá por sua idolatria e indiferença espiritual, descrevendo o "Dia do Senhor" que se aproxima como um tempo de angústia e escuridão.' },
+      { chStart: 2, chEnd: 3, title: 'Julgamento das Nações e a Restauração Final', text: 'O julgamento se estende às nações vizinhas antes de retornar a Jerusalém, mas o livro termina com uma virada notável: a promessa de um remanescente humilde e fiel, e um cântico final onde o próprio Deus Se alegra e canta sobre Seu povo restaurado.' },
+    ],
     location: { name: 'Reino de Judá', icon: "Scale", description: 'Profetiza em Jerusalém durante o reinado do rei Josias, antes das grandes reformas religiosas dele.' },
     curiosities: [
       'É um dos poucos profetas cuja genealogia real é detalhada no próprio texto (1:1).',
@@ -771,7 +854,11 @@ export const BOOK_INFO = {
     ],
   },
   'Ageu': {
-    context: 'Incentiva os judeus recém-retornados do exílio a retomarem a reconstrução do Templo de Jerusalém, que havia sido abandonada.',
+    contextOverview: 'Um dos três profetas que atuaram depois do retorno do exílio (com Zacarias e Malaquias), Ageu incentiva os judeus recém-retornados a retomarem a reconstrução do Templo de Jerusalém, que havia sido abandonada em meio às preocupações do dia a dia. Datado com mais precisão que quase qualquer outro livro profético — menciona meses e anos exatos do reinado persa —, o livro registra uma pregação cuja resposta foi quase imediata: a obra foi retomada poucos dias depois.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'O Chamado à Reconstrução', text: 'Ageu confronta o povo por viver em casas "revestidas de madeira" enquanto a casa de Deus permanecia em ruínas, e o povo responde de forma quase imediata, retomando a obra do Templo.' },
+      { chStart: 2, chEnd: 2, title: 'Promessas de Glória Futura', text: 'Deus promete que a glória deste segundo Templo seria maior que a do primeiro, e encerra o livro com uma palavra pessoal de honra a Zorobabel, líder político do povo na reconstrução.' },
+    ],
     location: { name: 'Jerusalém pós-exílio', icon: "Construction", description: 'Profetiza em Jerusalém logo depois do retorno do exílio babilônico, por volta de 520 a.C.' },
     curiosities: [
       'É datado com mais precisão que quase qualquer outro livro profético: menciona meses e anos exatos do reinado persa.',
@@ -787,7 +874,13 @@ export const BOOK_INFO = {
     ],
   },
   'Zacarias': {
-    context: 'Contemporâneo de Ageu, tem uma série de visões simbólicas incentivando a reconstrução do Templo e anunciando esperança messiânica futura.',
+    contextOverview: 'Contemporâneo de Ageu, Zacarias incentiva a reconstrução do Templo através de uma série de visões simbólicas e apocalípticas, ao lado de Daniel e Ezequiel um dos livros proféticos mais ricos nesse tipo de linguagem. Estudiosos costumam dividir o livro em duas partes de estilo bem diferente — visões noturnas mais imediatas (1–8) e oráculos mais distantes e messiânicos (9–14) — que incluem diversas profecias citadas nos relatos da paixão de Jesus.',
+    contextSections: [
+      { chStart: 1, chEnd: 6, title: 'As Oito Visões Noturnas', text: 'Numa única noite, Zacarias recebe oito visões simbólicas — cavaleiros, chifres, um homem com cordel de medir, um candelabro de ouro, um rolo voador, entre outras — todas incentivando a reconstrução do Templo e a purificação espiritual do povo.' },
+      { chStart: 7, chEnd: 8, title: 'Perguntas sobre Jejum e Promessas de Restauração', text: 'O povo pergunta se deve continuar observando jejuns instituídos durante o exílio, e Deus responde com um chamado à justiça genuína, seguido de promessas detalhadas sobre a futura prosperidade e paz de Jerusalém.' },
+      { chStart: 9, chEnd: 11, title: 'O Primeiro Oráculo', text: 'Esta seção contém profecias messiânicas marcantes, incluindo a entrada de um rei manso montado num jumentinho (9:9, citada nos evangelhos), e a imagem perturbadora de um pastor rejeitado e vendido por trinta moedas de prata.' },
+      { chStart: 12, chEnd: 14, title: 'O Segundo Oráculo', text: 'O livro termina com visões sobre Jerusalém nos últimos dias — incluindo uma profecia sobre "olhar para aquele a quem traspassaram" — culminando no "Dia do Senhor" final, quando o Senhor seria rei sobre toda a terra.' },
+    ],
     location: { name: 'Jerusalém pós-exílio', icon: "Bird", description: 'Profetiza em Jerusalém na mesma época de Ageu, logo após o retorno do exílio babilônico.' },
     curiosities: [
       'Contém diversas profecias messiânicas citadas nos relatos da paixão de Jesus, como a entrada num jumentinho (9:9).',
@@ -803,7 +896,11 @@ export const BOOK_INFO = {
     ],
   },
   'Malaquias': {
-    context: 'Último livro do Antigo Testamento: repreende o povo e os sacerdotes por negligência religiosa, e anuncia a vinda de um mensageiro antes do "Dia do Senhor".',
+    contextOverview: 'Último livro do Antigo Testamento na ordem cristã, escrito cerca de um século depois do retorno do exílio, quando o entusiasmo inicial da reconstrução já havia esfriado. Estruturado como uma série de diálogos — Deus faz uma acusação, o povo questiona, e Deus responde —, Malaquias repreende sacerdotes e povo por negligência religiosa e infidelidade, e encerra o Antigo Testamento anunciando a vinda de um mensageiro que prepararia o caminho antes do "Dia do Senhor".',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Acusações contra Sacerdotes e o Povo', text: 'Deus confronta os sacerdotes por oferecerem animais doentes e defeituosos em sacrifício, em vez do melhor do rebanho, e denuncia a infidelidade conjugal generalizada entre o povo.' },
+      { chStart: 3, chEnd: 4, title: 'O Mensageiro e o Dia do Senhor', text: 'Deus promete enviar um mensageiro que prepararia Seu caminho — associado a João Batista no Novo Testamento —, repreende o povo por reter os dízimos, e o Antigo Testamento se encerra com a promessa de que "Elias" viria antes do grande e terrível Dia do Senhor.' },
+    ],
     location: { name: 'Jerusalém pós-exílio', icon: "Megaphone", description: 'Escrito em Jerusalém cerca de um século depois do retorno do exílio, quando o entusiasmo inicial já havia esfriado.' },
     curiosities: [
       'É o último livro na ordem cristã do Antigo Testamento, logo antes dos evangelhos.',
