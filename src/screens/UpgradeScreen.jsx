@@ -137,7 +137,11 @@ export default function UpgradeScreen({ session, subscription }) {
       const url = await openBillingPortalUrl()
       window.location.href = url
     } catch {
-      setError(t('billing.managePortalError', undefined, lang))
+      // Sem portal pra abrir (ex: customer do Stripe não existe mais nesse
+      // modo — ver api/create-portal-session.js) não é um beco sem saída:
+      // abre o seletor de valor de novo, pra reestabelecer a contribuição.
+      setError(t('billing.managePortalFallbackError', undefined, lang))
+      startChangingAmount()
     }
   }
 

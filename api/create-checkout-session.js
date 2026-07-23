@@ -95,7 +95,16 @@ export default async function handler(req, res) {
     .eq('user_id', caller.id)
     .maybeSingle()
 
+  // Confirma que o customer salvo ainda existe NESTE modo (test/live não se
+  // misturam no Stripe — um customer_id salvo em modo teste, por exemplo,
+  // simplesmente não existe pra uma chamada com chave live, e vice-versa).
+  // Sem essa checagem, contas que assinaram antes de uma troca de chave
+  // ficam travadas: o checkout tentaria reaproveitar um customer inválido.
   let customerId = existing?.stripe_customer_id
+  if (customerId) {
+    const stillValid = await stripe.customers.retrieve(customerId).then(c => !c.deleted).catch(() => false)
+    if (!stillValid) customerId = null
+  }
   if (!customerId) {
     const customer = await stripe.customers.create({
       email: caller.email,

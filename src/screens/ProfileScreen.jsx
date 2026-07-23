@@ -12,7 +12,6 @@ const MAX_BIO_LENGTH = 280
 export default function ProfileScreen({ session, authUser, subscription, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(true)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
-  const [portalError, setPortalError] = useState('')
 
   const [profile, setProfile] = useState(null) // { bio, avatarUrl, isPublic }
   const [friendsCount, setFriendsCount] = useState(0)
@@ -95,12 +94,14 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
       onNavigate('upgrade')
       return
     }
-    setPortalError('')
     try {
       const url = await openBillingPortalUrl()
       window.location.href = url
     } catch {
-      setPortalError(t('billing.managePortalError', undefined, session.lang))
+      // Sem portal pra abrir (ex: customer do Stripe não existe mais nesse
+      // modo — ver api/create-portal-session.js) não é um beco sem saída:
+      // manda pra tela de assinatura, onde dá pra escolher o valor de novo.
+      onNavigate('upgrade')
     }
   }
 
@@ -209,8 +210,6 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
         </div>
 
         {/* Configurações */}
-        {portalError && <p style={styles.errorMsg}>{portalError}</p>}
-
         <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 17, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
 
           <SettingsLink
@@ -351,7 +350,6 @@ function SettingsLink({ icon, iconBg, iconColor = 'var(--or)', label, sub, onPre
 }
 
 const styles = {
-  errorMsg:     { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   plannerCard:  { background: 'linear-gradient(135deg,#FFF3E8,#FFE0BE)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 16, padding: 13, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'var(--font)' },
   plannerLabel: { fontSize: 10, fontWeight: 700, color: '#EA580C', marginBottom: 3, letterSpacing: 0.4 },
   plannerTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
