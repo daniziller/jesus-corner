@@ -1042,7 +1042,15 @@ export const BOOK_INFO = {
   },
 
   'Romanos': {
-    context: 'Carta de Paulo à igreja de Roma, considerada sua obra teológica mais completa sobre pecado, graça e salvação pela fé.',
+    contextOverview: 'Carta de Paulo à igreja de Roma, que ele nunca havia visitado, Romanos é frequentemente considerada sua obra teológica mais sistemática e completa — um percurso cuidadoso desde a universalidade do pecado até a justificação pela fé, a nova vida no Espírito, o lugar de Israel no plano de Deus, e instruções práticas para viver essa fé em comunidade.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'A Necessidade da Salvação', text: 'Paulo estabelece que tanto gentios quanto judeus estão igualmente sob o pecado e precisam de salvação, já que ninguém consegue se justificar apenas pela observância da lei.' },
+      { chStart: 4, chEnd: 5, title: 'Justificação pela Fé', text: 'Usando Abraão como exemplo, Paulo argumenta que a justificação sempre veio pela fé, não por obras, resultando em paz com Deus através de Jesus, o "novo Adão".' },
+      { chStart: 6, chEnd: 8, title: 'Vida Nova no Espírito', text: 'Libertos do domínio do pecado, os crentes ainda enfrentam uma luta interior real, mas vivem capacitados pelo Espírito Santo — culminando na declaração de que nada pode separá-los do amor de Deus.' },
+      { chStart: 9, chEnd: 11, title: 'Israel e a Soberania de Deus', text: 'Paulo lida com a pergunta dolorosa sobre por que grande parte de Israel rejeitou o evangelho, afirmando a soberania de Deus e Sua fidelidade contínua ao Seu povo escolhido.' },
+      { chStart: 12, chEnd: 15, title: 'Vida Cristã Prática', text: 'A carta se volta para aplicações práticas: usar os dons espirituais com humildade, submeter-se às autoridades, amar o próximo, e respeitar consciências diferentes dentro da igreja.' },
+      { chStart: 16, chEnd: 16, title: 'Saudações Finais', text: 'Paulo encerra com uma longa lista de saudações pessoais a membros da igreja de Roma, revelando a extensa rede de relacionamentos que ele mantinha apesar de nunca ter visitado a cidade.' },
+    ],
     location: { name: 'Roma', icon: "Landmark", description: 'Escrita por Paulo (provavelmente de Corinto) para uma igreja que ele nunca havia visitado, na capital do império.' },
     curiosities: [
       'É frequentemente considerada a exposição teológica mais sistemática de todo o Novo Testamento.',
@@ -1058,7 +1066,14 @@ export const BOOK_INFO = {
     ],
   },
   '1 Coríntios': {
-    context: 'Paulo corrige divisões, imoralidade e confusões práticas na turbulenta igreja de Corinto, além de ensinar sobre amor, dons espirituais e ressurreição.',
+    contextOverview: 'Escrita para uma igreja instalada numa cidade cosmopolita e moralmente relaxada, 1 Coríntios vê Paulo corrigir divisões internas, imoralidade e uma série de confusões práticas do dia a dia da comunidade, ao mesmo tempo em que ensina sobre amor, dons espirituais e a centralidade da ressurreição para a fé cristã.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Divisões na Igreja', text: 'Paulo confronta facções que se formaram em torno de diferentes líderes, contrastando a "sabedoria" humana orgulhosa com a sabedoria de Deus revelada na cruz, aparentemente tola aos olhos do mundo.' },
+      { chStart: 5, chEnd: 7, title: 'Questões Morais e Práticas', text: 'A carta aborda casos concretos que perturbavam a igreja: imoralidade sexual tolerada na comunidade, processos judiciais entre crentes, e instruções sobre casamento e celibato.' },
+      { chStart: 8, chEnd: 10, title: 'Liberdade e Responsabilidade', text: 'Sobre a questão de comer carne sacrificada a ídolos, Paulo ensina que liberdade pessoal deve ser limitada pelo amor ao próximo mais fraco na fé, usando seu próprio exemplo de abrir mão de direitos.' },
+      { chStart: 11, chEnd: 14, title: 'Ordem no Culto', text: 'Paulo corrige abusos na Ceia do Senhor, explica a diversidade e o propósito dos dons espirituais, e insere o famoso "capítulo do amor" (13) como o critério que deve guiar o uso de todos os dons.' },
+      { chStart: 15, chEnd: 16, title: 'A Ressurreição e Conclusão', text: 'Um longo e cuidadoso argumento defende a realidade da ressurreição dos mortos como fundamento indispensável da fé cristã, antes de instruções práticas finais e saudações.' },
+    ],
     location: { name: 'Corinto', icon: "Sailboat", description: 'Escrita para a igreja de Corinto, cidade portuária grega conhecida por sua riqueza e vida moralmente relaxada.' },
     curiosities: [
       'Contém o "capítulo do amor" (13), um dos textos mais lidos em casamentos até hoje.',
@@ -1074,7 +1089,12 @@ export const BOOK_INFO = {
     ],
   },
   '2 Coríntios': {
-    context: 'Uma carta mais pessoal, em que Paulo defende sua autoridade apostólica diante de críticos e fala abertamente sobre suas próprias fraquezas e sofrimentos.',
+    contextOverview: 'A mais emocionalmente pessoal das cartas de Paulo, 2 Coríntios o mostra defendendo sua autoridade apostólica diante de críticos que haviam surgido em Corinto, ao mesmo tempo em que fala abertamente sobre suas próprias fraquezas, sofrimentos como missionário, e um misterioso "espinho na carne" — revelando um lado profundamente vulnerável do apóstolo.',
+    contextSections: [
+      { chStart: 1, chEnd: 7, title: 'Paulo Defende seu Ministério', text: 'Paulo explica uma mudança de planos que havia sido mal interpretada, descreve a nova aliança do Espírito, e expressa alívio pela reconciliação depois de uma carta anterior mais dura.' },
+      { chStart: 8, chEnd: 9, title: 'A Oferta para Jerusalém', text: 'Paulo incentiva os coríntios a contribuírem generosamente para uma coleta destinada aos cristãos necessitados de Jerusalém, ensinando princípios de generosidade cristã.' },
+      { chStart: 10, chEnd: 13, title: 'Defesa da Autoridade Apostólica', text: 'Numa seção mais tensa, Paulo confronta diretamente falsos "superapóstolos" que haviam ganhado influência em Corinto, listando seus próprios sofrimentos como credenciais e revelando seu "espinho na carne", respondido pela graça suficiente de Deus.' },
+    ],
     location: { name: 'Corinto (via Macedônia)', icon: "Mail", description: 'Escrita da Macedônia, depois de Paulo receber notícias sobre a reação da igreja à sua carta anterior.' },
     curiosities: [
       'É considerada a carta mais emocionalmente pessoal de Paulo entre todas as suas epístolas.',
@@ -1090,7 +1110,12 @@ export const BOOK_INFO = {
     ],
   },
   'Gálatas': {
-    context: 'Paulo escreve com urgência para defender que a salvação vem pela fé em Cristo, e não pela observância da lei judaica, diante de falsos mestres.',
+    contextOverview: 'Escrita com tom urgente e direto — Paulo chega a chamar os leitores de "insensatos" —, Gálatas defende com veemência que a salvação vem pela fé em Cristo, e não pela observância da lei judaica, diante de falsos mestres que insistiam que gentios convertidos precisavam se tornar judeus para serem plenamente salvos. A carta foi extremamente influente na Reforma Protestante, especialmente para Martinho Lutero.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'O Evangelho Verdadeiro', text: 'Paulo defende que recebeu seu evangelho diretamente de Deus, não de outros apóstolos, e relata ter confrontado publicamente Pedro por hipocrisia em relação a cristãos gentios.' },
+      { chStart: 3, chEnd: 4, title: 'Fé versus Lei', text: 'O núcleo teológico da carta: usando o exemplo de Abraão, Paulo argumenta que a lei nunca foi o caminho para a justificação, mas um "tutor" temporário até a vinda de Cristo, que traz verdadeira liberdade e adoção como filhos de Deus.' },
+      { chStart: 5, chEnd: 6, title: 'Vida em Liberdade', text: 'Paulo adverte contra usar a liberdade cristã como desculpa para o pecado, apresentando o "fruto do Espírito" como o resultado natural de uma vida guiada por Deus, e encerra pedindo que os crentes carreguem os fardos uns dos outros.' },
+    ],
     location: { name: 'Galácia (atual Turquia)', icon: "Megaphone", description: 'Escrita para igrejas da região da Galácia, na Ásia Menor (atual Turquia central).' },
     curiosities: [
       'É conhecida por seu tom direto e até duro — Paulo chega a chamar os gálatas de "insensatos" (3:1).',
@@ -1106,7 +1131,11 @@ export const BOOK_INFO = {
     ],
   },
   'Efésios': {
-    context: 'Uma carta rica em teologia sobre a identidade da igreja como corpo de Cristo, seguida de instruções práticas para a vida cristã em família e comunidade.',
+    contextOverview: 'Escrita por Paulo enquanto preso, provavelmente em Roma, Efésios segue uma estrutura clássica em duas partes: os três primeiros capítulos exploram a rica teologia da igreja como corpo de Cristo e plano eterno de Deus reunindo judeus e gentios num só povo, e os três últimos aplicam essa identidade à vida prática em família, trabalho e batalha espiritual.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'A Igreja como Plano Eterno de Deus', text: 'Paulo descreve as bênçãos espirituais dadas aos crentes em Cristo, explica como judeus e gentios foram unidos numa só família através da cruz, e revela esse "mistério" antes escondido como parte do plano eterno de Deus.' },
+      { chStart: 4, chEnd: 6, title: 'Vida Prática na Igreja e na Família', text: 'A carta se volta para aplicações práticas — unidade na diversidade de dons, deixar o "velho homem" e vestir o "novo", relações saudáveis entre cônjuges, pais e filhos — encerrando com a famosa imagem da "armadura de Deus" para a batalha espiritual.' },
+    ],
     location: { name: 'Éfeso', icon: "Amphora", description: 'Endereçada à igreja de Éfeso, importante cidade portuária e centro religioso da Ásia Menor.' },
     curiosities: [
       'Fala da "armadura de Deus" (capítulo 6), uma das imagens mais conhecidas do Novo Testamento.',
@@ -1122,7 +1151,11 @@ export const BOOK_INFO = {
     ],
   },
   'Filipenses': {
-    context: 'Carta calorosa e alegre, escrita da prisão, agradecendo à igreja de Filipos por seu apoio e incentivando alegria e humildade mesmo em meio a dificuldades.',
+    contextOverview: 'Conhecida como "a carta da alegria" — a palavra "alegria/alegrar-se" aparece repetidamente apesar de Paulo escrever da prisão —, Filipenses agradece calorosamente à primeira igreja que Paulo fundou na Europa por seu apoio financeiro, enquanto incentiva alegria genuína, humildade e contentamento mesmo em meio a circunstâncias difíceis.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Alegria em Cristo Apesar da Prisão', text: 'Paulo expressa gratidão pela parceria dos filipenses no evangelho e vê até sua prisão como oportunidade para o evangelho avançar, antes de apresentar um dos hinos cristológicos mais antigos do Novo Testamento sobre a humilhação e exaltação de Cristo.' },
+      { chStart: 3, chEnd: 4, title: 'Perseverança e Contentamento', text: 'Paulo descarta suas próprias credenciais religiosas passadas como "lixo" perto do valor de conhecer a Cristo, e encerra com o famoso ensino sobre contentamento em qualquer circunstância: "tudo posso naquele que me fortalece".' },
+    ],
     location: { name: 'Filipos', icon: "Smile", description: 'Endereçada à igreja de Filipos, na Macedônia (atual Grécia), a primeira igreja fundada por Paulo na Europa.' },
     curiosities: [
       'É chamada de "a carta da alegria": a palavra "alegria/alegrar-se" aparece repetidamente apesar de Paulo estar preso.',
@@ -1138,7 +1171,11 @@ export const BOOK_INFO = {
     ],
   },
   'Colossenses': {
-    context: 'Paulo combate ensinos falsos que diminuíam a supremacia de Cristo, afirmando que Ele é suficiente e soberano sobre todas as coisas.',
+    contextOverview: 'Escrita durante a mesma prisão que produziu Efésios e Filipenses, Colossenses combate uma heresia local que misturava filosofia, misticismo e regras religiosas rígidas, diminuindo a suficiência de Cristo. Paulo responde afirmando, num dos hinos mais elevados do Novo Testamento, que Cristo é soberano sobre todas as coisas e completamente suficiente para a salvação.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'A Supremacia de Cristo', text: 'Um hino teológico exalta Cristo como criador e sustentador de todas as coisas, "a imagem do Deus invisível", antes de Paulo advertir contra filosofias vazias e regras religiosas que tentavam diminuir Sua suficiência.' },
+      { chStart: 3, chEnd: 4, title: 'Vida Renovada em Cristo', text: 'Tendo estabelecido quem Cristo é, Paulo aplica isso à vida prática: deixar comportamentos antigos, vestir virtudes como compaixão e paciência, e viver relações saudáveis em família e trabalho.' },
+    ],
     location: { name: 'Colossos', icon: "Crown", description: 'Escrita para a igreja de Colossos, cidade menor da Ásia Menor que Paulo provavelmente nunca visitou pessoalmente.' },
     curiosities: [
       'Tem fortes semelhanças temáticas e estruturais com Efésios, escritas provavelmente na mesma época.',
@@ -1154,7 +1191,11 @@ export const BOOK_INFO = {
     ],
   },
   '1 Tessalonicenses': {
-    context: 'Uma das primeiras cartas de Paulo, escrita para encorajar uma jovem igreja perseguida e esclarecer dúvidas sobre a volta de Cristo.',
+    contextOverview: 'Considerada por muitos estudiosos a carta mais antiga de Paulo, escrita apenas alguns meses depois de fundar a igreja de Tessalônica, este livro encoraja uma comunidade jovem e perseguida, elogiando sua fé exemplar, enquanto esclarece dúvidas específicas sobre o que acontece com cristãos que morrem antes da volta de Cristo.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'O Testemunho e o Cuidado de Paulo', text: 'Paulo relembra com carinho a fundação da igreja e sua própria conduta entre eles, e expressa profundo alívio ao saber, através de Timóteo, que a fé dos tessalonicenses permanecia firme apesar da perseguição.' },
+      { chStart: 4, chEnd: 5, title: 'Vida Santa e a Volta de Cristo', text: 'Paulo instrui sobre pureza sexual e amor fraternal prático, tranquiliza a igreja sobre o destino dos cristãos que já morreram, e encerra com instruções sobre viver alerta e esperançoso diante do "Dia do Senhor".' },
+    ],
     location: { name: 'Tessalônica', icon: "Hourglass", description: 'Endereçada à igreja de Tessalônica, importante cidade portuária da Macedônia (atual Grécia).' },
     curiosities: [
       'É considerada por muitos estudiosos a carta mais antiga de Paulo, e possivelmente do Novo Testamento inteiro.',
@@ -1170,7 +1211,11 @@ export const BOOK_INFO = {
     ],
   },
   '2 Tessalonicenses': {
-    context: 'Uma carta de acompanhamento, corrigindo mal-entendidos sobre a volta de Cristo e incentivando ordem e trabalho dentro da comunidade.',
+    contextOverview: 'Escrita pouco depois da primeira carta à mesma igreja, 2 Tessalonicenses corrige um mal-entendido preocupante — a ideia de que "o Dia do Senhor" já teria chegado — e repreende diretamente quem havia parado de trabalhar por acreditar que o fim estava próximo demais, incentivando ordem e responsabilidade dentro da comunidade.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Correção sobre a Volta de Cristo', text: 'Paulo encoraja a igreja em meio à perseguição contínua, e corrige diretamente o boato de que o "Dia do Senhor" já teria começado, explicando eventos que precisariam acontecer antes.' },
+      { chStart: 3, chEnd: 3, title: 'Exortação ao Trabalho', text: 'Paulo repreende com firmeza quem havia abandonado o trabalho por ociosidade, estabelecendo o princípio de que "quem não quiser trabalhar, também não coma", e encerra com uma bênção final.' },
+    ],
     location: { name: 'Tessalônica', icon: "ClipboardList", description: 'Escrita pouco depois da primeira carta, para a mesma igreja de Tessalônica.' },
     curiosities: [
       'Corrige a ideia equivocada de que "o Dia do Senhor" já teria chegado.',
@@ -1186,7 +1231,11 @@ export const BOOK_INFO = {
     ],
   },
   '1 Timóteo': {
-    context: 'Paulo orienta seu discípulo Timóteo, jovem líder da igreja em Éfeso, sobre organização eclesiástica, liderança e como combater falsos ensinos.',
+    contextOverview: 'A primeira das três "cartas pastorais" de Paulo (com 2 Timóteo e Tito), este livro orienta seu discípulo Timóteo, jovem líder deixado à frente da igreja em Éfeso, sobre organização eclesiástica, qualificações para líderes, e como combater falsos ensinos que ameaçavam a comunidade.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Combater Falsos Ensinos e Organizar a Igreja', text: 'Paulo alerta contra falsas doutrinas que já circulavam em Éfeso, dá instruções sobre oração pública, e lista requisitos detalhados de caráter para bispos e diáconos da igreja.' },
+      { chStart: 4, chEnd: 6, title: 'Instruções Pessoais a Timóteo', text: 'Paulo encoraja Timóteo a não deixar ninguém desprezar sua juventude, dá orientações práticas sobre cuidar de viúvas e líderes da igreja, e adverte sobre o perigo espiritual do amor ao dinheiro.' },
+    ],
     location: { name: 'Éfeso', icon: "GraduationCap", description: 'Timóteo liderava a igreja em Éfeso quando recebeu esta carta de instrução pastoral de Paulo.' },
     curiosities: [
       'Faz parte das chamadas "cartas pastorais", junto com 2 Timóteo e Tito, voltadas à liderança da igreja.',
@@ -1202,7 +1251,11 @@ export const BOOK_INFO = {
     ],
   },
   '2 Timóteo': {
-    context: 'A última carta conhecida de Paulo, escrita da prisão pouco antes de sua morte, com um tom pessoal de despedida e encorajamento a Timóteo.',
+    contextOverview: 'Considerada a última carta conhecida de Paulo, escrita da prisão em Roma pouco antes de seu martírio, 2 Timóteo tem um tom pessoal e emotivo de despedida, misturando encorajamento a Timóteo com detalhes humanos — como o pedido para trazer seu capote antes do inverno — e a declaração serena de quem sente que terminou bem sua missão.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Um Chamado à Fidelidade', text: 'Paulo encoraja Timóteo a reavivar o dom de Deus nele e a não se envergonhar do evangelho, comparando a vida de fé a um soldado, um atleta e um agricultor que perseveram até o fim.' },
+      { chStart: 3, chEnd: 4, title: 'Últimas Instruções', text: 'Paulo alerta sobre tempos difíceis que viriam e a importância das Escrituras, antes de sua declaração final e serena: "combati o bom combate, terminei a carreira, guardei a fé" — seguida de pedidos pessoais e saudações.' },
+    ],
     location: { name: 'Roma', icon: "Lock", description: 'Escrita da prisão em Roma, no que parece ter sido o último período de vida de Paulo.' },
     curiosities: [
       'É considerada a última carta de Paulo antes de seu martírio em Roma.',
@@ -1218,7 +1271,11 @@ export const BOOK_INFO = {
     ],
   },
   'Tito': {
-    context: 'Paulo orienta Tito, deixado para organizar a igreja na ilha de Creta, sobre liderança, boas obras e sã doutrina.',
+    contextOverview: 'A mais curta das três cartas pastorais de Paulo, Tito orienta seu destinatário, deixado para organizar as igrejas ainda jovens na ilha de Creta, sobre qualificações para líderes, sã doutrina, e principalmente sobre como a fé verdadeira deve se mostrar através de boas obras práticas — não como meio de salvação, mas como fruto natural da graça recebida.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Qualificações para Líderes', text: 'Paulo lista requisitos de caráter para presbíteros que Tito deveria estabelecer em cada cidade de Creta, e adverte contra falsos mestres que precisavam ser silenciados.' },
+      { chStart: 2, chEnd: 3, title: 'Vida Piedosa em Comunidade', text: 'Paulo dá instruções específicas para diferentes grupos — idosos, jovens, escravos —, fundamenta essas instruções na graça de Deus que ensina a viver de forma piedosa, e encerra reforçando que boas obras devem ser o fruto visível da fé.' },
+    ],
     location: { name: 'Creta', icon: "TreePalm", description: 'Tito ficou na ilha de Creta, no Mediterrâneo, para organizar as igrejas locais.' },
     curiosities: [
       'É a mais curta das três "cartas pastorais" de Paulo.',
@@ -1234,7 +1291,10 @@ export const BOOK_INFO = {
     ],
   },
   'Filemon': {
-    context: 'Uma carta pessoal e breve em que Paulo pede a Filemom que perdoe e receba de volta seu escravo fugitivo, Onésimo, agora como irmão em Cristo.',
+    contextOverview: 'A carta mais curta de Paulo no Novo Testamento, cabendo num único capítulo, Filemom é um pedido pessoal e delicado: que Filemom perdoe e receba de volta seu escravo fugitivo, Onésimo, agora convertido e transformado em "irmão amado" em Cristo. Paulo apela ao amor em vez de usar sua autoridade apostólica para exigir, num retrato poderoso de como o evangelho transforma relações desiguais.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Um Pedido em Nome do Amor', text: 'Paulo intercede por Onésimo, o escravo fugitivo de Filemom que se converteu ao cristianismo através de seu ministério, pedindo que ele seja recebido de volta não mais como propriedade, mas como irmão — chegando a se oferecer para pagar pessoalmente qualquer dívida.' },
+    ],
     location: { name: 'Colossos', icon: "Handshake", description: 'Endereçada a Filemom, um cristão da igreja de Colossos, dono de Onésimo.' },
     curiosities: [
       'É a carta mais curta de Paulo no Novo Testamento — cabe em um único capítulo.',
@@ -1250,7 +1310,13 @@ export const BOOK_INFO = {
     ],
   },
   'Hebreus': {
-    context: 'Uma carta/sermão de autor desconhecido, argumentando que Jesus é superior aos anjos, a Moisés e ao sistema sacerdotal do Antigo Testamento.',
+    contextOverview: 'Um sermão teológico de autor desconhecido, provavelmente escrito para cristãos de origem judaica que consideravam voltar às práticas do judaísmo antigo, Hebreus argumenta sistematicamente que Jesus é superior aos anjos, a Moisés e a todo o sistema sacerdotal e sacrificial do Antigo Testamento — culminando no famoso "capítulo da fé" e num apelo final à perseverança.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Jesus Superior aos Anjos e a Moisés', text: 'O livro abre estabelecendo que Jesus é superior aos anjos como Filho de Deus, e depois superior a Moisés como fundador de uma casa espiritual maior, advertindo contra a incredulidade que impediu a geração do deserto de entrar no descanso prometido.' },
+      { chStart: 5, chEnd: 7, title: 'Jesus, o Sumo Sacerdote Perfeito', text: 'Jesus é apresentado como sumo sacerdote segundo a ordem de Melquisedeque — uma ordem sacerdotal superior e eterna, diferente do sacerdócio levítico limitado e temporário.' },
+      { chStart: 8, chEnd: 10, title: 'A Superioridade da Nova Aliança', text: 'O sacrifício único e perfeito de Cristo substitui definitivamente o sistema repetitivo de sacrifícios de animais, inaugurando uma nova aliança escrita no coração, exatamente como Jeremias havia profetizado.' },
+      { chStart: 11, chEnd: 13, title: 'O Capítulo da Fé e Exortações Finais', text: 'Um extenso "salão da fama da fé" (capítulo 11) lista heróis do Antigo Testamento que perseveraram sem ver o cumprimento completo das promessas, seguido de um apelo a "correr com perseverança a corrida" olhando para Jesus, e instruções práticas finais.' },
+    ],
     location: { name: 'Destino incerto', icon: "Flame", description: 'Provavelmente escrita para cristãos de origem judaica que consideravam voltar às práticas do judaísmo antigo.' },
     curiosities: [
       'É o único livro do Novo Testamento cujo autor permanece desconhecido até hoje.',
@@ -1266,7 +1332,11 @@ export const BOOK_INFO = {
     ],
   },
   'Tiago': {
-    context: 'Uma carta prática e direta sobre como viver a fé genuína através das obras, do controle da língua e do cuidado com os pobres.',
+    contextOverview: 'Tradicionalmente atribuída a Tiago, irmão de Jesus e líder da igreja em Jerusalém, esta carta prática e direta — com estilo parecido ao da literatura de sabedoria do Antigo Testamento — ensina como viver a fé genuína através das obras, do controle da língua e do cuidado ativo com os pobres, resumida na célebre frase "a fé sem obras é morta".',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Provações e Fé em Ação', text: 'Tiago ensina a encontrar alegria mesmo nas provações, que sabedoria genuína vem de Deus, e argumenta com firmeza que uma fé que não produz ação concreta — especialmente cuidado com os necessitados — está, na prática, morta.' },
+      { chStart: 3, chEnd: 5, title: 'Sabedoria Prática para a Vida em Comunidade', text: 'Um capítulo inteiro é dedicado ao poder — e ao perigo — da língua, seguido de ensino sobre a diferença entre sabedoria terrena e celestial, e instruções finais sobre paciência, oração e cuidado mútuo dentro da comunidade.' },
+    ],
     location: { name: 'Comunidades judaico-cristãs dispersas', icon: "Wrench", description: 'Endereçada "às doze tribos dispersas", ou seja, cristãos de origem judaica espalhados fora de Israel.' },
     curiosities: [
       'É conhecida pela frase "a fé sem obras é morta" (2:26), muito debatida ao lado dos ensinos de Paulo sobre graça.',
@@ -1282,7 +1352,11 @@ export const BOOK_INFO = {
     ],
   },
   '1 Pedro': {
-    context: 'Pedro escreve para encorajar cristãos espalhados pela Ásia Menor que enfrentavam sofrimento e perseguição por sua fé.',
+    contextOverview: 'Escrita "de Babilônia" — possivelmente um codinome para Roma —, esta carta de Pedro encoraja cristãos dispersos por várias províncias da Ásia Menor que enfrentavam sofrimento e perseguição por sua fé, lembrando-os de sua identidade como "pedras vivas" de uma casa espiritual maior e ensinando como responder ao mal com bondade em vez de vingança.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Identidade e Santidade dos Crentes', text: 'Pedro celebra a herança viva e imperecível garantida aos crentes, chama-os a uma vida santa como reflexo de quem os salvou, e os descreve como "pedras vivas" sendo edificadas numa casa espiritual e um sacerdócio real.' },
+      { chStart: 3, chEnd: 5, title: 'Sofrimento e Perseverança', text: 'Pedro dá instruções sobre relações domésticas, ensina a responder à injustiça com bênção em vez de vingança, aponta para o sofrimento de Cristo como exemplo, e encerra com instruções específicas para os líderes da igreja.' },
+    ],
     location: { name: 'Ásia Menor (atual Turquia)', icon: "Mountain", description: 'Endereçada a cristãos dispersos em várias províncias romanas da Ásia Menor.' },
     curiosities: [
       'Compara os cristãos a "pedras vivas" sendo edificadas em uma casa espiritual (2:5).',
@@ -1298,7 +1372,11 @@ export const BOOK_INFO = {
     ],
   },
   '2 Pedro': {
-    context: 'Um alerta final de Pedro contra falsos mestres e uma defesa da certeza da volta de Cristo, escrito pouco antes de sua morte.',
+    contextOverview: 'Considerada por muitos estudiosos a última carta de Pedro antes de sua morte, este breve livro alerta com urgência contra falsos mestres que distorciam os ensinos cristãos por ganância, e defende a certeza da volta de Cristo diante de quem duvidava dela por causa da demora — tendo grande semelhança de conteúdo com a carta de Judas.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Crescimento na Fé', text: 'Pedro incentiva os leitores a acrescentarem virtudes à sua fé — de bondade a amor —, e afirma a confiabilidade das Escrituras, testemunhadas pessoalmente por ele na Transfiguração de Jesus.' },
+      { chStart: 2, chEnd: 3, title: 'Alerta contra Falsos Mestres e a Volta de Cristo', text: 'Pedro descreve em detalhe o destino de falsos mestres gananciosos, usando exemplos do Antigo Testamento, e responde a dúvidas sobre a demora da volta de Cristo afirmando que "para o Senhor um dia é como mil anos".' },
+    ],
     location: { name: 'Roma (provável)', icon: "TriangleAlert", description: 'Escrita provavelmente de Roma, perto do fim da vida de Pedro.' },
     curiosities: [
       'Tem grandes semelhanças de conteúdo com a carta de Judas, sugerindo uma relação direta entre os dois textos.',
@@ -1314,7 +1392,11 @@ export const BOOK_INFO = {
     ],
   },
   '1 João': {
-    context: 'Uma carta pastoral sobre amor, verdade e certeza da salvação, escrita para combater ensinos que negavam que Jesus viera "em carne".',
+    contextOverview: 'Atribuída ao mesmo autor do Evangelho de João, com estilo e vocabulário muito parecidos, esta carta pastoral combate o "docetismo" — uma heresia que negava a humanidade real de Jesus — enquanto ensina sobre amor, verdade e a possibilidade de ter certeza genuína da salvação, culminando na afirmação mais citada do livro: "Deus é amor".',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Andar na Luz', text: 'João ensina que ter comunhão com Deus significa andar na luz e confessar honestamente o pecado, e apresenta o "mandamento antigo, mas novo" de amar uns aos outros como o teste real de conhecer a Deus.' },
+      { chStart: 3, chEnd: 5, title: 'Amor e Certeza da Fé', text: 'João desenvolve a identidade dos crentes como filhos de Deus, chega à declaração central de que "Deus é amor", e encerra explicando como é possível ter certeza segura da vida eterna, não viver com dúvida constante.' },
+    ],
     location: { name: 'Éfeso (tradição)', icon: "Heart", description: 'Tradicionalmente associada ao apóstolo João, que teria liderado igrejas na região de Éfeso.' },
     curiosities: [
       'Contém a afirmação direta "Deus é amor" (4:8), uma das definições mais citadas de toda a Bíblia.',
@@ -1330,7 +1412,10 @@ export const BOOK_INFO = {
     ],
   },
   '2 João': {
-    context: 'Uma carta breve alertando contra falsos mestres itinerantes e reforçando a importância de andar em amor e verdade.',
+    contextOverview: 'Uma das cartas mais curtas do Novo Testamento, com apenas 13 versículos, 2 João repete em formato compacto temas centrais de 1 João, alertando contra falsos mestres itinerantes — especificamente os que negavam que Cristo viera em carne — e reforçando a importância de andar simultaneamente em amor e verdade, sem sacrificar um pelo outro.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Amor, Verdade e Discernimento', text: 'João elogia "a senhora eleita" (possivelmente uma igreja) por seus filhos que andam na verdade, reforça o mandamento do amor mútuo, e orienta a comunidade a não receber em casa mestres itinerantes que negassem a vinda de Cristo em carne.' },
+    ],
     location: { name: 'Ásia Menor (provável)', icon: "Mail", description: 'Endereçada a "a senhora eleita e seus filhos" — possivelmente uma igreja local ou uma pessoa específica.' },
     curiosities: [
       'É uma das duas cartas mais curtas do Novo Testamento, com apenas 13 versículos.',
@@ -1346,7 +1431,10 @@ export const BOOK_INFO = {
     ],
   },
   '3 João': {
-    context: 'Uma carta pessoal elogiando a hospitalidade de Gaio e criticando a atitude arrogante de Diótrefes, que rejeitava a autoridade apostólica.',
+    contextOverview: 'O livro mais curto de toda a Bíblia em número de palavras, 3 João é uma carta pessoal dirigida a Gaio, um cristão comum elogiado por sua hospitalidade com missionários viajantes, contrastando seu exemplo positivo com a atitude arrogante e controladora de Diótrefes, que rejeitava a autoridade apostólica e a própria hospitalidade cristã.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Hospitalidade e Orgulho', text: 'João elogia Gaio por receber bem pregadores itinerantes, repreende Diótrefes por seu orgulho e recusa em acolher esses mesmos missionários, e recomenda Demétrio como exemplo confiável de bom testemunho.' },
+    ],
     location: { name: 'Ásia Menor (provável)', icon: "Home", description: 'Endereçada pessoalmente a Gaio, um cristão elogiado por sua hospitalidade com missionários viajantes.' },
     curiosities: [
       'É o livro mais curto de toda a Bíblia em número de palavras.',
@@ -1362,7 +1450,10 @@ export const BOOK_INFO = {
     ],
   },
   'Judas': {
-    context: 'Um alerta urgente contra falsos mestres que haviam se infiltrado na igreja, usando exemplos do Antigo Testamento como advertência.',
+    contextOverview: 'Tradicionalmente atribuída a Judas, irmão de Tiago e também irmão de Jesus, esta breve carta é um alerta urgente contra falsos mestres que haviam se infiltrado secretamente na igreja, usando uma série de exemplos históricos e do Antigo Testamento — de anjos caídos a Sodoma e Gomorra — como advertência severa, antes de encerrar com uma das doxologias mais conhecidas do Novo Testamento.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Um Alerta Urgente', text: 'Judas denuncia falsos mestres infiltrados que distorciam a graça de Deus em licenciosidade, comparando-os a exemplos de julgamento do Antigo Testamento, e encerra com uma doxologia poderosa confiando que Deus é capaz de guardar os crentes até o fim.' },
+    ],
     location: { name: 'Comunidades cristãs dispersas', icon: "Siren", description: 'Não especifica um destino geográfico claro; parece endereçada a cristãos de forma mais geral.' },
     curiosities: [
       'Tem forte semelhança de conteúdo com 2 Pedro, levando estudiosos a debater qual influenciou qual.',

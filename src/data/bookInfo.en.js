@@ -1037,7 +1037,15 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Romanos': {
-    context: 'Paul\'s letter to the church in Rome, considered his most complete theological work on sin, grace, and salvation by faith.',
+    contextOverview: 'Paul\'s letter to the church in Rome, which he had never visited, Romans is often considered his most systematic and complete theological work — a careful journey from the universality of sin to justification by faith, new life in the Spirit, Israel\'s place in God\'s plan, and practical instructions for living out that faith in community.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'The Need for Salvation', text: 'Paul establishes that both Gentiles and Jews are equally under sin and need salvation, since no one can be justified by law-keeping alone.' },
+      { chStart: 4, chEnd: 5, title: 'Justification by Faith', text: 'Using Abraham as an example, Paul argues that justification has always come by faith, not works, resulting in peace with God through Jesus, the "new Adam".' },
+      { chStart: 6, chEnd: 8, title: 'New Life in the Spirit', text: 'Freed from sin\'s power, believers still face a real inner struggle, but live empowered by the Holy Spirit — culminating in the declaration that nothing can separate them from the love of God.' },
+      { chStart: 9, chEnd: 11, title: 'Israel and God\'s Sovereignty', text: 'Paul wrestles with the painful question of why much of Israel rejected the gospel, affirming God\'s sovereignty and continued faithfulness to His chosen people.' },
+      { chStart: 12, chEnd: 15, title: 'Practical Christian Living', text: 'The letter turns to practical application: using spiritual gifts with humility, submitting to authorities, loving one\'s neighbor, and respecting differing consciences within the church.' },
+      { chStart: 16, chEnd: 16, title: 'Final Greetings', text: 'Paul closes with a long list of personal greetings to members of the Roman church, revealing the extensive network of relationships he maintained despite never having visited the city.' },
+    ],
     location: { name: 'Rome', icon: "Landmark", description: 'Written by Paul (likely from Corinth) to a church he had never visited, in the empire\'s capital.' },
     curiosities: [
       'It\'s often considered the most systematic theological exposition in the entire New Testament.',
@@ -1053,7 +1061,14 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 Coríntios': {
-    context: 'Paul corrects divisions, immorality, and practical confusions in the turbulent church of Corinth, while also teaching about love, spiritual gifts, and resurrection.',
+    contextOverview: 'Written to a church planted in a cosmopolitan, morally relaxed city, 1 Corinthians sees Paul correcting internal divisions, immorality, and a series of practical everyday confusions in the community, while also teaching about love, spiritual gifts, and the centrality of the resurrection to Christian faith.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Divisions in the Church', text: 'Paul confronts factions that had formed around different leaders, contrasting proud human "wisdom" with the wisdom of God revealed in the cross, apparently foolish in the world\'s eyes.' },
+      { chStart: 5, chEnd: 7, title: 'Moral and Practical Issues', text: 'The letter addresses concrete cases troubling the church: sexual immorality tolerated in the community, lawsuits between believers, and instructions on marriage and celibacy.' },
+      { chStart: 8, chEnd: 10, title: 'Freedom and Responsibility', text: 'On the question of eating food sacrificed to idols, Paul teaches that personal freedom must be limited by love for those weaker in faith, using his own example of giving up his rights.' },
+      { chStart: 11, chEnd: 14, title: 'Order in Worship', text: 'Paul corrects abuses at the Lord\'s Supper, explains the diversity and purpose of spiritual gifts, and inserts the famous "love chapter" (13) as the standard that should guide the use of every gift.' },
+      { chStart: 15, chEnd: 16, title: 'The Resurrection and Closing', text: 'A long, careful argument defends the reality of the resurrection of the dead as an indispensable foundation of the Christian faith, followed by final practical instructions and greetings.' },
+    ],
     location: { name: 'Corinth', icon: "Sailboat", description: 'Written to the church in Corinth, a Greek port city known for its wealth and morally relaxed lifestyle.' },
     curiosities: [
       'It contains the "love chapter" (13), one of the most-read texts at weddings today.',
@@ -1069,7 +1084,12 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 Coríntios': {
-    context: 'A more personal letter, in which Paul defends his apostolic authority against critics and speaks openly about his own weaknesses and sufferings.',
+    contextOverview: 'The most emotionally personal of Paul\'s letters, 2 Corinthians shows him defending his apostolic authority against critics who had arisen in Corinth, while speaking openly about his own weaknesses, sufferings as a missionary, and a mysterious "thorn in the flesh" — revealing a deeply vulnerable side of the apostle.',
+    contextSections: [
+      { chStart: 1, chEnd: 7, title: 'Paul Defends His Ministry', text: 'Paul explains a change of plans that had been misunderstood, describes the new covenant of the Spirit, and expresses relief over reconciliation following an earlier, harsher letter.' },
+      { chStart: 8, chEnd: 9, title: 'The Collection for Jerusalem', text: 'Paul encourages the Corinthians to give generously to a collection for needy Christians in Jerusalem, teaching principles of Christian generosity.' },
+      { chStart: 10, chEnd: 13, title: 'Defense of Apostolic Authority', text: 'In a tenser section, Paul directly confronts false "super-apostles" who had gained influence in Corinth, listing his own sufferings as credentials and revealing his "thorn in the flesh", answered by God\'s sufficient grace.' },
+    ],
     location: { name: 'Corinth (via Macedonia)', icon: "Mail", description: 'Written from Macedonia, after Paul received news of the church\'s reaction to his previous letter.' },
     curiosities: [
       'It\'s considered the most emotionally personal of all Paul\'s letters.',
@@ -1085,7 +1105,12 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Gálatas': {
-    context: 'Paul writes urgently to defend that salvation comes through faith in Christ, not through observing the Jewish law, in the face of false teachers.',
+    contextOverview: 'Written with an urgent, direct tone — Paul even calls his readers "foolish" — Galatians forcefully defends that salvation comes through faith in Christ, not through observing the Jewish law, against false teachers who insisted that converted Gentiles needed to become Jews to be fully saved. The letter was extremely influential in the Protestant Reformation, especially for Martin Luther.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'The True Gospel', text: 'Paul defends having received his gospel directly from God, not from other apostles, and recounts publicly confronting Peter for hypocrisy toward Gentile Christians.' },
+      { chStart: 3, chEnd: 4, title: 'Faith Versus Law', text: 'The letter\'s theological core: using Abraham as an example, Paul argues the law was never the path to justification, but a temporary "guardian" until Christ came, who brings true freedom and adoption as children of God.' },
+      { chStart: 5, chEnd: 6, title: 'Life in Freedom', text: 'Paul warns against using Christian freedom as an excuse for sin, presenting the "fruit of the Spirit" as the natural result of a God-guided life, and closes by asking believers to carry each other\'s burdens.' },
+    ],
     location: { name: 'Galatia (modern-day Turkey)', icon: "Megaphone", description: 'Written to churches in the region of Galatia, in Asia Minor (modern-day central Turkey).' },
     curiosities: [
       'It\'s known for its direct, even harsh tone — Paul even calls the Galatians "foolish" (3:1).',
@@ -1101,7 +1126,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Efésios': {
-    context: 'A letter rich in theology about the church\'s identity as the body of Christ, followed by practical instructions for Christian life in family and community.',
+    contextOverview: 'Written by Paul while imprisoned, likely in Rome, Ephesians follows a classic two-part structure: the first three chapters explore the rich theology of the church as the body of Christ and God\'s eternal plan to unite Jews and Gentiles into one people, and the last three apply that identity to practical life in family, work, and spiritual battle.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'The Church as God\'s Eternal Plan', text: 'Paul describes the spiritual blessings given to believers in Christ, explains how Jews and Gentiles were united into one family through the cross, and reveals this once-hidden "mystery" as part of God\'s eternal plan.' },
+      { chStart: 4, chEnd: 6, title: 'Practical Life in Church and Family', text: 'The letter turns to practical application — unity amid a diversity of gifts, putting off the "old self" and putting on the "new", healthy relationships between spouses, parents, and children — closing with the famous image of the "armor of God" for spiritual battle.' },
+    ],
     location: { name: 'Ephesus', icon: "Amphora", description: 'Addressed to the church in Ephesus, an important port city and religious center of Asia Minor.' },
     curiosities: [
       'It speaks of the "armor of God" (chapter 6), one of the best-known images in the New Testament.',
@@ -1117,7 +1146,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Filipenses': {
-    context: 'A warm, joyful letter, written from prison, thanking the Philippian church for its support and encouraging joy and humility even amid hardship.',
+    contextOverview: 'Known as "the letter of joy" — the word "joy/rejoice" appears repeatedly despite Paul writing from prison — Philippians warmly thanks the first church Paul founded in Europe for its financial support, while encouraging genuine joy, humility, and contentment even amid difficult circumstances.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Joy in Christ Despite Prison', text: 'Paul expresses gratitude for the Philippians\' partnership in the gospel and sees even his imprisonment as an opportunity for the gospel to advance, before presenting one of the oldest Christological hymns in the New Testament, about Christ\'s humiliation and exaltation.' },
+      { chStart: 3, chEnd: 4, title: 'Perseverance and Contentment', text: 'Paul discards his own past religious credentials as "garbage" compared to the value of knowing Christ, and closes with the famous teaching on contentment in any circumstance: "I can do all things through him who strengthens me".' },
+    ],
     location: { name: 'Philippi', icon: "Smile", description: 'Addressed to the church in Philippi, Macedonia (modern-day Greece), the first church Paul founded in Europe.' },
     curiosities: [
       'It\'s called "the letter of joy": the word "joy/rejoice" appears repeatedly despite Paul being in prison.',
@@ -1133,7 +1166,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Colossenses': {
-    context: 'Paul combats false teachings that diminished Christ\'s supremacy, affirming that He is sufficient and sovereign over all things.',
+    contextOverview: 'Written during the same imprisonment that produced Ephesians and Philippians, Colossians combats a local heresy that mixed philosophy, mysticism, and rigid religious rules, diminishing Christ\'s sufficiency. Paul responds by affirming, in one of the highest hymns in the New Testament, that Christ is sovereign over all things and completely sufficient for salvation.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'The Supremacy of Christ', text: 'A theological hymn exalts Christ as creator and sustainer of all things, "the image of the invisible God", before Paul warns against empty philosophies and religious rules that tried to diminish His sufficiency.' },
+      { chStart: 3, chEnd: 4, title: 'Renewed Life in Christ', text: 'Having established who Christ is, Paul applies this to practical living: putting off old behaviors, putting on virtues like compassion and patience, and living out healthy relationships in family and work.' },
+    ],
     location: { name: 'Colossae', icon: "Crown", description: 'Written to the church in Colossae, a small city in Asia Minor that Paul likely never visited in person.' },
     curiosities: [
       'It has strong thematic and structural similarities with Ephesians, likely written around the same time.',
@@ -1149,7 +1186,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 Tessalonicenses': {
-    context: 'One of Paul\'s earliest letters, written to encourage a young persecuted church and clarify doubts about Christ\'s return.',
+    contextOverview: 'Considered by many scholars to be Paul\'s oldest letter, written just months after founding the church in Thessalonica, this book encourages a young, persecuted community, praising their exemplary faith, while clarifying specific doubts about what happens to Christians who die before Christ\'s return.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Paul\'s Testimony and Care', text: 'Paul fondly recalls the founding of the church and his own conduct among them, and expresses deep relief on learning, through Timothy, that the Thessalonians\' faith remained firm despite persecution.' },
+      { chStart: 4, chEnd: 5, title: 'Holy Living and Christ\'s Return', text: 'Paul instructs on sexual purity and practical brotherly love, reassures the church about the fate of Christians who have already died, and closes with instructions on living alert and hopeful in view of the "Day of the Lord".' },
+    ],
     location: { name: 'Thessalonica', icon: "Hourglass", description: 'Addressed to the church in Thessalonica, an important port city of Macedonia (modern-day Greece).' },
     curiosities: [
       'Many scholars consider it Paul\'s oldest letter, and possibly the oldest in the entire New Testament.',
@@ -1165,7 +1206,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 Tessalonicenses': {
-    context: 'A follow-up letter, correcting misunderstandings about Christ\'s return and encouraging order and work within the community.',
+    contextOverview: 'Written shortly after the first letter to the same church, 2 Thessalonians corrects a troubling misunderstanding — the idea that "the Day of the Lord" had already come — and directly rebukes those who had stopped working, believing the end was too near, encouraging order and responsibility within the community.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Correcting Ideas About Christ\'s Return', text: 'Paul encourages the church amid ongoing persecution, and directly corrects the rumor that the "Day of the Lord" had already begun, explaining events that would need to happen first.' },
+      { chStart: 3, chEnd: 3, title: 'Exhortation to Work', text: 'Paul firmly rebukes those who had abandoned work out of idleness, establishing the principle that "the one who is unwilling to work shall not eat", and closes with a final blessing.' },
+    ],
     location: { name: 'Thessalonica', icon: "ClipboardList", description: 'Written shortly after the first letter, to the same church in Thessalonica.' },
     curiosities: [
       'It corrects the mistaken idea that "the Day of the Lord" had already come.',
@@ -1181,7 +1226,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 Timóteo': {
-    context: 'Paul guides his disciple Timothy, a young leader of the church in Ephesus, on church organization, leadership, and how to combat false teachings.',
+    contextOverview: 'The first of Paul\'s three "pastoral letters" (with 2 Timothy and Titus), this book guides his disciple Timothy, a young leader left in charge of the church in Ephesus, on church organization, qualifications for leaders, and how to combat false teachings threatening the community.',
+    contextSections: [
+      { chStart: 1, chEnd: 3, title: 'Combating False Teaching and Organizing the Church', text: 'Paul warns against false doctrines already circulating in Ephesus, gives instructions on public prayer, and lists detailed character requirements for overseers and deacons of the church.' },
+      { chStart: 4, chEnd: 6, title: 'Personal Instructions to Timothy', text: 'Paul encourages Timothy not to let anyone look down on his youth, gives practical guidance on caring for widows and church leaders, and warns about the spiritual danger of the love of money.' },
+    ],
     location: { name: 'Ephesus', icon: "GraduationCap", description: 'Timothy led the church in Ephesus when he received this letter of pastoral instruction from Paul.' },
     curiosities: [
       'It\'s part of the so-called "pastoral letters", along with 2 Timothy and Titus, aimed at church leadership.',
@@ -1197,7 +1246,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 Timóteo': {
-    context: 'Paul\'s last known letter, written from prison shortly before his death, with a personal tone of farewell and encouragement to Timothy.',
+    contextOverview: 'Considered Paul\'s last known letter, written from prison in Rome shortly before his martyrdom, 2 Timothy has a personal, emotional tone of farewell, blending encouragement to Timothy with human details — like asking him to bring his cloak before winter — and the calm declaration of someone who feels he finished his mission well.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'A Call to Faithfulness', text: 'Paul encourages Timothy to fan into flame the gift of God within him and not be ashamed of the gospel, comparing the life of faith to a soldier, an athlete, and a farmer who all persevere to the end.' },
+      { chStart: 3, chEnd: 4, title: 'Final Instructions', text: 'Paul warns about difficult times to come and the importance of Scripture, before his final, serene declaration: "I have fought the good fight, I have finished the race, I have kept the faith" — followed by personal requests and greetings.' },
+    ],
     location: { name: 'Rome', icon: "Lock", description: 'Written from prison in Rome, in what appears to have been the last period of Paul\'s life.' },
     curiosities: [
       'It\'s considered Paul\'s last letter before his martyrdom in Rome.',
@@ -1213,7 +1266,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Tito': {
-    context: 'Paul guides Titus, left to organize the church on the island of Crete, on leadership, good works, and sound doctrine.',
+    contextOverview: 'The shortest of Paul\'s three pastoral letters, Titus guides its recipient, left to organize the still-young churches on the island of Crete, on qualifications for leaders, sound doctrine, and above all on how genuine faith must show itself through practical good works — not as a means of salvation, but as the natural fruit of grace received.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Qualifications for Leaders', text: 'Paul lists character requirements for elders that Titus was to appoint in every town of Crete, and warns against false teachers who needed to be silenced.' },
+      { chStart: 2, chEnd: 3, title: 'Godly Living in Community', text: 'Paul gives specific instructions for different groups — the elderly, the young, slaves —, grounds these instructions in the grace of God that teaches godly living, and closes by reinforcing that good works should be the visible fruit of faith.' },
+    ],
     location: { name: 'Crete', icon: "TreePalm", description: 'Titus stayed on the island of Crete, in the Mediterranean, to organize the local churches.' },
     curiosities: [
       'It\'s the shortest of Paul\'s three "pastoral letters".',
@@ -1229,7 +1286,10 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Filemon': {
-    context: 'A brief, personal letter in which Paul asks Philemon to forgive and take back his runaway slave, Onesimus, now as a brother in Christ.',
+    contextOverview: 'Paul\'s shortest letter in the New Testament, fitting in a single chapter, Philemon is a personal, delicate request: that Philemon forgive and take back his runaway slave, Onesimus, now converted and transformed into a "beloved brother" in Christ. Paul appeals to love rather than using his apostolic authority to demand it, in a powerful portrait of how the gospel transforms unequal relationships.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'A Request in the Name of Love', text: 'Paul intercedes for Onesimus, Philemon\'s runaway slave who converted to Christianity through his ministry, asking that he be received back not as property, but as a brother — even offering to personally pay any debt owed.' },
+    ],
     location: { name: 'Colossae', icon: "Handshake", description: 'Addressed to Philemon, a Christian in the church of Colossae, owner of Onesimus.' },
     curiosities: [
       'It\'s Paul\'s shortest letter in the New Testament — it fits in a single chapter.',
@@ -1245,7 +1305,13 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Hebreus': {
-    context: 'A letter/sermon by an unknown author, arguing that Jesus is superior to the angels, to Moses, and to the Old Testament priestly system.',
+    contextOverview: 'A theological sermon by an unknown author, likely written to Christians of Jewish background who were considering returning to old Jewish practices, Hebrews systematically argues that Jesus is superior to the angels, to Moses, and to the entire Old Testament priestly and sacrificial system — culminating in the famous "faith chapter" and a final appeal to perseverance.',
+    contextSections: [
+      { chStart: 1, chEnd: 4, title: 'Jesus Superior to Angels and Moses', text: 'The book opens by establishing that Jesus is superior to the angels as Son of God, and then superior to Moses as founder of a greater spiritual house, warning against the unbelief that kept the wilderness generation from entering the promised rest.' },
+      { chStart: 5, chEnd: 7, title: 'Jesus, the Perfect High Priest', text: 'Jesus is presented as high priest according to the order of Melchizedek — a superior, eternal priestly order, unlike the limited and temporary Levitical priesthood.' },
+      { chStart: 8, chEnd: 10, title: 'The Superiority of the New Covenant', text: 'Christ\'s single, perfect sacrifice definitively replaces the repetitive system of animal sacrifices, inaugurating a new covenant written on the heart, exactly as Jeremiah had prophesied.' },
+      { chStart: 11, chEnd: 13, title: 'The Faith Chapter and Final Exhortations', text: 'An extensive "hall of faith" (chapter 11) lists Old Testament heroes who persevered without seeing the complete fulfillment of the promises, followed by a call to "run with perseverance the race" looking to Jesus, and final practical instructions.' },
+    ],
     location: { name: 'Uncertain destination', icon: "Flame", description: 'Likely written to Christians of Jewish background who were considering returning to old Jewish practices.' },
     curiosities: [
       'It\'s the only book of the New Testament whose author remains unknown to this day.',
@@ -1261,7 +1327,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Tiago': {
-    context: 'A practical, direct letter on how to live out genuine faith through works, controlling the tongue, and caring for the poor.',
+    contextOverview: 'Traditionally attributed to James, Jesus\' brother and leader of the church in Jerusalem, this practical, direct letter — with a style similar to Old Testament wisdom literature — teaches how to live out genuine faith through works, controlling the tongue, and actively caring for the poor, summed up in the well-known phrase "faith without works is dead".',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Trials and Faith in Action', text: 'James teaches how to find joy even in trials, that genuine wisdom comes from God, and argues firmly that a faith producing no concrete action — especially care for the needy — is, in practice, dead.' },
+      { chStart: 3, chEnd: 5, title: 'Practical Wisdom for Life in Community', text: 'An entire chapter is devoted to the power — and danger — of the tongue, followed by teaching on the difference between earthly and heavenly wisdom, and final instructions on patience, prayer, and mutual care within the community.' },
+    ],
     location: { name: 'Scattered Jewish-Christian communities', icon: "Wrench", description: 'Addressed "to the twelve tribes scattered abroad", that is, Christians of Jewish background spread outside Israel.' },
     curiosities: [
       'It\'s known for the phrase "faith without works is dead" (2:26), much debated alongside Paul\'s teachings on grace.',
@@ -1277,7 +1347,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 Pedro': {
-    context: 'Peter writes to encourage Christians scattered across Asia Minor who faced suffering and persecution for their faith.',
+    contextOverview: 'Written "from Babylon" — possibly a code name for Rome —, this letter of Peter encourages Christians scattered across several provinces of Asia Minor who faced suffering and persecution for their faith, reminding them of their identity as "living stones" in a larger spiritual house and teaching how to respond to evil with kindness rather than revenge.',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'The Believers\' Identity and Holiness', text: 'Peter celebrates the living, imperishable inheritance guaranteed to believers, calls them to holy living as a reflection of the One who saved them, and describes them as "living stones" being built into a spiritual house and a royal priesthood.' },
+      { chStart: 3, chEnd: 5, title: 'Suffering and Perseverance', text: 'Peter gives instructions on household relationships, teaches how to respond to injustice with blessing rather than revenge, points to Christ\'s suffering as an example, and closes with specific instructions for church leaders.' },
+    ],
     location: { name: 'Asia Minor (modern-day Turkey)', icon: "Mountain", description: 'Addressed to Christians scattered across several Roman provinces of Asia Minor.' },
     curiosities: [
       'It compares Christians to "living stones" being built into a spiritual house (2:5).',
@@ -1293,7 +1367,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 Pedro': {
-    context: 'A final warning from Peter against false teachers and a defense of the certainty of Christ\'s return, written shortly before his death.',
+    contextOverview: 'Considered by many scholars to be Peter\'s last letter before his death, this brief book urgently warns against false teachers who distorted Christian teaching out of greed, and defends the certainty of Christ\'s return to those who doubted it because of the delay — bearing strong content similarities to the letter of Jude.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Growth in Faith', text: 'Peter encourages readers to add virtues to their faith — from goodness to love —, and affirms the reliability of Scripture, personally witnessed by him at Jesus\' Transfiguration.' },
+      { chStart: 2, chEnd: 3, title: 'Warning Against False Teachers and Christ\'s Return', text: 'Peter describes in detail the fate of greedy false teachers, using Old Testament examples, and answers doubts about the delay of Christ\'s return by affirming that "with the Lord a day is like a thousand years".' },
+    ],
     location: { name: 'Rome (probable)', icon: "TriangleAlert", description: 'Likely written from Rome, near the end of Peter\'s life.' },
     curiosities: [
       'It has strong content similarities with the letter of Jude, suggesting a direct relationship between the two texts.',
@@ -1309,7 +1387,11 @@ export const BOOK_INFO_EN = {
     ],
   },
   '1 João': {
-    context: 'A pastoral letter about love, truth, and assurance of salvation, written to combat teachings that denied Jesus had come "in the flesh".',
+    contextOverview: 'Attributed to the same author as the Gospel of John, with very similar style and vocabulary, this pastoral letter combats "docetism" — a heresy that denied Jesus\' real humanity — while teaching about love, truth, and the possibility of having genuine assurance of salvation, culminating in the book\'s most quoted statement: "God is love".',
+    contextSections: [
+      { chStart: 1, chEnd: 2, title: 'Walking in the Light', text: 'John teaches that having fellowship with God means walking in the light and honestly confessing sin, and presents the "old yet new commandment" to love one another as the real test of knowing God.' },
+      { chStart: 3, chEnd: 5, title: 'Love and Assurance of Faith', text: 'John develops believers\' identity as children of God, arrives at the central declaration that "God is love", and closes by explaining how it\'s possible to have secure assurance of eternal life, not live in constant doubt.' },
+    ],
     location: { name: 'Ephesus (tradition)', icon: "Heart", description: 'Traditionally associated with the apostle John, who is said to have led churches in the Ephesus region.' },
     curiosities: [
       'It contains the direct statement "God is love" (4:8), one of the most quoted definitions in the entire Bible.',
@@ -1325,7 +1407,10 @@ export const BOOK_INFO_EN = {
     ],
   },
   '2 João': {
-    context: 'A brief letter warning against traveling false teachers and reinforcing the importance of walking in love and truth.',
+    contextOverview: 'One of the shortest letters in the New Testament, with only 13 verses, 2 John repeats central themes of 1 John in a compact format, warning against traveling false teachers — specifically those who denied Christ had come in the flesh — and reinforcing the importance of walking in both love and truth at once, without sacrificing one for the other.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Love, Truth, and Discernment', text: 'John praises "the elect lady" (possibly a church) for her children walking in truth, reinforces the command of mutual love, and instructs the community not to welcome into their homes traveling teachers who denied Christ\'s coming in the flesh.' },
+    ],
     location: { name: 'Asia Minor (probable)', icon: "Mail", description: 'Addressed to "the elect lady and her children" — possibly a local church or a specific person.' },
     curiosities: [
       'It\'s one of the two shortest letters in the New Testament, with only 13 verses.',
@@ -1341,7 +1426,10 @@ export const BOOK_INFO_EN = {
     ],
   },
   '3 João': {
-    context: 'A personal letter praising Gaius\' hospitality and criticizing the arrogant attitude of Diotrephes, who rejected apostolic authority.',
+    contextOverview: 'The shortest book in the entire Bible by word count, 3 John is a personal letter addressed to Gaius, an ordinary Christian praised for his hospitality toward traveling missionaries, contrasting his positive example with the arrogant, controlling attitude of Diotrephes, who rejected apostolic authority and Christian hospitality itself.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'Hospitality and Pride', text: 'John praises Gaius for welcoming traveling preachers, rebukes Diotrephes for his pride and refusal to receive those same missionaries, and recommends Demetrius as a trustworthy example of good testimony.' },
+    ],
     location: { name: 'Asia Minor (probable)', icon: "Home", description: 'Addressed personally to Gaius, a Christian praised for his hospitality toward traveling missionaries.' },
     curiosities: [
       'It\'s the shortest book in the entire Bible by word count.',
@@ -1357,7 +1445,10 @@ export const BOOK_INFO_EN = {
     ],
   },
   'Judas': {
-    context: 'An urgent warning against false teachers who had infiltrated the church, using Old Testament examples as a warning.',
+    contextOverview: 'Traditionally attributed to Jude, brother of James and also brother of Jesus, this brief letter is an urgent warning against false teachers who had secretly infiltrated the church, using a series of historical and Old Testament examples — from fallen angels to Sodom and Gomorrah — as a severe warning, before closing with one of the best-known doxologies in the New Testament.',
+    contextSections: [
+      { chStart: 1, chEnd: 1, title: 'An Urgent Warning', text: 'Jude denounces infiltrated false teachers who twisted God\'s grace into a license for immorality, comparing them to examples of judgment from the Old Testament, and closes with a powerful doxology trusting that God is able to keep believers to the end.' },
+    ],
     location: { name: 'Scattered Christian communities', icon: "Siren", description: 'Doesn\'t specify a clear geographic destination; it seems addressed to Christians more generally.' },
     curiosities: [
       'It has strong content similarity with 2 Peter, leading scholars to debate which influenced which.',
