@@ -76,6 +76,14 @@ export default function UpgradeScreen({ session, subscription }) {
     setError('')
   }
 
+  function switchCurrency(next) {
+    setCurrency(next)
+    setSelectedAmount(null)
+    setIsCustom(false)
+    setCustomValue('')
+    setError('')
+  }
+
   function pickPreset(value) {
     setIsCustom(false)
     setSelectedAmount(value)
@@ -110,7 +118,7 @@ export default function UpgradeScreen({ session, subscription }) {
         await activateFreeAccess()
         window.location.href = '/?checkout=success'
       } else {
-        const url = await startCheckout({ type: mode === 'recurring' ? 'recurring' : 'onetime', amountCents })
+        const url = await startCheckout({ type: mode === 'recurring' ? 'recurring' : 'onetime', amountCents, currency })
         window.location.href = url
       }
     } catch {
@@ -199,6 +207,25 @@ export default function UpgradeScreen({ session, subscription }) {
 
         {!isLifetime && (!isRecurringActive || changingAmount) && (
           <>
+            <div style={styles.currencyRow}>
+              <p style={styles.currencyLabel}>{t('billing.currencyLabel', undefined, lang)}</p>
+              <div style={styles.currencyToggle}>
+                <button
+                  style={{ ...styles.currencyBtn, ...(currency === 'brl' ? styles.currencyBtnActive : {}) }}
+                  onClick={() => switchCurrency('brl')}
+                >
+                  R$
+                </button>
+                <button
+                  style={{ ...styles.currencyBtn, ...(currency === 'usd' ? styles.currencyBtnActive : {}) }}
+                  onClick={() => switchCurrency('usd')}
+                >
+                  US$
+                </button>
+              </div>
+            </div>
+            <p style={styles.modeNote}>{t('billing.currencyHint', undefined, lang)}</p>
+
             <div style={styles.modeToggle}>
               <button
                 style={{ ...styles.modeBtn, ...(mode === 'recurring' ? styles.modeBtnActive : {}) }}
@@ -287,6 +314,11 @@ const styles = {
   statusTitle: { fontSize: 13.5, fontWeight: 800, color: 'var(--bk)' },
   statusSub:   { fontSize: 12, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, maxWidth: 280 },
   statusActions:{ display: 'flex', gap: 8, width: '100%', marginTop: 8 },
+  currencyRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  currencyLabel:{ fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
+  currencyToggle:{ display: 'flex', gap: 6, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 10, padding: 3 },
+  currencyBtn: { padding: '6px 12px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 7, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
+  currencyBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
   modeToggle:  { display: 'flex', gap: 6, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 4 },
   modeBtn:     { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
   modeBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },

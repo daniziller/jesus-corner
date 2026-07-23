@@ -6,8 +6,11 @@
 // tudo que os endpoints de pagamento precisam, sem reimplementar nada
 // manualmente.
 //
-// Moeda decidida pelo mesmo header de geolocalização que api/geo.js já usa
-// (x-vercel-ip-country): Brasil paga em BRL, resto do mundo em USD.
+// Moeda escolhida pela pessoa na tela (BRL ou USD) — não dá pra confiar só
+// na geolocalização por IP (x-vercel-ip-country, ainda usado como sugestão
+// inicial em UpgradeScreen.jsx): um cartão de banco brasileiro usado fora
+// do Brasil, ou o inverso, tem a moeda "certa" pelo IP mas recusada pela
+// rede do cartão — foi exatamente esse erro real que apareceu em produção.
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
@@ -67,13 +70,16 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  const { type, amountCents } = req.body ?? {}
+  const { type, amountCents, currency: requestedCurrency } = req.body ?? {}
   if (type !== 'onetime' && type !== 'recurring') {
     return res.status(400).json({ error: 'invalid_type' })
   }
 
-  const country = req.headers['x-vercel-ip-country']
-  const currency = country === 'BR' ? 'brl' : 'usd'
+  // Confia na escolha explícita da pessoa; só cai pro IP se o corpo não
+  // mandar nada (cliente antigo em cache, por exemplo).
+  const currency = requestedCurrency === 'brl' || requestedCurrency === 'usd'
+    ? requestedCurrency
+    : (req.headers['x-vercel-ip-country'] === 'BR' ? 'brl' : 'usd')
 
   const minCents = type === 'onetime' ? MIN_ONETIME_CENTS[currency] : MIN_CHARGE_CENTS[currency]
   if (!Number.isInteger(amountCents) || amountCents < minCents) {

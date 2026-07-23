@@ -39,8 +39,11 @@ async function authorizedPost(path, body) {
 // redirecionar (window.location.href = url), já que isso sai do domínio do app.
 // type: 'onetime' (acesso vitalício) ou 'recurring' (contribuição mensal).
 // amountCents sempre > 0 — R$0 não passa por aqui, ver activateFreeAccess.
-export async function startCheckout({ type, amountCents }) {
-  const { url } = await authorizedPost('/api/create-checkout-session', { type, amountCents })
+// currency: 'brl' ou 'usd', escolhida pela pessoa na tela — não dá pra
+// confiar só na geolocalização por IP pra isso (cartão de banco brasileiro
+// usado fora do Brasil, ou vice-versa, quebra a cobrança na moeda errada).
+export async function startCheckout({ type, amountCents, currency }) {
+  const { url } = await authorizedPost('/api/create-checkout-session', { type, amountCents, currency })
   return url
 }
 
