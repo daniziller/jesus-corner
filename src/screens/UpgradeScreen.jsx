@@ -207,6 +207,11 @@ export default function UpgradeScreen({ session, subscription }) {
 
         {!isLifetime && (!isRecurringActive || changingAmount) && (
           <>
+            <div style={styles.missionCard}>
+              <p style={styles.missionTitle}>{t('billing.contributionTitle', undefined, lang)}</p>
+              <p style={styles.missionBody}>{t('billing.contributionBody', undefined, lang)}</p>
+            </div>
+
             <div style={styles.currencyRow}>
               <p style={styles.currencyLabel}>{t('billing.currencyLabel', undefined, lang)}</p>
               <div style={styles.currencyToggle}>
