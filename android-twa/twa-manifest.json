@@ -1,6 +1,6 @@
 {
   "packageId": "com.jesuscorner.app",
-  "host": "jesus-corner.vercel.app",
+  "host": "app.jesuscorner.app",
   "name": "Jesus' Corner",
   "launcherName": "Jesus' Corner",
   "display": "standalone",
@@ -13,18 +13,18 @@
   "backgroundColor": "#121212",
   "enableNotifications": true,
   "startUrl": "/",
-  "iconUrl": "https://jesus-corner.vercel.app/icons/icon-512.png",
-  "maskableIconUrl": "https://jesus-corner.vercel.app/icons/icon-512.png",
+  "iconUrl": "https://app.jesuscorner.app/icons/icon-512.png",
+  "maskableIconUrl": "https://app.jesuscorner.app/icons/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./android.keystore",
     "alias": "android"
   },
-  "appVersionName": "2",
-  "appVersionCode": 2,
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://jesus-corner.vercel.app/manifest.webmanifest",
+  "webManifestUrl": "https://app.jesuscorner.app/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -33,12 +33,12 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://jesus-corner.vercel.app/",
+  "fullScopeUrl": "https://app.jesuscorner.app/",
   "minSdkVersion": 21,
   "orientation": "portrait",
   "fingerprints": [],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "2"
+  "appVersion": "1.0.0"
 }

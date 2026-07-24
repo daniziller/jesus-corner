@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: "Jesus' Corner",
         short_name: "Jesus' Corner",
-        description: 'Seu tempo. Sua fé. Sua conexão com Deus.',
+        description: 'Seu tempo. Sua rotina. Sua conexão com Deus.',
         theme_color: '#121212',
         background_color: '#121212',
         display: 'standalone',

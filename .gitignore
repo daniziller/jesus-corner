@@ -7,6 +7,7 @@ dist
 # Assinatura do Android — nunca deve ir pro controle de versão
 android-twa/*.keystore
 android-twa/key.properties
+android-twa/android-keystore-credentials.txt
 
 # Build artifacts (Android/Gradle)
 android-twa/.gradle
