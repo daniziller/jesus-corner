@@ -23,6 +23,23 @@ import {
   X, ChevronRight, Pin, UserPlus, Calendar, Type,
 } from 'lucide-react'
 
+// A versão de lucide-react instalada (1.23.0) não inclui o ícone do
+// Instagram — desenhado à mão no mesmo estilo (traço, sem preenchimento)
+// dos demais, pra ficar visualmente idêntico aos ícones do Lucide.
+function Instagram({ size = 18, color = 'currentColor', ...props }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      {...props}
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  )
+}
+
 const REGISTRY = {
   Home, HandHeart, Compass, BookOpen, BarChart3, User,
   Scroll, Swords, Music, Flame, Cross, Globe, Mail, Eye,
@@ -40,6 +57,7 @@ const REGISTRY = {
   Sailboat, Amphora, PawPrint, MapPin,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
   X, ChevronRight, Pin, UserPlus, Calendar, Type,
+  Instagram,
 }
 
 export default function AppIcon({ name, size = 18, ...props }) {

@@ -257,6 +257,11 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
             onPress={() => onNavigate('contact')}
           />
           <SettingsLink
+            icon="Instagram" iconBg="var(--olt)"
+            label={t('profile.instagramLabel')} sub={t('profile.instagramSub')}
+            onPress={() => window.open('https://www.instagram.com/jesuscorner.app/', '_blank', 'noopener,noreferrer')}
+          />
+          <SettingsLink
             icon="Shield" iconBg="#EFF6FF"
             label={t('profile.privacyLabel')} sub={t('profile.privacySub')}
             onPress={() => window.open(privacyUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}
