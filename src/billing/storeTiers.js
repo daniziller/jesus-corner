@@ -18,8 +18,8 @@ export const STORE_TIERS = {
     { value: 50, googlePlaySku: 'monthly-50', appleProductId: 'com.jesuscorner.app.monthly.50' },
   ],
   annual: [
+    { value: 100, googlePlaySku: 'annual-100', appleProductId: 'com.jesuscorner.app.annual.100' },
     { value: 150, googlePlaySku: 'annual-150', appleProductId: 'com.jesuscorner.app.annual.150' },
-    { value: 180, googlePlaySku: 'annual-180', appleProductId: 'com.jesuscorner.app.annual.180' },
     { value: 200, googlePlaySku: 'annual-200', appleProductId: 'com.jesuscorner.app.annual.200' },
     { value: 250, googlePlaySku: 'annual-250', appleProductId: 'com.jesuscorner.app.annual.250' },
     { value: 300, googlePlaySku: 'annual-300', appleProductId: 'com.jesuscorner.app.annual.300' },
