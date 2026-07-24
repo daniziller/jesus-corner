@@ -13,7 +13,12 @@
 import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { startCheckout, activateFreeAccess, openBillingPortalUrl, isPremiumActive } from '../billing/subscriptionStore'
+import {
+  startCheckout, activateFreeAccess, isPremiumActive, getManageSubscriptionUrl,
+  getDigitalGoodsService, getPlaySkuDetails, startPlayBillingPurchase,
+  isIOSApp, getIOSProducts, startIOSPurchase,
+} from '../billing/subscriptionStore'
+import { STORE_TIERS, findTierByGooglePlaySku, findTierByAppleProductId } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
 
 // Mesmos valores numéricos pras duas moedas (sem conversão de câmbio) —
@@ -42,6 +47,12 @@ export default function UpgradeScreen({ session, subscription }) {
   const [changingAmount, setChangingAmount] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  // 'stripe' (web, valor livre) | 'google_play' (dentro do TWA via Play) |
+  // 'apple' (dentro do app iOS) — ver storeTiers.js pros preços fixos que
+  // as lojas exigem.
+  const [storeContext, setStoreContext] = useState('stripe')
+  const [storePrices, setStorePrices] = useState({}) // sku/productId -> {value, currency}, preço real vindo da loja
+  const [selectedTier, setSelectedTier] = useState(null) // tier de storeTiers.js escolhido, só relevante fora do Stripe
 
   useEffect(() => {
     let cancelled = false
@@ -51,22 +62,52 @@ export default function UpgradeScreen({ session, subscription }) {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    async function detectStoreContext() {
+      if (isIOSApp()) { if (!cancelled) setStoreContext('apple'); return }
+      const service = await getDigitalGoodsService()
+      if (!cancelled && service) setStoreContext('google_play')
+    }
+    detectStoreContext()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    if (storeContext === 'stripe') return
+    let cancelled = false
+    async function loadStorePrices() {
+      const allTiers = [...STORE_TIERS.monthly, ...STORE_TIERS.annual]
+      const details = storeContext === 'google_play'
+        ? await getPlaySkuDetails(allTiers.map(tr => tr.googlePlaySku))
+        : await getIOSProducts(allTiers.map(tr => tr.appleProductId))
+      if (!cancelled) setStorePrices(details)
+    }
+    loadStorePrices()
+    return () => { cancelled = true }
+  }, [storeContext])
+
   const isLifetime = subscription?.access_type === 'lifetime' && subscription?.status === 'active'
   const isRecurringActive = subscription?.access_type === 'recurring' && isPremiumActive(subscription)
+  const isStoreContext = storeContext !== 'stripe'
 
-  const presets = PRESETS[currency][mode]
+  const presets = isStoreContext ? null : PRESETS[currency][mode]
+  const tierList = isStoreContext ? STORE_TIERS[mode] : null
   const minMajor = MIN_MAJOR[currency]
 
   const amountMajor = isCustom ? (parseFloat(customValue.replace(',', '.')) || 0) : selectedAmount
   const amountCents = amountMajor != null ? Math.round(amountMajor * 100) : null
   // R$0 é válido (vira grátis) — só valores entre 0 e o mínimo do Stripe
-  // ficam bloqueados.
-  const belowMinimum = amountCents !== null && amountCents > 0 && amountCents < minMajor * 100
+  // ficam bloqueados. Não se aplica em contexto de loja (tiers já são
+  // todos >= mínimo, e o mínimo em si é um conceito só do Stripe).
+  const belowMinimum = !isStoreContext && amountCents !== null && amountCents > 0 && amountCents < minMajor * 100
   const canSubmit = amountCents !== null && !belowMinimum && !submitting
+    && (amountCents === 0 || !isStoreContext || selectedTier != null)
 
   function switchMode(next) {
     setMode(next)
     setSelectedAmount(null)
+    setSelectedTier(null)
     setIsCustom(false)
     setCustomValue('')
     setError('')
@@ -80,9 +121,10 @@ export default function UpgradeScreen({ session, subscription }) {
     setError('')
   }
 
-  function pickPreset(value) {
+  function pickPreset(value, tier = null) {
     setIsCustom(false)
     setSelectedAmount(value)
+    setSelectedTier(tier)
     setError('')
   }
 
@@ -96,12 +138,21 @@ export default function UpgradeScreen({ session, subscription }) {
     const currentMajor = (subscription.amount_cents ?? 0) / 100
     const currentMode = subscription.plan === 'annual' ? 'annual' : 'monthly'
     setMode(currentMode)
-    if (PRESETS[currency][currentMode].includes(currentMajor)) {
+    if (subscription.billing_provider === 'google_play' || subscription.billing_provider === 'apple') {
+      const tier = subscription.billing_provider === 'google_play'
+        ? findTierByGooglePlaySku(subscription.google_play_product_id)
+        : findTierByAppleProductId(subscription.apple_product_id)
+      setIsCustom(false)
+      setSelectedAmount(tier?.value ?? currentMajor)
+      setSelectedTier(tier)
+    } else if (PRESETS[currency][currentMode].includes(currentMajor)) {
       setIsCustom(false)
       setSelectedAmount(currentMajor)
+      setSelectedTier(null)
     } else {
       setIsCustom(true)
       setCustomValue(String(currentMajor))
+      setSelectedTier(null)
     }
     setChangingAmount(true)
   }
@@ -114,11 +165,20 @@ export default function UpgradeScreen({ session, subscription }) {
       if (amountCents === 0) {
         await activateFreeAccess()
         window.location.href = '/?checkout=success'
+      } else if (storeContext === 'google_play') {
+        await startPlayBillingPurchase({ sku: selectedTier.googlePlaySku, mode })
+        window.location.href = '/?checkout=success'
+      } else if (storeContext === 'apple') {
+        await startIOSPurchase({ productId: selectedTier.appleProductId, mode })
+        window.location.href = '/?checkout=success'
       } else {
         const url = await startCheckout({ interval: mode === 'annual' ? 'year' : 'month', amountCents, currency })
         window.location.href = url
       }
-    } catch {
+    } catch (err) {
+      // Pessoa cancelou/fechou a folha de compra nativa — não é erro,
+      // só deixa escolher de novo sem alarde.
+      if (err.message === 'user_cancelled') { setSubmitting(false); return }
       setError(t(amountCents === 0 ? 'billing.activationError' : 'billing.checkoutError', undefined, lang))
       setSubmitting(false)
     }
@@ -127,7 +187,7 @@ export default function UpgradeScreen({ session, subscription }) {
   async function handleManagePayment() {
     setError('')
     try {
-      const url = await openBillingPortalUrl()
+      const url = await getManageSubscriptionUrl(subscription)
       window.location.href = url
     } catch {
       // Sem portal pra abrir (ex: customer do Stripe não existe mais nesse
@@ -214,24 +274,28 @@ export default function UpgradeScreen({ session, subscription }) {
               <p style={styles.missionBody}>{t('billing.contributionBody', undefined, lang)}</p>
             </div>
 
-            <div style={styles.currencyRow}>
-              <p style={styles.currencyLabel}>{t('billing.currencyLabel', undefined, lang)}</p>
-              <div style={styles.currencyToggle}>
-                <button
-                  style={{ ...styles.currencyBtn, ...(currency === 'brl' ? styles.currencyBtnActive : {}) }}
-                  onClick={() => switchCurrency('brl')}
-                >
-                  R$
-                </button>
-                <button
-                  style={{ ...styles.currencyBtn, ...(currency === 'usd' ? styles.currencyBtnActive : {}) }}
-                  onClick={() => switchCurrency('usd')}
-                >
-                  US$
-                </button>
-              </div>
-            </div>
-            <p style={styles.modeNote}>{t('billing.currencyHint', undefined, lang)}</p>
+            {!isStoreContext && (
+              <>
+                <div style={styles.currencyRow}>
+                  <p style={styles.currencyLabel}>{t('billing.currencyLabel', undefined, lang)}</p>
+                  <div style={styles.currencyToggle}>
+                    <button
+                      style={{ ...styles.currencyBtn, ...(currency === 'brl' ? styles.currencyBtnActive : {}) }}
+                      onClick={() => switchCurrency('brl')}
+                    >
+                      R$
+                    </button>
+                    <button
+                      style={{ ...styles.currencyBtn, ...(currency === 'usd' ? styles.currencyBtnActive : {}) }}
+                      onClick={() => switchCurrency('usd')}
+                    >
+                      US$
+                    </button>
+                  </div>
+                </div>
+                <p style={styles.modeNote}>{t('billing.currencyHint', undefined, lang)}</p>
+              </>
+            )}
 
             <div style={styles.modeToggle}>
               <button
@@ -251,23 +315,50 @@ export default function UpgradeScreen({ session, subscription }) {
             <div style={styles.amountSection}>
               <p style={styles.amountLabel}>{t('billing.amountLabel', undefined, lang)}</p>
               <div style={styles.amountGrid}>
-                {presets.map(value => (
-                  <button
-                    key={value}
-                    style={{ ...styles.amountChip, ...(!isCustom && selectedAmount === value ? styles.amountChipActive : {}) }}
-                    onClick={() => pickPreset(value)}
-                  >
-                    {value === 0 ? formatAmount(0, currency) : formatAmount(value * 100, currency)}
-                  </button>
-                ))}
-                <button
-                  style={{ ...styles.amountChip, ...(isCustom ? styles.amountChipActive : {}) }}
-                  onClick={pickCustom}
-                >
-                  {t('billing.customAmountLabel', undefined, lang)}
-                </button>
+                {isStoreContext ? (
+                  <>
+                    <button
+                      style={{ ...styles.amountChip, ...(!isCustom && selectedAmount === 0 ? styles.amountChipActive : {}) }}
+                      onClick={() => pickPreset(0)}
+                    >
+                      {formatAmount(0, currency)}
+                    </button>
+                    {tierList.map(tier => {
+                      const sku = storeContext === 'google_play' ? tier.googlePlaySku : tier.appleProductId
+                      const price = storePrices[sku]
+                      const label = price ? `${price.currency ?? ''} ${price.value}`.trim() : formatAmount(tier.value * 100, currency)
+                      return (
+                        <button
+                          key={tier.googlePlaySku}
+                          style={{ ...styles.amountChip, ...(selectedTier?.googlePlaySku === tier.googlePlaySku ? styles.amountChipActive : {}) }}
+                          onClick={() => pickPreset(tier.value, tier)}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </>
+                ) : (
+                  <>
+                    {presets.map(value => (
+                      <button
+                        key={value}
+                        style={{ ...styles.amountChip, ...(!isCustom && selectedAmount === value ? styles.amountChipActive : {}) }}
+                        onClick={() => pickPreset(value)}
+                      >
+                        {value === 0 ? formatAmount(0, currency) : formatAmount(value * 100, currency)}
+                      </button>
+                    ))}
+                    <button
+                      style={{ ...styles.amountChip, ...(isCustom ? styles.amountChipActive : {}) }}
+                      onClick={pickCustom}
+                    >
+                      {t('billing.customAmountLabel', undefined, lang)}
+                    </button>
+                  </>
+                )}
               </div>
-              {isCustom && (
+              {!isStoreContext && isCustom && (
                 <input
                   type="number"
                   min="0"

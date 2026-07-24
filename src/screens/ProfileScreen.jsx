@@ -4,7 +4,7 @@ import AppIcon from '../icons/AppIcon'
 import { getMyProfile, updateProfile, uploadAvatar } from '../profile/profileStore'
 import { getFriendsCount } from '../friends/friendsStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
-import { openBillingPortalUrl } from '../billing/subscriptionStore'
+import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 
 const MAX_BIO_LENGTH = 280
@@ -95,7 +95,7 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
       return
     }
     try {
-      const url = await openBillingPortalUrl()
+      const url = await getManageSubscriptionUrl(subscription)
       window.location.href = url
     } catch {
       // Sem portal pra abrir (ex: customer do Stripe não existe mais nesse
