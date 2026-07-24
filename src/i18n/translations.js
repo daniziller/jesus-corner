@@ -256,6 +256,7 @@ export const STRINGS = {
     notifications: {
       title: 'Notificações',
       empty: 'Nenhuma notificação por enquanto.',
+      remindersTitle: 'Lembretes',
       actionableTitle: 'Pedidos e convites',
       activityTitle: 'Atividade recente',
     },
@@ -721,6 +722,7 @@ export const STRINGS = {
     notifications: {
       title: 'Notifications',
       empty: 'No notifications yet.',
+      remindersTitle: 'Reminders',
       actionableTitle: 'Requests and invites',
       activityTitle: 'Recent activity',
     },
