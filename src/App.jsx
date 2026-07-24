@@ -198,9 +198,11 @@ export default function App() {
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
-  // Não existe mais versão grátis — sem assinatura ativa, PaywallGate (mais
-  // abaixo) substitui o app inteiro por uma tela única de "assine pra
-  // continuar", antes de qualquer outra rota ser montada.
+  // Toda conta precisa de um access_type ativo pra usar o app — free (R$0),
+  // lifetime ou recurring, todos concedem acesso completo (ver
+  // isPremiumActive). Sem isso, PaywallGate (mais abaixo) substitui o app
+  // inteiro por uma tela única de contribuição, antes de qualquer outra
+  // rota ser montada.
   const isPremium = isPremiumActive(subscription)
   // Restrição de idade (16+) da Comunidade é independente da assinatura —
   // contas sem data de nascimento (criadas antes desse campo existir) não
