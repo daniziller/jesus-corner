@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import AppHeader from './components/AppHeader'
 import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
@@ -583,16 +584,31 @@ export default function App() {
   }
 
   if (!bootstrapped) {
-    return <SplashScreen />
+    return (
+      <>
+        <SplashScreen />
+        <Analytics />
+      </>
+    )
   }
 
   if (!authUser) {
     // Primeira tela do app: escolher o idioma (uma vez por dispositivo) antes
     // de mostrar login/criar conta, que já nascem no idioma escolhido.
     if (!appLanguage) {
-      return <LanguageSelectScreen onSelect={setAppLanguageState} />
+      return (
+        <>
+          <LanguageSelectScreen onSelect={setAppLanguageState} />
+          <Analytics />
+        </>
+      )
     }
-    return <AuthScreen onAuthenticated={handleAuthenticated} />
+    return (
+      <>
+        <AuthScreen onAuthenticated={handleAuthenticated} />
+        <Analytics />
+      </>
+    )
   }
 
   const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats)
@@ -603,7 +619,12 @@ export default function App() {
   // individual em cada tela/recurso (isPremium abaixo é sempre true depois
   // daqui, mantido só porque telas internas ainda recebem a prop).
   if (!isPremium) {
-    return <PaywallGate session={session} subscription={subscription} onLogout={handleLogout} />
+    return (
+      <>
+        <PaywallGate session={session} subscription={subscription} onLogout={handleLogout} />
+        <Analytics />
+      </>
+    )
   }
 
   const screens = {
@@ -651,6 +672,7 @@ export default function App() {
           lang={session.lang}
         />
       )}
+      <Analytics />
     </div>
   )
 }
