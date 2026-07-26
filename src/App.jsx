@@ -39,6 +39,7 @@ import { getMyProfile, markTourSeen } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { logActivity } from './activity/activityStore'
 import TourController from './tour/TourController'
+import { Analytics } from '@vercel/analytics/react'
 
 function avatarInitialsOf(name) {
   const parts = name.trim().split(/\s+/)
@@ -651,6 +652,7 @@ export default function App() {
           lang={session.lang}
         />
       )}
+      <Analytics />
     </div>
   )
 }
