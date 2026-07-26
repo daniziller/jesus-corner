@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import AppHeader from './components/AppHeader'
 import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
@@ -651,6 +652,7 @@ export default function App() {
           lang={session.lang}
         />
       )}
+      <Analytics />
     </div>
   )
 }
