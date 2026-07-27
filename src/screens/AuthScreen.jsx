@@ -58,10 +58,32 @@ export default function AuthScreen({ onAuthenticated }) {
 /* ── Boas-vindas (primeiro acesso) ── */
 function WelcomeView({ onGoSignup, onGoLogin, onSelectStep }) {
   const steps = [
-    { key: 'prayer', icon: 'HandHeart', label: t('auth.welcomeStepPrayer') },
-    { key: 'reading', icon: 'BookOpen', label: t('auth.welcomeStepReading') },
-    { key: 'reflection', icon: 'PenLine', label: t('auth.welcomeStepReflection') },
+    { key: 'prayer', icon: 'HandHeart', label: t('auth.welcomeStepPrayer'), preview: t('auth.welcomePreviewPrayer') },
+    { key: 'reading', icon: 'BookOpen', label: t('auth.welcomeStepReading'), preview: t('auth.welcomePreviewReading') },
+    { key: 'reflection', icon: 'PenLine', label: t('auth.welcomeStepReflection'), preview: t('auth.welcomePreviewReflection') },
   ]
+
+  // Passo em destaque no momento — troca sozinho, dando uma prévia de como
+  // o app funciona sem precisar tocar em nada. Some com prefers-reduced-motion
+  // (fica parado no primeiro passo, mas continua tocável).
+  const reducedMotion = useRef(
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  ).current
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => {
+    if (reducedMotion) return
+    const id = setInterval(() => setActiveIndex(i => (i + 1) % steps.length), 2600)
+    return () => clearInterval(id)
+  }, [reducedMotion, steps.length])
+
+  const active = steps[activeIndex]
+  const chipTransition = reducedMotion ? 'none' : 'all .5s cubic-bezier(.2,.8,.2,1)'
+
+  function selectStep(i) {
+    setActiveIndex(i)
+    onSelectStep(steps[i].key)
+  }
 
   return (
     <div style={styles.form}>
@@ -73,21 +95,50 @@ function WelcomeView({ onGoSignup, onGoLogin, onSelectStep }) {
       </p>
 
       <div className="welcome-fade-up" style={{ ...styles.welcomeStepsRow, animationDelay: '.28s' }}>
-        {steps.map(step => (
-          <div
+        {steps.map((step, i) => {
+          const isActive = i === activeIndex
+          return (
+            <div
+              key={step.key}
+              style={{
+                ...styles.welcomeStep,
+                cursor: 'pointer',
+                transition: chipTransition,
+                background: isActive ? 'var(--grad-vivid)' : 'var(--g1)',
+                color: isActive ? '#fff' : 'var(--g5)',
+                boxShadow: isActive ? 'var(--shadow-glow)' : 'none',
+                transform: isActive ? 'scale(1.06)' : 'scale(1)',
+              }}
+              onClick={() => selectStep(i)}
+            >
+              <AppIcon name={step.icon} size={18} color="currentColor" />
+              <span style={styles.welcomeStepLabel}>{step.label}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div
+        className="welcome-fade-up"
+        style={{ ...styles.welcomePreview, animationDelay: '.34s', cursor: 'pointer' }}
+        onClick={() => onSelectStep(active.key)}
+      >
+        <div style={styles.welcomePreviewIcon}>
+          <AppIcon name={active.icon} size={17} color="var(--or)" />
+        </div>
+        <p key={active.key} className={reducedMotion ? '' : 'welcome-preview-fade'} style={styles.welcomePreviewText}>
+          {active.preview}
+        </p>
+      </div>
+
+      <div className="welcome-fade-up" style={{ ...styles.welcomeDotsRow, animationDelay: '.38s' }}>
+        {steps.map((step, i) => (
+          <span
             key={step.key}
-            className="welcome-step"
-            style={{ ...styles.welcomeStep, cursor: 'pointer' }}
-            onClick={() => onSelectStep(step.key)}
-          >
-            <AppIcon name={step.icon} size={18} color="currentColor" />
-            <span style={styles.welcomeStepLabel}>{step.label}</span>
-          </div>
+            style={{ ...styles.welcomeDot, background: i === activeIndex ? 'var(--or)' : 'var(--g2)', transition: chipTransition }}
+          />
         ))}
       </div>
-      <p className="welcome-fade-up" style={{ ...styles.welcomeHint, animationDelay: '.34s' }}>
-        {t('auth.welcomeStepsHint')}
-      </p>
 
       <div className="welcome-fade-up" style={{ marginTop: 10, animationDelay: '.4s' }}>
         <button type="button" className="btn-primary welcome-cta-pulse" onClick={onGoSignup}>
@@ -524,7 +575,11 @@ const styles = {
   welcomeStepsRow:   { display: 'flex', gap: 8, margin: '6px 0 2px' },
   welcomeStep:       { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 6px', borderRadius: 12, border: '0.5px solid var(--g2)' },
   welcomeStepLabel:  { fontSize: 10.5, fontWeight: 700 },
-  welcomeHint:       { fontSize: 11, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: -2 },
+  welcomePreview:     { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '11px 13px', marginTop: 2 },
+  welcomePreviewIcon: { width: 34, height: 34, borderRadius: 10, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  welcomePreviewText: { fontSize: 12.5, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4, margin: 0 },
+  welcomeDotsRow:     { display: 'flex', justifyContent: 'center', gap: 6, marginTop: 2 },
+  welcomeDot:         { width: 6, height: 6, borderRadius: '50%' },
   tutorialIconWrap:  { width: 46, height: 46, borderRadius: 14, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0 2px' },
   tutorialHighlights:    { display: 'flex', flexDirection: 'column', gap: 10, margin: '4px 0 2px' },
   tutorialHighlightRow:  { display: 'flex', alignItems: 'flex-start', gap: 10 },

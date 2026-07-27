@@ -283,22 +283,20 @@ html.large-text .app-content-inner {
 .welcome-cta-pulse {
   animation: ctaGlowPulse 2.2s ease-in-out infinite;
 }
-/* Realce que passa de um passo pro outro sozinho, tipo um "batimento" —
-   os 3 chips compartilham a mesma animação, só com atraso diferente
-   (ver .welcome-step:nth-child) pra criar a sequência. */
-@keyframes stepChase {
-  0%, 5%, 30%, 100% { background: var(--g1); color: var(--g5); box-shadow: none; transform: scale(1); }
-  15%, 22%          { background: var(--grad-vivid); color: #fff; box-shadow: var(--shadow-glow); transform: scale(1.06); }
+/* Prévia do passo em destaque na tela de boas-vindas — o texto troca a
+   cada ciclo (controlado em JS, junto com o chip em destaque), e essa
+   animação só dá uma leve entrada pro texto novo. */
+@keyframes previewFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.welcome-step {
-  animation: stepChase 4.5s ease-in-out infinite;
+.welcome-preview-fade {
+  animation: previewFade .4s ease;
 }
-.welcome-step:nth-child(2) { animation-delay: -1.5s; }
-.welcome-step:nth-child(3) { animation-delay: -3s; }
 @media (prefers-reduced-motion: reduce) {
   .welcome-fade-up { opacity: 1; animation: none; transform: none; }
   .welcome-cta-pulse { animation: none; }
-  .welcome-step { animation: none; background: var(--g1); color: var(--g5); }
+  .welcome-preview-fade { animation: none; }
 }
 .pulse {
   width: 5px;
