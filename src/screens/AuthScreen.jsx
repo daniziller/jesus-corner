@@ -3,6 +3,13 @@ import { signup, login, requestPasswordReset, resetPassword, resendConfirmationE
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
+import AppIcon from '../icons/AppIcon'
+
+// Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
+// o app veria a tela de boas-vindas (pensada pra convencer gente nova a se
+// cadastrar) toda vez que a sessão expirasse, em vez de cair direto no
+// login.
+const HAS_AUTH_KEY = 'jc_has_authenticated'
 
 // Data de hoje em 'YYYY-MM-DD' (formato nativo do <input type="date">) — usada
 // como max no campo de nascimento, pra impedir escolher uma data futura direto
@@ -12,7 +19,17 @@ function todayISO() {
 }
 
 export default function AuthScreen({ onAuthenticated }) {
-  const [mode, setMode] = useState('login') // 'login' | 'signup' | 'forgot'
+  // Quem nunca autenticou nesse navegador vê a tela de boas-vindas primeiro
+  // (pensada pra converter visitante novo); quem já tem o flag cai direto
+  // no login, como antes.
+  const [mode, setMode] = useState(() => (
+    typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'welcome'
+  )) // 'welcome' | 'login' | 'signup' | 'forgot'
+
+  function handleAuthenticated(user) {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(HAS_AUTH_KEY, '1')
+    onAuthenticated(user)
+  }
 
   return (
     <div className="auth-screen" style={styles.screen}>
@@ -25,9 +42,49 @@ export default function AuthScreen({ onAuthenticated }) {
       </div>
 
       <div className="auth-sheet" style={styles.sheet}>
-        {mode === 'login'  && <LoginView    onAuthenticated={onAuthenticated} onGoSignup={() => setMode('signup')} onGoForgot={() => setMode('forgot')} />}
-        {mode === 'signup' && <SignupView   onAuthenticated={onAuthenticated} onGoLogin={() => setMode('login')} />}
-        {mode === 'forgot' && <ForgotView   onAuthenticated={onAuthenticated} onGoLogin={() => setMode('login')} />}
+        {mode === 'welcome' && <WelcomeView onGoSignup={() => setMode('signup')} onGoLogin={() => setMode('login')} />}
+        {mode === 'login'  && <LoginView    onAuthenticated={handleAuthenticated} onGoSignup={() => setMode('signup')} onGoForgot={() => setMode('forgot')} />}
+        {mode === 'signup' && <SignupView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
+        {mode === 'forgot' && <ForgotView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
+      </div>
+    </div>
+  )
+}
+
+/* ── Boas-vindas (primeiro acesso) ── */
+function WelcomeView({ onGoSignup, onGoLogin }) {
+  const steps = [
+    { key: 'prayer', icon: 'HandHeart', label: t('auth.welcomeStepPrayer') },
+    { key: 'reading', icon: 'BookOpen', label: t('auth.welcomeStepReading') },
+    { key: 'reflection', icon: 'PenLine', label: t('auth.welcomeStepReflection') },
+  ]
+
+  return (
+    <div style={styles.form}>
+      <h1 className="welcome-fade-up" style={{ ...styles.title, fontSize: 24, animationDelay: '.05s' }}>
+        {t('auth.welcomeTitle')}
+      </h1>
+      <p className="welcome-fade-up" style={{ ...styles.subtitle, animationDelay: '.15s' }}>
+        {t('auth.welcomeSubtitle')}
+      </p>
+
+      <div className="welcome-fade-up" style={{ ...styles.welcomeStepsRow, animationDelay: '.28s' }}>
+        {steps.map(step => (
+          <div key={step.key} className="welcome-step" style={styles.welcomeStep}>
+            <AppIcon name={step.icon} size={18} color="currentColor" />
+            <span style={styles.welcomeStepLabel}>{step.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="welcome-fade-up" style={{ marginTop: 10, animationDelay: '.4s' }}>
+        <button type="button" className="btn-primary welcome-cta-pulse" onClick={onGoSignup}>
+          {t('auth.welcomeCreateAccount')}
+        </button>
+      </div>
+
+      <div className="welcome-fade-up" style={{ ...styles.linksRow, justifyContent: 'center', animationDelay: '.5s' }}>
+        <span style={styles.link} onClick={onGoLogin}>{t('auth.welcomeAlreadyHaveAccount')}</span>
       </div>
     </div>
   )
@@ -392,4 +449,7 @@ const styles = {
   agreeCheckbox: { width: 16, height: 16, marginTop: 1, flexShrink: 0, accentColor: 'var(--or)', cursor: 'pointer' },
   agreeText:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   agreeLink:     { color: 'var(--or)', fontWeight: 700, textDecoration: 'none' },
+  welcomeStepsRow:   { display: 'flex', gap: 8, margin: '6px 0 2px' },
+  welcomeStep:       { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 6px', borderRadius: 12, border: '0.5px solid var(--g2)' },
+  welcomeStepLabel:  { fontSize: 10.5, fontWeight: 700 },
 }
