@@ -24,7 +24,10 @@ export default function AuthScreen({ onAuthenticated }) {
   // no login, como antes.
   const [mode, setMode] = useState(() => (
     typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'welcome'
-  )) // 'welcome' | 'login' | 'signup' | 'forgot'
+  )) // 'welcome' | 'tutorial' | 'login' | 'signup' | 'forgot'
+  // Qual dos 3 passos (oração/leitura/reflexão) a pessoa tocou na tela de
+  // boas-vindas — decide o conteúdo exibido em 'tutorial'.
+  const [tutorialStep, setTutorialStep] = useState('prayer')
 
   function handleAuthenticated(user) {
     if (typeof localStorage !== 'undefined') localStorage.setItem(HAS_AUTH_KEY, '1')
@@ -42,7 +45,8 @@ export default function AuthScreen({ onAuthenticated }) {
       </div>
 
       <div className="auth-sheet" style={styles.sheet}>
-        {mode === 'welcome' && <WelcomeView onGoSignup={() => setMode('signup')} onGoLogin={() => setMode('login')} />}
+        {mode === 'welcome' && <WelcomeView onGoSignup={() => setMode('signup')} onGoLogin={() => setMode('login')} onSelectStep={key => { setTutorialStep(key); setMode('tutorial') }} />}
+        {mode === 'tutorial' && <TutorialView stepKey={tutorialStep} onGoSignup={() => setMode('signup')} onGoLogin={() => setMode('login')} onBack={() => setMode('welcome')} />}
         {mode === 'login'  && <LoginView    onAuthenticated={handleAuthenticated} onGoSignup={() => setMode('signup')} onGoForgot={() => setMode('forgot')} />}
         {mode === 'signup' && <SignupView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
         {mode === 'forgot' && <ForgotView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
@@ -52,7 +56,7 @@ export default function AuthScreen({ onAuthenticated }) {
 }
 
 /* ── Boas-vindas (primeiro acesso) ── */
-function WelcomeView({ onGoSignup, onGoLogin }) {
+function WelcomeView({ onGoSignup, onGoLogin, onSelectStep }) {
   const steps = [
     { key: 'prayer', icon: 'HandHeart', label: t('auth.welcomeStepPrayer') },
     { key: 'reading', icon: 'BookOpen', label: t('auth.welcomeStepReading') },
@@ -70,12 +74,20 @@ function WelcomeView({ onGoSignup, onGoLogin }) {
 
       <div className="welcome-fade-up" style={{ ...styles.welcomeStepsRow, animationDelay: '.28s' }}>
         {steps.map(step => (
-          <div key={step.key} className="welcome-step" style={styles.welcomeStep}>
+          <div
+            key={step.key}
+            className="welcome-step"
+            style={{ ...styles.welcomeStep, cursor: 'pointer' }}
+            onClick={() => onSelectStep(step.key)}
+          >
             <AppIcon name={step.icon} size={18} color="currentColor" />
             <span style={styles.welcomeStepLabel}>{step.label}</span>
           </div>
         ))}
       </div>
+      <p className="welcome-fade-up" style={{ ...styles.welcomeHint, animationDelay: '.34s' }}>
+        {t('auth.welcomeStepsHint')}
+      </p>
 
       <div className="welcome-fade-up" style={{ marginTop: 10, animationDelay: '.4s' }}>
         <button type="button" className="btn-primary welcome-cta-pulse" onClick={onGoSignup}>
@@ -84,6 +96,66 @@ function WelcomeView({ onGoSignup, onGoLogin }) {
       </div>
 
       <div className="welcome-fade-up" style={{ ...styles.linksRow, justifyContent: 'center', animationDelay: '.5s' }}>
+        <span style={styles.link} onClick={onGoLogin}>{t('auth.welcomeAlreadyHaveAccount')}</span>
+      </div>
+    </div>
+  )
+}
+
+/* ── Tutorial (tocou num dos 3 passos na tela de boas-vindas) ── */
+function TutorialView({ stepKey, onGoSignup, onGoLogin, onBack }) {
+  const content = {
+    prayer: {
+      icon: 'HandHeart',
+      title: t('auth.tutorialPrayerTitle'),
+      desc: t('auth.tutorialPrayerDesc'),
+      highlights: [t('auth.tutorialPrayerHighlight1'), t('auth.tutorialPrayerHighlight2'), t('auth.tutorialPrayerHighlight3')],
+    },
+    reading: {
+      icon: 'BookOpen',
+      title: t('auth.tutorialReadingTitle'),
+      desc: t('auth.tutorialReadingDesc'),
+      highlights: [t('auth.tutorialReadingHighlight1'), t('auth.tutorialReadingHighlight2'), t('auth.tutorialReadingHighlight3')],
+    },
+    reflection: {
+      icon: 'PenLine',
+      title: t('auth.tutorialReflectionTitle'),
+      desc: t('auth.tutorialReflectionDesc'),
+      highlights: [t('auth.tutorialReflectionHighlight1'), t('auth.tutorialReflectionHighlight2'), t('auth.tutorialReflectionHighlight3')],
+    },
+  }[stepKey]
+
+  return (
+    <div style={styles.form}>
+      <span style={{ ...styles.link, display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={onBack}>
+        <AppIcon name="ArrowLeft" size={14} color="currentColor" /> {t('auth.tutorialBack')}
+      </span>
+
+      <div style={styles.tutorialIconWrap}>
+        <AppIcon name={content.icon} size={26} color="var(--or)" />
+      </div>
+
+      <h1 style={{ ...styles.title, fontSize: 22 }}>{content.title}</h1>
+      <p style={styles.subtitle}>{content.desc}</p>
+
+      <div style={styles.tutorialHighlights}>
+        {content.highlights.map((line, i) => (
+          <div key={i} style={styles.tutorialHighlightRow}>
+            <div style={styles.tutorialCheckDot}>
+              <AppIcon name="Check" size={12} color="#fff" />
+            </div>
+            <span style={styles.tutorialHighlightText}>{line}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 10 }}>
+        <button type="button" className="btn-primary" onClick={onGoSignup}>
+          {t('auth.welcomeCreateAccount')}
+        </button>
+      </div>
+
+      <div style={{ ...styles.linksRow, justifyContent: 'center' }}>
         <span style={styles.link} onClick={onGoLogin}>{t('auth.welcomeAlreadyHaveAccount')}</span>
       </div>
     </div>
@@ -452,4 +524,10 @@ const styles = {
   welcomeStepsRow:   { display: 'flex', gap: 8, margin: '6px 0 2px' },
   welcomeStep:       { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 6px', borderRadius: 12, border: '0.5px solid var(--g2)' },
   welcomeStepLabel:  { fontSize: 10.5, fontWeight: 700 },
+  welcomeHint:       { fontSize: 11, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: -2 },
+  tutorialIconWrap:  { width: 46, height: 46, borderRadius: 14, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0 2px' },
+  tutorialHighlights:    { display: 'flex', flexDirection: 'column', gap: 10, margin: '4px 0 2px' },
+  tutorialHighlightRow:  { display: 'flex', alignItems: 'flex-start', gap: 10 },
+  tutorialCheckDot:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  tutorialHighlightText: { fontSize: 13, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4 },
 }
