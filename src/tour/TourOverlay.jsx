@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import AppIcon from '../icons/AppIcon'
 import { t } from '../i18n'
 
@@ -25,10 +25,21 @@ const CARD_WIDTH = 320
 const CARD_MARGIN = 14
 const ARROW_SIZE = 9
 const ARROW_MARGIN = 20
+// Só usada antes da primeira medição real do card (ver useLayoutEffect) —
+// depois disso, computeCardPlacement recebe a altura de verdade.
+const ESTIMATED_CARD_HEIGHT = 180
 
 export default function TourOverlay({ step, stepNumber, totalSteps, isLast, onAdvance, onSkip, lang, onTargetMissing }) {
   const [rect, setRect] = useState(null)
   const targetElRef = useRef(null)
+  const cardRef = useRef(null)
+  // Altura real do card, medida depois que ele monta — null enquanto não
+  // medida (usa ESTIMATED_CARD_HEIGHT nesse meio-tempo). Sem isso, o
+  // posicionamento "acima do recorte" confiava só numa altura estimada;
+  // passos com texto mais longo renderizavam um card mais alto que a
+  // estimativa, que então invadia por cima o próprio bloco em destaque —
+  // exatamente o "card na frente do que está sendo mostrado" reportado.
+  const [cardHeight, setCardHeight] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -36,6 +47,7 @@ export default function TourOverlay({ step, stepNumber, totalSteps, isLast, onAd
     let elapsed = 0
     let resizeObserver = null
     setRect(null)
+    setCardHeight(null)
     targetElRef.current = null
 
     function measure() {
@@ -88,6 +100,16 @@ export default function TourOverlay({ step, stepNumber, totalSteps, isLast, onAd
     }
   }, [step.target, onTargetMissing])
 
+  // Mede a altura de verdade do card assim que ele existe no DOM — roda
+  // antes do navegador pintar a tela (useLayoutEffect), então a correção
+  // (se a estimativa inicial estava errada) já sai no primeiro frame
+  // visível, sem "pulo" perceptível.
+  useLayoutEffect(() => {
+    if (!rect || !cardRef.current) return
+    const measured = cardRef.current.getBoundingClientRect().height
+    if (measured > 0 && measured !== cardHeight) setCardHeight(measured)
+  })
+
   if (!rect) return <div style={styles.blockerOnly} />
 
   const cutout = {
@@ -98,7 +120,7 @@ export default function TourOverlay({ step, stepNumber, totalSteps, isLast, onAd
     borderRadius: step.shape === 'circle' ? '50%' : 16,
   }
 
-  const { top: cardTop, placement } = computeCardPlacement(cutout)
+  const { top: cardTop, placement } = computeCardPlacement(cutout, cardHeight ?? ESTIMATED_CARD_HEIGHT)
   const cardLeft = computeCardLeft(cutout)
   // Posição horizontal da seta relativa ao card (não à tela): centralizada
   // no meio do recorte, sujeita a uma margem nas bordas do card pra não
@@ -113,7 +135,7 @@ export default function TourOverlay({ step, stepNumber, totalSteps, isLast, onAd
     <>
       <div style={styles.blocker} />
       <div style={{ ...styles.cutout, ...cutout }} />
-      <div style={{ ...styles.card, top: cardTop, left: cardLeft }}>
+      <div ref={cardRef} style={{ ...styles.card, top: cardTop, left: cardLeft }}>
         {placement === 'below' && <div style={{ ...styles.arrowUp, left: arrowLeftInCard }} />}
         {placement === 'above' && <div style={{ ...styles.arrowDown, left: arrowLeftInCard }} />}
         <button aria-label={t('tour.close', undefined, lang)} onClick={onSkip} style={styles.closeBtn}>
@@ -138,17 +160,16 @@ export default function TourOverlay({ step, stepNumber, totalSteps, isLast, onAd
 // Além do "top", devolve se o card ficou abaixo ou acima do recorte (ou
 // centralizado, no caso raro de não caber em nenhum dos dois) — é o que
 // decide se a seta desenhada aponta pra cima ou pra baixo, ver render.
-function computeCardPlacement(cutout) {
+function computeCardPlacement(cutout, cardHeight) {
   const spaceBelow = window.innerHeight - (cutout.top + cutout.height)
-  const estCardHeight = 180
-  if (spaceBelow >= estCardHeight + CARD_MARGIN) {
+  if (spaceBelow >= cardHeight + CARD_MARGIN) {
     return { top: cutout.top + cutout.height + CARD_MARGIN, placement: 'below' }
   }
-  if (cutout.top - estCardHeight - CARD_MARGIN >= 0) {
-    return { top: cutout.top - estCardHeight - CARD_MARGIN, placement: 'above' }
+  if (cutout.top - cardHeight - CARD_MARGIN >= 0) {
+    return { top: cutout.top - cardHeight - CARD_MARGIN, placement: 'above' }
   }
   // Sem espaço acima nem abaixo (alvo enorme/tela curta) — centraliza, sem seta.
-  return { top: Math.max(CARD_MARGIN, (window.innerHeight - estCardHeight) / 2), placement: 'center' }
+  return { top: Math.max(CARD_MARGIN, (window.innerHeight - cardHeight) / 2), placement: 'center' }
 }
 
 function computeCardLeft(cutout) {
