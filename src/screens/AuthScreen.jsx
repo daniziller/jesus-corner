@@ -87,7 +87,7 @@ function WelcomeView({ onGoSignup, onGoLogin, onSelectStep }) {
 
   return (
     <div style={styles.form}>
-      <h1 className="welcome-fade-up" style={{ ...styles.title, fontSize: 24, animationDelay: '.05s' }}>
+      <h1 className="welcome-fade-up" style={{ ...styles.title, fontSize: 26, animationDelay: '.05s' }}>
         {t('auth.welcomeTitle')}
       </h1>
       <p className="welcome-fade-up" style={{ ...styles.subtitle, animationDelay: '.15s' }}>
@@ -186,7 +186,7 @@ function TutorialView({ stepKey, onGoSignup, onGoLogin, onBack }) {
         <AppIcon name={content.icon} size={26} color="var(--or)" />
       </div>
 
-      <h1 style={{ ...styles.title, fontSize: 22 }}>{content.title}</h1>
+      <h1 style={{ ...styles.title, fontSize: 24 }}>{content.title}</h1>
       <p style={styles.subtitle}>{content.desc}</p>
 
       <div style={styles.tutorialHighlights}>
@@ -550,39 +550,39 @@ const styles = {
   heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#EC4899', filter: 'blur(70px)', opacity: 0.32, bottom: -70, left: -50 },
   logo:          { position: 'relative', width: 60, height: 60, borderRadius: 15, marginBottom: 10, boxShadow: '0 10px 24px rgba(0,0,0,.35)' },
   brandName:     { position: 'relative', fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: 1 },
-  brandTagline:  { position: 'relative', fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', letterSpacing: 0.2, textAlign: 'center', maxWidth: 240 },
+  brandTagline:  { position: 'relative', fontSize: 13.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', letterSpacing: 0.2, textAlign: 'center', maxWidth: 240 },
   sheet:         { flex: 1, overflowY: 'auto', background: 'var(--white)', borderRadius: '20px 20px 0 0', marginTop: -14, padding: '24px 22px 32px' },
   form:          { display: 'flex', flexDirection: 'column', gap: 12 },
-  title:         { fontSize: 21, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' },
-  subtitle:      { fontSize: 12, fontWeight: 500, color: 'var(--g5)', marginTop: -6, marginBottom: 4, lineHeight: 1.5 },
+  title:         { fontSize: 23, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' },
+  subtitle:      { fontSize: 14, fontWeight: 500, color: 'var(--g5)', marginTop: -6, marginBottom: 4, lineHeight: 1.5 },
   fieldWrap:     { display: 'flex', flexDirection: 'column', gap: 5 },
-  fieldLabel:    { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
-  input:         { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '12px 13px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
-  pinInput:      { letterSpacing: 6, fontSize: 16, textAlign: 'center' },
-  error:         { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
-  resendSuccess: { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl, rgba(34,197,94,.1))', borderRadius: 8, padding: '8px 10px' },
-  resendBtn:     { width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 13, padding: 13, fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--bk)', cursor: 'pointer' },
+  fieldLabel:    { fontSize: 12, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
+  input:         { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '12px 13px', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
+  pinInput:      { letterSpacing: 6, fontSize: 19, textAlign: 'center' },
+  error:         { fontSize: 13.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
+  resendSuccess: { fontSize: 13.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl, rgba(34,197,94,.1))', borderRadius: 8, padding: '8px 10px' },
+  resendBtn:     { width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 13, padding: 13, fontFamily: 'var(--font)', fontSize: 14.5, fontWeight: 700, color: 'var(--bk)', cursor: 'pointer' },
   resendBtnDisabled: { opacity: 0.55, cursor: 'default' },
   linksRow:      { display: 'flex', justifyContent: 'space-between', marginTop: 4 },
-  link:          { fontSize: 11.5, fontWeight: 700, color: 'var(--or)', cursor: 'pointer' },
+  link:          { fontSize: 13, fontWeight: 700, color: 'var(--or)', cursor: 'pointer' },
   publicToggleRow:   { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '11px 13px' },
-  publicToggleLabel: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
-  publicToggleSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, lineHeight: 1.4 },
+  publicToggleLabel: { fontSize: 13.5, fontWeight: 700, color: 'var(--bk)' },
+  publicToggleSub:   { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, lineHeight: 1.4 },
   agreeRow:      { display: 'flex', alignItems: 'flex-start', gap: 9, padding: '2px 1px' },
   agreeCheckbox: { width: 16, height: 16, marginTop: 1, flexShrink: 0, accentColor: 'var(--or)', cursor: 'pointer' },
-  agreeText:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
+  agreeText:     { fontSize: 13.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   agreeLink:     { color: 'var(--or)', fontWeight: 700, textDecoration: 'none' },
   welcomeStepsRow:   { display: 'flex', gap: 8, margin: '6px 0 2px' },
   welcomeStep:       { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 6px', borderRadius: 12, border: '0.5px solid var(--g2)' },
-  welcomeStepLabel:  { fontSize: 10.5, fontWeight: 700 },
+  welcomeStepLabel:  { fontSize: 12, fontWeight: 700 },
   welcomePreview:     { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '11px 13px', marginTop: 2 },
   welcomePreviewIcon: { width: 34, height: 34, borderRadius: 10, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  welcomePreviewText: { fontSize: 12.5, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4, margin: 0 },
+  welcomePreviewText: { fontSize: 14, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4, margin: 0 },
   welcomeDotsRow:     { display: 'flex', justifyContent: 'center', gap: 6, marginTop: 2 },
   welcomeDot:         { width: 6, height: 6, borderRadius: '50%' },
   tutorialIconWrap:  { width: 46, height: 46, borderRadius: 14, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0 2px' },
   tutorialHighlights:    { display: 'flex', flexDirection: 'column', gap: 10, margin: '4px 0 2px' },
   tutorialHighlightRow:  { display: 'flex', alignItems: 'flex-start', gap: 10 },
   tutorialCheckDot:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  tutorialHighlightText: { fontSize: 13, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4 },
+  tutorialHighlightText: { fontSize: 14.5, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4 },
 }
