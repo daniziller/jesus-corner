@@ -9,6 +9,18 @@
 // extra. Os códigos USFM de 3 letras abaixo são universais (mesma ordem
 // canônica em qualquer idioma), então bastam UMA tabela pros dois idiomas.
 //
+// Formato de saída por livro:
+//   { "<capítulo>": {
+//       "verses": { "<versículo>": "texto..." },
+//       "breaks": { "<versículo>": "P" | "L" }
+//     }, ... }
+// "breaks" marca, por versículo, se ele começa um PARÁGRAFO novo ("P") ou
+// só uma LINHA nova dentro do mesmo parágrafo ("L" — poesia/diálogo
+// poético). Quebras de linha DENTRO de um mesmo versículo (poesia longa
+// que continua no mesmo número, ex: Salmo 23:4) ficam embutidas como um
+// caractere "\n" literal no próprio texto do versículo — ver
+// src/screens/ReadingBlockView.jsx (BibleTextPanel) pra como isso é lido.
+//
 // node scripts/build-bible-text.mjs
 
 import { writeFile, mkdir } from 'node:fs/promises'
@@ -68,6 +80,16 @@ async function apiGet(path, attempt = 1) {
   return res.json()
 }
 
+// Estilos de bloco que representam poesia/fala poética (linha nova dentro
+// do mesmo parágrafo, não um parágrafo novo): "q", "q1", "q2", "q3" (versos
+// indentados) e "qm"/"qm1"/"qm2" (poesia citada dentro de prosa) começam
+// com "q"; "sp" é rótulo de interlocutor (usado em Cântico dos Cânticos,
+// intercalado com os versos). Qualquer outro estilo com texto de
+// versículo (m, p, pm, li1, li2, ms1 etc.) conta como parágrafo novo.
+function isLineBreakStyle(style) {
+  return typeof style === 'string' && (style.startsWith('q') || style === 'sp')
+}
+
 // O conteúdo vem em blocos de nível superior (parágrafos/linhas de poesia)
 // — cada um com uma lista de items que podem ser texto puro, o marcador de
 // número de versículo (tag "verse", só um rótulo "1"/"2", não é texto de
@@ -75,26 +97,27 @@ async function apiGet(path, attempt = 1) {
 // com style "sc" pra versaletes em "SENHOR") que embrulha MAIS texto do
 // mesmo versículo.
 //
-// Dois casos diferentes de fragmento "colado sem espaço" aparecem na API:
-//   1. Versaletes: "O temor do S" + <char sc>"enhor"</char> — fragmentos
-//      DENTRO do mesmo bloco, sem espaço de propósito (é a mesma palavra
-//      "Senhor" partida só por causa do estilo visual).
-//   2. Parágrafos/linhas de poesia diferentes pro mesmo versículo (comum em
-//      genealogias e poesia paralela): "Obed was the father of Jesse." +
-//      "Jesse was..." em BLOCOS separados — aqui falta mesmo um espaço.
-// A regra: só a PRIMEIRA peça de texto de cada bloco de nível superior
-// passa pela checagem de "precisa de espaço" (fronteira entre blocos);
-// qualquer fragmento depois disso, dentro do mesmo bloco, é colado cru,
-// confiando nos espaços literais que já vêm no próprio texto.
-function extractVerses(topLevelBlocks, chapterNum, chapters) {
+// Dentro de um bloco, dois fragmentos "colados sem espaço" podem aparecer:
+//   1. Versaletes: "O temor do S" + <char sc>"enhor"</char> — mesma
+//      palavra partida só por estilo visual, sem espaço entre si.
+//   2. (Não acontece dentro do MESMO bloco na prática — só entre blocos.)
+// Por isso só a PRIMEIRA peça de texto de cada bloco passa pela checagem
+// de separador (espaço, pra prosa; "\n", pra poesia que continua o mesmo
+// versículo); fragmentos seguintes dentro do bloco colam crus.
+function extractVerses(topLevelBlocks, chapterNum, chapters, breaks) {
   for (const block of topLevelBlocks) {
     if (!block.items) continue
-    const state = { isFirstInBlock: true }
-    walkBlockItems(block.items, chapterNum, chapters, state)
+    const poetry = isLineBreakStyle(block.attrs?.style)
+    const state = { isFirstInBlock: true, firstVerseOfBlock: null }
+    walkBlockItems(block.items, chapterNum, chapters, state, poetry)
+    if (state.firstVerseOfBlock != null) {
+      breaks[chapterNum] ??= {}
+      breaks[chapterNum][state.firstVerseOfBlock] = poetry ? 'L' : 'P'
+    }
   }
 }
 
-function walkBlockItems(items, chapterNum, chapters, state) {
+function walkBlockItems(items, chapterNum, chapters, state, poetry) {
   for (const item of items) {
     if (item.type === 'tag' && item.name === 'verse') continue
     if (item.type === 'text') {
@@ -106,13 +129,20 @@ function walkBlockItems(items, chapterNum, chapters, state) {
       let addition = item.text
       if (state.isFirstInBlock) {
         state.isFirstInBlock = false
-        const needsSpace = existing.length > 0 && !/\s$/.test(existing) && !/^[\s.,;:!?)'"]/.test(addition)
-        if (needsSpace) addition = ' ' + addition
+        state.firstVerseOfBlock = verseNum
+        if (existing.length > 0) {
+          if (poetry) {
+            addition = '\n' + addition
+          } else {
+            const needsSpace = !/\s$/.test(existing) && !/^[\s.,;:!?)'"]/.test(addition)
+            if (needsSpace) addition = ' ' + addition
+          }
+        }
       }
       chapters[chapterNum][verseNum] = existing + addition
       continue
     }
-    if (item.items) walkBlockItems(item.items, chapterNum, chapters, state)
+    if (item.items) walkBlockItems(item.items, chapterNum, chapters, state, poetry)
   }
 }
 
@@ -127,12 +157,13 @@ async function fetchBookChapters(bibleId, bookId) {
     .filter(n => n !== 'intro')
 
   const chapters = {}
+  const breaks = {}
   for (const num of chapterNumbers) {
     const chData = await apiGet(`/bibles/${bibleId}/chapters/${bookId}.${num}?content-type=json`)
-    extractVerses(chData.data.content, num, chapters)
+    extractVerses(chData.data.content, num, chapters, breaks)
     await sleep(REQUEST_DELAY_MS)
   }
-  return chapters
+  return { chapters, breaks }
 }
 
 async function main() {
@@ -148,21 +179,28 @@ async function main() {
     let total = 0
     for (let i = 0; i < 66; i++) {
       const usfm = USFM_CODES[i]
-      const chapters = await fetchBookChapters(version.bibleId, usfm)
+      const { chapters, breaks } = await fetchBookChapters(version.bibleId, usfm)
       const n = countVerses(chapters)
       if (n === 0) throw new Error(`Capítulo vazio detectado em ${version.folder}: ${usfm} (${names[i]})`)
       total += n
 
-      // colapsa espaços (fragmentos de texto concatenados podem deixar
-      // espaço duplo) igual o parser da BLIVRE já fazia antes.
+      // Colapsa espaços/tabs em sequência (fragmentos concatenados podem
+      // deixar espaço duplo) sem mexer nos "\n" de quebra de linha
+      // internos (poesia), que são intencionais.
+      const out = {}
       for (const ch of Object.keys(chapters)) {
+        const verses = {}
         for (const vs of Object.keys(chapters[ch])) {
-          chapters[ch][vs] = chapters[ch][vs].replace(/\s+/g, ' ').trim()
+          verses[vs] = chapters[ch][vs]
+            .replace(/[ \t]+/g, ' ')
+            .replace(/ *\n */g, '\n')
+            .trim()
         }
+        out[ch] = { verses, breaks: breaks[ch] ?? {} }
       }
 
       const slug = slugify(names[i])
-      await writeFile(new URL(`${version.folder}/${slug}.json`, OUT_DIR), JSON.stringify(chapters))
+      await writeFile(new URL(`${version.folder}/${slug}.json`, OUT_DIR), JSON.stringify(out))
       console.log(`  ${i + 1}/66 ${usfm} (${names[i]}) — ${n} versículos`)
     }
     console.log(`${version.label}: ${total} versículos escritos em 66 arquivos.`)

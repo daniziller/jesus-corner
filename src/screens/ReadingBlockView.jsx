@@ -311,6 +311,25 @@ function InfoPanel({ type, books, chStart, chEnd, lang }) {
 // Painel "Texto" do acordeão — busca o livro inteiro (cache em
 // bibleTextStore) e mostra só os capítulos da sessão em destaque, um a um,
 // fechado por padrão (só abre quando a pessoa toca na tag "Texto").
+// Agrupa os versículos de um capítulo em parágrafos, seguindo a divisão
+// que a própria versão (NVT/NLT) já publica — ver scripts/build-bible-text.mjs.
+// chapter.breaks[versículo] é 'P' (começa parágrafo novo) ou 'L' (só uma
+// linha nova dentro do mesmo parágrafo, ex: poesia) — versículos sem marca
+// continuam no parágrafo atual.
+function groupIntoParagraphs(chapter) {
+  const verseNumbers = Object.keys(chapter.verses).map(Number).sort((a, b) => a - b)
+  const paragraphs = []
+  let current = null
+  for (const v of verseNumbers) {
+    if (!current || chapter.breaks[String(v)] === 'P') {
+      current = []
+      paragraphs.push(current)
+    }
+    current.push(v)
+  }
+  return paragraphs
+}
+
 function BibleTextPanel({ session, lang }) {
   const bookKey = lang === 'en' ? session.bookEn : session.book
   const availableVersions = BIBLE_VERSIONS[lang] ?? []
@@ -362,19 +381,27 @@ function BibleTextPanel({ session, lang }) {
       {state.status === 'error' && <p style={styles.panelText}>{t('reading.textError', undefined, lang)}</p>}
 
       {state.status === 'ready' && chapterNumbers.map(ch => {
-        const verses = state.chapters[String(ch)] ?? {}
-        const verseNumbers = Object.keys(verses).map(Number).sort((a, b) => a - b)
+        const chapter = state.chapters[String(ch)] ?? { verses: {}, breaks: {} }
+        const paragraphs = groupIntoParagraphs(chapter)
         return (
           <div key={ch} style={styles.bibleTextChapter}>
             <p style={styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
-            <p style={styles.bibleTextBody}>
-              {verseNumbers.map(v => (
-                <span key={v}>
-                  <sup style={styles.bibleTextVerseNum}>{v}</sup>
-                  {verses[String(v)]}{' '}
-                </span>
-              ))}
-            </p>
+            {paragraphs.map((verseNums, pIdx) => (
+              <p key={pIdx} style={styles.bibleTextBody}>
+                {verseNums.map((v, vIdx) => (
+                  <span key={v}>
+                    {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
+                    <sup style={styles.bibleTextVerseNum}>{v}</sup>
+                    {chapter.verses[String(v)].split('\n').map((line, lIdx, arr) => (
+                      <span key={lIdx}>
+                        {line}
+                        {lIdx < arr.length - 1 && <br />}
+                      </span>
+                    ))}{' '}
+                  </span>
+                ))}
+              </p>
+            ))}
           </div>
         )
       })}
