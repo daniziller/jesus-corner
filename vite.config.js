@@ -37,9 +37,17 @@ export default defineConfig({
             // Texto bíblico (public/bible-text/) — não entra no precache de
             // instalação (globPatterns não inclui .json), só fica disponível
             // offline depois que a pessoa abre aquele livro pela 1a vez.
+            //
+            // Nome do cache com sufixo de versão (-v2): o formato do JSON
+            // mudou (de {versículo: texto} pra {verses, breaks}) sem mudar a
+            // URL do arquivo — com CacheFirst e 1 ano de validade, quem já
+            // tinha aberto o app antes ficava preso pra sempre no formato
+            // velho (tela branca, o código novo não reconhecia o shape
+            // antigo). Trocar o nome força buscar tudo de novo da rede; se o
+            // formato mudar de novo no futuro, sobe esse número de novo.
             urlPattern: /\/bible-text\/.*\.json$/,
             handler: 'CacheFirst',
-            options: { cacheName: 'bible-text-cache', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 } }
+            options: { cacheName: 'bible-text-cache-v2', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 } }
           }
         ]
       }

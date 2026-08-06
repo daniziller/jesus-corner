@@ -317,6 +317,11 @@ function InfoPanel({ type, books, chStart, chEnd, lang }) {
 // linha nova dentro do mesmo parágrafo, ex: poesia) — versículos sem marca
 // continuam no parágrafo atual.
 function groupIntoParagraphs(chapter) {
+  // Defensivo: um cache de PWA desatualizado (bible-text-cache) pode, em
+  // tese, ainda entregar um formato antigo pra quem não atualizou o app —
+  // sem isso, a tela toda ficava em branco (erro não tratado no render)
+  // em vez de só aquele capítulo vir vazio.
+  if (!chapter?.verses || typeof chapter.verses !== 'object') return []
   const verseNumbers = Object.keys(chapter.verses).map(Number).sort((a, b) => a - b)
   const paragraphs = []
   let current = null
