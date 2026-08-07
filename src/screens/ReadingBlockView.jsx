@@ -31,10 +31,30 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId ?? null)
 
   const heroSession = sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
+  const heroIndex = sessions.findIndex(s => s.id === heroSession.id)
+  // Próximo capítulo pra continuar lendo sem precisar voltar pra lista —
+  // só faz sentido em modo 'browse' (navegação livre pela Bíblia); em modo
+  // 'session' as sessões já podem ter mais de 1 capítulo cada, então "só
+  // ler o próximo" não é bem definido do mesmo jeito. Se acabou o bloco
+  // (ex: terminou Deuteronômio no Pentateuco), pula pro 1o capítulo do
+  // próximo bloco, mantendo a leitura contínua entre blocos também.
+  let nextSession = mode === 'browse' ? sessions[heroIndex + 1] : null
+  if (mode === 'browse' && !nextSession) {
+    const nextBlock = blocks.find(b => b.id === block.id + 1)
+    nextSession = nextBlock ? sessionsByBlock[nextBlock.id]?.[0] ?? null : null
+  }
 
+  // Clicar num capítulo/sessão na lista NÃO rola a página em modo 'browse'
+  // (navegação livre) — é assim que dá pra ler vários capítulos seguidos
+  // sem o susto de voltar pro topo da tela a cada clique. Em modo
+  // 'session' mantém o comportamento de sempre (rola pra revelar o
+  // destaque no topo), já que ali a pessoa normalmente troca de sessão
+  // vindo de bem mais longe na lista.
   function featureSession(clickedSession) {
     setSelectedSessionId(clickedSession.id)
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    if (mode !== 'browse') {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }
 
   const TAGS = [
@@ -54,13 +74,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const heroNoteKey = noteKeyFor(heroSession)
 
   useEffect(() => {
-    setOpenPanel(null)
+    // Em modo 'browse', se a pessoa já estava lendo o texto, troca de
+    // capítulo mantém o painel de Texto aberto — é o que permite continuar
+    // lendo vários capítulos seguidos sem precisar tocar em "Texto" nem
+    // vez. Qualquer outro painel (Contexto/Mapa/Notas/Curiosidades) sempre
+    // fecha ao trocar, e em modo 'session' o comportamento é o de sempre.
+    setOpenPanel(p => (mode === 'browse' && p === 'texto') ? 'texto' : null)
     if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); return }
     getNotes(authUser.email).then(map => {
       setNoteText(map[heroNoteKey] ?? '')
       setHasSavedNote(Boolean(map[heroNoteKey]))
     })
-  }, [heroNoteKey, authUser?.email])
+  }, [heroNoteKey, authUser?.email, mode])
 
   function handleSaveNote(text) {
     setNoteText(text)
@@ -147,6 +172,16 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           {openPanel === 'texto' && (
             <div style={{ padding: '0 14px 4px' }}>
               <BibleTextPanel session={heroSession} lang={lang} />
+              {/* Continua a leitura sem precisar voltar pra lista de
+                  capítulos — só em modo 'browse' (ver nextSession acima),
+                  já com o painel de Texto se mantendo aberto (ver useEffect
+                  do openPanel) e sem rolar a página (ver featureSession). */}
+              {nextSession && (
+                <button style={styles.nextChapterBtn} onClick={() => featureSession(nextSession)}>
+                  {t('reading.nextChapter', { title: lang === 'en' ? nextSession.titleEn : nextSession.title }, lang)}
+                  <AppIcon name="ChevronRight" size={15} />
+                </button>
+              )}
             </div>
           )}
           {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
@@ -652,4 +687,5 @@ const styles = {
   bibleTextBody:        { fontSize: 14, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.75, marginBottom: 16 },
   bibleTextVerseNum:    { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', marginRight: 2 },
   bibleTextAttribution: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--g1)', fontStyle: 'italic' },
+  nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-vivid)', boxShadow: 'var(--shadow-glow)' },
 }
