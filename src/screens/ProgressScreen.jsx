@@ -14,7 +14,7 @@ export default function ProgressScreen({ session, blocks }) {
       <div style={{ padding: '8px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="dashboard-grid">
 
-          {/* Coluna esquerda: destaque % + stats + progresso por bloco +
+          {/* Coluna esquerda: destaque % + progresso por bloco + stats +
               nível. Constância da rotina agora mora na aba Rotina. */}
           <div className="dashboard-col">
 
@@ -46,22 +46,8 @@ export default function ProgressScreen({ session, blocks }) {
               </div>
             </div>
 
-            {/* Stats secundárias */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={styles.streakCard}>
-                <span style={{ fontSize: 27, fontWeight: 900, color: '#EA580C', lineHeight: 1, marginBottom: 2, letterSpacing: '-1.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {session.streak}<AppIcon name="Flame" size={17} />
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g6)' }}>{translate('progress.streakLabel', undefined, lang)}</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
-                <MiniStat value={`${session.chaptersRead}/${session.totalChapters}`} label={translate('progress.chaptersRead', undefined, lang)} theme="purple" />
-                <MiniStat value={`${session.booksCompleted}/${session.totalBooks}`} label={translate('progress.booksCompleted', undefined, lang)} theme="green" />
-              </div>
-            </div>
-
-            {/* Barras por bloco — antes da Constância da rotina (ver pedido:
-                progresso por bloco em destaque logo acima). */}
+            {/* Barras por bloco — antes das stats secundárias (dias seguidos +
+                capítulos/livros), pra ficar logo depois do anel grande. */}
             <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>{translate('progress.progressByBlock', undefined, lang)}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -82,6 +68,20 @@ export default function ProgressScreen({ session, blocks }) {
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Stats secundárias */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={styles.streakCard}>
+                <span style={{ fontSize: 27, fontWeight: 900, color: '#EA580C', lineHeight: 1, marginBottom: 2, letterSpacing: '-1.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {session.streak}<AppIcon name="Flame" size={17} />
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g6)' }}>{translate('progress.streakLabel', undefined, lang)}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
+                <MiniStat value={`${session.chaptersRead}/${session.totalChapters}`} label={translate('progress.chaptersRead', undefined, lang)} theme="purple" />
+                <MiniStat value={`${session.booksCompleted}/${session.totalBooks}`} label={translate('progress.booksCompleted', undefined, lang)} theme="green" />
               </div>
             </div>
 
