@@ -275,6 +275,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               onNextInline={goToNextInline}
               getNextSessionFor={getNextSessionFor}
               registerCardRef={registerCardRef}
+              lastClickedId={selectedSessionId}
             />
           ))}
         </div>
@@ -561,7 +562,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -630,6 +631,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               onNextInline={onNextInline}
               nextSession={mode === 'browse' && s.id === expandedChapterId ? getNextSessionFor(s) : null}
               registerCardRef={registerCardRef}
+              lastClickedId={lastClickedId}
             />
           ))}
         </div>
@@ -638,13 +640,21 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
   const isBrowse     = mode === 'browse'
   const title = lang === 'en' ? session.titleEn : session.title
   const passage = lang === 'en' ? session.passageEn : session.passage
+
+  // Nos capítulos da Bíblia (isFreePlan — o número mostrado é o capítulo em
+  // si), o destaque preto é do ÚLTIMO capítulo em que a pessoa tocou, não
+  // do "atual" do plano — enquanto nada foi tocado (lastClickedId nulo),
+  // todos ficam no mesmo cinza padrão. Fora daí (sessões com vários
+  // capítulos, plano guiado), continua indicando a sessão "current" de
+  // sempre.
+  const isBadgeActive = isFreePlan ? (lastClickedId != null && session.id === lastClickedId) : isCurrent
 
   const chapterCount = isReflection ? 0 : session.chEnd - session.chStart + 1
   const chaptersDone = isReflection ? 0 : Array.from(
@@ -672,7 +682,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, i
         <div
           style={{
             width: 32, height: 32, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            background: isDone ? 'var(--grad-vivid)' : isCurrent ? 'var(--bk)' : isReflection ? '#A855F7' : 'var(--g3)',
+            background: isDone ? 'var(--grad-vivid)' : isBadgeActive ? 'var(--bk)' : isReflection ? '#A855F7' : 'var(--g3)',
           }}
           onClick={e => { e.stopPropagation(); onToggle(session, !isDone) }}
         >
@@ -681,7 +691,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, i
           ) : isReflection ? (
             <AppIcon name="PenLine" size={13} color="white" />
           ) : (
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: isCurrent ? 'white' : 'var(--g5)' }}>{isFreePlan ? session.chStart : session.id}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: isBadgeActive ? 'white' : 'var(--g5)' }}>{isFreePlan ? session.chStart : session.id}</span>
           )}
         </div>
 
