@@ -16,7 +16,8 @@ export default function ProgressScreen({ session, blocks }) {
       <div style={{ padding: '8px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="dashboard-grid">
 
-          {/* Coluna esquerda: destaque % + stats + nível */}
+          {/* Coluna esquerda: destaque % + stats + progresso por bloco +
+              constância da rotina + nível */}
           <div className="dashboard-col">
 
             {/* ── Destaque % ── */}
@@ -61,6 +62,31 @@ export default function ProgressScreen({ session, blocks }) {
               </div>
             </div>
 
+            {/* Barras por bloco — antes da Constância da rotina (ver pedido:
+                progresso por bloco em destaque logo acima). */}
+            <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>{translate('progress.progressByBlock', undefined, lang)}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {blocks.map(block => (
+                  <div key={block.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)', width: 90, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <AppIcon name={block.icon} size={12} style={{ flexShrink: 0 }} /> {lang === 'en' ? block.nameEn : block.name}
+                    </span>
+                    {block.status === 'todo' ? (
+                      <span className="badge badge-locked" style={{ flex: 1 }}>{translate('progress.startBadge', undefined, lang)}</span>
+                    ) : (
+                      <>
+                        <div style={{ flex: 1, height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', background: ACCENT_MAP[block.gradientKey], borderRadius: 99, width: `${block.percent}%` }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--g4)', width: 26, textAlign: 'right' }}>{block.percent}%</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Constância da rotina — dias/mês em que cada passo foi feito. */}
             <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
 
@@ -84,32 +110,8 @@ export default function ProgressScreen({ session, blocks }) {
             </div>
           </div>
 
-          {/* Coluna direita: blocos + conquistas + sessões restantes */}
+          {/* Coluna direita: conquistas + sessões restantes */}
           <div className="dashboard-col">
-
-            {/* Barras por bloco */}
-            <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>{translate('progress.progressByBlock', undefined, lang)}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {blocks.map(block => (
-                  <div key={block.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)', width: 90, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <AppIcon name={block.icon} size={12} style={{ flexShrink: 0 }} /> {lang === 'en' ? block.nameEn : block.name}
-                    </span>
-                    {block.status === 'todo' ? (
-                      <span className="badge badge-locked" style={{ flex: 1 }}>{translate('progress.startBadge', undefined, lang)}</span>
-                    ) : (
-                      <>
-                        <div style={{ flex: 1, height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', background: ACCENT_MAP[block.gradientKey], borderRadius: 99, width: `${block.percent}%` }} />
-                        </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--g4)', width: 26, textAlign: 'right' }}>{block.percent}%</span>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* Conquistas */}
             <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
