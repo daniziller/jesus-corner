@@ -228,7 +228,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               Esse painel só existe pro fluxo guiado (mode 'session'). */}
           {mode !== 'browse' && openPanel === 'texto' && (
             <div style={{ padding: '0 14px 4px' }}>
-              <BibleTextPanel session={heroSession} lang={lang} />
+              <BibleTextPanel session={heroSession} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
             </div>
           )}
           {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
@@ -266,6 +266,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               heroSessionId={heroSession.id}
               completedSet={completedSet}
               onToggle={onToggleSession}
+              onToggleChapter={onToggleChapter}
               onFeature={featureSession}
               isFreePlan={isFreePlan}
               lang={lang}
@@ -427,7 +428,7 @@ function groupIntoParagraphs(chapter) {
   return paragraphs
 }
 
-function BibleTextPanel({ session, lang }) {
+function BibleTextPanel({ session, lang, completedSet, onToggleChapter }) {
   const bookKey = lang === 'en' ? session.bookEn : session.book
   const availableVersions = BIBLE_VERSIONS[lang] ?? []
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
@@ -480,6 +481,7 @@ function BibleTextPanel({ session, lang }) {
       {state.status === 'ready' && chapterNumbers.map(ch => {
         const chapter = state.chapters[String(ch)] ?? { verses: {}, breaks: {} }
         const paragraphs = groupIntoParagraphs(chapter)
+        const chDone = completedSet?.has(`${session.book}:${ch}`)
         return (
           <div key={ch} style={styles.bibleTextChapter}>
             <p style={styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
@@ -499,6 +501,18 @@ function BibleTextPanel({ session, lang }) {
                 ))}
               </p>
             ))}
+            {/* Marcar o capítulo como lido direto no fim do texto — sem
+                precisar voltar pro topo e caçar o chip dele (ver
+                ChapterChips, que continua existindo pra quem prefere). */}
+            {onToggleChapter && (
+              <button
+                style={{ ...styles.chapterDoneBtn, ...(chDone ? styles.chapterDoneBtnActive : {}) }}
+                onClick={() => onToggleChapter(session, ch, !chDone)}
+              >
+                <AppIcon name={chDone ? 'Check' : 'Circle'} size={13} />
+                {chDone ? t('reading.chapterMarkedDone', { n: ch }, lang) : t('reading.markChapterDone', { n: ch }, lang)}
+              </button>
+            )}
           </div>
         )
       })}
@@ -562,7 +576,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -622,6 +636,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               isFeatured={s.id === heroSessionId}
               completedSet={completedSet}
               onToggle={onToggle}
+              onToggleChapter={onToggleChapter}
               onFeature={onFeature}
               isFreePlan={isFreePlan}
               lang={lang}
@@ -640,7 +655,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
@@ -724,7 +739,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, i
           cima). Continua a leitura com "Próximo" sem fechar/reabrir nada. */}
       {isBrowse && isExpanded && (
         <div style={{ padding: '0 11px 11px' }} onClick={e => e.stopPropagation()}>
-          <BibleTextPanel session={session} lang={lang} />
+          <BibleTextPanel session={session} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
           {nextSession && (
             <button style={styles.nextChapterBtn} onClick={() => onNextInline(session)}>
               {t('reading.nextChapter', { title: lang === 'en' ? nextSession.titleEn : nextSession.title }, lang)}
@@ -778,4 +793,6 @@ const styles = {
   bibleTextVerseNum:    { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', marginRight: 2 },
   bibleTextAttribution: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--g1)', fontStyle: 'italic' },
   nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-vivid)', boxShadow: 'var(--shadow-glow)' },
+  chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 10, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--g1)' },
+  chapterDoneBtnActive: { background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
 }
