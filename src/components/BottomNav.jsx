@@ -1,10 +1,12 @@
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-// "journey" (Leitura Bíblica) fica centralizada na fileira — é a ação
-// principal do app — com o ícone um pouco maior pra se destacar das outras
-// abas. "routine" logo depois de "home", pra montar o dia antes de agir.
-const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'groups', 'studies', 'stats']
+// "journey" (Bíblia) fica centralizada na fileira — é a ação principal do
+// app — com o ícone um pouco maior pra se destacar das outras abas.
+// "routine" logo depois de "home", pra montar o dia antes de agir. Depois
+// da Bíblia vem Progresso (acompanha o que acabou de ler), Estudos, e por
+// último Comunidade.
+const TAB_IDS = ['home', 'routine', 'prayer', 'journey', 'stats', 'studies', 'groups']
 const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang }) {

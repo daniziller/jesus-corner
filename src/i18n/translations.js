@@ -5,7 +5,7 @@
 export const STRINGS = {
   pt: {
     nav: {
-      home: 'Início', prayer: 'Oração', journey: 'Leitura Bíblica', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
+      home: 'Início', prayer: 'Oração', journey: 'Bíblia', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil',
     },
     a11y: {
       largeTextToggle: 'Texto grande',
@@ -500,7 +500,7 @@ export const STRINGS = {
   },
   en: {
     nav: {
-      home: 'Home', prayer: 'Prayer', journey: 'Bible Reading', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
+      home: 'Home', prayer: 'Prayer', journey: 'Bible', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile',
     },
     a11y: {
       largeTextToggle: 'Large text',
