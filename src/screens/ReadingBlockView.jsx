@@ -9,8 +9,23 @@ import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
+// Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
+// .rb-detail, min-width: 1024px) — usado só em modo 'browse' pra decidir
+// ONDE o texto do capítulo aparece (ver comentário perto de onde é usado).
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const handler = e => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return isDesktop
+}
+
 export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack }) {
   const { lang } = session
+  const isDesktop = useIsDesktop()
   // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
   // capítulo só) ou navegação livre pela aba Bíblia (mode 'browse' —
   // JourneyScreen já manda sessionsByBlock com 1 capítulo por sessão nesse
@@ -223,19 +238,36 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
             </div>
           )}
-          {/* Em modo 'browse' o texto não abre mais aqui em cima — ele mora
-              embutido embaixo do capítulo tocado na lista (ver SessionCard).
-              Esse painel só existe pro fluxo guiado (mode 'session'). */}
-          {mode !== 'browse' && openPanel === 'texto' && (
-            // Margem lateral bem menor que os outros painéis (Contexto/Mapa/
-            // Notas usam 14px) — é texto corrido pra ler, não uma lista de
-            // botões/cards, então vale abrir mão de respiro lateral em troca
-            // de uma coluna de leitura mais larga (ver também styles.panel
-            // sobrescrito dentro de BibleTextPanel).
-            <div style={{ padding: '0 6px 4px' }}>
-              <BibleTextPanel session={heroSession} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
-            </div>
-          )}
+          {/* Em modo 'browse' o texto normalmente mora embutido embaixo do
+              capítulo tocado na lista (ver SessionCard) — faz sentido no
+              celular, onde a lista já ocupa a tela toda. No desktop, porém,
+              essa lista vira a coluna "mestre" fixa em 300px (.rb-master),
+              estreita demais pra texto corrido, enquanto esse card de
+              destaque vira a coluna larga da direita (.rb-detail) e já fica
+              parado (sticky) na tela — então ali sim o texto aparece aqui
+              em cima, com o botão "Próximo" também (mesmo que a versão
+              embutida do celular), pra continuar a leitura sem precisar
+              caçar o próximo capítulo na lista estreita ao lado. */}
+          {(() => {
+            const browseTextInHero = mode === 'browse' && isDesktop && expandedChapterId != null
+            const nextForHero = browseTextInHero ? getNextSessionFor(heroSession) : null
+            return (mode !== 'browse' && openPanel === 'texto') || browseTextInHero ? (
+              // Margem lateral bem menor que os outros painéis (Contexto/Mapa/
+              // Notas usam 14px) — é texto corrido pra ler, não uma lista de
+              // botões/cards, então vale abrir mão de respiro lateral em troca
+              // de uma coluna de leitura mais larga (ver também styles.panel
+              // sobrescrito dentro de BibleTextPanel).
+              <div style={{ padding: '0 6px 4px' }}>
+                <BibleTextPanel session={heroSession} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
+                {nextForHero && (
+                  <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
+                    {t('reading.nextChapter', { title: lang === 'en' ? nextForHero.titleEn : nextForHero.title }, lang)}
+                    <AppIcon name="ChevronRight" size={15} />
+                  </button>
+                )}
+              </div>
+            ) : null
+          })()}
           {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
             <div style={{ padding: '0 14px 4px' }}>
               <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
@@ -282,6 +314,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               getNextSessionFor={getNextSessionFor}
               registerCardRef={registerCardRef}
               lastClickedId={selectedSessionId}
+              isDesktop={isDesktop}
             />
           ))}
         </div>
@@ -585,7 +618,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -656,6 +689,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               nextSession={mode === 'browse' && s.id === expandedChapterId ? getNextSessionFor(s) : null}
               registerCardRef={registerCardRef}
               lastClickedId={lastClickedId}
+              isDesktop={isDesktop}
             />
           ))}
         </div>
@@ -664,7 +698,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
@@ -745,8 +779,12 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
 
       {/* Texto do capítulo embutido, abre logo abaixo do card tocado — só
           em modo 'browse' (ver toggleInlineChapter/expandedChapterId lá em
-          cima). Continua a leitura com "Próximo" sem fechar/reabrir nada. */}
-      {isBrowse && isExpanded && (
+          cima) e só no celular: no desktop essa lista é a coluna "mestre"
+          estreita (300px), então ali o texto aparece no card de destaque
+          largo ao lado (ver o mesmo openPanel==='texto' lá em cima, agora
+          também cobrindo esse caso). O chevron abaixo continua girando
+          igual nos dois casos, só pra indicar qual capítulo está aberto. */}
+      {isBrowse && isExpanded && !isDesktop && (
         // Margem lateral reduzida (ver mesmo ajuste no painel de texto em
         // modo 'session') — o card já tem seu próprio respiro, não precisa
         // somar mais um em cima do padding do painel logo abaixo.
