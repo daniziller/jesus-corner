@@ -65,6 +65,31 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
               ? `${prayerMinutes + reflectionMinutes} ${t('routine.totalLabelFree', undefined, lang)}`
               : t('routine.totalLabel', undefined, lang)}
           </span>
+
+          {/* Detalhe por categoria — reflete ao vivo a duração escolhida em
+              cada seletor abaixo (mesmo estado, sem lógica extra pra
+              sincronizar). Leitura mostra o nome do plano em vez de minutos
+              quando é Livre (sem meta de tempo). */}
+          <div style={{ position: 'relative', ...styles.heroBreakdown }}>
+            <div style={styles.heroBreakdownItem}>
+              <AppIcon name="HandHeart" size={13} color="rgba(255,255,255,.85)" />
+              <span style={styles.heroBreakdownN}>{prayerMinutes}<span style={styles.heroBreakdownUnit}> min</span></span>
+              <span style={styles.heroBreakdownL}>{t('home.routinePrayer', undefined, lang)}</span>
+            </div>
+            <div style={styles.heroBreakdownItem}>
+              <AppIcon name="BookOpen" size={13} color="rgba(255,255,255,.85)" />
+              <span style={styles.heroBreakdownN}>
+                {plan.readingMinutes != null ? <>{plan.readingMinutes}<span style={styles.heroBreakdownUnit}> min</span></> : plan.label}
+              </span>
+              <span style={styles.heroBreakdownL}>{t('home.routineReading', undefined, lang)}</span>
+            </div>
+            <div style={styles.heroBreakdownItem}>
+              <AppIcon name="PenLine" size={13} color="rgba(255,255,255,.85)" />
+              <span style={styles.heroBreakdownN}>{reflectionMinutes}<span style={styles.heroBreakdownUnit}> min</span></span>
+              <span style={styles.heroBreakdownL}>{t('home.routineReflection', undefined, lang)}</span>
+            </div>
+          </div>
+
           {/* Começa a rotina pelo primeiro passo (Oração) — de lá, ao
               terminar o cronômetro, um botão leva direto pro segundo
               passo (Leitura). */}
@@ -196,6 +221,11 @@ const styles = {
   heroTotal:   { fontSize: 38, fontWeight: 800, color: 'white', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' },
   heroTotalUnit: { fontSize: 15, fontWeight: 700 },
   heroTotalLabel: { fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginTop: 2, position: 'relative' },
+  heroBreakdown:     { display: 'flex', gap: 8, marginTop: 14, width: '100%' },
+  heroBreakdownItem: { flex: 1, background: 'rgba(255,255,255,.14)', border: '0.5px solid rgba(255,255,255,.18)', borderRadius: 12, padding: '8px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
+  heroBreakdownN:    { fontSize: 12.5, fontWeight: 800, color: 'white', marginTop: 3, lineHeight: 1 },
+  heroBreakdownUnit: { fontSize: 8.5, fontWeight: 600 },
+  heroBreakdownL:    { fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
   heroStartBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, border: 'none', borderRadius: 24, padding: '11px 26px', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font)', color: 'var(--or)', cursor: 'pointer', background: 'white', boxShadow: '0 8px 20px rgba(0,0,0,.15)' },
 
   stepper:     { display: 'flex', alignItems: 'flex-start', background: 'var(--white)', borderRadius: 18, padding: '18px 10px 14px', boxShadow: 'var(--shadow-card)' },
