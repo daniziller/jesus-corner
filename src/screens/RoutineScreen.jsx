@@ -102,20 +102,30 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
         <div style={styles.stepper}>
           {steps.map((step, i) => (
             <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', flex: i < steps.length - 1 ? 1 : 'unset' }}>
-              <button onClick={step.onClick} style={styles.stepNodeWrap}>
+              {/* Ícone (marca/desmarca concluído) e o resto da linha (abre a
+                  tela do passo) são dois elementos IRMÃOS, não um aninhado
+                  dentro do outro — antes o ícone ficava embutido no botão de
+                  navegar (com stopPropagation), e como ele é a parte mais
+                  "pesada" visualmente, um toque no meio da coluna acabava
+                  quase sempre acertando o ícone (marcar/desmarcar) em vez de
+                  abrir a tela, mesmo mirando no rótulo de texto. Sem
+                  aninhamento, cada área só responde ao próprio toque. */}
+              <div style={styles.stepNodeWrap}>
                 <span
                   role="button"
                   aria-label={t('home.routineMarkDone', undefined, lang)}
                   style={{ ...styles.stepNode, background: step.done ? step.color : 'var(--g1)', borderColor: step.done ? step.color : 'var(--g2)', cursor: 'pointer' }}
-                  onClick={e => { e.stopPropagation(); step.onToggleCheck() }}
+                  onClick={step.onToggleCheck}
                 >
                   <AppIcon name={step.done ? 'Check' : step.icon} size={17} color={step.done ? 'white' : 'var(--g4)'} />
                 </span>
-                <span style={styles.stepLabel}>{step.title}</span>
-                <span style={{ ...styles.stepTag, color: step.done ? step.color : 'var(--g4)' }}>
-                  {step.done ? t('routine.stepDone', undefined, lang) : t('routine.stepPending', undefined, lang)}
-                </span>
-              </button>
+                <button onClick={step.onClick} style={styles.stepLabelBtn}>
+                  <span style={styles.stepLabel}>{step.title}</span>
+                  <span style={{ ...styles.stepTag, color: step.done ? step.color : 'var(--g4)' }}>
+                    {step.done ? t('routine.stepDone', undefined, lang) : t('routine.stepPending', undefined, lang)}
+                  </span>
+                </button>
+              </div>
               {i < steps.length - 1 && (
                 <div style={styles.stepLineTrack}>
                   <div style={{ ...styles.stepLineFill, width: step.done ? '100%' : '0%', background: step.color }} />
@@ -229,8 +239,9 @@ const styles = {
   heroStartBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, border: 'none', borderRadius: 24, padding: '11px 26px', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font)', color: 'var(--or)', cursor: 'pointer', background: 'white', boxShadow: '0 8px 20px rgba(0,0,0,.15)' },
 
   stepper:     { display: 'flex', alignItems: 'flex-start', background: 'var(--white)', borderRadius: 18, padding: '18px 10px 14px', boxShadow: 'var(--shadow-card)' },
-  stepNodeWrap:{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', width: 66, padding: 0 },
+  stepNodeWrap:{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, width: 66 },
   stepNode:    { width: 38, height: 38, borderRadius: '50%', border: '2px solid var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .4s ease, border-color .4s ease' },
+  stepLabelBtn:{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', padding: 0, width: '100%' },
   stepLabel:   { fontSize: 9.5, fontWeight: 700, color: 'var(--g5)', textAlign: 'center' },
   stepTag:     { fontSize: 8.5, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.3, transition: 'color .4s ease' },
   stepLineTrack: { flex: 1, height: 3, background: 'var(--g2)', borderRadius: 2, marginTop: 18, overflow: 'hidden' },
