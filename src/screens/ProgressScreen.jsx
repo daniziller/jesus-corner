@@ -147,7 +147,12 @@ export default function ProgressScreen({ session, blocks }) {
 // Mais a média de dias/semana com a rotina completa, num bloco de métrica à
 // parte, igual aos outros cards de métrica da tela.
 function RoutineUsageCard({ dailyRoutine, lang }) {
-  const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, 6)
+  // 4 semanas (não 6) — com 3 anéis por semana + rótulo de data, 6 colunas
+  // não cabiam na largura do card num celular comum e a última (a semana
+  // atual, a mais importante) ficava cortada. Ela continua sempre por
+  // último (à direita), agora com uma caixa própria pra se destacar das
+  // outras 3, que só servem de contexto histórico.
+  const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, 4)
   const hasAnyData = weeks.some(w => w.prayerDays > 0 || w.readingDays > 0 || w.reflectionDays > 0)
   const MAX_DAYS = 7 // escala fixa da semana (não os totalDays parciais da semana atual)
   const avgFullDays = averageFullRoutineDays(weeks)
@@ -163,7 +168,8 @@ function RoutineUsageCard({ dailyRoutine, lang }) {
             {weeks.map((w, i) => {
               const isCurrent = i === weeks.length - 1
               return (
-                <div key={i} style={styles.routineUsageMonthCol}>
+                <div key={i} style={{ ...styles.routineUsageMonthCol, ...(isCurrent ? styles.routineUsageMonthColCurrent : {}) }}>
+                  {isCurrent && <span style={styles.routineUsageCurrentTag}>{translate('progress.routineUsageThisWeek', undefined, lang)}</span>}
                   <span style={{ ...styles.routineUsageMonthNum, ...(isCurrent ? styles.routineUsageMonthNumCurrent : {}) }}>{w.fullDays}</span>
                   <div style={styles.routineUsageRings}>
                     <StepRing days={w.prayerDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.prayer} />
@@ -277,10 +283,12 @@ const styles = {
   achievementCardUnlocked: { background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.3)' },
   achievementTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.25 },
   achievementDesc:  { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },
-  routineUsageChart:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 },
-  routineUsageMonthCol:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1 },
+  routineUsageChart:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 },
+  routineUsageMonthCol:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
+  routineUsageMonthColCurrent: { background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 14, padding: '7px 4px 8px' },
+  routineUsageCurrentTag: { fontSize: 7, fontWeight: 800, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
   routineUsageMonthNum:   { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
-  routineUsageMonthNumCurrent: { color: 'var(--or)' },
+  routineUsageMonthNumCurrent: { color: 'var(--or)', fontSize: 15 },
   routineUsageRings:      { display: 'flex', alignItems: 'center', gap: 2 },
   routineUsageMonthLabel: { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)', textTransform: 'capitalize' },
   routineUsageMonthLabelCurrent: { color: 'var(--or)', fontWeight: 800 },

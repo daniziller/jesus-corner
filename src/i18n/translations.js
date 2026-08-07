@@ -305,6 +305,7 @@ export const STRINGS = {
       routineUsageTitle: 'Constância da rotina',
       routineUsageSub: 'Dias por semana em que cada passo foi feito',
       routineUsageEmpty: 'Comece sua rotina diária pra ver sua constância aqui.',
+      routineUsageThisWeek: 'Essa semana',
       routineAvgLabel: 'Média de dias/semana com a rotina completa',
     },
     tour: {
@@ -804,6 +805,7 @@ export const STRINGS = {
       routineUsageTitle: 'Routine consistency',
       routineUsageSub: 'Days per week each step was done',
       routineUsageEmpty: 'Start your daily routine to see your consistency here.',
+      routineUsageThisWeek: 'This week',
       routineAvgLabel: 'Avg. days/week with the full routine',
     },
     tour: {
