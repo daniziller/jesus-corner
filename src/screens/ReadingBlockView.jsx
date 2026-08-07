@@ -31,17 +31,30 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId ?? null)
 
   const heroSession = sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
-  const heroIndex = sessions.findIndex(s => s.id === heroSession.id)
+
+  // Qual capítulo tem o texto aberto INLINE, direto na lista de livros —
+  // só existe em modo 'browse' (navegação livre pela Bíblia). Diferente do
+  // modo 'session', aqui o texto não mora no card de destaque lá em cima:
+  // abre embaixo do próprio capítulo que foi tocado, ver SessionCard.
+  // Começa já aberto no capítulo de entrada (ex: veio de um chip de livro
+  // clicável), pra já cair lendo sem precisar tocar de novo.
+  const [expandedChapterId, setExpandedChapterId] = useState(
+    mode === 'browse' ? (initialSessionId ?? autoHeroSession.id) : null
+  )
+
   // Próximo capítulo pra continuar lendo sem precisar voltar pra lista —
-  // só faz sentido em modo 'browse' (navegação livre pela Bíblia); em modo
-  // 'session' as sessões já podem ter mais de 1 capítulo cada, então "só
-  // ler o próximo" não é bem definido do mesmo jeito. Se acabou o bloco
-  // (ex: terminou Deuteronômio no Pentateuco), pula pro 1o capítulo do
-  // próximo bloco, mantendo a leitura contínua entre blocos também.
-  let nextSession = mode === 'browse' ? sessions[heroIndex + 1] : null
-  if (mode === 'browse' && !nextSession) {
-    const nextBlock = blocks.find(b => b.id === block.id + 1)
-    nextSession = nextBlock ? sessionsByBlock[nextBlock.id]?.[0] ?? null : null
+  // só faz sentido em modo 'browse'; em modo 'session' as sessões já podem
+  // ter mais de 1 capítulo cada, então "só ler o próximo" não é bem
+  // definido do mesmo jeito. Se acabou o bloco (ex: terminou Deuteronômio
+  // no Pentateuco), pula pro 1o capítulo do próximo bloco.
+  function getNextSessionFor(fromSession) {
+    const idx = sessions.findIndex(s => s.id === fromSession.id)
+    let next = sessions[idx + 1]
+    if (!next) {
+      const nextBlock = blocks.find(b => b.id === block.id + 1)
+      next = nextBlock ? sessionsByBlock[nextBlock.id]?.[0] ?? null : null
+    }
+    return next ?? null
   }
 
   // Clicar num capítulo/sessão na lista NÃO rola a página em modo 'browse'
@@ -55,6 +68,21 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     if (mode !== 'browse') {
       scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  // Abre/fecha o texto embaixo do capítulo tocado (acordeão) — mantém o
+  // card de destaque lá em cima sincronizado também (featureSession), pra
+  // Contexto/Mapa/Notas continuarem batendo com o capítulo sendo lido.
+  function toggleInlineChapter(clickedSession) {
+    setExpandedChapterId(id => id === clickedSession.id ? null : clickedSession.id)
+    featureSession(clickedSession)
+  }
+
+  function goToNextInline(fromSession) {
+    const next = getNextSessionFor(fromSession)
+    if (!next) return
+    setExpandedChapterId(next.id)
+    featureSession(next)
   }
 
   const TAGS = [
@@ -146,9 +174,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             </div>
           </div>
 
-          {/* Marcação capítulo a capítulo da sessão em destaque — o botão
-              "Texto" fica junto dos capítulos, não lá em cima no card do
-              destaque, já que é sobre eles que a pessoa está agindo. */}
+          {/* Marcação capítulo a capítulo da sessão em destaque. Em modo
+              'session' o botão "Texto" mora aqui, junto dos capítulos; em
+              modo 'browse' ele some daqui — o texto abre embutido embaixo
+              do próprio capítulo na lista logo abaixo (ver SessionCard),
+              não faz sentido ter os dois jeitos de abrir ao mesmo tempo. */}
           {heroSession.type !== 'reflection' && (
             <div style={{ padding: '0 14px 4px' }}>
               <ChapterChecklist
@@ -157,7 +187,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                 onToggleChapter={onToggleChapter}
                 lang={lang}
                 textOpen={openPanel === 'texto'}
-                onToggleText={() => setOpenPanel(p => (p === 'texto' ? null : 'texto'))}
+                onToggleText={mode === 'browse' ? undefined : () => setOpenPanel(p => (p === 'texto' ? null : 'texto'))}
               />
             </div>
           )}
@@ -169,19 +199,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
             </div>
           )}
-          {openPanel === 'texto' && (
+          {/* Em modo 'browse' o texto não abre mais aqui em cima — ele mora
+              embutido embaixo do capítulo tocado na lista (ver SessionCard).
+              Esse painel só existe pro fluxo guiado (mode 'session'). */}
+          {mode !== 'browse' && openPanel === 'texto' && (
             <div style={{ padding: '0 14px 4px' }}>
               <BibleTextPanel session={heroSession} lang={lang} />
-              {/* Continua a leitura sem precisar voltar pra lista de
-                  capítulos — só em modo 'browse' (ver nextSession acima),
-                  já com o painel de Texto se mantendo aberto (ver useEffect
-                  do openPanel) e sem rolar a página (ver featureSession). */}
-              {nextSession && (
-                <button style={styles.nextChapterBtn} onClick={() => featureSession(nextSession)}>
-                  {t('reading.nextChapter', { title: lang === 'en' ? nextSession.titleEn : nextSession.title }, lang)}
-                  <AppIcon name="ChevronRight" size={15} />
-                </button>
-              )}
             </div>
           )}
           {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
@@ -222,6 +245,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               onFeature={featureSession}
               isFreePlan={isFreePlan}
               lang={lang}
+              mode={mode}
+              expandedChapterId={expandedChapterId}
+              onToggleInline={toggleInlineChapter}
+              onNextInline={goToNextInline}
+              getNextSessionFor={getNextSessionFor}
             />
           ))}
         </div>
@@ -508,7 +536,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -571,6 +599,11 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               onFeature={onFeature}
               isFreePlan={isFreePlan}
               lang={lang}
+              mode={mode}
+              isExpanded={mode === 'browse' && s.id === expandedChapterId}
+              onToggleInline={onToggleInline}
+              onNextInline={onNextInline}
+              nextSession={mode === 'browse' && s.id === expandedChapterId ? getNextSessionFor(s) : null}
             />
           ))}
         </div>
@@ -579,10 +612,11 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
+  const isBrowse     = mode === 'browse'
   const title = lang === 'en' ? session.titleEn : session.title
   const passage = lang === 'en' ? session.passageEn : session.passage
 
@@ -604,7 +638,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, i
         cursor: 'pointer',
         boxShadow: isFeatured ? 'var(--shadow-premium)' : 'none',
       }}
-      onClick={() => onFeature(session)}
+      onClick={() => (isBrowse ? onToggleInline(session) : onFeature(session))}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 11 }}>
         {/* Ícone de status — toque rápido marca/desmarca a sessão inteira */}
@@ -636,13 +670,32 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, i
           </p>
         </div>
 
-        {/* Indicador: já em destaque no topo, ou toque pra destacar */}
-        {isFeatured ? (
+        {/* Indicador: em modo 'browse' mostra seta de abrir/fechar o texto
+            embutido; nos outros modos, já em destaque no topo ou toque pra
+            destacar. */}
+        {isBrowse ? (
+          <AppIcon name="ChevronDown" size={15} color="var(--g4)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
+        ) : isFeatured ? (
           <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)', whiteSpace: 'nowrap' }}>{lang === 'en' ? 'FEATURED' : 'EM DESTAQUE'}</span>
         ) : (
           <AppIcon name="ArrowUp" size={14} color="var(--g4)" />
         )}
       </div>
+
+      {/* Texto do capítulo embutido, abre logo abaixo do card tocado — só
+          em modo 'browse' (ver toggleInlineChapter/expandedChapterId lá em
+          cima). Continua a leitura com "Próximo" sem fechar/reabrir nada. */}
+      {isBrowse && isExpanded && (
+        <div style={{ padding: '0 11px 11px' }} onClick={e => e.stopPropagation()}>
+          <BibleTextPanel session={session} lang={lang} />
+          {nextSession && (
+            <button style={styles.nextChapterBtn} onClick={() => onNextInline(session)}>
+              {t('reading.nextChapter', { title: lang === 'en' ? nextSession.titleEn : nextSession.title }, lang)}
+              <AppIcon name="ChevronRight" size={15} />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
