@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
@@ -25,6 +25,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const bookInfoSource = lang === 'en' ? BOOK_INFO_EN : BOOK_INFO
 
   const scrollRef = useRef(null)
+  // Guarda o elemento DOM de cada card de capítulo (preenchido pelos
+  // próprios SessionCard via registerCardRef) — usado só pra rolar até o
+  // topo do card ao clicar em "Próximo" (ver goToNextInline).
+  const chapterRefs = useRef({})
+  function registerCardRef(sessionId, el) {
+    chapterRefs.current[sessionId] = el
+  }
+  // Id do capítulo pro qual precisa rolar assim que o DOM terminar de
+  // refletir a troca (capítulo anterior fecha/encolhe, o novo abre/cresce)
+  // — rolar antes disso mira na altura antiga da lista, ver useLayoutEffect
+  // abaixo.
+  const pendingScrollId = useRef(null)
   // Sessão escolhida na lista abaixo, se houver — sobrepõe a sessão "atual"
   // automática e sobe pro destaque no topo. Começa a partir de um livro
   // específico quando aberto por um chip de livro clicável (initialSessionId).
@@ -81,9 +93,21 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   function goToNextInline(fromSession) {
     const next = getNextSessionFor(fromSession)
     if (!next) return
+    pendingScrollId.current = next.id
     setExpandedChapterId(next.id)
     featureSession(next)
   }
+
+  // Só depois que o capítulo anterior encolhe (fecha) e o novo cresce
+  // (abre) — ou seja, depois que o DOM já reflete o novo layout — é que dá
+  // pra rolar certo até o topo do novo card. Rolar antes (ex: direto no
+  // clique) mira na altura de quando o texto antigo ainda ocupava a tela
+  // inteira, e a pessoa cai num lugar aleatório da lista.
+  useLayoutEffect(() => {
+    if (pendingScrollId.current == null || pendingScrollId.current !== expandedChapterId) return
+    chapterRefs.current[expandedChapterId]?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    pendingScrollId.current = null
+  }, [expandedChapterId])
 
   const TAGS = [
     // "Texto" não fica aqui — vira um botão junto dos capítulos, ver
@@ -250,6 +274,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               onToggleInline={toggleInlineChapter}
               onNextInline={goToNextInline}
               getNextSessionFor={getNextSessionFor}
+              registerCardRef={registerCardRef}
             />
           ))}
         </div>
@@ -536,7 +561,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -604,6 +629,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               onToggleInline={onToggleInline}
               onNextInline={onNextInline}
               nextSession={mode === 'browse' && s.id === expandedChapterId ? getNextSessionFor(s) : null}
+              registerCardRef={registerCardRef}
             />
           ))}
         </div>
@@ -612,7 +638,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
@@ -627,6 +653,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onFeature, i
 
   return (
     <div
+      ref={el => registerCardRef?.(session.id, el)}
       style={{
         // Só a sessão em destaque (a que foi clicada/está no topo) recebe a cor
         // laranja — "current" continua indicado só pelo ícone de status, pra
