@@ -9,6 +9,7 @@ import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
 import { computeTotalSessions } from '../utils/progress'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
+import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 
@@ -139,6 +140,11 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
           ))}
         </div>
 
+        {/* Constância da rotina — dias/semana em que cada passo foi feito
+            nas últimas 4 semanas (movida da aba Progresso pra cá, mais perto
+            de onde a pessoa já está configurando a rotina). */}
+        <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
+
         {/* Oração */}
         <PickerSection title={t('routine.sectionPrayer', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer}>
           <div style={styles.durationSel}>
@@ -246,6 +252,104 @@ function PickerSection({ title, icon, color, children }) {
   )
 }
 
+// Métrica de constância — um mini gráfico de barras com o número de dias
+// (não %) em que cada um dos 3 passos foi feito, semana a semana, pra dar
+// uma noção de uso recente (não só o streak atual, que zera fácil) — mais
+// granular que uma visão mensal, mostra quedas de constância bem mais cedo.
+// Mais a média de dias/semana com a rotina completa, num bloco de métrica à
+// parte, igual aos outros cards de métrica da tela. (Movida de
+// ProgressScreen.jsx pra cá.)
+function RoutineUsageCard({ dailyRoutine, lang }) {
+  // 4 semanas (não 6) — com 3 anéis por semana + rótulo de data, 6 colunas
+  // não cabiam na largura do card num celular comum e a última (a semana
+  // atual, a mais importante) ficava cortada. Ela continua sempre por
+  // último (à direita), agora com uma caixa própria pra se destacar das
+  // outras 3, que só servem de contexto histórico.
+  const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, 4)
+  const hasAnyData = weeks.some(w => w.prayerDays > 0 || w.readingDays > 0 || w.reflectionDays > 0)
+  const MAX_DAYS = 7 // escala fixa da semana (não os totalDays parciais da semana atual)
+  const avgFullDays = averageFullRoutineDays(weeks)
+
+  return (
+    <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)' }}>{t('progress.routineUsageTitle', undefined, lang)}</p>
+      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, marginBottom: 12 }}>{t('progress.routineUsageSub', undefined, lang)}</p>
+
+      {hasAnyData ? (
+        <>
+          <div style={styles.routineUsageChart}>
+            {weeks.map((w, i) => {
+              const isCurrent = i === weeks.length - 1
+              return (
+                <div key={i} style={{ ...styles.routineUsageMonthCol, ...(isCurrent ? styles.routineUsageMonthColCurrent : {}) }}>
+                  {isCurrent && <span style={styles.routineUsageCurrentTag}>{t('progress.routineUsageThisWeek', undefined, lang)}</span>}
+                  <span style={{ ...styles.routineUsageMonthNum, ...(isCurrent ? styles.routineUsageMonthNumCurrent : {}) }}>{w.fullDays}</span>
+                  <div style={styles.routineUsageRings}>
+                    <StepRing days={w.prayerDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.prayer} />
+                    <StepRing days={w.readingDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reading} />
+                    <StepRing days={w.reflectionDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reflection} />
+                  </div>
+                  <span style={{ ...styles.routineUsageMonthLabel, ...(isCurrent ? styles.routineUsageMonthLabelCurrent : {}) }}>
+                    {new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'numeric' }).format(w.start)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={styles.routineUsageLegend}>
+            <UsageLegendDot color={ROUTINE_STEP_COLORS.prayer} label={t('home.routinePrayer', undefined, lang)} />
+            <UsageLegendDot color={ROUTINE_STEP_COLORS.reading} label={t('home.routineReading', undefined, lang)} />
+            <UsageLegendDot color={ROUTINE_STEP_COLORS.reflection} label={t('home.routineReflection', undefined, lang)} />
+          </div>
+
+          {/* Média — bloco de métrica à parte, mesmo estilo do card "Sessões restantes" da aba Progresso */}
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)' }}>
+            <div style={{ background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.2)', borderRadius: 16, padding: 13, textAlign: 'center' }}>
+              <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)', marginBottom: 3 }}>{t('progress.routineAvgLabel', undefined, lang)}</p>
+              <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.3px' }}>
+                {avgFullDays.toFixed(1).replace(/\.0$/, '')}
+              </p>
+            </div>
+          </div>
+        </>
+      ) : (
+        <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '10px 0' }}>
+          {t('progress.routineUsageEmpty', undefined, lang)}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Ring pequeno estilo Apple Fitness — um por passo, por semana. O
+// preenchimento é só visual (dias/MAX_DAYS); o número que importa (dias da
+// semana) já vem escrito em cima, então o ring não precisa carregar rótulo
+// nenhum.
+function StepRing({ days, maxDays, color, size = 16, strokeWidth = 2.5 }) {
+  const r = (size - strokeWidth) / 2
+  const c = 2 * Math.PI * r
+  const frac = maxDays ? Math.min(1, days / maxDays) : 0
+  const offset = c - frac * c
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--g2)" strokeWidth={strokeWidth} />
+      {frac > 0 && (
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
+      )}
+    </svg>
+  )
+}
+
+function UsageLegendDot({ color, label }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ width: 6, height: 6, borderRadius: 2, background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--g5)' }}>{label}</span>
+    </span>
+  )
+}
+
 const styles = {
   body:        { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
   heroSub:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
@@ -304,4 +408,15 @@ const styles = {
   durationBtnActive: { color: 'white', border: 'none', boxShadow: 'var(--shadow-glow)' },
   durationBtnNum:  { fontSize: 13, fontWeight: 800, lineHeight: 1 },
   durationBtnUnit: { fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, opacity: 0.75, lineHeight: 1 },
+
+  routineUsageChart:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 },
+  routineUsageMonthCol:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
+  routineUsageMonthColCurrent: { background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 14, padding: '7px 4px 8px' },
+  routineUsageCurrentTag: { fontSize: 7, fontWeight: 800, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
+  routineUsageMonthNum:   { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
+  routineUsageMonthNumCurrent: { color: 'var(--or)', fontSize: 15 },
+  routineUsageRings:      { display: 'flex', alignItems: 'center', gap: 2 },
+  routineUsageMonthLabel: { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)', textTransform: 'capitalize' },
+  routineUsageMonthLabelCurrent: { color: 'var(--or)', fontWeight: 800 },
+  routineUsageLegend:     { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
 }
