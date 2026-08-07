@@ -227,7 +227,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               embutido embaixo do capítulo tocado na lista (ver SessionCard).
               Esse painel só existe pro fluxo guiado (mode 'session'). */}
           {mode !== 'browse' && openPanel === 'texto' && (
-            <div style={{ padding: '0 14px 4px' }}>
+            // Margem lateral bem menor que os outros painéis (Contexto/Mapa/
+            // Notas usam 14px) — é texto corrido pra ler, não uma lista de
+            // botões/cards, então vale abrir mão de respiro lateral em troca
+            // de uma coluna de leitura mais larga (ver também styles.panel
+            // sobrescrito dentro de BibleTextPanel).
+            <div style={{ padding: '0 6px 4px' }}>
               <BibleTextPanel session={heroSession} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
             </div>
           )}
@@ -458,7 +463,11 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter }) {
   const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
 
   return (
-    <div style={styles.panel}>
+    // Padding horizontal bem menor que o dos outros painéis (styles.panel
+    // sozinho usa 14px) — texto corrido de leitura ganha mais com uma
+    // coluna larga do que com respiro lateral generoso (ver também os dois
+    // wrappers que chamam este componente, ambos com o mesmo ajuste).
+    <div style={{ ...styles.panel, padding: '14px 8px' }}>
       {availableVersions.length > 1 ? (
         <div style={styles.bibleTextVersionRow}>
           {availableVersions.map(v => (
@@ -738,7 +747,10 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
           em modo 'browse' (ver toggleInlineChapter/expandedChapterId lá em
           cima). Continua a leitura com "Próximo" sem fechar/reabrir nada. */}
       {isBrowse && isExpanded && (
-        <div style={{ padding: '0 11px 11px' }} onClick={e => e.stopPropagation()}>
+        // Margem lateral reduzida (ver mesmo ajuste no painel de texto em
+        // modo 'session') — o card já tem seu próprio respiro, não precisa
+        // somar mais um em cima do padding do painel logo abaixo.
+        <div style={{ padding: '0 4px 11px' }} onClick={e => e.stopPropagation()}>
           <BibleTextPanel session={session} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
           {nextSession && (
             <button style={styles.nextChapterBtn} onClick={() => onNextInline(session)}>
