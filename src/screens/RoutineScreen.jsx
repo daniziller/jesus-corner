@@ -18,7 +18,11 @@ const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
 export default function RoutineScreen({ session, blocks, onNavigate, onContinueSession, onSelectPlan, onMarkRoutineStep }) {
-  const { lang, plan, todayRoutine } = session
+  const { lang, plan, todayRoutine, todaySession } = session
+  const readingCtaLabel =
+    todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
+    : todaySession.progress > 0   ? t('home.continueSession', undefined, lang)
+    : t('home.startSession', undefined, lang)
   // Estatísticas do plano de leitura — moradas antigas de JourneyScreen, que
   // agora só mostra a Bíblia em si (blocos/livros), não mais o plano.
   const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
@@ -153,6 +157,26 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
 
         {/* Leitura — escolher o tempo aqui é escolher o plano */}
         <PickerSection title={t('routine.sectionReading', undefined, lang)} icon="BookOpen" color={ROUTINE_STEP_COLORS.reading}>
+          {/* Sessão de hoje — mesmos dados de session.todaySession que a Home
+              já mostra (ver App.jsx), só que aqui dentro da aba Rotina, que
+              agora concentra tudo sobre o plano de leitura. O botão leva
+              direto pra tela de leitura (mesmo onContinueSession da Home). */}
+          <div style={styles.todaySessionCard} data-tour="routine-today-session">
+            <div style={styles.todaySessionBadge}>
+              <span style={styles.todaySessionDot} />
+              <span style={styles.todaySessionBlock}>{todaySession.block}</span>
+            </div>
+            <h4 style={styles.todaySessionTitle}>{todaySession.title}</h4>
+            <p style={styles.todaySessionSub}>{todaySession.subtitle}</p>
+            <div style={styles.todaySessionProgressBar}>
+              <div style={{ ...styles.todaySessionProgressFill, width: `${todaySession.progress}%` }} />
+            </div>
+            <button style={styles.todaySessionBtn} onClick={onContinueSession}>
+              {readingCtaLabel} <AppIcon name="ChevronRight" size={15} />
+            </button>
+          </div>
+
+          <p style={styles.changePlanLabel}>{t('routine.changePlan', undefined, lang)}</p>
           <div style={styles.planSel}>
             {PLANS.filter(p => p.id !== 'free').map(p => (
               <button
@@ -257,6 +281,18 @@ const styles = {
   readingStat:     { flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '7px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 1 },
   readingStatN:    { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
   readingStatL:    { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)' },
+
+  todaySessionCard:   { position: 'relative', background: 'var(--grad-vivid)', borderRadius: 15, padding: '13px 14px 14px', marginBottom: 12, boxShadow: 'var(--shadow-glow)' },
+  todaySessionBadge:  { display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 },
+  todaySessionDot:    { width: 5, height: 5, borderRadius: '50%', background: 'white' },
+  todaySessionBlock:  { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.85)', textTransform: 'uppercase', letterSpacing: 0.4 },
+  todaySessionTitle:  { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, fontStyle: 'italic', color: 'white', marginBottom: 2, lineHeight: 1.2 },
+  todaySessionSub:    { fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.75)', marginBottom: 10 },
+  todaySessionProgressBar:  { height: 4, background: 'rgba(255,255,255,.25)', borderRadius: 99, overflow: 'hidden', marginBottom: 10 },
+  todaySessionProgressFill: { height: '100%', background: 'white', borderRadius: 99 },
+  todaySessionBtn:    { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'white', border: 'none', borderRadius: 12, padding: 11, fontSize: 12.5, fontWeight: 800, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
+
+  changePlanLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
 
   planSel:     { display: 'flex', gap: 6, marginBottom: 6 },
   planBtn:     { flex: 1, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },

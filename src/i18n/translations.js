@@ -423,6 +423,7 @@ export const STRINGS = {
       stepPending: 'A fazer',
       min: 'min',
       start: 'Começar pela Oração',
+      changePlan: 'Trocar plano',
     },
     contact: {
       pageTitle: 'Fale Conosco',
@@ -919,6 +920,7 @@ export const STRINGS = {
       stepPending: 'To do',
       min: 'min',
       start: 'Start with Prayer',
+      changePlan: 'Change plan',
     },
     contact: {
       pageTitle: 'Contact Us',
