@@ -9,11 +9,10 @@ import { getFriendsActivity } from '../activity/activityStore'
 import { isDayComplete } from '../routine/routineStreak'
 import { dateKey } from '../utils/dateKey'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
-import { PLANS } from '../data/bibleBlocks'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 
-export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep, onSelectPlan }) {
+export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
@@ -145,31 +144,6 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
                 </div>
                 <h3 style={styles.todayTitle}>{todaySession.title}</h3>
                 <p style={styles.todaySub}>{todaySession.subtitle}</p>
-
-                {/* Seletor de plano — trocar o ritmo de leitura sem sair da
-                    Home, já que aqui é onde a leitura do dia é decidida. O
-                    Livre fica numa linha própria embaixo (é um tipo de
-                    leitura diferente, não só mais um tamanho de sessão). */}
-                <div style={styles.planSel} data-tour="home-plan-select">
-                  {PLANS.filter(p => p.id !== 'free').map(p => (
-                    <button
-                      key={p.id}
-                      style={{ ...styles.planBtn, ...(plan.id === p.id ? styles.planBtnActive : {}) }}
-                      onClick={() => onSelectPlan?.(p.id)}
-                    >
-                      {lang === 'en' ? p.labelEn : p.label}
-                    </button>
-                  ))}
-                </div>
-                {PLANS.filter(p => p.id === 'free').map(p => (
-                  <button
-                    key={p.id}
-                    style={{ ...styles.planBtnFree, ...(plan.id === p.id ? styles.planBtnActive : {}) }}
-                    onClick={() => onSelectPlan?.(p.id)}
-                  >
-                    {lang === 'en' ? p.labelEn : p.label}
-                  </button>
-                ))}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{translate('home.todayProgress', undefined, lang)}</span>
@@ -573,10 +547,6 @@ const styles = {
   todayDot:      { width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', animation: 'pulse 2s infinite' },
   todayTitle:    { fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--bk)', marginBottom: 4, lineHeight: 1.3, letterSpacing: '-0.2px' },
   todaySub:      { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', marginBottom: 12 },
-  planSel:       { display: 'flex', gap: 6, marginBottom: 6 },
-  planBtn:       { flex: 1, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  planBtnActive: { color: 'white', background: 'var(--grad-primary)', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
-  planBtnFree:   { width: '100%', textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)', marginBottom: 12 },
   progressBar:   { height: 3, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 },
   progressFill:  { height: '100%', background: 'var(--grad-premium)', borderRadius: 99, transition: 'width 0.6s ease' },
   continueBtn:   { width: '100%', background: 'var(--grad-premium)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },

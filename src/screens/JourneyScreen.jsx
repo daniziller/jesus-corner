@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
+import { GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
-import { pickActiveBlock, computeTotalSessions, sessionKeys } from '../utils/progress'
+import { pickActiveBlock, sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
@@ -13,7 +13,7 @@ function normalizeSearch(str) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onSelectPlan, initialBlockId, entryMode, resumeSessionId, onContinueSession, onNavigate,
+  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, onNavigate,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -74,7 +74,6 @@ export default function JourneyScreen({
   }
 
   const activeBlock = pickActiveBlock(blocks)
-  const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
   const totalBooks = blocks.reduce((s, b) => s + b.books.length, 0)
   const currentBookName = lang === 'en' ? activeBlock.currentBookEn : activeBlock.currentBook
 
@@ -108,56 +107,11 @@ export default function JourneyScreen({
           <span>{t('journey.overallProgress', undefined, lang)}</span>
           <strong>{session.biblePercent}% · {currentBookName ? t('journey.inProgress', { book: currentBookName }, lang) : t('journey.bibleComplete', undefined, lang)}</strong>
         </div>
-        <div style={styles.heroStats}>
-          {[
-            { n: `${doneSessions}/${computeTotalSessions(blocks)}`, l: t('journey.sessionsStat', undefined, lang) },
-            { n: `~${session.plan.avgChapters}`, l: t('journey.chaptersPerSession', undefined, lang) },
-            { n: `${Math.round((100 - session.biblePercent) * 10) / 10}%`, l: t('journey.remainingStat', undefined, lang) },
-          ].map((s, i) => (
-            <div key={i} style={styles.heroStat}>
-              <span style={styles.heroStatN}>{s.n}</span>
-              <span style={styles.heroStatL}>{s.l}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
-      {/* Sheet flutuante sobre o hero */}
+      {/* Sheet flutuante sobre o hero — plano de leitura e progresso do dia
+          agora moram só na aba Rotina; aqui fica só a Bíblia em si. */}
       <div style={styles.sheet}>
-
-        {/* Seletor de plano — os 3 planos com o tempo de LEITURA (não o
-            total do dia, que já inclui oração/reflexão) lado a lado, e o
-            Livre embaixo, numa linha própria, no mesmo estilo simples da
-            Home (é um tipo de leitura diferente, não só "mais um tamanho
-            de sessão"). */}
-        <div style={styles.planSel}>
-          {PLANS.filter(p => p.id !== 'free').map(p => (
-            <button
-              key={p.id}
-              style={{ ...styles.planBtn, ...(session.plan.id === p.id ? styles.planBtnActive : {}) }}
-              onClick={() => onSelectPlan(p.id)}
-            >
-              <AppIcon name={p.icon} size={15} style={{ display: 'block', margin: '0 auto 3px' }} />
-              {lang === 'en' ? p.labelEn : p.label}<br />
-              <span style={{ fontSize: 8, fontWeight: 500 }}>{t('journey.readingMinLabel', { n: p.readingMinutes }, lang)}</span>
-            </button>
-          ))}
-        </div>
-        {PLANS.filter(p => p.id === 'free').map(p => (
-          <button
-            key={p.id}
-            style={{ ...styles.planBtnFree, ...(session.plan.id === p.id ? styles.planBtnActive : {}) }}
-            onClick={() => onSelectPlan(p.id)}
-          >
-            {lang === 'en' ? p.labelEn : p.label}
-          </button>
-        ))}
-
-        {/* Atalho pra sessão de hoje — mesmo destino do "Continuar sessão"
-            da Home, sem precisar procurar o bloco/livro certo aqui. */}
-        <button style={styles.goToTodayBtn} onClick={() => onContinueSession?.()}>
-          {t('journey.goToToday', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
-        </button>
 
         {/* Conteúdo */}
         <div style={{ padding: '13px 14px 18px', display: 'flex', flexDirection: 'column' }}>
@@ -345,16 +299,7 @@ const styles = {
   heroProgressBar: { position: 'relative', height: 6, background: 'rgba(255,255,255,.15)', borderRadius: 99, overflow: 'hidden', marginBottom: 5 },
   heroProgressFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99 },
   heroProgressLabel:{ position: 'relative', display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'rgba(255,255,255,.55)' },
-  heroStats:       { position: 'relative', display: 'flex', gap: 7, marginTop: 14 },
-  heroStat:        { flex: 1, background: 'rgba(255,255,255,.08)', border: '0.5px solid rgba(255,255,255,.1)', borderRadius: 12, padding: '8px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 2 },
-  heroStatN:       { fontSize: 14, fontWeight: 900, color: 'white', lineHeight: 1, letterSpacing: '-0.5px' },
-  heroStatL:       { fontSize: 8, fontWeight: 500, color: 'rgba(255,255,255,.45)' },
   sheet:           { background: 'var(--white)', borderRadius: '24px 24px 0 0', marginTop: -18, position: 'relative', zIndex: 2, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', flex: 1 },
-  planSel:         { display: 'flex', gap: 5, padding: '11px 14px', margin: '14px 14px 0', background: 'var(--g1)', borderRadius: 13, flexShrink: 0 },
-  planBtn:         { flex: 1, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'white', fontFamily: 'var(--font)', lineHeight: 1.4 },
-  planBtnActive:   { color: 'white', background: 'var(--grad-primary)', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
-  planBtnFree:     { display: 'block', width: 'calc(100% - 28px)', textAlign: 'center', padding: '7px 4px', margin: '7px 14px 0', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  goToTodayBtn:    { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '10px 14px 0', border: 'none', borderRadius: 14, padding: 12, fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-premium)', boxShadow: 'var(--shadow-premium)' },
   testamentSection:{},
   testamentHeader: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 13px', cursor: 'pointer', fontFamily: 'var(--font)' },
   testamentLabel:  { fontSize: 11.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: 0.3, textTransform: 'uppercase' },

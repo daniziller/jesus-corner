@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
+import { computeTotalSessions } from '../utils/progress'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
@@ -16,8 +17,12 @@ import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflect
 const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
-export default function RoutineScreen({ session, onNavigate, onContinueSession, onSelectPlan, onMarkRoutineStep }) {
+export default function RoutineScreen({ session, blocks, onNavigate, onContinueSession, onSelectPlan, onMarkRoutineStep }) {
   const { lang, plan, todayRoutine } = session
+  // Estatísticas do plano de leitura — moradas antigas de JourneyScreen, que
+  // agora só mostra a Bíblia em si (blocos/livros), não mais o plano.
+  const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
+  const totalSessions = computeTotalSessions(blocks)
   const [prayerMinutes, setPrayerMinutesState] = useState(() => getSavedPrayerMinutes() ?? plan.prayerMinutes)
   const [reflectionMinutes, setReflectionMinutesState] = useState(() => getSavedReflectionMinutes() ?? plan.reflectionMinutes)
 
@@ -136,6 +141,16 @@ export default function RoutineScreen({ session, onNavigate, onContinueSession, 
           <span style={styles.sectionCaption}>
             {plan.readingMinutes != null ? t('journey.minPerDay', { n: plan.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
           </span>
+          <div style={styles.readingStatsRow}>
+            <div style={styles.readingStat}>
+              <span style={styles.readingStatN}>{doneSessions}/{totalSessions}</span>
+              <span style={styles.readingStatL}>{t('journey.sessionsStat', undefined, lang)}</span>
+            </div>
+            <div style={styles.readingStat}>
+              <span style={styles.readingStatN}>~{plan.avgChapters}</span>
+              <span style={styles.readingStatL}>{t('journey.chaptersPerSession', undefined, lang)}</span>
+            </div>
+          </div>
         </PickerSection>
 
         {/* Reflexão */}
@@ -196,6 +211,11 @@ const styles = {
   sectionIcon: { width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
   sectionCaption: { display: 'block', marginTop: 8, fontSize: 10, fontWeight: 600, color: 'var(--g4)' },
+
+  readingStatsRow: { display: 'flex', gap: 6, marginTop: 8 },
+  readingStat:     { flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '7px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 1 },
+  readingStatN:    { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
+  readingStatL:    { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)' },
 
   planSel:     { display: 'flex', gap: 6, marginBottom: 6 },
   planBtn:     { flex: 1, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
