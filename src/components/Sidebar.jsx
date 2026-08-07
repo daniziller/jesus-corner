@@ -11,6 +11,11 @@ const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', rout
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-vivid)', border: 'none', boxShadow: 'var(--shadow-glow)' }
 
+// Selo com gradiente da marca pra dar mais destaque à aba principal
+// (Bíblia) — mesma ideia do círculo elevado no BottomNav mobile, só sem
+// a elevação (não faz sentido numa lista vertical).
+const sidebarFeaturedIconWrap = { position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', background: 'var(--grad-vivid)', boxShadow: 'var(--shadow-glow)' }
+
 export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <nav className="sidebar">
@@ -55,8 +60,8 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
               style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
               title={disabled ? tooltip : undefined}
             >
-              <span style={{ position: 'relative', display: 'inline-flex' }}>
-                <AppIcon name={TAB_ICONS[id]} size={featured ? 22 : 18} color={active ? 'var(--or)' : 'var(--g4)'} />
+              <span style={featured ? sidebarFeaturedIconWrap : { position: 'relative', display: 'inline-flex' }}>
+                <AppIcon name={TAB_ICONS[id]} size={featured ? 17 : 18} color={featured ? 'white' : active ? 'var(--or)' : 'var(--g4)'} />
                 {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
               </span>
               <span style={featured ? { fontWeight: 700 } : undefined}>{label}</span>

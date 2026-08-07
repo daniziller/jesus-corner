@@ -31,11 +31,11 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, dis
             aria-label={label}
             style={{ border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 }}
           >
-            <span className="nav-icon" style={{ position: 'relative' }}>
-              <AppIcon name={TAB_ICONS[id]} size={featured ? 26 : 20} color={active ? 'var(--or)' : 'var(--g4)'} />
+            <span className={`nav-icon ${featured ? 'nav-icon-featured' : ''}`} style={{ position: 'relative' }}>
+              <AppIcon name={TAB_ICONS[id]} size={featured ? 22 : 20} color={featured ? 'white' : active ? 'var(--or)' : 'var(--g4)'} />
               {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
             </span>
-            <span className="nav-label">{label}</span>
+            <span className={`nav-label ${featured ? 'nav-label-featured' : ''}`}>{label}</span>
           </button>
         )
       })}

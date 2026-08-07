@@ -214,6 +214,28 @@ html.large-text .app-content-inner {
 .nav-item.active { background: var(--olt); }
 .nav-item.active .nav-label { color: var(--or); font-weight: 700; }
 
+/* Selo elevado com o gradiente da marca — dá mais destaque pra aba
+   principal (Bíblia), tipo um botão flutuante no meio da barra. O fundo
+   translúcido de .nav-item.active fica redundante em cima do círculo
+   colorido, por isso essa aba não usa mais aquele estilo (ver
+   .nav-item.active + .nav-icon-featured abaixo). */
+.nav-icon-featured {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  background: var(--grad-vivid);
+  box-shadow: var(--shadow-glow);
+  margin-top: -16px;
+  border: 3px solid var(--white);
+}
+.nav-label-featured { font-weight: 800 !important; }
+.nav-item.active .nav-label-featured { color: var(--or); }
+/* O círculo já avisa "isso é especial" sozinho — o fundo translúcido de
+   .nav-item.active por baixo dele só faria poluição visual. */
+.nav-item.active:has(.nav-icon-featured) { background: none; }
+
 /* ── Page header ── */
 .page-header {
   padding: 16px 20px 4px;
