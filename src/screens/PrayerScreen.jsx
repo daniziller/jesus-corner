@@ -218,6 +218,12 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
     setSavedPrayerMinutes(minutes)
   }
 
+  // Etapa em destaque no card do relógio — segue openCardId (já reage à
+  // troca de trecho durante o cronômetro, ver tick()); antes de começar,
+  // mostra a 1a etapa como "próxima", pra já indicar por onde vai começar.
+  const currentPhaseIdx = openCardId != null ? ACTS_DATA.findIndex(d => d.id === openCardId) : 0
+  const currentPhase = ACTS_DATA[currentPhaseIdx]
+
   const btnLabel = running ? t('prayer.pause', undefined, lang)
     : remaining === 0 ? t('prayer.done', undefined, lang)
     : elapsed > 0 ? t('prayer.resume', undefined, lang)
@@ -246,6 +252,17 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
             <div style={styles.timer}>
               <span style={styles.timerLabel}>{t('prayer.timerLabel', undefined, lang)}</span>
               <span style={styles.timerDisplay}>{fmt(remaining)}</span>
+
+              {/* Etapa atual do ACTS em destaque — muda sozinha conforme o
+                  cronômetro avança de trecho (mesmo estado que abre o card
+                  correspondente no acordeão logo abaixo). */}
+              <div style={{ ...styles.currentPhaseBadge, borderColor: currentPhase.borderColor }}>
+                <span style={{ ...styles.currentPhaseDot, background: currentPhase.dotColor }}>{currentPhase.letter}</span>
+                <span style={styles.currentPhaseLabel}>
+                  {t('prayer.currentPhase', { n: currentPhaseIdx + 1, total: ACTS_DATA.length }, lang)}
+                  <strong style={{ color: currentPhase.dotColor }}> {currentPhase.title[lang]}</strong>
+                </span>
+              </div>
 
               {/* Duração total — trocar aqui redivide as 4 etapas do ACTS
                   proporcionalmente (ver phaseMinutesFor) e reinicia o cronômetro. */}
@@ -323,6 +340,9 @@ const styles = {
   timer:       { background: '#141414', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
   timerLabel:  { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 2, textTransform: 'uppercase' },
   timerDisplay:{ fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
+  currentPhaseBadge: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', border: '1px solid', borderRadius: 24, padding: '6px 14px 6px 6px' },
+  currentPhaseDot:   { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 },
+  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.6)' },
   timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
   wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
   durationLabel: { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2 },
