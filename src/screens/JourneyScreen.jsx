@@ -12,7 +12,7 @@ function normalizeSearch(str) {
 }
 
 export default function JourneyScreen({
-  session, authUser, blocks, sessionsByBlock, completedSet,
+  session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
   onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, onNavigate,
 }) {
   const { lang } = session
@@ -20,19 +20,24 @@ export default function JourneyScreen({
 
   // Bloco "aberto" (visão de leitura) — null significa visão geral (mapa de
   // blocos). Quando entryMode é 'reading' (ex: botão "Continuar sessão" na
-  // Home), já abre direto no bloco ativo, featurando a mesma sessão exibida
-  // na Home (resumeSessionId), em vez do mapa.
+  // Home/Rotina), já abre direto no bloco ativo, featurando a mesma sessão
+  // do plano exibida lá (resumeSessionId), em vez do mapa — e nesse caso a
+  // leitura mostra a divisão em sessões do plano ("mode" abaixo). Qualquer
+  // outra forma de entrar (busca, tocar num bloco/livro) é navegação livre
+  // pela Bíblia, sem sessão nenhuma — só capítulo a capítulo.
   const [expandedBlockId, setExpandedBlockId] = useState(entryMode === 'reading' ? initialBlockId : null)
   const [initialSessionId, setInitialSessionId] = useState(entryMode === 'reading' ? resumeSessionId : null)
+  const [readingMode, setReadingMode] = useState(entryMode === 'reading' ? 'session' : 'browse')
 
-  // O botão "Ir para a leitura de hoje" chama onContinueSession mesmo com a
-  // tela já montada (usuário já está na aba Leitura Bíblica) — os estados
-  // acima só rodam no useState inicial (na primeira montagem), então esse
-  // efeito cobre a navegação para quem já estava aqui.
+  // O botão "Ir para a leitura de hoje" (Rotina) chama onContinueSession
+  // mesmo com a tela já montada (usuário já está na aba Bíblia) — os
+  // estados acima só rodam no useState inicial (na primeira montagem),
+  // então esse efeito cobre a navegação pra quem já estava aqui.
   useEffect(() => {
     if (entryMode === 'reading') {
       setExpandedBlockId(initialBlockId)
       setInitialSessionId(resumeSessionId)
+      setReadingMode('session')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryMode, initialBlockId, resumeSessionId])
@@ -40,6 +45,7 @@ export default function JourneyScreen({
   function openBlock(blockId, sessionIdToFeature = null) {
     setExpandedBlockId(blockId)
     setInitialSessionId(sessionIdToFeature)
+    setReadingMode('browse')
   }
   function closeBlock() {
     setExpandedBlockId(null)
@@ -47,9 +53,11 @@ export default function JourneyScreen({
   }
 
   // Clicar num livro específico (dentro da descrição de um bloco) pula direto
-  // pra sessão em andamento (ou primeira) daquele livro, já em destaque.
+  // pro primeiro capítulo pendente (ou o 1o) daquele livro, já em destaque —
+  // sempre pela divisão "1 capítulo = 1 sessão" (browseSessionsByBlock),
+  // já que isso é sempre navegação livre, nunca o fluxo guiado da Rotina.
   function openBook(block, bookName) {
-    const sessions = sessionsByBlock[block.id]
+    const sessions = browseSessionsByBlock[block.id]
     const bookSessions = sessions.filter(s => s.book === bookName)
     const target = bookSessions.find(s => sessionKeys(s).some(k => !completedSet.has(k))) ?? bookSessions[0]
     openBlock(block.id, target?.id ?? null)
@@ -63,7 +71,8 @@ export default function JourneyScreen({
         onNavigate={onNavigate}
         blockId={expandedBlockId}
         blocks={blocks}
-        sessionsByBlock={sessionsByBlock}
+        sessionsByBlock={readingMode === 'session' ? sessionsByBlock : browseSessionsByBlock}
+        mode={readingMode}
         completedSet={completedSet}
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}

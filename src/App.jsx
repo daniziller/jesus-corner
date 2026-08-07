@@ -261,6 +261,12 @@ export default function App() {
   }
 
   const { blocks, sessionsByBlock } = useMemo(() => deriveProgress(completedSet, planId), [completedSet, planId])
+  // Sessões "1 capítulo = 1 sessão" (plano Livre), independentes do plano de
+  // leitura ativo — usadas só quando a pessoa está navegando livremente
+  // pela aba Bíblia (fora do fluxo guiado da Rotina), pra mostrar divisão
+  // por capítulo em vez de "Sessão N de X" (ver ReadingBlockView, mode
+  // 'browse'). Só depende de completedSet, nunca de planId.
+  const { sessionsByBlock: browseSessionsByBlock } = useMemo(() => deriveProgress(completedSet, 'free'), [completedSet])
 
   // Bootstrap inicial: verifica se já existe uma sessão do Supabase e, se
   // houver, carrega todo o progresso salvo de uma vez (registrando também o
@@ -633,7 +639,7 @@ export default function App() {
     reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} onMarkRoutineStep={markRoutineStep} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} />,

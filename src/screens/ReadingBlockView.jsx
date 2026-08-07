@@ -9,11 +9,14 @@ import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack }) {
   const { lang } = session
-  // Plano Livre não tem "Sessão N de X" — cada sessão já é 1 capítulo só,
-  // então a numeração de sessão não ajuda em nada, só confunde.
-  const isFreePlan = session.plan.id === 'free'
+  // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
+  // capítulo só) ou navegação livre pela aba Bíblia (mode 'browse' —
+  // JourneyScreen já manda sessionsByBlock com 1 capítulo por sessão nesse
+  // caso, ver App.jsx: browseSessionsByBlock). A divisão em sessões do
+  // plano só aparece mesmo dentro do fluxo guiado da Rotina (mode 'session').
+  const isFreePlan = mode === 'browse' || session.plan.id === 'free'
   const block = blocks.find(b => b.id === blockId) ?? blocks[0]
   const blockName = lang === 'en' ? block.nameEn : block.name
   const sessions = sessionsByBlock[block.id]
@@ -512,7 +515,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>{displayName}</p>
           <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--g4)' }}>
-            {doneCount}/{total} {t('reading.sessionsSuffix', undefined, lang)}{isCurrentBook ? ` · ${t('reading.readingNow', undefined, lang)}` : ''}
+            {doneCount}/{total} {t(isFreePlan ? 'reading.chaptersSuffix' : 'reading.sessionsSuffix', undefined, lang)}{isCurrentBook ? ` · ${t('reading.readingNow', undefined, lang)}` : ''}
           </p>
         </div>
 
