@@ -177,7 +177,7 @@ function GroupsListSection({ groups, lang, onOpen, onCreate }) {
     <div>
       <div className="section-header">
         <h3 className="section-title">{t('groups.myGroupsTitle', undefined, lang)}</h3>
-        <span className="section-link" data-tour="groups-create-button" onClick={() => setCreating(v => !v)}>
+        <span className="section-link" onClick={() => setCreating(v => !v)}>
           {creating ? t('groups.cancel', undefined, lang) : t('groups.createGroup', undefined, lang)}
         </span>
       </div>

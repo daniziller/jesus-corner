@@ -37,12 +37,11 @@ import { t } from './i18n'
 import { getMyActiveChallenges, recordChallengeProgress } from './groups/challengesStore'
 import { getPendingGroupInvitesCount } from './groups/groupsStore'
 import { getPendingFriendRequestsCount } from './friends/friendsStore'
-import { getMyProfile, markTourSeen } from './profile/profileStore'
+import { getMyProfile } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { checkIsAdmin } from './admin/adminStore'
 import { applyPendingInvite } from './invites/inviteStore'
 import { logActivity } from './activity/activityStore'
-import TourController from './tour/TourController'
 
 function avatarInitialsOf(name) {
   const parts = name.trim().split(/\s+/)
@@ -231,10 +230,6 @@ export default function App() {
   // é user_metadata, é a tabela profiles (pensada pra ser visível a amigos).
   // Refletida no Sidebar/AppHeader assim que muda (ver onProfileUpdated).
   const [myAvatarUrl, setMyAvatarUrl] = useState(null)
-  // Tutorial interativo de primeiro acesso (ver src/tour/) — ligado quando
-  // profiles.has_seen_tour vem false do banco (só contas genuinamente
-  // novas, nunca retroativamente — ver supabase/migrations/0013_*.sql).
-  const [tourActive, setTourActive] = useState(false)
   // Desafios de grupo ativos dos quais participo (challengeId + livros do
   // escopo) — usado só pra decidir, ao marcar um capítulo como lido, se
   // ele também conta pro placar de algum desafio (ver toggleSession/
@@ -330,7 +325,6 @@ export default function App() {
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
       setSubscription(finalSubscription)
       setIsAdmin(adminStatus)
-      if (myProfile?.hasSeenTour === false) setTourActive(true)
       setBootstrapped(true)
     }
     bootstrap()
@@ -441,19 +435,6 @@ export default function App() {
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
     setSubscription(finalSubscription)
     setIsAdmin(adminStatus)
-    if (myProfile?.hasSeenTour === false) setTourActive(true)
-  }
-
-  // Pular e concluir persistem do mesmo jeito — é um booleano só, sem
-  // "progresso parcial" pra guardar, então os dois "grudam" na hora (ver
-  // src/tour/ e supabase/migrations/0013_first_login_tour.sql).
-  function handleTourFinish() {
-    markTourSeen()
-    setTourActive(false)
-  }
-  function handleTourSkip() {
-    markTourSeen()
-    setTourActive(false)
   }
 
   // Chamado pelo ProfileScreen depois de salvar uma edição de perfil —
@@ -699,17 +680,6 @@ export default function App() {
         <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} isAdmin={isAdmin} lang={session.lang} />
       </div>
 
-      {/* Tutorial de primeiro acesso — position:fixed cobre a tela toda
-          independente de onde é montado (ver src/tour/) */}
-      {tourActive && (
-        <TourController
-          onNavigate={navigateTo}
-          currentTab={activeTab}
-          onFinish={handleTourFinish}
-          onSkip={handleTourSkip}
-          lang={session.lang}
-        />
-      )}
       <Analytics />
     </div>
   )

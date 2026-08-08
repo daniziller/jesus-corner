@@ -12,7 +12,7 @@ const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', rout
 export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], isAdmin = false, lang }) {
   const tabIds = isAdmin ? [...TAB_IDS, 'admin'] : TAB_IDS
   return (
-    <nav className="bottom-nav" data-tour="nav-tabs">
+    <nav className="bottom-nav">
       {tabIds.map(id => {
         // Passa lang explícito (vem de session.lang, que já atualiza na hora
         // ao trocar idioma) em vez de deixar t() cair no fallback

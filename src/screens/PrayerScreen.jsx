@@ -236,7 +236,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
       <div className="page-header"><h1 className="page-title">{t('prayer.pageTitle', undefined, lang)}</h1></div>
 
       {/* Hero */}
-      <div style={styles.hero} data-tour="prayer-acts-card">
+      <div style={styles.hero}>
         <div style={styles.heroOrbBlue} />
         <div style={styles.heroOrbPink} />
         <span style={{ position: 'relative', marginBottom: 5 }}><AppIcon name="HandHeart" size={30} color="white" /></span>

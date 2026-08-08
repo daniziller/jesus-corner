@@ -60,7 +60,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
         <p style={styles.heroSub}>{t('routine.heroSub', undefined, lang)}</p>
 
         {/* Total do dia */}
-        <div style={styles.hero} data-tour="routine-hero">
+        <div style={styles.hero}>
           <div style={styles.heroOrb} />
           <span style={{ position: 'relative', ...styles.heroTotal }}>
             {totalMinutes}<span style={styles.heroTotalUnit}> min</span>
@@ -167,7 +167,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
               já mostra (ver App.jsx), só que aqui dentro da aba Rotina, que
               agora concentra tudo sobre o plano de leitura. O botão leva
               direto pra tela de leitura (mesmo onContinueSession da Home). */}
-          <div style={styles.todaySessionCard} data-tour="routine-today-session">
+          <div style={styles.todaySessionCard}>
             <div style={styles.todaySessionBadge}>
               <span style={styles.todaySessionDot} />
               <span style={styles.todaySessionBlock}>{todaySession.block}</span>

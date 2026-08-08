@@ -103,7 +103,7 @@ export default function JourneyScreen({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingBottom: 83 }}>
 
       {/* Hero */}
-      <div style={styles.hero} data-tour="journey-hero">
+      <div style={styles.hero}>
         <div style={styles.heroOrbOrange} />
         <div style={styles.heroOrbPink} />
         <p style={styles.heroLabel}>{t('journey.heroLabel', undefined, lang)}</p>

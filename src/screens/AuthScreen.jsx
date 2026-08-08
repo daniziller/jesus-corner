@@ -4,11 +4,19 @@ import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
 import AppIcon from '../icons/AppIcon'
+import { PLANS } from '../data/bibleBlocks'
+import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
+import { setSelectedPlanId } from '../plan/planStore'
+import { setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
+import { setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { STORE_TIERS } from '../billing/storeTiers'
+import { formatAmount } from '../billing/formatAmount'
+import { startCheckout } from '../billing/subscriptionStore'
+import { redeemInviteCode } from '../invites/inviteStore'
 
 // Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
-// o app veria a tela de boas-vindas (pensada pra convencer gente nova a se
-// cadastrar) toda vez que a sessão expirasse, em vez de cair direto no
-// login.
+// o app veria o onboarding (pensado pra converter visitante novo) toda vez
+// que a sessão expirasse, em vez de cair direto no login.
 const HAS_AUTH_KEY = 'jc_has_authenticated'
 
 // Data de hoje em 'YYYY-MM-DD' (formato nativo do <input type="date">) — usada
@@ -18,16 +26,17 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
+const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
+const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
+const STANDARD_PLAN = PLANS.find(p => p.id === 'standard')
+
 export default function AuthScreen({ onAuthenticated }) {
-  // Quem nunca autenticou nesse navegador vê a tela de boas-vindas primeiro
-  // (pensada pra converter visitante novo); quem já tem o flag cai direto
-  // no login, como antes.
+  // Quem nunca autenticou nesse navegador vê o onboarding primeiro (pensado
+  // pra converter visitante novo); quem já tem o flag cai direto no login,
+  // como antes.
   const [mode, setMode] = useState(() => (
-    typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'welcome'
-  )) // 'welcome' | 'tutorial' | 'login' | 'signup' | 'forgot'
-  // Qual dos 3 passos (oração/leitura/reflexão) a pessoa tocou na tela de
-  // boas-vindas — decide o conteúdo exibido em 'tutorial'.
-  const [tutorialStep, setTutorialStep] = useState('prayer')
+    typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'onboarding'
+  )) // 'onboarding' | 'login' | 'forgot'
 
   function handleAuthenticated(user) {
     if (typeof localStorage !== 'undefined') localStorage.setItem(HAS_AUTH_KEY, '1')
@@ -45,164 +54,133 @@ export default function AuthScreen({ onAuthenticated }) {
       </div>
 
       <div className="auth-sheet" style={styles.sheet}>
-        {mode === 'welcome' && <WelcomeView onGoSignup={() => setMode('signup')} onGoLogin={() => setMode('login')} onSelectStep={key => { setTutorialStep(key); setMode('tutorial') }} />}
-        {mode === 'tutorial' && <TutorialView stepKey={tutorialStep} onGoSignup={() => setMode('signup')} onGoLogin={() => setMode('login')} onBack={() => setMode('welcome')} />}
-        {mode === 'login'  && <LoginView    onAuthenticated={handleAuthenticated} onGoSignup={() => setMode('signup')} onGoForgot={() => setMode('forgot')} />}
-        {mode === 'signup' && <SignupView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
+        {mode === 'onboarding' && <OnboardingWizard onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
+        {mode === 'login'  && <LoginView    onAuthenticated={handleAuthenticated} onGoSignup={() => setMode('onboarding')} onGoForgot={() => setMode('forgot')} />}
         {mode === 'forgot' && <ForgotView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
       </div>
     </div>
   )
 }
 
-/* ── Boas-vindas (primeiro acesso) ── */
-function WelcomeView({ onGoSignup, onGoLogin, onSelectStep }) {
-  const steps = [
-    { key: 'prayer', icon: 'HandHeart', label: t('auth.welcomeStepPrayer'), preview: t('auth.welcomePreviewPrayer') },
-    { key: 'reading', icon: 'BookOpen', label: t('auth.welcomeStepReading'), preview: t('auth.welcomePreviewReading') },
-    { key: 'reflection', icon: 'PenLine', label: t('auth.welcomeStepReflection'), preview: t('auth.welcomePreviewReflection') },
-  ]
-
-  // Passo em destaque no momento — troca sozinho, dando uma prévia de como
-  // o app funciona sem precisar tocar em nada. Some com prefers-reduced-motion
-  // (fica parado no primeiro passo, mas continua tocável).
-  const reducedMotion = useRef(
-    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  ).current
-  const [activeIndex, setActiveIndex] = useState(0)
-
-  useEffect(() => {
-    if (reducedMotion) return
-    const id = setInterval(() => setActiveIndex(i => (i + 1) % steps.length), 2600)
-    return () => clearInterval(id)
-  }, [reducedMotion, steps.length])
-
-  const active = steps[activeIndex]
-  const chipTransition = reducedMotion ? 'none' : 'all .5s cubic-bezier(.2,.8,.2,1)'
-
-  function selectStep(i) {
-    setActiveIndex(i)
-    onSelectStep(steps[i].key)
-  }
-
+/* ── Cabeçalho comum de cada etapa (voltar + "passo X de 7") ── */
+function StepHeader({ step, total, onBack }) {
   return (
-    <div style={styles.form}>
-      <h1 className="welcome-fade-up" style={{ ...styles.title, fontSize: 26, animationDelay: '.05s' }}>
-        {t('auth.welcomeTitle')}
-      </h1>
-      <p className="welcome-fade-up" style={{ ...styles.subtitle, animationDelay: '.15s' }}>
-        {t('auth.welcomeSubtitle')}
-      </p>
-
-      <div className="welcome-fade-up" style={{ ...styles.welcomeStepsRow, animationDelay: '.28s' }}>
-        {steps.map((step, i) => {
-          const isActive = i === activeIndex
-          return (
-            <div
-              key={step.key}
-              style={{
-                ...styles.welcomeStep,
-                cursor: 'pointer',
-                transition: chipTransition,
-                background: isActive ? 'var(--grad-vivid)' : 'var(--g1)',
-                color: isActive ? '#fff' : 'var(--g5)',
-                boxShadow: isActive ? 'var(--shadow-glow)' : 'none',
-                transform: isActive ? 'scale(1.06)' : 'scale(1)',
-              }}
-              onClick={() => selectStep(i)}
-            >
-              <AppIcon name={step.icon} size={18} color="currentColor" />
-              <span style={styles.welcomeStepLabel}>{step.label}</span>
-            </div>
-          )
-        })}
-      </div>
-
-      <div
-        className="welcome-fade-up"
-        style={{ ...styles.welcomePreview, animationDelay: '.34s', cursor: 'pointer' }}
-        onClick={() => onSelectStep(active.key)}
-      >
-        <div style={styles.welcomePreviewIcon}>
-          <AppIcon name={active.icon} size={17} color="var(--or)" />
-        </div>
-        <p key={active.key} className={reducedMotion ? '' : 'welcome-preview-fade'} style={styles.welcomePreviewText}>
-          {active.preview}
-        </p>
-      </div>
-
-      <div className="welcome-fade-up" style={{ ...styles.welcomeDotsRow, animationDelay: '.38s' }}>
-        {steps.map((step, i) => (
-          <span
-            key={step.key}
-            style={{ ...styles.welcomeDot, background: i === activeIndex ? 'var(--or)' : 'var(--g2)', transition: chipTransition }}
-          />
-        ))}
-      </div>
-
-      <div className="welcome-fade-up" style={{ marginTop: 10, animationDelay: '.4s' }}>
-        <button type="button" className="btn-primary welcome-cta-pulse" onClick={onGoSignup}>
-          {t('auth.welcomeCreateAccount')}
-        </button>
-      </div>
-
-      <div className="welcome-fade-up" style={{ ...styles.linksRow, justifyContent: 'center', animationDelay: '.5s' }}>
-        <span style={styles.link} onClick={onGoLogin}>{t('auth.welcomeAlreadyHaveAccount')}</span>
-      </div>
+    <div style={styles.stepHeader}>
+      <span style={{ ...styles.link, display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={onBack}>
+        <AppIcon name="ArrowLeft" size={14} color="currentColor" /> {t('onboarding.back')}
+      </span>
+      <span style={styles.stepCounter}>{t('onboarding.stepCounter', { step, total })}</span>
     </div>
   )
 }
 
-/* ── Tutorial (tocou num dos 3 passos na tela de boas-vindas) ── */
-function TutorialView({ stepKey, onGoSignup, onGoLogin, onBack }) {
-  const content = {
-    prayer: {
-      icon: 'HandHeart',
-      title: t('auth.tutorialPrayerTitle'),
-      desc: t('auth.tutorialPrayerDesc'),
-      highlights: [t('auth.tutorialPrayerHighlight1'), t('auth.tutorialPrayerHighlight2'), t('auth.tutorialPrayerHighlight3')],
-    },
-    reading: {
-      icon: 'BookOpen',
-      title: t('auth.tutorialReadingTitle'),
-      desc: t('auth.tutorialReadingDesc'),
-      highlights: [t('auth.tutorialReadingHighlight1'), t('auth.tutorialReadingHighlight2'), t('auth.tutorialReadingHighlight3')],
-    },
-    reflection: {
-      icon: 'PenLine',
-      title: t('auth.tutorialReflectionTitle'),
-      desc: t('auth.tutorialReflectionDesc'),
-      highlights: [t('auth.tutorialReflectionHighlight1'), t('auth.tutorialReflectionHighlight2'), t('auth.tutorialReflectionHighlight3')],
-    },
-  }[stepKey]
+/* ── Onboarding de primeiro acesso (substitui a antiga tela de boas-vindas + o tour) ── */
+function OnboardingWizard({ onAuthenticated, onGoLogin }) {
+  const [step, setStep] = useState('name') // 'name' | 'features' | 'prayerTime' | 'readingPlan' | 'reflectionTime' | 'preview' | 'signup'
+  const [name, setName] = useState('')
+  const [prayerMinutes, setPrayerMinutes] = useState(STANDARD_PLAN.prayerMinutes)
+  const [planId, setPlanId] = useState('standard')
+  const [reflectionMinutes, setReflectionMinutes] = useState(STANDARD_PLAN.reflectionMinutes)
 
+  const STEPS = ['name', 'features', 'prayerTime', 'readingPlan', 'reflectionTime', 'preview', 'signup']
+  const stepNum = STEPS.indexOf(step) + 1
+
+  function goTo(next) { setStep(next) }
+
+  if (step === 'name') {
+    return (
+      <NameStep
+        name={name}
+        setName={setName}
+        onNext={() => goTo('features')}
+        onGoLogin={onGoLogin}
+      />
+    )
+  }
+  if (step === 'features') {
+    return (
+      <FeaturesStep
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('name')} />}
+        onNext={() => goTo('prayerTime')}
+      />
+    )
+  }
+  if (step === 'prayerTime') {
+    return (
+      <DurationStep
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('features')} />}
+        icon="HandHeart"
+        color={ROUTINE_STEP_COLORS.prayer}
+        title={t('onboarding.prayerTime.title')}
+        subtitle={t('onboarding.prayerTime.subtitle')}
+        options={PRAYER_DURATION_OPTIONS}
+        value={prayerMinutes}
+        onChange={setPrayerMinutes}
+        onNext={() => goTo('readingPlan')}
+      />
+    )
+  }
+  if (step === 'readingPlan') {
+    return (
+      <ReadingPlanStep
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('prayerTime')} />}
+        planId={planId}
+        setPlanId={setPlanId}
+        onNext={() => goTo('reflectionTime')}
+      />
+    )
+  }
+  if (step === 'reflectionTime') {
+    return (
+      <DurationStep
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('readingPlan')} />}
+        icon="PenLine"
+        color={ROUTINE_STEP_COLORS.reflection}
+        title={t('onboarding.reflectionTime.title')}
+        subtitle={t('onboarding.reflectionTime.subtitle')}
+        options={REFLECTION_DURATION_OPTIONS}
+        value={reflectionMinutes}
+        onChange={setReflectionMinutes}
+        onNext={() => goTo('preview')}
+      />
+    )
+  }
+  if (step === 'preview') {
+    return (
+      <PreviewStep
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('reflectionTime')} />}
+        prayerMinutes={prayerMinutes}
+        planId={planId}
+        reflectionMinutes={reflectionMinutes}
+        onNext={() => goTo('signup')}
+      />
+    )
+  }
+  return (
+    <SignupStep
+      header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('preview')} />}
+      name={name}
+      prayerMinutes={prayerMinutes}
+      planId={planId}
+      reflectionMinutes={reflectionMinutes}
+      onAuthenticated={onAuthenticated}
+      onGoLogin={onGoLogin}
+    />
+  )
+}
+
+/* ── 1. Nome ── */
+function NameStep({ name, setName, onNext, onGoLogin }) {
   return (
     <div style={styles.form}>
-      <span style={{ ...styles.link, display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={onBack}>
-        <AppIcon name="ArrowLeft" size={14} color="currentColor" /> {t('auth.tutorialBack')}
-      </span>
+      <h1 style={{ ...styles.title, fontSize: 26 }}>{t('onboarding.name.title')}</h1>
+      <p style={styles.subtitle}>{t('onboarding.name.subtitle')}</p>
 
-      <div style={styles.tutorialIconWrap}>
-        <AppIcon name={content.icon} size={26} color="var(--or)" />
-      </div>
+      <Field label={t('auth.nameLabel')} value={name} onChange={setName} placeholder={t('auth.namePlaceholder')} autoFocus />
 
-      <h1 style={{ ...styles.title, fontSize: 24 }}>{content.title}</h1>
-      <p style={styles.subtitle}>{content.desc}</p>
-
-      <div style={styles.tutorialHighlights}>
-        {content.highlights.map((line, i) => (
-          <div key={i} style={styles.tutorialHighlightRow}>
-            <div style={styles.tutorialCheckDot}>
-              <AppIcon name="Check" size={12} color="#fff" />
-            </div>
-            <span style={styles.tutorialHighlightText}>{line}</span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <button type="button" className="btn-primary" onClick={onGoSignup}>
-          {t('auth.welcomeCreateAccount')}
+      <div style={{ marginTop: 4 }}>
+        <button type="button" className="btn-primary" disabled={!name.trim()} onClick={onNext}>
+          {t('onboarding.continueBtn')}
         </button>
       </div>
 
@@ -210,6 +188,361 @@ function TutorialView({ stepKey, onGoSignup, onGoLogin, onBack }) {
         <span style={styles.link} onClick={onGoLogin}>{t('auth.welcomeAlreadyHaveAccount')}</span>
       </div>
     </div>
+  )
+}
+
+/* ── 2. Boas-vindas + recursos (screenshots) ── */
+function FeaturesStep({ header, onNext }) {
+  const lang = getAppLanguage() ?? 'pt'
+  const suffix = lang === 'en' ? '-en' : ''
+  const cards = [
+    { key: 'prayer', icon: 'HandHeart', img: `/onboarding/oracao${suffix}.png` },
+    { key: 'reading', icon: 'BookOpen', img: `/onboarding/leitura${suffix}.png` },
+    { key: 'reflection', icon: 'PenLine', img: `/onboarding/reflexao${suffix}.png` },
+    { key: 'progress', icon: 'BarChart3', img: `/onboarding/progresso${suffix}.png` },
+  ]
+
+  const reducedMotion = useRef(
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  ).current
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => {
+    if (reducedMotion) return
+    const id = setInterval(() => setActiveIndex(i => (i + 1) % cards.length), 3400)
+    return () => clearInterval(id)
+  }, [reducedMotion, cards.length])
+
+  const active = cards[activeIndex]
+
+  return (
+    <div style={styles.form}>
+      {header}
+      <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.features.title')}</h1>
+      <p style={styles.subtitle}>{t('onboarding.features.subtitle')}</p>
+
+      <div style={styles.featureCard}>
+        <img src={active.img} alt="" style={styles.featureCardImg} />
+        <div style={styles.featureCardIconWrap}>
+          <AppIcon name={active.icon} size={16} color="var(--or)" />
+        </div>
+        <p style={styles.featureCardTitle}>{t(`onboarding.features.${active.key}.title`)}</p>
+        <p style={styles.featureCardDesc}>{t(`onboarding.features.${active.key}.desc`)}</p>
+      </div>
+
+      <div style={styles.welcomeDotsRow}>
+        {cards.map((card, i) => (
+          <span
+            key={card.key}
+            style={{ ...styles.welcomeDot, background: i === activeIndex ? 'var(--or)' : 'var(--g2)', cursor: 'pointer' }}
+            onClick={() => setActiveIndex(i)}
+          />
+        ))}
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.continueBtn')}</button>
+      </div>
+    </div>
+  )
+}
+
+/* ── 3 e 5. Tempo de oração / reflexão (mesmo padrão visual de RoutineScreen.jsx) ── */
+function DurationStep({ header, icon, color, title, subtitle, options, value, onChange, onNext }) {
+  return (
+    <div style={styles.form}>
+      {header}
+      <div style={{ ...styles.tutorialIconWrap, background: `${color}1A` }}>
+        <AppIcon name={icon} size={22} color={color} />
+      </div>
+      <h1 style={{ ...styles.title, fontSize: 24 }}>{title}</h1>
+      <p style={styles.subtitle}>{subtitle}</p>
+
+      <div style={styles.durationSel}>
+        {options.map(n => (
+          <button
+            key={n}
+            type="button"
+            style={{ ...styles.durationBtn, ...(n === value ? { ...styles.durationBtnActive, background: color } : {}) }}
+            onClick={() => onChange(n)}
+          >
+            <span style={styles.durationBtnNum}>{n}</span>
+            <span style={styles.durationBtnUnit}>{t('routine.min')}</span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.continueBtn')}</button>
+      </div>
+    </div>
+  )
+}
+
+/* ── 4. Plano/tempo de leitura (mesmo padrão visual de RoutineScreen.jsx) ── */
+function ReadingPlanStep({ header, planId, setPlanId, onNext }) {
+  const lang = getAppLanguage() ?? 'pt'
+  return (
+    <div style={styles.form}>
+      {header}
+      <div style={{ ...styles.tutorialIconWrap, background: `${ROUTINE_STEP_COLORS.reading}1A` }}>
+        <AppIcon name="BookOpen" size={22} color={ROUTINE_STEP_COLORS.reading} />
+      </div>
+      <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.readingPlan.title')}</h1>
+      <p style={styles.subtitle}>{t('onboarding.readingPlan.subtitle')}</p>
+
+      <div style={styles.planSel}>
+        {PLANS.filter(p => p.id !== 'free').map(p => (
+          <button
+            key={p.id}
+            type="button"
+            style={{ ...styles.planBtn, ...(planId === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
+            onClick={() => setPlanId(p.id)}
+          >
+            {lang === 'en' ? p.labelEn : p.label}
+          </button>
+        ))}
+      </div>
+      {PLANS.filter(p => p.id === 'free').map(p => (
+        <button
+          key={p.id}
+          type="button"
+          style={{ ...styles.planBtnFree, ...(planId === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
+          onClick={() => setPlanId(p.id)}
+        >
+          {lang === 'en' ? p.labelEn : p.label}
+        </button>
+      ))}
+      <span style={styles.sectionCaption}>
+        {PLANS.find(p => p.id === planId).readingMinutes != null
+          ? t('journey.minPerDay', { n: PLANS.find(p => p.id === planId).readingMinutes })
+          : t('journey.noTimeTarget')}
+      </span>
+
+      <div style={{ marginTop: 8 }}>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.continueBtn')}</button>
+      </div>
+    </div>
+  )
+}
+
+/* ── 6. Prévia da rotina completa ── */
+function PreviewStep({ header, prayerMinutes, planId, reflectionMinutes, onNext }) {
+  const lang = getAppLanguage() ?? 'pt'
+  const plan = PLANS.find(p => p.id === planId)
+  const totalMinutes = prayerMinutes + reflectionMinutes + (plan.readingMinutes ?? 0)
+  const minLabel = n => `${n} ${t('routine.min')}`
+  const rows = [
+    { key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer, label: t('home.routinePrayer'), value: minLabel(prayerMinutes) },
+    { key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading, label: lang === 'en' ? plan.labelEn : plan.label, value: plan.readingMinutes != null ? minLabel(plan.readingMinutes) : t('journey.noTimeTarget') },
+    { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection, label: t('home.routineReflection'), value: minLabel(reflectionMinutes) },
+  ]
+
+  return (
+    <div style={styles.form}>
+      {header}
+      <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.preview.title')}</h1>
+      <p style={styles.subtitle}>{t('onboarding.preview.subtitle')}</p>
+
+      <div style={styles.previewCard}>
+        {rows.map(r => (
+          <div key={r.key} style={styles.previewRow}>
+            <div style={{ ...styles.previewIcon, background: `${r.color}1A` }}>
+              <AppIcon name={r.icon} size={16} color={r.color} />
+            </div>
+            <span style={styles.previewLabel}>{r.label}</span>
+            <span style={styles.previewValue}>{r.value}</span>
+          </div>
+        ))}
+        <div style={styles.previewTotalRow}>
+          <span style={styles.previewTotalLabel}>{t('onboarding.preview.total')}</span>
+          <span style={styles.previewTotalValue}>{minLabel(totalMinutes)}</span>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.preview.continueBtn')}</button>
+      </div>
+    </div>
+  )
+}
+
+const CHECKLIST_ITEMS = [
+  { icon: 'BookOpen', key: 'reading' },
+  { icon: 'HandHeart', key: 'prayer' },
+  { icon: 'PenLine', key: 'reflection' },
+  { icon: 'ClipboardList', key: 'routine' },
+  { icon: 'GraduationCap', key: 'studies' },
+  { icon: 'Users', key: 'community' },
+  { icon: 'BarChart3', key: 'progress' },
+]
+
+/* ── 7. Cadastro: checklist de recursos + conta + plano + código de convite ── */
+function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, onAuthenticated, onGoLogin }) {
+  const [email, setEmail]         = useState('')
+  const [birthdate, setBirthdate] = useState('')
+  const [password, setPassword]   = useState('')
+  const [confirm, setConfirm]     = useState('')
+  const [isPublic, setIsPublic]   = useState(true)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [currency, setCurrency]   = useState('brl')
+  const [billingMode, setBillingMode] = useState('monthly')
+  const [inviteCode, setInviteCode] = useState('')
+  const [error, setError]         = useState('')
+  const [loading, setLoading]     = useState(false)
+  const lang = getAppLanguage() ?? 'pt'
+  const [confirmationEmail, setConfirmationEmail] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/geo').then(res => res.json()).then(({ country }) => {
+      if (!cancelled && country && country !== 'BR') setCurrency('usd')
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  const tier = STORE_TIERS[billingMode]
+  const amountCents = Math.round(tier[currency] * 100)
+
+  async function submit(e) {
+    e.preventDefault()
+    if (password !== confirm) { setError(t('auth.passwordsDontMatch')); return }
+    if (!agreedToTerms) { setError(t('auth.mustAgreeToTerms')); return }
+    setLoading(true)
+    try {
+      const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
+      setError('')
+      if (user.needsEmailConfirmation) {
+        setConfirmationEmail(user.email)
+        setLoading(false)
+        return
+      }
+
+      // Persiste as escolhas do onboarding — plano no backend (precisa de
+      // sessão, por isso só agora), tempos de oração/reflexão são só
+      // localStorage (ver src/prayer/prayerDurationStore.js).
+      setSelectedPlanId(user.email, planId).catch(() => {})
+      setSavedPrayerMinutes(prayerMinutes)
+      setSavedReflectionMinutes(reflectionMinutes)
+
+      // Entra no app na hora — se o checkout abaixo falhar por qualquer
+      // motivo, a pessoa já está logada e cai no PaywallGate normal, onde
+      // consegue escolher o plano de novo (ver App.jsx).
+      onAuthenticated(user)
+
+      const trimmedCode = inviteCode.trim()
+      if (trimmedCode) {
+        try {
+          const { applied } = await redeemInviteCode(trimmedCode)
+          if (applied === 'free') return
+        } catch {
+          // Código inválido não deve travar o cadastro — segue pro checkout normal.
+        }
+      }
+      const url = await startCheckout({ interval: billingMode === 'annual' ? 'year' : 'month', currency })
+      window.location.href = url
+    } catch (err) {
+      setError(err.message)
+      setLoading(false)
+    }
+  }
+
+  if (confirmationEmail) {
+    return (
+      <ConfirmEmailView email={confirmationEmail} onGoLogin={onGoLogin} />
+    )
+  }
+
+  return (
+    <form style={styles.form} onSubmit={submit}>
+      {header}
+      <h1 style={styles.title}>{t('auth.signupTitle')}</h1>
+      <p style={styles.subtitle}>{t('auth.signupSubtitle')}</p>
+
+      <div style={styles.checklistCard}>
+        {CHECKLIST_ITEMS.map(item => (
+          <div key={item.key} style={styles.checklistRow}>
+            <AppIcon name={item.icon} size={15} color="var(--or)" />
+            <span style={styles.checklistText}>{t(`onboarding.checklist.${item.key}`)}</span>
+            <AppIcon name="Check" size={14} color="var(--gr)" />
+          </div>
+        ))}
+      </div>
+
+      <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
+      <Field label={t('auth.birthdateLabel')} type="date" value={birthdate} onChange={setBirthdate} max={todayISO()} />
+      <PinField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} />
+      <PinField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} />
+
+      <div style={styles.publicToggleRow}>
+        <div style={{ flex: 1 }}>
+          <p style={styles.publicToggleLabel}>{t('auth.publicProfileLabel')}</p>
+          <p style={styles.publicToggleSub}>{t('auth.publicProfileSub')}</p>
+        </div>
+        <div
+          className={`toggle ${isPublic ? '' : 'off'}`}
+          onClick={() => setIsPublic(v => !v)}
+          role="switch"
+          aria-checked={isPublic}
+        >
+          <div className="toggle-thumb" />
+        </div>
+      </div>
+
+      <div style={styles.planPickerCard}>
+        <p style={styles.publicToggleLabel}>{t('onboarding.plan.label')}</p>
+        <div style={styles.currencyToggle}>
+          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'brl' ? styles.currencyBtnActive : {}) }} onClick={() => setCurrency('brl')}>R$</button>
+          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'usd' ? styles.currencyBtnActive : {}) }} onClick={() => setCurrency('usd')}>US$</button>
+        </div>
+        <div style={styles.modeToggle}>
+          <button type="button" style={{ ...styles.modeBtn, ...(billingMode === 'monthly' ? styles.modeBtnActive : {}) }} onClick={() => setBillingMode('monthly')}>{t('billing.modeMonthly')}</button>
+          <button type="button" style={{ ...styles.modeBtn, ...(billingMode === 'annual' ? styles.modeBtnActive : {}) }} onClick={() => setBillingMode('annual')}>{t('billing.modeAnnual')}</button>
+        </div>
+        <p style={styles.fixedPrice}>
+          {formatAmount(amountCents, currency)}
+          <span style={styles.fixedPriceUnit}>{t(billingMode === 'annual' ? 'billing.perYear' : 'billing.perMonth')}</span>
+        </p>
+      </div>
+
+      <label style={styles.fieldWrap}>
+        <span style={styles.fieldLabel}>{t('onboarding.inviteCodeLabel')}</span>
+        <input
+          style={{ ...styles.input, textTransform: 'uppercase', letterSpacing: 2 }}
+          type="text"
+          value={inviteCode}
+          onChange={e => setInviteCode(e.target.value)}
+          placeholder={t('onboarding.inviteCodePlaceholder')}
+        />
+      </label>
+
+      <div style={styles.agreeRow}>
+        <input
+          type="checkbox"
+          style={styles.agreeCheckbox}
+          checked={agreedToTerms}
+          onChange={e => setAgreedToTerms(e.target.checked)}
+        />
+        <span style={styles.agreeText}>
+          {t('auth.agreeToTermsPrefix')}
+          <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.termsLabel')}</a>
+          {t('auth.agreeToTermsMiddle')}
+          <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.privacyLabel')}</a>
+          {t('auth.agreeToTermsSuffix')}
+        </span>
+      </div>
+
+      {error && <p style={styles.error}>{error}</p>}
+
+      <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading || !agreedToTerms}>
+        {loading ? t('auth.loading') : t('onboarding.signupBtn', { amount: formatAmount(amountCents, currency) })}
+      </button>
+
+      <div style={styles.linksRow}>
+        <span />
+        <span style={styles.link} onClick={onGoLogin}>{t('auth.alreadyHaveAccount')}</span>
+      </div>
+    </form>
   )
 }
 
@@ -249,118 +582,6 @@ function LoginView({ onAuthenticated, onGoSignup, onGoForgot }) {
       <div style={styles.linksRow}>
         <span style={styles.link} onClick={onGoForgot}>{t('auth.forgotPassword')}</span>
         <span style={styles.link} onClick={onGoSignup}>{t('auth.createAccount')}</span>
-      </div>
-    </form>
-  )
-}
-
-/* ── Cadastro ── */
-function SignupView({ onAuthenticated, onGoLogin }) {
-  const [name, setName]           = useState('')
-  const [email, setEmail]         = useState('')
-  const [birthdate, setBirthdate] = useState('')
-  const [password, setPassword]   = useState('')
-  const [confirm, setConfirm]     = useState('')
-  // Decisão de privacidade pedida já no cadastro (ajustável depois em
-  // Perfil) — perfil público libera progresso/estudo atual/grupos pros
-  // amigos; nome/foto/mensagem já ficam visíveis pra amigos de qualquer
-  // forma (ver GroupsScreen.FriendProfilePanel). Público por padrão — a
-  // pessoa desativa se preferir manter privado.
-  const [isPublic, setIsPublic]   = useState(true)
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
-  const [error, setError]         = useState('')
-  const [loading, setLoading]     = useState(false)
-  // Mesmo idioma que será gravado na conta (ver chamada de signup() abaixo)
-  // — os links dos termos/privacidade abrem nesse idioma.
-  const lang = getAppLanguage() ?? 'pt'
-  // Preenchido só quando o projeto exige confirmação de email — nesse caso a
-  // conta foi criada mas ainda não existe sessão, então não dá pra tratar
-  // como logado (ver needsEmailConfirmation em authStore.signup).
-  const [confirmationEmail, setConfirmationEmail] = useState(null)
-
-  async function submit(e) {
-    e.preventDefault()
-    if (password !== confirm) {
-      setError(t('auth.passwordsDontMatch'))
-      return
-    }
-    if (!agreedToTerms) {
-      setError(t('auth.mustAgreeToTerms'))
-      return
-    }
-    setLoading(true)
-    try {
-      // O idioma já foi escolhido na tela inicial do app (ver LanguageSelectScreen);
-      // a conta nasce nesse mesmo idioma, ajustável depois no Perfil.
-      const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
-      setError('')
-      if (user.needsEmailConfirmation) {
-        setConfirmationEmail(user.email)
-      } else {
-        onAuthenticated(user)
-      }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (confirmationEmail) {
-    return (
-      <ConfirmEmailView email={confirmationEmail} onGoLogin={onGoLogin} />
-    )
-  }
-
-  return (
-    <form style={styles.form} onSubmit={submit}>
-      <h1 style={styles.title}>{t('auth.signupTitle')}</h1>
-      <p style={styles.subtitle}>{t('auth.signupSubtitle')}</p>
-
-      <Field label={t('auth.nameLabel')} value={name} onChange={setName} placeholder={t('auth.namePlaceholder')} autoFocus />
-      <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
-      <Field label={t('auth.birthdateLabel')} type="date" value={birthdate} onChange={setBirthdate} max={todayISO()} />
-      <PinField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} />
-      <PinField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} />
-
-      <div style={styles.publicToggleRow}>
-        <div style={{ flex: 1 }}>
-          <p style={styles.publicToggleLabel}>{t('auth.publicProfileLabel')}</p>
-          <p style={styles.publicToggleSub}>{t('auth.publicProfileSub')}</p>
-        </div>
-        <div
-          className={`toggle ${isPublic ? '' : 'off'}`}
-          onClick={() => setIsPublic(v => !v)}
-          role="switch"
-          aria-checked={isPublic}
-        >
-          <div className="toggle-thumb" />
-        </div>
-      </div>
-
-      <div style={styles.agreeRow}>
-        <input
-          type="checkbox"
-          style={styles.agreeCheckbox}
-          checked={agreedToTerms}
-          onChange={e => setAgreedToTerms(e.target.checked)}
-        />
-        <span style={styles.agreeText}>
-          {t('auth.agreeToTermsPrefix')}
-          <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.termsLabel')}</a>
-          {t('auth.agreeToTermsMiddle')}
-          <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.privacyLabel')}</a>
-          {t('auth.agreeToTermsSuffix')}
-        </span>
-      </div>
-
-      {error && <p style={styles.error}>{error}</p>}
-
-      <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading || !agreedToTerms}>{loading ? t('auth.loading') : t('auth.submitSignup')}</button>
-
-      <div style={styles.linksRow}>
-        <span />
-        <span style={styles.link} onClick={onGoLogin}>{t('auth.alreadyHaveAccount')}</span>
       </div>
     </form>
   )
@@ -572,17 +793,44 @@ const styles = {
   agreeCheckbox: { width: 16, height: 16, marginTop: 1, flexShrink: 0, accentColor: 'var(--or)', cursor: 'pointer' },
   agreeText:     { fontSize: 13.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   agreeLink:     { color: 'var(--or)', fontWeight: 700, textDecoration: 'none' },
-  welcomeStepsRow:   { display: 'flex', gap: 8, margin: '6px 0 2px' },
-  welcomeStep:       { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 6px', borderRadius: 12, border: '0.5px solid var(--g2)' },
-  welcomeStepLabel:  { fontSize: 12, fontWeight: 700 },
-  welcomePreview:     { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '11px 13px', marginTop: 2 },
-  welcomePreviewIcon: { width: 34, height: 34, borderRadius: 10, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  welcomePreviewText: { fontSize: 14, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4, margin: 0 },
   welcomeDotsRow:     { display: 'flex', justifyContent: 'center', gap: 6, marginTop: 2 },
   welcomeDot:         { width: 6, height: 6, borderRadius: '50%' },
-  tutorialIconWrap:  { width: 46, height: 46, borderRadius: 14, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0 2px' },
-  tutorialHighlights:    { display: 'flex', flexDirection: 'column', gap: 10, margin: '4px 0 2px' },
-  tutorialHighlightRow:  { display: 'flex', alignItems: 'flex-start', gap: 10 },
-  tutorialCheckDot:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  tutorialHighlightText: { fontSize: 14.5, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4 },
+  tutorialIconWrap:  { width: 46, height: 46, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0 2px' },
+  stepHeader:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  stepCounter:   { fontSize: 11.5, fontWeight: 700, color: 'var(--g4)' },
+  featureCard:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 18, padding: '18px 16px 16px', textAlign: 'center' },
+  featureCardImg: { width: 170, borderRadius: 16, boxShadow: '0 10px 24px rgba(0,0,0,.12)', marginBottom: 4 },
+  featureCardIconWrap: { width: 30, height: 30, borderRadius: 9, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  featureCardTitle: { fontSize: 15, fontWeight: 800, color: 'var(--bk)', margin: 0 },
+  featureCardDesc:  { fontSize: 13, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: 0, maxWidth: 260 },
+  durationSel:   { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  durationBtn:   { flex: '1 0 26%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '11px 6px', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  durationBtnActive: { border: 'none' },
+  durationBtnNum: { fontSize: 17, fontWeight: 800, color: 'inherit' },
+  durationBtnUnit: { fontSize: 10.5, fontWeight: 600, color: 'inherit', opacity: 0.75 },
+  planSel:       { display: 'flex', gap: 8 },
+  planBtn:       { flex: 1, padding: '11px 6px', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--g6)' },
+  planBtnFree:   { width: '100%', padding: '11px 6px', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--g6)' },
+  planBtnActive: { border: 'none', color: 'white' },
+  sectionCaption: { fontSize: 12, fontWeight: 600, color: 'var(--g5)' },
+  previewCard:   { display: 'flex', flexDirection: 'column', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 16, padding: '14px 16px' },
+  previewRow:    { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '0.5px solid var(--g2)' },
+  previewIcon:   { width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  previewLabel:  { flex: 1, fontSize: 13.5, fontWeight: 700, color: 'var(--bk)' },
+  previewValue:  { fontSize: 13, fontWeight: 600, color: 'var(--g5)' },
+  previewTotalRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12 },
+  previewTotalLabel: { fontSize: 13.5, fontWeight: 800, color: 'var(--bk)' },
+  previewTotalValue: { fontSize: 17, fontWeight: 900, color: 'var(--or)' },
+  checklistCard: { display: 'flex', flexDirection: 'column', gap: 9, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '13px 14px' },
+  checklistRow:  { display: 'flex', alignItems: 'center', gap: 9 },
+  checklistText: { flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--bk)' },
+  planPickerCard: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '14px' },
+  currencyToggle: { display: 'flex', gap: 6, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 10, padding: 3 },
+  currencyBtn:   { padding: '6px 14px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 7, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
+  currencyBtnActive: { color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  modeToggle:    { display: 'flex', gap: 6, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 4, width: '100%' },
+  modeBtn:       { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
+  modeBtnActive: { color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  fixedPrice:    { fontSize: 26, fontWeight: 900, color: 'var(--bk)', letterSpacing: '-0.4px', display: 'flex', alignItems: 'baseline', gap: 4, margin: 0 },
+  fixedPriceUnit: { fontSize: 13, fontWeight: 700, color: 'var(--g5)' },
 }

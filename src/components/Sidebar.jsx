@@ -39,7 +39,7 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
         </div>
       </div>
 
-      <div className="sidebar-nav" data-tour="nav-tabs">
+      <div className="sidebar-nav">
         {tabIds.map(id => {
           // lang explícito — ver mesmo comentário em BottomNav.jsx (o
           // fallback currentLanguage() fica um instante atrasado em relação
@@ -71,7 +71,7 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
         })}
       </div>
 
-      <button className="sidebar-profile" data-tour="profile-avatar" onClick={() => onNavigate('profile')}>
+      <button className="sidebar-profile" onClick={() => onNavigate('profile')}>
         <div className="sidebar-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : avatarInitials}</div>
         <span className="sidebar-username">{userName}</span>
       </button>

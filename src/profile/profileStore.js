@@ -13,43 +13,17 @@ async function getUserId() {
 export async function getMyProfile() {
   const userId = await getUserId()
   if (!userId) return null
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
-    .select('bio, avatar_url, is_public, has_seen_tour')
+    .select('bio, avatar_url, is_public')
     .eq('user_id', userId)
     .maybeSingle()
-  if (error) {
-    // has_seen_tour só existe depois que a migração 0013 rodar no Supabase
-    // — até lá, pedir essa coluna faz a busca INTEIRA falhar (e some foto,
-    // bio e visibilidade junto). Tenta de novo sem ela antes de desistir,
-    // pra o resto do perfil nunca ficar refém dessa coluna nova.
-    const fallback = await supabase
-      .from('profiles')
-      .select('bio, avatar_url, is_public')
-      .eq('user_id', userId)
-      .maybeSingle()
-    if (fallback.error) { console.error('[profileStore] getMyProfile failed:', fallback.error.message); return null }
-    data = fallback.data
-  }
+  if (error) { console.error('[profileStore] getMyProfile failed:', error.message); return null }
   return {
     bio: data?.bio ?? '',
     avatarUrl: data?.avatar_url ?? null,
     isPublic: data?.is_public ?? false,
-    // Fallback true: se a leitura vier nula (ex: antes da migração da coluna
-    // rodar), nunca mostra o tutorial por engano.
-    hasSeenTour: data?.has_seen_tour ?? true,
   }
-}
-
-// Chamada ao pular ou concluir o tutorial de primeiro acesso — nos dois
-// casos marca como visto (ver src/tour/), sem estado de "progresso parcial"
-// pra guardar. Erro só logado, nunca lançado: uma falha aqui não deve
-// travar o usuário (pior caso, o tutorial reaparece uma vez a mais).
-export async function markTourSeen() {
-  const userId = await getUserId()
-  if (!userId) return
-  const { error } = await supabase.from('profiles').update({ has_seen_tour: true }).eq('user_id', userId)
-  if (error) console.error('[profileStore] markTourSeen failed:', error.message)
 }
 
 // Atualiza os campos passados — name/birthdate viram uma chamada a

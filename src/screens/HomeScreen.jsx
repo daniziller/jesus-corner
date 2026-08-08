@@ -66,7 +66,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
           <div className="dashboard-col">
 
             {/* Destaque % da Bíblia */}
-            <div style={styles.pctHero} data-tour="home-bible-ring">
+            <div style={styles.pctHero}>
               <div style={styles.pctHeroGlow} />
 
               {/* Anel SVG */}
@@ -136,7 +136,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
                   {plan.id === 'free' ? translate('home.todayReadingHeader', undefined, lang) : translate('home.todaySessionHeader', { n: todaySession.number }, lang)}
                 </h3>
               </div>
-              <div style={styles.todayCard} data-tour="home-today-card">
+              <div style={styles.todayCard}>
                 <div style={styles.todayAccent} />
                 <div style={styles.todayBadge}>
                   <span style={styles.todayDot} />
@@ -324,7 +324,7 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
   const nextIndex = steps.findIndex(s => !s.done)
 
   return (
-    <div style={styles.routineCard} data-tour="home-routine-card">
+    <div style={styles.routineCard}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
         <div>
           <p style={styles.routineTitle}>{translate('home.routineTitle', undefined, lang)}</p>

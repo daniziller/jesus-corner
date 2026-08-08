@@ -20,7 +20,7 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, pendi
           <AppIcon name="Type" size={16} color={largeText ? 'white' : 'var(--g5)'} />
         </button>
         <NotificationBell pendingCount={pendingCount} onNavigate={onNavigate} lang={lang} variant="header" />
-        <div style={styles.avatarRing} data-tour="profile-avatar" onClick={() => onNavigate?.('profile')}>
+        <div style={styles.avatarRing} onClick={() => onNavigate?.('profile')}>
           <div style={styles.avatar}>
             {avatarUrl ? <img src={avatarUrl} alt="" style={styles.avatarImg} /> : avatarInitials}
           </div>

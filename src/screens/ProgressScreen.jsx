@@ -19,7 +19,7 @@ export default function ProgressScreen({ session, blocks }) {
           <div className="dashboard-col">
 
             {/* ── Destaque % ── */}
-            <div style={styles.bigRingCard} data-tour="progress-big-ring">
+            <div style={styles.bigRingCard}>
               <div style={styles.bigRingGlow} />
 
               <p style={styles.bigLabel}>{translate('progress.bibleComplete', undefined, lang)}</p>
