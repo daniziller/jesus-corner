@@ -6,7 +6,7 @@ import NotificationBell from './NotificationBell'
 // o AppHeader + BottomNav do layout de celular por uma coluna fixa com logo,
 // abas e o usuário logado, no formato comum de dashboards desktop.
 const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'prayer', 'studies', 'groups']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3', admin: 'Shield' }
 
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-vivid)', border: 'none', boxShadow: 'var(--shadow-glow)' }
@@ -16,7 +16,8 @@ const a11yBtnActiveStyle = { background: 'var(--grad-vivid)', border: 'none', bo
 // a elevação (não faz sentido numa lista vertical).
 const sidebarFeaturedIconWrap = { position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', background: 'var(--grad-vivid)', boxShadow: 'var(--shadow-glow)' }
 
-export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], isAdmin = false, pendingCount = 0, lang, largeText, onToggleLargeText }) {
+  const tabIds = isAdmin ? [...TAB_IDS, 'admin'] : TAB_IDS
   return (
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
@@ -39,7 +40,7 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
       </div>
 
       <div className="sidebar-nav" data-tour="nav-tabs">
-        {TAB_IDS.map(id => {
+        {tabIds.map(id => {
           // lang explícito — ver mesmo comentário em BottomNav.jsx (o
           // fallback currentLanguage() fica um instante atrasado em relação
           // ao resto da UI logo após trocar de idioma).

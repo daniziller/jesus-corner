@@ -17,6 +17,7 @@ import StudiesScreen from './screens/StudiesScreen'
 import ProgressScreen from './screens/ProgressScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
+import AdminScreen from './screens/AdminScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks } from './utils/progress'
@@ -38,6 +39,7 @@ import { getPendingGroupInvitesCount } from './groups/groupsStore'
 import { getPendingFriendRequestsCount } from './friends/friendsStore'
 import { getMyProfile, markTourSeen } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
+import { checkIsAdmin } from './admin/adminStore'
 import { logActivity } from './activity/activityStore'
 import TourController from './tour/TourController'
 
@@ -199,6 +201,10 @@ export default function App() {
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
+  // Só true pra quem está na allowlist ADMIN_EMAILS (checado no servidor,
+  // ver api/_lib/adminAuth.js) — controla só se a aba Admin aparece; a
+  // segurança de verdade é sempre re-checada em cada api/admin/*.js.
+  const [isAdmin, setIsAdmin] = useState(false)
   // Toda conta precisa de um access_type ativo pra usar o app — free (R$0),
   // lifetime ou recurring, todos concedem acesso completo (ver
   // isPremiumActive). Sem isso, PaywallGate (mais abaixo) substitui o app
@@ -292,7 +298,7 @@ export default function App() {
         return
       }
 
-      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile, mySubscription] = await Promise.all([
+      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getDailyRoutine(),
@@ -301,6 +307,7 @@ export default function App() {
         getPendingSocialCount(),
         getMyProfile(),
         getMySubscription(),
+        checkIsAdmin(),
       ])
       if (cancelled) return
 
@@ -314,6 +321,7 @@ export default function App() {
       setPendingSocialCount(pendingSocial)
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
       setSubscription(mySubscription)
+      setIsAdmin(adminStatus)
       if (myProfile?.hasSeenTour === false) setTourActive(true)
       setBootstrapped(true)
     }
@@ -645,12 +653,15 @@ export default function App() {
     stats:   <ProgressScreen session={session} blocks={blocks} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} />,
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
+    // Chave só existe pra quem é admin — evita montar (e disparar as
+    // buscas de) AdminScreen pra qualquer conta comum.
+    ...(isAdmin ? { admin: <AdminScreen session={session} /> } : {}),
   }
 
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} isAdmin={isAdmin} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}
@@ -664,7 +675,7 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <1024px */}
-        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
+        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} isAdmin={isAdmin} lang={session.lang} />
       </div>
 
       {/* Tutorial de primeiro acesso — position:fixed cobre a tela toda

@@ -7,12 +7,13 @@ import AppIcon from '../icons/AppIcon'
 // de Progresso. Depois da Bíblia vem Oração, Estudos, e por último
 // Comunidade.
 const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'prayer', 'studies', 'groups']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3', admin: 'Shield' }
 
-export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang }) {
+export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], isAdmin = false, lang }) {
+  const tabIds = isAdmin ? [...TAB_IDS, 'admin'] : TAB_IDS
   return (
     <nav className="bottom-nav" data-tour="nav-tabs">
-      {TAB_IDS.map(id => {
+      {tabIds.map(id => {
         // Passa lang explícito (vem de session.lang, que já atualiza na hora
         // ao trocar idioma) em vez de deixar t() cair no fallback
         // currentLanguage() — esse fallback lê um cache que só é atualizado
