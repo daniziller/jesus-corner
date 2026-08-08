@@ -524,6 +524,8 @@ export const STRINGS = {
         replyBtn: 'Responder',
         replyPlaceholder: 'Escreva sua resposta...',
         sendReplyBtn: 'Enviar resposta',
+        deleteBtn: 'Apagar',
+        deleteConfirm: 'Apagar essa mensagem do Fale Conosco? Não dá pra desfazer.',
       },
       broadcast: {
         titlePt: 'Título (português)',
@@ -1057,6 +1059,8 @@ export const STRINGS = {
         replyBtn: 'Reply',
         replyPlaceholder: 'Write your reply...',
         sendReplyBtn: 'Send reply',
+        deleteBtn: 'Delete',
+        deleteConfirm: "Delete this contact message? This can't be undone.",
       },
       broadcast: {
         titlePt: 'Title (Portuguese)',

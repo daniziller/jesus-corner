@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { formatAmount } from '../billing/formatAmount'
-import { getAdminMetrics, listContactMessages, replyToContactMessage, sendBroadcast } from '../admin/adminStore'
+import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast } from '../admin/adminStore'
 
 const TABS = ['metrics', 'contact', 'broadcast']
 const TAB_ICONS = { metrics: 'BarChart3', contact: 'Mail', broadcast: 'Megaphone' }
@@ -115,6 +115,17 @@ function ContactTab({ lang }) {
     }
   }
 
+  async function handleDelete(msg) {
+    if (!window.confirm(t('admin.contact.deleteConfirm', undefined, lang))) return
+    setError('')
+    try {
+      await deleteContactMessage({ id: msg.id })
+      reload()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={styles.filterRow}>
@@ -173,10 +184,21 @@ function ContactTab({ lang }) {
                 </div>
               </div>
             ) : (
-              <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px', marginTop: 4 }} onClick={() => startReply(msg)}>
-                {t('admin.contact.replyBtn', undefined, lang)}
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px', marginTop: 4 }} onClick={() => startReply(msg)}>
+                  {t('admin.contact.replyBtn', undefined, lang)}
+                </button>
+                <button style={styles.deleteBtn} onClick={() => handleDelete(msg)}>
+                  {t('admin.contact.deleteBtn', undefined, lang)}
+                </button>
+              </div>
             )
+          )}
+
+          {msg.replied_at && (
+            <button style={{ ...styles.deleteBtn, alignSelf: 'flex-start' }} onClick={() => handleDelete(msg)}>
+              {t('admin.contact.deleteBtn', undefined, lang)}
+            </button>
           )}
         </div>
       ))}
@@ -266,6 +288,7 @@ const styles = {
   filterRow:          { display: 'flex', gap: 6 },
   filterBtn:          { border: '0.5px solid var(--g2)', background: 'white', borderRadius: 9, padding: '7px 14px', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer' },
   filterBtnActive:    { background: 'var(--bk)', color: 'white', border: '0.5px solid var(--bk)' },
+  deleteBtn:          { border: 'none', background: 'none', borderRadius: 8, padding: '8px 10px', marginTop: 4, fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--re)', cursor: 'pointer' },
   messageCard:        { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 14, boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 8 },
   messageHeader:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
   messageName:        { fontSize: 13, fontWeight: 800, color: 'var(--bk)', margin: 0 },

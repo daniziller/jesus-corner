@@ -40,6 +40,10 @@ export async function replyToContactMessage({ id, replyBody }) {
   return authorizedPost('/api/admin/reply-contact-message', { id, replyBody })
 }
 
+export async function deleteContactMessage({ id }) {
+  return authorizedPost('/api/admin/delete-contact-message', { id })
+}
+
 export async function sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail }) {
   return authorizedPost('/api/admin/broadcast', { titlePt, titleEn, bodyPt, bodyEn, sendEmail })
 }
