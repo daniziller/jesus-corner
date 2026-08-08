@@ -50,7 +50,6 @@ export default function AuthScreen({ onAuthenticated }) {
         <div style={styles.heroOrbPink} />
         <img src="/icons/icon-192.png" alt="" style={styles.logo} />
         <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
-        <span style={styles.brandTagline}>{t('auth.tagline')}</span>
       </div>
 
       <div className="auth-sheet" style={styles.sheet}>
@@ -101,6 +100,7 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
     return (
       <FeaturesStep
         header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('name')} />}
+        name={name}
         onNext={() => goTo('prayerTime')}
       />
     )
@@ -191,11 +191,15 @@ function NameStep({ name, setName, onNext, onGoLogin }) {
   )
 }
 
-/* ── 2. Boas-vindas + recursos (screenshots) ── */
-function FeaturesStep({ header, onNext }) {
+/* ── 2. Boas-vindas + recursos (screenshots) ── Rotina e Progresso abrem e
+   fecham o carrossel de propósito — são os dois recursos com mais destaque
+   pedido (a rotina é o fio condutor dos próximos passos do onboarding, o
+   progresso é o "gancho" que fecha mostrando o resultado de usar o app). */
+function FeaturesStep({ header, name, onNext }) {
   const lang = getAppLanguage() ?? 'pt'
   const suffix = lang === 'en' ? '-en' : ''
   const cards = [
+    { key: 'routine', icon: 'ClipboardList', img: `/onboarding/rotina${suffix}.png` },
     { key: 'prayer', icon: 'HandHeart', img: `/onboarding/oracao${suffix}.png` },
     { key: 'reading', icon: 'BookOpen', img: `/onboarding/leitura${suffix}.png` },
     { key: 'reflection', icon: 'PenLine', img: `/onboarding/reflexao${suffix}.png` },
@@ -218,6 +222,7 @@ function FeaturesStep({ header, onNext }) {
   return (
     <div style={styles.form}>
       {header}
+      <p style={styles.greeting}>{t('onboarding.greeting', { name: name.trim().split(' ')[0] })}</p>
       <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.features.title')}</h1>
       <p style={styles.subtitle}>{t('onboarding.features.subtitle')}</p>
 
@@ -766,12 +771,12 @@ function PinField({ label, value, onChange, length = 6 }) {
 
 const styles = {
   screen:        { display: 'flex', flexDirection: 'column', height: '100%' },
-  hero:          { background: '#141414', padding: '40px 24px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, position: 'relative', overflow: 'hidden' },
-  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: '#F97316', filter: 'blur(70px)', opacity: 0.5, top: -80, right: -60 },
-  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#EC4899', filter: 'blur(70px)', opacity: 0.32, bottom: -70, left: -50 },
-  logo:          { position: 'relative', width: 60, height: 60, borderRadius: 15, marginBottom: 10, boxShadow: '0 10px 24px rgba(0,0,0,.35)' },
-  brandName:     { position: 'relative', fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: 1 },
-  brandTagline:  { position: 'relative', fontSize: 13.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', letterSpacing: 0.2, textAlign: 'center', maxWidth: 240 },
+  hero:          { background: '#141414', padding: '18px 24px 14px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, flexShrink: 0, position: 'relative', overflow: 'hidden' },
+  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: '#F97316', filter: 'blur(70px)', opacity: 0.5, top: -100, right: -60 },
+  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#EC4899', filter: 'blur(70px)', opacity: 0.32, bottom: -90, left: -50 },
+  logo:          { position: 'relative', width: 34, height: 34, borderRadius: 9, boxShadow: '0 6px 14px rgba(0,0,0,.35)', flexShrink: 0 },
+  brandName:     { position: 'relative', fontSize: 15.5, fontWeight: 900, color: '#fff', letterSpacing: 0.5 },
+  greeting:      { fontSize: 13.5, fontWeight: 800, color: 'var(--or)', margin: '2px 0 -6px' },
   sheet:         { flex: 1, overflowY: 'auto', background: 'var(--white)', borderRadius: '20px 20px 0 0', marginTop: -14, padding: '24px 22px 32px' },
   form:          { display: 'flex', flexDirection: 'column', gap: 12 },
   title:         { fontSize: 23, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' },
