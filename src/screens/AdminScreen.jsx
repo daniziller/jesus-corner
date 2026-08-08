@@ -342,6 +342,14 @@ function BroadcastTab({ lang }) {
   const [recipientMode, setRecipientMode] = useState('all')
   const [selectedUser, setSelectedUser] = useState(null)
   const [segment, setSegment] = useState({ accessType: null, plan: null, currency: null, language: null, groupId: null })
+  // Nem sempre dá pra escrever nos dois idiomas — quem fala o idioma que
+  // não foi escrito simplesmente não recebe nada (ver api/admin/broadcast.js).
+  const [languages, setLanguages] = useState(['pt', 'en'])
+
+  function toggleLanguage(l) {
+    setLanguages(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l])
+    resetRecipientFeedback()
+  }
 
   const recipientPayload = {
     recipientMode,
@@ -354,7 +362,13 @@ function BroadcastTab({ lang }) {
   // faltava um dos 4 campos e o clique simplesmente não fazia nada). Em vez
   // disso valida no clique e mostra por que não deu.
   function validationError() {
-    if (!titlePt.trim() || !bodyPt.trim() || !titleEn.trim() || !bodyEn.trim()) {
+    if (languages.length === 0) {
+      return t('admin.broadcast.missingLanguageError', undefined, lang)
+    }
+    if (languages.includes('pt') && (!titlePt.trim() || !bodyPt.trim())) {
+      return t('admin.broadcast.missingFieldsError', undefined, lang)
+    }
+    if (languages.includes('en') && (!titleEn.trim() || !bodyEn.trim())) {
       return t('admin.broadcast.missingFieldsError', undefined, lang)
     }
     if (recipientMode === 'user' && !selectedUser) {
@@ -375,7 +389,7 @@ function BroadcastTab({ lang }) {
     setChecking(true)
     setError('')
     try {
-      const res = await sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail, ...recipientPayload, dryRun: true })
+      const res = await sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail, ...recipientPayload, dryRun: true })
       setPreviewCount(res.recipients)
     } catch (err) {
       setError(err.message)
@@ -392,7 +406,7 @@ function BroadcastTab({ lang }) {
     setError('')
     setResult(null)
     try {
-      const res = await sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail, ...recipientPayload })
+      const res = await sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail, ...recipientPayload })
       setResult(res)
       setTitlePt(''); setTitleEn(''); setBodyPt(''); setBodyEn('')
       setPreviewCount(null)
@@ -415,22 +429,46 @@ function BroadcastTab({ lang }) {
         setSegment={updater => { setSegment(updater); resetRecipientFeedback() }}
       />
 
-      <label style={styles.fieldWrap}>
-        <span style={styles.fieldLabel}>{t('admin.broadcast.titlePt', undefined, lang)}</span>
-        <input style={styles.input} type="text" value={titlePt} onChange={e => setTitlePt(e.target.value)} />
-      </label>
-      <label style={styles.fieldWrap}>
-        <span style={styles.fieldLabel}>{t('admin.broadcast.bodyPt', undefined, lang)}</span>
-        <textarea style={styles.textarea} rows={4} value={bodyPt} onChange={e => setBodyPt(e.target.value)} />
-      </label>
-      <label style={styles.fieldWrap}>
-        <span style={styles.fieldLabel}>{t('admin.broadcast.titleEn', undefined, lang)}</span>
-        <input style={styles.input} type="text" value={titleEn} onChange={e => setTitleEn(e.target.value)} />
-      </label>
-      <label style={styles.fieldWrap}>
-        <span style={styles.fieldLabel}>{t('admin.broadcast.bodyEn', undefined, lang)}</span>
-        <textarea style={styles.textarea} rows={4} value={bodyEn} onChange={e => setBodyEn(e.target.value)} />
-      </label>
+      <div style={styles.fieldWrap}>
+        <span style={styles.fieldLabel}>{t('admin.broadcast.languageLabel', undefined, lang)}</span>
+        <div style={styles.filterRow}>
+          {['pt', 'en'].map(l => (
+            <button
+              key={l}
+              type="button"
+              style={{ ...styles.filterBtn, ...(languages.includes(l) ? styles.filterBtnActive : null) }}
+              onClick={() => toggleLanguage(l)}
+            >
+              {t(`admin.broadcast.language.${l}`, undefined, lang)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {languages.includes('pt') && (
+        <>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.titlePt', undefined, lang)}</span>
+            <input style={styles.input} type="text" value={titlePt} onChange={e => setTitlePt(e.target.value)} />
+          </label>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.bodyPt', undefined, lang)}</span>
+            <textarea style={styles.textarea} rows={4} value={bodyPt} onChange={e => setBodyPt(e.target.value)} />
+          </label>
+        </>
+      )}
+      {languages.includes('en') && (
+        <>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.titleEn', undefined, lang)}</span>
+            <input style={styles.input} type="text" value={titleEn} onChange={e => setTitleEn(e.target.value)} />
+          </label>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.bodyEn', undefined, lang)}</span>
+            <textarea style={styles.textarea} rows={4} value={bodyEn} onChange={e => setBodyEn(e.target.value)} />
+          </label>
+        </>
+      )}
 
       <label style={styles.checkboxRow}>
         <input type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} />

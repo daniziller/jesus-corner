@@ -54,6 +54,6 @@ export async function listReadingGroupsForAdmin() {
   return groups
 }
 
-export async function sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun }) {
-  return authorizedPost('/api/admin/broadcast', { titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun })
+export async function sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun }) {
+  return authorizedPost('/api/admin/broadcast', { languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun })
 }

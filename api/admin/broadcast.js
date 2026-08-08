@@ -1,9 +1,11 @@
 // Manda um aviso — pra todo mundo, um usuário específico, ou um segmento
 // (filtros combináveis: assinatura, idioma, grupo de leitura) — sempre como
 // notificação in-app (tabela notifications, sino), e opcionalmente também
-// por email. Título e corpo em PT e EN (o admin preenche os dois), escolhido
-// por usuário via user_metadata.language (mesmo campo/checagem de
-// api/send-contribution-reminders.js).
+// por email. `languages` (['pt'], ['en'] ou ['pt','en']) escolhe em quais
+// idiomas o admin escreveu conteúdo — quem tem user_metadata.language (mesmo
+// campo/checagem de api/send-contribution-reminders.js) fora dos idiomas
+// escritos simplesmente não recebe nada, nunca uma mensagem em branco ou no
+// idioma errado.
 //
 // dryRun: true devolve só a contagem de destinatários (recipients), sem
 // gravar notificação nem mandar email — usado pelo botão "Verificar
@@ -119,12 +121,19 @@ export default async function handler(req, res) {
   if (!caller) return
 
   const {
+    languages = ['pt', 'en'],
     titlePt, titleEn, bodyPt, bodyEn, sendEmail: shouldSendEmail,
     recipientMode = 'all', recipientUserId = null, segment = null,
     dryRun = false,
   } = req.body ?? {}
 
-  if (!titlePt?.trim() || !titleEn?.trim() || !bodyPt?.trim() || !bodyEn?.trim()) {
+  if (!Array.isArray(languages) || languages.length === 0 || languages.some(l => l !== 'pt' && l !== 'en')) {
+    return res.status(400).json({ error: 'missing_language' })
+  }
+  if (languages.includes('pt') && (!titlePt?.trim() || !bodyPt?.trim())) {
+    return res.status(400).json({ error: 'missing_fields' })
+  }
+  if (languages.includes('en') && (!titleEn?.trim() || !bodyEn?.trim())) {
     return res.status(400).json({ error: 'missing_fields' })
   }
   if (recipientMode === 'user' && !recipientUserId) {
@@ -149,15 +158,16 @@ export default async function handler(req, res) {
 
   const recipients = users
     .filter(u => allowedIds.has(u.id))
-    .map(u => {
-      const lang = u.user_metadata?.language === 'en' ? 'en' : 'pt'
-      return {
-        id: u.id,
-        email: u.email,
-        title: lang === 'en' ? titleEn.trim() : titlePt.trim(),
-        body: lang === 'en' ? bodyEn.trim() : bodyPt.trim(),
-      }
-    })
+    .map(u => ({ ...u, lang: u.user_metadata?.language === 'en' ? 'en' : 'pt' }))
+    // Quem fala um idioma que o admin não escreveu não recebe nada — nunca
+    // uma mensagem em branco ou traduzida "na marra" pro outro idioma.
+    .filter(u => languages.includes(u.lang))
+    .map(u => ({
+      id: u.id,
+      email: u.email,
+      title: u.lang === 'en' ? titleEn.trim() : titlePt.trim(),
+      body: u.lang === 'en' ? bodyEn.trim() : bodyPt.trim(),
+    }))
 
   if (dryRun) {
     return res.status(200).json({ ok: true, dryRun: true, recipients: recipients.length })
