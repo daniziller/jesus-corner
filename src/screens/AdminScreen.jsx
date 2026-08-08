@@ -349,8 +349,19 @@ function BroadcastTab({ lang }) {
     segment: recipientMode === 'segment' ? segment : null,
   }
 
-  const canSubmit = titlePt.trim() && titleEn.trim() && bodyPt.trim() && bodyEn.trim() && !sending
-    && (recipientMode !== 'user' || !!selectedUser)
+  // Os botões nunca ficam disabled por validação — um botão desabilitado
+  // sem explicação parece "quebrado" (foi exatamente o que aconteceu:
+  // faltava um dos 4 campos e o clique simplesmente não fazia nada). Em vez
+  // disso valida no clique e mostra por que não deu.
+  function validationError() {
+    if (!titlePt.trim() || !bodyPt.trim() || !titleEn.trim() || !bodyEn.trim()) {
+      return t('admin.broadcast.missingFieldsError', undefined, lang)
+    }
+    if (recipientMode === 'user' && !selectedUser) {
+      return t('admin.broadcast.missingUserError', undefined, lang)
+    }
+    return null
+  }
 
   function resetRecipientFeedback() {
     setPreviewCount(null)
@@ -358,7 +369,9 @@ function BroadcastTab({ lang }) {
   }
 
   async function handleCheckRecipients() {
-    if (!canSubmit) return
+    if (checking) return
+    const validationMsg = validationError()
+    if (validationMsg) { setError(validationMsg); return }
     setChecking(true)
     setError('')
     try {
@@ -372,7 +385,9 @@ function BroadcastTab({ lang }) {
   }
 
   async function handleSubmit() {
-    if (!canSubmit) return
+    if (sending) return
+    const validationMsg = validationError()
+    if (validationMsg) { setError(validationMsg); return }
     setSending(true)
     setError('')
     setResult(null)
@@ -433,10 +448,10 @@ function BroadcastTab({ lang }) {
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn-secondary" style={{ flex: 1 }} disabled={!canSubmit || checking} onClick={handleCheckRecipients}>
+        <button className="btn-secondary" style={{ flex: 1 }} disabled={checking || sending} onClick={handleCheckRecipients}>
           {checking ? t('admin.loading', undefined, lang) : t('admin.broadcast.checkBtn', undefined, lang)}
         </button>
-        <button className="btn-primary" style={{ flex: 1 }} disabled={!canSubmit} onClick={handleSubmit}>
+        <button className="btn-primary" style={{ flex: 1 }} disabled={sending || checking} onClick={handleSubmit}>
           {sending ? t('admin.sending', undefined, lang) : t('admin.broadcast.sendBtn', undefined, lang)}
         </button>
       </div>
