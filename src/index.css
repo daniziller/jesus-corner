@@ -578,6 +578,17 @@ html.large-text .app-content-inner {
   border: 1.5px solid var(--white, #fff);
 }
 
+/* Carrossel de recursos do onboarding (AuthScreen.jsx) — rolagem manual por
+   arrasto, sem barra de rolagem visível (o "espiar" do próximo card já
+   comunica que dá pra arrastar, a barra só polui). */
+.feature-scroller {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.feature-scroller::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Responsive (desktop — abandona a moldura de celular por um shell
    com navegação lateral) ── */
 @media (min-width: 1024px) {

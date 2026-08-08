@@ -191,10 +191,13 @@ function NameStep({ name, setName, onNext, onGoLogin }) {
   )
 }
 
-/* ── 2. Boas-vindas + recursos (screenshots) ── Rotina e Progresso abrem e
-   fecham o carrossel de propósito — são os dois recursos com mais destaque
-   pedido (a rotina é o fio condutor dos próximos passos do onboarding, o
-   progresso é o "gancho" que fecha mostrando o resultado de usar o app). */
+/* ── 2. Boas-vindas + recursos (screenshots) ── Rolagem manual (arrasta pro
+   lado, com scroll-snap) em vez de trocar sozinho — dá tempo de ler cada
+   card no próprio ritmo, e o "espiar" do próximo card na borda já convida a
+   arrastar. Rotina abre e Progresso fecha de propósito — são os dois
+   recursos com mais destaque pedido (a rotina é o fio condutor pros
+   próximos passos do onboarding, o progresso é o "gancho" que fecha
+   mostrando o resultado de usar o app). */
 function FeaturesStep({ header, name, onNext }) {
   const lang = getAppLanguage() ?? 'pt'
   const suffix = lang === 'en' ? '-en' : ''
@@ -203,21 +206,27 @@ function FeaturesStep({ header, name, onNext }) {
     { key: 'prayer', icon: 'HandHeart', img: `/onboarding/oracao${suffix}.png` },
     { key: 'reading', icon: 'BookOpen', img: `/onboarding/leitura${suffix}.png` },
     { key: 'reflection', icon: 'PenLine', img: `/onboarding/reflexao${suffix}.png` },
+    { key: 'studies', icon: 'GraduationCap', img: `/onboarding/estudos${suffix}.png` },
+    { key: 'community', icon: 'Users', img: `/onboarding/comunidade${suffix}.png` },
     { key: 'progress', icon: 'BarChart3', img: `/onboarding/progresso${suffix}.png` },
   ]
 
-  const reducedMotion = useRef(
-    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  ).current
+  const scrollerRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
-  useEffect(() => {
-    if (reducedMotion) return
-    const id = setInterval(() => setActiveIndex(i => (i + 1) % cards.length), 3400)
-    return () => clearInterval(id)
-  }, [reducedMotion, cards.length])
+  function handleScroll() {
+    const el = scrollerRef.current
+    if (!el) return
+    const cardWidth = el.scrollWidth / cards.length
+    setActiveIndex(Math.round(el.scrollLeft / cardWidth))
+  }
 
-  const active = cards[activeIndex]
+  function scrollToIndex(i) {
+    const el = scrollerRef.current
+    if (!el) return
+    const cardWidth = el.scrollWidth / cards.length
+    el.scrollTo({ left: i * cardWidth, behavior: 'smooth' })
+  }
 
   return (
     <div style={styles.form}>
@@ -226,13 +235,17 @@ function FeaturesStep({ header, name, onNext }) {
       <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.features.title')}</h1>
       <p style={styles.subtitle}>{t('onboarding.features.subtitle')}</p>
 
-      <div style={styles.featureCard}>
-        <img src={active.img} alt="" style={styles.featureCardImg} />
-        <div style={styles.featureCardIconWrap}>
-          <AppIcon name={active.icon} size={16} color="var(--or)" />
-        </div>
-        <p style={styles.featureCardTitle}>{t(`onboarding.features.${active.key}.title`)}</p>
-        <p style={styles.featureCardDesc}>{t(`onboarding.features.${active.key}.desc`)}</p>
+      <div ref={scrollerRef} onScroll={handleScroll} className="feature-scroller" style={styles.featureScroller}>
+        {cards.map(card => (
+          <div key={card.key} style={styles.featureCard}>
+            <img src={card.img} alt="" style={styles.featureCardImg} />
+            <div style={styles.featureCardIconWrap}>
+              <AppIcon name={card.icon} size={16} color="var(--or)" />
+            </div>
+            <p style={styles.featureCardTitle}>{t(`onboarding.features.${card.key}.title`)}</p>
+            <p style={styles.featureCardDesc}>{t(`onboarding.features.${card.key}.desc`)}</p>
+          </div>
+        ))}
       </div>
 
       <div style={styles.welcomeDotsRow}>
@@ -240,13 +253,13 @@ function FeaturesStep({ header, name, onNext }) {
           <span
             key={card.key}
             style={{ ...styles.welcomeDot, background: i === activeIndex ? 'var(--or)' : 'var(--g2)', cursor: 'pointer' }}
-            onClick={() => setActiveIndex(i)}
+            onClick={() => scrollToIndex(i)}
           />
         ))}
       </div>
 
       <div style={{ marginTop: 4 }}>
-        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.continueBtn')}</button>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.features.continueBtn')}</button>
       </div>
     </div>
   )
@@ -803,11 +816,12 @@ const styles = {
   tutorialIconWrap:  { width: 46, height: 46, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0 2px' },
   stepHeader:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   stepCounter:   { fontSize: 11.5, fontWeight: 700, color: 'var(--g4)' },
-  featureCard:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 18, padding: '18px 16px 16px', textAlign: 'center' },
-  featureCardImg: { width: 170, borderRadius: 16, boxShadow: '0 10px 24px rgba(0,0,0,.12)', marginBottom: 4 },
+  featureScroller: { display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', margin: '0 -22px', padding: '2px 22px 4px' },
+  featureCard:   { flex: '0 0 84%', scrollSnapAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 18, padding: '18px 16px 16px', textAlign: 'center' },
+  featureCardImg: { width: '100%', maxWidth: 170, borderRadius: 16, boxShadow: '0 10px 24px rgba(0,0,0,.12)', marginBottom: 4 },
   featureCardIconWrap: { width: 30, height: 30, borderRadius: 9, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   featureCardTitle: { fontSize: 15, fontWeight: 800, color: 'var(--bk)', margin: 0 },
-  featureCardDesc:  { fontSize: 13, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: 0, maxWidth: 260 },
+  featureCardDesc:  { fontSize: 13, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: 0 },
   durationSel:   { display: 'flex', flexWrap: 'wrap', gap: 8 },
   durationBtn:   { flex: '1 0 26%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '11px 6px', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', cursor: 'pointer', fontFamily: 'var(--font)' },
   durationBtnActive: { border: 'none' },

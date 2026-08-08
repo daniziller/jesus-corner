@@ -463,11 +463,14 @@ export const STRINGS = {
       },
       features: {
         title: 'Conheça o que te espera',
-        subtitle: 'Toque nos pontinhos pra ver cada parte do app.',
+        subtitle: 'Arraste pro lado pra ver cada parte do app.',
+        continueBtn: 'Comece a organizar sua rotina',
         routine: { title: 'Sua rotina, no seu ritmo', desc: 'Oração, leitura e reflexão organizadas num só lugar — você escolhe os tempos, a gente cuida do resto.' },
         prayer: { title: 'Oração guiada, sem enrolação', desc: 'Um roteiro em 4 etapas — Adoração, Confissão, Ação de Graças e Súplicas — com temporizador que avança sozinho.' },
         reading: { title: 'A Bíblia inteira, sem pressa', desc: 'Sessões diárias com contexto histórico ao lado do texto, pra você entender o que está lendo.' },
         reflection: { title: 'Termine o dia com propósito', desc: 'Um roteiro guiado em 3 passos pra parar e pensar no que Deus falou com você hoje.' },
+        studies: { title: 'Estudos que vão fundo de verdade', desc: 'Pentateuco, Cronologia, Salmos e As Alianças de Deus — contexto histórico e teológico completo, em sessões guiadas.' },
+        community: { title: 'Sua fé também se vive em comunidade', desc: 'Adicione amigos, crie grupos de leitura e proponha desafios juntos — como "Maratona de Marcos".' },
         progress: { title: '🔥 Veja sua constância crescer', desc: 'Sequência de dias, níveis e conquistas — cada capítulo lido conta pra sua jornada.' },
       },
       prayerTime: {
@@ -1043,11 +1046,14 @@ export const STRINGS = {
       },
       features: {
         title: "Here's what's waiting for you",
-        subtitle: 'Tap the dots to see each part of the app.',
+        subtitle: 'Drag sideways to see each part of the app.',
+        continueBtn: 'Start organizing your routine',
         routine: { title: 'Your routine, your pace', desc: 'Prayer, reading, and reflection organized in one place — you pick the times, we handle the rest.' },
         prayer: { title: 'Guided prayer, no guesswork', desc: 'A 4-step flow — Adoration, Confession, Thanksgiving, and Supplication — with a timer that moves on its own.' },
         reading: { title: 'The whole Bible, at your pace', desc: "Daily sessions with historical context right next to the text, so you understand what you're reading." },
         reflection: { title: 'End the day with purpose', desc: 'A guided 3-step flow to pause and think about what God spoke to you today.' },
+        studies: { title: 'Studies that actually go deep', desc: "Pentateuch, Chronology, Psalms, and God's Covenants — full historical and theological context, in guided sessions." },
+        community: { title: 'Faith is better lived together', desc: 'Add friends, create reading groups, and propose challenges together — like "Mark Marathon".' },
         progress: { title: '🔥 Watch your consistency grow', desc: 'Day streak, levels, and achievements — every chapter read counts toward your journey.' },
       },
       prayerTime: {
