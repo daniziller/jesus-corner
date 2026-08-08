@@ -22,6 +22,7 @@ import {
 } from '../billing/subscriptionStore'
 import { STORE_TIERS } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
+import { redeemInviteCode } from '../invites/inviteStore'
 
 const FEATURES = [
   { icon: 'BookOpen', key: 'featureReading' },
@@ -30,13 +31,18 @@ const FEATURES = [
   { icon: 'Users', key: 'featureCommunity' },
 ]
 
-export default function UpgradeScreen({ session, subscription }) {
+export default function UpgradeScreen({ session, subscription, onSubscriptionRefreshed }) {
   const { lang } = session
   const [currency, setCurrency] = useState('brl')
   const [mode, setMode] = useState('monthly') // 'monthly' | 'annual'
   const [changingAmount, setChangingAmount] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [showRedeem, setShowRedeem] = useState(false)
+  const [redeemCode, setRedeemCode] = useState('')
+  const [redeeming, setRedeeming] = useState(false)
+  const [redeemError, setRedeemError] = useState('')
+  const [redeemResult, setRedeemResult] = useState(null)
   // 'stripe' (web) | 'google_play' (dentro do TWA via Play) | 'apple'
   // (dentro do app iOS) — ver storeTiers.js pro preço fixo de cada plano.
   const [storeContext, setStoreContext] = useState('stripe')
@@ -144,6 +150,23 @@ export default function UpgradeScreen({ session, subscription }) {
       // abre o seletor de plano de novo, pra reestabelecer a assinatura.
       setError(t('billing.managePortalFallbackError', undefined, lang))
       startChangingAmount()
+    }
+  }
+
+  async function handleRedeem() {
+    if (redeeming || !redeemCode.trim()) return
+    setRedeeming(true)
+    setRedeemError('')
+    setRedeemResult(null)
+    try {
+      const { applied } = await redeemInviteCode(redeemCode.trim())
+      setRedeemResult(applied)
+      setRedeemCode('')
+      if (applied === 'free') await onSubscriptionRefreshed?.()
+    } catch (err) {
+      setRedeemError(t('billing.redeemCodeError', undefined, lang))
+    } finally {
+      setRedeeming(false)
     }
   }
 
@@ -275,6 +298,30 @@ export default function UpgradeScreen({ session, subscription }) {
 
         {error && <p style={styles.errorMsg}>{error}</p>}
 
+        {!showRedeem ? (
+          <button style={styles.redeemLink} onClick={() => setShowRedeem(true)}>
+            {t('billing.redeemCodeLink', undefined, lang)}
+          </button>
+        ) : (
+          <div style={styles.redeemBox}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                style={styles.redeemInput}
+                type="text"
+                value={redeemCode}
+                onChange={e => setRedeemCode(e.target.value)}
+                placeholder={t('billing.redeemCodePlaceholder', undefined, lang)}
+              />
+              <button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }} disabled={redeeming} onClick={handleRedeem}>
+                {redeeming ? t('billing.redeemCodeRedeeming', undefined, lang) : t('billing.redeemCodeBtn', undefined, lang)}
+              </button>
+            </div>
+            {redeemError && <p style={styles.errorMsg}>{redeemError}</p>}
+            {redeemResult === 'free' && <p style={styles.redeemSuccess}>{t('billing.redeemCodeFreeSuccess', undefined, lang)}</p>}
+            {redeemResult === 'discount_pending' && <p style={styles.redeemSuccess}>{t('billing.redeemCodeDiscountSuccess', undefined, lang)}</p>}
+          </div>
+        )}
+
         <p style={styles.disclaimer}>{t('billing.securePaymentDisclaimer', undefined, lang)}</p>
       </div>
     </div>
@@ -315,4 +362,8 @@ const styles = {
   fixedPriceUnit: { fontSize: 14, fontWeight: 700, color: 'var(--g5)' },
   errorMsg:    { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   disclaimer:  { fontSize: 10, fontWeight: 500, color: 'var(--g4)', textAlign: 'center', lineHeight: 1.5 },
+  redeemLink:  { alignSelf: 'center', border: 'none', background: 'none', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, color: 'var(--g5)', textDecoration: 'underline', cursor: 'pointer', padding: 4 },
+  redeemBox:   { display: 'flex', flexDirection: 'column', gap: 8 },
+  redeemInput: { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--bk)', outline: 'none', background: 'var(--g1)', boxSizing: 'border-box' },
+  redeemSuccess:{ fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 8, padding: '8px 10px' },
 }

@@ -22,6 +22,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const APP_URL = 'https://app.jesuscorner.app'
+// admin_invites tem RLS sem nenhuma policy (ver 0021_admin_invites.sql) —
+// só o service role consegue ler, mesmo pra buscar o próprio convite de
+// quem está comprando.
+const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 // Fonte única dos preços fixos cobrados via Stripe/web — mesmos valores
 // exibidos em src/screens/UpgradeScreen.jsx e no site (jesus-corner-site).
@@ -87,6 +91,18 @@ export default async function handler(req, res) {
   // Preço fixo — nunca vem do cliente, sempre desta tabela.
   const amountCents = FIXED_PRICES_CENTS[currency][interval]
 
+  // Convite de desconto pendente pro e-mail de quem está comprando (ver
+  // api/admin/create-invite.js) — aplica o Coupon direto na sessão, sem
+  // precisar digitar código. `discounts` e `allow_promotion_codes` são
+  // mutuamente exclusivos na API do Stripe, por isso só um dos dois é usado.
+  const { data: pendingDiscount } = await supabaseAdmin
+    .from('admin_invites')
+    .select('id, stripe_coupon_id')
+    .eq('kind', 'discount')
+    .eq('status', 'pending')
+    .ilike('email', caller.email)
+    .maybeSingle()
+
   const { data: existing } = await supabase
     .from('subscriptions')
     .select('stripe_customer_id, stripe_subscription_id, status')
@@ -138,10 +154,28 @@ export default async function handler(req, res) {
         quantity: 1,
       }],
       subscription_data: { metadata: { supabase_user_id: caller.id, access_type: 'recurring' } },
-      allow_promotion_codes: true,
+      // discounts e allow_promotion_codes são mutuamente exclusivos na API
+      // do Stripe — com convite pendente, aplica o coupon automaticamente
+      // (sem precisar digitar nada); sem convite, mantém o campo nativo de
+      // código promocional pra quem tiver um código pra digitar.
+      ...(pendingDiscount
+        ? { discounts: [{ coupon: pendingDiscount.stripe_coupon_id }] }
+        : { allow_promotion_codes: true }),
       success_url: `${APP_URL}/?checkout=success`,
       cancel_url: `${APP_URL}/?checkout=cancel`,
     })
+
+    if (pendingDiscount) {
+      await supabaseAdmin
+        .from('admin_invites')
+        .update({ status: 'claimed', claimed_by: caller.id, claimed_at: new Date().toISOString() })
+        .eq('id', pendingDiscount.id)
+        .eq('status', 'pending')
+        .then(({ error }) => {
+          if (error) console.error('Failed to mark discount invite as claimed:', error.message)
+        })
+    }
+
     return res.status(200).json({ url: session.url })
   } catch (err) {
     console.error('Stripe checkout session error:', err.message)

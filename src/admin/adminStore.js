@@ -57,3 +57,16 @@ export async function listReadingGroupsForAdmin() {
 export async function sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun }) {
   return authorizedPost('/api/admin/broadcast', { languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun })
 }
+
+export async function createInvite({ email, kind, discountPercent, discountDuration }) {
+  return authorizedPost('/api/admin/create-invite', { email, kind, discountPercent, discountDuration })
+}
+
+export async function listAdminInvites() {
+  const { invites } = await authorizedPost('/api/admin/list-invites')
+  return invites
+}
+
+export async function revokeInvite({ id }) {
+  return authorizedPost('/api/admin/revoke-invite', { id })
+}

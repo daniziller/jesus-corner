@@ -40,6 +40,7 @@ import { getPendingFriendRequestsCount } from './friends/friendsStore'
 import { getMyProfile, markTourSeen } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { checkIsAdmin } from './admin/adminStore'
+import { applyPendingInvite } from './invites/inviteStore'
 import { logActivity } from './activity/activityStore'
 import TourController from './tour/TourController'
 
@@ -298,7 +299,7 @@ export default function App() {
         return
       }
 
-      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus] = await Promise.all([
+      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getDailyRoutine(),
@@ -308,7 +309,14 @@ export default function App() {
         getMyProfile(),
         getMySubscription(),
         checkIsAdmin(),
+        applyPendingInvite(),
       ])
+      if (cancelled) return
+
+      // Se um convite de acesso grátis acabou de ser aplicado, a assinatura
+      // buscada acima (em paralelo) já está desatualizada — busca de novo
+      // pra o PaywallGate liberar sozinho, sem precisar de F5.
+      const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
       if (cancelled) return
 
       setAuthUser(user)
@@ -320,7 +328,7 @@ export default function App() {
       setActiveChallenges(challenges)
       setPendingSocialCount(pendingSocial)
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
-      setSubscription(mySubscription)
+      setSubscription(finalSubscription)
       setIsAdmin(adminStatus)
       if (myProfile?.hasSeenTour === false) setTourActive(true)
       setBootstrapped(true)
@@ -397,11 +405,19 @@ export default function App() {
     setActiveTab('journey')
   }
 
+  // Rebusca a assinatura e atualiza o estado — usado depois de resgatar um
+  // convite de acesso grátis (ver UpgradeScreen.jsx), pra liberar o
+  // PaywallGate sozinho, sem precisar de F5.
+  async function refreshSubscription() {
+    const sub = await getMySubscription()
+    setSubscription(sub)
+  }
+
   // Chamado depois de login/cadastro bem-sucedidos: busca todo o progresso
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
-    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus] = await Promise.all([
+    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getPrayerStats(user.email),
@@ -411,7 +427,9 @@ export default function App() {
       getMyProfile(),
       getMySubscription(),
       checkIsAdmin(),
+      applyPendingInvite(),
     ])
+    const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
     setAuthUser(user)
     setCompletedSet(set)
     setPlanId(userPlanId)
@@ -421,7 +439,7 @@ export default function App() {
     setActiveChallenges(challenges)
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
-    setSubscription(mySubscription)
+    setSubscription(finalSubscription)
     setIsAdmin(adminStatus)
     if (myProfile?.hasSeenTour === false) setTourActive(true)
   }
@@ -638,7 +656,7 @@ export default function App() {
   if (!isPremium) {
     return (
       <>
-        <PaywallGate session={session} subscription={subscription} onLogout={handleLogout} />
+        <PaywallGate session={session} subscription={subscription} onLogout={handleLogout} onSubscriptionRefreshed={refreshSubscription} />
         <Analytics />
       </>
     )
@@ -654,7 +672,7 @@ export default function App() {
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} />,
-    upgrade: <UpgradeScreen session={session} subscription={subscription} />,
+    upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
@@ -720,7 +738,7 @@ function MinAgeRestricted({ lang }) {
 // da Sidebar — aqui não existe Sidebar) com logo e um jeito de sair, e o
 // corpo é a própria UpgradeScreen, reaproveitando .app-content/.app-content-inner
 // pro mesmo max-width responsivo já usado no resto do app.
-function PaywallGate({ session, subscription, onLogout }) {
+function PaywallGate({ session, subscription, onLogout, onSubscriptionRefreshed }) {
   return (
     <div className="app-shell">
       <div className="app-main" style={{ width: '100%' }}>
@@ -735,7 +753,7 @@ function PaywallGate({ session, subscription, onLogout }) {
         </div>
         <div className="app-content">
           <div className="app-content-inner">
-            <UpgradeScreen session={session} subscription={subscription} />
+            <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={onSubscriptionRefreshed} />
           </div>
         </div>
       </div>

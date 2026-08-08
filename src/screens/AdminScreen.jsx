@@ -6,10 +6,10 @@ import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { formatAmount } from '../billing/formatAmount'
-import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast, searchAdminUsers, listReadingGroupsForAdmin } from '../admin/adminStore'
+import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast, searchAdminUsers, listReadingGroupsForAdmin, createInvite, listAdminInvites, revokeInvite } from '../admin/adminStore'
 
-const TABS = ['metrics', 'contact', 'broadcast']
-const TAB_ICONS = { metrics: 'BarChart3', contact: 'Mail', broadcast: 'Megaphone' }
+const TABS = ['metrics', 'contact', 'broadcast', 'invites']
+const TAB_ICONS = { metrics: 'BarChart3', contact: 'Mail', broadcast: 'Megaphone', invites: 'Gift' }
 
 export default function AdminScreen({ session }) {
   const { lang } = session
@@ -36,6 +36,7 @@ export default function AdminScreen({ session }) {
         {tab === 'metrics' && <MetricsTab lang={lang} />}
         {tab === 'contact' && <ContactTab lang={lang} />}
         {tab === 'broadcast' && <BroadcastTab lang={lang} />}
+        {tab === 'invites' && <InvitesTab lang={lang} />}
       </div>
     </div>
   )
@@ -493,6 +494,137 @@ function BroadcastTab({ lang }) {
           {sending ? t('admin.sending', undefined, lang) : t('admin.broadcast.sendBtn', undefined, lang)}
         </button>
       </div>
+    </div>
+  )
+}
+
+function InvitesTab({ lang }) {
+  const [email, setEmail] = useState('')
+  const [kind, setKind] = useState('free')
+  const [discountPercent, setDiscountPercent] = useState('50')
+  const [discountDuration, setDiscountDuration] = useState('forever')
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState('')
+  const [created, setCreated] = useState(null)
+  const [invites, setInvites] = useState(null)
+
+  function reload() {
+    setInvites(null)
+    listAdminInvites().then(setInvites).catch(err => setError(err.message))
+  }
+
+  useEffect(reload, [])
+
+  async function handleCreate() {
+    if (creating || !email.trim()) return
+    setCreating(true)
+    setError('')
+    setCreated(null)
+    try {
+      const res = await createInvite({
+        email: email.trim(),
+        kind,
+        discountPercent: kind === 'discount' ? Number(discountPercent) : undefined,
+        discountDuration: kind === 'discount' ? discountDuration : undefined,
+      })
+      setCreated(res)
+      setEmail('')
+      reload()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function handleRevoke(invite) {
+    if (!window.confirm(t('admin.invites.revokeConfirm', undefined, lang))) return
+    setError('')
+    try {
+      await revokeInvite({ id: invite.id })
+      reload()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={styles.form}>
+        <label style={styles.fieldWrap}>
+          <span style={styles.fieldLabel}>{t('admin.invites.emailLabel', undefined, lang)}</span>
+          <input style={styles.input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="pessoa@exemplo.com" />
+        </label>
+
+        <div style={styles.fieldWrap}>
+          <span style={styles.fieldLabel}>{t('admin.invites.kindLabel', undefined, lang)}</span>
+          <div style={styles.filterRow}>
+            {['free', 'discount'].map(k => (
+              <button
+                key={k}
+                type="button"
+                style={{ ...styles.filterBtn, ...(kind === k ? styles.filterBtnActive : null) }}
+                onClick={() => setKind(k)}
+              >
+                {t(`admin.invites.kind.${k}`, undefined, lang)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {kind === 'discount' && (
+          <div style={styles.segmentGrid}>
+            <label style={styles.fieldWrap}>
+              <span style={styles.fieldLabel}>{t('admin.invites.discountPercentLabel', undefined, lang)}</span>
+              <input style={styles.input} type="number" min="1" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} />
+            </label>
+            <label style={styles.fieldWrap}>
+              <span style={styles.fieldLabel}>{t('admin.invites.discountDurationLabel', undefined, lang)}</span>
+              <select style={styles.select} value={discountDuration} onChange={e => setDiscountDuration(e.target.value)}>
+                <option value="once">{t('admin.invites.durationOnce', undefined, lang)}</option>
+                <option value="forever">{t('admin.invites.durationForever', undefined, lang)}</option>
+              </select>
+            </label>
+          </div>
+        )}
+
+        {error && <p style={styles.errorMsg}>{error}</p>}
+        {created && (
+          <p style={styles.resultMsg}>
+            {t('admin.invites.createdResult', { code: created.code }, lang)}
+            {!created.emailSent && ` ${t('admin.invites.emailFailedNote', undefined, lang)}`}
+          </p>
+        )}
+
+        <button className="btn-primary" disabled={creating || !email.trim()} onClick={handleCreate}>
+          {creating ? t('admin.sending', undefined, lang) : t('admin.invites.createBtn', undefined, lang)}
+        </button>
+      </div>
+
+      {!invites && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+      {invites?.length === 0 && <p style={styles.hint}>{t('admin.invites.empty', undefined, lang)}</p>}
+      {invites?.map(inv => (
+        <div key={inv.id} style={styles.messageCard}>
+          <div style={styles.messageHeader}>
+            <div>
+              <p style={styles.messageName}>{inv.email}</p>
+              <p style={styles.messageEmail}>
+                {t(`admin.invites.kind.${inv.kind}`, undefined, lang)}
+                {inv.kind === 'discount' && ` · ${inv.discount_percent}% · ${t(`admin.invites.duration${inv.discount_duration === 'once' ? 'Once' : 'Forever'}`, undefined, lang)}`}
+                {' · '}{inv.code}
+              </p>
+            </div>
+            <span style={inv.status === 'claimed' ? styles.answeredBadge : styles.pendingBadge}>
+              {t(`admin.invites.status.${inv.status}`, undefined, lang)}
+            </span>
+          </div>
+          {inv.status === 'pending' && (
+            <button style={styles.deleteBtn} onClick={() => handleRevoke(inv)}>
+              {t('admin.invites.revokeBtn', undefined, lang)}
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

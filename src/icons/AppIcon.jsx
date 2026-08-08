@@ -20,7 +20,7 @@ import {
   Smile, ClipboardList, Lock, TreePalm, Wrench, TriangleAlert, Siren,
   Sailboat, Amphora, PawPrint, MapPin, Circle,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
-  X, ChevronRight, Pin, UserPlus, Calendar, Type,
+  X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
 } from 'lucide-react'
 
 // A versão de lucide-react instalada (1.23.0) não inclui o ícone do
@@ -56,7 +56,7 @@ const REGISTRY = {
   Smile, ClipboardList, Lock, TreePalm, Wrench, TriangleAlert, Siren,
   Sailboat, Amphora, PawPrint, MapPin,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
-  X, ChevronRight, Pin, UserPlus, Calendar, Type,
+  X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
   Instagram,
 }
 
