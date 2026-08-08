@@ -37,20 +37,16 @@ async function authorizedPost(path, body) {
 }
 
 // Devolve a URL do Stripe Checkout — quem chamar é responsável por
-// redirecionar (window.location.href = url), já que isso sai do domínio do app.
-// interval: 'month' ou 'year'. amountCents sempre > 0 — R$0 não passa por
-// aqui, ver activateFreeAccess. currency: 'brl' ou 'usd', escolhida pela
-// pessoa na tela — não dá pra confiar só na geolocalização por IP pra isso
-// (cartão de banco brasileiro usado fora do Brasil, ou vice-versa, quebra
-// a cobrança na moeda errada).
-export async function startCheckout({ interval, amountCents, currency }) {
-  const { url } = await authorizedPost('/api/create-checkout-session', { interval, amountCents, currency })
+// redirecionar (window.location.href = url), já que isso sai do domínio do
+// app. interval: 'month' ou 'year'. currency: 'brl' ou 'usd', escolhida
+// pela pessoa na tela — não dá pra confiar só na geolocalização por IP pra
+// isso (cartão de banco brasileiro usado fora do Brasil, ou vice-versa,
+// quebra a cobrança na moeda errada). O preço em si é sempre fixo,
+// calculado no servidor (ver FIXED_PRICES_CENTS em
+// api/create-checkout-session.js) — nunca mandado daqui.
+export async function startCheckout({ interval, currency }) {
+  const { url } = await authorizedPost('/api/create-checkout-session', { interval, currency })
   return url
-}
-
-// Ativa acesso gratuito (R$0) — não envolve o Stripe, não redireciona.
-export async function activateFreeAccess() {
-  return authorizedPost('/api/activate-free-access')
 }
 
 // Devolve a URL do Stripe Billing Portal (cancelar/trocar cartão/ver fatura).

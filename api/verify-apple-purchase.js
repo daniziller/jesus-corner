@@ -20,8 +20,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_RO
 
 function findTierByProductId(productId) {
   for (const mode of Object.keys(STORE_TIERS)) {
-    const tier = STORE_TIERS[mode].find(tr => tr.appleProductId === productId)
-    if (tier) return { ...tier, mode }
+    if (STORE_TIERS[mode].appleProductId === productId) return { ...STORE_TIERS[mode], mode }
   }
   return null
 }
@@ -97,6 +96,11 @@ export default async function handler(req, res) {
     })
   }
 
+  // Apple decide a moeda pelo país da conta da App Store, não por escolha
+  // manual — decoded.currency (ISO 4217, ex "USD"/"BRL") é o campo mais
+  // provável na transação decodificada; CONFERIR o nome exato do campo.
+  const currency = (decoded.currency ?? 'USD').toLowerCase()
+
   const { error: upsertErr } = await supabaseAdmin.from('subscriptions').upsert({
     user_id: caller.id,
     billing_provider: 'apple',
@@ -105,11 +109,8 @@ export default async function handler(req, res) {
     access_type: 'recurring',
     plan: tier.mode === 'annual' ? 'annual' : 'monthly',
     status,
-    amount_cents: tier.value * 100,
-    // Apple decide a moeda pelo país da conta da App Store, não por escolha
-    // manual — decoded.currency (ISO 4217, ex "USD"/"BRL") é o campo mais
-    // provável na transação decodificada; CONFERIR o nome exato do campo.
-    currency: (decoded.currency ?? 'USD').toLowerCase(),
+    amount_cents: Math.round((tier[currency] ?? tier.usd) * 100),
+    currency,
     current_period_end: decoded.expiresDate ? new Date(decoded.expiresDate).toISOString() : null,
     updated_at: new Date().toISOString(),
   })

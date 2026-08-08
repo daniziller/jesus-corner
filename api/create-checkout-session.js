@@ -1,12 +1,14 @@
 // Cria uma Stripe Checkout Session pra quem já está logado no app — modelo
-// de valor livre: a pessoa escolhe o valor (nunca R$0/US$0 aqui, isso é
-// tratado sem Stripe em api/activate-free-access.js) e a periodicidade,
-// mensal ou anual. Contribuição única (pagamento avulso, acesso vitalício)
-// foi descontinuada — só sobrevive o tratamento de quem já tinha (ver
-// api/stripe-webhook.js e src/billing/subscriptionStore.js). Runtime Node
-// (não edge, diferente de invite-friend.js) — o SDK oficial `stripe` tem
-// suporte Node completo pra tudo que os endpoints de pagamento precisam,
-// sem reimplementar nada manualmente.
+// de assinatura com preço fixo (2 planos: mensal e anual, em BRL ou USD).
+// Nunca confia em valor mandado pelo cliente: o preço vem sempre desta
+// tabela fixa, calculada aqui no servidor a partir de interval/currency
+// (essas sim são escolhas legítimas de UI). Contribuição única (pagamento
+// avulso, acesso vitalício) foi descontinuada — só sobrevive o tratamento
+// de quem já tinha (ver api/stripe-webhook.js e
+// src/billing/subscriptionStore.js). Runtime Node (não edge, diferente de
+// invite-friend.js) — o SDK oficial `stripe` tem suporte Node completo pra
+// tudo que os endpoints de pagamento precisam, sem reimplementar nada
+// manualmente.
 //
 // Moeda escolhida pela pessoa na tela (BRL ou USD) — não dá pra confiar só
 // na geolocalização por IP (x-vercel-ip-country, ainda usado como sugestão
@@ -21,9 +23,13 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const APP_URL = 'https://app.jesuscorner.app'
 
-// Cobrança mínima real do Stripe por moeda (não dá pra cobrar menos que
-// isso) — valores abaixo disso só fazem sentido como R$0 (grátis).
-const MIN_CHARGE_CENTS = { brl: 50, usd: 50 }
+// Fonte única dos preços fixos cobrados via Stripe/web — mesmos valores
+// exibidos em src/screens/UpgradeScreen.jsx e no site (jesus-corner-site).
+// R$16,90/mês · R$169,90/ano · US$6,90/mês · US$69,90/ano.
+const FIXED_PRICES_CENTS = {
+  brl: { month: 1690, year: 16990 },
+  usd: { month: 690, year: 6990 },
+}
 
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
 // Evita criar um Product novo no Stripe a cada checkout (o que aconteceria
@@ -68,7 +74,7 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  const { interval: requestedInterval, amountCents, currency: requestedCurrency } = req.body ?? {}
+  const { interval: requestedInterval, currency: requestedCurrency } = req.body ?? {}
   // Mensal ou anual, default 'month' se vier algo inválido/ausente.
   const interval = requestedInterval === 'year' ? 'year' : 'month'
 
@@ -78,9 +84,8 @@ export default async function handler(req, res) {
     ? requestedCurrency
     : (req.headers['x-vercel-ip-country'] === 'BR' ? 'brl' : 'usd')
 
-  if (!Number.isInteger(amountCents) || amountCents < MIN_CHARGE_CENTS[currency]) {
-    return res.status(400).json({ error: 'amount_too_low', minCents: MIN_CHARGE_CENTS[currency] })
-  }
+  // Preço fixo — nunca vem do cliente, sempre desta tabela.
+  const amountCents = FIXED_PRICES_CENTS[currency][interval]
 
   const { data: existing } = await supabase
     .from('subscriptions')

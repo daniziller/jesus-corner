@@ -1,34 +1,27 @@
-// Tela de assinatura — modelo de valor livre: a pessoa escolhe quanto quer
-// contribuir (inclusive R$0, que libera acesso total sem tocar o Stripe —
-// ver activateFreeAccess em ../billing/subscriptionStore) de forma
-// recorrente, mensal ou anual. Contribuição única (pagamento avulso,
+// Tela de assinatura — preço fixo, 2 planos (mensal/anual), em BRL ou USD
+// (ver STORE_TIERS em ../billing/storeTiers, mesmos valores usados nas
+// lojas nativas e no Stripe/web). Contribuição única (pagamento avulso,
 // acesso vitalício) foi descontinuada como opção de compra — só fica o
 // tratamento de quem já tinha (`isLifetime` abaixo), pra essas contas
-// continuarem funcionando normalmente.
+// continuarem funcionando normalmente. O mesmo vale pra quem já tinha
+// acesso grátis (`access_type: 'free'`) de quando a contribuição era de
+// valor livre — não existe mais forma de ativar isso, mas quem já tinha
+// continua com o acesso intacto (ver o bloco `alreadyFree*` abaixo).
 // Aparece tanto como paywall de tela cheia (PaywallGate em App.jsx, pra
 // quem ainda não ativou acesso algum) quanto pelo link "Minha assinatura"
-// no Perfil (pra quem já tem acesso, ver/trocar o valor). Moeda mostrada já
+// no Perfil (pra quem já tem acesso, ver/trocar o plano). Moeda mostrada já
 // reflete BRL/USD certo, mas quem decide de verdade a moeda cobrada é o
 // backend (api/create-checkout-session.js, mesmo header x-vercel-ip-country).
 import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import {
-  startCheckout, activateFreeAccess, isPremiumActive, getManageSubscriptionUrl,
+  startCheckout, isPremiumActive, getManageSubscriptionUrl,
   getDigitalGoodsService, getPlaySkuDetails, startPlayBillingPurchase,
   isIOSApp, getIOSProducts, startIOSPurchase,
 } from '../billing/subscriptionStore'
-import { STORE_TIERS, findTierByGooglePlaySku, findTierByAppleProductId } from '../billing/storeTiers'
+import { STORE_TIERS } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
-
-// Mesmos valores numéricos pras duas moedas (sem conversão de câmbio) —
-// R$5/R$10/R$20/R$30 e $5/$10/$20/$30, etc.
-const PRESETS = {
-  brl: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300] },
-  usd: { monthly: [0, 5, 10, 20, 30], annual: [0, 50, 100, 200, 300] },
-}
-// Mínimo real de cobrança do Stripe (valor > 0 — R$0 vira grátis).
-const MIN_MAJOR = { brl: 0.5, usd: 0.5 }
 
 const FEATURES = [
   { icon: 'BookOpen', key: 'featureReading' },
@@ -41,18 +34,13 @@ export default function UpgradeScreen({ session, subscription }) {
   const { lang } = session
   const [currency, setCurrency] = useState('brl')
   const [mode, setMode] = useState('monthly') // 'monthly' | 'annual'
-  const [selectedAmount, setSelectedAmount] = useState(null) // valor em unidade cheia (reais/dólares), null = nada escolhido
-  const [isCustom, setIsCustom] = useState(false)
-  const [customValue, setCustomValue] = useState('')
   const [changingAmount, setChangingAmount] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  // 'stripe' (web, valor livre) | 'google_play' (dentro do TWA via Play) |
-  // 'apple' (dentro do app iOS) — ver storeTiers.js pros preços fixos que
-  // as lojas exigem.
+  // 'stripe' (web) | 'google_play' (dentro do TWA via Play) | 'apple'
+  // (dentro do app iOS) — ver storeTiers.js pro preço fixo de cada plano.
   const [storeContext, setStoreContext] = useState('stripe')
   const [storePrices, setStorePrices] = useState({}) // sku/productId -> {value, currency}, preço real vindo da loja
-  const [selectedTier, setSelectedTier] = useState(null) // tier de storeTiers.js escolhido, só relevante fora do Stripe
 
   useEffect(() => {
     let cancelled = false
@@ -77,10 +65,12 @@ export default function UpgradeScreen({ session, subscription }) {
     if (storeContext === 'stripe') return
     let cancelled = false
     async function loadStorePrices() {
-      const allTiers = [...STORE_TIERS.monthly, ...STORE_TIERS.annual]
+      const skus = [STORE_TIERS.monthly, STORE_TIERS.annual].map(
+        tr => storeContext === 'google_play' ? tr.googlePlaySku : tr.appleProductId
+      )
       const details = storeContext === 'google_play'
-        ? await getPlaySkuDetails(allTiers.map(tr => tr.googlePlaySku))
-        : await getIOSProducts(allTiers.map(tr => tr.appleProductId))
+        ? await getPlaySkuDetails(skus)
+        : await getIOSProducts(skus)
       if (!cancelled) setStorePrices(details)
     }
     loadStorePrices()
@@ -91,95 +81,54 @@ export default function UpgradeScreen({ session, subscription }) {
   const isRecurringActive = subscription?.access_type === 'recurring' && isPremiumActive(subscription)
   const isStoreContext = storeContext !== 'stripe'
 
-  const presets = isStoreContext ? null : PRESETS[currency][mode]
-  const tierList = isStoreContext ? STORE_TIERS[mode] : null
-  const minMajor = MIN_MAJOR[currency]
-
-  const amountMajor = isCustom ? (parseFloat(customValue.replace(',', '.')) || 0) : selectedAmount
-  const amountCents = amountMajor != null ? Math.round(amountMajor * 100) : null
-  // R$0 é válido (vira grátis) — só valores entre 0 e o mínimo do Stripe
-  // ficam bloqueados. Não se aplica em contexto de loja (tiers já são
-  // todos >= mínimo, e o mínimo em si é um conceito só do Stripe).
-  const belowMinimum = !isStoreContext && amountCents !== null && amountCents > 0 && amountCents < minMajor * 100
-  const canSubmit = amountCents !== null && !belowMinimum && !submitting
-    && (amountCents === 0 || !isStoreContext || selectedTier != null)
+  // Um único plano por intervalo — não há mais escolha de valor, só de
+  // intervalo (mensal/anual) e moeda (BRL/USD). Ver storeTiers.js.
+  const tier = STORE_TIERS[mode]
+  const storeSku = storeContext === 'google_play' ? tier.googlePlaySku : tier.appleProductId
+  const storePrice = isStoreContext ? storePrices[storeSku] : null
+  // Preço exibido: o real vindo da loja quando já carregou (mais preciso,
+  // já localizado pro país da conta), senão nossa própria tabela fixa como
+  // estimativa inicial.
+  const displayCurrency = storePrice?.currency ? storePrice.currency.toLowerCase() : currency
+  const amountCents = storePrice
+    ? Math.round(parseFloat(storePrice.value) * 100)
+    : Math.round(tier[currency] * 100)
 
   function switchMode(next) {
     setMode(next)
-    setSelectedAmount(null)
-    setSelectedTier(null)
-    setIsCustom(false)
-    setCustomValue('')
     setError('')
   }
 
   function switchCurrency(next) {
     setCurrency(next)
-    setSelectedAmount(null)
-    setIsCustom(false)
-    setCustomValue('')
-    setError('')
-  }
-
-  function pickPreset(value, tier = null) {
-    setIsCustom(false)
-    setSelectedAmount(value)
-    setSelectedTier(tier)
-    setError('')
-  }
-
-  function pickCustom() {
-    setIsCustom(true)
-    setSelectedAmount(null)
     setError('')
   }
 
   function startChangingAmount() {
-    const currentMajor = (subscription.amount_cents ?? 0) / 100
-    const currentMode = subscription.plan === 'annual' ? 'annual' : 'monthly'
-    setMode(currentMode)
-    if (subscription.billing_provider === 'google_play' || subscription.billing_provider === 'apple') {
-      const tier = subscription.billing_provider === 'google_play'
-        ? findTierByGooglePlaySku(subscription.google_play_product_id)
-        : findTierByAppleProductId(subscription.apple_product_id)
-      setIsCustom(false)
-      setSelectedAmount(tier?.value ?? currentMajor)
-      setSelectedTier(tier)
-    } else if (PRESETS[currency][currentMode].includes(currentMajor)) {
-      setIsCustom(false)
-      setSelectedAmount(currentMajor)
-      setSelectedTier(null)
-    } else {
-      setIsCustom(true)
-      setCustomValue(String(currentMajor))
-      setSelectedTier(null)
-    }
+    setMode(subscription.plan === 'annual' ? 'annual' : 'monthly')
     setChangingAmount(true)
   }
 
   async function handleSubmit() {
-    if (!canSubmit) return
+    if (submitting) return
     setSubmitting(true)
     setError('')
     try {
-      if (amountCents === 0) {
-        await activateFreeAccess()
-        window.location.href = '/?checkout=success'
-      } else if (storeContext === 'google_play') {
-        await startPlayBillingPurchase({ sku: selectedTier.googlePlaySku, mode })
+      if (storeContext === 'google_play') {
+        await startPlayBillingPurchase({ sku: tier.googlePlaySku, mode })
         window.location.href = '/?checkout=success'
       } else if (storeContext === 'apple') {
-        await startIOSPurchase({ productId: selectedTier.appleProductId, mode })
+        await startIOSPurchase({ productId: tier.appleProductId, mode })
         window.location.href = '/?checkout=success'
       } else {
-        const url = await startCheckout({ interval: mode === 'annual' ? 'year' : 'month', amountCents, currency })
+        const url = await startCheckout({ interval: mode === 'annual' ? 'year' : 'month', currency })
         window.location.href = url
       }
     } catch (err) {
       // Pessoa cancelou/fechou a folha de compra nativa — não é erro,
       // só deixa escolher de novo sem alarde.
       if (err.message === 'user_cancelled') { setSubmitting(false); return }
-      setError(t(amountCents === 0 ? 'billing.activationError' : 'billing.checkoutError', undefined, lang))
+      setError(t('billing.checkoutError', undefined, lang))
       setSubmitting(false)
     }
   }
@@ -192,7 +141,7 @@ export default function UpgradeScreen({ session, subscription }) {
     } catch {
       // Sem portal pra abrir (ex: customer do Stripe não existe mais nesse
       // modo — ver api/create-portal-session.js) não é um beco sem saída:
-      // abre o seletor de valor de novo, pra reestabelecer a contribuição.
+      // abre o seletor de plano de novo, pra reestabelecer a assinatura.
       setError(t('billing.managePortalFallbackError', undefined, lang))
       startChangingAmount()
     }
@@ -200,12 +149,8 @@ export default function UpgradeScreen({ session, subscription }) {
 
   const submitBtnKey = mode === 'annual' ? 'billing.subscribeAnnualBtn' : 'billing.subscribeMonthlyBtn'
   const submitLabel = submitting
-    ? t(amountCents === 0 ? 'billing.activating' : 'billing.redirecting', undefined, lang)
-    : amountCents === 0
-      ? t('billing.freeBtn', undefined, lang)
-      : amountCents !== null
-        ? t(submitBtnKey, { amount: formatAmount(amountCents, currency) }, lang)
-        : t(submitBtnKey, { amount: '—' }, lang)
+    ? t('billing.redirecting', undefined, lang)
+    : t(submitBtnKey, { amount: formatAmount(amountCents, displayCurrency) }, lang)
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
@@ -314,71 +259,15 @@ export default function UpgradeScreen({ session, subscription }) {
 
             <div style={styles.amountSection}>
               <p style={styles.amountLabel}>{t('billing.amountLabel', undefined, lang)}</p>
-              <div style={styles.amountGrid}>
-                {isStoreContext ? (
-                  <>
-                    <button
-                      style={{ ...styles.amountChip, ...(!isCustom && selectedAmount === 0 ? styles.amountChipActive : {}) }}
-                      onClick={() => pickPreset(0)}
-                    >
-                      {formatAmount(0, currency)}
-                    </button>
-                    {tierList.map(tier => {
-                      const sku = storeContext === 'google_play' ? tier.googlePlaySku : tier.appleProductId
-                      const price = storePrices[sku]
-                      const label = price ? `${price.currency ?? ''} ${price.value}`.trim() : formatAmount(tier.value * 100, currency)
-                      return (
-                        <button
-                          key={tier.googlePlaySku}
-                          style={{ ...styles.amountChip, ...(selectedTier?.googlePlaySku === tier.googlePlaySku ? styles.amountChipActive : {}) }}
-                          onClick={() => pickPreset(tier.value, tier)}
-                        >
-                          {label}
-                        </button>
-                      )
-                    })}
-                  </>
-                ) : (
-                  <>
-                    {presets.map(value => (
-                      <button
-                        key={value}
-                        style={{ ...styles.amountChip, ...(!isCustom && selectedAmount === value ? styles.amountChipActive : {}) }}
-                        onClick={() => pickPreset(value)}
-                      >
-                        {value === 0 ? formatAmount(0, currency) : formatAmount(value * 100, currency)}
-                      </button>
-                    ))}
-                    <button
-                      style={{ ...styles.amountChip, ...(isCustom ? styles.amountChipActive : {}) }}
-                      onClick={pickCustom}
-                    >
-                      {t('billing.customAmountLabel', undefined, lang)}
-                    </button>
-                  </>
-                )}
-              </div>
-              {!isStoreContext && isCustom && (
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputMode="decimal"
-                  autoFocus
-                  value={customValue}
-                  onChange={e => setCustomValue(e.target.value)}
-                  placeholder={formatAmount(0, currency)}
-                  style={styles.customInput}
-                />
-              )}
-              {belowMinimum && (
-                <p style={styles.hint}>
-                  {t('billing.belowMinimumHint', { min: formatAmount(minMajor * 100, currency) }, lang)}
-                </p>
-              )}
+              <p style={styles.fixedPrice}>
+                {formatAmount(amountCents, displayCurrency)}
+                <span style={styles.fixedPriceUnit}>
+                  {t(mode === 'annual' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}
+                </span>
+              </p>
             </div>
 
-            <button className="btn-primary" disabled={!canSubmit} onClick={handleSubmit}>
+            <button className="btn-primary" disabled={submitting} onClick={handleSubmit}>
               {submitLabel}
             </button>
           </>
@@ -420,13 +309,10 @@ const styles = {
   modeBtn:     { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
   modeBtnActive:{ color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
   modeNote:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: -6 },
-  amountSection:{ display: 'flex', flexDirection: 'column', gap: 8 },
-  amountLabel: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  amountGrid:  { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
-  amountChip:  { textAlign: 'center', padding: '11px 6px', fontSize: 12.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  amountChipActive: { color: 'white', background: 'var(--grad-primary)', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
-  customInput: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 700, color: 'var(--bk)', outline: 'none', background: 'white' },
-  hint:        { fontSize: 11, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
+  amountSection:{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', padding: '14px 0 4px' },
+  amountLabel: { fontSize: 12.5, fontWeight: 700, color: 'var(--g5)' },
+  fixedPrice:  { fontSize: 32, fontWeight: 900, color: 'var(--bk)', letterSpacing: '-0.5px', display: 'flex', alignItems: 'baseline', gap: 4 },
+  fixedPriceUnit: { fontSize: 14, fontWeight: 700, color: 'var(--g5)' },
   errorMsg:    { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   disclaimer:  { fontSize: 10, fontWeight: 500, color: 'var(--g4)', textAlign: 'center', lineHeight: 1.5 },
 }

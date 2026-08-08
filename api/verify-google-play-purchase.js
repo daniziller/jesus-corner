@@ -16,12 +16,11 @@ const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 // Nunca confiar em valor/moeda vindos do cliente — só no sku, validado
-// contra este registro (a mesma fonte usada pra montar os chips na tela,
-// ver src/billing/storeTiers.js).
+// contra este registro (a mesma fonte usada pra montar a tela de
+// assinatura, ver src/billing/storeTiers.js).
 function findTierBySku(sku) {
   for (const mode of Object.keys(STORE_TIERS)) {
-    const tier = STORE_TIERS[mode].find(tr => tr.googlePlaySku === sku)
-    if (tier) return { ...tier, mode }
+    if (STORE_TIERS[mode].googlePlaySku === sku) return { ...STORE_TIERS[mode], mode }
   }
   return null
 }
@@ -104,7 +103,7 @@ export default async function handler(req, res) {
     access_type: 'recurring',
     plan: tier.mode === 'annual' ? 'annual' : 'monthly',
     status,
-    amount_cents: tier.value * 100,
+    amount_cents: Math.round(tier[currency] * 100),
     currency,
     current_period_end: currentPeriodEnd,
     updated_at: new Date().toISOString(),
