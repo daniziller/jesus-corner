@@ -101,8 +101,11 @@ export default async function handler(req, res) {
         percent_off: Number(discountPercent),
         duration: discountDuration,
       })
+      // Versão atual da API do Stripe aninha a referência ao coupon dentro
+      // de `promotion` (não é mais um campo `coupon` de primeiro nível) —
+      // ver https://docs.stripe.com/api/promotion_codes/create.
       const promo = await stripe.promotionCodes.create({
-        coupon: coupon.id,
+        promotion: { type: 'coupon', coupon: coupon.id },
         code,
         max_redemptions: 1,
       })
