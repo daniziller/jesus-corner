@@ -401,7 +401,7 @@ export default function App() {
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
-    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile, mySubscription] = await Promise.all([
+    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getPrayerStats(user.email),
@@ -410,6 +410,7 @@ export default function App() {
       getPendingSocialCount(),
       getMyProfile(),
       getMySubscription(),
+      checkIsAdmin(),
     ])
     setAuthUser(user)
     setCompletedSet(set)
@@ -421,6 +422,7 @@ export default function App() {
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
     setSubscription(mySubscription)
+    setIsAdmin(adminStatus)
     if (myProfile?.hasSeenTour === false) setTourActive(true)
   }
 
@@ -456,6 +458,7 @@ export default function App() {
     setPendingSocialCount(false)
     setMyAvatarUrl(null)
     setSubscription(null)
+    setIsAdmin(false)
     setActiveTab('home')
   }
 
