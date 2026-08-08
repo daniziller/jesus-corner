@@ -567,6 +567,8 @@ export const STRINGS = {
       },
       invites: {
         emailLabel: 'E-mail de quem vai receber',
+        emailLanguageLabel: 'Idioma do e-mail do convite',
+        missingLanguageError: 'Escolha pelo menos um idioma pro e-mail do convite.',
         kindLabel: 'Tipo de convite',
         kind: { free: 'Acesso grátis', discount: 'Desconto' },
         discountPercentLabel: 'Porcentagem de desconto',
@@ -1147,6 +1149,8 @@ export const STRINGS = {
       },
       invites: {
         emailLabel: 'Recipient email',
+        emailLanguageLabel: 'Invite email language',
+        missingLanguageError: 'Pick at least one language for the invite email.',
         kindLabel: 'Invite type',
         kind: { free: 'Free access', discount: 'Discount' },
         discountPercentLabel: 'Discount percentage',

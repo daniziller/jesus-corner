@@ -58,8 +58,8 @@ export async function sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyE
   return authorizedPost('/api/admin/broadcast', { languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun })
 }
 
-export async function createInvite({ email, kind, discountPercent, discountDuration }) {
-  return authorizedPost('/api/admin/create-invite', { email, kind, discountPercent, discountDuration })
+export async function createInvite({ email, kind, discountPercent, discountDuration, languages }) {
+  return authorizedPost('/api/admin/create-invite', { email, kind, discountPercent, discountDuration, languages })
 }
 
 export async function listAdminInvites() {

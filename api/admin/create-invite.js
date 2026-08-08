@@ -26,16 +26,43 @@ function generateCode() {
   return code
 }
 
-function buildInviteHtml({ kind, discountPercent, discountDuration, code }) {
-  const heading = kind === 'free'
-    ? 'Você ganhou acesso vitalício grátis!'
-    : `Você ganhou ${discountPercent}% de desconto!`
-  const body = kind === 'free'
-    ? `Alguém do Jesus' Corner liberou acesso completo e grátis pra sempre na sua conta. Basta entrar no app com este e-mail — o acesso já libera sozinho. Se preferir, também dá pra digitar o código abaixo em qualquer conta, em Perfil → Minha assinatura.`
-    : `Alguém do Jesus' Corner liberou ${discountPercent}% de desconto ${discountDuration === 'forever' ? 'em toda a sua assinatura' : 'no seu primeiro pagamento'}. Use o código abaixo na tela de assinatura (ou digite direto no checkout do Stripe).`
+// Convite é conteúdo estruturado (não texto livre como o Aviso geral), então
+// não precisa de campo pro admin escrever — só templates fixos PT/EN,
+// escolhidos por checkbox (ver InvitesTab em AdminScreen.jsx). Com os dois
+// idiomas marcados, o e-mail sai bilíngue: um bloco de texto por idioma,
+// código e botão compartilhados (não são texto, não precisam duplicar).
+const COPY = {
+  pt: {
+    heading: (kind, pct) => kind === 'free' ? 'Você ganhou acesso vitalício grátis!' : `Você ganhou ${pct}% de desconto!`,
+    body: (kind, pct, duration) => kind === 'free'
+      ? "Alguém do Jesus' Corner liberou acesso completo e grátis pra sempre na sua conta. Basta entrar no app com este e-mail — o acesso já libera sozinho. Se preferir, também dá pra digitar o código abaixo em qualquer conta, em Perfil → Minha assinatura."
+      : `Alguém do Jesus' Corner liberou ${pct}% de desconto ${duration === 'forever' ? 'em toda a sua assinatura' : 'no seu primeiro pagamento'}. Use o código abaixo na tela de assinatura (ou digite direto no checkout do Stripe).`,
+    cta: "Abrir o Jesus' Corner",
+    subject: (kind, pct) => kind === 'free' ? "Você ganhou acesso vitalício grátis" : `Você ganhou ${pct}% de desconto`,
+  },
+  en: {
+    heading: (kind, pct) => kind === 'free' ? "You've received free lifetime access!" : `You've received ${pct}% off!`,
+    body: (kind, pct, duration) => kind === 'free'
+      ? "Someone from Jesus' Corner unlocked full, free access forever on your account. Just log into the app with this email — access unlocks automatically. You can also enter the code below on any account, under Profile → My subscription."
+      : `Someone from Jesus' Corner unlocked ${pct}% off ${duration === 'forever' ? 'your entire subscription' : 'your first payment'}. Use the code below on the subscription screen (or enter it directly at Stripe checkout).`,
+    cta: "Open Jesus' Corner",
+    subject: (kind, pct) => kind === 'free' ? "You've received free lifetime access" : `You've received ${pct}% off`,
+  },
+}
+
+function buildInviteHtml({ kind, discountPercent, discountDuration, code, languages }) {
+  const sections = languages.map((lang, i) => {
+    const c = COPY[lang]
+    const topPad = i === 0 ? '' : 'border-top:1px solid #F5F5F5;margin-top:20px;padding-top:20px;'
+    return `<div style="${topPad}">
+      <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#121212;line-height:1.3;">${c.heading(kind, discountPercent)}</h1>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:#525252;">${c.body(kind, discountPercent, discountDuration)}</p>
+    </div>`
+  }).join('')
+  const ctaLabel = languages.map(lang => COPY[lang].cta).join(' / ')
 
   return `<!doctype html>
-<html lang="pt-BR">
+<html lang="${languages[0]}">
   <body style="margin:0;padding:0;background:#F5F5F5;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F5F5;padding:32px 16px;">
       <tr><td align="center">
@@ -47,16 +74,15 @@ function buildInviteHtml({ kind, discountPercent, discountDuration, code }) {
             </div>
           </td></tr>
           <tr><td style="padding:32px;">
-            <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#121212;line-height:1.3;">${heading}</h1>
-            <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#525252;">${body}</p>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
+            ${sections}
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-top:24px;">
               <tr><td style="background:#F5F5F5;border-radius:12px;padding:16px;text-align:center;">
                 <span style="font-size:22px;font-weight:900;letter-spacing:4px;color:#121212;">${code}</span>
               </td></tr>
             </table>
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:24px;">
               <tr><td style="background:#F97316;border-radius:14px;">
-                <a href="${APP_URL}" style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">Abrir o Jesus' Corner →</a>
+                <a href="${APP_URL}" style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">${ctaLabel} →</a>
               </td></tr>
             </table>
           </td></tr>
@@ -73,13 +99,16 @@ export default async function handler(req, res) {
   const caller = await requireAdmin(req, res)
   if (!caller) return
 
-  const { email, kind, discountPercent, discountDuration } = req.body ?? {}
+  const { email, kind, discountPercent, discountDuration, languages = ['pt', 'en'] } = req.body ?? {}
   const cleanEmail = (email ?? '').trim().toLowerCase()
   if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return res.status(400).json({ error: 'invalid_email' })
   }
   if (kind !== 'free' && kind !== 'discount') {
     return res.status(400).json({ error: 'invalid_kind' })
+  }
+  if (!Array.isArray(languages) || languages.length === 0 || languages.some(l => l !== 'pt' && l !== 'en')) {
+    return res.status(400).json({ error: 'invalid_languages' })
   }
   if (kind === 'discount') {
     const pct = Number(discountPercent)
@@ -138,10 +167,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    const subject = languages.map(lang => COPY[lang].subject(kind, discountPercent)).join(' / ') + " — Jesus' Corner"
     await sendEmail({
       to: cleanEmail,
-      subject: kind === 'free' ? "Você ganhou acesso vitalício grátis — Jesus' Corner" : `Você ganhou ${discountPercent}% de desconto — Jesus' Corner`,
-      html: buildInviteHtml({ kind, discountPercent, discountDuration, code }),
+      subject,
+      html: buildInviteHtml({ kind, discountPercent, discountDuration, code, languages }),
     })
   } catch (err) {
     console.error('Failed to send invite email (invite still created):', err.message)

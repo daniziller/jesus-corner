@@ -503,10 +503,18 @@ function InvitesTab({ lang }) {
   const [kind, setKind] = useState('free')
   const [discountPercent, setDiscountPercent] = useState('50')
   const [discountDuration, setDiscountDuration] = useState('forever')
+  // Convite é conteúdo fixo (não texto livre) — dá pra mandar em PT, EN, ou
+  // os dois (e-mail bilíngue, ver api/admin/create-invite.js), sem precisar
+  // escrever nada, só marcar os idiomas.
+  const [emailLanguages, setEmailLanguages] = useState(['pt', 'en'])
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [created, setCreated] = useState(null)
   const [invites, setInvites] = useState(null)
+
+  function toggleEmailLanguage(l) {
+    setEmailLanguages(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l])
+  }
 
   function reload() {
     setInvites(null)
@@ -517,6 +525,7 @@ function InvitesTab({ lang }) {
 
   async function handleCreate() {
     if (creating || !email.trim()) return
+    if (emailLanguages.length === 0) { setError(t('admin.invites.missingLanguageError', undefined, lang)); return }
     setCreating(true)
     setError('')
     setCreated(null)
@@ -526,6 +535,7 @@ function InvitesTab({ lang }) {
         kind,
         discountPercent: kind === 'discount' ? Number(discountPercent) : undefined,
         discountDuration: kind === 'discount' ? discountDuration : undefined,
+        languages: emailLanguages,
       })
       setCreated(res)
       setEmail('')
@@ -587,6 +597,22 @@ function InvitesTab({ lang }) {
             </label>
           </div>
         )}
+
+        <div style={styles.fieldWrap}>
+          <span style={styles.fieldLabel}>{t('admin.invites.emailLanguageLabel', undefined, lang)}</span>
+          <div style={styles.filterRow}>
+            {['pt', 'en'].map(l => (
+              <button
+                key={l}
+                type="button"
+                style={{ ...styles.filterBtn, ...(emailLanguages.includes(l) ? styles.filterBtnActive : null) }}
+                onClick={() => toggleEmailLanguage(l)}
+              >
+                {t(`admin.broadcast.language.${l}`, undefined, lang)}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {error && <p style={styles.errorMsg}>{error}</p>}
         {created && (
