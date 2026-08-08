@@ -471,8 +471,8 @@ export const STRINGS = {
         reflection: { title: 'Termine o dia com propósito', desc: 'Um roteiro guiado em 3 passos pra parar e pensar no que Deus falou com você hoje.' },
         studies: { title: 'Estudos que vão fundo de verdade', desc: 'Pentateuco, Cronologia, Salmos e As Alianças de Deus — contexto histórico e teológico completo, em sessões guiadas.' },
         community: { title: 'Sua fé também se vive em comunidade', desc: 'Adicione amigos, crie grupos de leitura e proponha desafios juntos — como "Maratona de Marcos".' },
-        progress: { title: '🔥 Veja sua constância crescer', desc: 'Sequência de dias, níveis e conquistas — cada capítulo lido conta pra sua jornada.' },
-      },
+        progress: { title: '🔥 Seu progresso, medido de verdade', desc: 'Marque cada capítulo que já leu e veja na hora quanto da Bíblia falta — mais sequência de dias, níveis e conquistas pra te manter no ritmo.' },
+},
       prayerTime: {
         title: 'Quanto tempo pra sua oração?',
         subtitle: 'Dá pra mudar quando quiser depois, na aba Rotina.',
@@ -1054,8 +1054,8 @@ export const STRINGS = {
         reflection: { title: 'End the day with purpose', desc: 'A guided 3-step flow to pause and think about what God spoke to you today.' },
         studies: { title: 'Studies that actually go deep', desc: "Pentateuch, Chronology, Psalms, and God's Covenants — full historical and theological context, in guided sessions." },
         community: { title: 'Faith is better lived together', desc: 'Add friends, create reading groups, and propose challenges together — like "Mark Marathon".' },
-        progress: { title: '🔥 Watch your consistency grow', desc: 'Day streak, levels, and achievements — every chapter read counts toward your journey.' },
-      },
+        progress: { title: '🔥 Your progress, actually tracked', desc: "Mark each chapter you've read and see exactly how much of the Bible is left — plus a day streak, levels, and achievements to keep you going." },
+},
       prayerTime: {
         title: 'How long for your prayer?',
         subtitle: 'You can change this anytime later, in the Routine tab.',

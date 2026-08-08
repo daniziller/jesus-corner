@@ -194,21 +194,21 @@ function NameStep({ name, setName, onNext, onGoLogin }) {
 /* ── 2. Boas-vindas + recursos (screenshots) ── Rolagem manual (arrasta pro
    lado, com scroll-snap) em vez de trocar sozinho — dá tempo de ler cada
    card no próprio ritmo, e o "espiar" do próximo card na borda já convida a
-   arrastar. Rotina abre e Progresso fecha de propósito — são os dois
-   recursos com mais destaque pedido (a rotina é o fio condutor pros
-   próximos passos do onboarding, o progresso é o "gancho" que fecha
-   mostrando o resultado de usar o app). */
+   arrastar. Rotina abre e Progresso vem logo em seguida de propósito — são
+   os dois recursos com mais destaque pedido (a rotina é o fio condutor pros
+   próximos passos do onboarding, o progresso reforça de cara que o app
+   acompanha o que já foi lido e quanto falta). */
 function FeaturesStep({ header, name, onNext }) {
   const lang = getAppLanguage() ?? 'pt'
   const suffix = lang === 'en' ? '-en' : ''
   const cards = [
     { key: 'routine', icon: 'ClipboardList', img: `/onboarding/rotina${suffix}.png` },
+    { key: 'progress', icon: 'BarChart3', img: `/onboarding/progresso${suffix}.png` },
     { key: 'prayer', icon: 'HandHeart', img: `/onboarding/oracao${suffix}.png` },
     { key: 'reading', icon: 'BookOpen', img: `/onboarding/leitura${suffix}.png` },
     { key: 'reflection', icon: 'PenLine', img: `/onboarding/reflexao${suffix}.png` },
     { key: 'studies', icon: 'GraduationCap', img: `/onboarding/estudos${suffix}.png` },
     { key: 'community', icon: 'Users', img: `/onboarding/comunidade${suffix}.png` },
-    { key: 'progress', icon: 'BarChart3', img: `/onboarding/progresso${suffix}.png` },
   ]
 
   const scrollerRef = useRef(null)
