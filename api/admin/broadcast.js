@@ -1,16 +1,20 @@
-// Manda um aviso geral pra todo mundo — sempre como notificação in-app
-// (tabela notifications, sino), e opcionalmente também por email. Título e
-// corpo em PT e EN (o admin preenche os dois), escolhido por usuário via
-// user_metadata.language (mesmo campo/checagem de
+// Manda um aviso — pra todo mundo, um usuário específico, ou um segmento
+// (filtros combináveis: assinatura, idioma, grupo de leitura) — sempre como
+// notificação in-app (tabela notifications, sino), e opcionalmente também
+// por email. Título e corpo em PT e EN (o admin preenche os dois), escolhido
+// por usuário via user_metadata.language (mesmo campo/checagem de
 // api/send-contribution-reminders.js).
 //
-// listUsers pagina de verdade (perPage default é 50 — sem isso o broadcast
-// alcançaria só os 50 primeiros cadastros). Email roda em lotes de
-// concorrência limitada, não tudo de uma vez, pra não estourar rate limit
-// do Resend nem o tempo de execução da function.
+// dryRun: true devolve só a contagem de destinatários (recipients), sem
+// gravar notificação nem mandar email — usado pelo botão "Verificar
+// destinatários" no client antes de disparar de verdade.
+//
+// Email roda em lotes de concorrência limitada, não tudo de uma vez, pra
+// não estourar rate limit do Resend nem o tempo de execução da function.
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { sendEmail } from '../_lib/resend.js'
+import { listAllUsers } from '../_lib/adminUsers.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const NOTIFICATION_TYPE = 'admin_broadcast'
@@ -18,18 +22,54 @@ const NOTIFICATION_BATCH_SIZE = 500
 const EMAIL_CONCURRENCY = 15
 const APP_URL = 'https://app.jesuscorner.app'
 
-async function listAllUsers() {
-  const users = []
-  let page = 1
-  const perPage = 1000
-  while (true) {
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
-    if (error) throw error
-    users.push(...data.users)
-    if (data.users.length < perPage) break
-    page++
+function intersect(a, b) {
+  return new Set([...a].filter(x => b.has(x)))
+}
+
+// Devolve o set de user ids que atendem ao filtro escolhido. 'all' e 'user'
+// resolvem sem tocar o banco; 'segment' cruza (AND) cada dimensão marcada
+// contra a lista completa de usuários — dimensões não marcadas (null) não
+// restringem nada.
+async function resolveRecipientIds({ recipientMode, recipientUserId, segment }, allUsers) {
+  if (recipientMode === 'user') {
+    return recipientUserId ? new Set([recipientUserId]) : new Set()
   }
-  return users
+  if (recipientMode !== 'segment') {
+    return new Set(allUsers.map(u => u.id))
+  }
+
+  let allowed = new Set(allUsers.map(u => u.id))
+
+  if (segment?.language) {
+    const matchLang = new Set(
+      allUsers
+        .filter(u => (u.user_metadata?.language === 'en' ? 'en' : 'pt') === segment.language)
+        .map(u => u.id)
+    )
+    allowed = intersect(allowed, matchLang)
+  }
+
+  if (segment?.accessType || segment?.plan || segment?.currency) {
+    let query = supabaseAdmin.from('subscriptions').select('user_id')
+    if (segment.accessType) query = query.eq('access_type', segment.accessType)
+    if (segment.plan) query = query.eq('plan', segment.plan)
+    if (segment.currency) query = query.eq('currency', segment.currency)
+    const { data, error } = await query
+    if (error) throw error
+    allowed = intersect(allowed, new Set((data ?? []).map(r => r.user_id)))
+  }
+
+  if (segment?.groupId) {
+    const { data, error } = await supabaseAdmin
+      .from('reading_group_members')
+      .select('user_id')
+      .eq('group_id', segment.groupId)
+      .eq('status', 'joined')
+    if (error) throw error
+    allowed = intersect(allowed, new Set((data ?? []).map(r => r.user_id)))
+  }
+
+  return allowed
 }
 
 function buildBroadcastHtml(title, body) {
@@ -78,9 +118,17 @@ export default async function handler(req, res) {
   const caller = await requireAdmin(req, res)
   if (!caller) return
 
-  const { titlePt, titleEn, bodyPt, bodyEn, sendEmail: shouldSendEmail } = req.body ?? {}
+  const {
+    titlePt, titleEn, bodyPt, bodyEn, sendEmail: shouldSendEmail,
+    recipientMode = 'all', recipientUserId = null, segment = null,
+    dryRun = false,
+  } = req.body ?? {}
+
   if (!titlePt?.trim() || !titleEn?.trim() || !bodyPt?.trim() || !bodyEn?.trim()) {
     return res.status(400).json({ error: 'missing_fields' })
+  }
+  if (recipientMode === 'user' && !recipientUserId) {
+    return res.status(400).json({ error: 'missing_recipient_user' })
   }
 
   let users
@@ -91,15 +139,29 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'list_users_failed' })
   }
 
-  const recipients = users.map(u => {
-    const lang = u.user_metadata?.language === 'en' ? 'en' : 'pt'
-    return {
-      id: u.id,
-      email: u.email,
-      title: lang === 'en' ? titleEn.trim() : titlePt.trim(),
-      body: lang === 'en' ? bodyEn.trim() : bodyPt.trim(),
-    }
-  })
+  let allowedIds
+  try {
+    allowedIds = await resolveRecipientIds({ recipientMode, recipientUserId, segment }, users)
+  } catch (err) {
+    console.error('Failed to resolve broadcast recipients:', err.message)
+    return res.status(500).json({ error: 'resolve_recipients_failed' })
+  }
+
+  const recipients = users
+    .filter(u => allowedIds.has(u.id))
+    .map(u => {
+      const lang = u.user_metadata?.language === 'en' ? 'en' : 'pt'
+      return {
+        id: u.id,
+        email: u.email,
+        title: lang === 'en' ? titleEn.trim() : titlePt.trim(),
+        body: lang === 'en' ? bodyEn.trim() : bodyPt.trim(),
+      }
+    })
+
+  if (dryRun) {
+    return res.status(200).json({ ok: true, dryRun: true, recipients: recipients.length })
+  }
 
   for (let i = 0; i < recipients.length; i += NOTIFICATION_BATCH_SIZE) {
     const chunk = recipients.slice(i, i + NOTIFICATION_BATCH_SIZE)

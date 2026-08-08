@@ -44,6 +44,16 @@ export async function deleteContactMessage({ id }) {
   return authorizedPost('/api/admin/delete-contact-message', { id })
 }
 
-export async function sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail }) {
-  return authorizedPost('/api/admin/broadcast', { titlePt, titleEn, bodyPt, bodyEn, sendEmail })
+export async function searchAdminUsers(query) {
+  const { users } = await authorizedPost('/api/admin/search-users', { query })
+  return users
+}
+
+export async function listReadingGroupsForAdmin() {
+  const { groups } = await authorizedPost('/api/admin/reading-groups')
+  return groups
+}
+
+export async function sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun }) {
+  return authorizedPost('/api/admin/broadcast', { titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun })
 }

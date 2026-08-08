@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { formatAmount } from '../billing/formatAmount'
-import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast } from '../admin/adminStore'
+import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast, searchAdminUsers, listReadingGroupsForAdmin } from '../admin/adminStore'
 
 const TABS = ['metrics', 'contact', 'broadcast']
 const TAB_ICONS = { metrics: 'BarChart3', contact: 'Mail', broadcast: 'Megaphone' }
@@ -206,6 +206,127 @@ function ContactTab({ lang }) {
   )
 }
 
+const RECIPIENT_MODES = ['all', 'user', 'segment']
+
+function RecipientSelector({ lang, mode, setMode, selectedUser, setSelectedUser, segment, setSegment }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [groups, setGroups] = useState([])
+
+  useEffect(() => {
+    if (mode === 'segment') listReadingGroupsForAdmin().then(setGroups).catch(() => setGroups([]))
+  }, [mode])
+
+  useEffect(() => {
+    if (mode !== 'user' || !query.trim()) { setResults([]); return }
+    let cancelled = false
+    setSearching(true)
+    const timer = setTimeout(() => {
+      searchAdminUsers(query.trim())
+        .then(users => { if (!cancelled) setResults(users) })
+        .catch(() => { if (!cancelled) setResults([]) })
+        .finally(() => { if (!cancelled) setSearching(false) })
+    }, 350)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [mode, query])
+
+  function updateSegment(patch) {
+    setSegment(prev => ({ ...prev, ...patch }))
+  }
+
+  return (
+    <div style={styles.fieldWrap}>
+      <span style={styles.fieldLabel}>{t('admin.broadcast.recipientLabel', undefined, lang)}</span>
+      <div style={styles.filterRow}>
+        {RECIPIENT_MODES.map(m => (
+          <button
+            key={m}
+            type="button"
+            style={{ ...styles.filterBtn, ...(mode === m ? styles.filterBtnActive : null) }}
+            onClick={() => setMode(m)}
+          >
+            {t(`admin.broadcast.recipientMode.${m}`, undefined, lang)}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'user' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+          <input
+            style={styles.input}
+            type="text"
+            value={selectedUser ? selectedUser.email : query}
+            onChange={e => { setSelectedUser(null); setQuery(e.target.value) }}
+            placeholder={t('admin.broadcast.userSearchPlaceholder', undefined, lang)}
+          />
+          {selectedUser && (
+            <button type="button" style={styles.clearSelectionBtn} onClick={() => { setSelectedUser(null); setQuery('') }}>
+              {t('admin.broadcast.clearSelection', undefined, lang)}
+            </button>
+          )}
+          {!selectedUser && searching && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+          {!selectedUser && results.length > 0 && (
+            <div style={styles.userResults}>
+              {results.map(u => (
+                <button key={u.id} type="button" style={styles.userResultItem} onClick={() => { setSelectedUser(u); setResults([]) }}>
+                  <span style={{ fontWeight: 700 }}>{u.name ?? u.email}</span>
+                  {u.name && <span style={{ color: 'var(--g5)', marginLeft: 6 }}>{u.email}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {mode === 'segment' && (
+        <div style={styles.segmentGrid}>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.segment.accessType', undefined, lang)}</span>
+            <select style={styles.select} value={segment.accessType ?? ''} onChange={e => updateSegment({ accessType: e.target.value || null })}>
+              <option value="">{t('admin.broadcast.segment.any', undefined, lang)}</option>
+              <option value="free">{t('admin.broadcast.segment.free', undefined, lang)}</option>
+              <option value="lifetime">{t('admin.broadcast.segment.lifetime', undefined, lang)}</option>
+              <option value="recurring">{t('admin.broadcast.segment.recurring', undefined, lang)}</option>
+            </select>
+          </label>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.segment.plan', undefined, lang)}</span>
+            <select style={styles.select} value={segment.plan ?? ''} onChange={e => updateSegment({ plan: e.target.value || null })}>
+              <option value="">{t('admin.broadcast.segment.any', undefined, lang)}</option>
+              <option value="monthly">{t('admin.metric.monthly', undefined, lang)}</option>
+              <option value="annual">{t('admin.metric.annual', undefined, lang)}</option>
+            </select>
+          </label>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.segment.currency', undefined, lang)}</span>
+            <select style={styles.select} value={segment.currency ?? ''} onChange={e => updateSegment({ currency: e.target.value || null })}>
+              <option value="">{t('admin.broadcast.segment.any', undefined, lang)}</option>
+              <option value="brl">BRL</option>
+              <option value="usd">USD</option>
+            </select>
+          </label>
+          <label style={styles.fieldWrap}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.segment.language', undefined, lang)}</span>
+            <select style={styles.select} value={segment.language ?? ''} onChange={e => updateSegment({ language: e.target.value || null })}>
+              <option value="">{t('admin.broadcast.segment.any', undefined, lang)}</option>
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label style={{ ...styles.fieldWrap, gridColumn: '1 / -1' }}>
+            <span style={styles.fieldLabel}>{t('admin.broadcast.segment.group', undefined, lang)}</span>
+            <select style={styles.select} value={segment.groupId ?? ''} onChange={e => updateSegment({ groupId: e.target.value || null })}>
+              <option value="">{t('admin.broadcast.segment.any', undefined, lang)}</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function BroadcastTab({ lang }) {
   const [titlePt, setTitlePt] = useState('')
   const [titleEn, setTitleEn] = useState('')
@@ -213,10 +334,42 @@ function BroadcastTab({ lang }) {
   const [bodyEn, setBodyEn] = useState('')
   const [alsoEmail, setAlsoEmail] = useState(false)
   const [sending, setSending] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [previewCount, setPreviewCount] = useState(null)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
 
+  const [recipientMode, setRecipientMode] = useState('all')
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [segment, setSegment] = useState({ accessType: null, plan: null, currency: null, language: null, groupId: null })
+
+  const recipientPayload = {
+    recipientMode,
+    recipientUserId: recipientMode === 'user' ? selectedUser?.id ?? null : null,
+    segment: recipientMode === 'segment' ? segment : null,
+  }
+
   const canSubmit = titlePt.trim() && titleEn.trim() && bodyPt.trim() && bodyEn.trim() && !sending
+    && (recipientMode !== 'user' || !!selectedUser)
+
+  function resetRecipientFeedback() {
+    setPreviewCount(null)
+    setResult(null)
+  }
+
+  async function handleCheckRecipients() {
+    if (!canSubmit) return
+    setChecking(true)
+    setError('')
+    try {
+      const res = await sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail, ...recipientPayload, dryRun: true })
+      setPreviewCount(res.recipients)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setChecking(false)
+    }
+  }
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -224,9 +377,10 @@ function BroadcastTab({ lang }) {
     setError('')
     setResult(null)
     try {
-      const res = await sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail })
+      const res = await sendBroadcast({ titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail, ...recipientPayload })
       setResult(res)
       setTitlePt(''); setTitleEn(''); setBodyPt(''); setBodyEn('')
+      setPreviewCount(null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -236,6 +390,16 @@ function BroadcastTab({ lang }) {
 
   return (
     <div style={styles.form}>
+      <RecipientSelector
+        lang={lang}
+        mode={recipientMode}
+        setMode={m => { setRecipientMode(m); resetRecipientFeedback() }}
+        selectedUser={selectedUser}
+        setSelectedUser={u => { setSelectedUser(u); resetRecipientFeedback() }}
+        segment={segment}
+        setSegment={updater => { setSegment(updater); resetRecipientFeedback() }}
+      />
+
       <label style={styles.fieldWrap}>
         <span style={styles.fieldLabel}>{t('admin.broadcast.titlePt', undefined, lang)}</span>
         <input style={styles.input} type="text" value={titlePt} onChange={e => setTitlePt(e.target.value)} />
@@ -259,15 +423,23 @@ function BroadcastTab({ lang }) {
       </label>
 
       {error && <p style={styles.errorMsg}>{error}</p>}
+      {previewCount != null && (
+        <p style={styles.hint}>{t('admin.broadcast.previewCount', { count: previewCount }, lang)}</p>
+      )}
       {result && (
         <p style={styles.resultMsg}>
           {t('admin.broadcast.result', { recipients: result.recipients, sent: result.emailsSent, failed: result.emailsFailed }, lang)}
         </p>
       )}
 
-      <button className="btn-primary" disabled={!canSubmit} onClick={handleSubmit}>
-        {sending ? t('admin.sending', undefined, lang) : t('admin.broadcast.sendBtn', undefined, lang)}
-      </button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn-secondary" style={{ flex: 1 }} disabled={!canSubmit || checking} onClick={handleCheckRecipients}>
+          {checking ? t('admin.loading', undefined, lang) : t('admin.broadcast.checkBtn', undefined, lang)}
+        </button>
+        <button className="btn-primary" style={{ flex: 1 }} disabled={!canSubmit} onClick={handleSubmit}>
+          {sending ? t('admin.sending', undefined, lang) : t('admin.broadcast.sendBtn', undefined, lang)}
+        </button>
+      </div>
     </div>
   )
 }
@@ -307,4 +479,9 @@ const styles = {
   textarea:           { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)', resize: 'vertical', boxSizing: 'border-box' },
   checkboxRow:        { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' },
   checkboxLabel:       { fontSize: 12.5, fontWeight: 600, color: 'var(--g6)' },
+  select:             { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '9px 10px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)', boxSizing: 'border-box' },
+  segmentGrid:        { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 },
+  clearSelectionBtn:  { alignSelf: 'flex-start', border: 'none', background: 'none', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', padding: '2px 0' },
+  userResults:        { display: 'flex', flexDirection: 'column', gap: 2, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 10, overflow: 'hidden' },
+  userResultItem:     { textAlign: 'left', border: 'none', background: 'none', padding: '9px 12px', fontFamily: 'var(--font)', fontSize: 12.5, color: 'var(--bk)', cursor: 'pointer' },
 }
