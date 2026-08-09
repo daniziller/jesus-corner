@@ -133,7 +133,7 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
             <div>
               <div className="section-header">
                 <h3 className="section-title">
-                  {plan.id === 'free' ? translate('home.todayReadingHeader', undefined, lang) : translate('home.todaySessionHeader', { n: todaySession.number }, lang)}
+                  {translate('home.todayReadingHeader', undefined, lang)}
                 </h3>
               </div>
               <div style={styles.todayCard}>
