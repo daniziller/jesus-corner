@@ -227,7 +227,7 @@ function NameStep({ name, setName, onNext, onGoLogin }) {
    (method.empathy.*). As 4 fases moram dentro do mesmo passo do wizard de
    propósito: no funil do admin conta como um passo só, e o "voltar" anda
    fase a fase antes de sair pro passo do nome. ── */
-const VALUE_INTRO_COLOR = '#F97316'
+const VALUE_INTRO_COLOR = '#F97316' // = var(--or); hex literal pra permitir suffixar alpha (`${VALUE_INTRO_COLOR}1A`) abaixo
 const OBSTACLE_KEYS = ['rush', 'phone', 'start', 'consistency']
 
 function ValueIntroStep({ stepNum, total, name, onBackToName, onNext }) {
@@ -980,11 +980,11 @@ function PinField({ label, value, onChange, length = 6 }) {
 
 const styles = {
   screen:        { display: 'flex', flexDirection: 'column', height: '100%' },
-  hero:          { background: '#141414', padding: '18px 24px 14px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, flexShrink: 0, position: 'relative', overflow: 'hidden' },
+  hero:          { background: 'var(--bk-hero)', padding: '18px 24px 14px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, flexShrink: 0, position: 'relative', overflow: 'hidden' },
   heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -100, right: -60 },
   heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -90, left: -50 },
   logo:          { position: 'relative', width: 34, height: 34, borderRadius: 9, boxShadow: '0 6px 14px rgba(0,0,0,.35)', flexShrink: 0 },
-  brandName:     { position: 'relative', fontSize: 15.5, fontWeight: 900, color: '#fff', letterSpacing: 0.5 },
+  brandName:     { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 15.5, fontWeight: 800, color: 'var(--white)', letterSpacing: 0.5 },
   greeting:      { fontSize: 15, fontWeight: 800, color: 'var(--or)', margin: '2px 0 -6px' },
   sheet:         { flex: 1, overflowY: 'auto', background: 'var(--white)', borderRadius: '20px 20px 0 0', marginTop: -14, padding: '24px 22px 32px' },
   form:          { display: 'flex', flexDirection: 'column', gap: 12 },
@@ -1021,7 +1021,7 @@ const styles = {
   durationSel:   { display: 'flex', flexWrap: 'wrap', gap: 8 },
   durationBtn:   { flex: '1 0 26%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '11px 6px', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', cursor: 'pointer', fontFamily: 'var(--font)' },
   durationBtnActive: { border: 'none' },
-  durationBtnNum: { fontSize: 18.5, fontWeight: 800, color: 'inherit' },
+  durationBtnNum: { fontFamily: 'var(--font-display)', fontSize: 18.5, fontWeight: 800, color: 'inherit' },
   durationBtnUnit: { fontSize: 11.5, fontWeight: 600, color: 'inherit', opacity: 0.75 },
   planSel:       { display: 'flex', gap: 8 },
   choiceCol:     { display: 'flex', flexDirection: 'column', gap: 8 },
