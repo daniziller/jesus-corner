@@ -127,7 +127,7 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
 
         <div className="dashboard-grid">
           {/* Card do usuário */}
-          <div className="dashboard-col" style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 20, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: 'var(--shadow-card)', position: 'relative' }}>
+          <div className="dashboard-col" style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 24, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: 'var(--shadow-card)', position: 'relative' }}>
             {!editMode && (
               <button style={styles.editBtn} onClick={startEdit} aria-label={t('profile.editProfile')}>
                 <AppIcon name="PenLine" size={14} color="var(--g5)" />
@@ -211,7 +211,7 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
         </div>
 
         {/* Configurações */}
-        <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 17, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
+        <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 21, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
 
           <SettingsLink
             icon="Crown" iconBg="var(--olt)"

@@ -282,7 +282,7 @@ function RoutineUsageCard({ dailyRoutine, lang }) {
   const avgFullDays = averageFullRoutineDays(weeks)
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+    <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' }}>
       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)' }}>{t('progress.routineUsageTitle', undefined, lang)}</p>
       <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, marginBottom: 12 }}>{t('progress.routineUsageSub', undefined, lang)}</p>
 
@@ -377,7 +377,7 @@ const styles = {
   heroBreakdownL:    { fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
   heroStartBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, border: 'none', borderRadius: 24, padding: '11px 26px', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font)', color: 'var(--or)', cursor: 'pointer', background: 'white', boxShadow: '0 8px 20px rgba(0,0,0,.15)' },
 
-  stepper:     { display: 'flex', alignItems: 'flex-start', background: 'var(--white)', borderRadius: 18, padding: '18px 10px 14px', boxShadow: 'var(--shadow-card)' },
+  stepper:     { display: 'flex', alignItems: 'flex-start', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: '18px 10px 14px', boxShadow: 'var(--shadow-card)' },
   stepNodeWrap:{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, width: 66 },
   stepNode:    { width: 38, height: 38, borderRadius: '50%', border: '2px solid var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .4s ease, border-color .4s ease' },
   stepLabelBtn:{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', padding: 0, width: '100%' },
@@ -386,7 +386,7 @@ const styles = {
   stepLineTrack: { flex: 1, height: 3, background: 'var(--g2)', borderRadius: 2, marginTop: 18, overflow: 'hidden' },
   stepLineFill:  { height: '100%', borderRadius: 2, transition: 'width .6s ease' },
 
-  section:     { background: 'var(--white)', borderRadius: 16, padding: 14, boxShadow: 'var(--shadow-card)' },
+  section:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   sectionHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
   sectionIcon: { width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
@@ -431,7 +431,7 @@ const styles = {
   routineUsageMonthLabelCurrent: { color: 'var(--or)', fontWeight: 800 },
   routineUsageLegend:     { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
 
-  calendarCard:      { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' },
+  calendarCard:      { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' },
   calendarCardTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
   calendarCardSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, marginBottom: 12 },
 }

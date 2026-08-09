@@ -48,7 +48,7 @@ export default function ProgressScreen({ session, blocks }) {
 
             {/* Barras por bloco — antes das stats secundárias (dias seguidos +
                 capítulos/livros), pra ficar logo depois do anel grande. */}
-            <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+            <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>{translate('progress.progressByBlock', undefined, lang)}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {blocks.map(block => (
@@ -109,7 +109,7 @@ export default function ProgressScreen({ session, blocks }) {
           <div className="dashboard-col">
 
             {/* Conquistas */}
-            <div style={{ background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+            <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>
                 {translate('progress.achievements', undefined, lang)} · {session.achievements.filter(a => a.unlocked).length}/{session.achievements.length}
               </p>
@@ -172,7 +172,7 @@ const styles = {
   bigLabel:    { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.85)', letterSpacing: 2, textTransform: 'uppercase', position: 'relative' },
   testLabel:   { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.7)', alignSelf: 'flex-start', letterSpacing: 1, textTransform: 'uppercase', marginTop: 7, position: 'relative' },
   streakCard:  { flex: 1, background: 'linear-gradient(135deg,#FFF3E8,#FFDDB8)', borderRadius: 13, padding: 13, display: 'flex', flexDirection: 'column' },
-  levelCard:   { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
+  levelCard:   { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:  { fontSize: 26, flexShrink: 0 },
   levelTitle:  { fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
   levelXp:     { fontSize: 10.5, fontWeight: 700, color: 'var(--or)' },

@@ -258,7 +258,7 @@ function NoteEditor({ note, onSave, lang }) {
 
 /* ── Estilos locais ── */
 const styles = {
-  section:      { background: 'var(--white)', borderRadius: 20, border: '0.5px solid var(--g1)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
+  section:      { background: 'var(--card-bg)', borderRadius: 24, border: 'var(--card-border)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
   header:       { padding: '13px 14px 11px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '0.5px solid var(--g1)' },
   headerLeft:   { display: 'flex', alignItems: 'center', gap: 8 },
   headerTitle:  { fontSize: 13, fontWeight: 700, color: 'var(--bk)', letterSpacing: '-0.2px' },
