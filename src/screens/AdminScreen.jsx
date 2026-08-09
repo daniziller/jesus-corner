@@ -2,7 +2,7 @@
 // as buscas abaixo já ficam restritas a quem de fato usa essa tela, sem
 // guarda extra. Sub-navegação local (métricas/fale conosco/aviso geral),
 // mesmo padrão sem router do resto do app.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { formatAmount } from '../billing/formatAmount'
@@ -51,13 +51,23 @@ function MetricsTab({ lang }) {
   const [funnelDays, setFunnelDays] = useState(30)
   const [funnelLanguage, setFunnelLanguage] = useState('all')
   const [refreshing, setRefreshing] = useState(false)
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
+    // Clicar em dois filtros em sequência rápida dispara duas buscas — sem
+    // essa trava, a que demora mais pra responder (ex: filtro de idioma,
+    // que faz uma busca extra em auth.users) pode chegar depois e
+    // sobrescrever o resultado do filtro mais recente com dado desatualizado.
+    const requestId = ++requestIdRef.current
     setRefreshing(true)
     getAdminMetrics({ days: funnelDays, language: funnelLanguage === 'all' ? undefined : funnelLanguage })
-      .then(data => { setMetrics(data); setError('') })
-      .catch(err => setError(err.message))
-      .finally(() => setRefreshing(false))
+      .then(data => {
+        if (requestIdRef.current !== requestId) return
+        setMetrics(data)
+        setError('')
+      })
+      .catch(err => { if (requestIdRef.current === requestId) setError(err.message) })
+      .finally(() => { if (requestIdRef.current === requestId) setRefreshing(false) })
   }, [funnelDays, funnelLanguage])
 
   if (error) return <p style={styles.errorMsg}>{error}</p>
