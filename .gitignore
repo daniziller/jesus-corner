@@ -31,3 +31,6 @@ android-twa/*.idsig
 # Config/estado local do Claude Code (específico desta máquina)
 .claude/
 .env*
+
+# Metadados do Finder (macOS) — criados em qualquer pasta aberta no Finder
+.DS_Store
