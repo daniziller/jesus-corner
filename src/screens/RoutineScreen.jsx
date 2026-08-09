@@ -12,6 +12,7 @@ import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import RoutineCalendar from '../components/RoutineCalendar'
 
 // Mesmas opções de cada tela dedicada (ver PrayerScreen.jsx/ReflectionScreen.jsx)
 // — a Reflexão inclui 8 porque é o padrão do plano Leve.
@@ -138,6 +139,16 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
               )}
             </div>
           ))}
+        </div>
+
+        {/* Calendário mensal — visão completa de quais dias tiveram cada
+            passo concluído, não só as últimas semanas (complementa o card
+            de constância logo abaixo, que é semanal). Mesmo componente
+            usado na Home (ver src/components/RoutineCalendar.jsx). */}
+        <div style={styles.calendarCard}>
+          <p style={styles.calendarCardTitle}>{t('progress.routineCalendarTitle', undefined, lang)}</p>
+          <p style={styles.calendarCardSub}>{t('progress.routineCalendarSub', undefined, lang)}</p>
+          <RoutineCalendar dailyRoutine={session.dailyRoutine} lang={lang} />
         </div>
 
         {/* Constância da rotina — dias/semana em que cada passo foi feito
@@ -419,4 +430,8 @@ const styles = {
   routineUsageMonthLabel: { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)', textTransform: 'capitalize' },
   routineUsageMonthLabelCurrent: { color: 'var(--or)', fontWeight: 800 },
   routineUsageLegend:     { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
+
+  calendarCard:      { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 18, padding: 15, boxShadow: 'var(--shadow-card)' },
+  calendarCardTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
+  calendarCardSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2, marginBottom: 12 },
 }

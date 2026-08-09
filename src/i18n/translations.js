@@ -280,6 +280,8 @@ export const STRINGS = {
       routineUsageEmpty: 'Comece sua rotina diária pra ver sua constância aqui.',
       routineUsageThisWeek: 'Essa semana',
       routineAvgLabel: 'Média de dias/semana com a rotina completa',
+      routineCalendarTitle: 'Calendário da rotina',
+      routineCalendarSub: 'Veja o histórico completo, mês a mês',
     },
     profile: {
       pageTitle: 'Perfil',
@@ -903,6 +905,8 @@ export const STRINGS = {
       routineUsageEmpty: 'Start your daily routine to see your consistency here.',
       routineUsageThisWeek: 'This week',
       routineAvgLabel: 'Avg. days/week with the full routine',
+      routineCalendarTitle: 'Routine calendar',
+      routineCalendarSub: 'See the full history, month by month',
     },
     profile: {
       pageTitle: 'Profile',
