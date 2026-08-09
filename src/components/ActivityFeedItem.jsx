@@ -7,12 +7,13 @@ import AppIcon from '../icons/AppIcon'
 import { bookNameFor } from '../utils/progress'
 import { formatRelativeTime } from '../utils/time'
 import { LEVELS } from '../utils/levels'
+import { STAT_THEMES } from '../utils/statThemes'
 
 const TYPE_ICON = { book_completed: 'BookMarked', level_up: 'Award', joined_group: 'Users' }
 const TYPE_THEME = {
-  book_completed: { bg: 'linear-gradient(135deg,#FFF3E8,#FFDDB8)', color: '#EA580C' },
-  level_up:       { bg: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', color: '#9333EA' },
-  joined_group:   { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', color: 'var(--gr)' },
+  book_completed: STAT_THEMES.orange,
+  level_up:       STAT_THEMES.purple,
+  joined_group:   STAT_THEMES.green,
 }
 
 function activityText(activity, lang) {

@@ -10,6 +10,7 @@ import { getFriendsActivity } from '../activity/activityStore'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { STAT_THEMES } from '../utils/statThemes'
 
 export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
@@ -90,8 +91,8 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
                 </div>
                 {/* Barras AT/NT */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <BarRow label="AT" pct={atPercent}  color="#FFFFFF" />
-                  <BarRow label="NT" pct={ntPercent}  color="#FFFFFF" />
+                  <BarRow label="AT" pct={atPercent}  color="var(--white)" />
+                  <BarRow label="NT" pct={ntPercent}  color="var(--white)" />
                 </div>
               </div>
             </div>
@@ -409,17 +410,11 @@ function BarRow({ label, pct, color }) {
   )
 }
 
-const STAT_THEMES = {
-  orange: { bg: 'linear-gradient(135deg,#FFF3E8,#FFDDB8)', border: 'rgba(249,115,22,.25)', color: '#EA580C' },
-  purple: { bg: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: 'rgba(168,85,247,.25)', color: '#9333EA' },
-  green:  { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', border: 'rgba(22,163,74,.25)',  color: 'var(--gr)' },
-}
-
 function StatCard({ value, suffix, label, theme }) {
   const t = STAT_THEMES[theme]
   return (
     <div style={{ flex: 1, background: t.bg, border: `0.5px solid ${t.border}`, borderRadius: 15, padding: 12, textAlign: 'center' }}>
-      <div style={{ fontSize: 21, fontWeight: 900, color: t.color, lineHeight: 1, marginBottom: 2, letterSpacing: '-1px' }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 800, color: t.color, lineHeight: 1, marginBottom: 2, letterSpacing: '-1px' }}>
         {value}<span style={{ fontSize: 12, fontWeight: 700 }}>{suffix}</span>
       </div>
       <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--g6)' }}>{label}</div>
@@ -453,7 +448,7 @@ const styles = {
   tutorialTipPurple: { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
   tutorialTipBlue:   { background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '0.5px dashed rgba(59,130,246,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#1D4ED8', lineHeight: 1.5 },
   tutorialOutro: { fontSize: 12.5, fontWeight: 700, color: 'var(--or)', textAlign: 'center' },
-  hero:          { minHeight: 150, background: '#141414', position: 'relative', overflow: 'hidden', flexShrink: 0 },
+  hero:          { minHeight: 150, background: 'var(--bk-hero)', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.55, top: -80, right: -60 },
   heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.35, bottom: -70, left: -50 },
   heroContent:   { position: 'relative', zIndex: 2, padding: '18px 20px 30px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
@@ -464,7 +459,7 @@ const styles = {
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
   ringWrap:      { position: 'relative', width: 88, height: 88, flexShrink: 0 },
   ringText:      { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
-  ringNum:       { fontSize: 22, fontWeight: 900, color: 'white', lineHeight: 1, letterSpacing: '-1px' },
+  ringNum:       { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1, letterSpacing: '-1px' },
   ringPct:       { fontSize: 10, fontWeight: 700, color: 'white' },
   pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
   pctTitle:      { fontSize: 15, fontWeight: 800, color: 'white', lineHeight: 1.25, letterSpacing: '-0.2px' },
@@ -482,7 +477,7 @@ const styles = {
   activityCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, boxShadow: 'var(--shadow-card)' },
   levelCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:    { fontSize: 26, flexShrink: 0 },
-  levelTitle:    { fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
+  levelTitle:    { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
   levelBar:      { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
   levelBarFill:  { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
   levelSub:      { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
