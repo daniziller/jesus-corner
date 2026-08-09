@@ -255,7 +255,7 @@ function BlockCard({ block, onOpenBlock, onOpenBook, lang }) {
           {block.status === 'done' && <span className="badge badge-green">{t('journey.doneBadge', undefined, lang)}</span>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: accent, letterSpacing: '-1px' }}>{block.percent}%</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: accent, letterSpacing: '-1px' }}>{block.percent}%</div>
           {block.status === 'active' && <div style={{ fontSize: 9, fontWeight: 500, color: 'var(--g5)' }}>{currentBookName}</div>}
         </div>
       </div>
@@ -299,7 +299,7 @@ const styles = {
   searchResultRow:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 17, padding: '10px 13px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },
   searchResultBook:  { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
   searchResultBlock: { fontSize: 10, fontWeight: 500, color: 'var(--g4)', marginTop: 1 },
-  hero:            { background: '#141414', padding: '18px 16px 30px', position: 'relative', overflow: 'hidden', flexShrink: 0 },
+  hero:            { background: 'var(--bk-hero)', padding: '18px 16px 30px', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange:   { position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -70, right: -60 },
   heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },
   heroLabel:       { position: 'relative', fontSize: 9, fontWeight: 700, color: 'var(--or)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
@@ -312,10 +312,10 @@ const styles = {
   testamentSection:{},
   testamentHeader: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 13px', cursor: 'pointer', fontFamily: 'var(--font)' },
   testamentLabel:  { fontSize: 11.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: 0.3, textTransform: 'uppercase' },
-  testamentMeta:   { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: 'var(--or)' },
+  testamentMeta:   { display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 800, color: 'var(--or)' },
   blockCard:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, overflow: 'hidden' },
   blockTop:        { padding: '13px 12px 10px', display: 'flex', gap: 10, alignItems: 'flex-start' },
   blockTag:        { fontSize: 8, fontWeight: 700, color: 'var(--g4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 },
   blockTitle:      { fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 4, letterSpacing: '-0.2px' },
-  bookChip:        { background: 'var(--olt)', color: '#C2410C', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
+  bookChip:        { background: 'var(--olt)', color: 'var(--brand-deep)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
 }

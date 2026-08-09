@@ -807,7 +807,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
 
 const styles = {
   backBtn:     { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  hero:        { height: 224, margin: '10px 14px', borderRadius: 22, overflow: 'hidden', position: 'relative', background: '#141414', flexShrink: 0, boxShadow: '0 12px 28px rgba(0,0,0,.18)' },
+  hero:        { height: 224, margin: '10px 14px', borderRadius: 22, overflow: 'hidden', position: 'relative', background: 'var(--bk-hero)', flexShrink: 0, boxShadow: '0 12px 28px rgba(0,0,0,.18)' },
   heroOrbOrange:{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, right: -50 },
   heroOrbPink: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -50, left: -40 },
   heroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 65%)' },
