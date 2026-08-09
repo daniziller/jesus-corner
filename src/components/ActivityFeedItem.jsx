@@ -12,7 +12,7 @@ const TYPE_ICON = { book_completed: 'BookMarked', level_up: 'Award', joined_grou
 const TYPE_THEME = {
   book_completed: { bg: 'linear-gradient(135deg,#FFF3E8,#FFDDB8)', color: '#EA580C' },
   level_up:       { bg: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', color: '#9333EA' },
-  joined_group:   { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', color: '#16A34A' },
+  joined_group:   { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', color: 'var(--gr)' },
 }
 
 function activityText(activity, lang) {

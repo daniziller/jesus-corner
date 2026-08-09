@@ -981,8 +981,8 @@ function PinField({ label, value, onChange, length = 6 }) {
 const styles = {
   screen:        { display: 'flex', flexDirection: 'column', height: '100%' },
   hero:          { background: '#141414', padding: '18px 24px 14px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, flexShrink: 0, position: 'relative', overflow: 'hidden' },
-  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: '#F97316', filter: 'blur(70px)', opacity: 0.5, top: -100, right: -60 },
-  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#EC4899', filter: 'blur(70px)', opacity: 0.32, bottom: -90, left: -50 },
+  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -100, right: -60 },
+  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -90, left: -50 },
   logo:          { position: 'relative', width: 34, height: 34, borderRadius: 9, boxShadow: '0 6px 14px rgba(0,0,0,.35)', flexShrink: 0 },
   brandName:     { position: 'relative', fontSize: 15.5, fontWeight: 900, color: '#fff', letterSpacing: 0.5 },
   greeting:      { fontSize: 15, fontWeight: 800, color: 'var(--or)', margin: '2px 0 -6px' },

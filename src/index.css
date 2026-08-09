@@ -16,7 +16,6 @@
   /* Cores principais */
   --or: #F97316;
   --olt: #FFF0E6;
-  --omd: #FDBA74;
   --bk: #121212;
   --white: #FFFFFF;
 
@@ -48,24 +47,16 @@
   --hero-orb-a: #F97316;
   --hero-orb-b: #C2790F;
 
-  /* Gradientes dos blocos */
-  --grad-gold: linear-gradient(135deg, #FEF3C7, #FCD34D);
-  --grad-blue: linear-gradient(135deg, #DBEAFE, #93C5FD);
-  --grad-purple: linear-gradient(135deg, #EDE9FE, #C4B5FD);
-  --grad-red: linear-gradient(135deg, #FEE2E2, #FCA5A5);
-  --grad-green: linear-gradient(135deg, #D1FAE5, #6EE7B7);
-  --grad-teal: linear-gradient(135deg, #CCFBF1, #5EEAD4);
-  --grad-orange: linear-gradient(135deg, #FFF0E6, #FDBA74);
-  --grad-gray: linear-gradient(135deg, #F3F4F6, #9CA3AF);
-
-  /* Gradientes vibrantes (destaque / CTAs) */
+  /* Gradientes vibrantes (destaque / CTAs) — --grad-vivid e --grad-premium
+     compartilham o mesmo valor de propósito: ambas marcam o "featured/CTA
+     em destaque" e eram usadas de forma intercambiável entre telas
+     irmãs antes dessa unificação. */
   --grad-primary: linear-gradient(135deg, #FB923C 0%, #F97316 55%, #EA580C 100%);
-  --grad-vivid: linear-gradient(135deg, #FB923C 0%, #F97316 45%, #DB2777 100%);
-  --grad-premium: linear-gradient(135deg, #FDBA74 0%, #F97316 45%, #B45309 100%);
+  --grad-vivid: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
+  --grad-premium: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
 
   /* Sombras */
-  --shadow-glow: 0 10px 28px rgba(249, 115, 22, .35);
-  --shadow-soft: 0 14px 34px rgba(0, 0, 0, .10);
+  --shadow-glow: 0 10px 28px rgba(157, 67, 0, .35);
   --shadow-card: 0 3px 14px rgba(0, 0, 0, .05);
   --shadow-premium: 0 3px 10px rgba(0,0,0,.08), 0 20px 44px rgba(0,0,0,.14);
 

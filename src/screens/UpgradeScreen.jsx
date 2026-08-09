@@ -330,7 +330,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
 
 const styles = {
   body:        { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 14 },
-  hero:        { position: 'relative', overflow: 'hidden', borderRadius: 22, padding: '22px 20px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center', boxShadow: 'var(--shadow-glow)' },
+  hero:        { position: 'relative', overflow: 'hidden', borderRadius: 24, padding: '22px 20px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },
   heroTitle:   { fontSize: 15, fontWeight: 800, color: 'white', marginTop: 4, letterSpacing: '-0.2px' },
   missionCard: { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 16, padding: 15 },

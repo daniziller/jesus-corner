@@ -49,7 +49,7 @@ export default function ContactScreen({ session, authUser }) {
 
         {sent ? (
           <div style={styles.successCard}>
-            <AppIcon name="CheckCircle2" size={30} color="#16A34A" />
+            <AppIcon name="CheckCircle2" size={30} color="var(--gr)" />
             <p style={styles.successTitle}>{t('contact.successTitle', undefined, lang)}</p>
             <p style={styles.successSub}>{t('contact.successSub', undefined, lang)}</p>
             <button className="btn-secondary" style={{ width: 'auto', marginTop: 6, padding: '9px 20px' }} onClick={() => setSent(false)}>
@@ -103,7 +103,7 @@ export default function ContactScreen({ session, authUser }) {
 
 const styles = {
   body:        { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 14 },
-  hero:        { position: 'relative', overflow: 'hidden', borderRadius: 22, padding: '22px 20px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center', boxShadow: 'var(--shadow-glow)' },
+  hero:        { position: 'relative', overflow: 'hidden', borderRadius: 24, padding: '22px 20px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },
   heroTitle:   { fontSize: 15, fontWeight: 800, color: 'white', marginTop: 4, letterSpacing: '-0.2px' },
   heroSub:     { fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.85)', lineHeight: 1.5, maxWidth: 280 },

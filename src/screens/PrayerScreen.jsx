@@ -283,7 +283,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
                 <button
                   style={{
                     ...styles.timerBtn, color: 'white',
-                    background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,#16A34A)' : 'var(--grad-vivid)',
+                    background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'var(--grad-vivid)',
                     boxShadow: remaining === 0 ? '0 8px 20px rgba(22,163,74,.35)' : 'var(--shadow-glow)',
                   }}
                   onClick={toggleRunning}
@@ -331,7 +331,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
 }
 
 const styles = {
-  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 22, overflow: 'hidden', position: 'relative', background: 'linear-gradient(135deg,#1e1b4b 0%,#312e81 55%,#4c1d95 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(76,29,149,.3)' },
+  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 24, overflow: 'hidden', position: 'relative', background: 'linear-gradient(135deg,#1e1b4b 0%,#312e81 55%,#4c1d95 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(76,29,149,.3)' },
   heroOrbBlue: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#6366F1', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
   heroOrbPink: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: '#EC4899', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },
   heroTitle:   { fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 2, letterSpacing: '-0.3px' },
@@ -349,5 +349,5 @@ const styles = {
   durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
   durationBtnActive: { background: 'var(--grad-vivid)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.35)' },
-  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', marginTop: 2, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'linear-gradient(135deg,#F97316,#EA580C)', boxShadow: '0 8px 20px rgba(234,88,12,.35)' },
+  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', marginTop: 2, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'linear-gradient(135deg,var(--or),#EA580C)', boxShadow: '0 8px 20px rgba(234,88,12,.35)' },
 }

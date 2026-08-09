@@ -241,7 +241,7 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
             <button
               style={{
                 ...styles.timerBtn, color: 'white',
-                background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,#16A34A)' : 'linear-gradient(135deg,#A855F7,#7C3AED)',
+                background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'linear-gradient(135deg,#A855F7,#7C3AED)',
                 boxShadow: remaining === 0 ? '0 8px 20px rgba(22,163,74,.35)' : '0 8px 20px rgba(124,58,237,.35)',
               }}
               onClick={toggleRunning}
@@ -274,7 +274,7 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
 }
 
 const styles = {
-  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 22, overflow: 'hidden', position: 'relative', background: 'linear-gradient(135deg,#3b0764 0%,#581c87 55%,#701a75 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(88,28,135,.3)' },
+  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 24, overflow: 'hidden', position: 'relative', background: 'linear-gradient(135deg,#3b0764 0%,#581c87 55%,#701a75 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(88,28,135,.3)' },
   heroOrbPurple: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#A855F7', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
   heroOrbFuchsia: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: '#D946EF', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },
   heroTitle:   { fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 2, letterSpacing: '-0.3px' },

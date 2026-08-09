@@ -151,7 +151,7 @@ function TestBar({ label, pct, color }) {
 
 const MINI_THEMES = {
   purple: { bg: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', color: '#9333EA' },
-  green:  { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', color: '#16A34A' },
+  green:  { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', color: 'var(--gr)' },
 }
 
 function MiniStat({ value, label, theme }) {
@@ -167,7 +167,7 @@ function MiniStat({ value, label, theme }) {
 }
 
 const styles = {
-  bigRingCard: { background: 'var(--grad-vivid)', borderRadius: 22, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
+  bigRingCard: { background: 'var(--grad-vivid)', borderRadius: 32, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
   bigRingGlow: { position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 240, height: 240, background: 'radial-gradient(circle,rgba(255,255,255,.18) 0%,transparent 65%)', borderRadius: '50%' },
   bigLabel:    { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.85)', letterSpacing: 2, textTransform: 'uppercase', position: 'relative' },
   testLabel:   { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.7)', alignSelf: 'flex-start', letterSpacing: 1, textTransform: 'uppercase', marginTop: 7, position: 'relative' },

@@ -412,7 +412,7 @@ function BarRow({ label, pct, color }) {
 const STAT_THEMES = {
   orange: { bg: 'linear-gradient(135deg,#FFF3E8,#FFDDB8)', border: 'rgba(249,115,22,.25)', color: '#EA580C' },
   purple: { bg: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: 'rgba(168,85,247,.25)', color: '#9333EA' },
-  green:  { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', border: 'rgba(22,163,74,.25)',  color: '#16A34A' },
+  green:  { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', border: 'rgba(22,163,74,.25)',  color: 'var(--gr)' },
 }
 
 function StatCard({ value, suffix, label, theme }) {
