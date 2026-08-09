@@ -9,7 +9,7 @@ const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'prayer', 'studies', 'gr
 const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
-const a11yBtnActiveStyle = { background: 'var(--grad-vivid)', border: 'none', boxShadow: 'var(--shadow-glow)' }
+const a11yBtnActiveStyle = { background: 'var(--grad-primary)', border: 'none', boxShadow: 'var(--shadow-premium)' }
 
 // Selo com gradiente da marca pra dar mais destaque à aba principal
 // (Bíblia) — mesma ideia do círculo elevado no BottomNav mobile, só sem

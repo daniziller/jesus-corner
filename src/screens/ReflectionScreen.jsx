@@ -240,7 +240,7 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
             <button
               style={{
                 ...styles.timerBtn, color: 'white',
-                background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'var(--grad-vivid)',
+                background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'var(--grad-primary)',
                 boxShadow: remaining === 0 ? '0 8px 20px rgba(22,163,74,.35)' : 'var(--shadow-glow)',
               }}
               onClick={toggleRunning}
@@ -287,5 +287,5 @@ const styles = {
   durationLabel: { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2 },
   durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
-  durationBtnActive: { background: 'var(--grad-vivid)', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.35)' },
+  durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.35)' },
 }

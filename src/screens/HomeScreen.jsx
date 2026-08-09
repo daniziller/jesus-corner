@@ -472,7 +472,7 @@ const styles = {
   todaySub:      { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', marginBottom: 12 },
   progressBar:   { height: 3, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 },
   progressFill:  { height: '100%', background: 'var(--grad-premium)', borderRadius: 99, transition: 'width 0.6s ease' },
-  continueBtn:   { width: '100%', background: 'var(--grad-premium)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
+  continueBtn:   { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   statsRow:      { display: 'flex', gap: 8 },
   activityCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, boxShadow: 'var(--shadow-card)' },
   levelCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },

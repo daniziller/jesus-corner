@@ -1216,7 +1216,7 @@ const styles = {
   subTabActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },
   blockLabel: { fontSize: 9, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 },
   bookChip: { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '5px 10px', fontSize: 10.5, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer' },
-  bookChipActive: { background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white' },
+  bookChipActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white' },
   durationChip: { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer' },
   durationChipActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white' },
   challengeMeta: { fontSize: 10, fontWeight: 500, color: 'var(--g5)' },

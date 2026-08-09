@@ -58,10 +58,12 @@
   --hero-orb-a: #F97316;
   --hero-orb-b: #C2790F;
 
-  /* Gradientes vibrantes (destaque / CTAs) — --grad-vivid e --grad-premium
-     compartilham o mesmo valor de propósito: ambas marcam o "featured/CTA
-     em destaque" e eram usadas de forma intercambiável entre telas
-     irmãs antes dessa unificação. */
+  /* --grad-primary é o ÚNICO sinal de "toque aqui" do app — todo botão/CTA/
+     estado ativo usa ele, sempre, pra não ter dois "laranjas de ação"
+     competindo pela atenção (bom pra conversão).
+     --grad-vivid/--grad-premium (mesmo valor, dois nomes históricos) ficam
+     reservados pra superfícies de destaque que NÃO são botão: heroes, anel
+     de progresso, badges de conquista/status, e o paywall (Upgrade). */
   --grad-primary: linear-gradient(135deg, #FB923C 0%, #F97316 55%, #EA580C 100%);
   --grad-vivid: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
   --grad-premium: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
@@ -373,13 +375,18 @@ html.large-text .app-content-inner {
 .badge-active { background: rgba(249,115,22,.15); color: var(--or); }
 .badge-locked { background: var(--g1); color: var(--g4); }
 
-/* ── Botões ── */
+/* ── Botões ──
+   Um só sinal de "toque aqui" no app inteiro: --grad-primary (laranja).
+   --grad-vivid/--grad-premium (marrom→magenta) ficam reservados pra
+   superfícies de destaque (heroes, anéis de progresso, badges de
+   conquista) e pro paywall — nunca mais em botões/estados ativos, pra
+   não competir com o laranja como "a cor de ação" do app. */
 .btn-primary {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: var(--grad-premium);
+  background: var(--grad-primary);
   border-radius: 13px;
   padding: 13px;
   cursor: pointer;

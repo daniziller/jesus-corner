@@ -281,7 +281,7 @@ function BlockCard({ block, onOpenBlock, onOpenBook, lang }) {
       {/* Botão */}
       <div style={{ margin: '0 12px 12px' }}>
         <div
-          style={{ background: 'var(--grad-vivid)', borderRadius: 11, padding: 10, textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', boxShadow: 'var(--shadow-glow)' }}
+          style={{ background: 'var(--grad-primary)', borderRadius: 11, padding: 10, textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', boxShadow: 'var(--shadow-premium)' }}
           onClick={() => onOpenBlock(block.id)}
         >
           {actionLabel}
