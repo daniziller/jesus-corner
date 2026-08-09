@@ -55,7 +55,6 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header"><h1 className="page-title">{t('routine.pageTitle', undefined, lang)}</h1></div>
 
       <div style={styles.body}>
         <p style={styles.heroSub}>{t('routine.heroSub', undefined, lang)}</p>

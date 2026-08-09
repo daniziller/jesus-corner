@@ -9,9 +9,7 @@ export default function ProgressScreen({ session, blocks }) {
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header"><h1 className="page-title">{translate('progress.pageTitle', undefined, lang)}</h1></div>
-
-      <div style={{ padding: '8px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ padding: '20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="dashboard-grid">
 
           {/* Coluna esquerda: destaque % + progresso por bloco + stats +

@@ -206,7 +206,6 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
 
       {/* Header */}
-      <div className="page-header"><h1 className="page-title">{t('reflection.pageTitle', undefined, lang)}</h1></div>
 
       {/* Hero */}
       <div style={styles.hero}>

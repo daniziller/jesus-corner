@@ -39,9 +39,6 @@ export default function StudiesScreen({ session, authUser }) {
   return (
     <div className="master-detail">
       <div className={`master-pane${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-        <div className="page-header">
-          <h1 className="page-title">{t('studies.pageTitle', undefined, lang)}</h1>
-        </div>
         <p style={styles.pageSubtitle}>{t('studies.pageSubtitle', undefined, lang)}</p>
 
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -226,7 +223,7 @@ function SessionView({ study, studySession, lang, isDone, onToggleDone, onBack }
 }
 
 const styles = {
-  pageSubtitle: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', padding: '0 14px', marginTop: -6, marginBottom: 8 },
+  pageSubtitle: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', padding: '14px 14px 0', marginBottom: 8 },
   backBtn:      { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   studyCard:    { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 14, boxShadow: 'var(--shadow-card)', cursor: 'pointer' },
   studyIcon:    { width: 44, height: 44, borderRadius: 13, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

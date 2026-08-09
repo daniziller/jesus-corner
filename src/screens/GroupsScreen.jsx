@@ -75,9 +75,7 @@ export default function GroupsScreen({ session, authUser, onSocialChange }) {
     <div className="master-detail">
       {/* Master: convites pendentes + meus grupos + amigos */}
       <div className={`master-pane${openGroupId ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-        <div className="page-header"><h1 className="page-title">{t('groups.pageTitle', undefined, lang)}</h1></div>
-
-        <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: '20px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {groupInvites.length > 0 && (
             <div>
               <div className="section-header"><h3 className="section-title">{t('groups.pendingInvitesTitle', undefined, lang)}</h3></div>

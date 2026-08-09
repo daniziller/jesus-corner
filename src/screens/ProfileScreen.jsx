@@ -121,9 +121,8 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header"><h1 className="page-title">{t('profile.pageTitle')}</h1></div>
 
-      <div style={{ padding: '8px 14px 20px', display: 'flex', flexDirection: 'column', gap: 13 }}>
+      <div style={{ padding: '20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 13 }}>
 
         <div className="dashboard-grid">
           {/* Card do usuário */}
