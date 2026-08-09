@@ -25,9 +25,14 @@ export default function AdminScreen({ session }) {
               key={id}
               style={{ ...styles.tabBtn, ...(tab === id ? styles.tabBtnActive : null) }}
               onClick={() => setTab(id)}
+              aria-label={t(`admin.tab.${id}`, undefined, lang)}
+              title={t(`admin.tab.${id}`, undefined, lang)}
             >
               <AppIcon name={TAB_ICONS[id]} size={14} color={tab === id ? 'white' : 'var(--g5)'} />
-              {t(`admin.tab.${id}`, undefined, lang)}
+              {/* Rótulo só em telas desktop (≥1024px, ver .admin-tab-label no
+                  index.css) — no mobile os 5 botões só cabem sem rolar de
+                  lado ficando ícone-only, igual a maioria dos bottom tabs. */}
+              <span className="admin-tab-label">{t(`admin.tab.${id}`, undefined, lang)}</span>
             </button>
           ))}
         </div>

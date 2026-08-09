@@ -602,6 +602,18 @@ html.large-text .app-content-inner {
   display: none;
 }
 
+/* ── Abas do Admin (AdminScreen.jsx) — só ícone no mobile, senão os 5
+   botões (Métricas/Usuários/Fale Conosco/Transmissão/Convites) não cabem
+   na largura da moldura e forçam rolagem lateral. */
+.admin-tab-label {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .admin-tab-label {
+    display: inline;
+  }
+}
+
 /* ── Responsive (desktop — abandona a moldura de celular por um shell
    com navegação lateral) ── */
 @media (min-width: 1024px) {
