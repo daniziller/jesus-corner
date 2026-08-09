@@ -39,11 +39,11 @@ export default function LanguageSelectScreen({ onSelect }) {
 
 const styles = {
   screen:        { display: 'flex', flexDirection: 'column', height: '100%' },
-  hero:          { background: '#141414', padding: '48px 24px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, position: 'relative', overflow: 'hidden' },
+  hero:          { background: 'var(--bk-hero)', padding: '48px 24px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, position: 'relative', overflow: 'hidden' },
   heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -80, right: -60 },
   heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -70, left: -50 },
   logo:          { position: 'relative', width: 60, height: 60, borderRadius: 15, marginBottom: 10, boxShadow: '0 10px 24px rgba(0,0,0,.35)' },
-  brandName:     { position: 'relative', fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: 1 },
+  brandName:     { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--white)', letterSpacing: 1 },
   sheet:         { flex: 1, overflowY: 'auto', background: 'var(--white)', borderRadius: '20px 20px 0 0', marginTop: -14, padding: '28px 22px 32px' },
   title:         { fontSize: 20, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px', lineHeight: 1.35, textAlign: 'center' },
   subtitle:      { fontSize: 12, fontWeight: 500, color: 'var(--g5)', marginTop: 8, lineHeight: 1.5, textAlign: 'center' },
