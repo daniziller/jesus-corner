@@ -53,21 +53,25 @@ function MetricsTab({ lang }) {
   if (error) return <p style={styles.errorMsg}>{error}</p>
   if (!metrics) return <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>
 
-  const { users, subscriptions, contact } = metrics
+  const { users, subscriptions, contact, onboardingFunnel } = metrics
 
   return (
-    <div style={styles.grid}>
-      <StatCard label={t('admin.metric.totalUsers', undefined, lang)} value={users.total} />
-      <StatCard label={t('admin.metric.mrrBrl', undefined, lang)} value={formatAmount(subscriptions.mrrCents.brl, 'brl')} />
-      <StatCard label={t('admin.metric.mrrUsd', undefined, lang)} value={formatAmount(subscriptions.mrrCents.usd, 'usd')} />
-      <StatCard
-        label={t('admin.metric.activeByPlan', undefined, lang)}
-        value={`${subscriptions.activeByPlan.brl.monthly + subscriptions.activeByPlan.usd.monthly} ${t('admin.metric.monthly', undefined, lang)} · ${subscriptions.activeByPlan.brl.annual + subscriptions.activeByPlan.usd.annual} ${t('admin.metric.annual', undefined, lang)}`}
-      />
-      <StatCard label={t('admin.metric.legacyFree', undefined, lang)} value={subscriptions.free} />
-      <StatCard label={t('admin.metric.legacyLifetime', undefined, lang)} value={subscriptions.lifetime} />
-      <StatCard label={t('admin.metric.contactTotal', undefined, lang)} value={contact.total} />
-      <StatCard label={t('admin.metric.contactUnanswered', undefined, lang)} value={contact.unanswered} highlight={contact.unanswered > 0} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={styles.grid}>
+        <StatCard label={t('admin.metric.totalUsers', undefined, lang)} value={users.total} />
+        <StatCard label={t('admin.metric.mrrBrl', undefined, lang)} value={formatAmount(subscriptions.mrrCents.brl, 'brl')} />
+        <StatCard label={t('admin.metric.mrrUsd', undefined, lang)} value={formatAmount(subscriptions.mrrCents.usd, 'usd')} />
+        <StatCard
+          label={t('admin.metric.activeByPlan', undefined, lang)}
+          value={`${subscriptions.activeByPlan.brl.monthly + subscriptions.activeByPlan.usd.monthly} ${t('admin.metric.monthly', undefined, lang)} · ${subscriptions.activeByPlan.brl.annual + subscriptions.activeByPlan.usd.annual} ${t('admin.metric.annual', undefined, lang)}`}
+        />
+        <StatCard label={t('admin.metric.legacyFree', undefined, lang)} value={subscriptions.free} />
+        <StatCard label={t('admin.metric.legacyLifetime', undefined, lang)} value={subscriptions.lifetime} />
+        <StatCard label={t('admin.metric.contactTotal', undefined, lang)} value={contact.total} />
+        <StatCard label={t('admin.metric.contactUnanswered', undefined, lang)} value={contact.unanswered} highlight={contact.unanswered > 0} />
+      </div>
+
+      {onboardingFunnel && <FunnelCard funnel={onboardingFunnel} lang={lang} />}
     </div>
   )
 }
@@ -77,6 +81,45 @@ function StatCard({ label, value, highlight }) {
     <div style={{ ...styles.statCard, ...(highlight ? styles.statCardHighlight : null) }}>
       <p style={styles.statLabel}>{label}</p>
       <p style={styles.statValue}>{value}</p>
+    </div>
+  )
+}
+
+function FunnelCard({ funnel, lang }) {
+  const maxCount = Math.max(1, funnel.steps[0]?.count ?? 0, funnel.subscribed)
+
+  return (
+    <div style={styles.funnelCard}>
+      <p style={styles.funnelTitle}>{t('admin.funnel.title', undefined, lang)}</p>
+      <p style={styles.funnelSubtitle}>{t('admin.funnel.subtitle', { days: funnel.windowDays }, lang)}</p>
+      <div style={styles.funnelRows}>
+        {funnel.steps.map(s => (
+          <FunnelRow
+            key={s.step}
+            label={t(`admin.funnel.step.${s.step}`, undefined, lang)}
+            count={s.count}
+            pct={Math.round((s.count / maxCount) * 100)}
+          />
+        ))}
+        <FunnelRow
+          label={t('admin.funnel.subscribedLabel', undefined, lang)}
+          count={funnel.subscribed}
+          pct={Math.round((funnel.subscribed / maxCount) * 100)}
+          highlight
+        />
+      </div>
+    </div>
+  )
+}
+
+function FunnelRow({ label, count, pct, highlight }) {
+  return (
+    <div style={styles.funnelRow}>
+      <span style={{ ...styles.funnelLabel, ...(highlight ? styles.funnelLabelHighlight : null) }}>{label}</span>
+      <div style={styles.funnelBarTrack}>
+        <div style={{ ...styles.funnelBarFill, ...(highlight ? styles.funnelBarFillHighlight : null), width: `${pct}%` }} />
+      </div>
+      <span style={{ ...styles.funnelCount, ...(highlight ? styles.funnelLabelHighlight : null) }}>{count}</span>
     </div>
   )
 }
@@ -665,6 +708,17 @@ const styles = {
   statCardHighlight:  { background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.2)' },
   statLabel:          { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 6px' },
   statValue:          { fontSize: 17, fontWeight: 800, color: 'var(--bk)', margin: 0, lineHeight: 1.3 },
+  funnelCard:         { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: '16px 16px 14px', boxShadow: 'var(--shadow-card)' },
+  funnelTitle:        { fontSize: 14.5, fontWeight: 800, color: 'var(--bk)', margin: 0 },
+  funnelSubtitle:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', margin: '2px 0 12px' },
+  funnelRows:         { display: 'flex', flexDirection: 'column', gap: 8 },
+  funnelRow:          { display: 'grid', gridTemplateColumns: '132px 1fr 28px', alignItems: 'center', gap: 8 },
+  funnelLabel:        { fontSize: 12, fontWeight: 600, color: 'var(--g6)', lineHeight: 1.25 },
+  funnelLabelHighlight: { color: 'var(--or)', fontWeight: 800 },
+  funnelBarTrack:     { height: 8, borderRadius: 5, background: 'var(--g1)', overflow: 'hidden' },
+  funnelBarFill:      { height: '100%', borderRadius: 5, background: 'var(--g4)', minWidth: 3 },
+  funnelBarFillHighlight: { background: 'var(--grad-primary)' },
+  funnelCount:        { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', textAlign: 'right' },
   hint:               { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '10px 2px' },
   errorMsg:           { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   resultMsg:          { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 8, padding: '8px 10px' },

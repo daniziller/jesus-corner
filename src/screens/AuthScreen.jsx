@@ -13,6 +13,7 @@ import { STORE_TIERS } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
 import { startCheckout } from '../billing/subscriptionStore'
 import { redeemInviteCode } from '../invites/inviteStore'
+import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 
 // Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
 // o app veria o onboarding (pensado pra converter visitante novo) toda vez
@@ -80,6 +81,12 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
   const [prayerMinutes, setPrayerMinutes] = useState(STANDARD_PLAN.prayerMinutes)
   const [planId, setPlanId] = useState('standard')
   const [reflectionMinutes, setReflectionMinutes] = useState(STANDARD_PLAN.reflectionMinutes)
+
+  // Marca a chegada em cada passo pro funil do admin (ver
+  // src/analytics/onboardingEvents.js) — dispara de novo se a pessoa voltar
+  // e avançar outra vez, mas isso não infla a contagem porque o funil conta
+  // sessões distintas, não eventos.
+  useEffect(() => { trackOnboardingEvent(step) }, [step])
 
   const STEPS = ['name', 'features', 'prayerTime', 'readingPlan', 'reflectionTime', 'preview', 'signup']
   const stepNum = STEPS.indexOf(step) + 1
@@ -442,6 +449,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, on
       setSelectedPlanId(user.email, planId).catch(() => {})
       setSavedPrayerMinutes(prayerMinutes)
       setSavedReflectionMinutes(reflectionMinutes)
+      trackOnboardingEvent('signup_completed', { userId: user.id })
 
       // Entra no app na hora — se o checkout abaixo falhar por qualquer
       // motivo, a pessoa já está logada e cai no PaywallGate normal, onde
@@ -452,11 +460,15 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, on
       if (trimmedCode) {
         try {
           const { applied } = await redeemInviteCode(trimmedCode)
-          if (applied === 'free') return
+          if (applied === 'free') {
+            trackOnboardingEvent('subscribed', { userId: user.id })
+            return
+          }
         } catch {
           // Código inválido não deve travar o cadastro — segue pro checkout normal.
         }
       }
+      trackOnboardingEvent('checkout_started', { userId: user.id })
       const url = await startCheckout({ interval: billingMode === 'annual' ? 'year' : 'month', currency })
       window.location.href = url
     } catch (err) {
