@@ -29,6 +29,7 @@ import { getDailyRoutine, setStepDone } from './routine/dailyRoutineStore'
 import { computeRoutineStreak } from './routine/routineStreak'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
+import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
 import { getLargeTextEnabled, setLargeTextEnabled } from './utils/textScaleStore'
@@ -48,8 +49,8 @@ function avatarInitialsOf(name) {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase()
 }
 
-function defaultBlockIdFor(completedSet, planId) {
-  return pickActiveBlock(deriveProgress(completedSet, planId).blocks).id
+function defaultBlockIdFor(completedSet, planId, readingOrder) {
+  return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder).blocks).id
 }
 
 // Capítulo mais recentemente marcado como lido (Sets em JS preservam a ordem
@@ -81,7 +82,10 @@ function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
       const nextInBlock = sessions[idx + 1]
       if (nextInBlock) return { session: nextInBlock, block }
 
-      const nextBlock = blocks.find(b => b.id === block.id + 1)
+      // Próximo bloco na ordem de PERCURSO atual (blocks já vem ordenado por
+      // deriveProgress conforme reading_order) — não necessariamente id+1,
+      // já que a ordem pode ser NT primeiro (ver src/utils/progress.js).
+      const nextBlock = blocks[blocks.indexOf(block) + 1]
       if (nextBlock) return { session: sessionsByBlock[nextBlock.id][0], block: nextBlock }
 
       return { session, block } // Bíblia inteira concluída — não há próxima sessão.
@@ -102,7 +106,7 @@ function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder) {
   const lang = authUser.language ?? 'pt'
   const streak = computeRoutineStreak(dailyRoutine)
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
@@ -165,6 +169,11 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     achievements,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     plan,
+    readingOrder,
+    // Nome do 1º bloco na ordem ATUAL (Pentateuco ou Evangelhos) — usado no
+    // texto de "Reiniciar leitura" da aba Perfil, pra não ficar hardcoded
+    // "Pentateuco" quando a ordem for NT primeiro (ver ProfileScreen.jsx).
+    firstBlockName: lang === 'en' ? blocks[0].nameEn : blocks[0].name,
     dailyRoutine,
     todayRoutine,
     todaySession: {
@@ -221,6 +230,7 @@ export default function App() {
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
   const [planId, setPlanId] = useState('standard')
+  const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [activeBlockId, setActiveBlockId] = useState(1)
   // Rotina diária (Oração/Leitura/Reflexão) — o streak exibido é derivado
   // dela (ver computeRoutineStreak), não mais de um login diário.
@@ -262,7 +272,7 @@ export default function App() {
     })
   }
 
-  const { blocks, sessionsByBlock } = useMemo(() => deriveProgress(completedSet, planId), [completedSet, planId])
+  const { blocks, sessionsByBlock } = useMemo(() => deriveProgress(completedSet, planId, readingOrder), [completedSet, planId, readingOrder])
   // Sessões "1 capítulo = 1 sessão" (plano Livre), independentes do plano de
   // leitura ativo — usadas só quando a pessoa está navegando livremente
   // pela aba Bíblia (fora do fluxo guiado da Rotina), pra mostrar divisão
@@ -294,9 +304,10 @@ export default function App() {
         return
       }
 
-      const [set, userPlanId, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
+        getReadingOrder(user.email),
         getDailyRoutine(),
         getPrayerStats(user.email),
         getMyActiveChallenges(),
@@ -317,7 +328,8 @@ export default function App() {
       setAuthUser(user)
       setCompletedSet(set)
       setPlanId(userPlanId)
-      setActiveBlockId(defaultBlockIdFor(set, userPlanId))
+      setReadingOrderState(userReadingOrder)
+      setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
       setDailyRoutine(routine)
       setPrayerStats(stats)
       setActiveChallenges(challenges)
@@ -411,9 +423,10 @@ export default function App() {
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
-    const [set, userPlanId, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
+      getReadingOrder(user.email),
       getPrayerStats(user.email),
       getDailyRoutine(),
       getMyActiveChallenges(),
@@ -427,7 +440,8 @@ export default function App() {
     setAuthUser(user)
     setCompletedSet(set)
     setPlanId(userPlanId)
-    setActiveBlockId(defaultBlockIdFor(set, userPlanId))
+    setReadingOrderState(userReadingOrder)
+    setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
     setPrayerStats(stats)
     setDailyRoutine(routine)
     setActiveChallenges(challenges)
@@ -452,6 +466,7 @@ export default function App() {
     setCompletedSet(new Set())
     setStreak(0)
     setPlanId('standard')
+    setReadingOrderState('ot_first')
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
     setPendingSocialCount(false)
@@ -482,6 +497,18 @@ export default function App() {
     }
   }
 
+  // Troca a ordem de leitura (AT primeiro / NT primeiro) — chamado a partir
+  // do seletor na aba Perfil (mesmo padrão de selectPlan acima). blocks/
+  // sessionsByBlock/todaySession recalculam sozinhos (useMemo depende de
+  // readingOrder), então a próxima sessão sugerida já reflete a nova ordem
+  // na hora, sem perder nada do progresso já lido.
+  function selectReadingOrder(order) {
+    setReadingOrderState(order)
+    if (authUser) {
+      persistReadingOrder(authUser.email, order).catch(err => console.error('Failed to persist reading order', err))
+    }
+  }
+
   // Troca o idioma do app (chamado a partir do seletor na aba Perfil) —
   // atualiza o estado local na hora (UI otimista) e salva em segundo plano.
   function changeLanguage(language) {
@@ -494,7 +521,9 @@ export default function App() {
   function handleResetProgress() {
     if (!authUser) return
     setCompletedSet(new Set())
-    setActiveBlockId(1)
+    // Primeiro bloco da ordem de leitura ATUAL, não sempre o 1 (Pentateuco)
+    // — com NT primeiro, reiniciar deve voltar pros Evangelhos.
+    setActiveBlockId(defaultBlockIdFor(new Set(), planId, readingOrder))
     setActiveTab('home')
     resetProgress(authUser.email).catch(err => console.error('Failed to reset progress', err))
   }
@@ -531,7 +560,7 @@ export default function App() {
       }
     }
 
-    const { blocks: nextBlocks } = deriveProgress(nextSet, planId)
+    const { blocks: nextBlocks } = deriveProgress(nextSet, planId, readingOrder)
     const prevXp = computeGamificationStats(prevSet, sessionsByBlock, blocks).xp
     const nextXp = computeGamificationStats(nextSet, sessionsByBlock, nextBlocks).xp
     const prevLevelNum = levelFor(prevXp).level
@@ -627,7 +656,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder)
 
   // O app inteiro agora exige assinatura ativa — não existe mais versão
   // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de
@@ -654,7 +683,7 @@ export default function App() {
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
-    profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onProfileUpdated={handleProfileUpdated} />,
+    profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onProfileUpdated={handleProfileUpdated} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
     ...(isAdmin ? { admin: <AdminScreen session={session} /> } : {}),

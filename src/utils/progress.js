@@ -1,5 +1,15 @@
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks.js'
 
+// Ordem de percurso dos 8 blocos temáticos — 'ot_first' (padrão, sempre foi
+// assim) ou 'nt_first' (sugestão do onboarding pra quem nunca leu a Bíblia,
+// ver src/screens/AuthScreen.jsx). BIBLE_BLOCKS (metadados) não muda; só a
+// ordem em que deriveProgress percorre os ids muda. Como completed_keys é
+// guardado por livro:capítulo (sessionKeys, abaixo) e a numeração "Sessão X
+// de Y" é por bloco (não um índice global), reordenar é seguro mesmo pra
+// quem já tem progresso salvo.
+const OT_FIRST_ORDER = [1, 2, 3, 4, 5, 6, 7, 8]
+const NT_FIRST_ORDER = [5, 6, 7, 8, 1, 2, 3, 4]
+
 // Chaves de progresso de uma sessão: capítulos individuais do livro (para
 // sessões de leitura) ou uma chave única de reflexão (para a sessão que
 // fecha o livro). Guardar por CAPÍTULO — não por id de sessão — é o que
@@ -21,12 +31,14 @@ function isSessionDone(session, completedSet) {
 // "1 sessão = 1 dia"), calcula o status de cada sessão (done/pending, com a
 // primeira pendente destacada como "current") e o percentual de cada bloco.
 // Todos os blocos e sessões ficam sempre acessíveis.
-export function deriveProgress(completedSet, planId) {
+export function deriveProgress(completedSet, planId, readingOrder = 'ot_first') {
   const sessionsSource = SESSIONS_BY_PLAN[planId] ?? SESSIONS_BY_PLAN.standard
+  const blockOrder = readingOrder === 'nt_first' ? NT_FIRST_ORDER : OT_FIRST_ORDER
+  const orderedBlocks = blockOrder.map(id => BIBLE_BLOCKS.find(b => b.id === id))
   const blocks = []
   const sessionsByBlock = {}
 
-  for (const block of BIBLE_BLOCKS) {
+  for (const block of orderedBlocks) {
     const staticSessions = sessionsSource[block.id]
     let doneCount = 0
     let anyChapterDone = false

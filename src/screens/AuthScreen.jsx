@@ -7,6 +7,7 @@ import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { setSelectedPlanId } from '../plan/planStore'
+import { setReadingOrder } from '../reading/readingOrderStore'
 import { setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { STORE_TIERS } from '../billing/storeTiers'
@@ -76,9 +77,10 @@ function StepHeader({ step, total, onBack }) {
 
 /* ── Onboarding de primeiro acesso (substitui a antiga tela de boas-vindas + o tour) ── */
 function OnboardingWizard({ onAuthenticated, onGoLogin }) {
-  const [step, setStep] = useState('name') // 'name' | 'features' | 'prayerTime' | 'readingPlan' | 'reflectionTime' | 'preview' | 'signup'
+  const [step, setStep] = useState('name') // 'name' | 'features' | 'prayerTime' | 'firstTimeReading' | 'readingPlan' | 'reflectionTime' | 'preview' | 'signup'
   const [name, setName] = useState('')
   const [prayerMinutes, setPrayerMinutes] = useState(STANDARD_PLAN.prayerMinutes)
+  const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [planId, setPlanId] = useState('standard')
   const [reflectionMinutes, setReflectionMinutes] = useState(STANDARD_PLAN.reflectionMinutes)
 
@@ -88,7 +90,7 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
   // sessões distintas, não eventos.
   useEffect(() => { trackOnboardingEvent(step) }, [step])
 
-  const STEPS = ['name', 'features', 'prayerTime', 'readingPlan', 'reflectionTime', 'preview', 'signup']
+  const STEPS = ['name', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup']
   const stepNum = STEPS.indexOf(step) + 1
 
   function goTo(next) { setStep(next) }
@@ -123,14 +125,22 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
         options={PRAYER_DURATION_OPTIONS}
         value={prayerMinutes}
         onChange={setPrayerMinutes}
-        onNext={() => goTo('readingPlan')}
+        onNext={() => goTo('firstTimeReading')}
+      />
+    )
+  }
+  if (step === 'firstTimeReading') {
+    return (
+      <FirstTimeReadingStep
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('prayerTime')} />}
+        onChoose={order => { setReadingOrderState(order); goTo('readingPlan') }}
       />
     )
   }
   if (step === 'readingPlan') {
     return (
       <ReadingPlanStep
-        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('prayerTime')} />}
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('firstTimeReading')} />}
         planId={planId}
         setPlanId={setPlanId}
         onNext={() => goTo('reflectionTime')}
@@ -170,6 +180,7 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
       prayerMinutes={prayerMinutes}
       planId={planId}
       reflectionMinutes={reflectionMinutes}
+      readingOrder={readingOrder}
       onAuthenticated={onAuthenticated}
       onGoLogin={onGoLogin}
     />
@@ -304,6 +315,65 @@ function DurationStep({ header, icon, color, title, subtitle, options, value, on
   )
 }
 
+/* ── 3.5. Primeira vez lendo a Bíblia? — sugere começar pelo Novo Testamento
+   (Evangelhos), pra quem nunca leu, em vez da ordem tradicional (Antigo
+   Testamento primeiro). A escolha só reordena os blocos existentes — não
+   cria sessões novas nem afeta o que já foi lido (ver src/utils/progress.js)
+   — e continua sempre editável depois na aba Perfil. ── */
+function FirstTimeReadingStep({ header, onChoose }) {
+  const [answered, setAnswered] = useState(null) // null | 'yes' | 'no'
+
+  if (answered !== 'yes') {
+    return (
+      <div style={styles.form}>
+        {header}
+        <div style={{ ...styles.tutorialIconWrap, background: `${ROUTINE_STEP_COLORS.reading}1A` }}>
+          <AppIcon name="BookOpen" size={22} color={ROUTINE_STEP_COLORS.reading} />
+        </div>
+        <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.firstTimeReading.question')}</h1>
+        <p style={styles.subtitle}>{t('onboarding.firstTimeReading.questionSub')}</p>
+
+        <div style={styles.planSel}>
+          <button
+            type="button"
+            style={styles.planBtn}
+            onClick={() => setAnswered('yes')}
+          >
+            {t('onboarding.firstTimeReading.yes')}
+          </button>
+          <button
+            type="button"
+            style={styles.planBtn}
+            onClick={() => onChoose('ot_first')}
+          >
+            {t('onboarding.firstTimeReading.no')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={styles.form}>
+      {header}
+      <div style={{ ...styles.tutorialIconWrap, background: `${ROUTINE_STEP_COLORS.reading}1A` }}>
+        <AppIcon name="Sparkles" size={22} color={ROUTINE_STEP_COLORS.reading} />
+      </div>
+      <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.firstTimeReading.suggestTitle')}</h1>
+      <p style={styles.subtitle}>{t('onboarding.firstTimeReading.suggestBody')}</p>
+
+      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button type="button" className="btn-primary" onClick={() => onChoose('nt_first')}>
+          {t('onboarding.firstTimeReading.accept')}
+        </button>
+        <button type="button" style={styles.resendBtn} onClick={() => onChoose('ot_first')}>
+          {t('onboarding.firstTimeReading.decline')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /* ── 4. Plano/tempo de leitura (mesmo padrão visual de RoutineScreen.jsx) ── */
 function ReadingPlanStep({ header, planId, setPlanId, onNext }) {
   const lang = getAppLanguage() ?? 'pt'
@@ -403,7 +473,7 @@ const CHECKLIST_ITEMS = [
 ]
 
 /* ── 7. Cadastro: checklist de recursos + conta + plano + código de convite ── */
-function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, onAuthenticated, onGoLogin }) {
+function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, readingOrder, onAuthenticated, onGoLogin }) {
   const [email, setEmail]         = useState('')
   const [birthdate, setBirthdate] = useState('')
   const [password, setPassword]   = useState('')
@@ -447,6 +517,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, on
       // sessão, por isso só agora), tempos de oração/reflexão são só
       // localStorage (ver src/prayer/prayerDurationStore.js).
       setSelectedPlanId(user.email, planId).catch(() => {})
+      setReadingOrder(user.email, readingOrder).catch(() => {})
       setSavedPrayerMinutes(prayerMinutes)
       setSavedReflectionMinutes(reflectionMinutes)
       trackOnboardingEvent('signup_completed', { userId: user.id })

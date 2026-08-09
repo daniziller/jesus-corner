@@ -78,7 +78,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     const idx = sessions.findIndex(s => s.id === fromSession.id)
     let next = sessions[idx + 1]
     if (!next) {
-      const nextBlock = blocks.find(b => b.id === block.id + 1)
+      // Próximo bloco na ordem de PERCURSO atual (blocks já vem ordenado
+      // conforme reading_order, ver src/utils/progress.js) — não
+      // necessariamente id+1.
+      const nextBlock = blocks[blocks.indexOf(block) + 1]
       next = nextBlock ? sessionsByBlock[nextBlock.id]?.[0] ?? null : null
     }
     return next ?? null

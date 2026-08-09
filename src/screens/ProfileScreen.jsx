@@ -9,9 +9,10 @@ import { formatAmount } from '../billing/formatAmount'
 
 const MAX_BIO_LENGTH = 280
 
-export default function ProfileScreen({ session, authUser, subscription, onNavigate, onLogout, onResetProgress, onChangeLanguage, onProfileUpdated }) {
+export default function ProfileScreen({ session, authUser, subscription, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(true)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
+  const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
 
   const [profile, setProfile] = useState(null) // { bio, avatarUrl, isPublic }
   const [friendsCount, setFriendsCount] = useState(0)
@@ -247,8 +248,30 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
             onPress={() => onNavigate('journey')}
           />
           <SettingsLink
+            icon="ArrowUp" iconBg="var(--olt)"
+            label={t('profile.readingOrderLabel')}
+            sub={t(session.readingOrder === 'nt_first' ? 'profile.readingOrderSubNt' : 'profile.readingOrderSubOt')}
+            onPress={() => setReadingOrderPickerOpen(v => !v)}
+          />
+          {readingOrderPickerOpen && (
+            <div style={{ padding: '8px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid var(--g1)' }}>
+              <button
+                onClick={() => { onChangeReadingOrder?.('ot_first'); setReadingOrderPickerOpen(false) }}
+                style={{ ...styles.langBtn, flex: 'unset', width: '100%', ...(session.readingOrder !== 'nt_first' ? styles.langBtnActive : {}) }}
+              >
+                {t('profile.readingOrderOtFirstBtn')}
+              </button>
+              <button
+                onClick={() => { onChangeReadingOrder?.('nt_first'); setReadingOrderPickerOpen(false) }}
+                style={{ ...styles.langBtn, flex: 'unset', width: '100%', ...(session.readingOrder === 'nt_first' ? styles.langBtnActive : {}) }}
+              >
+                {t('profile.readingOrderNtFirstBtn')}
+              </button>
+            </div>
+          )}
+          <SettingsLink
             icon="RefreshCw" iconBg="var(--olt)"
-            label={t('profile.resetReadingLabel')} sub={t('profile.resetReadingSub')}
+            label={t('profile.resetReadingLabel')} sub={t('profile.resetReadingSub', { block: session.firstBlockName })}
             onPress={handleResetClick}
           />
           <SettingsLink
