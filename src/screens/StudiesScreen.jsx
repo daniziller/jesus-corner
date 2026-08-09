@@ -240,7 +240,7 @@ const styles = {
   sessionSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
   doneBadge:    { fontSize: 9, fontWeight: 700, color: 'var(--gr)', whiteSpace: 'nowrap' },
   hero:         { background: 'var(--grad-vivid)', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-glow)' },
-  heroPassage:  { fontSize: 15, fontWeight: 800, color: 'white', letterSpacing: '-0.2px' },
+  heroPassage:  { fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'white', letterSpacing: '-0.2px' },
   panel:        { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   panelLabel:   { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   panelText:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.6 },
