@@ -77,7 +77,7 @@ function StepHeader({ step, total, onBack }) {
 
 /* ── Onboarding de primeiro acesso (substitui a antiga tela de boas-vindas + o tour) ── */
 function OnboardingWizard({ onAuthenticated, onGoLogin }) {
-  const [step, setStep] = useState('name') // 'name' | 'features' | 'prayerTime' | 'firstTimeReading' | 'readingPlan' | 'reflectionTime' | 'preview' | 'signup'
+  const [step, setStep] = useState('name') // 'name' | 'valueIntro' | 'features' | 'prayerTime' | 'firstTimeReading' | 'readingPlan' | 'reflectionTime' | 'preview' | 'signup'
   const [name, setName] = useState('')
   const [prayerMinutes, setPrayerMinutes] = useState(STANDARD_PLAN.prayerMinutes)
   const [readingOrder, setReadingOrderState] = useState('ot_first')
@@ -90,7 +90,7 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
   // sessões distintas, não eventos.
   useEffect(() => { trackOnboardingEvent(step) }, [step])
 
-  const STEPS = ['name', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup']
+  const STEPS = ['name', 'valueIntro', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup']
   const stepNum = STEPS.indexOf(step) + 1
 
   function goTo(next) { setStep(next) }
@@ -100,16 +100,26 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
       <NameStep
         name={name}
         setName={setName}
-        onNext={() => goTo('features')}
+        onNext={() => goTo('valueIntro')}
         onGoLogin={onGoLogin}
+      />
+    )
+  }
+  if (step === 'valueIntro') {
+    return (
+      <ValueIntroStep
+        stepNum={stepNum}
+        total={STEPS.length}
+        name={name}
+        onBackToName={() => goTo('name')}
+        onNext={() => goTo('features')}
       />
     )
   }
   if (step === 'features') {
     return (
       <FeaturesStep
-        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('name')} />}
-        name={name}
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('valueIntro')} />}
         onNext={() => goTo('prayerTime')}
       />
     )
@@ -209,14 +219,118 @@ function NameStep({ name, setName, onNext, onGoLogin }) {
   )
 }
 
-/* ── 2. Boas-vindas + recursos (screenshots) ── Rolagem manual (arrasta pro
+/* ── 2. Introdução de valor ── Nomeia o problema que o app resolve (muitas
+   vozes disputando a atenção, quase nenhum tempo a sós com Deus) antes de
+   mostrar os recursos. Duas perguntas de reflexão fazem a pessoa se
+   enxergar no problema; as respostas não são gravadas em lugar nenhum — a
+   da segunda pergunta só personaliza a mensagem de fechamento
+   (method.empathy.*). As 4 fases moram dentro do mesmo passo do wizard de
+   propósito: no funil do admin conta como um passo só, e o "voltar" anda
+   fase a fase antes de sair pro passo do nome. ── */
+const VALUE_INTRO_COLOR = '#F97316'
+const OBSTACLE_KEYS = ['rush', 'phone', 'start', 'consistency']
+
+function ValueIntroStep({ stepNum, total, name, onBackToName, onNext }) {
+  const [phase, setPhase] = useState('hook') // 'hook' | 'q1' | 'q2' | 'method'
+  const [obstacle, setObstacle] = useState('rush')
+
+  const PHASES = ['hook', 'q1', 'q2', 'method']
+  function back() {
+    const i = PHASES.indexOf(phase)
+    if (i === 0) onBackToName()
+    else setPhase(PHASES[i - 1])
+  }
+  const header = <StepHeader step={stepNum} total={total} onBack={back} />
+
+  if (phase === 'hook') {
+    return (
+      <div style={styles.form}>
+        {header}
+        <p style={styles.greeting}>{t('onboarding.greeting', { name: name.trim().split(' ')[0] })}</p>
+        <div style={{ ...styles.tutorialIconWrap, background: `${VALUE_INTRO_COLOR}1A` }}>
+          <AppIcon name="Megaphone" size={22} color={VALUE_INTRO_COLOR} />
+        </div>
+        <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.valueIntro.hook.title')}</h1>
+        <p style={styles.subtitle}>{t('onboarding.valueIntro.hook.body')}</p>
+        <div style={{ marginTop: 4 }}>
+          <button type="button" className="btn-primary" onClick={() => setPhase('q1')}>{t('onboarding.valueIntro.hook.btn')}</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'q1' || phase === 'q2') {
+    const q = phase
+    const options = q === 'q1' ? ['almostNone', 'under10', 'upTo30', 'over30'] : OBSTACLE_KEYS
+    return (
+      <div style={styles.form}>
+        {header}
+        <div style={{ ...styles.tutorialIconWrap, background: `${VALUE_INTRO_COLOR}1A` }}>
+          <AppIcon name={q === 'q1' ? 'Hourglass' : 'Zap'} size={22} color={VALUE_INTRO_COLOR} />
+        </div>
+        <h1 style={{ ...styles.title, fontSize: 24 }}>{t(`onboarding.valueIntro.${q}.title`)}</h1>
+        <p style={styles.subtitle}>{t(`onboarding.valueIntro.${q}.subtitle`)}</p>
+
+        <div style={styles.choiceCol}>
+          {options.map(key => (
+            <button
+              key={key}
+              type="button"
+              style={styles.planBtnFree}
+              onClick={() => {
+                if (q === 'q2') setObstacle(key)
+                setPhase(q === 'q1' ? 'q2' : 'method')
+              }}
+            >
+              {t(`onboarding.valueIntro.${q}.${key}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const methodRows = [
+    { key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer },
+    { key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading },
+    { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection },
+  ]
+  return (
+    <div style={styles.form}>
+      {header}
+      <div style={{ ...styles.tutorialIconWrap, background: `${VALUE_INTRO_COLOR}1A` }}>
+        <AppIcon name="Sparkles" size={22} color={VALUE_INTRO_COLOR} />
+      </div>
+      <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.valueIntro.method.title')}</h1>
+      <p style={styles.subtitle}>{t(`onboarding.valueIntro.method.empathy.${obstacle}`)}</p>
+      <p style={styles.subtitle}>{t('onboarding.valueIntro.method.body')}</p>
+
+      <div style={styles.previewCard}>
+        {methodRows.map((r, i) => (
+          <div key={r.key} style={{ ...styles.previewRow, ...(i === methodRows.length - 1 ? { borderBottom: 'none' } : {}) }}>
+            <div style={{ ...styles.previewIcon, background: `${r.color}1A` }}>
+              <AppIcon name={r.icon} size={16} color={r.color} />
+            </div>
+            <span style={styles.previewLabel}>{t(`onboarding.valueIntro.method.${r.key}`)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 4 }}>
+        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.valueIntro.method.btn')}</button>
+      </div>
+    </div>
+  )
+}
+
+/* ── 3. Boas-vindas + recursos (screenshots) ── Rolagem manual (arrasta pro
    lado, com scroll-snap) em vez de trocar sozinho — dá tempo de ler cada
    card no próprio ritmo, e o "espiar" do próximo card na borda já convida a
    arrastar. Rotina abre e Progresso vem logo em seguida de propósito — são
    os dois recursos com mais destaque pedido (a rotina é o fio condutor pros
    próximos passos do onboarding, o progresso reforça de cara que o app
    acompanha o que já foi lido e quanto falta). */
-function FeaturesStep({ header, name, onNext }) {
+function FeaturesStep({ header, onNext }) {
   const lang = getAppLanguage() ?? 'pt'
   const suffix = lang === 'en' ? '-en' : ''
   const cards = [
@@ -249,7 +363,6 @@ function FeaturesStep({ header, name, onNext }) {
   return (
     <div style={styles.form}>
       {header}
-      <p style={styles.greeting}>{t('onboarding.greeting', { name: name.trim().split(' ')[0] })}</p>
       <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.features.title')}</h1>
       <p style={styles.subtitle}>{t('onboarding.features.subtitle')}</p>
 
@@ -283,7 +396,7 @@ function FeaturesStep({ header, name, onNext }) {
   )
 }
 
-/* ── 3 e 5. Tempo de oração / reflexão (mesmo padrão visual de RoutineScreen.jsx) ── */
+/* ── 4 e 6. Tempo de oração / reflexão (mesmo padrão visual de RoutineScreen.jsx) ── */
 function DurationStep({ header, icon, color, title, subtitle, options, value, onChange, onNext }) {
   return (
     <div style={styles.form}>
@@ -315,7 +428,7 @@ function DurationStep({ header, icon, color, title, subtitle, options, value, on
   )
 }
 
-/* ── 3.5. Primeira vez lendo a Bíblia? — sugere começar pelo Novo Testamento
+/* ── 4.5. Primeira vez lendo a Bíblia? — sugere começar pelo Novo Testamento
    (Evangelhos), pra quem nunca leu, em vez da ordem tradicional (Antigo
    Testamento primeiro). A escolha só reordena os blocos existentes — não
    cria sessões novas nem afeta o que já foi lido (ver src/utils/progress.js)
@@ -374,7 +487,7 @@ function FirstTimeReadingStep({ header, onChoose }) {
   )
 }
 
-/* ── 4. Plano/tempo de leitura (mesmo padrão visual de RoutineScreen.jsx) ── */
+/* ── 5. Plano/tempo de leitura (mesmo padrão visual de RoutineScreen.jsx) ── */
 function ReadingPlanStep({ header, planId, setPlanId, onNext }) {
   const lang = getAppLanguage() ?? 'pt'
   return (
@@ -421,7 +534,7 @@ function ReadingPlanStep({ header, planId, setPlanId, onNext }) {
   )
 }
 
-/* ── 6. Prévia da rotina completa ── */
+/* ── 7. Prévia da rotina completa ── */
 function PreviewStep({ header, prayerMinutes, planId, reflectionMinutes, onNext }) {
   const lang = getAppLanguage() ?? 'pt'
   const plan = PLANS.find(p => p.id === planId)
@@ -472,7 +585,7 @@ const CHECKLIST_ITEMS = [
   { icon: 'BarChart3', key: 'progress' },
 ]
 
-/* ── 7. Cadastro: checklist de recursos + conta + plano + código de convite ── */
+/* ── 8. Cadastro: checklist de recursos + conta + plano + código de convite ── */
 function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, readingOrder, onAuthenticated, onGoLogin }) {
   const [email, setEmail]         = useState('')
   const [birthdate, setBirthdate] = useState('')
@@ -911,6 +1024,7 @@ const styles = {
   durationBtnNum: { fontSize: 18.5, fontWeight: 800, color: 'inherit' },
   durationBtnUnit: { fontSize: 11.5, fontWeight: 600, color: 'inherit', opacity: 0.75 },
   planSel:       { display: 'flex', gap: 8 },
+  choiceCol:     { display: 'flex', flexDirection: 'column', gap: 8 },
   planBtn:       { flex: 1, padding: '11px 6px', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 700, color: 'var(--g6)' },
   planBtnFree:   { width: '100%', padding: '11px 6px', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 700, color: 'var(--g6)' },
   planBtnActive: { border: 'none', color: 'white' },

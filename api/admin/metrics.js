@@ -17,7 +17,7 @@ const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SU
 // src/screens/AuthScreen.jsx, mais os dois eventos que acontecem dentro do
 // passo de cadastro sem trocar de "step" (ver trackOnboardingEvent ali).
 const FUNNEL_STEPS = [
-  'name', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup',
+  'name', 'valueIntro', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup',
   'signup_completed', 'checkout_started',
 ]
 const FUNNEL_WINDOW_DAYS_DEFAULT = 30

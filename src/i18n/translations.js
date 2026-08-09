@@ -467,6 +467,43 @@ export const STRINGS = {
         title: 'Como você se chama?',
         subtitle: 'Assim a gente já começa te chamando pelo nome certo.',
       },
+      valueIntro: {
+        hook: {
+          title: 'Quantas vozes disputam a sua atenção?',
+          body: 'Notificações, redes, notícias, opiniões... o dia inteiro tem alguém falando com a gente. No meio de tanto barulho, quase não sobra tempo pra ficar a sós com Deus — e ouvir o que Ele tem a dizer através da Palavra.',
+          btn: 'Pensa comigo',
+        },
+        q1: {
+          title: 'Quanto do seu dia é só você e Deus?',
+          subtitle: 'Sem culpa — é só pra você se enxergar nessa foto.',
+          almostNone: 'Quase nada',
+          under10: 'Menos de 10 minutos',
+          upTo30: 'Entre 10 e 30 minutos',
+          over30: 'Mais de 30 minutos',
+        },
+        q2: {
+          title: 'E o que mais rouba esse tempo?',
+          subtitle: 'Saber o que atrapalha é o primeiro passo pra proteger esse momento.',
+          rush: 'A correria do dia a dia',
+          phone: 'As distrações do celular',
+          start: 'Não sei por onde começar',
+          consistency: 'Falta de constância',
+        },
+        method: {
+          title: "O Jesus' Corner existe pra isso",
+          empathy: {
+            rush: 'A correria não vai diminuir sozinha — mas dá pra reservar um espaço protegido pra Deus no seu dia.',
+            phone: 'O celular já disputa sua atenção o dia inteiro — aqui ele vira a ferramenta que te aproxima de Deus.',
+            start: 'Você não precisa saber por onde começar — o método te guia passo a passo, todos os dias.',
+            consistency: 'Constância não nasce de força de vontade, nasce de rotina — e é isso que a gente monta com você.',
+          },
+          body: 'Um método simples que protege um tempo diário só entre você e Deus:',
+          prayer: 'Oração guiada pra começar',
+          reading: 'Leitura da Bíblia com contexto',
+          reflection: 'Reflexão pra fechar o dia',
+          btn: 'Me mostra como funciona',
+        },
+      },
       features: {
         title: 'Conheça o que te espera',
         subtitle: 'Arraste pro lado pra ver cada parte do app.',
@@ -570,6 +607,7 @@ export const STRINGS = {
         subscribedLabel: 'Assinaram',
         step: {
           name: 'Iniciaram',
+          valueIntro: 'Viu a introdução de valor',
           features: 'Viu os recursos',
           prayerTime: 'Escolheu tempo de oração',
           firstTimeReading: 'Respondeu se é 1ª vez lendo',
@@ -1108,6 +1146,43 @@ export const STRINGS = {
         title: "What's your name?",
         subtitle: "So we can start calling you by the right name.",
       },
+      valueIntro: {
+        hook: {
+          title: 'How many voices are competing for your attention?',
+          body: "Notifications, social media, news, opinions... someone is talking at us all day long. In the middle of all that noise, there's barely any time left to be alone with God — and hear what He has to say through His Word.",
+          btn: 'Think about it with me',
+        },
+        q1: {
+          title: 'How much of your day is just you and God?',
+          subtitle: 'No guilt — this is just so you can see yourself in the picture.',
+          almostNone: 'Almost none',
+          under10: 'Less than 10 minutes',
+          upTo30: 'Between 10 and 30 minutes',
+          over30: 'More than 30 minutes',
+        },
+        q2: {
+          title: 'And what steals that time the most?',
+          subtitle: 'Naming what gets in the way is the first step to protecting that moment.',
+          rush: 'The daily rush',
+          phone: 'Phone distractions',
+          start: "Not knowing where to start",
+          consistency: 'Lack of consistency',
+        },
+        method: {
+          title: "That's exactly why Jesus' Corner exists",
+          empathy: {
+            rush: "The rush won't slow down on its own — but you can set aside a protected space for God in your day.",
+            phone: 'Your phone already fights for your attention all day — here it becomes the tool that brings you closer to God.',
+            start: "You don't need to know where to start — the method guides you step by step, every day.",
+            consistency: "Consistency doesn't come from willpower, it comes from routine — and that's what we build with you.",
+          },
+          body: 'A simple method that protects a daily time just between you and God:',
+          prayer: 'Guided prayer to start',
+          reading: 'Bible reading with context',
+          reflection: 'Reflection to close the day',
+          btn: 'Show me how it works',
+        },
+      },
       features: {
         title: "Here's what's waiting for you",
         subtitle: 'Drag sideways to see each part of the app.',
@@ -1211,6 +1286,7 @@ export const STRINGS = {
         subscribedLabel: 'Subscribed',
         step: {
           name: 'Started',
+          valueIntro: 'Saw the value intro',
           features: 'Saw the features',
           prayerTime: 'Picked prayer time',
           firstTimeReading: 'Answered if 1st time reading',
