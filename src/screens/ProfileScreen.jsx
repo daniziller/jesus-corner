@@ -136,7 +136,7 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
 
             <div style={{ position: 'relative' }}>
               <div style={{ width: 72, height: 72, borderRadius: '50%', padding: 3, background: 'var(--grad-vivid)', boxShadow: 'var(--shadow-glow)' }}>
-                <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.5px', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.5px', overflow: 'hidden' }}>
                   {displayAvatarUrl ? <img src={displayAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : session.avatarInitials}
                 </div>
               </div>
@@ -185,7 +185,7 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
             ) : (
               <>
                 <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: 17, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' }}>{authUser.name}</p>
+                  <p style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' }}>{authUser.name}</p>
                   <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--g4)' }}>{authUser.email}</p>
                   {profile?.bio && <p style={styles.bioDisplay}>{profile.bio}</p>}
                 </div>
@@ -338,7 +338,7 @@ function EditField({ label, value, onChange, type = 'text', max }) {
 function StatItem({ value, label }) {
   return (
     <div style={{ textAlign: 'center' }}>
-      <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--bk)', letterSpacing: '-0.5px' }}>{value}</p>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.5px' }}>{value}</p>
       <p style={{ fontSize: 9, fontWeight: 600, color: 'var(--g4)' }}>{label}</p>
     </div>
   )
@@ -378,7 +378,7 @@ function SettingsLink({ icon, iconBg, iconColor = 'var(--or)', label, sub, onPre
 }
 
 const styles = {
-  plannerCard:  { background: 'linear-gradient(135deg,#FFF3E8,#FFE0BE)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 16, padding: 13, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'var(--font)' },
+  plannerCard:  { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)', borderRadius: 16, padding: 13, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'var(--font)' },
   plannerLabel: { fontSize: 10, fontWeight: 700, color: '#EA580C', marginBottom: 3, letterSpacing: 0.4 },
   plannerTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
   plannerSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g6)', marginTop: 2 },
