@@ -3,7 +3,7 @@
    Design System
    ===================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -22,6 +22,9 @@
   /* Marca — laranja queimado profundo usado no wordmark e no avatar do
      header (mesmo tom que abre o --grad-vivid), direto do Figma. */
   --brand-deep: #9D4300;
+  /* Fundo escuro dos heroes (Home/Journey/ReadingBlockView/Auth/idioma) —
+     um tom mais suave que --bk, repetido igual em todos eles. */
+  --bk-hero: #141414;
   /* Fundo translúcido do header (Figma: rgba(252,249,248,.8) + blur 12px) */
   --header-bg: rgba(252, 249, 248, 0.8);
 
@@ -39,8 +42,10 @@
   --re: #DC2626;
   --rel: #FFF1F2;
 
-  /* Tipografia */
-  --font: 'Plus Jakarta Sans', sans-serif;
+  /* Tipografia — dupla do Figma: Plus Jakarta Sans nos títulos/números
+     de destaque (--font-display), Be Vietnam Pro no corpo/labels
+     (--font, o padrão herdado pelo body). */
+  --font: 'Be Vietnam Pro', sans-serif;
   --font-display: 'Plus Jakarta Sans', sans-serif;
 
   /* Acento dourado/âmbar — detalhes premium (bordas, progressos, destaques) */
@@ -70,6 +75,12 @@
      branco + sombra sutil original, coerente com o design system do Figma. */
   --card-bg: #F6F3F2;
   --card-border: 1px solid #E5E2E1;
+
+  /* Card de destaque laranja suave (streak, sessões restantes, plano atual
+     etc.) — o mesmo gradiente estava reimplementado com stops levemente
+     diferentes (FFDDB8/FFE4CC/FFE0BE) em cada tela; agora é um token só. */
+  --card-highlight-bg: linear-gradient(135deg,#FFF3E8,#FFE0BE);
+  --card-highlight-border: 0.5px solid rgba(249,115,22,.25);
 
   /* Layout */
   --nav-height: 83px;
