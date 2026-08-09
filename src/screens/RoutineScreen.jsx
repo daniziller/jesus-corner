@@ -315,9 +315,9 @@ function RoutineUsageCard({ dailyRoutine, lang }) {
 
           {/* Média — bloco de métrica à parte, mesmo estilo do card "Sessões restantes" da aba Progresso */}
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)' }}>
-            <div style={{ background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.2)', borderRadius: 16, padding: 13, textAlign: 'center' }}>
+            <div style={{ background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)', borderRadius: 16, padding: 13, textAlign: 'center' }}>
               <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)', marginBottom: 3 }}>{t('progress.routineAvgLabel', undefined, lang)}</p>
-              <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.3px' }}>
+              <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.3px' }}>
                 {avgFullDays.toFixed(1).replace(/\.0$/, '')}
               </p>
             </div>
@@ -367,12 +367,12 @@ const styles = {
 
   hero:        { position: 'relative', overflow: 'hidden', borderRadius: 24, padding: '20px 20px 18px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },
-  heroTotal:   { fontSize: 38, fontWeight: 800, color: 'white', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' },
+  heroTotal:   { fontFamily: 'var(--font-display)', fontSize: 38, fontWeight: 800, color: 'white', letterSpacing: '-0.5px', fontVariantNumeric: 'tabular-nums' },
   heroTotalUnit: { fontSize: 15, fontWeight: 700 },
   heroTotalLabel: { fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginTop: 2, position: 'relative' },
   heroBreakdown:     { display: 'flex', gap: 8, marginTop: 14, width: '100%' },
   heroBreakdownItem: { flex: 1, background: 'rgba(255,255,255,.14)', border: '0.5px solid rgba(255,255,255,.18)', borderRadius: 12, padding: '8px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
-  heroBreakdownN:    { fontSize: 12.5, fontWeight: 800, color: 'white', marginTop: 3, lineHeight: 1 },
+  heroBreakdownN:    { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'white', marginTop: 3, lineHeight: 1 },
   heroBreakdownUnit: { fontSize: 8.5, fontWeight: 600 },
   heroBreakdownL:    { fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
   heroStartBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, border: 'none', borderRadius: 24, padding: '11px 26px', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font)', color: 'var(--or)', cursor: 'pointer', background: 'white', boxShadow: '0 8px 20px rgba(0,0,0,.15)' },
@@ -394,7 +394,7 @@ const styles = {
 
   readingStatsRow: { display: 'flex', gap: 6, marginTop: 8 },
   readingStat:     { flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '7px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 1 },
-  readingStatN:    { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
+  readingStatN:    { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
   readingStatL:    { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)' },
 
   todaySessionCard:   { position: 'relative', background: 'var(--grad-vivid)', borderRadius: 15, padding: '13px 14px 14px', marginBottom: 12, boxShadow: 'var(--shadow-glow)' },
@@ -417,14 +417,14 @@ const styles = {
   durationSel: { display: 'flex', gap: 6 },
   durationBtn: { flex: 1, height: 44, borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'var(--g1)', transition: 'background .15s, color .15s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 },
   durationBtnActive: { color: 'white', border: 'none', boxShadow: 'var(--shadow-glow)' },
-  durationBtnNum:  { fontSize: 13, fontWeight: 800, lineHeight: 1 },
+  durationBtnNum:  { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, lineHeight: 1 },
   durationBtnUnit: { fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, opacity: 0.75, lineHeight: 1 },
 
   routineUsageChart:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 },
   routineUsageMonthCol:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
-  routineUsageMonthColCurrent: { background: 'linear-gradient(135deg,#FFF3E8,#FFE4CC)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 14, padding: '7px 4px 8px' },
+  routineUsageMonthColCurrent: { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)', borderRadius: 14, padding: '7px 4px 8px' },
   routineUsageCurrentTag: { fontSize: 7, fontWeight: 800, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
-  routineUsageMonthNum:   { fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
+  routineUsageMonthNum:   { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
   routineUsageMonthNumCurrent: { color: 'var(--or)', fontSize: 15 },
   routineUsageRings:      { display: 'flex', alignItems: 'center', gap: 2 },
   routineUsageMonthLabel: { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)', textTransform: 'capitalize' },
