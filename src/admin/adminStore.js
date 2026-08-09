@@ -49,6 +49,10 @@ export async function searchAdminUsers(query) {
   return users
 }
 
+export async function getAdminUserDetail(userId) {
+  return authorizedPost('/api/admin/user-detail', { userId })
+}
+
 export async function listReadingGroupsForAdmin() {
   const { groups } = await authorizedPost('/api/admin/reading-groups')
   return groups

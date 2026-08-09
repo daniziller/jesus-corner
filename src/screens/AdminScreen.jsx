@@ -6,10 +6,10 @@ import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { formatAmount } from '../billing/formatAmount'
-import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast, searchAdminUsers, listReadingGroupsForAdmin, createInvite, listAdminInvites, revokeInvite } from '../admin/adminStore'
+import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast, searchAdminUsers, getAdminUserDetail, listReadingGroupsForAdmin, createInvite, listAdminInvites, revokeInvite } from '../admin/adminStore'
 
-const TABS = ['metrics', 'contact', 'broadcast', 'invites']
-const TAB_ICONS = { metrics: 'BarChart3', contact: 'Mail', broadcast: 'Megaphone', invites: 'Gift' }
+const TABS = ['metrics', 'users', 'contact', 'broadcast', 'invites']
+const TAB_ICONS = { metrics: 'BarChart3', users: 'Search', contact: 'Mail', broadcast: 'Megaphone', invites: 'Gift' }
 
 export default function AdminScreen({ session }) {
   const { lang } = session
@@ -34,6 +34,7 @@ export default function AdminScreen({ session }) {
         </div>
 
         {tab === 'metrics' && <MetricsTab lang={lang} />}
+        {tab === 'users' && <UsersTab lang={lang} />}
         {tab === 'contact' && <ContactTab lang={lang} />}
         {tab === 'broadcast' && <BroadcastTab lang={lang} />}
         {tab === 'invites' && <InvitesTab lang={lang} />}
@@ -73,7 +74,9 @@ function MetricsTab({ lang }) {
   if (error) return <p style={styles.errorMsg}>{error}</p>
   if (!metrics) return <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>
 
-  const { users, subscriptions, contact, onboardingFunnel } = metrics
+  const { users, subscriptions, contact, pastDueSubscriptions, retention, onboardingFunnel } = metrics
+
+  const retentionValue = r => (r.pct != null ? `${r.pct}% (${r.retained}/${r.cohortSize})` : t('admin.metric.retentionNoData', undefined, lang))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -87,9 +90,15 @@ function MetricsTab({ lang }) {
         />
         <StatCard label={t('admin.metric.legacyFree', undefined, lang)} value={subscriptions.free} />
         <StatCard label={t('admin.metric.legacyLifetime', undefined, lang)} value={subscriptions.lifetime} />
+        {retention && <StatCard label={t('admin.metric.retention7', undefined, lang)} value={retentionValue(retention.d7)} />}
+        {retention && <StatCard label={t('admin.metric.retention30', undefined, lang)} value={retentionValue(retention.d30)} />}
         <StatCard label={t('admin.metric.contactTotal', undefined, lang)} value={contact.total} />
         <StatCard label={t('admin.metric.contactUnanswered', undefined, lang)} value={contact.unanswered} highlight={contact.unanswered > 0} />
       </div>
+
+      {pastDueSubscriptions && pastDueSubscriptions.length > 0 && (
+        <PastDueCard subscriptions={pastDueSubscriptions} lang={lang} />
+      )}
 
       {onboardingFunnel && (
         <FunnelCard
@@ -102,6 +111,29 @@ function MetricsTab({ lang }) {
           refreshing={refreshing}
         />
       )}
+    </div>
+  )
+}
+
+function PastDueCard({ subscriptions, lang }) {
+  return (
+    <div style={styles.funnelCard}>
+      <p style={styles.funnelTitle}>
+        <AppIcon name="TriangleAlert" size={15} color="var(--re)" style={{ verticalAlign: -2, marginRight: 6 }} />
+        {t('admin.pastDue.title', { count: subscriptions.length }, lang)}
+      </p>
+      <p style={styles.funnelSubtitle}>{t('admin.pastDue.subtitle', undefined, lang)}</p>
+      <div style={styles.pastDueList}>
+        {subscriptions.map((s, i) => (
+          <a key={s.email ?? i} href={s.email ? `mailto:${s.email}` : undefined} style={styles.pastDueRow}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={styles.pastDueName}>{s.name ?? s.email ?? '—'}</p>
+              {s.name && <p style={styles.pastDueEmail}>{s.email}</p>}
+            </div>
+            <span style={styles.pastDueAmount}>{s.amountCents != null ? formatAmount(s.amountCents, s.currency ?? 'brl') : '—'}</span>
+          </a>
+        ))}
+      </div>
     </div>
   )
 }
@@ -185,6 +217,138 @@ function FunnelRow({ label, count, pct, barPct, highlight }) {
         <span style={{ ...styles.funnelCount, ...(highlight ? styles.funnelLabelHighlight : null) }}>{count}</span>
         <span style={styles.funnelPct}>{pct}%</span>
       </div>
+    </div>
+  )
+}
+
+function UsersTab({ lang }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [detail, setDetail] = useState(null)
+  const [detailError, setDetailError] = useState('')
+  const [loadingDetail, setLoadingDetail] = useState(false)
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return }
+    let cancelled = false
+    setSearching(true)
+    const timer = setTimeout(() => {
+      searchAdminUsers(query.trim())
+        .then(users => { if (!cancelled) setResults(users) })
+        .catch(() => { if (!cancelled) setResults([]) })
+        .finally(() => { if (!cancelled) setSearching(false) })
+    }, 350)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [query])
+
+  function selectUser(u) {
+    setResults([])
+    setQuery('')
+    setDetail(null)
+    setDetailError('')
+    setLoadingDetail(true)
+    getAdminUserDetail(u.id)
+      .then(setDetail)
+      .catch(err => setDetailError(err.message))
+      .finally(() => setLoadingDetail(false))
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={styles.fieldWrap}>
+        <input
+          style={styles.input}
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={t('admin.users.searchPlaceholder', undefined, lang)}
+        />
+        {searching && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+        {results.length > 0 && (
+          <div style={styles.userResults}>
+            {results.map(u => (
+              <button key={u.id} type="button" style={styles.userResultItem} onClick={() => selectUser(u)}>
+                <span style={{ fontWeight: 700 }}>{u.name ?? u.email}</span>
+                {u.name && <span style={{ color: 'var(--g5)', marginLeft: 6 }}>{u.email}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {loadingDetail && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+      {detailError && <p style={styles.errorMsg}>{detailError}</p>}
+      {detail && <UserDetailCard detail={detail} lang={lang} />}
+    </div>
+  )
+}
+
+function UserDetailCard({ detail, lang }) {
+  const sub = detail.subscription
+  const locale = lang === 'en' ? 'en-US' : 'pt-BR'
+  const joined = new Date(detail.createdAt).toLocaleDateString(locale)
+  const lastSignIn = detail.lastSignInAt ? new Date(detail.lastSignInAt).toLocaleDateString(locale) : '—'
+
+  return (
+    <div style={styles.userDetailCard}>
+      <div style={styles.userDetailHeader}>
+        <div style={{ minWidth: 0 }}>
+          <p style={styles.userDetailName}>{detail.name ?? detail.email}</p>
+          <p style={styles.userDetailEmail}>{detail.email}</p>
+        </div>
+        <span style={styles.userDetailLangBadge}>{detail.language.toUpperCase()}</span>
+      </div>
+
+      <div style={styles.userDetailGrid}>
+        <UserDetailStat label={t('admin.users.joined', undefined, lang)} value={joined} />
+        <UserDetailStat label={t('admin.users.lastSignIn', undefined, lang)} value={lastSignIn} />
+        <UserDetailStat label={t('admin.users.streak', undefined, lang)} value={detail.progress.streak} />
+        <UserDetailStat label={t('admin.users.biblePercent', undefined, lang)} value={`${detail.progress.biblePercent}%`} />
+      </div>
+
+      <div style={styles.userDetailSection}>
+        <p style={styles.userDetailSectionTitle}>{t('admin.users.subscription', undefined, lang)}</p>
+        {sub ? (
+          <div style={styles.userDetailSubRow}>
+            <StatusBadge status={sub.status} lang={lang} />
+            <span style={styles.userDetailSubDetail}>
+              {sub.accessType === 'recurring'
+                ? `${t(sub.plan === 'annual' ? 'admin.metric.annual' : 'admin.metric.monthly', undefined, lang)} · ${formatAmount(sub.amountCents, sub.currency ?? 'brl')}`
+                : t(`admin.users.accessType.${sub.accessType}`, undefined, lang)}
+            </span>
+          </div>
+        ) : (
+          <p style={styles.hint}>{t('admin.users.noSubscription', undefined, lang)}</p>
+        )}
+      </div>
+
+      <div style={styles.userDetailSection}>
+        <p style={styles.userDetailSectionTitle}>{t('admin.users.profile', undefined, lang)}</p>
+        <p style={styles.userDetailSubDetail}>
+          {t(detail.profile?.isPublic ? 'admin.users.profilePublic' : 'admin.users.profilePrivate', undefined, lang)}
+        </p>
+      </div>
+
+      <a href={`mailto:${detail.email}`} style={styles.userDetailMailBtn}>{t('admin.users.emailBtn', undefined, lang)}</a>
+    </div>
+  )
+}
+
+function StatusBadge({ status, lang }) {
+  const isGood = status === 'active' || status === 'trialing'
+  return (
+    <span style={{ ...styles.statusBadge, ...(isGood ? styles.statusBadgeGood : styles.statusBadgeBad) }}>
+      {t(`admin.users.status.${status}`, undefined, lang)}
+    </span>
+  )
+}
+
+function UserDetailStat({ label, value }) {
+  return (
+    <div style={styles.userDetailStat}>
+      <p style={styles.userDetailStatLabel}>{label}</p>
+      <p style={styles.userDetailStatValue}>{value}</p>
     </div>
   )
 }
@@ -790,6 +954,28 @@ const styles = {
   funnelCountWrap:    { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.15 },
   funnelCount:        { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
   funnelPct:          { fontSize: 10, fontWeight: 600, color: 'var(--g4)' },
+  pastDueList:        { display: 'flex', flexDirection: 'column', gap: 2 },
+  pastDueRow:         { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: '0.5px solid var(--g2)', textDecoration: 'none' },
+  pastDueName:        { fontSize: 13, fontWeight: 700, color: 'var(--bk)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  pastDueEmail:       { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  pastDueAmount:      { fontSize: 12.5, fontWeight: 700, color: 'var(--re)', flexShrink: 0 },
+  userDetailCard:     { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: '16px 16px 18px', boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 14 },
+  userDetailHeader:   { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  userDetailName:     { fontSize: 15.5, fontWeight: 800, color: 'var(--bk)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  userDetailEmail:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', margin: '2px 0 0' },
+  userDetailLangBadge: { fontSize: 10.5, fontWeight: 800, color: 'var(--g5)', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 7, padding: '3px 7px', flexShrink: 0 },
+  userDetailGrid:     { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
+  userDetailStat:     { background: 'var(--g1)', borderRadius: 12, padding: '9px 11px' },
+  userDetailStatLabel: { fontSize: 10, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 3px' },
+  userDetailStatValue: { fontSize: 14.5, fontWeight: 800, color: 'var(--bk)', margin: 0 },
+  userDetailSection:  { display: 'flex', flexDirection: 'column', gap: 5 },
+  userDetailSectionTitle: { fontSize: 11, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, margin: 0 },
+  userDetailSubRow:   { display: 'flex', alignItems: 'center', gap: 8 },
+  userDetailSubDetail: { fontSize: 12.5, fontWeight: 600, color: 'var(--bk)' },
+  userDetailMailBtn:  { textAlign: 'center', width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 12, padding: 11, fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--bk)', textDecoration: 'none' },
+  statusBadge:        { fontSize: 10.5, fontWeight: 800, borderRadius: 7, padding: '3px 8px', textTransform: 'uppercase', letterSpacing: 0.3 },
+  statusBadgeGood:    { color: 'var(--gr)', background: 'var(--grl, rgba(34,197,94,.1))' },
+  statusBadgeBad:     { color: 'var(--re)', background: 'var(--rel)' },
   hint:               { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '10px 2px' },
   errorMsg:           { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   resultMsg:          { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 8, padding: '8px 10px' },
