@@ -484,7 +484,7 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
 function StatItemSmall({ value, label }) {
   return (
     <div>
-      <p style={{ fontSize: 14, fontWeight: 900, color: 'var(--bk)', letterSpacing: '-0.3px' }}>{value}</p>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' }}>{value}</p>
       <p style={{ fontSize: 9, fontWeight: 600, color: 'var(--g4)' }}>{label}</p>
     </div>
   )
@@ -1182,14 +1182,14 @@ const styles = {
   input: { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none' },
   textarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5 },
   error: { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
-  inviteSentMsg: { fontSize: 12.5, fontWeight: 600, color: '#15803D', background: 'rgba(22,163,74,.12)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
+  inviteSentMsg: { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'rgba(22,163,74,.12)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
   addFriendHint: { fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginBottom: 10 },
   emptyHint: { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '4px 2px' },
   backBtn: { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   inviteCard: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 10, boxShadow: 'var(--shadow-card)' },
   inviteTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
   inviteSub: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
-  acceptBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(22,163,74,.12)', color: '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  acceptBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(22,163,74,.12)', color: 'var(--gr)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   declineBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'var(--g1)', color: 'var(--g4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   groupCard: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 12, boxShadow: 'var(--shadow-card)', cursor: 'pointer', fontFamily: 'var(--font)', width: '100%' },
   groupIcon: { width: 38, height: 38, borderRadius: 11, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -1209,7 +1209,7 @@ const styles = {
   friendOfFriendAdded: { fontSize: 10, fontWeight: 700, color: 'var(--g4)' },
   card: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   cardEnded: { background: 'var(--g1)', boxShadow: 'none', opacity: 0.75 },
-  completeChallengeBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', background: 'rgba(22,163,74,.12)', color: '#15803D', borderRadius: 12, padding: '10px 12px', marginTop: 12, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' },
+  completeChallengeBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', background: 'rgba(22,163,74,.12)', color: 'var(--gr)', borderRadius: 12, padding: '10px 12px', marginTop: 12, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' },
   cardTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 8 },
   memberRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 2px' },
   smallLinkBtn: { border: 'none', background: 'none', color: 'var(--or)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 0 },
