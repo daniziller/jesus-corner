@@ -141,21 +141,6 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
           ))}
         </div>
 
-        {/* Calendário mensal — visão completa de quais dias tiveram cada
-            passo concluído, não só as últimas semanas (complementa o card
-            de constância logo abaixo, que é semanal). Mesmo componente
-            usado na Home (ver src/components/RoutineCalendar.jsx). */}
-        <div style={styles.calendarCard}>
-          <p style={styles.calendarCardTitle}>{t('progress.routineCalendarTitle', undefined, lang)}</p>
-          <p style={styles.calendarCardSub}>{t('progress.routineCalendarSub', undefined, lang)}</p>
-          <RoutineCalendar dailyRoutine={session.dailyRoutine} lang={lang} />
-        </div>
-
-        {/* Constância da rotina — dias/semana em que cada passo foi feito
-            nas últimas 4 semanas (movida da aba Progresso pra cá, mais perto
-            de onde a pessoa já está configurando a rotina). */}
-        <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
-
         {/* Oração */}
         <PickerSection title={t('routine.sectionPrayer', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer}>
           <div style={styles.durationSel}>
@@ -244,6 +229,21 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
             ))}
           </div>
         </PickerSection>
+
+        {/* Calendário mensal — visão completa de quais dias tiveram cada
+            passo concluído, não só as últimas semanas (complementa o card
+            de constância logo abaixo, que é semanal). Mesmo componente
+            usado na Home (ver src/components/RoutineCalendar.jsx). */}
+        <div style={styles.calendarCard}>
+          <p style={styles.calendarCardTitle}>{t('progress.routineCalendarTitle', undefined, lang)}</p>
+          <p style={styles.calendarCardSub}>{t('progress.routineCalendarSub', undefined, lang)}</p>
+          <RoutineCalendar dailyRoutine={session.dailyRoutine} lang={lang} />
+        </div>
+
+        {/* Constância da rotina — dias/semana em que cada passo foi feito
+            nas últimas 4 semanas (movida da aba Progresso pra cá, mais perto
+            de onde a pessoa já está configurando a rotina). */}
+        <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
       </div>
     </div>
   )
