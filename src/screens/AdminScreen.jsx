@@ -42,13 +42,23 @@ export default function AdminScreen({ session }) {
   )
 }
 
+const FUNNEL_DAY_OPTIONS = [7, 30, 90, 180]
+const FUNNEL_LANGUAGE_OPTIONS = ['all', 'pt', 'en']
+
 function MetricsTab({ lang }) {
   const [metrics, setMetrics] = useState(null)
   const [error, setError] = useState('')
+  const [funnelDays, setFunnelDays] = useState(30)
+  const [funnelLanguage, setFunnelLanguage] = useState('all')
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
-    getAdminMetrics().then(setMetrics).catch(err => setError(err.message))
-  }, [])
+    setRefreshing(true)
+    getAdminMetrics({ days: funnelDays, language: funnelLanguage === 'all' ? undefined : funnelLanguage })
+      .then(data => { setMetrics(data); setError('') })
+      .catch(err => setError(err.message))
+      .finally(() => setRefreshing(false))
+  }, [funnelDays, funnelLanguage])
 
   if (error) return <p style={styles.errorMsg}>{error}</p>
   if (!metrics) return <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>
@@ -71,7 +81,17 @@ function MetricsTab({ lang }) {
         <StatCard label={t('admin.metric.contactUnanswered', undefined, lang)} value={contact.unanswered} highlight={contact.unanswered > 0} />
       </div>
 
-      {onboardingFunnel && <FunnelCard funnel={onboardingFunnel} lang={lang} />}
+      {onboardingFunnel && (
+        <FunnelCard
+          funnel={onboardingFunnel}
+          lang={lang}
+          days={funnelDays}
+          onDaysChange={setFunnelDays}
+          language={funnelLanguage}
+          onLanguageChange={setFunnelLanguage}
+          refreshing={refreshing}
+        />
+      )}
     </div>
   )
 }
@@ -85,26 +105,58 @@ function StatCard({ label, value, highlight }) {
   )
 }
 
-function FunnelCard({ funnel, lang }) {
+function FunnelCard({ funnel, lang, days, onDaysChange, language, onLanguageChange, refreshing }) {
   const maxCount = Math.max(1, funnel.steps[0]?.count ?? 0, funnel.subscribed)
 
   return (
     <div style={styles.funnelCard}>
       <p style={styles.funnelTitle}>{t('admin.funnel.title', undefined, lang)}</p>
-      <p style={styles.funnelSubtitle}>{t('admin.funnel.subtitle', { days: funnel.windowDays }, lang)}</p>
+      <p style={styles.funnelSubtitle}>
+        {refreshing ? t('admin.funnel.updating', undefined, lang) : t('admin.funnel.subtitle', undefined, lang)}
+      </p>
+
+      <div style={styles.funnelFilters}>
+        <div style={styles.funnelFilterGroup}>
+          {FUNNEL_DAY_OPTIONS.map(d => (
+            <button
+              key={d}
+              type="button"
+              style={{ ...styles.funnelFilterBtn, ...(days === d ? styles.funnelFilterBtnActive : null) }}
+              onClick={() => onDaysChange(d)}
+            >
+              {t('admin.funnel.daysOption', { days: d }, lang)}
+            </button>
+          ))}
+        </div>
+        <div style={styles.funnelFilterGroup}>
+          {FUNNEL_LANGUAGE_OPTIONS.map(l => (
+            <button
+              key={l}
+              type="button"
+              style={{ ...styles.funnelFilterBtn, ...(language === l ? styles.funnelFilterBtnActive : null) }}
+              onClick={() => onLanguageChange(l)}
+            >
+              {t(`admin.funnel.language.${l}`, undefined, lang)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div style={styles.funnelRows}>
         {funnel.steps.map(s => (
           <FunnelRow
             key={s.step}
             label={t(`admin.funnel.step.${s.step}`, undefined, lang)}
             count={s.count}
-            pct={Math.round((s.count / maxCount) * 100)}
+            pct={s.pct}
+            barPct={Math.round((s.count / maxCount) * 100)}
           />
         ))}
         <FunnelRow
           label={t('admin.funnel.subscribedLabel', undefined, lang)}
           count={funnel.subscribed}
-          pct={Math.round((funnel.subscribed / maxCount) * 100)}
+          pct={funnel.subscribedPct}
+          barPct={Math.round((funnel.subscribed / maxCount) * 100)}
           highlight
         />
       </div>
@@ -112,14 +164,17 @@ function FunnelCard({ funnel, lang }) {
   )
 }
 
-function FunnelRow({ label, count, pct, highlight }) {
+function FunnelRow({ label, count, pct, barPct, highlight }) {
   return (
     <div style={styles.funnelRow}>
       <span style={{ ...styles.funnelLabel, ...(highlight ? styles.funnelLabelHighlight : null) }}>{label}</span>
       <div style={styles.funnelBarTrack}>
-        <div style={{ ...styles.funnelBarFill, ...(highlight ? styles.funnelBarFillHighlight : null), width: `${pct}%` }} />
+        <div style={{ ...styles.funnelBarFill, ...(highlight ? styles.funnelBarFillHighlight : null), width: `${barPct}%` }} />
       </div>
-      <span style={{ ...styles.funnelCount, ...(highlight ? styles.funnelLabelHighlight : null) }}>{count}</span>
+      <div style={styles.funnelCountWrap}>
+        <span style={{ ...styles.funnelCount, ...(highlight ? styles.funnelLabelHighlight : null) }}>{count}</span>
+        <span style={styles.funnelPct}>{pct}%</span>
+      </div>
     </div>
   )
 }
@@ -711,14 +766,20 @@ const styles = {
   funnelCard:         { background: 'white', border: '0.5px solid var(--g1)', borderRadius: 16, padding: '16px 16px 14px', boxShadow: 'var(--shadow-card)' },
   funnelTitle:        { fontSize: 14.5, fontWeight: 800, color: 'var(--bk)', margin: 0 },
   funnelSubtitle:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', margin: '2px 0 12px' },
+  funnelFilters:      { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 },
+  funnelFilterGroup:  { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  funnelFilterBtn:    { padding: '5px 11px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 8, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  funnelFilterBtnActive: { color: 'white', background: 'var(--grad-primary)', border: 'none' },
   funnelRows:         { display: 'flex', flexDirection: 'column', gap: 8 },
-  funnelRow:          { display: 'grid', gridTemplateColumns: '132px 1fr 28px', alignItems: 'center', gap: 8 },
+  funnelRow:          { display: 'grid', gridTemplateColumns: '124px 1fr 44px', alignItems: 'center', gap: 8 },
   funnelLabel:        { fontSize: 12, fontWeight: 600, color: 'var(--g6)', lineHeight: 1.25 },
   funnelLabelHighlight: { color: 'var(--or)', fontWeight: 800 },
   funnelBarTrack:     { height: 8, borderRadius: 5, background: 'var(--g1)', overflow: 'hidden' },
   funnelBarFill:      { height: '100%', borderRadius: 5, background: 'var(--g4)', minWidth: 3 },
   funnelBarFillHighlight: { background: 'var(--grad-primary)' },
-  funnelCount:        { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', textAlign: 'right' },
+  funnelCountWrap:    { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.15 },
+  funnelCount:        { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  funnelPct:          { fontSize: 10, fontWeight: 600, color: 'var(--g4)' },
   hint:               { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '10px 2px' },
   errorMsg:           { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   resultMsg:          { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 8, padding: '8px 10px' },

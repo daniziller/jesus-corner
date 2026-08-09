@@ -1,7 +1,9 @@
-// Rastreamento do funil de onboarding (ver supabase/migrations/0022) —
+// Rastreamento do funil de onboarding (ver supabase/migrations/0022/0023) —
 // sessionId anônimo porque a conta só existe a partir do passo de cadastro,
 // sem isso não daria pra contar quem abandona antes de criar conta.
 // Best-effort: nunca deve travar nem atrasar a experiência do onboarding.
+import { getAppLanguage } from '../i18n/appLanguageStore'
+
 const SESSION_KEY = 'jc_onboarding_session'
 
 function getSessionId() {
@@ -20,11 +22,12 @@ function getSessionId() {
 export function trackOnboardingEvent(step, { userId } = {}) {
   const sessionId = getSessionId()
   if (!sessionId) return
+  const language = getAppLanguage() === 'en' ? 'en' : 'pt'
   try {
     fetch('/api/track-onboarding-event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, step, userId: userId ?? null }),
+      body: JSON.stringify({ sessionId, step, userId: userId ?? null, language }),
       keepalive: true,
     }).catch(() => {})
   } catch {

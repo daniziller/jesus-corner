@@ -525,7 +525,10 @@ export const STRINGS = {
       },
       funnel: {
         title: 'Funil de onboarding',
-        subtitle: 'Últimos {days} dias — sessões distintas que chegaram em cada passo.',
+        subtitle: 'Sessões distintas que chegaram em cada passo — % em relação a quem iniciou.',
+        updating: 'Atualizando...',
+        daysOption: '{days}d',
+        language: { all: 'Todos', pt: 'PT', en: 'EN' },
         subscribedLabel: 'Assinaram',
         step: {
           name: 'Iniciaram',
@@ -1124,7 +1127,10 @@ export const STRINGS = {
       },
       funnel: {
         title: 'Onboarding funnel',
-        subtitle: 'Last {days} days — distinct sessions that reached each step.',
+        subtitle: 'Distinct sessions that reached each step — % relative to who started.',
+        updating: 'Updating...',
+        daysOption: '{days}d',
+        language: { all: 'All', pt: 'PT', en: 'EN' },
         subscribedLabel: 'Subscribed',
         step: {
           name: 'Started',

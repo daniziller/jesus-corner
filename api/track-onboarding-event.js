@@ -13,7 +13,7 @@ const ALLOWED_STEPS = new Set([
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
 
-  const { sessionId, step, userId } = req.body || {}
+  const { sessionId, step, userId, language } = req.body || {}
   if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 100) {
     return res.status(400).json({ error: 'invalid_session_id' })
   }
@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     session_id: sessionId,
     step,
     user_id: typeof userId === 'string' ? userId : null,
+    language: language === 'en' ? 'en' : 'pt',
   })
 
   // Analytics nunca deve travar a experiência — loga e responde 204 mesmo

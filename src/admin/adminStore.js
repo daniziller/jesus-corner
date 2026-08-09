@@ -27,8 +27,8 @@ export async function checkIsAdmin() {
   }
 }
 
-export async function getAdminMetrics() {
-  return authorizedPost('/api/admin/metrics')
+export async function getAdminMetrics({ days, language } = {}) {
+  return authorizedPost('/api/admin/metrics', { days, language })
 }
 
 export async function listContactMessages({ filter = 'unanswered', limit = 50, offset = 0 } = {}) {
