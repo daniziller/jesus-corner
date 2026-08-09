@@ -7,13 +7,14 @@ import AppIcon from '../icons/AppIcon'
 // de Progresso. Depois da Bíblia vem Oração, Estudos, e por último
 // Comunidade.
 const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'prayer', 'studies', 'groups']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3', admin: 'Shield' }
+const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
-export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], isAdmin = false, lang }) {
-  const tabIds = isAdmin ? [...TAB_IDS, 'admin'] : TAB_IDS
+// A aba Admin não fica mais na nav — vira um item da lista de Configurações
+// no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).
+export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang }) {
   return (
     <nav className="bottom-nav">
-      {tabIds.map(id => {
+      {TAB_IDS.map(id => {
         // Passa lang explícito (vem de session.lang, que já atualiza na hora
         // ao trocar idioma) em vez de deixar t() cair no fallback
         // currentLanguage() — esse fallback lê um cache que só é atualizado

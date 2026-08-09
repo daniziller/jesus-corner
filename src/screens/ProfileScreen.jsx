@@ -9,7 +9,7 @@ import { formatAmount } from '../billing/formatAmount'
 
 const MAX_BIO_LENGTH = 280
 
-export default function ProfileScreen({ session, authUser, subscription, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onProfileUpdated }) {
+export default function ProfileScreen({ session, authUser, subscription, isAdmin, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(true)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
@@ -278,6 +278,13 @@ export default function ProfileScreen({ session, authUser, subscription, onNavig
             label={t('profile.contactLabel')} sub={t('profile.contactSub')}
             onPress={() => onNavigate('contact')}
           />
+          {isAdmin && (
+            <SettingsLink
+              icon="Wrench" iconBg="var(--olt)"
+              label={t('profile.adminLabel')} sub={t('profile.adminSub')}
+              onPress={() => onNavigate('admin')}
+            />
+          )}
           <SettingsLink
             icon="Instagram" iconBg="var(--olt)"
             label={t('profile.instagramLabel')} sub={t('profile.instagramSub')}
