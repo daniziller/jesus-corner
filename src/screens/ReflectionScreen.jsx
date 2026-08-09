@@ -241,8 +241,8 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
             <button
               style={{
                 ...styles.timerBtn, color: 'white',
-                background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'linear-gradient(135deg,#A855F7,#7C3AED)',
-                boxShadow: remaining === 0 ? '0 8px 20px rgba(22,163,74,.35)' : '0 8px 20px rgba(124,58,237,.35)',
+                background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'var(--grad-vivid)',
+                boxShadow: remaining === 0 ? '0 8px 20px rgba(22,163,74,.35)' : 'var(--shadow-glow)',
               }}
               onClick={toggleRunning}
             >
@@ -274,19 +274,19 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
 }
 
 const styles = {
-  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 24, overflow: 'hidden', position: 'relative', background: 'linear-gradient(135deg,#3b0764 0%,#581c87 55%,#701a75 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(88,28,135,.3)' },
-  heroOrbPurple: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: '#A855F7', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
-  heroOrbFuchsia: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: '#D946EF', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },
-  heroTitle:   { fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 2, letterSpacing: '-0.3px' },
+  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 24, overflow: 'hidden', position: 'relative', background: 'var(--bk-hero)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(0,0,0,.25)' },
+  heroOrbPurple: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
+  heroOrbFuchsia: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },
+  heroTitle:   { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 2, letterSpacing: '-0.3px' },
   heroSub:     { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.6)', textAlign: 'center', lineHeight: 1.5, marginTop: 3 },
   body:        { padding: '0 16px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
-  timer:       { background: '#141414', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
+  timer:       { background: 'var(--bk-hero)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
   timerLabel:  { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 2, textTransform: 'uppercase' },
-  timerDisplay:{ fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
+  timerDisplay:{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
   timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
   wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
   durationLabel: { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2 },
   durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
-  durationBtnActive: { background: 'linear-gradient(135deg,#A855F7,#7C3AED)', color: 'white', boxShadow: '0 4px 12px rgba(124,58,237,.35)' },
+  durationBtnActive: { background: 'var(--grad-vivid)', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.35)' },
 }
