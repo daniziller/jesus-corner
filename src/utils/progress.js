@@ -1,4 +1,4 @@
-import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks'
+import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks.js'
 
 // Chaves de progresso de uma sessão: capítulos individuais do livro (para
 // sessões de leitura) ou uma chave única de reflexão (para a sessão que
