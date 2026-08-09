@@ -6,7 +6,7 @@
 import { supabaseAdmin } from './_lib/invites.js'
 
 const ALLOWED_STEPS = new Set([
-  'name', 'features', 'prayerTime', 'readingPlan', 'reflectionTime', 'preview', 'signup',
+  'name', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup',
   'signup_completed', 'checkout_started', 'subscribed',
 ])
 
