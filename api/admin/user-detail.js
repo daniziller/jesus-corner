@@ -14,6 +14,21 @@ import { computeRoutineStreak } from '../../src/routine/routineStreak.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
+// computeRoutineStreak decide "hoje" chamando .getFullYear/Month/Date() no
+// Date que recebe — no navegador isso já reflete o fuso do usuário, mas
+// aqui rodando no servidor (sempre UTC na Vercel) precisaria saber o fuso
+// de cada usuário, que não temos. Como fallback honesto, assume o fuso do
+// Brasil (esmagadora maioria da base hoje) — sem isso, perto da meia-noite
+// UTC (21h em SP) o servidor já considera "amanhã" enquanto o app do
+// usuário ainda está em "hoje", e o streak calculado aqui fica um dia
+// atrasado/errado. Pode divergir por até algumas horas pra quem estiver em
+// outro fuso (ex: EN/USD), mas é bem mais próximo da realidade do que usar
+// UTC direto.
+const BRAZIL_UTC_OFFSET_MS = -3 * 60 * 60 * 1000
+function brazilReferenceDate() {
+  return new Date(Date.now() + BRAZIL_UTC_OFFSET_MS)
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
 
@@ -68,7 +83,7 @@ export default async function handler(req, res) {
       createdAt: sub.created_at,
     } : null,
     progress: {
-      streak: userData ? computeRoutineStreak(userData.daily_routine ?? {}) : 0,
+      streak: userData ? computeRoutineStreak(userData.daily_routine ?? {}, brazilReferenceDate()) : 0,
       biblePercent,
       planId: userData?.plan_id ?? 'standard',
     },
