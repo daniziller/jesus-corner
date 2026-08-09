@@ -1,7 +1,7 @@
 // Funções puras sobre o mapa de rotina diária — sem I/O, fáceis de testar e
 // de reusar tanto no cálculo do streak quanto no calendário da Home.
-import { dateKey } from '../utils/dateKey'
-import { PLANS } from '../data/bibleBlocks'
+import { dateKey } from '../utils/dateKey.js'
+import { PLANS } from '../data/bibleBlocks.js'
 
 // Dias salvos antes da reestruturação em módulos (sem `planId` guardado)
 // continuam exigindo os 3 passos, exatamente como sempre exigiram — só dias

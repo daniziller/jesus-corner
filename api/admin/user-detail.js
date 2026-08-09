@@ -1,13 +1,16 @@
 // Detalhe completo de um usuário pro admin (aba Usuários) — junta conta,
 // assinatura e progresso de leitura numa resposta só, pra dar contexto
 // rápido sem cruzar telas (ex: ao responder um Fale Conosco). Reaproveita
-// exatamente o mesmo pipeline de cálculo de progresso do app
-// (deriveProgress/computeOverallStats, ver src/utils/progress.js) em vez de
+// exatamente o mesmo pipeline de cálculo de progresso e sequência do app
+// (deriveProgress/computeOverallStats, computeRoutineStreak) em vez de
 // duplicar a lógica, mesmo padrão de api/verify-google-play-purchase.js
-// importando de src/.
+// importando de src/. Streak vem de `daily_routine`, NÃO da coluna legada
+// `user_data.streak` — essa parou de ser lida/escrita pelo app desde a
+// migration 0009_daily_routine.sql (fica sempre em 0/desatualizada).
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { deriveProgress, computeOverallStats } from '../../src/utils/progress.js'
+import { computeRoutineStreak } from '../../src/routine/routineStreak.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -23,7 +26,7 @@ export default async function handler(req, res) {
   const [authUserRes, subRes, userDataRes, profileRes] = await Promise.all([
     supabaseAdmin.auth.admin.getUserById(userId),
     supabaseAdmin.from('subscriptions').select('status, plan, currency, amount_cents, access_type, current_period_end, created_at').eq('user_id', userId).maybeSingle(),
-    supabaseAdmin.from('user_data').select('completed_keys, streak, plan_id, last_login_at').eq('user_id', userId).maybeSingle(),
+    supabaseAdmin.from('user_data').select('completed_keys, plan_id, daily_routine').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.from('profiles').select('bio, is_public').eq('user_id', userId).maybeSingle(),
   ])
 
@@ -65,10 +68,9 @@ export default async function handler(req, res) {
       createdAt: sub.created_at,
     } : null,
     progress: {
-      streak: userData?.streak ?? 0,
+      streak: userData ? computeRoutineStreak(userData.daily_routine ?? {}) : 0,
       biblePercent,
       planId: userData?.plan_id ?? 'standard',
-      lastLoginAt: userData?.last_login_at ?? null,
     },
     profile: profileRes.data ? { bio: profileRes.data.bio, isPublic: profileRes.data.is_public } : null,
   })
