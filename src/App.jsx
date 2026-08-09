@@ -744,7 +744,7 @@ function PaywallGate({ session, subscription, onLogout, onSubscriptionRefreshed 
         <div style={paywallStyles.header}>
           <div style={paywallStyles.brand}>
             <img src="/icons/icon-192.png" alt="" style={paywallStyles.logo} />
-            <span style={paywallStyles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+            <span style={paywallStyles.brandName}>JESUS' CORNER</span>
           </div>
           <button onClick={onLogout} style={paywallStyles.logoutBtn}>
             {t('profile.logoutLabel', undefined, session.lang)}
@@ -761,10 +761,10 @@ function PaywallGate({ session, subscription, onLogout, onSubscriptionRefreshed 
 }
 
 const paywallStyles = {
-  header:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', flexShrink: 0, background: 'var(--white)', borderBottom: '0.5px solid var(--g1)' },
-  brand:      { display: 'flex', alignItems: 'center', gap: 7 },
+  header:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64, padding: '0 20px', flexShrink: 0, background: 'var(--header-bg)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' },
+  brand:      { display: 'flex', alignItems: 'center', gap: 12 },
   logo:       { width: 32, height: 32, borderRadius: 8, flexShrink: 0 },
-  brandName:  { fontSize: 14, fontWeight: 900, color: 'var(--bk)', letterSpacing: 0.5 },
+  brandName:  { fontSize: 18, fontWeight: 700, lineHeight: '28px', color: 'var(--brand-deep)', letterSpacing: -0.45, whiteSpace: 'nowrap' },
   logoutBtn:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 10, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
 }
 

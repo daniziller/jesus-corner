@@ -19,6 +19,12 @@
   --bk: #121212;
   --white: #FFFFFF;
 
+  /* Marca — laranja queimado profundo usado no wordmark e no avatar do
+     header (mesmo tom que abre o --grad-vivid), direto do Figma. */
+  --brand-deep: #9D4300;
+  /* Fundo translúcido do header (Figma: rgba(252,249,248,.8) + blur 12px) */
+  --header-bg: rgba(252, 249, 248, 0.8);
+
   /* Escala de cinzas */
   --g1: #F5F5F5;
   --g2: #E5E5E5;

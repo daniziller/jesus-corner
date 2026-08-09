@@ -64,13 +64,17 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
   const panelStyle = variant === 'sidebar'
     ? { ...styles.panel, top: 38, left: 0 }
     : { ...styles.panel, top: 38, right: 0 }
+  // No header o botão segue o Figma (alvo de 44px, sem fundo/borda, ícone
+  // 20px em --bk); na sidebar continua o chip cinza de 30px.
+  const isHeader = variant !== 'sidebar'
+  const bellBtnStyle = isHeader ? styles.bellBtnHeader : styles.bellBtn
 
   return (
     <div style={{ position: 'relative' }} ref={wrapRef}>
-      <button style={styles.bellBtn} onClick={() => setOpen(v => !v)} aria-label={t('notifications.title', undefined, lang)}>
-        <AppIcon name="Bell" size={variant === 'sidebar' ? 17 : 19} color="var(--g5)" />
+      <button style={bellBtnStyle} onClick={() => setOpen(v => !v)} aria-label={t('notifications.title', undefined, lang)}>
+        <AppIcon name="Bell" size={isHeader ? 20 : 17} color={isHeader ? 'var(--bk)' : 'var(--g5)'} />
         {badgeCount > 0 && (
-          <span style={styles.bellBadge}>{badgeCount > 9 ? '9+' : badgeCount}</span>
+          <span style={isHeader ? { ...styles.bellBadge, top: 6, right: 6 } : styles.bellBadge}>{badgeCount > 9 ? '9+' : badgeCount}</span>
         )}
       </button>
 
@@ -153,6 +157,7 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
 
 const styles = {
   bellBtn:    { position: 'relative', width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, padding: 0 },
+  bellBtnHeader: { position: 'relative', width: 44, height: 44, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, padding: 0 },
   bellBadge:  { position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 8, background: 'var(--re)', color: 'white', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '2px solid white' },
   panel:      { position: 'absolute', width: 320, maxWidth: '85vw', maxHeight: 420, overflowY: 'auto', background: 'white', border: '0.5px solid var(--g2)', borderRadius: 16, boxShadow: '0 12px 30px rgba(0,0,0,.15)', padding: 12, zIndex: 50 },
   panelTitle: { fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 8 },
