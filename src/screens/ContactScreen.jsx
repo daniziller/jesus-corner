@@ -95,6 +95,18 @@ export default function ContactScreen({ session, authUser }) {
             </button>
           </form>
         )}
+
+        {/* Canal do titular de dados. A Resolução CD/ANPD nº 2/2022 dispensa
+            agentes de pequeno porte de nomear encarregado, desde que
+            mantenham um canal divulgado — precisa estar visível, não só
+            existir. Ver docs/lgpd.md. */}
+        <div style={styles.lgpdCard}>
+          <div style={styles.lgpdHead}>
+            <AppIcon name="Shield" size={15} color="var(--or)" />
+            <p style={styles.lgpdTitle}>{t('contact.lgpdTitle', undefined, lang)}</p>
+          </div>
+          <p style={styles.lgpdBody}>{t('contact.lgpdBody', undefined, lang)}</p>
+        </div>
       </div>
     </div>
   )
@@ -115,4 +127,8 @@ const styles = {
   successCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: '28px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', boxShadow: 'var(--shadow-card)' },
   successTitle:{ fontSize: 14, fontWeight: 800, color: 'var(--bk)', marginTop: 4 },
   successSub:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, maxWidth: 260 },
+  lgpdCard:    { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 14, marginTop: 16 },
+  lgpdHead:    { display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 },
+  lgpdTitle:   { fontSize: 12.5, fontWeight: 800, color: 'var(--bk)' },
+  lgpdBody:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
 }

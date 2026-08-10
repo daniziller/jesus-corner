@@ -3,6 +3,7 @@
 // em si (com a reação "orando por isso") e os comentários daquele pedido
 // (com curtida) — por isso duas seções de funções aqui, não uma lista só.
 import { supabase } from '../lib/supabaseClient'
+import { resolveAvatarUrl } from '../profile/profileStore'
 
 async function getUserId() {
   const { data } = await supabase.auth.getUser()
@@ -19,20 +20,22 @@ export async function getPrayerRequests(groupId) {
     .eq('group_id', groupId)
     .order('created_at', { ascending: false })
   if (error) { console.error('[prayerRequestsStore] getPrayerRequests failed:', error.message); return [] }
-  return (data ?? []).map(row => {
+  // avatar_url virou caminho no Storage (migration 0025) — assinar antes de
+  // usar como src. Ver profileStore.resolveAvatarUrl.
+  return Promise.all((data ?? []).map(async row => {
     const intentions = row.group_prayer_intentions ?? []
     return {
       id: row.id,
       userId: row.user_id,
       authorName: row.author?.name ?? '',
-      authorAvatarUrl: row.author?.avatar_url ?? null,
+      authorAvatarUrl: await resolveAvatarUrl(row.author?.avatar_url),
       body: row.body,
       createdAt: row.created_at,
       prayingCount: intentions.length,
       prayingByMe: intentions.some(i => i.user_id === userId),
       commentCount: (row.group_prayer_comments ?? []).length,
     }
-  })
+  }))
 }
 
 export async function postPrayerRequest(groupId, body) {

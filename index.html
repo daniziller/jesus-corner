@@ -7,9 +7,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="Seu tempo. Sua rotina. Sua conexão com Deus." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;0,900;1,600&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <!-- Fraunces e Montserrat eram carregadas aqui mas não são usadas em
+         lugar nenhum do app (as famílias reais são Plus Jakarta Sans e Be
+         Vietnam Pro, definidas em src/index.css). Além do peso inútil, cada
+         carregamento mandava o IP de todo visitante pro Google antes de
+         qualquer consentimento. Para tirar as duas que sobraram, rode
+         `node scripts/fetch-fonts.mjs` — ver docs/lgpd.md. -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />

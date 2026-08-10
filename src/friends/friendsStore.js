@@ -5,6 +5,7 @@
 // RLS definida em supabase/migrations/0002_friends_groups_challenges.sql,
 // não o código aqui.
 import { supabase } from '../lib/supabaseClient'
+import { resolveAvatarUrl } from '../profile/profileStore'
 
 async function getUserId() {
   const { data } = await supabase.auth.getUser()
@@ -22,16 +23,18 @@ export async function getFriends() {
     .eq('status', 'accepted')
     .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
   if (error) { console.error('[friendsStore] getFriends failed:', error.message); return [] }
-  return (data ?? []).map(row => {
+  // avatar_url guarda o caminho no Storage desde a migration 0025 — precisa
+  // ser assinado antes de virar src de <img>. Ver profileStore.resolveAvatarUrl.
+  return Promise.all((data ?? []).map(async row => {
     const isRequester = row.requester_id === userId
     const other = isRequester ? row.addressee : row.requester
     return {
       friendshipId: row.id,
       userId: isRequester ? row.addressee_id : row.requester_id,
       name: other?.name ?? '',
-      avatarUrl: other?.avatar_url ?? null,
+      avatarUrl: await resolveAvatarUrl(other?.avatar_url),
     }
-  })
+  }))
 }
 
 // Pedidos de amizade recebidos, ainda pendentes de resposta.
@@ -45,13 +48,13 @@ export async function getPendingRequests() {
     .eq('addressee_id', userId)
     .order('created_at', { ascending: false })
   if (error) { console.error('[friendsStore] getPendingRequests failed:', error.message); return [] }
-  return (data ?? []).map(row => ({
+  return Promise.all((data ?? []).map(async row => ({
     friendshipId: row.id,
     userId: row.requester_id,
     name: row.requester?.name ?? '',
-    avatarUrl: row.requester?.avatar_url ?? null,
+    avatarUrl: await resolveAvatarUrl(row.requester?.avatar_url),
     createdAt: row.created_at,
-  }))
+  })))
 }
 
 // Só a contagem — usado pro sino de notificações e pelo indicador de

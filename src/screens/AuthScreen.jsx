@@ -15,6 +15,8 @@ import { formatAmount } from '../billing/formatAmount'
 import { startCheckout } from '../billing/subscriptionStore'
 import { redeemInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
+import { recordConsents, PURPOSES } from '../privacy/consent'
+import { isUnderMinAge } from '../privacy/minAge'
 
 // Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
 // o app veria o onboarding (pensado pra converter visitante novo) toda vez
@@ -592,7 +594,12 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
   const [password, setPassword]   = useState('')
   const [confirm, setConfirm]     = useState('')
   const [isPublic, setIsPublic]   = useState(true)
+  // Consentimento separado por finalidade — ver src/privacy/consent.js.
+  // Os dois obrigatórios começam desmarcados; o de marketing é opcional e
+  // precisa continuar desmarcado por padrão (opt-in, nunca opt-out).
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [agreedToSensitive, setAgreedToSensitive] = useState(false)
+  const [agreedToMarketing, setAgreedToMarketing] = useState(false)
   const [currency, setCurrency]   = useState('brl')
   const [billingMode, setBillingMode] = useState('monthly')
   const [inviteCode, setInviteCode] = useState('')
@@ -615,11 +622,25 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
   async function submit(e) {
     e.preventDefault()
     if (password !== confirm) { setError(t('auth.passwordsDontMatch')); return }
-    if (!agreedToTerms) { setError(t('auth.mustAgreeToTerms')); return }
+    if (!agreedToTerms || !agreedToSensitive) { setError(t('auth.mustAgreeToTerms')); return }
+    // Art. 14 da LGPD: menor de 12 é criança, e o tratamento exige
+    // consentimento específico de um dos pais, que não temos como verificar.
+    // A checagem se repete no servidor (ver src/auth/authStore.js).
+    if (isUnderMinAge(birthdate)) { setError(t('auth.minAgeError')); return }
     setLoading(true)
     try {
       const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
       setError('')
+
+      // Registra o consentimento assim que existe sessão. Não bloqueia o
+      // cadastro se falhar — o app reapresenta a tela no próximo login
+      // quando faltar registro obrigatório (ver needsConsentRefresh).
+      recordConsents([
+        { purpose: PURPOSES.TERMS, granted: true },
+        { purpose: PURPOSES.SENSITIVE_DATA, granted: true },
+        { purpose: PURPOSES.MARKETING_EMAIL, granted: agreedToMarketing },
+        { purpose: PURPOSES.PUBLIC_PROFILE, granted: isPublic },
+      ])
       if (user.needsEmailConfirmation) {
         setConfirmationEmail(user.email)
         setLoading(false)
@@ -730,6 +751,11 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
         />
       </label>
 
+      {/* Consentimento em camadas — art. 8º, §4º da LGPD: consentimento para
+          finalidades genéricas é nulo. Os dois primeiros são obrigatórios
+          para operar o serviço; o terceiro é opcional e vem desmarcado,
+          porque recusa não pode impedir o uso do app. Ver
+          src/privacy/consent.js. */}
       <div style={styles.agreeRow}>
         <input
           type="checkbox"
@@ -746,9 +772,32 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
         </span>
       </div>
 
+      <div style={styles.agreeRow}>
+        <input
+          type="checkbox"
+          style={styles.agreeCheckbox}
+          checked={agreedToSensitive}
+          onChange={e => setAgreedToSensitive(e.target.checked)}
+        />
+        <span style={styles.agreeText}>{t('auth.agreeToSensitiveData')}</span>
+      </div>
+
+      <div style={styles.agreeRow}>
+        <input
+          type="checkbox"
+          style={styles.agreeCheckbox}
+          checked={agreedToMarketing}
+          onChange={e => setAgreedToMarketing(e.target.checked)}
+        />
+        <span style={styles.agreeText}>{t('auth.agreeToMarketing')}</span>
+      </div>
+
       {error && <p style={styles.error}>{error}</p>}
 
-      <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading || !agreedToTerms}>
+      <button
+        type="submit" className="btn-primary" style={{ marginTop: 6 }}
+        disabled={loading || !agreedToTerms || !agreedToSensitive}
+      >
         {loading ? t('auth.loading') : t('onboarding.signupBtn', { amount: formatAmount(amountCents, currency) })}
       </button>
 

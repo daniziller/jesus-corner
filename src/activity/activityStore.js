@@ -5,6 +5,7 @@
 // amigos aceitos cujo perfil está público — ver 0005_friend_activity.sql);
 // esse arquivo não filtra nada além disso.
 import { supabase } from '../lib/supabaseClient'
+import { resolveAvatarUrl } from '../profile/profileStore'
 
 async function getUserId() {
   const { data } = await supabase.auth.getUser()
@@ -36,13 +37,15 @@ export async function getFriendsActivity(limit = 20) {
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) { console.error('[activityStore] getFriendsActivity failed:', error.message); return [] }
-  return (data ?? []).map(row => ({
+  // avatar_url virou caminho no Storage (migration 0025) — assinar antes de
+  // usar como src. Ver profileStore.resolveAvatarUrl.
+  return Promise.all((data ?? []).map(async row => ({
     id: row.id,
     userId: row.user_id,
     type: row.type,
     payload: row.payload,
     createdAt: row.created_at,
     authorName: row.author?.name ?? '',
-    authorAvatarUrl: row.author?.avatar_url ?? null,
-  }))
+    authorAvatarUrl: await resolveAvatarUrl(row.author?.avatar_url),
+  })))
 }

@@ -6,6 +6,7 @@ import { getFriendsCount } from '../friends/friendsStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
 import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
+import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 
 const MAX_BIO_LENGTH = 280
 
@@ -26,6 +27,21 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const fileInputRef = useRef(null)
+
+  // Direitos do titular (LGPD art. 18) — ver src/privacy/privacyStore.js
+  const [exportState, setExportState] = useState('idle')
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  async function handleExport() {
+    setExportState('loading')
+    try {
+      await exportMyData()
+      setExportState('idle')
+    } catch (err) {
+      console.error('Falha ao exportar dados', err)
+      setExportState('error')
+    }
+  }
 
   useEffect(() => {
     getMyProfile().then(setProfile).catch(err => console.error('Failed to load profile', err))
@@ -309,12 +325,34 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             onPress={() => window.open(termsUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}
           />
           <SettingsLink
+            icon="Download" iconBg="#EFF6FF"
+            label={t('profile.exportDataLabel')} sub={t('profile.exportDataSub')}
+            onPress={handleExport}
+          />
+          <SettingsLink
             icon="LogOut" iconBg="var(--rel)" iconColor="var(--re)"
             label={t('profile.logoutLabel')} sub={t('profile.logoutSub')}
             onPress={onLogout}
           />
+          <SettingsLink
+            icon="Trash2" iconBg="var(--rel)" iconColor="var(--re)"
+            label={t('profile.deleteAccountLabel')} sub={t('profile.deleteAccountSub')}
+            onPress={() => setDeleteOpen(true)}
+          />
 
         </div>
+
+        {exportState === 'loading' && <p style={styles.privacyHint}>{t('profile.exportDataLoading')}</p>}
+        {exportState === 'error' && <p style={styles.privacyError}>{t('profile.exportDataError')}</p>}
+
+        {deleteOpen && (
+          <DeleteAccountDialog
+            email={authUser.email}
+            hasStoreSubscription={subscription?.billing_provider === 'apple' || subscription?.billing_provider === 'google_play'}
+            onCancel={() => setDeleteOpen(false)}
+            onDeleted={onLogout}
+          />
+        )}
 
         {/* Sobre o nome */}
         <div style={styles.aboutNameCard}>
@@ -378,6 +416,67 @@ function SettingsToggle({ icon, iconBg, iconColor = 'var(--or)', label, sub, val
   )
 }
 
+// Confirmação de exclusão. Pede o email digitado — o servidor recusa se não
+// bater com o da sessão (ver api/delete-account.js). É irreversível e não
+// tem "desfazer", então a fricção aqui é proposital.
+function DeleteAccountDialog({ email, hasStoreSubscription, onCancel, onDeleted }) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const matches = typed.trim().toLowerCase() === (email ?? '').toLowerCase()
+
+  async function confirm() {
+    setBusy(true); setError('')
+    try {
+      await deleteMyAccount(typed.trim())
+      onDeleted?.()
+    } catch (err) {
+      console.error('Falha ao excluir conta', err)
+      setError(t('profile.deleteAccountError'))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={styles.deleteBackdrop} role="dialog" aria-modal="true">
+      <div style={styles.deleteCard}>
+        <p style={styles.deleteTitle}>{t('profile.deleteAccountTitle')}</p>
+        <p style={styles.deleteBody}>{t('profile.deleteAccountBody')}</p>
+
+        <ul style={styles.deleteList}>
+          <li>{t('profile.deleteAccountItemErased')}</li>
+          <li>{t('profile.deleteAccountItemAnonymized')}</li>
+          <li>{t('profile.deleteAccountItemIrreversible')}</li>
+        </ul>
+
+        {hasStoreSubscription && (
+          <p style={styles.deleteWarn}>{t('profile.deleteAccountStoreWarning')}</p>
+        )}
+
+        <label style={styles.deleteLabel}>{t('profile.deleteAccountConfirmLabel', { email })}</label>
+        <input
+          type="email" value={typed} onChange={e => setTyped(e.target.value)}
+          style={styles.deleteInput} autoComplete="off" placeholder={email}
+        />
+
+        {error && <p style={styles.privacyError}>{error}</p>}
+
+        <div style={styles.deleteActions}>
+          <button type="button" style={styles.deleteCancel} onClick={onCancel} disabled={busy}>
+            {t('profile.deleteAccountCancel')}
+          </button>
+          <button
+            type="button" style={{ ...styles.deleteConfirm, opacity: matches && !busy ? 1 : 0.45 }}
+            onClick={confirm} disabled={!matches || busy}
+          >
+            {busy ? t('profile.deleteAccountDeleting') : t('profile.deleteAccountConfirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SettingsLink({ icon, iconBg, iconColor = 'var(--or)', label, sub, onPress }) {
   return (
     <div className="settings-item" onClick={onPress} style={{ cursor: onPress ? 'pointer' : 'default' }}>
@@ -392,6 +491,21 @@ function SettingsLink({ icon, iconBg, iconColor = 'var(--or)', label, sub, onPre
 }
 
 const styles = {
+  privacyHint:  { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: 8 },
+  privacyError: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', marginTop: 8 },
+
+  deleteBackdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 200 },
+  deleteCard:   { background: 'var(--white)', borderRadius: 20, padding: 20, width: '100%', maxWidth: 380, maxHeight: '85vh', overflowY: 'auto' },
+  deleteTitle:  { fontSize: 16, fontWeight: 800, color: 'var(--bk)', marginBottom: 8 },
+  deleteBody:   { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5 },
+  deleteList:   { margin: '10px 0 4px 16px', display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.45 },
+  deleteWarn:   { fontSize: 11.5, fontWeight: 600, color: 'var(--g6)', background: 'var(--olt)', border: '0.5px solid rgba(249,115,22,.3)', borderRadius: 10, padding: '9px 11px', marginTop: 10, lineHeight: 1.45 },
+  deleteLabel:  { display: 'block', fontSize: 11.5, fontWeight: 600, color: 'var(--g5)', marginTop: 14, marginBottom: 5 },
+  deleteInput:  { width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 10, padding: '10px 12px', fontSize: 13, fontFamily: 'var(--font)', color: 'var(--bk)' },
+  deleteActions:{ display: 'flex', gap: 8, marginTop: 16 },
+  deleteCancel: { flex: 1, border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 12, padding: '11px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  deleteConfirm:{ flex: 1, border: 'none', background: 'var(--re)', borderRadius: 12, padding: '11px 12px', fontSize: 12.5, fontWeight: 700, color: 'var(--white)', cursor: 'pointer', fontFamily: 'var(--font)' },
+
   plannerCard:  { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)', borderRadius: 16, padding: 13, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'var(--font)' },
   plannerLabel: { fontSize: 10, fontWeight: 700, color: 'var(--or)', marginBottom: 3, letterSpacing: 0.4 },
   plannerTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },

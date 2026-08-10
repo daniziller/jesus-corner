@@ -3,6 +3,7 @@
 // progresso do app (leitura, oração, notas etc.) mora à parte, na tabela
 // user_data (ver src/backend/userDataStore.js).
 import { supabase } from '../lib/supabaseClient'
+import { isUnderMinAge, MIN_AGE } from '../privacy/minAge'
 
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
@@ -61,6 +62,13 @@ export async function signup({ name, email, password, language, birthdate, isPub
   const birthDateObj = new Date(birthdate)
   if (Number.isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
     throw new Error('Informe uma data de nascimento válida.')
+  }
+  // Art. 14 da LGPD: menor de 12 é criança e o tratamento exige
+  // consentimento de um responsável, que não temos como verificar num
+  // cadastro por email. A tela também checa antes de chegar aqui — esta é
+  // a rede de segurança para quem chamar signup() por outro caminho.
+  if (isUnderMinAge(birthdate)) {
+    throw new Error(`É preciso ter pelo menos ${MIN_AGE} anos para criar uma conta.`)
   }
 
   const { data, error } = await supabase.auth.signUp({

@@ -3,6 +3,11 @@
    Design System
    ===================== */
 
+/* PENDENTE (LGPD): enquanto as fontes vierem do CDN do Google, o IP de todo
+   visitante é enviado a um terceiro antes de qualquer consentimento. Para
+   resolver, rode `node scripts/fetch-fonts.mjs` (precisa de internet) e
+   troque a linha abaixo por:  @import url('/fonts/fonts.css');
+   Ver docs/lgpd.md. */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 *, *::before, *::after {

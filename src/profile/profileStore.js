@@ -21,7 +21,7 @@ export async function getMyProfile() {
   if (error) { console.error('[profileStore] getMyProfile failed:', error.message); return null }
   return {
     bio: data?.bio ?? '',
-    avatarUrl: data?.avatar_url ?? null,
+    avatarUrl: await resolveAvatarUrl(data?.avatar_url),
     isPublic: data?.is_public ?? false,
   }
 }
@@ -51,6 +51,45 @@ export async function updateProfile({ name, birthdate, bio, isPublic }) {
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const SIGNED_URL_TTL_SECONDS = 60 * 60
+
+// O bucket 'avatars' deixou de ser público na migration 0025: antes a foto
+// era acessível a qualquer um com o link, sem autenticação e para sempre.
+// Agora avatar_url guarda só o CAMINHO do arquivo, e a URL é assinada na
+// hora de exibir, com validade de 1 hora.
+//
+// Linhas antigas guardam a URL pública inteira. Em vez de migrar o banco,
+// extraímos o caminho dela — o arquivo é o mesmo, só muda a forma de acessar.
+function toStoragePath(value) {
+  if (!value) return null
+  if (!value.startsWith('http')) return value.split('?')[0]
+  const marker = '/avatars/'
+  const i = value.indexOf(marker)
+  if (i === -1) return null
+  return value.slice(i + marker.length).split('?')[0]
+}
+
+// Devolve uma URL exibível, ou null se o arquivo sumiu ou se quem pede não
+// tem permissão de ver (a policy de storage repete a regra de visibilidade
+// de profiles: dono, amigo aceito ou colega de grupo).
+export async function resolveAvatarUrl(value) {
+  const path = toStoragePath(value)
+  if (!path) return null
+  const { data, error } = await supabase.storage
+    .from('avatars')
+    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
+  if (error) {
+    console.error('[profileStore] resolveAvatarUrl failed:', error.message)
+    return null
+  }
+  return data?.signedUrl ?? null
+}
+
+// Assina vários avatares de uma vez, para listas (amigos, feed, pedidos de
+// oração). Um createSignedUrl por item em série deixaria a lista lenta.
+export async function resolveAvatarUrls(rows, getValue, setValue) {
+  return Promise.all(rows.map(async row => setValue(row, await resolveAvatarUrl(getValue(row)))))
+}
 
 export async function uploadAvatar(file) {
   if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
@@ -69,15 +108,12 @@ export async function uploadAvatar(file) {
     .upload(path, file, { upsert: true, cacheControl: '3600' })
   if (uploadError) throw new Error(uploadError.message)
 
-  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-  // Cache-busting: o caminho do arquivo é sempre o mesmo (avatar.<ext>), então
-  // sem isso o navegador poderia continuar mostrando a foto antiga em cache.
-  const avatarUrl = `${data.publicUrl}?t=${Date.now()}`
-
-  const { error } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('user_id', userId)
+  // Guarda o caminho, não a URL: URL assinada expira, e persistir uma URL
+  // morta seria pior do que não ter nada.
+  const { error } = await supabase.from('profiles').update({ avatar_url: path }).eq('user_id', userId)
   if (error) throw new Error(error.message)
 
-  return avatarUrl
+  return resolveAvatarUrl(path)
 }
 
 // Perfil básico de um amigo (nome, bio, foto, se é público) — a RLS de
@@ -94,7 +130,7 @@ export async function getFriendProfile(friendUserId) {
   return {
     name: data.name,
     bio: data.bio ?? '',
-    avatarUrl: data.avatar_url ?? null,
+    avatarUrl: await resolveAvatarUrl(data.avatar_url),
     isPublic: data.is_public ?? false,
   }
 }
