@@ -10,6 +10,7 @@ import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
+import PlanScreen from './screens/PlanScreen'
 import ContactScreen from './screens/ContactScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
@@ -417,6 +418,16 @@ export default function App() {
     setActiveTab('journey')
   }
 
+  // Tocar numa sessão específica na aba Plano (ver PlanScreen.jsx) — mesmo
+  // mecanismo de continueToday acima, só que pra uma sessão escolhida pela
+  // pessoa em vez de sempre "onde ela parou".
+  function openReadingSession(blockId, sessionId) {
+    setActiveBlockId(blockId)
+    setJourneyResumeSessionId(sessionId)
+    setJourneyEntryMode('reading')
+    setActiveTab('journey')
+  }
+
   // Rebusca a assinatura e atualiza o estado — usado depois de resgatar um
   // convite de acesso grátis (ver UpgradeScreen.jsx), pra liberar o
   // PaywallGate sozinho, sem precisar de F5.
@@ -688,6 +699,7 @@ export default function App() {
   const screens = {
     home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} onMarkRoutineStep={markRoutineStep} />,
+    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onSelectPlan={selectPlan} onToggleSession={toggleSession} onOpenSession={openReadingSession} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,

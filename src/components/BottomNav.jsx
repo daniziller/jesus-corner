@@ -4,11 +4,12 @@ import AppIcon from '../icons/AppIcon'
 // "journey" (Bíblia) fica centralizada na fileira — é a ação principal do
 // app — com o ícone um pouco maior pra se destacar das outras abas.
 // "routine" logo depois de "home", pra montar o dia antes de agir, seguida
-// de Progresso. Depois da Bíblia vem Estudos e por último Comunidade.
-// Oração não tem aba própria — mora só dentro de Rotina (card com botão pra
-// abrir a tela, ver RoutineScreen.jsx), que já é o passo 1 do dia.
-const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'studies', 'groups']
-const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+// de Progresso. Depois da Bíblia vem Plano, Estudos, e por último
+// Comunidade. Oração não tem aba própria — mora só dentro de Rotina (card
+// com botão pra abrir a tela, ver RoutineScreen.jsx), que já é o passo 1
+// do dia; no lugar dela entrou Plano (ver PlanScreen.jsx).
+const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'plan', 'studies', 'groups']
+const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', plan: 'BookMarked', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações
 // no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).

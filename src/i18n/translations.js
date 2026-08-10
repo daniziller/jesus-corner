@@ -5,7 +5,7 @@
 export const STRINGS = {
   pt: {
     nav: {
-      home: 'Início', prayer: 'Oração', journey: 'Bíblia', routine: 'Rotina', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil', admin: 'Admin',
+      home: 'Início', prayer: 'Oração', journey: 'Bíblia', routine: 'Rotina', plan: 'Plano', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil', admin: 'Admin',
     },
     a11y: {
       largeTextToggle: 'Texto grande',
@@ -446,6 +446,13 @@ export const STRINGS = {
       start: 'Começar pela Oração',
       changePlan: 'Trocar plano',
     },
+    plan: {
+      pageTitle: 'Plano de Leitura',
+      heroSub: 'Escolha seu plano e veja a Bíblia inteira dividida em sessões, do começo ao fim.',
+      changePlanLabel: 'Seu plano',
+      sessionsOverviewTitle: 'Sessões do plano',
+      sessionsOverviewSub: 'Toque numa sessão pra abrir a leitura dela.',
+    },
     contact: {
       pageTitle: 'Fale Conosco',
       heroTitle: 'Estamos aqui pra ajudar',
@@ -755,7 +762,7 @@ export const STRINGS = {
   },
   en: {
     nav: {
-      home: 'Home', prayer: 'Prayer', journey: 'Bible', routine: 'Routine', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile', admin: 'Admin',
+      home: 'Home', prayer: 'Prayer', journey: 'Bible', routine: 'Routine', plan: 'Plan', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile', admin: 'Admin',
     },
     a11y: {
       largeTextToggle: 'Large text',
@@ -1190,6 +1197,13 @@ export const STRINGS = {
       min: 'min',
       start: 'Start with Prayer',
       changePlan: 'Change plan',
+    },
+    plan: {
+      pageTitle: 'Reading Plan',
+      heroSub: 'Choose your plan and see the whole Bible divided into sessions, start to finish.',
+      changePlanLabel: 'Your plan',
+      sessionsOverviewTitle: 'Plan sessions',
+      sessionsOverviewSub: 'Tap a session to open it for reading.',
     },
     contact: {
       pageTitle: 'Contact Us',
