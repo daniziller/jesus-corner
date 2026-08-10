@@ -169,11 +169,21 @@ export async function resetPassword({ email, code, newPassword }) {
 // true quando esta conta precisa trocar a senha antes de continuar — quem
 // já tinha conta quando a política de senha endureceu de PIN de 6 dígitos
 // pra senha forte (ver migration 0026 e ForceChangePasswordStep em
-// AuthScreen.jsx). Lido do próprio perfil, com RLS restrita ao dono.
+// AuthScreen.jsx). Lido do próprio perfil.
 export async function needsPasswordChange() {
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData?.user?.id
+  if (!userId) return false
+  // A policy de SELECT em profiles também libera amigos aceitos e colegas
+  // de grupo, não só o dono (ver 0002_friends_groups_challenges.sql) — sem
+  // o .eq() abaixo, quem tem qualquer amigo faz essa query bater em mais de
+  // uma linha, .single() falha, e o erro fazia essa função sempre devolver
+  // false (era esse o bug: a troca forçada nunca disparava pra ninguém com
+  // amigos).
   const { data, error } = await supabase
     .from('profiles')
     .select('password_needs_update')
+    .eq('user_id', userId)
     .single()
   if (error) { console.error('Falha ao checar password_needs_update', error); return false }
   return !!data?.password_needs_update
