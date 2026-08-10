@@ -13,14 +13,18 @@
 }
 
 :root {
-  /* Cores principais */
-  --or: #F97316;
-  --olt: #FFF0E6;
+  /* Cores principais — --or parte da cor da própria logo (o marrom-
+     queimado de fundo do ícone, --brand-deep) em vez de um laranja vivo
+     solto; todo o resto da paleta (gradiente, tint claro, orbs) deriva
+     dela, então a marca é sempre o ponto de partida da coloração. */
+  --or: #9D4300;
+  --olt: #F5E9DE;
   --bk: #121212;
   --white: #FFFFFF;
 
-  /* Marca — laranja queimado profundo usado no wordmark e no avatar do
-     header (mesmo tom que abre o --grad-vivid), direto do Figma. */
+  /* Marca — mesmo valor de --or (a cor da logo é a cor principal agora);
+     mantido como token à parte porque várias telas se referem a ele
+     explicitamente pro wordmark/avatar do header. */
   --brand-deep: #9D4300;
   /* Fundo escuro dos heroes (Home/Journey/ReadingBlockView/Auth/idioma) —
      um tom mais suave que --bk, repetido igual em todos eles. */
@@ -53,18 +57,20 @@
   --gold-soft: rgba(201,154,74,.35);
 
   /* Orbs de fundo dos heros escuros (Home/Journey/ReadingBlockView) —
-     tom âmbar/cobre quente no lugar do rosa original, coerente com a
-     direção "editorial quente" escolhida pro redesign premium. */
-  --hero-orb-a: #F97316;
+     tom âmbar/cobre quente, alinhado ao marrom da logo (--or). */
+  --hero-orb-a: #9D4300;
   --hero-orb-b: #C2790F;
 
   /* --grad-primary é o ÚNICO sinal de "toque aqui" do app — todo botão/CTA/
      estado ativo usa ele, sempre, pra não ter dois "laranjas de ação"
-     competindo pela atenção (bom pra conversão).
+     competindo pela atenção (bom pra conversão). Os 3 stops derivam de
+     --or/--brand-deep (mesma cor da logo) — mais claro, o tom base, mais
+     escuro — em vez do laranja vivo antigo, sem relação com a marca.
      --grad-vivid/--grad-premium (mesmo valor, dois nomes históricos) ficam
      reservados pra superfícies de destaque que NÃO são botão: heroes, anel
-     de progresso, badges de conquista/status, e o paywall (Upgrade). */
-  --grad-primary: linear-gradient(135deg, #FB923C 0%, #F97316 55%, #EA580C 100%);
+     de progresso, badges de conquista/status, e o paywall (Upgrade) — já
+     partiam de --brand-deep, então não mudam. */
+  --grad-primary: linear-gradient(135deg, #B5651D 0%, #9D4300 55%, #7A2E00 100%);
   --grad-vivid: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
   --grad-premium: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
 
@@ -82,7 +88,7 @@
      etc.) — o mesmo gradiente estava reimplementado com stops levemente
      diferentes (FFDDB8/FFE4CC/FFE0BE) em cada tela; agora é um token só. */
   --card-highlight-bg: linear-gradient(135deg,#FFF3E8,#FFE0BE);
-  --card-highlight-border: 0.5px solid rgba(249,115,22,.25);
+  --card-highlight-border: 0.5px solid rgba(157,67,0,.25);
 
   /* Layout */
   --nav-height: 83px;

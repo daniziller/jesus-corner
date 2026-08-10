@@ -3,6 +3,6 @@
 // pra sempre bater a mesma cor com o mesmo passo em qualquer tela.
 export const ROUTINE_STEP_COLORS = {
   prayer:     '#71717A', // cinza
-  reading:    '#F97316', // laranja
+  reading:    '#9D4300', // marrom-queimado da logo (= --or)
   reflection: '#18181B', // preto
 }

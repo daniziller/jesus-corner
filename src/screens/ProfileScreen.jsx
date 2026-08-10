@@ -385,7 +385,7 @@ function SettingsLink({ icon, iconBg, iconColor = 'var(--or)', label, sub, onPre
 
 const styles = {
   plannerCard:  { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)', borderRadius: 16, padding: 13, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'var(--font)' },
-  plannerLabel: { fontSize: 10, fontWeight: 700, color: '#EA580C', marginBottom: 3, letterSpacing: 0.4 },
+  plannerLabel: { fontSize: 10, fontWeight: 700, color: 'var(--or)', marginBottom: 3, letterSpacing: 0.4 },
   plannerTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
   plannerSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g6)', marginTop: 2 },
   langBtn:      { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },

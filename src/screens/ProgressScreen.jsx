@@ -112,7 +112,7 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                 nem aparece no frame mobile, então não há um layout mobile
                 do Figma pra preservar — mesmo visual nos dois tamanhos). */}
             <div style={{ display: 'flex', gap: 8 }}>
-              <StatBox icon="Flame" iconBg="var(--card-highlight-bg)" iconColor="#EA580C" value={session.streak} label={translate('progress.streakLabel', undefined, lang)} />
+              <StatBox icon="Flame" iconBg="var(--card-highlight-bg)" iconColor="var(--or)" value={session.streak} label={translate('progress.streakLabel', undefined, lang)} />
               <StatBox icon="BookMarked" iconBg="var(--g1)" iconColor="var(--g6)" value={`${session.chaptersRead}/${session.totalChapters}`} label={translate('progress.chaptersRead', undefined, lang)} />
               <StatBox icon="Library" iconBg="rgba(181,0,93,.08)" iconColor="#B5005D" value={`${session.booksCompleted}/${session.totalBooks}`} label={translate('progress.booksCompleted', undefined, lang)} />
             </div>

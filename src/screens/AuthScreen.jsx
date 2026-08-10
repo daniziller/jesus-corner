@@ -227,7 +227,7 @@ function NameStep({ name, setName, onNext, onGoLogin }) {
    (method.empathy.*). As 4 fases moram dentro do mesmo passo do wizard de
    propósito: no funil do admin conta como um passo só, e o "voltar" anda
    fase a fase antes de sair pro passo do nome. ── */
-const VALUE_INTRO_COLOR = '#F97316' // = var(--or); hex literal pra permitir suffixar alpha (`${VALUE_INTRO_COLOR}1A`) abaixo
+const VALUE_INTRO_COLOR = '#9D4300' // = var(--or); hex literal pra permitir suffixar alpha (`${VALUE_INTRO_COLOR}1A`) abaixo
 const OBSTACLE_KEYS = ['rush', 'phone', 'start', 'consistency']
 
 function ValueIntroStep({ stepNum, total, name, onBackToName, onNext }) {
