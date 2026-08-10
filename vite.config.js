@@ -10,6 +10,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // injectManifest (em vez do generateSW padrão) porque o service worker
+      // agora tem lógica própria — os listeners de push/notificationclick do
+      // lembrete de leitura (ver src/sw.js) — que o generateSW não permite
+      // adicionar, já que ele gera o arquivo inteiro sozinho.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       includeAssets: ['icons/*.png'],
       manifest: {
         name: "Jesus' Corner",
@@ -30,31 +37,12 @@ export default defineConfig({
           { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
-      workbox: {
+      // globPatterns do precache de instalação — o runtime caching (fontes do
+      // Google, texto bíblico) agora mora dentro de src/sw.js, já que
+      // injectManifest não lê a chave `workbox.runtimeCaching` (isso é só
+      // pro modo generateSW).
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } }
-          },
-          {
-            // Texto bíblico (public/bible-text/) — não entra no precache de
-            // instalação (globPatterns não inclui .json), só fica disponível
-            // offline depois que a pessoa abre aquele livro pela 1a vez.
-            //
-            // Nome do cache com sufixo de versão (-v2): o formato do JSON
-            // mudou (de {versículo: texto} pra {verses, breaks}) sem mudar a
-            // URL do arquivo — com CacheFirst e 1 ano de validade, quem já
-            // tinha aberto o app antes ficava preso pra sempre no formato
-            // velho (tela branca, o código novo não reconhecia o shape
-            // antigo). Trocar o nome força buscar tudo de novo da rede; se o
-            // formato mudar de novo no futuro, sobe esse número de novo.
-            urlPattern: /\/bible-text\/.*\.json$/,
-            handler: 'CacheFirst',
-            options: { cacheName: 'bible-text-cache-v2', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 } }
-          }
-        ]
       }
     })
   ]

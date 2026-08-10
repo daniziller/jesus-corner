@@ -8,11 +8,14 @@ import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
+import { isSubscribedToPush, subscribeToPush, unsubscribeFromPush } from '../notifications/pushStore'
 
 const MAX_BIO_LENGTH = 280
 
 export default function ProfileScreen({ session, authUser, subscription, isAdmin, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onProfileUpdated }) {
-  const [notifications, setNotifications] = useState(true)
+  const [notifications, setNotifications] = useState(false)
+  const [remindersBusy, setRemindersBusy] = useState(false)
+  const [remindersError, setRemindersError] = useState('')
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
 
@@ -44,7 +47,27 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   useEffect(() => {
     getMyProfile().then(setProfile).catch(err => console.error('Failed to load profile', err))
     getFriendsCount().then(setFriendsCount).catch(err => console.error('Failed to load friends count', err))
+    isSubscribedToPush().then(setNotifications).catch(() => {})
   }, [])
+
+  // Liga/desliga o lembrete de leitura de verdade (push, ver
+  // src/notifications/pushStore.js) — não é só um estado local: pede
+  // permissão do navegador e inscreve/desinscreve esse dispositivo.
+  async function handleToggleReminders() {
+    if (remindersBusy) return
+    const next = !notifications
+    setRemindersBusy(true)
+    setRemindersError('')
+    try {
+      if (next) await subscribeToPush()
+      else await unsubscribeFromPush()
+      setNotifications(next)
+    } catch (err) {
+      setRemindersError(err.message)
+    } finally {
+      setRemindersBusy(false)
+    }
+  }
 
   function startEdit() {
     setEditName(authUser.name)
@@ -225,7 +248,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           <SettingsToggle
             icon="Bell" iconBg="var(--olt)"
             label={t('profile.remindersLabel')} sub={t('profile.remindersSub')}
-            value={notifications} onChange={setNotifications}
+            value={notifications} onChange={handleToggleReminders} disabled={remindersBusy}
           />
           <SettingsLink
             icon="Globe" iconBg="#EFF6FF"
@@ -314,6 +337,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
         {exportState === 'loading' && <p style={styles.privacyHint}>{t('profile.exportDataLoading')}</p>}
         {exportState === 'error' && <p style={styles.privacyError}>{t('profile.exportDataError')}</p>}
+        {remindersError && <p style={styles.privacyError}>{remindersError}</p>}
 
         {deleteOpen && (
           <DeleteAccountDialog
@@ -377,7 +401,7 @@ function StatItem({ value, label }) {
   )
 }
 
-function SettingsToggle({ icon, iconBg, iconColor = 'var(--or)', label, sub, value, onChange }) {
+function SettingsToggle({ icon, iconBg, iconColor = 'var(--or)', label, sub, value, onChange, disabled }) {
   return (
     <div className="settings-item">
       <div className="settings-icon" style={{ background: iconBg }}><AppIcon name={icon} size={15} color={iconColor} /></div>
@@ -387,7 +411,8 @@ function SettingsToggle({ icon, iconBg, iconColor = 'var(--or)', label, sub, val
       </div>
       <div
         className={`toggle ${value ? '' : 'off'}`}
-        onClick={() => onChange(v => !v)}
+        style={disabled ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+        onClick={() => !disabled && onChange()}
         role="switch"
         aria-checked={value}
       >
