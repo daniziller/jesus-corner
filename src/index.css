@@ -788,3 +788,53 @@ html.large-text .app-content-inner {
     height: 100%;
   }
 }
+
+/* ── RoutineScreen: no desktop o Figma coloca cabeçalho de seção + seletor
+   de duração lado a lado (no mobile fica empilhado, um embaixo do outro).
+   !important pra vencer os estilos inline de largura/margem — mesmo
+   padrão já usado em .auth-sheet acima. ── */
+@media (min-width: 1024px) {
+  .picker-section-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .picker-section-inline > *:first-child {
+    margin-bottom: 0 !important;
+    flex-shrink: 0;
+  }
+  .picker-section-inline .duration-sel {
+    flex: 1;
+    max-width: 420px;
+  }
+  .today-session-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .today-session-row > *:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+  .today-session-btn-desktop {
+    width: auto !important;
+    padding: 11px 24px !important;
+    flex-shrink: 0;
+  }
+  .plan-row-desktop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .plan-row-desktop > *:first-child {
+    flex: 1;
+    margin-bottom: 0 !important;
+  }
+  .plan-row-desktop .plan-stats-inline {
+    flex-shrink: 0;
+    margin-top: 0 !important;
+  }
+}

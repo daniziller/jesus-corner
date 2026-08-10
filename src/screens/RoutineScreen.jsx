@@ -57,7 +57,13 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
 
       <div style={styles.body}>
-        <p style={styles.heroSub}>{t('routine.heroSub', undefined, lang)}</p>
+        {/* Título + subtítulo — só no desktop (≥1024px). No mobile o Figma
+            pula direto pro card de hero; no desktop ele abre com "Rotina"
+            + a mesma frase que já usávamos como heroSub. */}
+        <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>
+          <h1 className="page-title">{t('routine.pageTitle', undefined, lang)}</h1>
+          <p style={styles.heroSub}>{t('routine.heroSub', undefined, lang)}</p>
+        </div>
 
         {/* Total do dia */}
         <div style={styles.hero}>
@@ -141,8 +147,8 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
         </div>
 
         {/* Oração */}
-        <PickerSection title={t('routine.sectionPrayer', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer}>
-          <div style={styles.durationSel}>
+        <PickerSection title={t('routine.sectionPrayer', undefined, lang)} sub={t('routine.sectionPrayerSub', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer} inline>
+          <div className="duration-sel" style={styles.durationSel}>
             {PRAYER_DURATION_OPTIONS.map(n => (
               <button
                 key={n}
@@ -157,65 +163,76 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
         </PickerSection>
 
         {/* Leitura — escolher o tempo aqui é escolher o plano */}
-        <PickerSection title={t('routine.sectionReading', undefined, lang)} icon="BookOpen" color={ROUTINE_STEP_COLORS.reading}>
+        <PickerSection title={t('routine.sectionReading', undefined, lang)} sub={t('routine.sectionReadingSub', undefined, lang)} icon="BookOpen" color={ROUTINE_STEP_COLORS.reading}>
           {/* Sessão de hoje — mesmos dados de session.todaySession que a Home
               já mostra (ver App.jsx), só que aqui dentro da aba Rotina, que
               agora concentra tudo sobre o plano de leitura. O botão leva
               direto pra tela de leitura (mesmo onContinueSession da Home). */}
           <div style={styles.todaySessionCard}>
-            <div style={styles.todaySessionBadge}>
-              <span style={styles.todaySessionDot} />
-              <span style={styles.todaySessionBlock}>{todaySession.block}</span>
+            <div className="today-session-row">
+              <div>
+                <div style={styles.todaySessionBadge}>
+                  <span style={styles.todaySessionDot} />
+                  <span style={styles.todaySessionBlock}>{todaySession.block}</span>
+                </div>
+                <h4 style={styles.todaySessionTitle}>{todaySession.title}</h4>
+                <p style={styles.todaySessionSub}>{todaySession.subtitle}</p>
+              </div>
+              <button className="today-session-btn-desktop" style={styles.todaySessionBtn} onClick={onContinueSession}>
+                {readingCtaLabel} <AppIcon name="ChevronRight" size={15} />
+              </button>
             </div>
-            <h4 style={styles.todaySessionTitle}>{todaySession.title}</h4>
-            <p style={styles.todaySessionSub}>{todaySession.subtitle}</p>
             <div style={styles.todaySessionProgressBar}>
               <div style={{ ...styles.todaySessionProgressFill, width: `${todaySession.progress}%` }} />
             </div>
-            <button style={styles.todaySessionBtn} onClick={onContinueSession}>
-              {readingCtaLabel} <AppIcon name="ChevronRight" size={15} />
-            </button>
           </div>
 
-          <p style={styles.changePlanLabel}>{t('routine.changePlan', undefined, lang)}</p>
-          <div style={styles.planSel}>
-            {PLANS.filter(p => p.id !== 'free').map(p => (
-              <button
-                key={p.id}
-                style={{ ...styles.planBtn, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
-                onClick={() => onSelectPlan?.(p.id)}
-              >
-                {lang === 'en' ? p.labelEn : p.label}
-              </button>
-            ))}
-          </div>
-          {PLANS.filter(p => p.id === 'free').map(p => (
-            <button
-              key={p.id}
-              style={{ ...styles.planBtnFree, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
-              onClick={() => onSelectPlan?.(p.id)}
-            >
-              {lang === 'en' ? p.labelEn : p.label}
-            </button>
-          ))}
-          <span style={styles.sectionCaption}>
-            {plan.readingMinutes != null ? t('journey.minPerDay', { n: plan.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-          </span>
-          <div style={styles.readingStatsRow}>
-            <div style={styles.readingStat}>
-              <span style={styles.readingStatN}>{doneSessions}/{totalSessions}</span>
-              <span style={styles.readingStatL}>{t('journey.sessionsStat', undefined, lang)}</span>
+          <div className="plan-row-desktop">
+            <div>
+              <p style={styles.changePlanLabel}>{t('routine.changePlan', undefined, lang)}</p>
+              <div style={styles.planSel}>
+                {PLANS.filter(p => p.id !== 'free').map(p => (
+                  <button
+                    key={p.id}
+                    style={{ ...styles.planBtn, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
+                    onClick={() => onSelectPlan?.(p.id)}
+                  >
+                    {lang === 'en' ? p.labelEn : p.label}
+                  </button>
+                ))}
+              </div>
+              {PLANS.filter(p => p.id === 'free').map(p => (
+                <button
+                  key={p.id}
+                  style={{ ...styles.planBtnFree, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
+                  onClick={() => onSelectPlan?.(p.id)}
+                >
+                  {lang === 'en' ? p.labelEn : p.label}
+                </button>
+              ))}
             </div>
-            <div style={styles.readingStat}>
-              <span style={styles.readingStatN}>~{plan.avgChapters}</span>
-              <span style={styles.readingStatL}>{t('journey.chaptersPerSession', undefined, lang)}</span>
+
+            <div className="plan-stats-inline" style={{ marginTop: 8 }}>
+              <span style={styles.sectionCaption}>
+                {plan.readingMinutes != null ? t('journey.minPerDay', { n: plan.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+              </span>
+              <div style={styles.readingStatsRow}>
+                <div style={styles.readingStat}>
+                  <span style={styles.readingStatN}>{doneSessions}/{totalSessions}</span>
+                  <span style={styles.readingStatL}>{t('journey.sessionsStat', undefined, lang)}</span>
+                </div>
+                <div style={styles.readingStat}>
+                  <span style={styles.readingStatN}>~{plan.avgChapters}</span>
+                  <span style={styles.readingStatL}>{t('journey.chaptersPerSession', undefined, lang)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </PickerSection>
 
         {/* Reflexão */}
-        <PickerSection title={t('routine.sectionReflection', undefined, lang)} icon="PenLine" color={ROUTINE_STEP_COLORS.reflection}>
-          <div style={styles.durationSel}>
+        <PickerSection title={t('routine.sectionReflection', undefined, lang)} sub={t('routine.sectionReflectionSub', undefined, lang)} icon="PenLine" color={ROUTINE_STEP_COLORS.reflection} inline>
+          <div className="duration-sel" style={styles.durationSel}>
             {REFLECTION_DURATION_OPTIONS.map(n => (
               <button
                 key={n}
@@ -248,16 +265,21 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
   )
 }
 
-function PickerSection({ title, icon, color, children }) {
+function PickerSection({ title, sub, icon, color, children, inline }) {
   return (
     <div style={styles.section}>
-      <div style={styles.sectionHeader}>
-        <span style={{ ...styles.sectionIcon, background: `${color}1A` }}>
-          <AppIcon name={icon} size={15} color={color} />
-        </span>
-        <span style={styles.sectionTitle}>{title}</span>
+      <div className={inline ? 'picker-section-inline' : undefined}>
+        <div style={styles.sectionHeader}>
+          <span style={{ ...styles.sectionIcon, background: `${color}1A` }}>
+            <AppIcon name={icon} size={15} color={color} />
+          </span>
+          <div>
+            <span style={styles.sectionTitle}>{title}</span>
+            {sub && <p style={styles.sectionSub}>{sub}</p>}
+          </div>
+        </div>
+        {children}
       </div>
-      {children}
     </div>
   )
 }
@@ -389,6 +411,7 @@ const styles = {
   sectionHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
   sectionIcon: { width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
+  sectionSub:  { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
   sectionCaption: { display: 'block', marginTop: 8, fontSize: 10, fontWeight: 600, color: 'var(--g4)' },
 
   readingStatsRow: { display: 'flex', gap: 6, marginTop: 8 },
