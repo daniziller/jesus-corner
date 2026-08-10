@@ -43,11 +43,7 @@ import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { checkIsAdmin } from './admin/adminStore'
 import { applyPendingInvite } from './invites/inviteStore'
 import { logActivity } from './activity/activityStore'
-
-function avatarInitialsOf(name) {
-  const parts = name.trim().split(/\s+/)
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase()
-}
+import { avatarInitialsOf } from './utils/avatarInitials'
 
 function defaultBlockIdFor(completedSet, planId, readingOrder) {
   return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder).blocks).id

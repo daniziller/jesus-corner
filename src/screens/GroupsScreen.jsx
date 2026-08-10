@@ -15,6 +15,7 @@ import { createChallenge, getChallengesForGroup, getChallengeLeaderboard, comple
 import { getComments, postComment, deleteComment, toggleCommentLike, setCommentPinned } from '../groups/commentsStore'
 import { getFriendProfile, getFriendProgressSummary } from '../profile/profileStore'
 import { logActivity, getFriendsActivity } from '../activity/activityStore'
+import { avatarInitialsOf } from '../utils/avatarInitials'
 import {
   getPrayerRequests, postPrayerRequest, deletePrayerRequest, togglePraying,
   getPrayerComments, postPrayerComment, deletePrayerComment, toggleCommentLike as togglePrayerCommentLike,
@@ -307,7 +308,7 @@ function FriendsSection({ lang, onChange, authUser }) {
           {pending.map(req => (
             <div key={req.friendshipId} style={styles.inviteCard}>
               <div style={styles.friendAvatar}>
-                {req.avatarUrl ? <img src={req.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (req.name?.[0]?.toUpperCase() ?? '?')}
+                {req.avatarUrl ? <img src={req.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(req.name)}
               </div>
               <div style={{ flex: 1 }}>
                 <p style={styles.inviteTitle}>{req.name}</p>
@@ -334,7 +335,7 @@ function FriendsSection({ lang, onChange, authUser }) {
                   onClick={() => setExpandedFriendId(expanded ? null : f.userId)}
                 >
                   <div style={{ ...styles.friendAvatarCircle, ...(expanded ? styles.friendAvatarCircleActive : {}) }}>
-                    {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (f.name?.[0]?.toUpperCase() ?? '?')}
+                    {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(f.name)}
                   </div>
                   <span style={styles.friendGridName}>{f.name}</span>
                 </button>
@@ -421,7 +422,7 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
     <div style={styles.friendProfileCard}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <div style={styles.friendAvatar}>
-          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile.name?.[0]?.toUpperCase()}
+          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(profile.name)}
         </div>
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--bk)' }}>{profile.name}</p>
@@ -454,7 +455,7 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
                   return (
                     <div key={f.userId} style={styles.friendOfFriendRow}>
                       <div style={styles.friendOfFriendAvatar}>
-                        {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (f.name?.[0]?.toUpperCase() ?? '?')}
+                        {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(f.name)}
                       </div>
                       <span style={{ flex: 1, fontSize: 11.5, fontWeight: 600, color: 'var(--bk)' }}>{f.name}</span>
                       {alreadyFriend ? (

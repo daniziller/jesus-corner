@@ -13,6 +13,7 @@ import { getPendingRequests } from '../friends/friendsStore'
 import { getPendingGroupInvites } from '../groups/groupsStore'
 import { getFriendsActivity } from '../activity/activityStore'
 import { getUnreadNotifications, markNotificationRead } from '../notifications/notificationsStore'
+import { avatarInitialsOf } from '../utils/avatarInitials'
 
 export default function NotificationBell({ pendingCount, onNavigate, lang, variant = 'header' }) {
   const [open, setOpen] = useState(false)
@@ -113,7 +114,7 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
                   <div style={styles.itemAvatar}>
                     {r.avatarUrl
                       ? <img src={r.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <AppIcon name="UserPlus" size={14} color="var(--or)" />}
+                      : avatarInitialsOf(r.name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={styles.itemText}>
@@ -166,7 +167,7 @@ const styles = {
   sectionLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.5, textTransform: 'uppercase', margin: '6px 2px 2px' },
   item:       { display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 'none', background: 'none', borderRadius: 10, padding: '8px 6px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left' },
   itemIcon:   { width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  itemAvatar: { width: 26, height: 26, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--olt)' },
+  itemAvatar: { width: 26, height: 26, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--olt)', fontSize: 11, fontWeight: 800, color: 'var(--or)' },
   itemText:   { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.4 },
   infoItem:   { padding: '8px 6px', cursor: 'default' },
 }
