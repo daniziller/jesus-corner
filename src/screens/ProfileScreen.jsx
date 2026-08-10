@@ -295,16 +295,6 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             onPress={() => window.open('https://www.instagram.com/jesuscorner.app/', '_blank', 'noopener,noreferrer')}
           />
           <SettingsLink
-            icon="Shield" iconBg="#EFF6FF"
-            label={t('profile.privacyLabel')} sub={t('profile.privacySub')}
-            onPress={() => window.open(privacyUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}
-          />
-          <SettingsLink
-            icon="ClipboardList" iconBg="#EFF6FF"
-            label={t('profile.termsLabel')} sub={t('profile.termsSub')}
-            onPress={() => window.open(termsUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}
-          />
-          <SettingsLink
             icon="Download" iconBg="#EFF6FF"
             label={t('profile.exportDataLabel')} sub={t('profile.exportDataSub')}
             onPress={handleExport}
@@ -341,6 +331,17 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           <p style={styles.aboutNameVerseRef}>{t('profile.aboutNameVerseRef')}</p>
           <p style={styles.aboutNameBody}>{t('profile.aboutNameBody')}</p>
         </div>
+
+        {/* Links legais */}
+        <p style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--g5)' }}>
+          <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={() => window.open(privacyUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}>
+            {t('profile.privacyLabel')}
+          </span>
+          {'   ·   '}
+          <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={() => window.open(termsUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}>
+            {t('profile.termsLabel')}
+          </span>
+        </p>
 
         {/* Versão */}
         <p style={{ textAlign: 'center', fontSize: 10, fontWeight: 500, color: 'var(--g4)' }}>

@@ -353,9 +353,7 @@ export const STRINGS = {
       instagramLabel: 'Instagram',
       instagramSub: '@jesuscorner.app',
       privacyLabel: 'Política de Privacidade',
-      privacySub: 'Como cuidamos dos seus dados',
       termsLabel: 'Termos de Uso',
-      termsSub: 'Regras de uso do app',
       logoutLabel: 'Sair',
       logoutSub: 'Encerrar sessão',
 
@@ -1085,9 +1083,7 @@ export const STRINGS = {
       instagramLabel: 'Instagram',
       instagramSub: '@jesuscorner.app',
       privacyLabel: 'Privacy Policy',
-      privacySub: 'How we handle your data',
       termsLabel: 'Terms of Use',
-      termsSub: 'Rules for using the app',
       logoutLabel: 'Log out',
       logoutSub: 'End session',
 
