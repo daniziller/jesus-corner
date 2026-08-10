@@ -7,7 +7,7 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, pendi
     <div className="app-header" style={styles.header}>
       <div style={styles.brand} onClick={() => onNavigate?.('home')}>
         <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-        <span style={styles.brandName}>JESUS' CORNER</span>
+        <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
       </div>
       <div style={styles.actions}>
         <button
@@ -34,15 +34,17 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, pendi
   )
 }
 
-// Espelha 1:1 o frame "Header" do Figma (node 1:1595): barra de 64px com
-// fundo translúcido + blur, wordmark inteiro em --brand-deep e as ações à
-// direita como alvos de toque de 44px sem chrome (sem borda/fundo), com o
-// avatar num círculo sólido --brand-deep.
+// Baseado no frame "Header" do Figma (node 1:1595): barra de 64px com
+// fundo translúcido + blur e as ações à direita como alvos de toque de
+// 44px sem chrome (sem borda/fundo). Wordmark em preto+laranja (mesmo
+// tratamento da sidebar desktop — "JESUS'" em --bk, "CORNER" em --or) em
+// vez do --brand-deep único do Figma, pra usar só o laranja puro como
+// cor de marca/ação (ver separação --grad-primary vs --grad-vivid).
 const styles = {
   header:     { alignItems: 'center', justifyContent: 'space-between', height: 64, padding: '0 20px', flexShrink: 0, background: 'var(--header-bg)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' },
   brand:      { display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' },
   logo:       { width: 32, height: 32, borderRadius: 8, flexShrink: 0 },
-  brandName:  { fontSize: 18, fontWeight: 700, lineHeight: '28px', color: 'var(--brand-deep)', letterSpacing: -0.45, whiteSpace: 'nowrap' },
+  brandName:  { fontSize: 18, fontWeight: 700, lineHeight: '28px', color: 'var(--bk)', letterSpacing: -0.45, whiteSpace: 'nowrap' },
   actions:    { display: 'flex', alignItems: 'center', gap: 8 },
   iconBtn:    { width: 44, height: 44, border: 'none', background: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'opacity .15s' },
   iconBtnActive: { opacity: 1 },
