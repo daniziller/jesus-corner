@@ -6,7 +6,7 @@
 // bundler só incluir os ícones realmente usados.
 import {
   Home, HandHeart, Compass, BookOpen, BarChart3, User,
-  Scroll, Swords, Music, Flame, Cross, Globe, Mail, Eye,
+  Scroll, Swords, Music, Flame, Cross, Globe, Mail, Eye, EyeOff,
   Sprout, Star, Rocket,
   BookMarked, Library, Archive, TrendingUp, Crown,
   Repeat, Sparkles, Award, Hourglass, Timer,
@@ -42,7 +42,7 @@ function Instagram({ size = 18, color = 'currentColor', ...props }) {
 
 const REGISTRY = {
   Home, HandHeart, Compass, BookOpen, BarChart3, User,
-  Scroll, Swords, Music, Flame, Cross, Globe, Mail, Eye,
+  Scroll, Swords, Music, Flame, Cross, Globe, Mail, Eye, EyeOff,
   Sprout, Star, Rocket,
   BookMarked, Library, Archive, TrendingUp, Crown,
   Repeat, Sparkles, Award, Hourglass, Timer,

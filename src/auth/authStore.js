@@ -8,8 +8,24 @@ import { isUnderMinAge, MIN_AGE } from '../privacy/minAge'
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 }
+
+// Senha forte: pelo menos 8 caracteres, com maiúscula, minúscula, número e
+// caractere especial — no lugar do PIN de 6 dígitos antigo. Cada regra vira
+// uma linha do checklist ao vivo no campo (ver PasswordField em
+// AuthScreen.jsx), então fica exposta aqui como função separada em vez de só
+// um regex opaco.
+export function passwordRequirements(password) {
+  const p = password ?? ''
+  return {
+    length: p.length >= 8,
+    upper: /[A-Z]/.test(p),
+    lower: /[a-z]/.test(p),
+    number: /\d/.test(p),
+    special: /[^A-Za-z0-9]/.test(p),
+  }
+}
 export function isValidPassword(password) {
-  return /^\d{6}$/.test(password)
+  return Object.values(passwordRequirements(password)).every(Boolean)
 }
 
 function normalizeEmail(email) {
@@ -57,7 +73,7 @@ export async function signup({ name, email, password, language, birthdate, isPub
   const cleanEmail = normalizeEmail(email)
   if (!name.trim()) throw new Error('Informe seu nome.')
   if (!isValidEmail(cleanEmail)) throw new Error('Informe um email válido.')
-  if (!isValidPassword(password)) throw new Error('A senha deve ter exatamente 6 números.')
+  if (!isValidPassword(password)) throw new Error('A senha precisa ter pelo menos 8 caracteres, com maiúscula, minúscula, número e caractere especial.')
   if (!birthdate) throw new Error('Informe sua data de nascimento.')
   const birthDateObj = new Date(birthdate)
   if (Number.isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
@@ -133,7 +149,7 @@ export async function requestPasswordReset(email) {
 
 export async function resetPassword({ email, code, newPassword }) {
   const cleanEmail = normalizeEmail(email)
-  if (!isValidPassword(newPassword)) throw new Error('A nova senha deve ter exatamente 6 números.')
+  if (!isValidPassword(newPassword)) throw new Error('A nova senha precisa ter pelo menos 8 caracteres, com maiúscula, minúscula, número e caractere especial.')
 
   // type: 'recovery' — o token foi gerado por resetPasswordForEmail(), não
   // pelo fluxo de confirmação de signup (que usaria type: 'email').
@@ -143,5 +159,46 @@ export async function resetPassword({ email, code, newPassword }) {
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
   if (updateError) throw new Error(updateError.message)
 
+  // A senha nova já nasce no padrão forte, então não faz sentido pedir troca
+  // de novo no próximo login — mesmo raciocínio de changePassword() abaixo.
+  await clearPasswordNeedsUpdate(data.user?.id)
+
   return mapUser(data.user)
+}
+
+// true quando esta conta precisa trocar a senha antes de continuar — quem
+// já tinha conta quando a política de senha endureceu de PIN de 6 dígitos
+// pra senha forte (ver migration 0026 e ForceChangePasswordStep em
+// AuthScreen.jsx). Lido do próprio perfil, com RLS restrita ao dono.
+export async function needsPasswordChange() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('password_needs_update')
+    .single()
+  if (error) { console.error('Falha ao checar password_needs_update', error); return false }
+  return !!data?.password_needs_update
+}
+
+async function clearPasswordNeedsUpdate(userId) {
+  if (!userId) return
+  const { error } = await supabase
+    .from('profiles')
+    .update({ password_needs_update: false })
+    .eq('user_id', userId)
+  if (error) console.error('Falha ao limpar password_needs_update', error)
+}
+
+// Troca de senha por quem já está autenticado — usado tanto no fluxo forçado
+// (ForceChangePasswordStep) quanto, no futuro, por uma opção voluntária em
+// Perfil. Sempre exige a senha atual pro Supabase reautenticar antes de
+// trocar (ele já faz isso por baixo dos panos ao chamar updateUser com uma
+// sessão válida — não é preciso reautenticar manualmente aqui).
+export async function changePassword(newPassword) {
+  if (!isValidPassword(newPassword)) {
+    throw new Error('A nova senha precisa ter pelo menos 8 caracteres, com maiúscula, minúscula, número e caractere especial.')
+  }
+  const { data: userData } = await supabase.auth.getUser()
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw new Error(error.message)
+  await clearPasswordNeedsUpdate(userData?.user?.id)
 }

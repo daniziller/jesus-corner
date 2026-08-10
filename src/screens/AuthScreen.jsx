@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { signup, login, logout, requestPasswordReset, resetPassword, resendConfirmationEmail } from '../auth/authStore'
+import { signup, login, logout, requestPasswordReset, resetPassword, resendConfirmationEmail, passwordRequirements, isValidPassword, needsPasswordChange, changePassword } from '../auth/authStore'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
@@ -40,14 +40,29 @@ export default function AuthScreen({ onAuthenticated }) {
   // como antes.
   const [mode, setMode] = useState(() => (
     typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'onboarding'
-  )) // 'onboarding' | 'login' | 'forgot' | 'consentRefresh'
-  // Guardado só durante o 'consentRefresh': a pessoa já está autenticada no
-  // Supabase nesse ponto, só falta o app "liberar" a sessão (chamar
-  // onAuthenticated) depois que ela reafirmar o consentimento.
+  )) // 'onboarding' | 'login' | 'forgot' | 'forcePasswordChange' | 'consentRefresh'
+  // Guardado durante 'forcePasswordChange'/'consentRefresh': a pessoa já
+  // está autenticada no Supabase nesse ponto, só falta o app "liberar" a
+  // sessão (chamar onAuthenticated) depois de resolver as pendências.
   const [pendingUser, setPendingUser] = useState(null)
 
+  // Encadeia as checagens pós-login: senha fraca primeiro (mais urgente,
+  // segurança da conta), depois consentimento. Cada etapa, ao terminar,
+  // chama handleAuthenticated(user) de novo — na segunda passada a
+  // pendência que acabou de ser resolvida já não bloqueia mais, então o
+  // fluxo naturalmente avança pra próxima checagem (ou libera o app).
   async function handleAuthenticated(user) {
     if (typeof localStorage !== 'undefined') localStorage.setItem(HAS_AUTH_KEY, '1')
+
+    // Quem já tinha conta quando a senha deixou de ser um PIN de 6 dígitos
+    // (ver migration 0026) precisa trocar antes de continuar.
+    const needsPwChange = await needsPasswordChange().catch(() => false)
+    if (needsPwChange) {
+      setPendingUser(user)
+      setMode('forcePasswordChange')
+      return
+    }
+
     // Quem se cadastrou agora mesmo já sai com o consentimento em dia (ver
     // SignupStep), então isso na prática só pega quem loga numa conta criada
     // antes desse sistema existir, ou depois de a política mudar de versão.
@@ -57,6 +72,7 @@ export default function AuthScreen({ onAuthenticated }) {
       setMode('consentRefresh')
       return
     }
+
     onAuthenticated(user)
   }
 
@@ -73,6 +89,9 @@ export default function AuthScreen({ onAuthenticated }) {
         {mode === 'onboarding' && <OnboardingWizard onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
         {mode === 'login'  && <LoginView    onAuthenticated={handleAuthenticated} onGoSignup={() => setMode('onboarding')} onGoForgot={() => setMode('forgot')} />}
         {mode === 'forgot' && <ForgotView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
+        {mode === 'forcePasswordChange' && (
+          <ForceChangePasswordStep onDone={() => handleAuthenticated(pendingUser)} />
+        )}
         {mode === 'consentRefresh' && (
           <ConsentRefreshStep
             onDone={() => onAuthenticated(pendingUser)}
@@ -728,8 +747,8 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
 
       <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
       <Field label={t('auth.birthdateLabel')} type="date" value={birthdate} onChange={setBirthdate} max={todayISO()} />
-      <PinField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} />
-      <PinField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} />
+      <PasswordField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
+      <PasswordField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
 
       <div style={styles.publicToggleRow}>
         <div style={{ flex: 1 }}>
@@ -858,7 +877,7 @@ function LoginView({ onAuthenticated, onGoSignup, onGoForgot }) {
       <p style={styles.subtitle}>{t('auth.loginSubtitle')}</p>
 
       <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" autoFocus />
-      <PinField label={t('auth.passwordLabel')} value={password} onChange={setPassword} />
+      <PasswordField label={t('auth.passwordLabel')} value={password} onChange={setPassword} autoComplete="current-password" />
 
       {error && <p style={styles.error}>{error}</p>}
 
@@ -964,6 +983,64 @@ function ConsentRefreshStep({ onDone, onDecline }) {
       <div style={styles.linksRow}>
         <span style={styles.link} onClick={decline}>
           {declining ? t('auth.loading') : t('auth.consentRefreshDecline')}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// Forçado no login de quem já tinha conta quando a senha deixou de ser um
+// PIN de 6 dígitos — ver needsPasswordChange/changePassword em
+// src/auth/authStore.js e a migration 0026. Sem opção de recusar (like
+// ConsentRefreshStep tem): isso não é uma escolha de consentimento, é
+// segurança da própria conta — mas ainda oferece "Sair" pra quem não quiser
+// trocar agora, em vez de prender a pessoa na tela sem saída nenhuma.
+function ForceChangePasswordStep({ onDone }) {
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [error, setError] = useState('')
+
+  async function confirmChange() {
+    if (password !== confirm) { setError(t('auth.passwordsDontMatch')); return }
+    setLoading(true)
+    setError('')
+    try {
+      await changePassword(password)
+      onDone()
+    } catch (err) {
+      setError(err.message)
+      setLoading(false)
+    }
+  }
+
+  async function signOut() {
+    setSigningOut(true)
+    await logout().catch(() => {})
+    window.location.reload()
+  }
+
+  return (
+    <div style={styles.form}>
+      <h1 style={styles.title}>{t('auth.forceChangeTitle')}</h1>
+      <p style={styles.subtitle}>{t('auth.forceChangeBody')}</p>
+
+      <PasswordField label={t('auth.newPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
+      <PasswordField label={t('auth.confirmNewPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
+
+      {error && <p style={styles.error}>{error}</p>}
+
+      <button
+        type="button" className="btn-primary" style={{ marginTop: 6 }}
+        onClick={confirmChange} disabled={loading || signingOut || !isValidPassword(password)}
+      >
+        {loading ? t('auth.loading') : t('onboarding.continueBtn')}
+      </button>
+
+      <div style={styles.linksRow}>
+        <span style={styles.link} onClick={signOut}>
+          {signingOut ? t('auth.loading') : t('auth.forceChangeSignOut')}
         </span>
       </div>
     </div>
@@ -1094,8 +1171,8 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
       <p style={styles.subtitle}>{t('auth.resetSubtitle', { email })}</p>
 
       <PinField label={t('auth.codeLabel')} value={code} onChange={setCode} length={12} />
-      <PinField label={t('auth.newPasswordLabel')} value={password} onChange={setPassword} />
-      <PinField label={t('auth.confirmNewPasswordLabel')} value={confirm} onChange={setConfirm} />
+      <PasswordField label={t('auth.newPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
+      <PasswordField label={t('auth.confirmNewPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
 
       {error && <p style={styles.error}>{error}</p>}
 
@@ -1127,9 +1204,9 @@ function Field({ label, value, onChange, type = 'text', placeholder, autoFocus, 
   )
 }
 
-// length é 6 por padrão (nossa própria senha numérica), mas o código de
-// verificação por email é gerado pelo Supabase — o tamanho dele é definido
-// nas configurações do projeto, não pelo app, então não dá pra travar em 6.
+// Só sobrou pro código de verificação por email (12 dígitos, gerado pelo
+// Supabase — o tamanho é definido nas configurações do projeto, não pelo
+// app). Senha de verdade usa PasswordField, abaixo.
 function PinField({ label, value, onChange, length = 6 }) {
   return (
     <label style={styles.fieldWrap}>
@@ -1144,6 +1221,56 @@ function PinField({ label, value, onChange, length = 6 }) {
         onChange={e => onChange(e.target.value.replace(/\D/g, '').slice(0, length))}
       />
     </label>
+  )
+}
+
+// Campo de senha de verdade (texto livre, não mais um PIN numérico) — botão
+// pra mostrar/ocultar e, quando showRequirements, um checklist ao vivo das 5
+// regras (ver passwordRequirements em src/auth/authStore.js). Só os campos
+// de CRIAR senha nova mostram o checklist; confirmar e logar não precisam.
+function PasswordField({ label, value, onChange, showRequirements, autoComplete }) {
+  const [visible, setVisible] = useState(false)
+  const reqs = showRequirements ? passwordRequirements(value) : null
+
+  return (
+    <label style={styles.fieldWrap}>
+      <span style={styles.fieldLabel}>{label}</span>
+      <div style={styles.passwordInputWrap}>
+        <input
+          style={{ ...styles.input, paddingRight: 42 }}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          autoComplete={autoComplete}
+          onChange={e => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          style={styles.passwordToggle}
+          onClick={() => setVisible(v => !v)}
+          aria-label={t(visible ? 'auth.hidePassword' : 'auth.showPassword')}
+        >
+          <AppIcon name={visible ? 'EyeOff' : 'Eye'} size={17} color="var(--g4)" />
+        </button>
+      </div>
+      {reqs && (
+        <div style={styles.passwordChecklist}>
+          <PasswordRequirementRow ok={reqs.length} label={t('auth.passwordReqLength')} />
+          <PasswordRequirementRow ok={reqs.upper} label={t('auth.passwordReqUpper')} />
+          <PasswordRequirementRow ok={reqs.lower} label={t('auth.passwordReqLower')} />
+          <PasswordRequirementRow ok={reqs.number} label={t('auth.passwordReqNumber')} />
+          <PasswordRequirementRow ok={reqs.special} label={t('auth.passwordReqSpecial')} />
+        </div>
+      )}
+    </label>
+  )
+}
+
+function PasswordRequirementRow({ ok, label }) {
+  return (
+    <span style={{ ...styles.passwordReqItem, color: ok ? 'var(--gr)' : 'var(--g4)' }}>
+      <AppIcon name={ok ? 'CheckCircle2' : 'Circle'} size={12} color={ok ? 'var(--gr)' : 'var(--g3)'} />
+      {label}
+    </span>
   )
 }
 
@@ -1163,6 +1290,10 @@ const styles = {
   fieldLabel:    { fontSize: 12, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
   input:         { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '12px 13px', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
   pinInput:      { letterSpacing: 6, fontSize: 19, textAlign: 'center' },
+  passwordInputWrap: { position: 'relative', display: 'flex' },
+  passwordToggle:    { position: 'absolute', right: 4, top: 0, bottom: 0, width: 36, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  passwordChecklist: { display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 },
+  passwordReqItem:   { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, transition: 'color .15s' },
   error:         { fontSize: 13.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
   resendSuccess: { fontSize: 13.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl, rgba(34,197,94,.1))', borderRadius: 8, padding: '8px 10px' },
   resendBtn:     { width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 13, padding: 13, fontFamily: 'var(--font)', fontSize: 14.5, fontWeight: 700, color: 'var(--bk)', cursor: 'pointer' },
