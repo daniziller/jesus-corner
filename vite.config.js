@@ -20,9 +20,14 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
+        // 'any' e 'maskable' precisam ser arquivos DIFERENTES: o maskable é
+        // recortado pelo sistema num círculo de 80% do lado, então a arte
+        // dele é menor e o fundo sangra. Declarar o mesmo PNG pros dois
+        // (como estava) fazia o Android cortar as pontas do ícone.
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
       workbox: {
