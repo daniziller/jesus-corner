@@ -636,22 +636,26 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
     onFeature(target)
   }
 
+  // O nome do livro agora é só um cabeçalho leve (sem fundo de card em volta
+  // dele nem dos capítulos) — antes o texto do capítulo expandido ficava
+  // dentro de DOIS blocos aninhados (este card do livro + o card do próprio
+  // capítulo), deixando a coluna de leitura estreita demais. Sem o card
+  // externo, o texto só fica dentro de 1 bloco (o do capítulo).
   return (
-    <div
-      style={{
-        background: 'var(--card-bg)',
-        border: `0.5px solid ${isCurrentBook ? 'rgba(157,67,0,.35)' : 'var(--g1)'}`,
-        borderRadius: 16,
-        overflow: 'hidden',
-        boxShadow: isCurrentBook ? 'var(--shadow-glow)' : 'var(--shadow-card)',
-        cursor: 'pointer',
-      }}
-      onClick={handleHeaderClick}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, userSelect: 'none' }}>
+    <div>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', userSelect: 'none', cursor: 'pointer',
+          background: isCurrentBook ? 'var(--olt)' : 'var(--g1)',
+          border: `0.5px solid ${isCurrentBook ? 'rgba(157,67,0,.35)' : 'var(--g2)'}`,
+          borderRadius: 13,
+          boxShadow: isCurrentBook ? 'var(--shadow-glow)' : 'none',
+        }}
+        onClick={handleHeaderClick}
+      >
         <div style={{
           width: 38, height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          background: allDone ? 'var(--grad-vivid)' : isCurrentBook ? 'var(--bk)' : 'var(--g1)',
+          background: allDone ? 'var(--grad-vivid)' : isCurrentBook ? 'var(--bk)' : 'var(--g2)',
         }}>
           <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={17} color={allDone || isCurrentBook ? 'white' : 'var(--g5)'} />
         </div>
@@ -669,7 +673,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
       </div>
 
       {open && (
-        <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }} onClick={e => e.stopPropagation()}>
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }} onClick={e => e.stopPropagation()}>
           {group.sessions.map(s => (
             <SessionCard
               key={s.id}
