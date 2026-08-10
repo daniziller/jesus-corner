@@ -681,7 +681,7 @@ export default function App() {
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
-    stats:   <ProgressScreen session={session} blocks={blocks} />,
+    stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onProfileUpdated={handleProfileUpdated} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as

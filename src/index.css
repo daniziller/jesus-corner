@@ -844,3 +844,11 @@ html.large-text .app-content-inner {
     display: none !important;
   }
 }
+/* Inverso de .hide-on-mobile — some só no desktop. Usado em pares com
+   .hide-on-mobile pra alternar entre dois tratamentos da mesma seção
+   (ex.: anel de progresso no mobile vs. card chapado no desktop). */
+@media (min-width: 1024px) {
+  .hide-on-desktop {
+    display: none !important;
+  }
+}
