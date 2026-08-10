@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Analytics } from '@vercel/analytics/react'
 import AppHeader from './components/AppHeader'
 import AppIcon from './icons/AppIcon'
@@ -225,6 +225,16 @@ export default function App() {
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
+  // Oração e Reflexão têm cronômetro rodando de verdade (setInterval, wake
+  // lock) — se a tela desmontasse ao trocar de aba, como as outras, o
+  // cronômetro perderia todo o progresso (useState/useRef voltam do zero ao
+  // remontar). Por isso, uma vez visitada, essa aba fica sempre montada (só
+  // escondida via CSS quando não é a ativa — ver perto do JSX que lê esses
+  // refs), e o cronômetro continua contando mesmo com a pessoa em outra aba
+  // do app. Ref (não state) porque só precisa "travar" true na hora certa do
+  // render — não precisa disparar um re-render próprio pra isso.
+  const prayerVisitedRef = useRef(false)
+  const reflectionVisitedRef = useRef(false)
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [activeBlockId, setActiveBlockId] = useState(1)
@@ -668,10 +678,15 @@ export default function App() {
     )
   }
 
+  // Trava o ref de visita assim que a aba vira ativa — feito aqui (não num
+  // useEffect) pra já valer NESTE mesmo render, sem esperar o próximo ciclo
+  // (senão a tela pisca em branco 1 frame na primeira visita, antes do ref
+  // atualizar). Ver declaração de prayerVisitedRef/reflectionVisitedRef.
+  if (activeTab === 'prayer') prayerVisitedRef.current = true
+  if (activeTab === 'reflection') reflectionVisitedRef.current = true
+
   const screens = {
     home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
-    prayer:  <PrayerScreen  session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />,
-    reflection: <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} onMarkRoutineStep={markRoutineStep} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
@@ -697,7 +712,22 @@ export default function App() {
         {/* Conteúdo da tela ativa */}
         <div className="app-content">
           <div className="app-content-inner">
-            {screens[activeTab]}
+            {activeTab !== 'prayer' && activeTab !== 'reflection' && screens[activeTab]}
+
+            {/* Oração e Reflexão ficam sempre montadas depois da 1a visita
+                (ver prayerVisitedRef/reflectionVisitedRef) — display:'contents'
+                faz o wrapper "sumir" do layout quando oculto, sem atrapalhar
+                o height:100% que a tela em si já assume. */}
+            {prayerVisitedRef.current && (
+              <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
+                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />
+              </div>
+            )}
+            {reflectionVisitedRef.current && (
+              <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
+                <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />
+              </div>
+            )}
           </div>
         </div>
 

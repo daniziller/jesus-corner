@@ -150,6 +150,17 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
 
   useEffect(() => () => releaseWakeLock(), [])
 
+  // Etapa em destaque — mesmo padrão do PrayerScreen (segue openCardId, que
+  // já reage à troca de trecho durante o cronômetro em tick()); antes de
+  // começar, mostra a 1a etapa como "próxima".
+  const currentPhaseIdx = openCardId != null ? REFLECTION_DATA.findIndex(d => d.id === openCardId) : 0
+  const currentPhase = REFLECTION_DATA[currentPhaseIdx]
+  // Fim da etapa em destaque (início da próxima, ou o total se for a
+  // última) — pro relógio de "tempo restante NESTA etapa", separado do
+  // relógio grande acima (restante da reflexão inteira).
+  const phaseEndSeconds = PHASE_BOUNDS[currentPhaseIdx + 1]?.start ?? TOTAL_SECONDS
+  const phaseRemaining = Math.max(0, Math.round(phaseEndSeconds - elapsed))
+
   const remaining = Math.max(0, Math.round(TOTAL_SECONDS - elapsed))
 
   const fmt = (s) => {
@@ -221,6 +232,21 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
           <span style={styles.timerLabel}>{t('reflection.timerLabel', undefined, lang)}</span>
           <span style={styles.timerDisplay}>{fmt(remaining)}</span>
 
+          {/* Etapa do roteiro em destaque — muda sozinha conforme o
+              cronômetro avança de trecho (mesmo padrão do ACTS em
+              PrayerScreen.jsx), com o relógio da etapa embutido ao lado. */}
+          <div style={{ ...styles.currentPhaseBadge, borderColor: currentPhase.borderColor }}>
+            <span style={{ ...styles.currentPhaseDot, background: currentPhase.dotColor }}>{currentPhase.letter}</span>
+            <span style={styles.currentPhaseLabel}>
+              {t('reflection.currentPhase', { n: currentPhaseIdx + 1, total: REFLECTION_DATA.length }, lang)}
+              <strong style={{ color: currentPhase.dotColor }}> {currentPhase.title[lang]}</strong>
+            </span>
+            <span style={styles.phaseRemaining} title={t('reflection.phaseRemaining', undefined, lang)}>
+              <AppIcon name="Timer" size={11} />
+              {fmt(phaseRemaining)}
+            </span>
+          </div>
+
           {/* Duração total — trocar aqui redivide as 3 etapas
               proporcionalmente (ver phaseMinutesFor) e reinicia o cronômetro. */}
           <span style={styles.durationLabel}>{t('reflection.durationLabel', undefined, lang)}</span>
@@ -282,6 +308,10 @@ const styles = {
   timer:       { background: 'var(--bk-hero)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
   timerLabel:  { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 2, textTransform: 'uppercase' },
   timerDisplay:{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
+  currentPhaseBadge: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', border: '1px solid', borderRadius: 24, padding: '6px 14px 6px 6px' },
+  currentPhaseDot:   { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 },
+  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.6)' },
+  phaseRemaining:    { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.55)', fontVariantNumeric: 'tabular-nums', paddingLeft: 8, marginLeft: 2, borderLeft: '1px solid rgba(255,255,255,.15)', flexShrink: 0 },
   timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
   wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
   durationLabel: { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2 },
