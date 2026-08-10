@@ -46,6 +46,12 @@ export default function PlanScreen({ session, blocks, sessionsByBlock, completed
               >
                 <AppIcon name={p.icon} size={15} color={plan.id === p.id ? 'white' : 'var(--g4)'} />
                 {lang === 'en' ? p.labelEn : p.label}
+                {/* Tempo de leitura por dia — o principal critério pra
+                    escolher entre os planos, então fica sempre visível no
+                    próprio botão, não só depois de já ter escolhido. */}
+                <span style={{ ...styles.planBtnTime, ...(plan.id === p.id ? styles.planBtnTimeActive : {}) }}>
+                  {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                </span>
               </button>
             ))}
           </div>
@@ -188,8 +194,10 @@ const styles = {
   planCard:    { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   changePlanLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   planSel:     { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  planBtn:     { flex: '1 1 0', minWidth: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center', padding: '10px 6px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  planBtn:     { flex: '1 1 0', minWidth: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', padding: '10px 6px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   planBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  planBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
+  planBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
 
   overviewTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
   overviewSub:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },

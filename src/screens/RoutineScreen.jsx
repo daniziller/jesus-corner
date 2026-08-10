@@ -201,13 +201,19 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
             <div>
               <p style={styles.changePlanLabel}>{t('routine.changePlan', undefined, lang)}</p>
               <div style={styles.planSel}>
+                {/* Tempo de leitura por dia embaixo do nome — é o principal
+                    critério pra escolher entre os planos, então fica sempre
+                    visível no próprio botão, não só depois de escolhido. */}
                 {PLANS.filter(p => p.id !== 'free').map(p => (
                   <button
                     key={p.id}
                     style={{ ...styles.planBtn, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
                     onClick={() => onSelectPlan?.(p.id)}
                   >
-                    {lang === 'en' ? p.labelEn : p.label}
+                    <span>{lang === 'en' ? p.labelEn : p.label}</span>
+                    <span style={{ ...styles.planBtnTime, ...(plan.id === p.id ? styles.planBtnTimeActive : {}) }}>
+                      {t('journey.minPerDay', { n: p.readingMinutes }, lang)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -218,6 +224,9 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
                   onClick={() => onSelectPlan?.(p.id)}
                 >
                   {lang === 'en' ? p.labelEn : p.label}
+                  <span style={{ ...styles.planBtnTime, ...(plan.id === p.id ? styles.planBtnTimeActive : {}) }}>
+                    {' '}· {t('journey.noTimeTarget', undefined, lang)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -454,8 +463,10 @@ const styles = {
   changePlanLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
 
   planSel:     { display: 'flex', gap: 6, marginBottom: 6 },
-  planBtn:     { flex: 1, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  planBtn:     { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   planBtnActive: { color: 'white', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
+  planBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
+  planBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
   planBtnFree: { width: '100%', textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
 
   durationSel: { display: 'flex', gap: 6 },
