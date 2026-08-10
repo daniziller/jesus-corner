@@ -838,8 +838,9 @@ html.large-text .app-content-inner {
     margin-top: 0 !important;
   }
   /* HomeScreen: card "Bíblia lida" com anel é só mobile — o desktop usa o
-     card chapado (.hide-on-mobile, ao lado dele no JSX). */
+     card chapado (.hide-on-mobile, ao lado dele no JSX). !important pra
+     vencer o display:flex inline do styles.pctHero. */
   .home-pct-hero-mobile {
-    display: none;
+    display: none !important;
   }
 }
