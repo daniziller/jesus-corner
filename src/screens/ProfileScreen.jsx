@@ -20,6 +20,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [notifications, setNotifications] = useState(false)
   const [remindersBusy, setRemindersBusy] = useState(false)
   const [remindersError, setRemindersError] = useState('')
+  const [remindersConfigOpen, setRemindersConfigOpen] = useState(false)
   const [reminderHour, setReminderHour] = useState(DEFAULT_REMINDER_HOUR)
   const [reminderDays, setReminderDays] = useState(DEFAULT_REMINDER_DAYS)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
@@ -305,8 +306,9 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             icon="Bell" iconBg="var(--olt)"
             label={t('profile.remindersLabel')} sub={`${reminderHourLabel()} · ${reminderDaysLabel()}`}
             value={notifications} onChange={handleToggleReminders} disabled={remindersBusy}
+            onLabelClick={() => setRemindersConfigOpen(v => !v)}
           />
-          {notifications && (
+          {remindersConfigOpen && (
             <div style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: '0.5px solid var(--g1)' }}>
               <label style={styles.editFieldWrap}>
                 <span style={styles.editFieldLabel}>{t('profile.reminderHourLabel')}</span>
@@ -490,14 +492,19 @@ function StatItem({ value, label }) {
   )
 }
 
-function SettingsToggle({ icon, iconBg, iconColor = 'var(--or)', label, sub, value, onChange, disabled }) {
+function SettingsToggle({ icon, iconBg, iconColor = 'var(--or)', label, sub, value, onChange, disabled, onLabelClick }) {
   return (
     <div className="settings-item">
       <div className="settings-icon" style={{ background: iconBg }}><AppIcon name={icon} size={15} color={iconColor} /></div>
-      <div className="settings-info">
+      <div
+        className="settings-info"
+        onClick={onLabelClick}
+        style={onLabelClick ? { cursor: 'pointer' } : undefined}
+      >
         <p className="settings-label">{label}</p>
         <p className="settings-sub">{sub}</p>
       </div>
+      {onLabelClick && <span className="settings-arrow" onClick={onLabelClick} style={{ cursor: 'pointer' }}>›</span>}
       <div
         className={`toggle ${value ? '' : 'off'}`}
         style={disabled ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
