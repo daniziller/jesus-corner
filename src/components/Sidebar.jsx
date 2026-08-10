@@ -5,8 +5,10 @@ import NotificationBell from './NotificationBell'
 // Navegação lateral exibida só em telas ≥1024px (ver index.css) — substitui
 // o AppHeader + BottomNav do layout de celular por uma coluna fixa com logo,
 // abas e o usuário logado, no formato comum de dashboards desktop.
-const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'prayer', 'studies', 'groups']
-const TAB_ICONS = { home: 'Home', prayer: 'HandHeart', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+// Oração não tem aba própria — mora só dentro de Rotina (card com botão pra
+// abrir a tela, ver RoutineScreen.jsx), que já é o passo 1 do dia.
+const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'studies', 'groups']
+const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
 
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-primary)', border: 'none', boxShadow: 'var(--shadow-premium)' }

@@ -146,8 +146,18 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
           ))}
         </div>
 
-        {/* Oração */}
-        <PickerSection title={t('routine.sectionPrayer', undefined, lang)} sub={t('routine.sectionPrayerSub', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer} inline>
+        {/* Oração — não tem mais aba própria na navegação (só mora aqui
+            dentro de Rotina), então esse botão é o jeito principal de
+            abrir a tela dela agora (além do passo "Oração" na linha do
+            tempo acima). */}
+        <PickerSection
+          title={t('routine.sectionPrayer', undefined, lang)} sub={t('routine.sectionPrayerSub', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer} inline
+          footer={
+            <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.prayer }} onClick={() => onNavigate?.('prayer')}>
+              {t('routine.goToPrayer', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
+            </button>
+          }
+        >
           <div className="duration-sel" style={styles.durationSel}>
             {PRAYER_DURATION_OPTIONS.map(n => (
               <button
@@ -231,7 +241,14 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
         </PickerSection>
 
         {/* Reflexão */}
-        <PickerSection title={t('routine.sectionReflection', undefined, lang)} sub={t('routine.sectionReflectionSub', undefined, lang)} icon="PenLine" color={ROUTINE_STEP_COLORS.reflection} inline>
+        <PickerSection
+          title={t('routine.sectionReflection', undefined, lang)} sub={t('routine.sectionReflectionSub', undefined, lang)} icon="PenLine" color={ROUTINE_STEP_COLORS.reflection} inline
+          footer={
+            <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.reflection }} onClick={() => onNavigate?.('reflection')}>
+              {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
+            </button>
+          }
+        >
           <div className="duration-sel" style={styles.durationSel}>
             {REFLECTION_DURATION_OPTIONS.map(n => (
               <button
@@ -265,7 +282,11 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
   )
 }
 
-function PickerSection({ title, sub, icon, color, children, inline }) {
+// footer fica FORA do wrapper "inline" de propósito — no desktop, esse
+// wrapper vira uma linha (cabeçalho + seletor de duração lado a lado, ver
+// .picker-section-inline no index.css); um botão de largura cheia dentro
+// dela viraria mais um item espremido nessa linha em vez de ficar embaixo.
+function PickerSection({ title, sub, icon, color, children, inline, footer }) {
   return (
     <div style={styles.section}>
       <div className={inline ? 'picker-section-inline' : undefined}>
@@ -280,6 +301,7 @@ function PickerSection({ title, sub, icon, color, children, inline }) {
         </div>
         {children}
       </div>
+      {footer}
     </div>
   )
 }
@@ -441,6 +463,7 @@ const styles = {
   durationBtnActive: { color: 'white', border: 'none', boxShadow: 'var(--shadow-glow)' },
   durationBtnNum:  { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, lineHeight: 1 },
   durationBtnUnit: { fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, opacity: 0.75, lineHeight: 1 },
+  sectionGoBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 10, border: 'none', borderRadius: 12, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', boxShadow: 'var(--shadow-premium)' },
 
   routineUsageChart:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 },
   routineUsageMonthCol:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
