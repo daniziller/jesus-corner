@@ -124,6 +124,14 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
       <div style={{ padding: '20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 13 }}>
 
+        {/* Título — só no desktop (≥1024px). Perfil não tem frame próprio
+            no Figma (só mobile), então isso segue o padrão confirmado nas
+            outras telas (Rotina/Início/Progresso/Estudos/Comunidade/Admin)
+            em vez de uma referência direta. */}
+        <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: -4 }}>
+          <h1 className="page-title">{t('profile.pageTitle')}</h1>
+        </div>
+
         <div className="dashboard-grid">
           {/* Card do usuário */}
           <div className="dashboard-col" style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 24, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: 'var(--shadow-card)', position: 'relative' }}>

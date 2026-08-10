@@ -39,7 +39,13 @@ export default function StudiesScreen({ session, authUser }) {
   return (
     <div className="master-detail">
       <div className={`master-pane${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-        <p style={styles.pageSubtitle}>{t('studies.pageSubtitle', undefined, lang)}</p>
+        {/* Título + subtítulo — só no desktop (≥1024px), igual
+            Rotina/Início/Progresso. No mobile o Figma não tem esse
+            cabeçalho (Estudos só tem frame desktop, sem referência mobile). */}
+        <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>
+          <h1 className="page-title">{t('studies.pageTitle', undefined, lang)}</h1>
+          <p style={{ ...styles.pageSubtitle, padding: 0, marginTop: 4, marginBottom: 0 }}>{t('studies.pageSubtitle', undefined, lang)}</p>
+        </div>
 
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {STUDIES.map(study => (

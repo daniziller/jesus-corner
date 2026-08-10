@@ -75,6 +75,11 @@ export default function GroupsScreen({ session, authUser, onSocialChange }) {
     <div className="master-detail">
       {/* Master: convites pendentes + meus grupos + amigos */}
       <div className={`master-pane${openGroupId ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+        {/* Título — só no desktop (≥1024px), igual Rotina/Início/Progresso.
+            No mobile o Figma não mostra esse cabeçalho aqui. */}
+        <div className="page-header hide-on-mobile" style={{ padding: '20px 14px 0' }}>
+          <h1 className="page-title">{t('groups.pageTitle', undefined, lang)}</h1>
+        </div>
         <div style={{ padding: '20px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {groupInvites.length > 0 && (
             <div>

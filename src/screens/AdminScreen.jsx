@@ -19,6 +19,11 @@ export default function AdminScreen({ session }) {
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
 
       <div style={styles.body}>
+        {/* Título — só no desktop (≥1024px), igual Rotina/Início/Progresso.
+            No mobile o Figma pula direto pras abas de métricas. */}
+        <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>
+          <h1 className="page-title">{t('admin.pageTitle', undefined, lang)}</h1>
+        </div>
         <div style={styles.tabBar}>
           {TABS.map(id => (
             <button
