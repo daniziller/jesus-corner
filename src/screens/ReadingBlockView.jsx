@@ -174,13 +174,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
 
   return (
     <div ref={scrollRef} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button onClick={onBack} style={styles.backBtn} aria-label="back">
-          <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />
-        </button>
-        <h1 className="page-title">{blockName}</h1>
-      </div>
-
       <div className="rb-body">
 
         {/* Detalhe: sessão em destaque + marcação + painéis — vem primeiro no
@@ -193,6 +186,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             <div style={styles.heroOrbOrange} />
             <div style={styles.heroOrbPink} />
             <div style={styles.heroOverlay} />
+            <button onClick={onBack} style={styles.heroBackBtn} aria-label="back">
+              <AppIcon name="ArrowLeft" size={17} color="white" />
+            </button>
             <div style={styles.heroContent}>
               <p style={styles.heroCycle}>{isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}</p>
               <h2 style={styles.heroTitle}>{heroTitle}</h2>
@@ -643,8 +639,8 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   return (
     <div
       style={{
-        background: 'white',
-        border: `0.5px solid ${isCurrentBook ? 'rgba(249,115,22,.35)' : 'var(--g1)'}`,
+        background: 'var(--card-bg)',
+        border: `0.5px solid ${isCurrentBook ? 'rgba(157,67,0,.35)' : 'var(--g1)'}`,
         borderRadius: 16,
         overflow: 'hidden',
         boxShadow: isCurrentBook ? 'var(--shadow-glow)' : 'var(--shadow-card)',
@@ -806,18 +802,18 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
 }
 
 const styles = {
-  backBtn:     { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   hero:        { height: 224, margin: '10px 14px', borderRadius: 22, overflow: 'hidden', position: 'relative', background: 'var(--bk-hero)', flexShrink: 0, boxShadow: '0 12px 28px rgba(0,0,0,.18)' },
   heroOrbOrange:{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, right: -50 },
   heroOrbPink: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -50, left: -40 },
   heroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 65%)' },
+  heroBackBtn: { position: 'absolute', top: 14, left: 14, zIndex: 1, width: 32, height: 32, borderRadius: '50%', border: '0.5px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.15)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   heroContent: { position: 'absolute', bottom: 14, left: 14, right: 14 },
   heroCycle:   { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
   heroTitle:   { fontFamily: 'var(--font-display)', fontSize: 25, fontWeight: 700, fontStyle: 'italic', color: 'white', marginBottom: 4, letterSpacing: '-0.2px', lineHeight: 1.15 },
   heroSub:     { fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.7)' },
   heroTags:    { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 12 },
   heroTag:     { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.12)', border: '0.5px solid rgba(255,255,255,.18)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', cursor: 'pointer' },
-  heroTagActive:{ background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.4)' },
+  heroTagActive:{ background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.4)' },
   heroTagDot:  { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 5 },
   completeBtn: { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   completeBtnDone:{ background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
@@ -832,14 +828,14 @@ const styles = {
   notesTextarea:{ width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--g1)' },
   notesSaveBtn:{ width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   chapterChip:    { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  chapterChipDone:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
+  chapterChipDone:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
   chapterTextBtn:      { background: 'var(--bk)', border: '0.5px solid var(--bk)', color: 'white' },
-  chapterTextBtnActive:{ background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
+  chapterTextBtnActive:{ background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
   reflectionTip:  { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
   reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: '#A855F7', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   bibleTextVersionRow:  { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   bibleTextVersionBtn:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '5px 11px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  bibleTextVersionBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
+  bibleTextVersionBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
   bibleTextChapter:     { marginBottom: 16, paddingTop: 12, borderTop: '0.5px solid var(--g1)' },
   bibleTextChapterLabel:{ fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', marginBottom: 6 },
   bibleTextBody:        { fontSize: 14, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.75, marginBottom: 16 },
@@ -847,5 +843,5 @@ const styles = {
   bibleTextAttribution: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--g1)', fontStyle: 'italic' },
   nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
   chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 10, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--g1)' },
-  chapterDoneBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(249,115,22,.3)' },
+  chapterDoneBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
 }

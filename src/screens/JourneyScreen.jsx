@@ -316,6 +316,6 @@ const styles = {
   blockCard:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, overflow: 'hidden' },
   blockTop:        { padding: '13px 12px 10px', display: 'flex', gap: 10, alignItems: 'flex-start' },
   blockTag:        { fontSize: 8, fontWeight: 700, color: 'var(--g4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 },
-  blockTitle:      { fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 4, letterSpacing: '-0.2px' },
-  bookChip:        { background: 'var(--olt)', color: 'var(--brand-deep)', border: '0.5px solid rgba(249,115,22,.25)', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
+  blockTitle:      { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 4, letterSpacing: '-0.2px' },
+  bookChip:        { background: 'var(--olt)', color: 'var(--brand-deep)', border: '0.5px solid rgba(157,67,0,.25)', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
 }
