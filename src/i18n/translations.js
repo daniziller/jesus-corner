@@ -56,6 +56,13 @@ export const STRINGS = {
       agreeToSensitiveData: 'Autorizo o tratamento dos meus dados de leitura, oração e reflexão, que revelam convicção religiosa, para o app funcionar. Obrigatório.',
       agreeToMarketing: 'Quero receber emails com novidades e conteúdos. Opcional, e dá para cancelar quando quiser.',
       minAgeError: 'É preciso ter pelo menos 12 anos para criar uma conta. Se você tem menos, peça a um responsável para usar a conta dele com você.',
+      // Reapresentado a quem já tem conta quando falta consentimento
+      // obrigatório ou a política mudou de versão — ver needsConsentRefresh
+      // em src/privacy/consent.js.
+      consentRefreshTitle: 'Atualizamos nossos termos',
+      consentRefreshBody: 'Pra continuar usando o Jesus\' Corner, precisamos do seu consentimento atualizado pra tratar os dados da sua conta — inclusive dados sobre sua leitura, oração e reflexão, que revelam convicção religiosa.',
+      consentRefreshDecline: 'Sair sem aceitar',
+      consentRefreshError: 'Não deu pra registrar seu consentimento agora. Tenta de novo em alguns instantes.',
       loading: 'Aguarde…',
     },
     home: {
@@ -774,6 +781,10 @@ export const STRINGS = {
       agreeToSensitiveData: 'I authorise the processing of my reading, prayer and reflection data, which reveals religious belief, so the app can work. Required.',
       agreeToMarketing: 'Send me emails with news and content. Optional, and you can unsubscribe any time.',
       minAgeError: 'You must be at least 12 years old to create an account. If you are younger, ask a parent or guardian to use their account with you.',
+      consentRefreshTitle: "We've updated our terms",
+      consentRefreshBody: "To keep using Jesus' Corner, we need your updated consent to process your account data — including data about your reading, prayer and reflection, which reveals religious belief.",
+      consentRefreshDecline: 'Sign out without accepting',
+      consentRefreshError: "Couldn't record your consent right now. Please try again in a moment.",
       loading: 'Please wait…',
     },
     home: {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { signup, login, requestPasswordReset, resetPassword, resendConfirmationEmail } from '../auth/authStore'
+import { signup, login, logout, requestPasswordReset, resetPassword, resendConfirmationEmail } from '../auth/authStore'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
@@ -15,7 +15,7 @@ import { formatAmount } from '../billing/formatAmount'
 import { startCheckout } from '../billing/subscriptionStore'
 import { redeemInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
-import { recordConsents, PURPOSES } from '../privacy/consent'
+import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consent'
 import { isUnderMinAge } from '../privacy/minAge'
 
 // Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
@@ -40,10 +40,23 @@ export default function AuthScreen({ onAuthenticated }) {
   // como antes.
   const [mode, setMode] = useState(() => (
     typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'onboarding'
-  )) // 'onboarding' | 'login' | 'forgot'
+  )) // 'onboarding' | 'login' | 'forgot' | 'consentRefresh'
+  // Guardado só durante o 'consentRefresh': a pessoa já está autenticada no
+  // Supabase nesse ponto, só falta o app "liberar" a sessão (chamar
+  // onAuthenticated) depois que ela reafirmar o consentimento.
+  const [pendingUser, setPendingUser] = useState(null)
 
-  function handleAuthenticated(user) {
+  async function handleAuthenticated(user) {
     if (typeof localStorage !== 'undefined') localStorage.setItem(HAS_AUTH_KEY, '1')
+    // Quem se cadastrou agora mesmo já sai com o consentimento em dia (ver
+    // SignupStep), então isso na prática só pega quem loga numa conta criada
+    // antes desse sistema existir, ou depois de a política mudar de versão.
+    const needsRefresh = await needsConsentRefresh().catch(() => false)
+    if (needsRefresh) {
+      setPendingUser(user)
+      setMode('consentRefresh')
+      return
+    }
     onAuthenticated(user)
   }
 
@@ -60,6 +73,12 @@ export default function AuthScreen({ onAuthenticated }) {
         {mode === 'onboarding' && <OnboardingWizard onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
         {mode === 'login'  && <LoginView    onAuthenticated={handleAuthenticated} onGoSignup={() => setMode('onboarding')} onGoForgot={() => setMode('forgot')} />}
         {mode === 'forgot' && <ForgotView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
+        {mode === 'consentRefresh' && (
+          <ConsentRefreshStep
+            onDone={() => onAuthenticated(pendingUser)}
+            onDecline={() => { setPendingUser(null); setMode('login') }}
+          />
+        )}
       </div>
     </div>
   )
@@ -632,10 +651,13 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
       setError('')
 
-      // Registra o consentimento assim que existe sessão. Não bloqueia o
-      // cadastro se falhar — o app reapresenta a tela no próximo login
-      // quando faltar registro obrigatório (ver needsConsentRefresh).
-      recordConsents([
+      // Registra o consentimento assim que existe sessão. Espera terminar
+      // (silent:true por padrão, então uma falha não derruba o cadastro) —
+      // sem isso, o handleAuthenticated do AuthScreen chama
+      // needsConsentRefresh() antes da linha existir no banco, e quem acabou
+      // de aceitar veria a mesma tela de novo. Se mesmo assim falhar, o app
+      // reapresenta no próximo login (ver needsConsentRefresh).
+      await recordConsents([
         { purpose: PURPOSES.TERMS, granted: true },
         { purpose: PURPOSES.SENSITIVE_DATA, granted: true },
         { purpose: PURPOSES.MARKETING_EMAIL, granted: agreedToMarketing },
@@ -847,6 +869,104 @@ function LoginView({ onAuthenticated, onGoSignup, onGoForgot }) {
         <span style={styles.link} onClick={onGoSignup}>{t('auth.createAccount')}</span>
       </div>
     </form>
+  )
+}
+
+// Reapresentado a quem já tem conta e loga com o consentimento obrigatório
+// faltando ou desatualizado — ver needsConsentRefresh em
+// src/privacy/consent.js. A sessão no Supabase já existe nesse ponto (o
+// login/signup já aconteceu); esta tela só decide se o app "libera" o
+// acesso (onDone) ou desfaz a sessão (onDecline), porque consentimento
+// não pode ser condição imposta sem alternativa real de recusa.
+function ConsentRefreshStep({ onDone, onDecline }) {
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [agreedToSensitive, setAgreedToSensitive] = useState(false)
+  const [agreedToMarketing, setAgreedToMarketing] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [declining, setDeclining] = useState(false)
+  const [error, setError] = useState('')
+  const lang = getAppLanguage()
+
+  async function confirm() {
+    if (!agreedToTerms || !agreedToSensitive) { setError(t('auth.mustAgreeToTerms')); return }
+    setLoading(true)
+    setError('')
+    try {
+      await recordConsents([
+        { purpose: PURPOSES.TERMS, granted: true },
+        { purpose: PURPOSES.SENSITIVE_DATA, granted: true },
+        { purpose: PURPOSES.MARKETING_EMAIL, granted: agreedToMarketing },
+      ], { silent: false })
+      onDone()
+    } catch (err) {
+      console.error('Falha ao registrar consentimento', err)
+      setError(t('auth.consentRefreshError'))
+      setLoading(false)
+    }
+  }
+
+  async function decline() {
+    setDeclining(true)
+    await logout().catch(() => {})
+    onDecline()
+  }
+
+  return (
+    <div style={styles.form}>
+      <h1 style={styles.title}>{t('auth.consentRefreshTitle')}</h1>
+      <p style={styles.subtitle}>{t('auth.consentRefreshBody')}</p>
+
+      <div style={styles.agreeRow}>
+        <input
+          type="checkbox"
+          style={styles.agreeCheckbox}
+          checked={agreedToTerms}
+          onChange={e => setAgreedToTerms(e.target.checked)}
+        />
+        <span style={styles.agreeText}>
+          {t('auth.agreeToTermsPrefix')}
+          <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.termsLabel')}</a>
+          {t('auth.agreeToTermsMiddle')}
+          <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.privacyLabel')}</a>
+          {t('auth.agreeToTermsSuffix')}
+        </span>
+      </div>
+
+      <div style={styles.agreeRow}>
+        <input
+          type="checkbox"
+          style={styles.agreeCheckbox}
+          checked={agreedToSensitive}
+          onChange={e => setAgreedToSensitive(e.target.checked)}
+        />
+        <span style={styles.agreeText}>{t('auth.agreeToSensitiveData')}</span>
+      </div>
+
+      <div style={styles.agreeRow}>
+        <input
+          type="checkbox"
+          style={styles.agreeCheckbox}
+          checked={agreedToMarketing}
+          onChange={e => setAgreedToMarketing(e.target.checked)}
+        />
+        <span style={styles.agreeText}>{t('auth.agreeToMarketing')}</span>
+      </div>
+
+      {error && <p style={styles.error}>{error}</p>}
+
+      <button
+        type="button" className="btn-primary" style={{ marginTop: 6 }}
+        onClick={confirm} disabled={loading || declining || !agreedToTerms || !agreedToSensitive}
+      >
+        {loading ? t('auth.loading') : t('onboarding.continueBtn')}
+      </button>
+
+      <div style={styles.linksRow}>
+        <span style={styles.link} onClick={decline}>
+          {declining ? t('auth.loading') : t('auth.consentRefreshDecline')}
+        </span>
+      </div>
+    </div>
   )
 }
 
