@@ -323,7 +323,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                 <span style={styles.editFieldLabel}>{t('profile.reminderHourLabel')}</span>
                 <div style={{ position: 'relative', marginTop: 6 }}>
                   <div style={styles.wheelHighlight} />
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                  <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                     <WheelPicker
                       values={HOURS}
                       value={reminderHour}
