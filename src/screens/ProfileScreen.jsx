@@ -7,6 +7,7 @@ import { termsUrl, privacyUrl } from '../utils/legalLinks'
 import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
+import { calculateAge, ageToApproxBirthdate } from '../utils/age'
 
 const MAX_BIO_LENGTH = 280
 
@@ -19,7 +20,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [friendsCount, setFriendsCount] = useState(0)
   const [editMode, setEditMode] = useState(false)
   const [editName, setEditName] = useState('')
-  const [editBirthdate, setEditBirthdate] = useState('')
+  const [editAge, setEditAge] = useState('')
   const [editBio, setEditBio] = useState('')
   const [editIsPublic, setEditIsPublic] = useState(false)
   const [avatarFile, setAvatarFile] = useState(null)
@@ -50,7 +51,8 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
   function startEdit() {
     setEditName(authUser.name)
-    setEditBirthdate(authUser.birthdate ?? '')
+    const currentAge = calculateAge(authUser.birthdate)
+    setEditAge(currentAge !== null ? String(currentAge) : '')
     setEditBio(profile?.bio ?? '')
     setEditIsPublic(profile?.isPublic ?? false)
     setAvatarFile(null)
@@ -75,9 +77,9 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
   async function saveEdit() {
     if (!editName.trim()) { setSaveError(t('profile.nameRequiredError')); return }
-    const birthDateObj = new Date(editBirthdate)
-    if (!editBirthdate || Number.isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
-      setSaveError(t('profile.birthdateInvalidError'))
+    const ageNum = Number(editAge)
+    if (!editAge || !Number.isFinite(ageNum) || ageNum <= 0 || ageNum > 120) {
+      setSaveError(t('profile.ageInvalidError'))
       return
     }
     setSaving(true)
@@ -87,9 +89,12 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
       if (avatarFile) {
         avatarUrl = await uploadAvatar(avatarFile)
       }
-      await updateProfile({ name: editName, birthdate: editBirthdate, bio: editBio, isPublic: editIsPublic })
+      // O Perfil só pede idade — convertemos pra uma data sintética antes de
+      // guardar (ver ageToApproxBirthdate em src/utils/age.js).
+      const birthdate = ageToApproxBirthdate(ageNum)
+      await updateProfile({ name: editName, birthdate, bio: editBio, isPublic: editIsPublic })
       setProfile({ bio: editBio.trim(), avatarUrl, isPublic: editIsPublic })
-      onProfileUpdated?.({ name: editName.trim(), birthdate: editBirthdate, avatarUrl })
+      onProfileUpdated?.({ name: editName.trim(), birthdate, avatarUrl })
       setEditMode(false)
       setAvatarFile(null)
       setAvatarPreview(null)
@@ -174,7 +179,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             {editMode ? (
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <EditField label={t('profile.nameLabel')} value={editName} onChange={setEditName} />
-                <EditField label={t('profile.birthdateLabel')} type="date" value={editBirthdate} onChange={setEditBirthdate} max={new Date().toISOString().slice(0, 10)} />
+                <EditField label={t('profile.ageLabel')} type="number" value={editAge} onChange={setEditAge} />
                 <label style={styles.editFieldWrap}>
                   <span style={styles.editFieldLabel}>{t('profile.bioLabel')}</span>
                   <textarea

@@ -16,19 +16,13 @@ import { startCheckout } from '../billing/subscriptionStore'
 import { redeemInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consent'
-import { isUnderMinAge } from '../privacy/minAge'
+import { MIN_AGE } from '../privacy/minAge'
+import { ageToApproxBirthdate } from '../utils/age'
 
 // Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
 // o app veria o onboarding (pensado pra converter visitante novo) toda vez
 // que a sessão expirasse, em vez de cair direto no login.
 const HAS_AUTH_KEY = 'jc_has_authenticated'
-
-// Data de hoje em 'YYYY-MM-DD' (formato nativo do <input type="date">) — usada
-// como max no campo de nascimento, pra impedir escolher uma data futura direto
-// no seletor nativo (a validação de verdade continua em authStore.signup).
-function todayISO() {
-  return new Date().toISOString().slice(0, 10)
-}
 
 const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
@@ -628,7 +622,7 @@ const CHECKLIST_ITEMS = [
 /* ── 8. Cadastro: checklist de recursos + conta + plano + código de convite ── */
 function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, readingOrder, onAuthenticated, onGoLogin }) {
   const [email, setEmail]         = useState('')
-  const [birthdate, setBirthdate] = useState('')
+  const [age, setAge]             = useState('')
   const [password, setPassword]   = useState('')
   const [confirm, setConfirm]     = useState('')
   const [isPublic, setIsPublic]   = useState(true)
@@ -661,12 +655,18 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
     e.preventDefault()
     if (password !== confirm) { setError(t('auth.passwordsDontMatch')); return }
     if (!agreedToTerms || !agreedToSensitive) { setError(t('auth.mustAgreeToTerms')); return }
+    const ageNum = Number(age)
+    if (!age || !Number.isFinite(ageNum) || ageNum <= 0 || ageNum > 120) { setError(t('auth.ageInvalidError')); return }
     // Art. 14 da LGPD: menor de 12 é criança, e o tratamento exige
     // consentimento específico de um dos pais, que não temos como verificar.
     // A checagem se repete no servidor (ver src/auth/authStore.js).
-    if (isUnderMinAge(birthdate)) { setError(t('auth.minAgeError')); return }
+    if (ageNum < MIN_AGE) { setError(t('auth.minAgeError')); return }
     setLoading(true)
     try {
+      // A tela só pede idade — convertemos pra uma data sintética antes de
+      // guardar, já que o resto do app (gate de 16+ da Comunidade etc.)
+      // trabalha com data de nascimento (ver ageToApproxBirthdate).
+      const birthdate = ageToApproxBirthdate(ageNum)
       const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
       setError('')
 
@@ -746,7 +746,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       </div>
 
       <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
-      <Field label={t('auth.birthdateLabel')} type="date" value={birthdate} onChange={setBirthdate} max={todayISO()} />
+      <Field label={t('auth.ageLabel')} type="number" value={age} onChange={setAge} placeholder="18" />
       <PasswordField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
       <PasswordField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
 
