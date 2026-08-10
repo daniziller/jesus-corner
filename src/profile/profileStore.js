@@ -49,8 +49,6 @@ export async function updateProfile({ name, birthdate, bio, isPublic }) {
   }
 }
 
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024
-const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const SIGNED_URL_TTL_SECONDS = 60 * 60
 
 // O bucket 'avatars' deixou de ser público na migration 0025: antes a foto
@@ -89,31 +87,6 @@ export async function resolveAvatarUrl(value) {
 // oração). Um createSignedUrl por item em série deixaria a lista lenta.
 export async function resolveAvatarUrls(rows, getValue, setValue) {
   return Promise.all(rows.map(async row => setValue(row, await resolveAvatarUrl(getValue(row)))))
-}
-
-export async function uploadAvatar(file) {
-  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
-    throw new Error('Envie uma imagem JPEG, PNG, WEBP ou GIF.')
-  }
-  if (file.size > MAX_AVATAR_BYTES) {
-    throw new Error('A imagem precisa ter até 5MB.')
-  }
-  const userId = await getUserId()
-  if (!userId) throw new Error('Você precisa estar logado.')
-
-  const ext = file.name.split('.').pop()
-  const path = `${userId}/avatar.${ext}`
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(path, file, { upsert: true, cacheControl: '3600' })
-  if (uploadError) throw new Error(uploadError.message)
-
-  // Guarda o caminho, não a URL: URL assinada expira, e persistir uma URL
-  // morta seria pior do que não ter nada.
-  const { error } = await supabase.from('profiles').update({ avatar_url: path }).eq('user_id', userId)
-  if (error) throw new Error(error.message)
-
-  return resolveAvatarUrl(path)
 }
 
 // Perfil básico de um amigo (nome, bio, foto, se é público) — a RLS de

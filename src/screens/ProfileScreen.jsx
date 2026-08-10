@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { t, LANGUAGES } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { getMyProfile, updateProfile, uploadAvatar } from '../profile/profileStore'
+import { getMyProfile, updateProfile } from '../profile/profileStore'
 import { getFriendsCount } from '../friends/friendsStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
 import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
@@ -23,11 +23,8 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [editAge, setEditAge] = useState('')
   const [editBio, setEditBio] = useState('')
   const [editIsPublic, setEditIsPublic] = useState(false)
-  const [avatarFile, setAvatarFile] = useState(null)
-  const [avatarPreview, setAvatarPreview] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const fileInputRef = useRef(null)
 
   // Direitos do titular (LGPD art. 18) — ver src/privacy/privacyStore.js
   const [exportState, setExportState] = useState('idle')
@@ -55,24 +52,13 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
     setEditAge(currentAge !== null ? String(currentAge) : '')
     setEditBio(profile?.bio ?? '')
     setEditIsPublic(profile?.isPublic ?? false)
-    setAvatarFile(null)
-    setAvatarPreview(null)
     setSaveError('')
     setEditMode(true)
   }
 
   function cancelEdit() {
     setEditMode(false)
-    setAvatarFile(null)
-    setAvatarPreview(null)
     setSaveError('')
-  }
-
-  function handleAvatarChange(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
   }
 
   async function saveEdit() {
@@ -85,10 +71,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
     setSaving(true)
     setSaveError('')
     try {
-      let avatarUrl = profile?.avatarUrl ?? null
-      if (avatarFile) {
-        avatarUrl = await uploadAvatar(avatarFile)
-      }
+      const avatarUrl = profile?.avatarUrl ?? null
       // O Perfil só pede idade — convertemos pra uma data sintética antes de
       // guardar (ver ageToApproxBirthdate em src/utils/age.js).
       const birthdate = ageToApproxBirthdate(ageNum)
@@ -96,8 +79,6 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
       setProfile({ bio: editBio.trim(), avatarUrl, isPublic: editIsPublic })
       onProfileUpdated?.({ name: editName.trim(), birthdate, avatarUrl })
       setEditMode(false)
-      setAvatarFile(null)
-      setAvatarPreview(null)
     } catch (err) {
       setSaveError(err.message)
     } finally {
@@ -138,7 +119,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   }
 
   const currentLang = LANGUAGES.find(l => l.id === (authUser.language ?? 'pt')) ?? LANGUAGES[0]
-  const displayAvatarUrl = editMode ? (avatarPreview ?? profile?.avatarUrl) : profile?.avatarUrl
+  const displayAvatarUrl = profile?.avatarUrl
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
@@ -168,12 +149,6 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                   {displayAvatarUrl ? <img src={displayAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : session.avatarInitials}
                 </div>
               </div>
-              {editMode && (
-                <button style={styles.avatarEditBtn} onClick={() => fileInputRef.current?.click()} aria-label={t('profile.changePhoto')}>
-                  <AppIcon name="PenLine" size={12} color="white" />
-                </button>
-              )}
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
             </div>
 
             {editMode ? (
@@ -523,7 +498,6 @@ const styles = {
   aboutNameVerseRef:{ fontSize: 10, fontWeight: 700, color: 'var(--or)', marginBottom: 9 },
   aboutNameBody:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.55 },
   editBtn:          { position: 'absolute', top: 14, right: 14, width: 28, height: 28, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  avatarEditBtn:    { position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: '50%', border: '2px solid white', background: 'var(--or)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   bioDisplay:       { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginTop: 6, maxWidth: 260 },
   editFieldWrap:    { display: 'flex', flexDirection: 'column', gap: 5 },
   editFieldLabel:   { fontSize: 10, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
