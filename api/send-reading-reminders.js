@@ -1,16 +1,15 @@
-// Cron job (ver vercel.json) — manda o lembrete de leitura via push (Web
-// Push) pra quem ativou o toggle "Lembretes" em Perfil (ver
-// src/notifications/pushStore.js).
+// Cron job (ver vercel.json) — roda 1x por hora e manda o lembrete de
+// leitura via push (Web Push) pra quem ativou o toggle "Lembretes" em
+// Perfil, no horário e dias que essa pessoa escolheu (ver
+// src/notifications/pushStore.js e o seletor em ProfileScreen.jsx).
 //
-// Cada inscrição guarda o fuso horário de quando a pessoa ativou (ver
-// migration 0027), e a função só manda pra quem está às 07:00 num dia de
-// semana NAQUELE fuso — mas o cron em si roda só 1x por dia, às 10:00 UTC
-// (07:00 em America/Sao_Paulo, sem horário de verão desde 2019), porque o
-// plano Hobby da Vercel não permite cron mais frequente que 1x/dia. Na
-// prática isso entrega certinho pra quem está no fuso de Brasília (o grosso
-// do público) e não entrega perto das 07:00 local pra quem está em outro
-// fuso. Pra corrigir isso pra todo mundo, troque o "schedule" abaixo pra
-// "0 * * * *" (1x por hora) — exige upgrade pro plano Pro da Vercel.
+// Cada inscrição guarda fuso horário, hora (0-23) e dias da semana (ver
+// migrations 0027/0028) — a cada execução, a função calcula a hora e o dia
+// da semana ATUAIS no fuso de cada inscrição e só manda pra quem bate com
+// a própria preferência. Rodar de hora em hora (em vez de 1x/dia) é o que
+// permite qualquer horário escolhido funcionar de verdade — precisa do
+// plano Pro da Vercel, que já não permite cron mais frequente que 1x/dia
+// no plano Hobby.
 //
 // Só o Vercel Cron deve conseguir chamar isso — ele manda automaticamente
 // `Authorization: Bearer $CRON_SECRET` quando essa env var está configurada
@@ -26,9 +25,6 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 )
 
-const TARGET_HOUR = 7
-const WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
-
 const COPY = {
   pt: {
     title: "Hora de ler a Bíblia 📖",
@@ -40,18 +36,18 @@ const COPY = {
   },
 }
 
-// true se, agora, são 07:00 num dia de semana NESSE fuso.
-function isReminderTimeIn(timezone, now) {
+// true se, agora, é a hora/dia escolhidos por ESSA inscrição, no fuso dela.
+function isReminderTimeFor(sub, now) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
+      timeZone: sub.timezone,
       hour: 'numeric',
       hour12: false,
       weekday: 'short',
     }).formatToParts(now)
     const hour = Number(parts.find(p => p.type === 'hour')?.value)
     const weekday = parts.find(p => p.type === 'weekday')?.value
-    return hour === TARGET_HOUR && WEEKDAYS.has(weekday)
+    return hour === sub.reminder_hour && (sub.reminder_days ?? []).includes(weekday)
   } catch {
     // Fuso inválido/desconhecido (não deveria acontecer — vem de
     // Intl.DateTimeFormat().resolvedOptions().timeZone no client) — não
@@ -68,7 +64,7 @@ export default async function handler(req, res) {
 
   const { data: subs, error: subsErr } = await supabaseAdmin
     .from('push_subscriptions')
-    .select('id, user_id, endpoint, p256dh, auth, timezone')
+    .select('id, user_id, endpoint, p256dh, auth, timezone, reminder_hour, reminder_days')
 
   if (subsErr) {
     console.error('Failed to load push subscriptions:', subsErr.message)
@@ -76,7 +72,7 @@ export default async function handler(req, res) {
   }
 
   const now = new Date()
-  const due = (subs ?? []).filter(s => isReminderTimeIn(s.timezone, now))
+  const due = (subs ?? []).filter(s => isReminderTimeFor(s, now))
 
   // Uma pessoa pode ter mais de um dispositivo — busca o idioma 1x por
   // usuário, não 1x por inscrição.

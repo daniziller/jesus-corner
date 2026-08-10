@@ -8,14 +8,20 @@ import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
-import { isSubscribedToPush, subscribeToPush, unsubscribeFromPush } from '../notifications/pushStore'
+import {
+  isSubscribedToPush, subscribeToPush, unsubscribeFromPush, getMyReminderSchedule,
+  DEFAULT_REMINDER_HOUR, DEFAULT_REMINDER_DAYS,
+} from '../notifications/pushStore'
 
 const MAX_BIO_LENGTH = 280
+const REMINDER_DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function ProfileScreen({ session, authUser, subscription, isAdmin, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(false)
   const [remindersBusy, setRemindersBusy] = useState(false)
   const [remindersError, setRemindersError] = useState('')
+  const [reminderHour, setReminderHour] = useState(DEFAULT_REMINDER_HOUR)
+  const [reminderDays, setReminderDays] = useState(DEFAULT_REMINDER_DAYS)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
 
@@ -47,7 +53,15 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   useEffect(() => {
     getMyProfile().then(setProfile).catch(err => console.error('Failed to load profile', err))
     getFriendsCount().then(setFriendsCount).catch(err => console.error('Failed to load friends count', err))
-    isSubscribedToPush().then(setNotifications).catch(() => {})
+    isSubscribedToPush().then(subscribed => {
+      setNotifications(subscribed)
+      if (!subscribed) return
+      getMyReminderSchedule().then(schedule => {
+        if (!schedule) return
+        setReminderHour(schedule.hour)
+        setReminderDays(schedule.days)
+      })
+    }).catch(() => {})
   }, [])
 
   // Liga/desliga o lembrete de leitura de verdade (push, ver
@@ -59,7 +73,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
     setRemindersBusy(true)
     setRemindersError('')
     try {
-      if (next) await subscribeToPush()
+      if (next) await subscribeToPush({ hour: reminderHour, days: reminderDays })
       else await unsubscribeFromPush()
       setNotifications(next)
     } catch (err) {
@@ -67,6 +81,48 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
     } finally {
       setRemindersBusy(false)
     }
+  }
+
+  // Muda horário/dias já com o lembrete ativo — regrava a mesma inscrição
+  // (subscribeToPush faz upsert pelo endpoint, não pede permissão de novo
+  // nem cria uma inscrição nova já que uma existe).
+  async function handleScheduleChange(nextHour, nextDays) {
+    setReminderHour(nextHour)
+    setReminderDays(nextDays)
+    if (!notifications || remindersBusy) return
+    setRemindersBusy(true)
+    setRemindersError('')
+    try {
+      await subscribeToPush({ hour: nextHour, days: nextDays })
+    } catch (err) {
+      setRemindersError(err.message)
+    } finally {
+      setRemindersBusy(false)
+    }
+  }
+
+  function toggleReminderDay(day) {
+    const nextDays = reminderDays.includes(day)
+      ? reminderDays.filter(d => d !== day)
+      : REMINDER_DAY_KEYS.filter(d => reminderDays.includes(d) || d === day)
+    if (nextDays.length === 0) return // sempre pelo menos 1 dia selecionado
+    handleScheduleChange(reminderHour, nextDays)
+  }
+
+  function reminderDaysLabel() {
+    const isWeekdays = reminderDays.length === 5 && ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].every(d => reminderDays.includes(d))
+    if (reminderDays.length === 7) return t('profile.reminderEveryDay')
+    if (isWeekdays) return t('profile.reminderWeekdays')
+    return REMINDER_DAY_KEYS.filter(d => reminderDays.includes(d)).map(d => t(`profile.reminderDay${d}`)).join(', ')
+  }
+
+  function reminderHourLabel() {
+    if (session.lang === 'en') {
+      const period = reminderHour < 12 ? 'AM' : 'PM'
+      const h12 = reminderHour % 12 === 0 ? 12 : reminderHour % 12
+      return `${h12}:00 ${period}`
+    }
+    return `${String(reminderHour).padStart(2, '0')}:00`
   }
 
   function startEdit() {
@@ -247,9 +303,42 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           />
           <SettingsToggle
             icon="Bell" iconBg="var(--olt)"
-            label={t('profile.remindersLabel')} sub={t('profile.remindersSub')}
+            label={t('profile.remindersLabel')} sub={`${reminderHourLabel()} · ${reminderDaysLabel()}`}
             value={notifications} onChange={handleToggleReminders} disabled={remindersBusy}
           />
+          {notifications && (
+            <div style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: '0.5px solid var(--g1)' }}>
+              <label style={styles.editFieldWrap}>
+                <span style={styles.editFieldLabel}>{t('profile.reminderHourLabel')}</span>
+                <select
+                  style={styles.editInput}
+                  value={reminderHour}
+                  disabled={remindersBusy}
+                  onChange={e => handleScheduleChange(Number(e.target.value), reminderDays)}
+                >
+                  {Array.from({ length: 24 }, (_, h) => h).map(h => (
+                    <option key={h} value={h}>{session.lang === 'en' ? `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? 'AM' : 'PM'}` : `${String(h).padStart(2, '0')}:00`}</option>
+                  ))}
+                </select>
+              </label>
+              <div>
+                <span style={styles.editFieldLabel}>{t('profile.reminderDaysLabel')}</span>
+                <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
+                  {REMINDER_DAY_KEYS.map(day => (
+                    <button
+                      key={day}
+                      type="button"
+                      disabled={remindersBusy}
+                      onClick={() => toggleReminderDay(day)}
+                      style={{ ...styles.langBtn, flex: 1, padding: '9px 4px', ...(reminderDays.includes(day) ? styles.langBtnActive : {}) }}
+                    >
+                      {t(`profile.reminderDay${day}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           <SettingsLink
             icon="Globe" iconBg="#EFF6FF"
             label={t('profile.languageLabel')} sub={`${currentLang.flag} ${currentLang.label}`}

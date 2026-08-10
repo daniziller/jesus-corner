@@ -22,6 +22,9 @@ async function getUserId() {
   return data?.user?.id ?? null
 }
 
+export const DEFAULT_REMINDER_HOUR = 7
+export const DEFAULT_REMINDER_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+
 // true se ESTE navegador/dispositivo já está inscrito — não é por conta,
 // já que cada aparelho tem sua própria inscrição (ver migration 0027).
 export async function isSubscribedToPush() {
@@ -31,7 +34,27 @@ export async function isSubscribedToPush() {
   return !!subscription
 }
 
-export async function subscribeToPush() {
+// Horário/dias salvos pra ESTE dispositivo, ou null se não estiver
+// inscrito — usado pra pré-preencher o seletor em ProfileScreen.jsx.
+export async function getMyReminderSchedule() {
+  if (!isPushSupported()) return null
+  const registration = await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.getSubscription()
+  if (!subscription) return null
+
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('reminder_hour, reminder_days')
+    .eq('endpoint', subscription.endpoint)
+    .maybeSingle()
+  if (error || !data) return null
+  return { hour: data.reminder_hour, days: data.reminder_days }
+}
+
+// Inscreve (se ainda não estiver) e grava o horário/dias escolhidos. Chamar
+// de novo com valores novos, já inscrito, só atualiza a linha — não pede
+// permissão nem cria uma inscrição nova (upsert pelo endpoint).
+export async function subscribeToPush({ hour = DEFAULT_REMINDER_HOUR, days = DEFAULT_REMINDER_DAYS } = {}) {
   if (!isPushSupported()) {
     throw new Error('Este navegador não tem suporte a notificações push.')
   }
@@ -57,7 +80,8 @@ export async function subscribeToPush() {
 
   const json = subscription.toJSON()
   // Guardado no momento da inscrição pra o cron (api/send-reading-reminders.js)
-  // calcular quando são 07:00 pra essa pessoa, sem precisar de um cron por fuso.
+  // calcular quando são a hora escolhida pra essa pessoa, sem precisar de um
+  // cron por fuso.
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const { error } = await supabase.from('push_subscriptions').upsert({
@@ -66,6 +90,8 @@ export async function subscribeToPush() {
     p256dh: json.keys.p256dh,
     auth: json.keys.auth,
     timezone,
+    reminder_hour: hour,
+    reminder_days: days,
   }, { onConflict: 'endpoint' })
   if (error) throw new Error(error.message)
 }
