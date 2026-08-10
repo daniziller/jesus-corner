@@ -1,15 +1,16 @@
-// Cron job (ver vercel.json) — roda 1x por hora e manda o lembrete de
+// Cron job (ver vercel.json) — roda a cada 5 minutos e manda o lembrete de
 // leitura via push (Web Push) pra quem ativou o toggle "Lembretes" em
-// Perfil, no horário e dias que essa pessoa escolheu (ver
-// src/notifications/pushStore.js e o seletor em ProfileScreen.jsx).
+// Perfil, no horário (hora e minuto, em múltiplos de 5) e dias que essa
+// pessoa escolheu (ver src/notifications/pushStore.js e o seletor em
+// ProfileScreen.jsx).
 //
-// Cada inscrição guarda fuso horário, hora (0-23) e dias da semana (ver
-// migrations 0027/0028) — a cada execução, a função calcula a hora e o dia
-// da semana ATUAIS no fuso de cada inscrição e só manda pra quem bate com
-// a própria preferência. Rodar de hora em hora (em vez de 1x/dia) é o que
-// permite qualquer horário escolhido funcionar de verdade — precisa do
-// plano Pro da Vercel, que já não permite cron mais frequente que 1x/dia
-// no plano Hobby.
+// Cada inscrição guarda fuso horário, hora, minuto e dias da semana (ver
+// migrations 0027/0028/0029) — a cada execução, a função calcula a
+// hora:minuto e o dia da semana ATUAIS no fuso de cada inscrição e só manda
+// pra quem bate com a própria preferência. Rodar a cada 5 minutos (em vez de
+// 1x/dia) é o que permite qualquer horário escolhido funcionar de verdade —
+// precisa do plano Pro da Vercel, que já não permite cron mais frequente
+// que 1x/dia no plano Hobby.
 //
 // Só o Vercel Cron deve conseguir chamar isso — ele manda automaticamente
 // `Authorization: Bearer $CRON_SECRET` quando essa env var está configurada
@@ -36,18 +37,23 @@ const COPY = {
   },
 }
 
-// true se, agora, é a hora/dia escolhidos por ESSA inscrição, no fuso dela.
+// true se, agora, é a hora:minuto/dia escolhidos por ESSA inscrição, no
+// fuso dela.
 function isReminderTimeFor(sub, now) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: sub.timezone,
       hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
       weekday: 'short',
     }).formatToParts(now)
     const hour = Number(parts.find(p => p.type === 'hour')?.value)
+    const minute = Number(parts.find(p => p.type === 'minute')?.value)
     const weekday = parts.find(p => p.type === 'weekday')?.value
-    return hour === sub.reminder_hour && (sub.reminder_days ?? []).includes(weekday)
+    return hour === sub.reminder_hour
+      && minute === sub.reminder_minute
+      && (sub.reminder_days ?? []).includes(weekday)
   } catch {
     // Fuso inválido/desconhecido (não deveria acontecer — vem de
     // Intl.DateTimeFormat().resolvedOptions().timeZone no client) — não
@@ -64,7 +70,7 @@ export default async function handler(req, res) {
 
   const { data: subs, error: subsErr } = await supabaseAdmin
     .from('push_subscriptions')
-    .select('id, user_id, endpoint, p256dh, auth, timezone, reminder_hour, reminder_days')
+    .select('id, user_id, endpoint, p256dh, auth, timezone, reminder_hour, reminder_minute, reminder_days')
 
   if (subsErr) {
     console.error('Failed to load push subscriptions:', subsErr.message)

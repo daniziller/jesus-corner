@@ -23,6 +23,7 @@ async function getUserId() {
 }
 
 export const DEFAULT_REMINDER_HOUR = 7
+export const DEFAULT_REMINDER_MINUTE = 0
 export const DEFAULT_REMINDER_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
 // true se ESTE navegador/dispositivo já está inscrito — não é por conta,
@@ -44,17 +45,21 @@ export async function getMyReminderSchedule() {
 
   const { data, error } = await supabase
     .from('push_subscriptions')
-    .select('reminder_hour, reminder_days')
+    .select('reminder_hour, reminder_minute, reminder_days')
     .eq('endpoint', subscription.endpoint)
     .maybeSingle()
   if (error || !data) return null
-  return { hour: data.reminder_hour, days: data.reminder_days }
+  return { hour: data.reminder_hour, minute: data.reminder_minute, days: data.reminder_days }
 }
 
 // Inscreve (se ainda não estiver) e grava o horário/dias escolhidos. Chamar
 // de novo com valores novos, já inscrito, só atualiza a linha — não pede
 // permissão nem cria uma inscrição nova (upsert pelo endpoint).
-export async function subscribeToPush({ hour = DEFAULT_REMINDER_HOUR, days = DEFAULT_REMINDER_DAYS } = {}) {
+export async function subscribeToPush({
+  hour = DEFAULT_REMINDER_HOUR,
+  minute = DEFAULT_REMINDER_MINUTE,
+  days = DEFAULT_REMINDER_DAYS,
+} = {}) {
   if (!isPushSupported()) {
     throw new Error('Este navegador não tem suporte a notificações push.')
   }
@@ -91,6 +96,7 @@ export async function subscribeToPush({ hour = DEFAULT_REMINDER_HOUR, days = DEF
     auth: json.keys.auth,
     timezone,
     reminder_hour: hour,
+    reminder_minute: minute,
     reminder_days: days,
   }, { onConflict: 'endpoint' })
   if (error) throw new Error(error.message)

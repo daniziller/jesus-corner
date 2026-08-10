@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { t, LANGUAGES } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { getMyProfile, updateProfile } from '../profile/profileStore'
@@ -10,11 +10,16 @@ import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
 import {
   isSubscribedToPush, subscribeToPush, unsubscribeFromPush, getMyReminderSchedule,
-  DEFAULT_REMINDER_HOUR, DEFAULT_REMINDER_DAYS,
+  DEFAULT_REMINDER_HOUR, DEFAULT_REMINDER_MINUTE, DEFAULT_REMINDER_DAYS,
 } from '../notifications/pushStore'
 
 const MAX_BIO_LENGTH = 280
 const REMINDER_DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const HOURS = Array.from({ length: 24 }, (_, h) => h)
+// Múltiplos de 5 — o cron roda a cada 5 minutos (ver api/send-reading-reminders.js),
+// minuto exato qualquer um exigiria rodar a cada minuto, sem ganho perceptível
+// pra um lembrete de leitura.
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5)
 
 export default function ProfileScreen({ session, authUser, subscription, isAdmin, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(false)
@@ -22,6 +27,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [remindersError, setRemindersError] = useState('')
   const [remindersConfigOpen, setRemindersConfigOpen] = useState(false)
   const [reminderHour, setReminderHour] = useState(DEFAULT_REMINDER_HOUR)
+  const [reminderMinute, setReminderMinute] = useState(DEFAULT_REMINDER_MINUTE)
   const [reminderDays, setReminderDays] = useState(DEFAULT_REMINDER_DAYS)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
@@ -60,6 +66,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
       getMyReminderSchedule().then(schedule => {
         if (!schedule) return
         setReminderHour(schedule.hour)
+        setReminderMinute(schedule.minute)
         setReminderDays(schedule.days)
       })
     }).catch(() => {})
@@ -74,7 +81,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
     setRemindersBusy(true)
     setRemindersError('')
     try {
-      if (next) await subscribeToPush({ hour: reminderHour, days: reminderDays })
+      if (next) await subscribeToPush({ hour: reminderHour, minute: reminderMinute, days: reminderDays })
       else await unsubscribeFromPush()
       setNotifications(next)
     } catch (err) {
@@ -87,14 +94,15 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   // Muda horário/dias já com o lembrete ativo — regrava a mesma inscrição
   // (subscribeToPush faz upsert pelo endpoint, não pede permissão de novo
   // nem cria uma inscrição nova já que uma existe).
-  async function handleScheduleChange(nextHour, nextDays) {
+  async function handleScheduleChange(nextHour, nextMinute, nextDays) {
     setReminderHour(nextHour)
+    setReminderMinute(nextMinute)
     setReminderDays(nextDays)
     if (!notifications || remindersBusy) return
     setRemindersBusy(true)
     setRemindersError('')
     try {
-      await subscribeToPush({ hour: nextHour, days: nextDays })
+      await subscribeToPush({ hour: nextHour, minute: nextMinute, days: nextDays })
     } catch (err) {
       setRemindersError(err.message)
     } finally {
@@ -107,7 +115,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
       ? reminderDays.filter(d => d !== day)
       : REMINDER_DAY_KEYS.filter(d => reminderDays.includes(d) || d === day)
     if (nextDays.length === 0) return // sempre pelo menos 1 dia selecionado
-    handleScheduleChange(reminderHour, nextDays)
+    handleScheduleChange(reminderHour, reminderMinute, nextDays)
   }
 
   function reminderDaysLabel() {
@@ -118,12 +126,13 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   }
 
   function reminderHourLabel() {
+    const mm = String(reminderMinute).padStart(2, '0')
     if (session.lang === 'en') {
       const period = reminderHour < 12 ? 'AM' : 'PM'
       const h12 = reminderHour % 12 === 0 ? 12 : reminderHour % 12
-      return `${h12}:00 ${period}`
+      return `${h12}:${mm} ${period}`
     }
-    return `${String(reminderHour).padStart(2, '0')}:00`
+    return `${String(reminderHour).padStart(2, '0')}:${mm}`
   }
 
   function startEdit() {
@@ -309,20 +318,30 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             onLabelClick={() => setRemindersConfigOpen(v => !v)}
           />
           {remindersConfigOpen && (
-            <div style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: '0.5px solid var(--g1)' }}>
-              <label style={styles.editFieldWrap}>
+            <div style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 12, borderTop: '0.5px solid var(--g1)' }}>
+              <div>
                 <span style={styles.editFieldLabel}>{t('profile.reminderHourLabel')}</span>
-                <select
-                  style={styles.editInput}
-                  value={reminderHour}
-                  disabled={remindersBusy}
-                  onChange={e => handleScheduleChange(Number(e.target.value), reminderDays)}
-                >
-                  {Array.from({ length: 24 }, (_, h) => h).map(h => (
-                    <option key={h} value={h}>{session.lang === 'en' ? `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? 'AM' : 'PM'}` : `${String(h).padStart(2, '0')}:00`}</option>
-                  ))}
-                </select>
-              </label>
+                <div style={{ position: 'relative', marginTop: 6 }}>
+                  <div style={styles.wheelHighlight} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                    <WheelPicker
+                      values={HOURS}
+                      value={reminderHour}
+                      disabled={remindersBusy}
+                      formatValue={h => String(h).padStart(2, '0')}
+                      onChange={h => handleScheduleChange(h, reminderMinute, reminderDays)}
+                    />
+                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--bk)' }}>:</span>
+                    <WheelPicker
+                      values={MINUTES}
+                      value={reminderMinute}
+                      disabled={remindersBusy}
+                      formatValue={m => String(m).padStart(2, '0')}
+                      onChange={m => handleScheduleChange(reminderHour, m, reminderDays)}
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
                 <span style={styles.editFieldLabel}>{t('profile.reminderDaysLabel')}</span>
                 <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
@@ -592,6 +611,77 @@ function SettingsLink({ icon, iconBg, iconColor = 'var(--or)', label, sub, onPre
   )
 }
 
+// Coluna que rola e "encaixa" (scroll-snap) num valor por vez — como os
+// seletores de hora nativos de iOS/Android. Usada 2x lado a lado (hora e
+// minuto) no seletor de horário do lembrete, acima.
+const WHEEL_ITEM_HEIGHT = 34
+const WHEEL_VISIBLE_ITEMS = 3
+function WheelPicker({ values, value, onChange, formatValue, disabled }) {
+  const containerRef = useRef(null)
+  const settleTimer = useRef(null)
+  const padding = WHEEL_ITEM_HEIGHT * Math.floor(WHEEL_VISIBLE_ITEMS / 2)
+
+  // Rola pro valor certo quando ele muda de fora (ex: carregado do servidor,
+  // ou trocado pelo outro seletor) — sem behavior:smooth pra não animar toda
+  // vez que a tela abre.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const idx = values.indexOf(value)
+    if (idx === -1) return
+    const target = idx * WHEEL_ITEM_HEIGHT
+    if (Math.abs(el.scrollTop - target) > 1) el.scrollTop = target
+  }, [value, values])
+
+  function handleScroll() {
+    const el = containerRef.current
+    if (!el) return
+    clearTimeout(settleTimer.current)
+    // Espera a rolagem "assentar" antes de ler a posição — cada evento de
+    // scroll durante o gesto ainda não é a parada final.
+    settleTimer.current = setTimeout(() => {
+      const idx = Math.max(0, Math.min(values.length - 1, Math.round(el.scrollTop / WHEEL_ITEM_HEIGHT)))
+      el.scrollTo({ top: idx * WHEEL_ITEM_HEIGHT, behavior: 'smooth' })
+      if (values[idx] !== value) onChange(values[idx])
+    }, 120)
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={disabled ? undefined : handleScroll}
+      style={{
+        height: WHEEL_ITEM_HEIGHT * WHEEL_VISIBLE_ITEMS,
+        width: 56,
+        overflowY: disabled ? 'hidden' : 'auto',
+        scrollSnapType: 'y mandatory',
+        WebkitOverflowScrolling: 'touch',
+      }}
+    >
+      <div style={{ height: padding }} />
+      {values.map(v => (
+        <div
+          key={v}
+          style={{
+            height: WHEEL_ITEM_HEIGHT,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            scrollSnapAlign: 'center',
+            fontFamily: 'var(--font-display)',
+            fontSize: v === value ? 17 : 13,
+            fontWeight: v === value ? 800 : 500,
+            color: v === value ? 'var(--bk)' : 'var(--g4)',
+          }}
+        >
+          {formatValue ? formatValue(v) : v}
+        </div>
+      ))}
+      <div style={{ height: padding }} />
+    </div>
+  )
+}
+
 const styles = {
   privacyHint:  { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', marginTop: 8 },
   privacyError: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', marginTop: 8 },
@@ -624,6 +714,7 @@ const styles = {
   editFieldWrap:    { display: 'flex', flexDirection: 'column', gap: 5 },
   editFieldLabel:   { fontSize: 10, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
   editInput:        { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
+  wheelHighlight:   { position: 'absolute', top: WHEEL_ITEM_HEIGHT, left: '50%', transform: 'translateX(-50%)', width: 130, height: WHEEL_ITEM_HEIGHT, background: 'var(--g1)', borderRadius: 8, pointerEvents: 'none' },
   bioInput:         { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)', resize: 'none' },
   bioCounter:       { fontSize: 9.5, fontWeight: 600, color: 'var(--g4)', textAlign: 'right' },
   publicToggleRow:  { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '10px 12px' },
