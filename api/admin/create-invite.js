@@ -70,7 +70,7 @@ function buildInviteHtml({ kind, discountPercent, discountDuration, code, langua
           <tr><td style="background:#141414;padding:36px 32px;text-align:center;">
             <img src="${APP_URL}/icons/icon-192.png" width="56" height="56" style="border-radius:14px;display:block;margin:0 auto 12px;" alt="Jesus' Corner" />
             <div style="font-size:18px;font-weight:900;letter-spacing:0.5px;">
-              <span style="color:#ffffff;">JESUS'</span> <span style="color:#F97316;">CORNER</span>
+              <span style="color:#ffffff;">JESUS'</span> <span style="color:#9D4300;">CORNER</span>
             </div>
           </td></tr>
           <tr><td style="padding:32px;">
@@ -81,7 +81,7 @@ function buildInviteHtml({ kind, discountPercent, discountDuration, code, langua
               </td></tr>
             </table>
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:24px;">
-              <tr><td style="background:#F97316;border-radius:14px;">
+              <tr><td style="background:#9D4300;border-radius:14px;">
                 <a href="${APP_URL}" style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">${ctaLabel} →</a>
               </td></tr>
             </table>

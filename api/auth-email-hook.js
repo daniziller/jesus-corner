@@ -142,7 +142,7 @@ function buildEmailHtml(lang, actionType, token, confirmationUrl) {
           <tr><td style="background:#141414;padding:36px 32px;text-align:center;">
             <img src="${APP_URL}/icons/icon-192.png" width="56" height="56" style="border-radius:14px;display:block;margin:0 auto 12px;" alt="Jesus' Corner" />
             <div style="font-size:18px;font-weight:900;letter-spacing:0.5px;">
-              <span style="color:#ffffff;">JESUS'</span> <span style="color:#F97316;">CORNER</span>
+              <span style="color:#ffffff;">JESUS'</span> <span style="color:#9D4300;">CORNER</span>
             </div>
           </td></tr>
           <tr><td style="padding:32px 32px 8px;">
@@ -150,14 +150,14 @@ function buildEmailHtml(lang, actionType, token, confirmationUrl) {
             <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#525252;">${c.body}</p>
           </td></tr>
           <tr><td style="padding:0 32px 8px;text-align:center;">
-            <div style="background:#FFF7ED;border:1.5px dashed #F97316;border-radius:16px;padding:22px 16px;">
-              <div style="font-size:32px;font-weight:800;letter-spacing:8px;color:#EA580C;font-family:'Courier New',monospace;">${token}</div>
+            <div style="background:#F5E9DE;border:1.5px dashed #9D4300;border-radius:16px;padding:22px 16px;">
+              <div style="font-size:32px;font-weight:800;letter-spacing:8px;color:#9D4300;font-family:'Courier New',monospace;">${token}</div>
             </div>
             <p style="margin:14px 0 0;font-size:12px;color:#A3A3A3;">${c.note}</p>
           </td></tr>
           <tr><td style="padding:24px 32px 32px;text-align:center;">
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-              <tr><td style="background:#F97316;border-radius:14px;">
+              <tr><td style="background:#9D4300;border-radius:14px;">
                 <a href="${confirmationUrl}" style="display:inline-block;padding:13px 26px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;">${c.cta}</a>
               </td></tr>
             </table>

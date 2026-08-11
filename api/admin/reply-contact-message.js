@@ -18,7 +18,7 @@ function buildReplyHtml(name, replyBody) {
           <tr><td style="background:#141414;padding:36px 32px;text-align:center;">
             <img src="${APP_URL}/icons/icon-192.png" width="56" height="56" style="border-radius:14px;display:block;margin:0 auto 12px;" alt="Jesus' Corner" />
             <div style="font-size:18px;font-weight:900;letter-spacing:0.5px;">
-              <span style="color:#ffffff;">JESUS'</span> <span style="color:#F97316;">CORNER</span>
+              <span style="color:#ffffff;">JESUS'</span> <span style="color:#9D4300;">CORNER</span>
             </div>
           </td></tr>
           <tr><td style="padding:32px;">
