@@ -147,7 +147,7 @@ export const STRINGS = {
       goToToday: 'Ir para a leitura de hoje',
     },
     reading: {
-      tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto',
+      tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto Bíblico',
       textLoading: 'Carregando o texto...',
       textError: 'Não foi possível carregar o texto agora. Tente de novo em instantes.',
       textSourceEn: 'New Living Translation (NLT)',
@@ -899,7 +899,7 @@ export const STRINGS = {
       goToToday: "Go to today's reading",
     },
     reading: {
-      tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Text',
+      tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Bible Text',
       textLoading: 'Loading the text...',
       textError: "Couldn't load the text right now. Please try again shortly.",
       textSourceEn: 'New Living Translation (NLT)',
