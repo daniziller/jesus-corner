@@ -698,7 +698,7 @@ export default function App() {
   if (activeTab === 'reflection') reflectionVisitedRef.current = true
 
   const screens = {
-    home:    <HomeScreen    session={session} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
+    home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} onMarkRoutineStep={markRoutineStep} />,
     plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onSelectPlan={selectPlan} onToggleSession={toggleSession} onOpenSession={openReadingSession} />,
     contact: <ContactScreen session={session} authUser={authUser} />,

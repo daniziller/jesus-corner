@@ -8,6 +8,7 @@ import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
+import { getShowApplicationCard, setShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import {
   isSubscribedToPush, subscribeToPush, unsubscribeFromPush, getMyReminderSchedule,
   DEFAULT_REMINDER_HOUR, DEFAULT_REMINDER_MINUTE, DEFAULT_REMINDER_DAYS,
@@ -31,6 +32,9 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [reminderDays, setReminderDays] = useState(DEFAULT_REMINDER_DAYS)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
+  // Card da frase de aplicação na Home (ver HomeScreen.jsx) — preferência
+  // só de UI, por dispositivo (localStorage, não backend).
+  const [showApplicationCard, setShowApplicationCardState] = useState(getShowApplicationCard)
 
   const [profile, setProfile] = useState(null) // { bio, avatarUrl, isPublic }
   const [friendsCount, setFriendsCount] = useState(0)
@@ -414,6 +418,16 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             icon="StickyNote" iconBg="var(--olt)"
             label={t('profile.notesLabel')} sub={t('profile.notesSub')}
             onPress={() => onNavigate('notes')}
+          />
+          <SettingsToggle
+            icon="Sparkles" iconBg="var(--olt)"
+            label={t('profile.applicationCardLabel')} sub={t('profile.applicationCardSub')}
+            value={showApplicationCard}
+            onChange={() => {
+              const next = !showApplicationCard
+              setShowApplicationCardState(next)
+              setShowApplicationCard(next)
+            }}
           />
           <SettingsLink
             icon="Mail" iconBg="var(--olt)"

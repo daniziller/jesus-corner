@@ -10,9 +10,11 @@ import { getFriendsActivity } from '../activity/activityStore'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { getPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
+import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { STAT_THEMES } from '../utils/statThemes'
 
-export default function HomeScreen({ session, onContinueSession, onNavigate, onMarkRoutineStep }) {
+export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
@@ -24,6 +26,18 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
   useEffect(() => {
     getFriendsActivity(3).then(setFriendActivity).catch(err => console.error('Failed to load friend activity', err))
   }, [])
+
+  // Card da frase de aplicação (ver ReflectionScreen.jsx/
+  // applicationPhraseStore.js) — só busca se a pessoa não desligou o card
+  // em Perfil (getShowApplicationCard, preferência por dispositivo). Some
+  // sozinho se ainda não existe nenhuma frase fixada.
+  const [applicationPhrase, setApplicationPhrase] = useState('')
+  useEffect(() => {
+    if (!authUser?.email || !getShowApplicationCard()) { setApplicationPhrase(''); return }
+    getPinnedApplicationPhrase(authUser.email)
+      .then(setApplicationPhrase)
+      .catch(err => console.error('Failed to load pinned application phrase', err))
+  }, [authUser?.email])
 
   // Calcula o offset do anel SVG (circunferência = 2π×38 ≈ 238.76)
   const CIRCUMFERENCE = 238.76
@@ -57,6 +71,21 @@ export default function HomeScreen({ session, onContinueSession, onNavigate, onM
 
         {/* Tutorial do método (recolhido por padrão) — logo no topo, igual ao design original */}
         <TutorialCard lang={lang} />
+
+        {/* "Widget" da frase de aplicação — o mais perto que dá de um
+            widget de tela inicial de verdade (isso exigiria código nativo
+            fora do alcance de um PWA); aqui pelo menos é a 1a coisa visível
+            ao abrir o app. Só existe depois da 1a frase salva na Reflexão,
+            e só se a pessoa não desligou em Perfil. */}
+        {applicationPhrase && (
+          <button style={styles.applicationCard} onClick={() => onNavigate?.('reflection')}>
+            <span style={styles.applicationIcon}><AppIcon name="Sparkles" size={16} color="#A21CAF" /></span>
+            <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <span style={styles.applicationLabel}>{translate('home.applicationCardLabel', undefined, lang)}</span>
+              <span style={styles.applicationText}>{applicationPhrase}</span>
+            </span>
+          </button>
+        )}
 
         <div className="dashboard-grid">
 
@@ -479,6 +508,10 @@ const styles = {
   routineStepSub:     { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
   routineAllDone:     { fontSize: 12.5, fontWeight: 700, color: 'var(--or)', textAlign: 'center', marginTop: 10 },
   routineAdjustBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', background: 'none', padding: '10px 0 2px', marginTop: 4, fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  applicationCard:  { display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'linear-gradient(135deg,#FDF4FF,#FAE8FF)', border: '0.5px dashed rgba(192,38,211,.4)', borderRadius: 18, padding: 13, cursor: 'pointer', fontFamily: 'var(--font)' },
+  applicationIcon:  { width: 32, height: 32, borderRadius: 10, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  applicationLabel: { display: 'block', fontSize: 9, fontWeight: 700, color: '#A21CAF', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2 },
+  applicationText:  { display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.35 },
   tutorialCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
   tutorialToggle:{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 14, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)' },
   tutorialEmoji: { fontSize: 22, flexShrink: 0 },

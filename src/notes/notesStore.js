@@ -18,7 +18,14 @@ export function noteKeyFor(session) {
 // Desmonta uma chave de volta no que ela representa — usado só por
 // NotesScreen.jsx (histórico de todas as anotações) pra saber como rotular
 // e agrupar cada uma, sem duplicar o conhecimento do formato da chave.
+// application:pinned nunca deve aparecer no histórico — não é uma entrada
+// por dia, é só o valor "fixado" no card da Home (ver
+// reflection/applicationPhraseStore.js); por isso o type 'unknown', o
+// mesmo que NotesScreen.jsx já filtra pra fora da lista.
 export function parseNoteKey(key) {
+  if (key === 'application:pinned') return { type: 'unknown' }
+  const dailyApplication = key.match(/^application:(\d{4}-\d{2}-\d{2})$/)
+  if (dailyApplication) return { type: 'application-phrase', date: dailyApplication[1] }
   const daily = key.match(/^reflection:(\d{4}-\d{2}-\d{2})$/)
   if (daily) return { type: 'daily-reflection', date: daily[1] }
   const bookReflection = key.match(/^(.+):reflection$/)

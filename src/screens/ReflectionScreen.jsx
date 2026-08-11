@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import ReflectionGuideCard from '../components/reflection/ReflectionGuideCard'
 import { REFLECTION_DATA, phaseMinutesFor } from '../data/reflectionGuide'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getNotes, saveNote, noteTextOf } from '../notes/notesStore'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
@@ -185,11 +186,26 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
     })
   }
 
-  function handleSaveApplicationPhrase(text) {
+  // A frase do dia sempre grava no histórico (application:{dia}); virar a
+  // frase FIXADA no card da Home (application:pinned) é outra decisão: a
+  // 1a frase de todas fixa sozinha (nada pra comparar ainda) — da 2a em
+  // diante, só troca se a pessoa confirmar (senão continuaria fixando
+  // sozinho toda vez, e ela pode querer manter uma frase antiga em
+  // destaque por mais de um dia).
+  async function handleSaveApplicationPhrase(text) {
     setApplicationPhrase(text)
-    saveNote(authUser?.email, applicationPhraseKey, text).catch(err => {
+    try {
+      await saveNote(authUser?.email, applicationPhraseKey, text)
+      if (!text.trim()) return
+      const currentPinned = await getPinnedApplicationPhrase(authUser?.email)
+      if (!currentPinned) {
+        await setPinnedApplicationPhrase(authUser?.email, text)
+      } else if (currentPinned !== text && window.confirm(t('reflection.updateHomeCardConfirm', undefined, lang))) {
+        await setPinnedApplicationPhrase(authUser?.email, text)
+      }
+    } catch (err) {
       console.error('Failed to persist application phrase', err)
-    })
+    }
   }
 
   // Etapa em destaque — mesmo padrão do PrayerScreen (segue openCardId, que

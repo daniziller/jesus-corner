@@ -11,12 +11,13 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
 // 'reading' cobre nota de capítulo E reflexão de fechamento de livro — as
-// duas vivem dentro do fluxo de leitura da Bíblia, só "reflection" (a aba
-// Reflexão diária) é uma origem separada de verdade.
+// duas vivem dentro do fluxo de leitura da Bíblia. 'reflection' cobre a
+// anotação geral E a frase de aplicação da Reflexão diária — as duas vêm
+// da mesma aba, só em campos separados (ver ReflectionScreen.jsx).
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
   { key: 'reading', types: ['reading', 'book-reflection'], labelKey: 'notes.filterReading' },
-  { key: 'reflection', types: ['daily-reflection'], labelKey: 'notes.filterReflection' },
+  { key: 'reflection', types: ['daily-reflection', 'application-phrase'], labelKey: 'notes.filterReflection' },
 ]
 
 export default function NotesScreen({ session, authUser, blocks, sessionsByBlock }) {
@@ -52,7 +53,10 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             updatedAt: noteUpdatedAtOf(entry),
             ...parseNoteKey(key),
           }))
-          .filter(n => n.text)
+          // 'unknown' cobre application:pinned (não é uma entrada por dia,
+          // é só o valor fixado no card da Home — ver notesStore.js) e
+          // qualquer chave futura que essa tela ainda não saiba rotular.
+          .filter(n => n.text && n.type !== 'unknown')
           // Mais recentes primeiro; anotações salvas antes desta tela
           // existir não têm updatedAt (formato antigo, só texto) — ficam
           // no fim, sem embaralhar as que já têm data de verdade.
@@ -88,9 +92,12 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   }
 
   function labelFor(note) {
-    if (note.type === 'daily-reflection') {
+    if (note.type === 'daily-reflection' || note.type === 'application-phrase') {
       const d = new Date(`${note.date}T00:00:00`)
-      return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d)
+      const dateStr = new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d)
+      return note.type === 'application-phrase'
+        ? `${dateStr} · ${t('notes.applicationPhraseTag', undefined, lang)}`
+        : dateStr
     }
     const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
     if (note.type === 'book-reflection') {
@@ -106,7 +113,9 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   }
 
   function iconFor(type) {
-    return type === 'reading' ? 'BookOpen' : 'PenLine'
+    if (type === 'reading') return 'BookOpen'
+    if (type === 'application-phrase') return 'Sparkles'
+    return 'PenLine'
   }
 
   function startEdit(note) {
