@@ -422,10 +422,12 @@ export default function App() {
         return
       }
 
-      const [set, userPlanId, userReadingOrder, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
+        getActiveAltPlan(user.email),
+        getThemePlans(user.email),
         getDailyRoutine(),
         getPrayerStats(user.email),
         getMyActiveChallenges(),
@@ -447,6 +449,8 @@ export default function App() {
       setCompletedSet(set)
       setPlanId(userPlanId)
       setReadingOrderState(userReadingOrder)
+      setActiveAltPlanState(userActiveAltPlan)
+      setThemePlans(userThemePlans)
       setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
       setDailyRoutine(routine)
       setPrayerStats(stats)

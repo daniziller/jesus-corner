@@ -174,6 +174,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               dailyRoutine={dailyRoutine}
               todayRoutine={todayRoutine}
               plan={plan}
+              activePlan={activePlan}
               lang={lang}
               onNavigate={onNavigate}
               onContinueSession={onContinueSession}
@@ -335,7 +336,7 @@ function TutorialStep({ icon, time, title, desc, theme }) {
    separado, com stopPropagation, sem navegar) pra quem já orou/leu fora do
    app e só quer marcar. Reflexão não tem uma tela própria, então o toggle
    acontece direto no card, na linha inteira. ── */
-function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
+function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
   // Os 3 passos sempre aparecem (ver PLANS[].modules em bibleBlocks.js) — o
