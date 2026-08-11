@@ -348,6 +348,12 @@ function NotesPanel({ value, hasSavedNote, onSave, lang }) {
 
   return (
     <div style={styles.notesPanel}>
+      {/* Nada de display:flex aqui — um <p> flex com o texto solto (sem
+          span próprio) vira item flex "anônimo" com min-width:auto por
+          padrão, então ele recusa encolher/quebrar linha e a última
+          palavra vaza pra fora do card (mais visível ainda com o zoom
+          1.15 sempre ligado no app, ver .app-content-inner no index.css).
+          Bolinha de "salvo" como inline-block resolve sem esse problema. */}
       <p style={styles.notesLabel}>
         {t('reflection.notesLabel', undefined, lang)}
         {hasSavedNote && <span style={styles.notesSavedDot} />}
@@ -378,7 +384,10 @@ const styles = {
   timerDisplay:{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
   currentPhaseBadge: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', border: '1px solid', borderRadius: 24, padding: '6px 14px 6px 6px' },
   currentPhaseDot:   { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 },
-  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.6)' },
+  // minWidth:0 — mesmo ajuste de PrayerScreen.jsx (ver comentário lá):
+  // sem isso, o texto desse item flex recusa quebrar linha e vaza pra
+  // fora do card em telas estreitas.
+  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.6)', minWidth: 0 },
   phaseRemaining:    { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.55)', fontVariantNumeric: 'tabular-nums', paddingLeft: 8, marginLeft: 2, borderLeft: '1px solid rgba(255,255,255,.15)', flexShrink: 0 },
   timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
   wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
@@ -387,8 +396,8 @@ const styles = {
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
   durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.35)' },
   notesPanel:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  notesLabel:  { display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
-  notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)' },
+  notesLabel:  { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 6, verticalAlign: 'middle' },
   notesTextarea:{ width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--g1)' },
   notesSaveBtn:{ width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
 }

@@ -101,7 +101,10 @@ function PlanBlockSection({ block, sessions, open, onToggle, completedSet, onTog
         <div style={{ width: 40, height: 40, borderRadius: 12, background: gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <AppIcon name={block.icon} size={19} color={accent} />
         </div>
-        <div style={{ flex: 1 }}>
+        {/* minWidth:0 — sem isso, item flex com texto recusa encolher/
+            quebrar linha por padrão e vaza pra fora do card (ver mesmo
+            ajuste em PrayerScreen.jsx/ReflectionScreen.jsx). */}
+        <div style={{ flex: 1, minWidth: 0 }}>
           <p style={styles.blockTag}>{tag}</p>
           <p style={styles.blockName}>{name}</p>
         </div>
@@ -211,7 +214,7 @@ const styles = {
 
   bookGroup:   { background: 'var(--white)', border: '0.5px solid var(--g1)', borderRadius: 14, overflow: 'hidden' },
   bookHeader:  { width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)' },
-  bookName:    { flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
+  bookName:    { flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
   bookMeta:    { fontSize: 10, fontWeight: 600, color: 'var(--g4)' },
   sessionList: { padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 6 },
 

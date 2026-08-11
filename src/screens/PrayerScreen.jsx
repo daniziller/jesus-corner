@@ -350,7 +350,11 @@ const styles = {
   timerDisplay:{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
   currentPhaseBadge: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', border: '1px solid', borderRadius: 24, padding: '6px 14px 6px 6px' },
   currentPhaseDot:   { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 },
-  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.6)' },
+  // minWidth:0 — sem isso, item flex com texto vira "anônimo": recusa
+  // encolher/quebrar linha por padrão (min-width:auto), e o texto vaza pra
+  // fora do card em telas estreitas (mais visível ainda com o zoom 1.15
+  // sempre ligado no app, ver .app-content-inner no index.css).
+  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.6)', minWidth: 0 },
   phaseRemaining:    { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.55)', fontVariantNumeric: 'tabular-nums', paddingLeft: 8, marginLeft: 2, borderLeft: '1px solid rgba(255,255,255,.15)', flexShrink: 0 },
   timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
   wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
