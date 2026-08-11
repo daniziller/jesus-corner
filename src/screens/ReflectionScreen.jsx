@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import ReflectionGuideCard from '../components/reflection/ReflectionGuideCard'
 import { REFLECTION_DATA, phaseMinutesFor } from '../data/reflectionGuide'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { getNotes, saveNote } from '../notes/notesStore'
+import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -34,11 +36,17 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, onReflectionCompleted }) {
+export default function ReflectionScreen({ session, authUser, onReflectionCompleted }) {
   const { lang } = session
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
+  const [noteText, setNoteText] = useState('')
+  const [hasSavedNote, setHasSavedNote] = useState(false)
+  // Reflexão não tem "sessão" própria como a leitura (Sessão 1, 2...) — é
+  // uma prática diária, então a chave da anotação é o dia (dateKey, local,
+  // não UTC — ver utils/dateKey.js), uma por dia.
+  const noteKey = `reflection:${dateKey()}`
   // Duração total escolhida na hora — parte do que a pessoa já escolheu
   // antes (jc_reflection_minutes) ou, na primeira vez, do plano ativo.
   const [totalMinutes, setTotalMinutes] = useState(() => getSavedReflectionMinutes() ?? session.plan.reflectionMinutes)
@@ -149,6 +157,26 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
   }, [running])
 
   useEffect(() => () => releaseWakeLock(), [])
+
+  // Carrega a anotação do dia — mesmo padrão de ReadingBlockView.jsx
+  // (NotesPanel), reaproveitando o mesmo notesStore, só com uma chave por
+  // dia em vez de por passagem.
+  useEffect(() => {
+    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); return }
+    getNotes(authUser.email).then(map => {
+      setNoteText(map[noteKey] ?? '')
+      setHasSavedNote(Boolean(map[noteKey]))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteKey, authUser?.email])
+
+  function handleSaveNote(text) {
+    setNoteText(text)
+    setHasSavedNote(Boolean(text.trim()))
+    saveNote(authUser?.email, noteKey, text).catch(err => {
+      console.error('Failed to persist reflection note', err)
+    })
+  }
 
   // Etapa em destaque — mesmo padrão do PrayerScreen (segue openCardId, que
   // já reage à troca de trecho durante o cronômetro em tick()); antes de
@@ -293,7 +321,47 @@ export default function ReflectionScreen({ session, onReflectionCompleted }) {
             />
           ))}
         </div>
+
+        {/* Anotação do dia — uma por dia (não por etapa), guardada no mesmo
+            backend das anotações de leitura (ver notesStore.js). */}
+        <NotesPanel value={noteText} hasSavedNote={hasSavedNote} onSave={handleSaveNote} lang={lang} />
       </div>
+    </div>
+  )
+}
+
+// Mesmo padrão do NotesPanel de ReadingBlockView.jsx — deliberadamente
+// duplicado (não importado de lá) pra não acoplar as duas telas, mesmo
+// espírito do resto do cronômetro nesta tela (ver comentário no topo do
+// arquivo).
+function NotesPanel({ value, hasSavedNote, onSave, lang }) {
+  const [text, setText] = useState(value)
+  const [justSaved, setJustSaved] = useState(false)
+
+  useEffect(() => { setText(value) }, [value])
+
+  function handleSave() {
+    onSave(text)
+    setJustSaved(true)
+    setTimeout(() => setJustSaved(false), 1500)
+  }
+
+  return (
+    <div style={styles.notesPanel}>
+      <p style={styles.notesLabel}>
+        {t('reflection.notesLabel', undefined, lang)}
+        {hasSavedNote && <span style={styles.notesSavedDot} />}
+      </p>
+      <textarea
+        style={styles.notesTextarea}
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder={t('reflection.notesPlaceholder', undefined, lang)}
+        rows={4}
+      />
+      <button style={styles.notesSaveBtn} onClick={handleSave}>
+        {justSaved ? t('reflection.savedNote', undefined, lang) : t('reflection.saveNote', undefined, lang)}
+      </button>
     </div>
   )
 }
@@ -318,4 +386,9 @@ const styles = {
   durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
   durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.35)' },
+  notesPanel:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
+  notesLabel:  { display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)' },
+  notesTextarea:{ width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--g1)' },
+  notesSaveBtn:{ width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
 }

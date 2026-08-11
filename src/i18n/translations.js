@@ -490,6 +490,10 @@ export const STRINGS = {
       start: '▶ Iniciar',
       restart: '↺ Reiniciar',
       wakeLockHint: 'Mantenha a tela ligada — o aviso sonoro toca a cada troca de etapa.',
+      notesLabel: 'Suas anotações de hoje',
+      notesPlaceholder: 'O que Deus falou com você na reflexão de hoje?',
+      saveNote: 'Salvar anotação',
+      savedNote: 'Salvo',
     },
     billing: {
       pageTitle: 'Assinatura',
@@ -1241,6 +1245,10 @@ export const STRINGS = {
       start: '▶ Start',
       restart: '↺ Restart',
       wakeLockHint: 'Keep your screen on — the alert sound plays at each step change.',
+      notesLabel: "Today's notes",
+      notesPlaceholder: 'What did God speak to you in today\'s reflection?',
+      saveNote: 'Save note',
+      savedNote: 'Saved',
     },
     billing: {
       pageTitle: 'Subscription',

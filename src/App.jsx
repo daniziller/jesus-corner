@@ -737,7 +737,7 @@ export default function App() {
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} onReflectionCompleted={() => markRoutineStep('reflection')} />
+                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => markRoutineStep('reflection')} />
               </div>
             )}
           </div>
