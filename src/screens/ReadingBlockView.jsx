@@ -6,6 +6,7 @@ import { getNotes, saveNote, noteKeyFor } from '../notes/notesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
+import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -68,6 +69,17 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const [expandedChapterId, setExpandedChapterId] = useState(
     mode === 'browse' ? (initialSessionId ?? autoHeroSession.id) : null
   )
+
+  // Lembra o último capítulo aberto na navegação livre (mode 'browse') —
+  // só aqui, não no fluxo guiado da Rotina/Plano (mode 'session'), que já
+  // tem seu próprio "onde parei" (a sessão "current" do plano). É o que
+  // alimenta o botão "Continuar leitura" na aba Bíblia (JourneyScreen.jsx).
+  useEffect(() => {
+    if (mode === 'browse' && expandedChapterId != null) {
+      setLastOpenedChapter(block.id, expandedChapterId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, block.id, expandedChapterId])
 
   // Próximo capítulo pra continuar lendo sem precisar voltar pra lista —
   // só faz sentido em modo 'browse'; em modo 'session' as sessões já podem

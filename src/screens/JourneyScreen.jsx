@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { pickActiveBlock, sessionKeys } from '../utils/progress'
+import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
@@ -86,6 +87,14 @@ export default function JourneyScreen({
   const totalBooks = blocks.reduce((s, b) => s + b.books.length, 0)
   const currentBookName = lang === 'en' ? activeBlock.currentBookEn : activeBlock.currentBook
 
+  // Último capítulo aberto na navegação livre (ver ReadingBlockView.jsx,
+  // mode 'browse') — lido direto do localStorage a cada render (não num
+  // useState) porque essa tela não desmonta ao entrar/sair de um bloco (só
+  // troca de branch aqui embaixo), então um valor lido só na 1a montagem
+  // ficaria desatualizado depois de ler um novo capítulo e voltar.
+  const lastOpened = getLastOpenedChapter()
+  const lastOpenedSession = lastOpened ? browseSessionsByBlock[lastOpened.blockId]?.find(s => s.id === lastOpened.sessionId) : null
+
   // Busca de livro — achata todos os blocos numa lista única de livros
   // pesquisáveis, independente de qual bloco/testamento eles pertencem, já
   // que o usuário pode não saber de cabeça em qual bloco um livro está.
@@ -142,6 +151,25 @@ export default function JourneyScreen({
               </button>
             )}
           </div>
+
+          {/* "Continuar leitura" — só some quando tem busca ativa (que já
+              tem sua própria lista de resultados) ou quando nunca abriu
+              nada ainda por aqui (lastOpenedSession null). */}
+          {!trimmedQuery && lastOpenedSession && (
+            <button style={styles.continueReadingBtn} onClick={() => openBlock(lastOpened.blockId, lastOpened.sessionId)}>
+              <span style={styles.continueReadingIcon}>
+                <AppIcon name="BookOpen" size={16} color="white" />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={styles.continueReadingLabel}>{t('journey.continueReading', undefined, lang)}</span>
+                <span style={styles.continueReadingTitle}>
+                  {(lang === 'en' ? lastOpenedSession.bookEn : lastOpenedSession.book)} {lastOpenedSession.chStart}
+                  {' · '}{lang === 'en' ? lastOpenedSession.titleEn : lastOpenedSession.title}
+                </span>
+              </span>
+              <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
+            </button>
+          )}
 
           {searchResults ? (
             searchResults.length === 0 ? (
@@ -294,6 +322,10 @@ function BlockCard({ block, onOpenBlock, onOpenBook, lang }) {
 const styles = {
   searchWrap:        { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '10px 13px', marginBottom: 4 },
   searchInput:       { flex: 1, border: 'none', background: 'none', outline: 'none', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)' },
+  continueReadingBtn:  { width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 15, padding: '10px 12px', marginTop: 10, cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },
+  continueReadingIcon: { width: 32, height: 32, borderRadius: 10, background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  continueReadingLabel:{ display: 'block', fontSize: 9, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 1 },
+  continueReadingTitle:{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   searchClearBtn:    { border: 'none', background: 'var(--g2)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   searchEmptyHint:   { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '14px 2px', textAlign: 'center' },
   searchResultRow:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 17, padding: '10px 13px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },

@@ -145,6 +145,7 @@ export const STRINGS = {
       noTimeTarget: 'No seu tempo',
       readingMinLabel: '~{n} min de leitura',
       goToToday: 'Ir para a leitura de hoje',
+      continueReading: 'Continuar leitura',
     },
     reading: {
       tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto Bíblico',
@@ -897,6 +898,7 @@ export const STRINGS = {
       noTimeTarget: 'At your own pace',
       readingMinLabel: '~{n} min reading',
       goToToday: "Go to today's reading",
+      continueReading: 'Continue reading',
     },
     reading: {
       tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Bible Text',
