@@ -419,6 +419,11 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             label={t('profile.notesLabel')} sub={t('profile.notesSub')}
             onPress={() => onNavigate('notes')}
           />
+          <SettingsLink
+            icon="Sparkles" iconBg="var(--olt)"
+            label={t('profile.applicationPhrasesLabel')} sub={t('profile.applicationPhrasesSub')}
+            onPress={() => onNavigate('applicationPhrases')}
+          />
           <SettingsToggle
             icon="Sparkles" iconBg="var(--olt)"
             label={t('profile.applicationCardLabel')} sub={t('profile.applicationCardSub')}

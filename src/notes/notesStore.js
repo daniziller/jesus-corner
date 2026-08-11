@@ -46,6 +46,13 @@ export function noteTextOf(entry) {
 export function noteUpdatedAtOf(entry) {
   return (typeof entry === 'object' && entry?.updatedAt) || null
 }
+// Só a frase de aplicação usa isso — o título da sessão de leitura do dia
+// em que ela foi escrita, gravado junto na hora (ver ReflectionScreen.jsx),
+// pra ApplicationPhrasesScreen.jsx conseguir mostrar "escrita lendo X" sem
+// precisar tentar reconstruir isso depois a partir só da data.
+export function noteSessionTitleOf(entry) {
+  return (typeof entry === 'object' && entry?.sessionTitle) || null
+}
 
 export async function getNotes(_email) {
   const row = await fetchRow()
@@ -57,10 +64,12 @@ export async function getNote(_email, key) {
   return noteTextOf(notes[key])
 }
 
-export function saveNote(_email, key, text) {
+// extra — campos opcionais além de text/updatedAt (hoje só sessionTitle,
+// usado pela frase de aplicação — ver noteSessionTitleOf acima).
+export function saveNote(_email, key, text, extra = {}) {
   return withRowLock(async () => {
     const notes = await getNotes(_email)
-    if (text.trim()) notes[key] = { text, updatedAt: new Date().toISOString() }
+    if (text.trim()) notes[key] = { text, updatedAt: new Date().toISOString(), ...extra }
     else delete notes[key]
     const updated = await updateRow({ notes })
     return updated?.notes ?? notes

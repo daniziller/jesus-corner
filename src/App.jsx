@@ -13,6 +13,7 @@ import RoutineScreen from './screens/RoutineScreen'
 import PlanScreen from './screens/PlanScreen'
 import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
+import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
@@ -703,6 +704,7 @@ export default function App() {
     plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onSelectPlan={selectPlan} onToggleSession={toggleSession} onOpenSession={openReadingSession} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
+    applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,

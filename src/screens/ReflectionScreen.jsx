@@ -195,7 +195,10 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   async function handleSaveApplicationPhrase(text) {
     setApplicationPhrase(text)
     try {
-      await saveNote(authUser?.email, applicationPhraseKey, text)
+      // Título da sessão de leitura do dia, gravado junto — é o que deixa
+      // ApplicationPhrasesScreen.jsx mostrar "escrita lendo X", sem
+      // precisar tentar adivinhar isso depois só a partir da data.
+      await saveNote(authUser?.email, applicationPhraseKey, text, { sessionTitle: session.todaySession?.title ?? null })
       if (!text.trim()) return
       const currentPinned = await getPinnedApplicationPhrase(authUser?.email)
       if (!currentPinned) {
