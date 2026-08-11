@@ -15,6 +15,7 @@ import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
+import ChronologicalPlanScreen from './screens/ChronologicalPlanScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
@@ -707,6 +708,7 @@ export default function App() {
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
+    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,

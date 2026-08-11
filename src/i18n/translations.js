@@ -462,6 +462,8 @@ export const STRINGS = {
       sessionsOverviewSub: 'Toque numa sessão pra abrir a leitura dela.',
       themePlanTitle: 'Plano por tema (IA)',
       themePlanSub: 'Digite um tema e a IA monta um plano só com os textos sobre ele',
+      chronoPlanTitle: 'Plano Cronológico',
+      chronoPlanSub: 'Leia a Bíblia inteira na ordem aproximada em que os eventos aconteceram',
     },
     themePlan: {
       pageTitle: 'Plano por tema',
@@ -480,6 +482,12 @@ export const STRINGS = {
       perSession: 'sessão',
       deleteAction: 'Deletar plano',
       deleteConfirm: 'Deletar esse plano por tema? Não dá pra desfazer.',
+    },
+    chronoPlan: {
+      pageTitle: 'Plano Cronológico',
+      heroSub: 'A Bíblia inteira, na ordem aproximada em que os eventos aconteceram — não na ordem tradicional dos livros.',
+      paceLabel: 'Ritmo de leitura',
+      sessionsCount: '{done}/{total} sessões',
     },
     notes: {
       pageTitle: 'Minhas anotações',
@@ -1282,6 +1290,8 @@ export const STRINGS = {
       sessionsOverviewSub: 'Tap a session to open it for reading.',
       themePlanTitle: 'Plan by theme (AI)',
       themePlanSub: 'Type a theme and AI builds a plan with just the passages about it',
+      chronoPlanTitle: 'Chronological Plan',
+      chronoPlanSub: 'Read the whole Bible in roughly the order events happened',
     },
     themePlan: {
       pageTitle: 'Plan by theme',
@@ -1300,6 +1310,12 @@ export const STRINGS = {
       perSession: 'session',
       deleteAction: 'Delete plan',
       deleteConfirm: "Delete this theme plan? Can't be undone.",
+    },
+    chronoPlan: {
+      pageTitle: 'Chronological Plan',
+      heroSub: 'The whole Bible, in roughly the order events happened — not the traditional book order.',
+      paceLabel: 'Reading pace',
+      sessionsCount: '{done}/{total} sessions',
     },
     notes: {
       pageTitle: 'My notes',

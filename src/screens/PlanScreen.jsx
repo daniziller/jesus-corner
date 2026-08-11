@@ -68,6 +68,18 @@ export default function PlanScreen({ session, blocks, sessionsByBlock, completed
           <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
         </button>
 
+        {/* Entrada pro plano cronológico — mesma ideia, tela própria
+            (ChronologicalPlanScreen.jsx), sem IA (ordem fixa, ver
+            src/data/chronologicalPlan.js). */}
+        <button style={styles.chronoPlanCard} onClick={() => onNavigate?.('chronologicalPlan')}>
+          <span style={styles.chronoPlanIcon}><AppIcon name="Hourglass" size={17} color="white" /></span>
+          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={styles.themePlanTitle}>{t('plan.chronoPlanTitle', undefined, lang)}</span>
+            <span style={styles.themePlanSub}>{t('plan.chronoPlanSub', undefined, lang)}</span>
+          </span>
+          <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
+        </button>
+
         {/* Bíblia inteira, dividida nas sessões do plano escolhido acima —
             bloco > livro > sessão numerada, cada uma tocável. */}
         <div style={{ margin: '4px 2px 0' }}>
@@ -217,6 +229,9 @@ const styles = {
   themePlanIcon:  { width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   themePlanTitle: { display: 'block', fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 1 },
   themePlanSub:   { display: 'block', fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.8)' },
+
+  chronoPlanCard: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', borderRadius: 18, padding: 13, cursor: 'pointer', fontFamily: 'var(--font)', background: 'linear-gradient(135deg,#0E7490,#0891B2)', boxShadow: '0 8px 20px rgba(8,145,178,.3)' },
+  chronoPlanIcon: { width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 
   overviewTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
   overviewSub:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
