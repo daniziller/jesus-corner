@@ -6,7 +6,7 @@
 // ProfileScreen.jsx) — não é aba própria na navegação, mesmo padrão de
 // ContactScreen.jsx/UpgradeScreen.jsx.
 import { useState, useEffect, useMemo } from 'react'
-import { getNotes, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
+import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -23,6 +23,12 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   const [filter, setFilter] = useState('all')
+  // Nota sendo editada agora (key) + o texto em rascunho — só uma por vez.
+  const [editingKey, setEditingKey] = useState(null)
+  const [editText, setEditText] = useState('')
+  // Key da nota com uma ação (salvar edição/deletar) em andamento — trava
+  // só os botões DAQUELE card, não a tela inteira.
+  const [busyKey, setBusyKey] = useState(null)
 
   // Nome do livro (chave canônica, sempre em pt) -> nome em inglês, só pra
   // exibir certo com o app em EN — mesma fonte que o resto do app usa pra
@@ -103,6 +109,51 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     return type === 'reading' ? 'BookOpen' : 'PenLine'
   }
 
+  function startEdit(note) {
+    setEditingKey(note.key)
+    setEditText(note.text)
+  }
+  function cancelEdit() {
+    setEditingKey(null)
+    setEditText('')
+  }
+
+  async function saveEdit(note) {
+    // Texto vazio deletaria a nota (mesma regra de saveNote) — pra isso
+    // tem o botão de deletar, específico e com confirmação; edição vazia
+    // simplesmente não salva.
+    if (!editText.trim()) return
+    setBusyKey(note.key)
+    try {
+      await saveNote(authUser.email, note.key, editText)
+      setState(s => ({
+        ...s,
+        notes: s.notes
+          .map(n => n.key === note.key ? { ...n, text: editText, updatedAt: new Date().toISOString() } : n)
+          .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')),
+      }))
+      setEditingKey(null)
+      setEditText('')
+    } catch (err) {
+      console.error('Failed to update note', err)
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  async function deleteNote(note) {
+    if (!window.confirm(t('notes.deleteConfirm', undefined, lang))) return
+    setBusyKey(note.key)
+    try {
+      await saveNote(authUser.email, note.key, '')
+      setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
+    } catch (err) {
+      console.error('Failed to delete note', err)
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
   const activeFilter = FILTERS.find(f => f.key === filter)
   const filteredNotes = activeFilter.types
     ? state.notes.filter(n => activeFilter.types.includes(n.type))
@@ -143,15 +194,59 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filteredNotes.map(note => (
-            <div key={note.key} style={styles.card}>
-              <div style={styles.cardHeader}>
-                <span style={styles.cardIcon}><AppIcon name={iconFor(note.type)} size={13} color="var(--or)" /></span>
-                <span style={styles.cardLabel}>{labelFor(note)}</span>
+          {filteredNotes.map(note => {
+            const isEditing = editingKey === note.key
+            const isBusy = busyKey === note.key
+            return (
+              <div key={note.key} style={styles.card}>
+                <div style={styles.cardHeader}>
+                  <span style={styles.cardIcon}><AppIcon name={iconFor(note.type)} size={13} color="var(--or)" /></span>
+                  <span style={styles.cardLabel}>{labelFor(note)}</span>
+                  {!isEditing && (
+                    <span style={styles.cardActions}>
+                      <button
+                        style={styles.cardActionBtn} onClick={() => startEdit(note)}
+                        aria-label={t('notes.editAction', undefined, lang)} disabled={isBusy}
+                      >
+                        <AppIcon name="PenLine" size={13} color="var(--g5)" />
+                      </button>
+                      <button
+                        style={styles.cardActionBtn} onClick={() => deleteNote(note)}
+                        aria-label={t('notes.deleteAction', undefined, lang)} disabled={isBusy}
+                      >
+                        <AppIcon name="Trash2" size={13} color="var(--re)" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+
+                {isEditing ? (
+                  <>
+                    <textarea
+                      style={styles.editTextarea}
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      rows={4}
+                      autoFocus
+                    />
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                      <button
+                        style={styles.editSaveBtn} onClick={() => saveEdit(note)}
+                        disabled={isBusy || !editText.trim()}
+                      >
+                        {isBusy ? t('notes.saving', undefined, lang) : t('notes.saveEdit', undefined, lang)}
+                      </button>
+                      <button style={styles.editCancelBtn} onClick={cancelEdit} disabled={isBusy}>
+                        {t('notes.cancelEdit', undefined, lang)}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p style={styles.cardText}>{note.text}</p>
+                )}
               </div>
-              <p style={styles.cardText}>{note.text}</p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>
@@ -168,6 +263,11 @@ const styles = {
   card:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 13, boxShadow: 'var(--shadow-card)' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
   cardIcon:   { width: 22, height: 22, borderRadius: 7, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  cardLabel:  { fontSize: 10.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase', minWidth: 0 },
+  cardLabel:  { flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
   cardText:   { fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.55, whiteSpace: 'pre-wrap' },
+  cardActions:  { display: 'flex', gap: 2, flexShrink: 0 },
+  cardActionBtn:{ width: 24, height: 24, border: 'none', background: 'none', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  editTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--g1)' },
+  editSaveBtn:  { flex: 1, background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
+  editCancelBtn:{ flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
 }
