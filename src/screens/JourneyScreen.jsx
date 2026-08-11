@@ -94,6 +94,7 @@ export default function JourneyScreen({
   // ficaria desatualizado depois de ler um novo capítulo e voltar.
   const lastOpened = getLastOpenedChapter()
   const lastOpenedSession = lastOpened ? browseSessionsByBlock[lastOpened.blockId]?.find(s => s.id === lastOpened.sessionId) : null
+  const lastOpenedBlock = lastOpened ? blocks.find(b => b.id === lastOpened.blockId) : null
 
   // Busca de livro — achata todos os blocos numa lista única de livros
   // pesquisáveis, independente de qual bloco/testamento eles pertencem, já
@@ -161,7 +162,14 @@ export default function JourneyScreen({
                 <AppIcon name="BookOpen" size={16} color="white" />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={styles.continueReadingLabel}>{t('journey.continueReading', undefined, lang)}</span>
+                {/* Bloco (Pentateuco etc.) junto do rótulo — sem ele, não
+                    dava pra saber pra ONDE o botão levava antes de tocar,
+                    só o livro/capítulo (que sozinhos podem repetir em mais
+                    de um bloco, ex: mesmo Salmo em blocos diferentes). */}
+                <span style={styles.continueReadingLabel}>
+                  {t('journey.continueReading', undefined, lang)}
+                  {lastOpenedBlock && ` · ${lang === 'en' ? lastOpenedBlock.nameEn : lastOpenedBlock.name}`}
+                </span>
                 <span style={styles.continueReadingTitle}>
                   {(lang === 'en' ? lastOpenedSession.bookEn : lastOpenedSession.book)} {lastOpenedSession.chStart}
                   {' · '}{lang === 'en' ? lastOpenedSession.titleEn : lastOpenedSession.title}
