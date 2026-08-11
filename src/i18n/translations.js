@@ -462,6 +462,10 @@ export const STRINGS = {
       loading: 'Carregando suas anotações...',
       error: 'Não foi possível carregar as anotações agora.',
       empty: 'Nenhuma anotação ainda. Escreva uma na leitura de um capítulo ou na Reflexão do dia.',
+      emptyFiltered: 'Nenhuma anotação nesse filtro ainda.',
+      filterAll: 'Todas',
+      filterReading: 'Leitura',
+      filterReflection: 'Reflexão',
       bookReflectionTag: 'Reflexão de fechamento',
     },
     contact: {
@@ -1229,6 +1233,10 @@ export const STRINGS = {
       loading: 'Loading your notes...',
       error: 'Could not load your notes right now.',
       empty: 'No notes yet. Write one while reading a chapter or in your daily Reflection.',
+      emptyFiltered: 'No notes in this filter yet.',
+      filterAll: 'All',
+      filterReading: 'Reading',
+      filterReflection: 'Reflection',
       bookReflectionTag: 'Closing reflection',
     },
     contact: {

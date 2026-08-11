@@ -10,9 +10,19 @@ import { getNotes, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/no
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
+// 'reading' cobre nota de capítulo E reflexão de fechamento de livro — as
+// duas vivem dentro do fluxo de leitura da Bíblia, só "reflection" (a aba
+// Reflexão diária) é uma origem separada de verdade.
+const FILTERS = [
+  { key: 'all', types: null, labelKey: 'notes.filterAll' },
+  { key: 'reading', types: ['reading', 'book-reflection'], labelKey: 'notes.filterReading' },
+  { key: 'reflection', types: ['daily-reflection'], labelKey: 'notes.filterReflection' },
+]
+
 export default function NotesScreen({ session, authUser, blocks }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
+  const [filter, setFilter] = useState('all')
 
   // Nome do livro (chave canônica, sempre em pt) -> nome em inglês, só pra
   // exibir certo com o app em EN — mesma fonte que o resto do app usa pra
@@ -74,6 +84,11 @@ export default function NotesScreen({ session, authUser, blocks }) {
     return type === 'reading' ? 'BookOpen' : 'PenLine'
   }
 
+  const activeFilter = FILTERS.find(f => f.key === filter)
+  const filteredNotes = activeFilter.types
+    ? state.notes.filter(n => activeFilter.types.includes(n.type))
+    : state.notes
+
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
       <div style={styles.body}>
@@ -82,14 +97,34 @@ export default function NotesScreen({ session, authUser, blocks }) {
           <p style={styles.heroSub}>{t('notes.heroSub', undefined, lang)}</p>
         </div>
 
+        {/* Filtro por origem — leitura (capítulo + reflexão de fechamento
+            de livro) vs a Reflexão diária, as duas fontes de anotação que
+            existem hoje. */}
+        {state.status === 'ready' && state.notes.length > 0 && (
+          <div style={styles.filterRow}>
+            {FILTERS.map(f => (
+              <button
+                key={f.key}
+                style={{ ...styles.filterBtn, ...(filter === f.key ? styles.filterBtnActive : {}) }}
+                onClick={() => setFilter(f.key)}
+              >
+                {t(f.labelKey, undefined, lang)}
+              </button>
+            ))}
+          </div>
+        )}
+
         {state.status === 'loading' && <p style={styles.emptyHint}>{t('notes.loading', undefined, lang)}</p>}
         {state.status === 'error' && <p style={styles.emptyHint}>{t('notes.error', undefined, lang)}</p>}
         {state.status === 'ready' && state.notes.length === 0 && (
           <p style={styles.emptyHint}>{t('notes.empty', undefined, lang)}</p>
         )}
+        {state.status === 'ready' && state.notes.length > 0 && filteredNotes.length === 0 && (
+          <p style={styles.emptyHint}>{t('notes.emptyFiltered', undefined, lang)}</p>
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {state.notes.map(note => (
+          {filteredNotes.map(note => (
             <div key={note.key} style={styles.card}>
               <div style={styles.cardHeader}>
                 <span style={styles.cardIcon}><AppIcon name={iconFor(note.type)} size={13} color="var(--or)" /></span>
@@ -107,6 +142,9 @@ export default function NotesScreen({ session, authUser, blocks }) {
 const styles = {
   body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
   heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
+  filterRow:  { display: 'flex', gap: 6 },
+  filterBtn:  { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  filterBtnActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },
   emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
   card:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 13, boxShadow: 'var(--shadow-card)' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
