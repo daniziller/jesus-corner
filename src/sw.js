@@ -8,6 +8,7 @@ import { precacheAndRoute } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
 import { CacheFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
+import { getMuteWhileOpen } from './notifications/muteWhileOpenStore'
 
 precacheAndRoute(self.__WB_MANIFEST)
 
@@ -38,12 +39,24 @@ self.addEventListener('push', event => {
   try { data = event.data?.json() ?? {} } catch { /* payload não era JSON */ }
 
   event.waitUntil(
-    self.registration.showNotification(data.title ?? "Jesus' Corner", {
-      body: data.body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      data: { url: data.url ?? '/' },
-    })
+    (async () => {
+      // "Não me notificar enquanto eu estiver aqui" (ver RoutineScreen.jsx
+      // e notifications/muteWhileOpenStore.js) — só pula a notificação se
+      // a pessoa ligou essa opção E o app já está aberto em alguma aba/
+      // janela agora; sem nenhuma aba aberta, a notificação sempre aparece
+      // normalmente (é exatamente pra isso que ela serve).
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      if (clients.length > 0) {
+        const muted = await getMuteWhileOpen().catch(() => false)
+        if (muted) return
+      }
+      await self.registration.showNotification(data.title ?? "Jesus' Corner", {
+        body: data.body,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        data: { url: data.url ?? '/' },
+      })
+    })()
   )
 })
 

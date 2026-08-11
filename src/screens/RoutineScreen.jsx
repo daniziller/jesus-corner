@@ -3,7 +3,7 @@
 // plano/reflexão) num só lugar, ver o tempo total, e acompanhar visualmente
 // os 3 passos de hoje numa "linha do tempo" que preenche conforme cada um é
 // concluído (mesmos dados de session.todayRoutine que a Home já usa).
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
@@ -12,6 +12,7 @@ import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { getMuteWhileOpen, setMuteWhileOpen } from '../notifications/muteWhileOpenStore'
 import RoutineCalendar from '../components/RoutineCalendar'
 
 // Mesmas opções de cada tela dedicada (ver PrayerScreen.jsx/ReflectionScreen.jsx)
@@ -145,6 +146,8 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
             </div>
           ))}
         </div>
+
+        <MuteWhileOpenToggle lang={lang} />
 
         {/* Oração — não tem mais aba própria na navegação (só mora aqui
             dentro de Rotina), então esse botão é o jeito principal de
@@ -286,6 +289,51 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
             nas últimas 4 semanas (movida da aba Progresso pra cá, mais perto
             de onde a pessoa já está configurando a rotina). */}
         <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} />
+      </div>
+    </div>
+  )
+}
+
+// "Não me notificar enquanto eu estiver aqui" — pausa só a EXIBIÇÃO do
+// lembrete push (ver 'push' em src/sw.js) quando ele chega com o app já
+// aberto em alguma aba; não mexe no toggle "Lembretes" do Perfil (que liga/
+// desliga a inscrição em si). Guardado em IndexedDB, não localStorage — ver
+// notifications/muteWhileOpenStore.js pro motivo (o service worker precisa
+// ler esse valor também, e não enxerga localStorage).
+function MuteWhileOpenToggle({ lang }) {
+  const [muted, setMuted] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    getMuteWhileOpen()
+      .then(setMuted)
+      .catch(err => console.error('Failed to load mute-while-open pref', err))
+      .finally(() => setLoaded(true))
+  }, [])
+
+  function handleToggle() {
+    const next = !muted
+    setMuted(next)
+    setMuteWhileOpen(next).catch(err => console.error('Failed to persist mute-while-open pref', err))
+  }
+
+  // Só aparece depois de carregar — sem isso, "off" pisca na tela por um
+  // instante mesmo pra quem já tinha ligado antes.
+  if (!loaded) return null
+
+  return (
+    <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 21, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
+      <div className="settings-item" style={{ cursor: 'default' }}>
+        <div className="settings-icon" style={{ background: 'var(--olt)' }}>
+          <AppIcon name={muted ? 'BellOff' : 'Bell'} size={15} color="var(--or)" />
+        </div>
+        <div className="settings-info">
+          <p className="settings-label">{t('routine.muteWhileOpenLabel', undefined, lang)}</p>
+          <p className="settings-sub">{t('routine.muteWhileOpenSub', undefined, lang)}</p>
+        </div>
+        <div className={`toggle ${muted ? '' : 'off'}`} onClick={handleToggle} role="switch" aria-checked={muted}>
+          <div className="toggle-thumb" />
+        </div>
       </div>
     </div>
   )
