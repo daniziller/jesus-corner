@@ -1,12 +1,17 @@
 // PlanScreen.jsx
 // Aba "Plano de Leitura" (rótulo curto "Plano" no menu) — no lugar que a
-// aba Oração ocupava antes (ver App.jsx/BottomNav.jsx/Sidebar.jsx). Reúne
-// as duas coisas que antes só existiam espalhadas: escolher o plano de
-// leitura (duplicado aqui e em Rotina — decisão consciente, ver conversa)
-// e ver a Bíblia INTEIRA já dividida nas sessões desse plano (Sessão 1, 2,
-// 3... por livro, dentro de cada bloco), não só a sessão de hoje. Tocar
-// numa sessão pula direto pra ela dentro da aba Bíblia (ver onOpenSession
-// vindo de App.jsx), do mesmo jeito que "Continuar sessão" já fazia.
+// aba Oração ocupava antes (ver App.jsx/BottomNav.jsx/Sidebar.jsx).
+//
+// Reorganizada numa lista única de "planos disponíveis": os 4 planos fixos
+// (Leve/Padrão/Intensivo/Livre) + cada plano por tema salvo + o plano
+// cronológico, cada um com um botão "Escolher". O escolhido fica em
+// destaque no topo (ActivePlanCard) E passa a ser a "sessão de hoje" que
+// Home/Rotina mostram (ver session.activePlan/resolveActivePlanSessions em
+// App.jsx) — RoutineScreen.jsx não tem mais seletor próprio, só um resumo
+// com link pra cá. Escolher um plano por tema/cronológico NÃO troca o
+// plano fixo de fundo (session.plan) — ele continua sozinho controlando a
+// Bíblia inteira dividida em sessões mais abaixo ("Sessões do plano"), que
+// por isso só aparece quando o plano ativo é um dos fixos.
 import { useState } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
@@ -14,8 +19,11 @@ import { groupSessionsByBook } from '../utils/groupByBook'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function PlanScreen({ session, blocks, sessionsByBlock, completedSet, onSelectPlan, onToggleSession, onOpenSession, onNavigate }) {
-  const { lang, plan } = session
+export default function PlanScreen({
+  session, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan,
+  onSelectActivePlan, onContinueSession, onOpenThemePlan, onToggleSession, onOpenSession, onNavigate,
+}) {
+  const { lang, plan, activePlan, todaySession } = session
   // Só o bloco ativo (onde a pessoa está lendo agora) começa aberto — os
   // outros ficam colapsados, senão a Bíblia inteira dividida em sessões
   // apareceria de uma vez só, uma lista gigante pra rolar.
@@ -25,6 +33,11 @@ export default function PlanScreen({ session, blocks, sessionsByBlock, completed
     onOpenSession?.(blockId, sessionId)
   }
 
+  // Ritmo padrão sugerido ao escolher o cronológico direto da lista (sem
+  // passar pela tela dele antes) — usa o ritmo fixo atual se for um dos 3
+  // com meta de tempo, senão cai em 'standard' (Livre não se aplica aqui).
+  const defaultChronoPaceId = ['light', 'standard', 'intensive'].includes(plan.id) ? plan.id : 'standard'
+
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
       <div style={styles.body}>
@@ -33,76 +46,141 @@ export default function PlanScreen({ session, blocks, sessionsByBlock, completed
           <p style={styles.heroSub}>{t('plan.heroSub', undefined, lang)}</p>
         </div>
 
-        {/* Seletor de plano — mesmas 4 opções de Rotina (ver conversa: fica
-            duplicado de propósito, cada tela com seu próprio contexto). */}
-        <div style={styles.planCard}>
-          <p style={styles.changePlanLabel}>{t('plan.changePlanLabel', undefined, lang)}</p>
-          <div style={styles.planSel}>
-            {PLANS.map(p => (
-              <button
-                key={p.id}
-                style={{ ...styles.planBtn, ...(plan.id === p.id ? styles.planBtnActive : {}) }}
-                onClick={() => onSelectPlan?.(p.id)}
-              >
-                <AppIcon name={p.icon} size={15} color={plan.id === p.id ? 'white' : 'var(--g4)'} />
-                {lang === 'en' ? p.labelEn : p.label}
-                {/* Tempo de leitura por dia — o principal critério pra
-                    escolher entre os planos, então fica sempre visível no
-                    próprio botão, não só depois de já ter escolhido. */}
-                <span style={{ ...styles.planBtnTime, ...(plan.id === p.id ? styles.planBtnTimeActive : {}) }}>
-                  {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-                </span>
-              </button>
-            ))}
-          </div>
+        {/* Plano ativo em destaque — mesmos dados que Home/Rotina mostram
+            como "sessão de hoje" (session.activePlan/todaySession). */}
+        <div>
+          <p style={styles.sectionLabel}>{t('plan.activePlanTitle', undefined, lang)}</p>
+          <ActivePlanCard activePlan={activePlan} todaySession={todaySession} lang={lang} onContinue={onContinueSession} />
         </div>
 
-        {/* Entrada pro plano de leitura por tema (IA) — tela própria
-            (ThemePlanScreen.jsx), não misturado com o plano fixo acima. */}
-        <button style={styles.themePlanCard} onClick={() => onNavigate?.('themePlan')}>
-          <span style={styles.themePlanIcon}><AppIcon name="Sparkles" size={17} color="white" /></span>
-          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-            <span style={styles.themePlanTitle}>{t('plan.themePlanTitle', undefined, lang)}</span>
-            <span style={styles.themePlanSub}>{t('plan.themePlanSub', undefined, lang)}</span>
-          </span>
-          <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
-        </button>
-
-        {/* Entrada pro plano cronológico — mesma ideia, tela própria
-            (ChronologicalPlanScreen.jsx), sem IA (ordem fixa, ver
-            src/data/chronologicalPlan.js). */}
-        <button style={styles.chronoPlanCard} onClick={() => onNavigate?.('chronologicalPlan')}>
-          <span style={styles.chronoPlanIcon}><AppIcon name="Hourglass" size={17} color="white" /></span>
-          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-            <span style={styles.themePlanTitle}>{t('plan.chronoPlanTitle', undefined, lang)}</span>
-            <span style={styles.themePlanSub}>{t('plan.chronoPlanSub', undefined, lang)}</span>
-          </span>
-          <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
-        </button>
-
-        {/* Bíblia inteira, dividida nas sessões do plano escolhido acima —
-            bloco > livro > sessão numerada, cada uma tocável. */}
-        <div style={{ margin: '4px 2px 0' }}>
-          <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
-          <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
+        {/* Lista única de planos disponíveis — fixos + temas salvos + o
+            cronológico, cada um com um botão "Escolher" (ver App.jsx,
+            selectActivePlan). */}
+        <div>
+          <p style={styles.sectionLabel}>{t('plan.availablePlansTitle', undefined, lang)}</p>
+          <p style={styles.sectionSub}>{t('plan.availablePlansSub', undefined, lang)}</p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {blocks.map(block => (
-            <PlanBlockSection
-              key={block.id}
-              block={block}
-              sessions={sessionsByBlock[block.id] ?? []}
-              open={openBlockId === block.id}
-              onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
-              completedSet={completedSet}
-              onToggleSession={onToggleSession}
-              onOpenSession={s => openSession(block.id, s.id)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {PLANS.map(p => (
+            <PlanRow
+              key={p.id}
+              icon={p.icon}
+              iconColor="var(--brand-deep)"
+              iconBg="var(--olt)"
+              title={lang === 'en' ? p.labelEn : p.label}
+              sub={p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+              isActive={activePlan.kind === 'fixed' && plan.id === p.id}
               lang={lang}
+              onChoose={() => onSelectActivePlan?.({ type: 'fixed', id: p.id })}
             />
           ))}
+
+          {themePlans.map(tp => (
+            <PlanRow
+              key={tp.id}
+              icon="Sparkles"
+              iconColor="#A21CAF"
+              iconBg="#FAE8FF"
+              title={tp.theme}
+              sub={`${tp.minutesPerSession} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`}
+              isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
+              lang={lang}
+              onOpen={() => onOpenThemePlan?.(tp.id)}
+              onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
+            />
+          ))}
+          <button style={styles.createThemePlanLink} onClick={() => onNavigate?.('themePlan')}>
+            {t('plan.createThemePlanLink', undefined, lang)}
+          </button>
+
+          <PlanRow
+            icon="Hourglass"
+            iconColor="#0891B2"
+            iconBg="#CFFAFE"
+            title={t('plan.chronoPlanTitle', undefined, lang)}
+            sub={t('plan.chronoPlanSub', undefined, lang)}
+            isActive={activeAltPlan?.type === 'chrono'}
+            lang={lang}
+            onOpen={() => onNavigate?.('chronologicalPlan')}
+            onChoose={() => onSelectActivePlan?.({ type: 'chrono', paceId: activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : defaultChronoPaceId })}
+          />
         </div>
+
+        {/* Bíblia inteira, dividida nas sessões do plano fixo — bloco >
+            livro > sessão numerada, cada uma tocável. Só faz sentido quando
+            o plano ATIVO é um dos fixos (pra tema/cronológico, a leitura já
+            mora na tela própria). */}
+        {activePlan.kind === 'fixed' && (
+          <>
+            <div style={{ margin: '4px 2px 0' }}>
+              <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
+              <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {blocks.map(block => (
+                <PlanBlockSection
+                  key={block.id}
+                  block={block}
+                  sessions={sessionsByBlock[block.id] ?? []}
+                  open={openBlockId === block.id}
+                  onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
+                  completedSet={completedSet}
+                  onToggleSession={onToggleSession}
+                  onOpenSession={s => openSession(block.id, s.id)}
+                  lang={lang}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
+    </div>
+  )
+}
+
+function ActivePlanCard({ activePlan, todaySession, lang, onContinue }) {
+  const ctaLabel =
+    todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
+    : todaySession.progress > 0   ? t('home.continueSession', undefined, lang)
+    : t('home.startSession', undefined, lang)
+
+  return (
+    <div style={styles.activeCard}>
+      <div style={styles.activeCardTop}>
+        <span style={styles.activeCardIcon}><AppIcon name={activePlan.icon} size={18} color="white" /></span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={styles.activeCardLabel}>{activePlan.label}</p>
+          <p style={styles.activeCardMeta}>
+            {t('themePlan.sessionsCount', { done: activePlan.doneCount, total: activePlan.totalCount }, lang)}
+          </p>
+        </div>
+        <span style={styles.activeCardPercent}>{activePlan.percent}%</span>
+      </div>
+      <div style={styles.activeCardBar}>
+        <div style={{ ...styles.activeCardBarFill, width: `${activePlan.percent}%` }} />
+      </div>
+      <button style={styles.activeCardBtn} onClick={onContinue}>
+        {ctaLabel} <AppIcon name="ChevronRight" size={14} color="white" />
+      </button>
+    </div>
+  )
+}
+
+function PlanRow({ icon, iconColor, iconBg, title, sub, isActive, lang, onOpen, onChoose }) {
+  return (
+    <div style={{ ...styles.planRow, border: isActive ? '0.5px solid var(--gold-soft)' : styles.planRow.border }}>
+      <button style={styles.planRowMain} onClick={onOpen} disabled={!onOpen}>
+        <span style={{ ...styles.planRowIcon, background: iconBg }}><AppIcon name={icon} size={16} color={iconColor} /></span>
+        <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+          <span style={styles.planRowTitle}>{title}</span>
+          <span style={styles.planRowSub}>{sub}</span>
+        </span>
+      </button>
+      {isActive
+        ? <span style={styles.activeBadge}>{t('plan.activeBadge', undefined, lang)}</span>
+        : <button style={styles.chooseBtn} onClick={onChoose}>{t('plan.chooseAction', undefined, lang)}</button>}
     </div>
   )
 }
@@ -217,21 +295,27 @@ const styles = {
   body:        { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
   heroSub:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
 
-  planCard:    { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  changePlanLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  planSel:     { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  planBtn:     { flex: '1 1 0', minWidth: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', padding: '10px 6px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  planBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
-  planBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
-  planBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
+  sectionLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 2px 6px' },
+  sectionSub:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', margin: '-4px 2px 6px' },
 
-  themePlanCard:  { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', borderRadius: 18, padding: 13, cursor: 'pointer', fontFamily: 'var(--font)', background: 'linear-gradient(135deg,#A21CAF,#C026D3)', boxShadow: '0 8px 20px rgba(162,28,175,.3)' },
-  themePlanIcon:  { width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  themePlanTitle: { display: 'block', fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 1 },
-  themePlanSub:   { display: 'block', fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.8)' },
+  activeCard:      { background: 'var(--grad-vivid)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-glow)' },
+  activeCardTop:   { display: 'flex', alignItems: 'center', gap: 10 },
+  activeCardIcon:  { width: 36, height: 36, borderRadius: 11, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  activeCardLabel: { fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  activeCardMeta:  { fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.8)', marginTop: 1 },
+  activeCardPercent: { fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', flexShrink: 0 },
+  activeCardBar:   { height: 5, background: 'rgba(255,255,255,.25)', borderRadius: 99, overflow: 'hidden', margin: '10px 0' },
+  activeCardBarFill: { height: '100%', background: 'white', borderRadius: 99 },
+  activeCardBtn:   { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
 
-  chronoPlanCard: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', borderRadius: 18, padding: 13, cursor: 'pointer', fontFamily: 'var(--font)', background: 'linear-gradient(135deg,#0E7490,#0891B2)', boxShadow: '0 8px 20px rgba(8,145,178,.3)' },
-  chronoPlanIcon: { width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  planRow:      { display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 6, boxShadow: 'var(--shadow-card)' },
+  planRowMain:  { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', padding: 6 },
+  planRowIcon:  { width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  planRowTitle: { display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  planRowSub:   { display: 'block', fontSize: 10, fontWeight: 500, color: 'var(--g5)' },
+  chooseBtn:    { flexShrink: 0, border: 'none', borderRadius: 9, padding: '7px 12px', fontSize: 10.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)' },
+  activeBadge:  { flexShrink: 0, borderRadius: 9, padding: '7px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', background: 'var(--olt)' },
+  createThemePlanLink: { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--or)', padding: '2px 6px' },
 
   overviewTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
   overviewSub:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },

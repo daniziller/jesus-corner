@@ -14,7 +14,13 @@
 // o aberto), o que dá de graça a navegação automática pro próximo
 // movimento quando termina o atual (mesma lógica de blocks[] em
 // ReadingBlockView.jsx).
-import { useState, useMemo } from 'react'
+//
+// `autoOpenMovementId`/`autoOpenPaceId` abrem direto num movimento/ritmo
+// específico (usado pelo "Continuar sessão" da Home/Rotina quando o plano
+// ativo é o cronológico — ver App.jsx/continueToday). `onPaceChanged`
+// avisa App.jsx quando o ritmo muda aqui dentro, pra manter em dia o que
+// Home/Rotina mostram caso o cronológico seja o plano ativo no momento.
+import { useState, useMemo, useEffect } from 'react'
 import { CHRONOLOGICAL_MOVEMENTS, deriveChronoProgress } from '../data/chronologicalPlan'
 import { GRADIENT_MAP, PLANS } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
@@ -26,10 +32,27 @@ import ReadingBlockView from './ReadingBlockView'
 // o tamanho das sessões cronológicas, então fica de fora aqui.
 const PACE_OPTIONS = PLANS.filter(p => p.readingMinutes != null)
 
-export default function ChronologicalPlanScreen({ session, authUser, completedSet, onToggleSession, onToggleChapter, onNavigate }) {
+export default function ChronologicalPlanScreen({
+  session, authUser, completedSet, onToggleSession, onToggleChapter, onNavigate,
+  autoOpenMovementId, autoOpenPaceId, onPaceChanged,
+}) {
   const { lang } = session
-  const [paceId, setPaceId] = useState('standard')
-  const [activeMovementId, setActiveMovementId] = useState(null)
+  const [paceId, setPaceId] = useState(autoOpenPaceId ?? 'standard')
+  const [activeMovementId, setActiveMovementId] = useState(autoOpenMovementId ?? null)
+
+  // Re-sincroniza sempre que App.jsx pedir pra abrir um movimento/ritmo
+  // específico (ex: "Continuar sessão" da Home/Rotina, ver App.jsx) — mesmo
+  // padrão de JourneyScreen.jsx pra entryMode/initialBlockId.
+  useEffect(() => {
+    if (autoOpenPaceId) setPaceId(autoOpenPaceId)
+    if (autoOpenMovementId != null) setActiveMovementId(autoOpenMovementId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenMovementId, autoOpenPaceId])
+
+  function choosePace(id) {
+    setPaceId(id)
+    onPaceChanged?.(id)
+  }
 
   const { blocks, sessionsByBlock } = useMemo(
     () => deriveChronoProgress(completedSet, paceId),
@@ -80,7 +103,7 @@ export default function ChronologicalPlanScreen({ session, authUser, completedSe
               <button
                 key={p.id}
                 style={{ ...styles.paceBtn, ...(paceId === p.id ? styles.paceBtnActive : {}) }}
-                onClick={() => setPaceId(p.id)}
+                onClick={() => choosePace(p.id)}
               >
                 <AppIcon name={p.icon} size={14} color={paceId === p.id ? 'white' : 'var(--g4)'} />
                 {lang === 'en' ? p.labelEn : p.label}

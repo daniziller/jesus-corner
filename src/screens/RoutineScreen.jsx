@@ -6,7 +6,6 @@
 import { useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { PLANS } from '../data/bibleBlocks'
 import { computeTotalSessions } from '../utils/progress'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
@@ -19,8 +18,8 @@ import RoutineCalendar from '../components/RoutineCalendar'
 const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
-export default function RoutineScreen({ session, blocks, onNavigate, onContinueSession, onSelectPlan, onMarkRoutineStep }) {
-  const { lang, plan, todayRoutine, todaySession } = session
+export default function RoutineScreen({ session, blocks, onNavigate, onContinueSession, onMarkRoutineStep }) {
+  const { lang, plan, activePlan, todayRoutine, todaySession } = session
   const readingCtaLabel =
     todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
     : todaySession.progress > 0   ? t('home.continueSession', undefined, lang)
@@ -41,7 +40,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
     setSavedReflectionMinutes(n)
   }
 
-  const totalMinutes = prayerMinutes + reflectionMinutes + (plan.readingMinutes ?? 0)
+  const totalMinutes = prayerMinutes + reflectionMinutes + (activePlan.readingMinutes ?? 0)
 
   // Mesma ordem/cor/ícone da DailyRoutineCard na Home — bate visualmente
   // com o resto do app. Tocar na linha leva direto pra tela do passo; tocar
@@ -72,7 +71,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
             {totalMinutes}<span style={styles.heroTotalUnit}> min</span>
           </span>
           <span style={{ position: 'relative', ...styles.heroTotalLabel }}>
-            {plan.readingMinutes == null
+            {activePlan.readingMinutes == null
               ? `${prayerMinutes + reflectionMinutes} ${t('routine.totalLabelFree', undefined, lang)}`
               : t('routine.totalLabel', undefined, lang)}
           </span>
@@ -90,7 +89,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
             <div style={styles.heroBreakdownItem}>
               <AppIcon name="BookOpen" size={13} color="rgba(255,255,255,.85)" />
               <span style={styles.heroBreakdownN}>
-                {plan.readingMinutes != null ? <>{plan.readingMinutes}<span style={styles.heroBreakdownUnit}> min</span></> : plan.label}
+                {activePlan.readingMinutes != null ? <>{activePlan.readingMinutes}<span style={styles.heroBreakdownUnit}> min</span></> : activePlan.label}
               </span>
               <span style={styles.heroBreakdownL}>{t('home.routineReading', undefined, lang)}</span>
             </div>
@@ -197,44 +196,26 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
             </div>
           </div>
 
+          {/* Resumo do plano ativo — escolher/trocar de plano agora é só na
+              aba Plano (ver PlanScreen.jsx), que reúne fixos + temas +
+              cronológico numa lista única com botão "Escolher". */}
           <div className="plan-row-desktop">
-            <div>
-              <p style={styles.changePlanLabel}>{t('routine.changePlan', undefined, lang)}</p>
-              <div style={styles.planSel}>
-                {/* Tempo de leitura por dia embaixo do nome — é o principal
-                    critério pra escolher entre os planos, então fica sempre
-                    visível no próprio botão, não só depois de escolhido. */}
-                {PLANS.filter(p => p.id !== 'free').map(p => (
-                  <button
-                    key={p.id}
-                    style={{ ...styles.planBtn, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
-                    onClick={() => onSelectPlan?.(p.id)}
-                  >
-                    <span>{lang === 'en' ? p.labelEn : p.label}</span>
-                    <span style={{ ...styles.planBtnTime, ...(plan.id === p.id ? styles.planBtnTimeActive : {}) }}>
-                      {t('journey.minPerDay', { n: p.readingMinutes }, lang)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {PLANS.filter(p => p.id === 'free').map(p => (
-                <button
-                  key={p.id}
-                  style={{ ...styles.planBtnFree, ...(plan.id === p.id ? { ...styles.planBtnActive, background: ROUTINE_STEP_COLORS.reading } : {}) }}
-                  onClick={() => onSelectPlan?.(p.id)}
-                >
-                  {lang === 'en' ? p.labelEn : p.label}
-                  <span style={{ ...styles.planBtnTime, ...(plan.id === p.id ? styles.planBtnTimeActive : {}) }}>
-                    {' '}· {t('journey.noTimeTarget', undefined, lang)}
-                  </span>
-                </button>
-              ))}
+            <div style={styles.activePlanSummary}>
+              <span style={{ ...styles.activePlanSummaryIcon, background: ROUTINE_STEP_COLORS.reading }}>
+                <AppIcon name={activePlan.icon} size={15} color="white" />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={styles.activePlanSummaryLabel}>{activePlan.label}</span>
+                <span style={styles.activePlanSummarySub}>
+                  {activePlan.readingMinutes != null ? t('journey.minPerDay', { n: activePlan.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                </span>
+              </span>
+              <button style={styles.changePlanBtn} onClick={() => onNavigate?.('plan')}>
+                {t('routine.changePlan', undefined, lang)}
+              </button>
             </div>
 
             <div className="plan-stats-inline" style={{ marginTop: 8 }}>
-              <span style={styles.sectionCaption}>
-                {plan.readingMinutes != null ? t('journey.minPerDay', { n: plan.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-              </span>
               <div style={styles.readingStatsRow}>
                 <div style={styles.readingStat}>
                   <span style={styles.readingStatN}>{doneSessions}/{totalSessions}</span>
@@ -443,7 +424,6 @@ const styles = {
   sectionIcon: { width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
   sectionSub:  { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
-  sectionCaption: { display: 'block', marginTop: 8, fontSize: 10, fontWeight: 600, color: 'var(--g4)' },
 
   readingStatsRow: { display: 'flex', gap: 6, marginTop: 8 },
   readingStat:     { flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '7px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 1 },
@@ -460,14 +440,11 @@ const styles = {
   todaySessionProgressFill: { height: '100%', background: 'white', borderRadius: 99 },
   todaySessionBtn:    { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: 'white', border: 'none', borderRadius: 12, padding: 11, fontSize: 12.5, fontWeight: 800, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
 
-  changePlanLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-
-  planSel:     { display: 'flex', gap: 6, marginBottom: 6 },
-  planBtn:     { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  planBtnActive: { color: 'white', borderColor: 'transparent', boxShadow: 'var(--shadow-glow)' },
-  planBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
-  planBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
-  planBtnFree: { width: '100%', textAlign: 'center', padding: '7px 4px', fontSize: 10, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  activePlanSummary:     { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '8px 8px 8px 9px' },
+  activePlanSummaryIcon: { width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  activePlanSummaryLabel:{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  activePlanSummarySub:  { display: 'block', fontSize: 9.5, fontWeight: 600, color: 'var(--g5)' },
+  changePlanBtn:         { flexShrink: 0, border: 'none', borderRadius: 8, padding: '7px 11px', fontSize: 10, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)' },
 
   durationSel: { display: 'flex', gap: 6 },
   durationBtn: { flex: 1, height: 44, borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'var(--g1)', transition: 'background .15s, color .15s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 },

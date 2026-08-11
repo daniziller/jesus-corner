@@ -19,7 +19,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, lang,
-    dailyRoutine, todayRoutine, plan,
+    dailyRoutine, todayRoutine, plan, activePlan,
   } = session
 
   const [friendActivity, setFriendActivity] = useState([])
@@ -358,9 +358,9 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, lang, onNavigate, 
     {
       key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading,
       title: translate('home.routineReading', undefined, lang),
-      sub: plan.readingMinutes == null
+      sub: activePlan.readingMinutes == null
         ? translate('home.routineReadingSubFree', undefined, lang)
-        : translate('home.routineReadingSub', { min: plan.readingMinutes }, lang),
+        : translate('home.routineReadingSub', { min: activePlan.readingMinutes }, lang),
       done: !!todayRoutine.reading,
       onClick: () => onContinueSession?.(),
       onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading),

@@ -5,6 +5,16 @@
 // por um card em PlanScreen.jsx — não é aba própria, mesmo padrão não-aba
 // de NotesScreen.jsx/ApplicationPhrasesScreen.jsx.
 //
+// A lista de planos salvos (`plans`) vem de fora (App.jsx) em vez de ser
+// buscada aqui — App.jsx precisa dela pra saber as sessões do plano por
+// tema ativo em Home/Rotina (ver resolveActivePlanSessions/buildSession),
+// então essa tela deixou de ter fetch próprio; só repassa pra
+// `onPlansChanged` a lista atualizada que saveThemePlan/deleteThemePlan já
+// devolvem prontas. `autoOpenPlanId` abre direto num plano específico
+// (usado pelo "Continuar sessão" da Home/Rotina quando o plano ativo é um
+// plano por tema — ver App.jsx/continueToday), mesmo padrão de
+// entryMode/initialBlockId que JourneyScreen.jsx já usa.
+//
 // Pra LER um plano gerado, em vez de construir um leitor novo, monta um
 // "bloco" sintético em memória (só precisa de id/name/nameEn/sessionsTotal
 // — os únicos campos que ReadingBlockView.jsx de fato lê do objeto block)
@@ -15,7 +25,7 @@
 // separado por plano temático: ler Gênesis 4 aqui já conta pro progresso
 // geral da Bíblia, porque é a mesma chave livro:capítulo de sempre.
 import { useState, useEffect } from 'react'
-import { getThemePlans, saveThemePlan, deleteThemePlan, generateThemePlan } from '../themePlans/themePlansStore'
+import { saveThemePlan, deleteThemePlan, generateThemePlan } from '../themePlans/themePlansStore'
 import { sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -23,27 +33,22 @@ import ReadingBlockView from './ReadingBlockView'
 
 const DURATION_OPTIONS = [5, 10, 15, 20, 30]
 
-export default function ThemePlanScreen({ session, authUser, completedSet, onToggleSession, onToggleChapter, onNavigate }) {
+export default function ThemePlanScreen({ session, authUser, completedSet, plans, onPlansChanged, autoOpenPlanId, onToggleSession, onToggleChapter, onNavigate }) {
   const { lang } = session
-  const [state, setState] = useState({ status: 'loading', plans: [] })
-  const [activePlanId, setActivePlanId] = useState(null)
+  const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
   const [creating, setCreating] = useState(false)
   const [theme, setTheme] = useState('')
   const [minutes, setMinutes] = useState(10)
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
 
+  // Re-sincroniza sempre que App.jsx pedir pra abrir um plano específico
+  // (ex: "Continuar sessão" clicado de novo com essa aba já montada) —
+  // mesmo padrão de JourneyScreen.jsx pra entryMode/initialBlockId.
   useEffect(() => {
-    if (!authUser?.email) { setState({ status: 'ready', plans: [] }); return }
-    let cancelled = false
-    getThemePlans(authUser.email)
-      .then(plans => { if (!cancelled) setState({ status: 'ready', plans }) })
-      .catch(err => {
-        console.error('Failed to load theme plans', err)
-        if (!cancelled) setState({ status: 'error', plans: [] })
-      })
-    return () => { cancelled = true }
-  }, [authUser?.email])
+    if (autoOpenPlanId) setActivePlanId(autoOpenPlanId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenPlanId])
 
   async function handleGenerate() {
     if (!theme.trim() || generating) return
@@ -51,8 +56,8 @@ export default function ThemePlanScreen({ session, authUser, completedSet, onTog
     setGenError('')
     try {
       const plan = await generateThemePlan(theme.trim(), minutes, lang)
-      await saveThemePlan(authUser.email, plan)
-      setState(s => ({ ...s, plans: [plan, ...s.plans] }))
+      const updated = await saveThemePlan(authUser.email, plan)
+      onPlansChanged?.(updated)
       setCreating(false)
       setTheme('')
       setActivePlanId(plan.id)
@@ -71,14 +76,14 @@ export default function ThemePlanScreen({ session, authUser, completedSet, onTog
   async function handleDelete(plan) {
     if (!window.confirm(t('themePlan.deleteConfirm', undefined, lang))) return
     try {
-      await deleteThemePlan(authUser.email, plan.id)
-      setState(s => ({ ...s, plans: s.plans.filter(p => p.id !== plan.id) }))
+      const updated = await deleteThemePlan(authUser.email, plan.id)
+      onPlansChanged?.(updated)
     } catch (err) {
       console.error('Failed to delete theme plan', err)
     }
   }
 
-  const activePlan = state.plans.find(p => p.id === activePlanId)
+  const activePlan = plans.find(p => p.id === activePlanId)
 
   if (activePlan) {
     // Sessões com status calculado NA HORA a partir do completedSet
@@ -164,13 +169,12 @@ export default function ThemePlanScreen({ session, authUser, completedSet, onTog
           </button>
         )}
 
-        {state.status === 'loading' && <p style={styles.emptyHint}>{t('themePlan.loading', undefined, lang)}</p>}
-        {state.status === 'ready' && state.plans.length === 0 && !creating && (
+        {plans.length === 0 && !creating && (
           <p style={styles.emptyHint}>{t('themePlan.empty', undefined, lang)}</p>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {state.plans.map(plan => {
+          {plans.map(plan => {
             const doneCount = plan.sessions.filter(s => sessionKeys(s).every(k => completedSet.has(k))).length
             return (
               <div key={plan.id} style={styles.planCard}>

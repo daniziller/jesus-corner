@@ -34,6 +34,9 @@ import { getDailyRoutine, setStepDone } from './routine/dailyRoutineStore'
 import { computeRoutineStreak } from './routine/routineStreak'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
+import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
+import { getThemePlans } from './themePlans/themePlansStore'
+import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
@@ -100,6 +103,76 @@ function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
   return { session, block: activeBlock }
 }
 
+// "Plano ativo" pra fins de Home/Rotina/Plano — por padrão é sempre o plano
+// fixo (Leve/Padrão/Intensivo/Livre, dono de planId/blocks/sessionsByBlock,
+// que também é o que a aba Bíblia e o Progresso sempre mostram). Quando a
+// pessoa escolhe um plano por tema ou o cronológico (activeAltPlan, ver
+// src/plan/activePlanStore.js), só a "sessão de hoje" passa a vir de lá —
+// blocks/sessionsByBlock do fixo continuam intactos, então Bíblia/Progresso
+// nunca mudam de estrutura por causa disso. findCurrentReadingSession acima
+// é 100% genérico (não referencia BIBLE_BLOCKS), por isso serve pros 3 casos.
+function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId) {
+  if (activeAltPlan?.type === 'theme') {
+    const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
+    if (themePlan) {
+      const sessions = themePlan.sessions.map(s => ({
+        ...s,
+        status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
+      }))
+      const syntheticBlock = { id: `theme:${themePlan.id}`, name: themePlan.theme, nameEn: themePlan.theme, sessionsTotal: sessions.length }
+      const doneCount = sessions.filter(s => s.status === 'done').length
+      return {
+        kind: 'theme',
+        icon: 'Sparkles',
+        label: themePlan.theme,
+        labelEn: themePlan.theme,
+        readingMinutes: themePlan.minutesPerSession,
+        doneCount,
+        totalCount: sessions.length,
+        percent: sessions.length ? Math.round((doneCount / sessions.length) * 100) : 0,
+        blocks: [syntheticBlock],
+        sessionsByBlock: { [syntheticBlock.id]: sessions },
+      }
+    }
+    // Plano referenciado não existe mais (deletado) — cai no fallback fixo.
+  }
+
+  if (activeAltPlan?.type === 'chrono') {
+    const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
+    const pace = PLANS.find(p => p.id === activeAltPlan.paceId) ?? PLANS.find(p => p.id === 'standard')
+    const doneCount = chrono.blocks.reduce((s, b) => s + b.sessionsDone, 0)
+    const totalCount = chrono.blocks.reduce((s, b) => s + b.sessionsTotal, 0)
+    return {
+      kind: 'chrono',
+      icon: 'Hourglass',
+      label: pace.label,
+      labelEn: pace.labelEn,
+      readingMinutes: pace.readingMinutes,
+      doneCount,
+      totalCount,
+      percent: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,
+      blocks: chrono.blocks,
+      sessionsByBlock: chrono.sessionsByBlock,
+    }
+  }
+
+  const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
+  const doneCount = blocks.reduce((s, b) => s + b.sessionsDone, 0)
+  const totalCount = blocks.reduce((s, b) => s + b.sessionsTotal, 0)
+  return {
+    kind: 'fixed',
+    icon: planRaw.icon,
+    label: planRaw.label,
+    labelEn: planRaw.labelEn,
+    readingMinutes: planRaw.readingMinutes,
+    doneCount,
+    totalCount,
+    percent: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,
+    blocks,
+    sessionsByBlock,
+  }
+}
+
 // ─────────────────────────────────────────
 // Monta o estado de "sessão do app" (em produção: substituir por Context
 // API ou Zustand) a partir do usuário logado + progresso já derivado.
@@ -107,16 +180,32 @@ function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans) {
   const lang = authUser.language ?? 'pt'
   const streak = computeRoutineStreak(dailyRoutine)
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
+
+  // Plano ativo pra fins de "sessão de hoje" — o fixo de sempre, ou um plano
+  // por tema/cronológico que a pessoa tenha destacado na aba Plano (ver
+  // resolveActivePlanSessions acima). blocks/sessionsByBlock ORIGINAIS
+  // (parâmetros desta função) continuam intactos pra gamificação/Progresso —
+  // só a leitura "de hoje" muda de fonte.
+  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId)
   // Sessão (e bloco) onde o usuário realmente parou — baseado no último
   // capítulo marcado como lido, não na ordem sugerida dos livros/blocos.
-  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(blocks, sessionsByBlock, completedSet)
+  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock, completedSet)
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
   const plan = { ...planRaw, label: lang === 'en' ? planRaw.labelEn : planRaw.label }
+  const activePlan = {
+    kind: activePlanData.kind,
+    icon: activePlanData.icon,
+    label: lang === 'en' ? activePlanData.labelEn : activePlanData.label,
+    readingMinutes: activePlanData.readingMinutes,
+    doneCount: activePlanData.doneCount,
+    totalCount: activePlanData.totalCount,
+    percent: activePlanData.percent,
+  }
 
   // Progresso real (capítulo a capítulo) da sessão do dia — permite mostrar
   // "Iniciar sessão" (0%), "Continuar sessão" (entre 0 e 100%) ou "Revisar
@@ -144,11 +233,13 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const displayPassage = lang === 'en' ? currentSession.passageEn : currentSession.passage
   const blockName = lang === 'en' ? activeBlock.nameEn : activeBlock.name
   // Plano Livre não tem "Sessão N de X" — cada sessão já é 1 capítulo só.
-  const blockLine = planId !== 'free'
-    ? (lang === 'en'
+  // Planos por tema/cronológico sempre têm (mesmo formato de sessão com id
+  // sequencial + sessionsTotal do bloco/plano sintético).
+  const blockLine = (activePlanData.kind === 'fixed' && planId === 'free')
+    ? blockName
+    : (lang === 'en'
       ? `${blockName} · Session ${currentSession.id} of ${activeBlock.sessionsTotal}`
       : `${blockName} · Sessão ${currentSession.id} de ${activeBlock.sessionsTotal}`)
-    : blockName
 
   return {
     lang,
@@ -170,6 +261,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     achievements,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     plan,
+    activePlan,
     readingOrder,
     // Nome do 1º bloco na ordem ATUAL (Pentateuco ou Evangelhos) — usado no
     // texto de "Reiniciar leitura" da aba Perfil, pra não ficar hardcoded
@@ -243,6 +335,21 @@ export default function App() {
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [activeBlockId, setActiveBlockId] = useState(1)
+  // Plano ativo "alternativo" (por tema ou cronológico) em destaque na aba
+  // Plano — null significa "sem alternativo", plano ativo é o fixo de
+  // sempre (planId acima). Ver resolveActivePlanSessions/buildSession.
+  const [activeAltPlan, setActiveAltPlanState] = useState(null)
+  // Planos por tema salvos — levantado pra cá (em vez de só existir dentro
+  // de ThemePlanScreen.jsx) porque buildSession roda de forma síncrona a
+  // cada render e precisa saber as sessões do plano por tema ativo sem
+  // esperar um fetch.
+  const [themePlans, setThemePlans] = useState([])
+  // "Auto-abrir" — consumidos por ThemePlanScreen/ChronologicalPlanScreen
+  // quando "Continuar sessão" (Home/Rotina) aponta pra um plano alternativo,
+  // mesmo padrão de journeyEntryMode/journeyResumeSessionId abaixo.
+  const [themeAutoOpenId, setThemeAutoOpenId] = useState(null)
+  const [chronoAutoOpenMovementId, setChronoAutoOpenMovementId] = useState(null)
+  const [chronoAutoOpenPaceId, setChronoAutoOpenPaceId] = useState(null)
   // Rotina diária (Oração/Leitura/Reflexão) — o streak exibido é derivado
   // dela (ver computeRoutineStreak), não mais de um login diário.
   const [dailyRoutine, setDailyRoutine] = useState({})
@@ -412,9 +519,29 @@ export default function App() {
     return () => { cancelled = true }
   }, [authUser])
 
-  // Botão "Continuar sessão" da Home: pula direto pra leitura do bloco que
-  // contém a sessão onde o usuário realmente parou, sem passar pelo mapa.
+  // Botão "Continuar sessão" da Home/Rotina: pula direto pra leitura de onde
+  // a pessoa parou — no plano fixo (mapa de blocos) ou no plano alternativo
+  // (tema/cronológico) que estiver em destaque no momento (ver
+  // resolveActivePlanSessions/selectActivePlan). ReadingBlockView já
+  // auto-destaca a sessão "current" sozinho (ver ReadingBlockView.jsx), não
+  // precisa apontar pra uma sessão específica — só abrir o plano certo.
   function continueToday() {
+    if (activeAltPlan?.type === 'theme') {
+      const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
+      if (themePlan) {
+        setThemeAutoOpenId(themePlan.id)
+        setActiveTab('themePlan')
+        return
+      }
+    }
+    if (activeAltPlan?.type === 'chrono') {
+      const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
+      const { block } = findCurrentReadingSession(chrono.blocks, chrono.sessionsByBlock, completedSet)
+      setChronoAutoOpenMovementId(block.id)
+      setChronoAutoOpenPaceId(activeAltPlan.paceId)
+      setActiveTab('chronologicalPlan')
+      return
+    }
     const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock, completedSet)
     setActiveBlockId(block.id)
     setJourneyResumeSessionId(resumeSession.id)
@@ -432,6 +559,13 @@ export default function App() {
     setActiveTab('journey')
   }
 
+  // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
+  // — abre direto na leitura dele, sem passar pela lista de ThemePlanScreen.
+  function openThemePlanFromList(planId) {
+    setThemeAutoOpenId(planId)
+    setActiveTab('themePlan')
+  }
+
   // Rebusca a assinatura e atualiza o estado — usado depois de resgatar um
   // convite de acesso grátis (ver UpgradeScreen.jsx), pra liberar o
   // PaywallGate sozinho, sem precisar de F5.
@@ -444,10 +578,12 @@ export default function App() {
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
-    const [set, userPlanId, userReadingOrder, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
+      getActiveAltPlan(user.email),
+      getThemePlans(user.email),
       getPrayerStats(user.email),
       getDailyRoutine(),
       getMyActiveChallenges(),
@@ -462,6 +598,8 @@ export default function App() {
     setCompletedSet(set)
     setPlanId(userPlanId)
     setReadingOrderState(userReadingOrder)
+    setActiveAltPlanState(userActiveAltPlan)
+    setThemePlans(userThemePlans)
     setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
     setPrayerStats(stats)
     setDailyRoutine(routine)
@@ -488,6 +626,8 @@ export default function App() {
     setStreak(0)
     setPlanId('standard')
     setReadingOrderState('ot_first')
+    setActiveAltPlanState(null)
+    setThemePlans([])
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
     setPendingSocialCount(false)
@@ -516,6 +656,35 @@ export default function App() {
     if (authUser) {
       setSelectedPlanId(authUser.email, id).catch(err => console.error('Failed to persist plan', err))
     }
+  }
+
+  // Escolher qual plano fica em destaque (aba Plano) e vira "sessão de
+  // hoje" (Home/Rotina) — ref = {type:'fixed', id} | {type:'theme', planId}
+  // | {type:'chrono', paceId}. Escolher um plano fixo reusa o selectPlan de
+  // sempre e zera o alternativo; escolher tema/cronológico NÃO muda planId
+  // (o plano fixo de fundo continua governando a aba Bíblia/Progresso).
+  function selectActivePlan(ref) {
+    if (ref.type === 'fixed') {
+      selectPlan(ref.id)
+      setActiveAltPlanState(null)
+      if (authUser) {
+        persistActiveAltPlan(authUser.email, null).catch(err => console.error('Failed to clear active alt plan', err))
+      }
+      return
+    }
+    setActiveAltPlanState(ref)
+    if (authUser) {
+      persistActiveAltPlan(authUser.email, ref).catch(err => console.error('Failed to persist active alt plan', err))
+    }
+  }
+
+  // Chamado pelo ChronologicalPlanScreen quando a pessoa troca o ritmo de
+  // leitura (chips Leve/Padrão/Intensivo) enquanto o cronológico é o plano
+  // ativo no momento — sem isso, trocar o ritmo lá dessincronizaria do que
+  // Home/Rotina mostram. Não-op se o cronológico não for o ativo.
+  function updateChronoActivePace(paceId) {
+    if (activeAltPlan?.type !== 'chrono' || activeAltPlan.paceId === paceId) return
+    selectActivePlan({ type: 'chrono', paceId })
   }
 
   // Troca a ordem de leitura (AT primeiro / NT primeiro) — chamado a partir
@@ -677,7 +846,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans)
 
   // O app inteiro agora exige assinatura ativa — não existe mais versão
   // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de
@@ -702,13 +871,13 @@ export default function App() {
 
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
-    routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onSelectPlan={selectPlan} onMarkRoutineStep={markRoutineStep} />,
-    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} onSelectPlan={selectPlan} onToggleSession={toggleSession} onOpenSession={openReadingSession} onNavigate={navigateTo} />,
+    routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} />,
+    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onToggleSession={toggleSession} onOpenSession={openReadingSession} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
-    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
+    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
+    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} autoOpenMovementId={chronoAutoOpenMovementId} autoOpenPaceId={chronoAutoOpenPaceId} onPaceChanged={updateChronoActivePace} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
