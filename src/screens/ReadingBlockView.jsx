@@ -319,6 +319,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               {heroSession.status === 'done' ? t('reading.markUndone', undefined, lang) : t('reading.markDone', undefined, lang)}
             </button>
           </div>
+
+          {/* Sessão concluída no fluxo guiado (mode 'session', não a
+              navegação livre da aba Bíblia) — próximo passo da rotina é a
+              Reflexão, mesmo padrão do "Ir para a Leitura" que aparece no
+              fim do cronômetro de Oração (PrayerScreen.jsx). */}
+          {mode !== 'browse' && heroSession.status === 'done' && (
+            <div style={{ padding: '0 14px 4px' }}>
+              <button style={styles.nextStepBtn} onClick={() => onNavigate?.('reflection')}>
+                {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Lista de livros do bloco (agrupados; só o livro em leitura já vem
@@ -862,6 +874,7 @@ const styles = {
   heroTagDot:  { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 5 },
   completeBtn: { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   completeBtnDone:{ background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
+  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--bk)', boxShadow: 'var(--shadow-premium)' },
   panel:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   panelBookLabel:{ fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   panelText:   { fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.55 },
