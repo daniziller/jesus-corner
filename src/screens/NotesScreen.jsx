@@ -19,7 +19,7 @@ const FILTERS = [
   { key: 'reflection', types: ['daily-reflection'], labelKey: 'notes.filterReflection' },
 ]
 
-export default function NotesScreen({ session, authUser, blocks }) {
+export default function NotesScreen({ session, authUser, blocks, sessionsByBlock }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   const [filter, setFilter] = useState('all')
@@ -64,6 +64,23 @@ export default function NotesScreen({ session, authUser, blocks }) {
     return lang === 'en' ? (bookNameEn[book] ?? book) : book
   }
 
+  // Nota é salva por passagem exata (livro + capítulos), não por id de
+  // sessão — sobrevive a troca de plano (ver notesStore.js). Pra mostrar
+  // "Sessão N" mesmo assim, procura no plano ATUAL uma sessão com essa
+  // mesma passagem; se o plano mudou depois que a nota foi escrita e
+  // nenhuma sessão bate mais exatamente, some sozinho (só livro + capítulo
+  // continuam aparecendo, sem número).
+  function sessionNumberFor(note) {
+    if (note.type !== 'reading') return null
+    for (const block of blocks) {
+      const match = (sessionsByBlock[block.id] ?? []).find(
+        s => s.book === note.book && s.chStart === note.chStart && s.chEnd === note.chEnd
+      )
+      if (match) return match.id
+    }
+    return null
+  }
+
   function labelFor(note) {
     if (note.type === 'daily-reflection') {
       const d = new Date(`${note.date}T00:00:00`)
@@ -75,7 +92,9 @@ export default function NotesScreen({ session, authUser, blocks }) {
     }
     if (note.type === 'reading') {
       const range = note.chStart === note.chEnd ? `${chLabel} ${note.chStart}` : `${chLabel} ${note.chStart}–${note.chEnd}`
-      return `${bookLabel(note.book)} · ${range}`
+      const sessionN = sessionNumberFor(note)
+      const sessionLabel = sessionN != null ? `${t('reading.sessionLabel', { n: sessionN }, lang)} · ` : ''
+      return `${sessionLabel}${bookLabel(note.book)} · ${range}`
     }
     return note.key
   }

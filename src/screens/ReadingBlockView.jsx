@@ -152,6 +152,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const [openPanel, setOpenPanel] = useState(null)
   const [noteText, setNoteText] = useState('')
   const [hasSavedNote, setHasSavedNote] = useState(false)
+  // Mapa INTEIRO de anotações (não só a da sessão em destaque) — é o que
+  // permite mostrar o ícone de "tem anotação aqui" em qualquer capítulo da
+  // lista abaixo (ver hasNoteFor/SessionCard), não só no card de destaque.
+  const [notesMap, setNotesMap] = useState({})
 
   const heroNoteKey = noteKeyFor(heroSession)
 
@@ -162,8 +166,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     // vez. Qualquer outro painel (Contexto/Mapa/Notas/Curiosidades) sempre
     // fecha ao trocar, e em modo 'session' o comportamento é o de sempre.
     setOpenPanel(p => (mode === 'browse' && p === 'texto') ? 'texto' : null)
-    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); return }
+    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); setNotesMap({}); return }
     getNotes(authUser.email).then(map => {
+      setNotesMap(map)
       setNoteText(noteTextOf(map[heroNoteKey]))
       setHasSavedNote(Boolean(noteTextOf(map[heroNoteKey])))
     })
@@ -172,9 +177,22 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   function handleSaveNote(text) {
     setNoteText(text)
     setHasSavedNote(Boolean(text.trim()))
+    // Atualiza o mapa local na hora (otimista) — sem isso, o ícone de "tem
+    // anotação" na lista só apareceria depois de trocar de sessão e voltar
+    // (próxima vez que o efeito acima buscasse de novo).
+    setNotesMap(prev => {
+      const next = { ...prev }
+      if (text.trim()) next[heroNoteKey] = { text }
+      else delete next[heroNoteKey]
+      return next
+    })
     saveNote(authUser?.email, heroNoteKey, text).catch(err => {
       console.error('Failed to persist note', err)
     })
+  }
+
+  function hasNoteFor(session) {
+    return Boolean(noteTextOf(notesMap[noteKeyFor(session)]))
   }
 
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
@@ -326,6 +344,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               registerCardRef={registerCardRef}
               lastClickedId={selectedSessionId}
               isDesktop={isDesktop}
+              hasNoteFor={hasNoteFor}
             />
           ))}
         </div>
@@ -629,7 +648,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop, hasNoteFor }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -705,6 +724,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               registerCardRef={registerCardRef}
               lastClickedId={lastClickedId}
               isDesktop={isDesktop}
+              hasNote={hasNoteFor(s)}
             />
           ))}
         </div>
@@ -713,7 +733,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop, hasNote }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
@@ -769,9 +789,18 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
         </div>
 
         {/* Info */}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>
             {isReflection || isFreePlan ? title : `${t('reading.sessionLabel', { n: session.id }, lang)} · ${title}`}
+            {/* Ícone de "já tem anotação aqui" — pra não precisar abrir o
+                capítulo de novo só pra descobrir se escreveu algo nele.
+                Ver hasNoteFor em ReadingBlockView (componente pai). */}
+            {hasNote && (
+              <AppIcon
+                name="StickyNote" size={11} color="var(--or)"
+                style={{ verticalAlign: 'middle', marginLeft: 5, position: 'relative', top: -1 }}
+              />
+            )}
           </p>
           <p style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--g5)' }}>
             {isReflection
