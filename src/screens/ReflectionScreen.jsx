@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import ReflectionGuideCard from '../components/reflection/ReflectionGuideCard'
 import { REFLECTION_DATA, phaseMinutesFor } from '../data/reflectionGuide'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
@@ -43,10 +43,16 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   const [openCardId, setOpenCardId] = useState(null)
   const [noteText, setNoteText] = useState('')
   const [hasSavedNote, setHasSavedNote] = useState(false)
+  // Frase de aplicação do dia — campo separado da anotação geral, ligado
+  // especificamente ao 3o passo da etapa "Aplicar" ("escreva uma frase
+  // curta pra lembrar disso ao longo do dia"). Mesmo esquema de chave por
+  // dia da anotação geral, só com prefixo diferente.
+  const [applicationPhrase, setApplicationPhrase] = useState('')
   // Reflexão não tem "sessão" própria como a leitura (Sessão 1, 2...) — é
   // uma prática diária, então a chave da anotação é o dia (dateKey, local,
   // não UTC — ver utils/dateKey.js), uma por dia.
   const noteKey = `reflection:${dateKey()}`
+  const applicationPhraseKey = `application:${dateKey()}`
   // Duração total escolhida na hora — parte do que a pessoa já escolheu
   // antes (jc_reflection_minutes) ou, na primeira vez, do plano ativo.
   const [totalMinutes, setTotalMinutes] = useState(() => getSavedReflectionMinutes() ?? session.plan.reflectionMinutes)
@@ -158,23 +164,31 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
 
   useEffect(() => () => releaseWakeLock(), [])
 
-  // Carrega a anotação do dia — mesmo padrão de ReadingBlockView.jsx
-  // (NotesPanel), reaproveitando o mesmo notesStore, só com uma chave por
-  // dia em vez de por passagem.
+  // Carrega a anotação do dia + a frase de aplicação — mesmo padrão de
+  // ReadingBlockView.jsx (NotesPanel), reaproveitando o mesmo notesStore,
+  // só com chaves por dia em vez de por passagem.
   useEffect(() => {
-    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); return }
+    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); setApplicationPhrase(''); return }
     getNotes(authUser.email).then(map => {
       setNoteText(noteTextOf(map[noteKey]))
       setHasSavedNote(Boolean(noteTextOf(map[noteKey])))
+      setApplicationPhrase(noteTextOf(map[applicationPhraseKey]))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteKey, authUser?.email])
+  }, [noteKey, applicationPhraseKey, authUser?.email])
 
   function handleSaveNote(text) {
     setNoteText(text)
     setHasSavedNote(Boolean(text.trim()))
     saveNote(authUser?.email, noteKey, text).catch(err => {
       console.error('Failed to persist reflection note', err)
+    })
+  }
+
+  function handleSaveApplicationPhrase(text) {
+    setApplicationPhrase(text)
+    saveNote(authUser?.email, applicationPhraseKey, text).catch(err => {
+      console.error('Failed to persist application phrase', err)
     })
   }
 
@@ -312,13 +326,20 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
             cronômetro avança, com aviso sonoro na troca (mesmo padrão do ACTS). */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {REFLECTION_DATA.map((data, i) => (
-            <ReflectionGuideCard
-              key={data.id}
-              data={data}
-              minutes={phaseMinutes[i]}
-              open={openCardId === data.id}
-              onToggle={() => setOpenCardId(v => v === data.id ? null : data.id)}
-            />
+            <Fragment key={data.id}>
+              <ReflectionGuideCard
+                data={data}
+                minutes={phaseMinutes[i]}
+                open={openCardId === data.id}
+                onToggle={() => setOpenCardId(v => v === data.id ? null : data.id)}
+              />
+              {/* Campo separado da anotação geral, colado no passo
+                  "Aplicar" (id 'A') — é ali que o roteiro pede uma frase
+                  curta pra lembrar a aplicação do dia. */}
+              {data.id === 'A' && (
+                <ApplicationPhraseField lang={lang} value={applicationPhrase} onSave={handleSaveApplicationPhrase} />
+              )}
+            </Fragment>
           ))}
         </div>
 
@@ -326,6 +347,40 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
             backend das anotações de leitura (ver notesStore.js). */}
         <NotesPanel value={noteText} hasSavedNote={hasSavedNote} onSave={handleSaveNote} lang={lang} />
       </div>
+    </div>
+  )
+}
+
+// Campo de UMA linha (não textarea) — é uma frase curta, não um texto
+// corrido como a anotação geral (ver NotesPanel logo abaixo). Salva na
+// mesma chave por dia (application:{dateKey}), separada de reflection:
+// {dateKey} de propósito, pra não misturar as duas.
+function ApplicationPhraseField({ value, onSave, lang }) {
+  const [text, setText] = useState(value)
+  const [justSaved, setJustSaved] = useState(false)
+
+  useEffect(() => { setText(value) }, [value])
+
+  function handleSave() {
+    onSave(text)
+    setJustSaved(true)
+    setTimeout(() => setJustSaved(false), 1500)
+  }
+
+  return (
+    <div style={styles.phraseCard}>
+      <p style={styles.phraseLabel}>{t('reflection.applicationPhraseLabel', undefined, lang)}</p>
+      <input
+        type="text"
+        style={styles.phraseInput}
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder={t('reflection.applicationPhrasePlaceholder', undefined, lang)}
+        maxLength={140}
+      />
+      <button style={styles.phraseSaveBtn} onClick={handleSave}>
+        {justSaved ? t('reflection.savedNote', undefined, lang) : t('reflection.saveApplicationPhrase', undefined, lang)}
+      </button>
     </div>
   )
 }
@@ -395,6 +450,10 @@ const styles = {
   durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
   durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(249,115,22,.35)' },
+  phraseCard:  { background: 'linear-gradient(135deg,#FDF4FF,#FAE8FF)', border: '0.5px dashed rgba(192,38,211,.4)', borderRadius: 16, padding: 13 },
+  phraseLabel: { fontSize: 9.5, fontWeight: 700, color: '#A21CAF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  phraseInput: { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', marginBottom: 10, background: 'white' },
+  phraseSaveBtn:{ width: '100%', background: '#A21CAF', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
   notesPanel:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   notesLabel:  { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 6, verticalAlign: 'middle' },
