@@ -5,6 +5,8 @@
 // (x-vercel-ip-country) — o idioma do email é o do IP de quem está
 // convidando (a pessoa logada fazendo a chamada), não do convidado, que
 // ainda nem visitou o app.
+import { emailFooterLinksHtml } from './_lib/emailFooter.js'
+
 export const config = { runtime: 'edge' }
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -58,8 +60,9 @@ function buildEmailHtml(lang, inviterName) {
               </td></tr>
             </table>
           </td></tr>
-          <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;">
-            <p style="margin:20px 0 0;font-size:11px;color:#A3A3A3;line-height:1.5;">${c.footer}</p>
+          <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;text-align:center;">
+            ${emailFooterLinksHtml()}
+            <p style="margin:10px 0 0;font-size:11px;color:#A3A3A3;line-height:1.5;">${c.footer}</p>
           </td></tr>
         </table>
       </td></tr>

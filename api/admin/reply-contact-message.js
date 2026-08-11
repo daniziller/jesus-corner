@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { sendEmail } from '../_lib/resend.js'
+import { emailFooterLinksHtml } from '../_lib/emailFooter.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const APP_URL = 'https://app.jesuscorner.app'
@@ -25,8 +26,9 @@ function buildReplyHtml(name, replyBody) {
             <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#121212;line-height:1.3;">Oi, ${name}</h1>
             <p style="margin:0 0 26px;font-size:14px;line-height:1.6;color:#525252;white-space:pre-wrap;">${replyBody}</p>
           </td></tr>
-          <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;">
-            <p style="margin:20px 0 0;font-size:11px;color:#A3A3A3;line-height:1.5;">Essa é uma resposta à sua mensagem enviada pelo formulário "Fale Conosco" do Jesus' Corner.</p>
+          <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;text-align:center;">
+            ${emailFooterLinksHtml()}
+            <p style="margin:10px 0 0;font-size:11px;color:#A3A3A3;line-height:1.5;">Essa é uma resposta à sua mensagem enviada pelo formulário "Fale Conosco" do Jesus' Corner.</p>
           </td></tr>
         </table>
       </td></tr>

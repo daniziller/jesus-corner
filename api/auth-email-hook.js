@@ -17,6 +17,8 @@
 // https://app.jesuscorner.app/api/auth-email-hook — o Supabase gera um
 // segredo (formato "v1,whsec_...") que precisa virar a env var
 // SEND_EMAIL_HOOK_SECRET no Vercel.
+import { emailFooterLinksHtml } from './_lib/emailFooter.js'
+
 export const config = { runtime: 'edge' }
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
@@ -161,6 +163,9 @@ function buildEmailHtml(lang, actionType, token, confirmationUrl) {
                 <a href="${confirmationUrl}" style="display:inline-block;padding:13px 26px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;">${c.cta}</a>
               </td></tr>
             </table>
+          </td></tr>
+          <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;text-align:center;">
+            ${emailFooterLinksHtml()}
           </td></tr>
         </table>
       </td></tr>

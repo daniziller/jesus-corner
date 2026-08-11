@@ -17,6 +17,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { sendEmail } from '../_lib/resend.js'
 import { listAllUsers } from '../_lib/adminUsers.js'
+import { emailFooterLinksHtml } from '../_lib/emailFooter.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const NOTIFICATION_TYPE = 'admin_broadcast'
@@ -90,6 +91,9 @@ function buildBroadcastHtml(title, body) {
           <tr><td style="padding:32px;">
             <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#121212;line-height:1.3;">${title}</h1>
             <p style="margin:0;font-size:14px;line-height:1.6;color:#525252;white-space:pre-wrap;">${body}</p>
+          </td></tr>
+          <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;text-align:center;">
+            ${emailFooterLinksHtml()}
           </td></tr>
         </table>
       </td></tr>

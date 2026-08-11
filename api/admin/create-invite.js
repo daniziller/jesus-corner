@@ -13,6 +13,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { sendEmail } from '../_lib/resend.js'
+import { emailFooterLinksHtml } from '../_lib/emailFooter.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -85,6 +86,9 @@ function buildInviteHtml({ kind, discountPercent, discountDuration, code, langua
                 <a href="${APP_URL}" style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">${ctaLabel} →</a>
               </td></tr>
             </table>
+          </td></tr>
+          <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;text-align:center;">
+            ${emailFooterLinksHtml()}
           </td></tr>
         </table>
       </td></tr>
