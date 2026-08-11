@@ -22,6 +22,9 @@
     },
     "api/delete-account.js": {
       "maxDuration": 60
+    },
+    "api/generate-theme-plan.js": {
+      "maxDuration": 60
     }
   }
 }
