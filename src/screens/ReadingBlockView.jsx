@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
-import { getNotes, saveNote, noteKeyFor } from '../notes/notesStore'
+import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
@@ -164,8 +164,8 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setOpenPanel(p => (mode === 'browse' && p === 'texto') ? 'texto' : null)
     if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); return }
     getNotes(authUser.email).then(map => {
-      setNoteText(map[heroNoteKey] ?? '')
-      setHasSavedNote(Boolean(map[heroNoteKey]))
+      setNoteText(noteTextOf(map[heroNoteKey]))
+      setHasSavedNote(Boolean(noteTextOf(map[heroNoteKey])))
     })
   }, [heroNoteKey, authUser?.email, mode])
 

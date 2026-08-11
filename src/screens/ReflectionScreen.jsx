@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import ReflectionGuideCard from '../components/reflection/ReflectionGuideCard'
 import { REFLECTION_DATA, phaseMinutesFor } from '../data/reflectionGuide'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
-import { getNotes, saveNote } from '../notes/notesStore'
+import { getNotes, saveNote, noteTextOf } from '../notes/notesStore'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -164,8 +164,8 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   useEffect(() => {
     if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); return }
     getNotes(authUser.email).then(map => {
-      setNoteText(map[noteKey] ?? '')
-      setHasSavedNote(Boolean(map[noteKey]))
+      setNoteText(noteTextOf(map[noteKey]))
+      setHasSavedNote(Boolean(noteTextOf(map[noteKey])))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteKey, authUser?.email])
