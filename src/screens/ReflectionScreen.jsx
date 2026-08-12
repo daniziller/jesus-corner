@@ -4,6 +4,8 @@ import { REFLECTION_DATA, phaseMinutesFor } from '../data/reflectionGuide'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getNotes, saveNote, noteTextOf } from '../notes/notesStore'
+import { getHighlights } from '../highlights/highlightsStore'
+import { formatVerseRanges } from '../utils/verseRanges'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -177,6 +179,19 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteKey, applicationPhraseKey, authUser?.email])
+
+  // Textos marcados HOJE durante uma sessão guiada da Rotina (não
+  // navegação livre — ver sessionMode em src/highlights/highlightsStore.js
+  // e handleSaveHighlight em ReadingBlockView.jsx). Mostrados como
+  // referência, só leitura — editar continua em Notas ou na própria
+  // leitura.
+  const [todayHighlights, setTodayHighlights] = useState([])
+  useEffect(() => {
+    if (!authUser?.email) { setTodayHighlights([]); return }
+    getHighlights(authUser.email).then(list => {
+      setTodayHighlights(list.filter(h => h.date === dateKey() && h.sessionMode === 'session'))
+    }).catch(err => console.error('Failed to load highlights', err))
+  }, [authUser?.email])
 
   function handleSaveNote(text) {
     setNoteText(text)
@@ -362,6 +377,26 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
           ))}
         </div>
 
+        {/* Textos marcados hoje durante a sessão de leitura — só aparece se
+            tiver algum (ver useEffect acima); só leitura, editar continua
+            em Notas ou na própria leitura. */}
+        {todayHighlights.length > 0 && (
+          <div style={styles.notesPanel}>
+            <p style={styles.notesLabel}>{t('reflection.markedTextsLabel', undefined, lang)}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {todayHighlights.map(h => (
+                <div key={h.id} style={styles.markedTextItem}>
+                  <p style={styles.markedTextRef}>
+                    <AppIcon name="Highlighter" size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                    {h.book} {h.chapter}:{formatVerseRanges(h.verses)}
+                  </p>
+                  <p style={styles.markedTextBody}>{h.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Anotação do dia — uma por dia (não por etapa), guardada no mesmo
             backend das anotações de leitura (ver notesStore.js). */}
         <NotesPanel value={noteText} hasSavedNote={hasSavedNote} onSave={handleSaveNote} lang={lang} />
@@ -476,6 +511,9 @@ const styles = {
   notesPanel:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   notesLabel:  { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 6, verticalAlign: 'middle' },
+  markedTextItem: { background: 'var(--olt)', border: '0.5px solid var(--gold-soft)', borderRadius: 13, padding: 11 },
+  markedTextRef:  { fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', marginBottom: 3 },
+  markedTextBody: { fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   notesTextarea:{ width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--g1)' },
   notesSaveBtn:{ width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
 }

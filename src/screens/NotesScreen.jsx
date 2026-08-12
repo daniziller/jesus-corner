@@ -7,16 +7,20 @@
 // ContactScreen.jsx/UpgradeScreen.jsx.
 import { useState, useEffect, useMemo } from 'react'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
+import { getHighlights, updateHighlightText, deleteHighlight } from '../highlights/highlightsStore'
+import { formatVerseRanges } from '../utils/verseRanges'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-// 'reading' cobre nota de capítulo E reflexão de fechamento de livro — as
-// duas vivem dentro do fluxo de leitura da Bíblia. 'reflection' cobre a
-// anotação geral E a frase de aplicação da Reflexão diária — as duas vêm
-// da mesma aba, só em campos separados (ver ReflectionScreen.jsx).
+// 'reading' cobre nota de capítulo, reflexão de fechamento de livro E
+// marcação de trecho específico (highlight, ver src/highlights/
+// highlightsStore.js) — as três vivem dentro do fluxo de leitura da
+// Bíblia. 'reflection' cobre a anotação geral E a frase de aplicação da
+// Reflexão diária — as duas vêm da mesma aba, só em campos separados (ver
+// ReflectionScreen.jsx).
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
-  { key: 'reading', types: ['reading', 'book-reflection'], labelKey: 'notes.filterReading' },
+  { key: 'reading', types: ['reading', 'book-reflection', 'highlight'], labelKey: 'notes.filterReading' },
   { key: 'reflection', types: ['daily-reflection', 'application-phrase'], labelKey: 'notes.filterReflection' },
 ]
 
@@ -43,10 +47,10 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   useEffect(() => {
     if (!authUser?.email) { setState({ status: 'ready', notes: [] }); return }
     let cancelled = false
-    getNotes(authUser.email)
-      .then(map => {
+    Promise.all([getNotes(authUser.email), getHighlights(authUser.email)])
+      .then(([map, highlightList]) => {
         if (cancelled) return
-        const notes = Object.entries(map)
+        const noteEntries = Object.entries(map)
           .map(([key, entry]) => ({
             key,
             text: noteTextOf(entry),
@@ -57,9 +61,20 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           // é só o valor fixado no card da Home — ver notesStore.js) e
           // qualquer chave futura que essa tela ainda não saiba rotular.
           .filter(n => n.text && n.type !== 'unknown')
-          // Mais recentes primeiro; anotações salvas antes desta tela
-          // existir não têm updatedAt (formato antigo, só texto) — ficam
-          // no fim, sem embaralhar as que já têm data de verdade.
+        // Marcações de trecho específico (ver src/highlights/
+        // highlightsStore.js) — id próprio (não uma chave do mapa de notas
+        // de cima), então id vira a "key" aqui só pra reaproveitar o mesmo
+        // formato de card/edição/exclusão da lista.
+        const highlightEntries = highlightList
+          .filter(h => h.text)
+          .map(h => ({
+            key: h.id, id: h.id, text: h.text, updatedAt: h.createdAt ?? h.updatedAt,
+            type: 'highlight', book: h.book, chapter: h.chapter, verses: h.verses,
+          }))
+        // Mais recentes primeiro; anotações salvas antes desta tela existir
+        // não têm updatedAt (formato antigo, só texto) — ficam no fim, sem
+        // embaralhar as que já têm data de verdade.
+        const notes = [...noteEntries, ...highlightEntries]
           .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
         setState({ status: 'ready', notes })
       })
@@ -109,10 +124,14 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       const sessionLabel = sessionN != null ? `${t('reading.sessionLabel', { n: sessionN }, lang)} · ` : ''
       return `${sessionLabel}${bookLabel(note.book)} · ${range}`
     }
+    if (note.type === 'highlight') {
+      return `${bookLabel(note.book)} ${note.chapter}:${formatVerseRanges(note.verses)}`
+    }
     return note.key
   }
 
   function iconFor(type) {
+    if (type === 'highlight') return 'Highlighter'
     if (type === 'reading') return 'BookOpen'
     if (type === 'application-phrase') return 'Sparkles'
     return 'PenLine'
@@ -134,7 +153,10 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (!editText.trim()) return
     setBusyKey(note.key)
     try {
-      await saveNote(authUser.email, note.key, editText)
+      // Marcação de trecho (highlight) vive numa coluna própria, à parte do
+      // mapa de notas de sempre — ver src/highlights/highlightsStore.js.
+      if (note.type === 'highlight') await updateHighlightText(authUser.email, note.id, editText)
+      else await saveNote(authUser.email, note.key, editText)
       setState(s => ({
         ...s,
         notes: s.notes
@@ -154,7 +176,8 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (!window.confirm(t('notes.deleteConfirm', undefined, lang))) return
     setBusyKey(note.key)
     try {
-      await saveNote(authUser.email, note.key, '')
+      if (note.type === 'highlight') await deleteHighlight(authUser.email, note.id)
+      else await saveNote(authUser.email, note.key, '')
       setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
     } catch (err) {
       console.error('Failed to delete note', err)

@@ -3,10 +3,13 @@ import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
+import { getHighlights, saveHighlight, updateHighlightText, deleteHighlight } from '../highlights/highlightsStore'
+import { formatVerseRanges } from '../utils/verseRanges'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
+import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -195,6 +198,53 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     return Boolean(noteTextOf(notesMap[noteKeyFor(session)]))
   }
 
+  // Marcações de trechos específicos (versículo a versículo, ver
+  // src/highlights/highlightsStore.js) — busca TODAS de uma vez (não só as
+  // do livro em destaque), igual notesMap acima, pra alimentar o pontinho
+  // no chip de qualquer capítulo da lista sem precisar trocar de sessão
+  // pra descobrir. Só carrega 1 vez por usuário (não depende de
+  // heroNoteKey/mode como o efeito das notas).
+  const [highlights, setHighlights] = useState([])
+  useEffect(() => {
+    if (!authUser?.email) { setHighlights([]); return }
+    getHighlights(authUser.email).then(setHighlights).catch(err => {
+      console.error('Failed to load highlights', err)
+    })
+  }, [authUser?.email])
+
+  // Otimista igual handleSaveNote acima: atualiza o estado local na hora,
+  // persiste em segundo plano. sessionMode ('session'|'browse') é o que
+  // decide se esse highlight aparece na Reflexão do dia (ver
+  // ReflectionScreen.jsx) — só os feitos durante uma sessão guiada contam.
+  function handleSaveHighlight(book, bookEn, chapter, verses, text) {
+    const highlight = {
+      id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      book, bookEn, chapter, verses,
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+      date: dateKey(),
+      sessionMode: mode === 'session' ? 'session' : 'browse',
+    }
+    setHighlights(prev => [...prev, highlight])
+    saveHighlight(authUser?.email, highlight).catch(err => {
+      console.error('Failed to persist highlight', err)
+    })
+  }
+
+  function handleUpdateHighlightText(id, text) {
+    setHighlights(prev => prev.map(h => h.id === id ? { ...h, text } : h))
+    updateHighlightText(authUser?.email, id, text).catch(err => {
+      console.error('Failed to update highlight', err)
+    })
+  }
+
+  function handleDeleteHighlight(id) {
+    setHighlights(prev => prev.filter(h => h.id !== id))
+    deleteHighlight(authUser?.email, id).catch(err => {
+      console.error('Failed to delete highlight', err)
+    })
+  }
+
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
   const heroTitle = lang === 'en' ? heroSession.titleEn : heroSession.title
   const heroPassage = lang === 'en' ? heroSession.passageEn : heroSession.passage
@@ -256,6 +306,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                 lang={lang}
                 textOpen={openPanel === 'texto'}
                 onToggleText={mode === 'browse' ? undefined : () => setOpenPanel(p => (p === 'texto' ? null : 'texto'))}
+                highlights={highlights}
               />
             </div>
           )}
@@ -287,7 +338,16 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               // de uma coluna de leitura mais larga (ver também styles.panel
               // sobrescrito dentro de BibleTextPanel).
               <div style={{ padding: '0 6px 4px' }}>
-                <BibleTextPanel session={heroSession} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
+                <BibleTextPanel
+                  session={heroSession}
+                  lang={lang}
+                  completedSet={completedSet}
+                  onToggleChapter={onToggleChapter}
+                  highlights={highlights}
+                  onSaveHighlight={handleSaveHighlight}
+                  onUpdateHighlightText={handleUpdateHighlightText}
+                  onDeleteHighlight={handleDeleteHighlight}
+                />
                 {nextForHero && (
                   <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
                     {t('reading.nextChapter', { title: lang === 'en' ? nextForHero.titleEn : nextForHero.title }, lang)}
@@ -357,6 +417,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               lastClickedId={selectedSessionId}
               isDesktop={isDesktop}
               hasNoteFor={hasNoteFor}
+              highlights={highlights}
+              onSaveHighlight={handleSaveHighlight}
+              onUpdateHighlightText={handleUpdateHighlightText}
+              onDeleteHighlight={handleDeleteHighlight}
             />
           ))}
         </div>
@@ -368,7 +432,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
 // Fileira de capítulos clicáveis de uma sessão — usada no destaque (sempre
 // visível). O botão "Texto" (quando informado) entra como 1o item da
 // fileira, junto dos capítulos que ele exibe.
-function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText }) {
+function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText, highlights }) {
   const chapters = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapters.push(ch)
   const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
@@ -386,13 +450,18 @@ function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, 
       )}
       {chapters.map(ch => {
         const done = completedSet.has(`${session.book}:${ch}`)
+        // Ponto dourado — mesmo tom das marcações em si (ver
+        // styles.verseHighlighted) — avisa que esse capítulo tem algum
+        // trecho marcado, sem precisar abrir o texto pra descobrir.
+        const hasHighlight = highlights?.some(h => h.book === session.book && h.chapter === ch)
         return (
           <button
             key={ch}
-            style={{ ...styles.chapterChip, ...(done ? styles.chapterChipDone : {}) }}
+            style={{ ...styles.chapterChip, ...(done ? styles.chapterChipDone : {}), position: 'relative' }}
             onClick={e => { e.stopPropagation(); onToggleChapter(session, ch, !done) }}
           >
             {done ? '✓ ' : ''}{chLabel} {ch}
+            {hasHighlight && <span style={styles.chapterChipDot} />}
           </button>
         )
       })}
@@ -400,7 +469,7 @@ function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, 
   )
 }
 
-function ChapterChecklist({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText }) {
+function ChapterChecklist({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText, highlights }) {
   const chapters = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapters.push(ch)
   const doneCount = chapters.filter(ch => completedSet.has(`${session.book}:${ch}`)).length
@@ -411,7 +480,7 @@ function ChapterChecklist({ session, completedSet, onToggleChapter, lang, textOp
         <p style={{ ...styles.panelBookLabel, marginBottom: 0 }}>{t('reading.chaptersOfSession', undefined, lang)}</p>
         <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)' }}>{t('reading.chaptersReadCount', { done: doneCount, total: chapters.length }, lang)}</span>
       </div>
-      <ChapterChips session={session} completedSet={completedSet} onToggleChapter={onToggleChapter} lang={lang} textOpen={textOpen} onToggleText={onToggleText} />
+      <ChapterChips session={session} completedSet={completedSet} onToggleChapter={onToggleChapter} lang={lang} textOpen={textOpen} onToggleText={onToggleText} highlights={highlights} />
     </div>
   )
 }
@@ -508,7 +577,7 @@ function groupIntoParagraphs(chapter) {
   return paragraphs
 }
 
-function BibleTextPanel({ session, lang, completedSet, onToggleChapter }) {
+function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, onSaveHighlight, onUpdateHighlightText, onDeleteHighlight }) {
   const bookKey = lang === 'en' ? session.bookEn : session.book
   const availableVersions = BIBLE_VERSIONS[lang] ?? []
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
@@ -532,6 +601,40 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter }) {
       .catch(() => { if (!cancelled) setState({ status: 'error', chapters: null }) })
     return () => { cancelled = true }
   }, [versionId, bookKey])
+
+  // Versículos escolhidos AGORA pra virar um highlight novo — sempre de um
+  // capítulo só (ver decisão de escopo no plano); tocar num versículo de
+  // outro capítulo enquanto uma seleção está em andamento troca pra ela,
+  // não soma (evita misturar capítulos numa marcação só). `editingId` é o
+  // highlight JÁ salvo aberto pra ver/editar/apagar (tocar num versículo
+  // que já pertence a um cai aqui em vez de somar à seleção).
+  const [selection, setSelection] = useState(null) // { chapter, verses: Set<number> } | null
+  const [editingId, setEditingId] = useState(null)
+
+  function highlightForVerse(ch, v) {
+    return highlights?.find(h => h.book === session.book && h.chapter === ch && h.verses.includes(v))
+  }
+
+  function handleVerseNumberClick(ch, v) {
+    const existing = highlightForVerse(ch, v)
+    if (existing) { setEditingId(existing.id); setSelection(null); return }
+    setEditingId(null)
+    setSelection(prev => {
+      if (!prev || prev.chapter !== ch) return { chapter: ch, verses: new Set([v]) }
+      const verses = new Set(prev.verses)
+      if (verses.has(v)) verses.delete(v)
+      else verses.add(v)
+      return verses.size === 0 ? null : { chapter: ch, verses }
+    })
+  }
+
+  function handleSaveSelection(text) {
+    if (!selection || !text.trim() || !onSaveHighlight) return
+    onSaveHighlight(session.book, session.bookEn, selection.chapter, [...selection.verses].sort((a, b) => a - b), text)
+    setSelection(null)
+  }
+
+  const editingHighlight = editingId ? highlights?.find(h => h.id === editingId) : null
 
   const chapterNumbers = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapterNumbers.push(ch)
@@ -571,20 +674,56 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter }) {
             <p style={styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
             {paragraphs.map((verseNums, pIdx) => (
               <p key={pIdx} style={styles.bibleTextBody}>
-                {verseNums.map((v, vIdx) => (
-                  <span key={v}>
-                    {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
-                    <sup style={styles.bibleTextVerseNum}>{v}</sup>
-                    {chapter.verses[String(v)].split('\n').map((line, lIdx, arr) => (
-                      <span key={lIdx}>
-                        {line}
-                        {lIdx < arr.length - 1 && <br />}
-                      </span>
-                    ))}{' '}
-                  </span>
-                ))}
+                {verseNums.map((v, vIdx) => {
+                  // Toca no NÚMERO (não no texto corrido) pra marcar — evita
+                  // brigar com o toque normal de ler/rolar a tela. Versículo
+                  // já marcado (highlight salvo) ganha fundo dourado sempre;
+                  // em seleção (ainda não salvo) ganha um contorno tracejado.
+                  const isHighlighted = Boolean(highlightForVerse(ch, v))
+                  const isSelected = selection?.chapter === ch && selection.verses.has(v)
+                  return (
+                    <span key={v} style={isHighlighted ? styles.verseHighlighted : isSelected ? styles.verseSelected : undefined}>
+                      {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
+                      <sup
+                        style={{ ...styles.bibleTextVerseNum, ...styles.verseNumBtn }}
+                        onClick={() => handleVerseNumberClick(ch, v)}
+                      >
+                        {v}
+                      </sup>
+                      {chapter.verses[String(v)].split('\n').map((line, lIdx, arr) => (
+                        <span key={lIdx}>
+                          {line}
+                          {lIdx < arr.length - 1 && <br />}
+                        </span>
+                      ))}{' '}
+                    </span>
+                  )
+                })}
               </p>
             ))}
+
+            {/* Compor um highlight novo (versículos selecionados nesse
+                capítulo) ou ver/editar/apagar um já salvo — só um dos dois
+                por vez, nunca junto (ver handleVerseNumberClick). */}
+            {selection?.chapter === ch && (
+              <HighlightNoteBox
+                countLabel={t('reading.markVerses', { n: selection.verses.size }, lang)}
+                onSave={handleSaveSelection}
+                onCancel={() => setSelection(null)}
+                lang={lang}
+              />
+            )}
+            {editingHighlight?.chapter === ch && (
+              <HighlightNoteBox
+                countLabel={`${chLabel} ${ch}:${formatVerseRanges(editingHighlight.verses)}`}
+                initialText={editingHighlight.text}
+                onSave={text => { onUpdateHighlightText?.(editingHighlight.id, text); setEditingId(null) }}
+                onDelete={() => { onDeleteHighlight?.(editingHighlight.id); setEditingId(null) }}
+                onCancel={() => setEditingId(null)}
+                lang={lang}
+              />
+            )}
+
             {/* Marcar o capítulo como lido direto no fim do texto — sem
                 precisar voltar pro topo e caçar o chip dele (ver
                 ChapterChips, que continua existindo pra quem prefere). */}
@@ -604,6 +743,44 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter }) {
       {state.status === 'ready' && (
         <p style={styles.bibleTextAttribution}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
       )}
+    </div>
+  )
+}
+
+// Caixa pra compor a nota de um highlight novo (countLabel = "Marcar N
+// versículos") ou ver/editar/apagar um já salvo (countLabel = referência
+// tipo "Cap. 6:9–13", initialText preenchido, onDelete presente). Mesmo
+// padrão visual das outras caixas de nota do arquivo (NotesPanel).
+function HighlightNoteBox({ countLabel, initialText = '', onSave, onDelete, onCancel, lang }) {
+  const [text, setText] = useState(initialText)
+
+  return (
+    <div style={styles.highlightBox}>
+      <p style={styles.highlightBoxLabel}>
+        <AppIcon name="Highlighter" size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+        {countLabel}
+      </p>
+      <textarea
+        style={styles.notesTextarea}
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder={t('reading.highlightNotePlaceholder', undefined, lang)}
+        rows={2}
+        autoFocus
+      />
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button style={{ ...styles.notesSaveBtn, width: 'auto', flex: 1, marginBottom: 0 }} onClick={() => onSave(text)} disabled={!text.trim()}>
+          {t('reading.highlightSave', undefined, lang)}
+        </button>
+        <button style={styles.highlightCancelBtn} onClick={onCancel}>
+          {t('reading.highlightCancel', undefined, lang)}
+        </button>
+        {onDelete && (
+          <button style={styles.highlightDeleteBtn} onClick={onDelete} aria-label={t('reading.highlightDelete', undefined, lang)}>
+            <AppIcon name="Trash2" size={13} />
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -660,7 +837,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop, hasNoteFor }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop, hasNoteFor, highlights, onSaveHighlight, onUpdateHighlightText, onDeleteHighlight }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -737,6 +914,10 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               lastClickedId={lastClickedId}
               isDesktop={isDesktop}
               hasNote={hasNoteFor(s)}
+              highlights={highlights}
+              onSaveHighlight={onSaveHighlight}
+              onUpdateHighlightText={onUpdateHighlightText}
+              onDeleteHighlight={onDeleteHighlight}
             />
           ))}
         </div>
@@ -745,7 +926,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop, hasNote }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop, hasNote, highlights, onSaveHighlight, onUpdateHighlightText, onDeleteHighlight }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
@@ -845,7 +1026,16 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
         // modo 'session') — o card já tem seu próprio respiro, não precisa
         // somar mais um em cima do padding do painel logo abaixo.
         <div style={{ padding: '0 4px 11px' }} onClick={e => e.stopPropagation()}>
-          <BibleTextPanel session={session} lang={lang} completedSet={completedSet} onToggleChapter={onToggleChapter} />
+          <BibleTextPanel
+            session={session}
+            lang={lang}
+            completedSet={completedSet}
+            onToggleChapter={onToggleChapter}
+            highlights={highlights}
+            onSaveHighlight={onSaveHighlight}
+            onUpdateHighlightText={onUpdateHighlightText}
+            onDeleteHighlight={onDeleteHighlight}
+          />
           {nextSession && (
             <button style={styles.nextChapterBtn} onClick={() => onNextInline(session)}>
               {t('reading.nextChapter', { title: lang === 'en' ? nextSession.titleEn : nextSession.title }, lang)}
@@ -902,4 +1092,17 @@ const styles = {
   nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
   chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 10, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--g1)' },
   chapterDoneBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
+
+  // Marcação de trechos específicos (versículo a versículo) — ver
+  // src/highlights/highlightsStore.js. Mesma família de tom do resto do
+  // app pra "destaque" (--gold), não o marrom/laranja de marca (--or),
+  // pra não confundir com "capítulo lido" (chapterChipDone já usa --grad-vivid).
+  chapterChipDot:  { position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: 'var(--gold)', border: '1.5px solid var(--card-bg)' },
+  verseNumBtn:     { cursor: 'pointer', padding: '0 2px' },
+  verseHighlighted:{ background: 'rgba(201,154,74,.28)', borderRadius: 3 },
+  verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
+  highlightBox:    { background: 'var(--olt)', border: '0.5px dashed var(--gold-soft)', borderRadius: 13, padding: 11, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 },
+  highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
+  highlightCancelBtn:{ flex: 1, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
 }
