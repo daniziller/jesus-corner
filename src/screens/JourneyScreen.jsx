@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { GRADIENT_MAP } from '../data/bibleBlocks'
-import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
+import { ACCENT_MAP, GLOW_MAP, TINT_MAP, BORDER_MAP } from '../utils/blockColors'
 import { pickActiveBlock, sessionKeys } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { t } from '../i18n'
@@ -306,7 +306,7 @@ function BlockCard({ block, onOpenBlock, onOpenBook, lang }) {
         {books.map((bookName, i) => (
           <span
             key={bookName}
-            style={styles.bookChip}
+            style={{ ...styles.bookChip, background: TINT_MAP[block.gradientKey], color: accent, borderColor: BORDER_MAP[block.gradientKey] }}
             onClick={() => onOpenBook(block, block.books[i])}
           >
             {bookName}
@@ -357,5 +357,5 @@ const styles = {
   blockTop:        { padding: '13px 12px 10px', display: 'flex', gap: 10, alignItems: 'flex-start' },
   blockTag:        { fontSize: 8, fontWeight: 700, color: 'var(--g4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 },
   blockTitle:      { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 4, letterSpacing: '-0.2px' },
-  bookChip:        { background: 'var(--olt)', color: 'var(--brand-deep)', border: '0.5px solid rgba(157,67,0,.25)', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
+  bookChip:        { borderWidth: 0.5, borderStyle: 'solid', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
 }
