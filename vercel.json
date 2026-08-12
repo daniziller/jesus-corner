@@ -24,7 +24,7 @@
       "maxDuration": 60
     },
     "api/generate-theme-plan.js": {
-      "maxDuration": 120
+      "maxDuration": 240
     }
   }
 }

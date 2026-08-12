@@ -43,21 +43,24 @@ const CANONICAL_BOOKS = Object.keys(BOOK_EN_BY_PT)
 
 // Cache em memória do processo (dura enquanto a function/lambda ficar
 // "quente") — o mesmo livro pode aparecer em mais de uma passagem da
-// mesma resposta da IA, evita refazer o mesmo fetch de ~100KB.
+// mesma resposta da IA, evita refazer o mesmo fetch de ~100KB. Guarda a
+// PROMISE (não o resultado já resolvido) — é o que permite validar todas
+// as passagens em paralelo (Promise.all abaixo) sem disparar 2 fetches
+// pro mesmo livro quando ele aparece em mais de uma passagem ao mesmo
+// tempo (mesmo padrão de src/bible-text/bibleTextStore.js).
 const bookTextCache = new Map()
-async function fetchBookChapters(folder, bookName) {
+function fetchBookChapters(folder, bookName) {
   const key = `${folder}:${bookName}`
   if (bookTextCache.has(key)) return bookTextCache.get(key)
   const slug = slugify(bookName)
-  let data = null
-  try {
-    const res = await fetch(`${APP_URL}/bible-text/${folder}/${slug}.json`)
-    if (res.ok) data = await res.json()
-  } catch (err) {
-    console.error('[generate-theme-plan] failed to fetch book text:', bookName, err.message)
-  }
-  bookTextCache.set(key, data)
-  return data
+  const promise = fetch(`${APP_URL}/bible-text/${folder}/${slug}.json`)
+    .then(res => (res.ok ? res.json() : null))
+    .catch(err => {
+      console.error('[generate-theme-plan] failed to fetch book text:', bookName, err.message)
+      return null
+    })
+  bookTextCache.set(key, promise)
+  return promise
 }
 
 function wordCount(text) {
@@ -170,29 +173,34 @@ export default async function handler(req, res) {
   }
 
   // Passagens validadas (livro + faixa de capítulos JÁ dentro do range
-  // real, sem o texto em si).
-  const validatedPassages = []
+  // real, sem o texto em si). Busca o texto de todos os livros citados EM
+  // PARALELO (Promise.all) em vez de um de cada vez — com até 20 passagens
+  // em livros diferentes, sequencial somava vários segundos à toa.
+  const canonicalPassages = passages.filter(p => CANONICAL_BOOKS.includes(p.book))
+  const bookDataByPassage = await Promise.all(
+    canonicalPassages.map(p => {
+      // O arquivo de texto de cada versão é nomeado no idioma DELA (ex:
+      // pt-nvt/mateus.json, en-nlt/matthew.json) — não sempre pelo nome
+      // canônico (pt) que a IA devolveu, senão a busca falha pra en-nlt.
+      const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[p.book] : p.book
+      return fetchBookChapters(folder, bookNameForFolder)
+    })
+  )
 
-  for (const p of passages) {
-    // Só aceita livro que está de fato na lista canônica — a IA foi
-    // instruída a só usar esses nomes, mas nunca confiar sem checar.
-    if (!CANONICAL_BOOKS.includes(p.book)) continue
-    // O arquivo de texto de cada versão é nomeado no idioma DELA (ex:
-    // pt-nvt/mateus.json, en-nlt/matthew.json) — não sempre pelo nome
-    // canônico (pt) que a IA devolveu, senão a busca falha pra en-nlt.
-    const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[p.book] : p.book
-    const bookData = await fetchBookChapters(folder, bookNameForFolder)
-    if (!bookData) continue
+  const validatedPassages = []
+  canonicalPassages.forEach((p, i) => {
+    const bookData = bookDataByPassage[i]
+    if (!bookData) return
 
     // Prende chStart/chEnd dentro da faixa real de capítulos do livro —
     // a IA pode errar o número, o livro em si (já filtrado acima) não.
     const availableChapters = Object.keys(bookData).map(Number).sort((a, b) => a - b)
     const maxChapter = availableChapters[availableChapters.length - 1]
-    if (!maxChapter) continue
+    if (!maxChapter) return
     const chStart = Math.max(1, Math.min(Math.round(p.chStart) || 1, maxChapter))
     const chEnd = Math.max(chStart, Math.min(Math.round(p.chEnd) || chStart, maxChapter))
     validatedPassages.push({ book: p.book, chStart, chEnd, reason: p.reason })
-  }
+  })
 
   if (validatedPassages.length === 0) {
     return res.status(502).json({ error: 'no_valid_passages' })
@@ -204,17 +212,22 @@ export default async function handler(req, res) {
   // não existe mais divisão por ritmo (ver comentário no topo do arquivo).
   const mergedPassages = mergeAdjacentPassages(validatedPassages)
 
-  const texts = []
-  let nextId = 1
-  for (const p of mergedPassages) {
-    const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[p.book] : p.book
-    const bookData = await fetchBookChapters(folder, bookNameForFolder) // já em cache, não refaz o fetch
+  // Mesmos livros já buscados (e em cache) na validação acima — em paralelo
+  // de novo, mas na prática já resolve na hora (mesma promise cacheada).
+  const bookDataByMerged = await Promise.all(
+    mergedPassages.map(p => {
+      const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[p.book] : p.book
+      return fetchBookChapters(folder, bookNameForFolder)
+    })
+  )
+  const texts = mergedPassages.map((p, i) => {
+    const bookData = bookDataByMerged[i]
     let words = 0
     for (let ch = p.chStart; ch <= p.chEnd; ch++) {
       words += chapterWordCount(bookData[String(ch)])
     }
-    texts.push(buildText(nextId++, p.book, p.chStart, p.chEnd, p.reason, words))
-  }
+    return buildText(i + 1, p.book, p.chStart, p.chEnd, p.reason, words)
+  })
 
   const plan = {
     id: `theme-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
