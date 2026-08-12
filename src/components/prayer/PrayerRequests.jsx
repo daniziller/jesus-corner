@@ -15,6 +15,15 @@ function todayStr(lang) {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
+// Um pedido podia ter só 1 nota (campo `note`, string, sempre sobrescrita).
+// Agora são várias (`notes`, array de {id,text,createdAt}) — pedidos já
+// salvos com o campo antigo continuam mostrando essa nota, só que como a
+// primeira da lista (mesmo padrão de string->objeto de src/notes/notesStore.js).
+function requestNotes(r) {
+  if (Array.isArray(r.notes)) return r.notes
+  return r.note ? [{ id: 0, text: r.note, createdAt: r.date }] : []
+}
+
 export default function PrayerRequests({ authUser, lang }) {
   const email = authUser?.email
   const [requests, setRequests]       = useState([])
@@ -66,8 +75,28 @@ export default function PrayerRequests({ authUser, lang }) {
     updateRequests(prev => prev.filter(r => r.id !== id))
   }
 
-  function saveNote(id, note) {
-    updateRequests(prev => prev.map(r => r.id === id ? { ...r, note } : r))
+  function addNote(id, text) {
+    if (!text.trim()) return
+    updateRequests(prev => prev.map(r => {
+      if (r.id !== id) return r
+      const existing = requestNotes(r)
+      const nextId = existing.reduce((max, n) => Math.max(max, n.id), 0) + 1
+      return { ...r, notes: [...existing, { id: nextId, text: text.trim(), createdAt: todayStr(lang) }] }
+    }))
+  }
+
+  function editNote(id, noteId, text) {
+    updateRequests(prev => prev.map(r => {
+      if (r.id !== id) return r
+      return { ...r, notes: requestNotes(r).map(n => n.id === noteId ? { ...n, text } : n) }
+    }))
+  }
+
+  function deleteNote(id, noteId) {
+    updateRequests(prev => prev.map(r => {
+      if (r.id !== id) return r
+      return { ...r, notes: requestNotes(r).filter(n => n.id !== noteId) }
+    }))
   }
 
   function toggleFolder(type) {
@@ -127,7 +156,9 @@ export default function PrayerRequests({ authUser, lang }) {
               onAnswer={() => changeStatus(r.id, 'answered')}
               onDeny={() => changeStatus(r.id, 'responded')}
               onDelete={() => deleteRequest(r.id)}
-              onSaveNote={note => saveNote(r.id, note)}
+              onAddNote={text => addNote(r.id, text)}
+              onEditNote={(noteId, text) => editNote(r.id, noteId, text)}
+              onDeleteNote={noteId => deleteNote(r.id, noteId)}
             />
           ))}
         </div>
@@ -142,7 +173,9 @@ export default function PrayerRequests({ authUser, lang }) {
           lang={lang}
           onClose={() => setOpenFolder(null)}
           onDelete={id => deleteRequest(id)}
-          onSaveNote={saveNote}
+          onAddNote={addNote}
+          onEditNote={editNote}
+          onDeleteNote={deleteNote}
         />
       )}
 
@@ -156,7 +189,9 @@ export default function PrayerRequests({ authUser, lang }) {
           lang={lang}
           onClose={() => setOpenFolder(null)}
           onDelete={id => deleteRequest(id)}
-          onSaveNote={saveNote}
+          onAddNote={addNote}
+          onEditNote={editNote}
+          onDeleteNote={deleteNote}
         />
       )}
     </div>
@@ -177,7 +212,7 @@ function StatBox({ icon, label, count, pct, color, tint, onClick }) {
   )
 }
 
-function RequestItem({ request, lang, onAnswer, onDeny, onDelete, onSaveNote }) {
+function RequestItem({ request, lang, onAnswer, onDeny, onDelete, onAddNote, onEditNote, onDeleteNote }) {
   return (
     <div style={styles.item}>
       <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
@@ -192,12 +227,12 @@ function RequestItem({ request, lang, onAnswer, onDeny, onDelete, onSaveNote }) 
           <button style={{ ...styles.action, ...styles.actionDel }} onClick={onDelete} title={t('prayer.deleteAction', undefined, lang)}><AppIcon name="Trash2" size={13} /></button>
         </div>
       </div>
-      <NoteEditor note={request.note} onSave={onSaveNote} lang={lang} />
+      <NotesList notes={requestNotes(request)} onAdd={onAddNote} onEdit={onEditNote} onDelete={onDeleteNote} lang={lang} />
     </div>
   )
 }
 
-function FolderView({ title, icon, color, items, lang, onClose, onDelete, onSaveNote }) {
+function FolderView({ title, icon, color, items, lang, onClose, onDelete, onAddNote, onEditNote, onDeleteNote }) {
   return (
     <div style={{ borderTop: '0.5px solid var(--g2)' }}>
       <div style={styles.folderHeader} onClick={onClose}>
@@ -216,42 +251,101 @@ function FolderView({ title, icon, color, items, lang, onClose, onDelete, onSave
             </div>
             <button style={styles.folderDel} onClick={() => onDelete(r.id)}><AppIcon name="Trash2" size={12} /></button>
           </div>
-          <NoteEditor note={r.note} onSave={note => onSaveNote(r.id, note)} lang={lang} />
+          <NotesList
+            notes={requestNotes(r)}
+            onAdd={text => onAddNote(r.id, text)}
+            onEdit={(noteId, text) => onEditNote(r.id, noteId, text)}
+            onDelete={noteId => onDeleteNote(r.id, noteId)}
+            lang={lang}
+          />
         </div>
       ))}
     </div>
   )
 }
 
-function NoteEditor({ note, onSave, lang }) {
-  const [open, setOpen] = useState(false)
-  const [text, setText] = useState(note ?? '')
+// Lista de notas de um pedido — cada uma editável/deletável na hora, mais
+// um botão pra sempre ACRESCENTAR uma nova em vez de sobrescrever a única
+// nota de antes (ver requestNotes/addNote no componente pai).
+function NotesList({ notes, onAdd, onEdit, onDelete, lang }) {
+  const [adding, setAdding] = useState(false)
+  const [newText, setNewText] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
 
-  useEffect(() => { setText(note ?? '') }, [note])
-
-  if (!open) {
-    return (
-      <button style={{ ...styles.noteToggle, display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => setOpen(true)}>
-        <AppIcon name="StickyNote" size={11} style={{ flexShrink: 0 }} />
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note || t('prayer.addNote', undefined, lang)}</span>
-      </button>
-    )
+  function startEdit(note) {
+    setAdding(false)
+    setEditingId(note.id)
+    setEditText(note.text)
+  }
+  function saveEdit() {
+    onEdit(editingId, editText)
+    setEditingId(null)
+  }
+  function startAdd() {
+    setEditingId(null)
+    setAdding(true)
+  }
+  function saveAdd() {
+    onAdd(newText)
+    setNewText('')
+    setAdding(false)
   }
 
   return (
-    <div style={styles.noteBox}>
-      <textarea
-        style={styles.noteTextarea}
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder={t('prayer.notePlaceholder', undefined, lang)}
-        rows={2}
-        autoFocus
-      />
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button style={styles.noteSaveBtn} onClick={() => { onSave(text); setOpen(false) }}>{t('prayer.noteSave', undefined, lang)}</button>
-        <button style={styles.noteCancelBtn} onClick={() => { setText(note ?? ''); setOpen(false) }}>{t('prayer.noteCancel', undefined, lang)}</button>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {notes.map(note => (
+        <div key={note.id} style={styles.noteRow}>
+          {editingId === note.id ? (
+            <div style={styles.noteBox}>
+              <textarea
+                style={styles.noteTextarea}
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                placeholder={t('prayer.notePlaceholder', undefined, lang)}
+                rows={2}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button style={styles.noteSaveBtn} onClick={saveEdit}>{t('prayer.noteSave', undefined, lang)}</button>
+                <button style={styles.noteCancelBtn} onClick={() => setEditingId(null)}>{t('prayer.noteCancel', undefined, lang)}</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button style={styles.noteItemBtn} onClick={() => startEdit(note)}>
+                <span style={styles.noteItemText}>{note.text}</span>
+                <span style={styles.noteItemDate}>{note.createdAt}</span>
+              </button>
+              <button style={styles.noteDelBtn} onClick={() => onDelete(note.id)} aria-label={t('prayer.deleteNoteAction', undefined, lang)}>
+                <AppIcon name="X" size={11} />
+              </button>
+            </>
+          )}
+        </div>
+      ))}
+
+      {adding ? (
+        <div style={styles.noteBox}>
+          <textarea
+            style={styles.noteTextarea}
+            value={newText}
+            onChange={e => setNewText(e.target.value)}
+            placeholder={t('prayer.notePlaceholder', undefined, lang)}
+            rows={2}
+            autoFocus
+          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button style={styles.noteSaveBtn} onClick={saveAdd}>{t('prayer.noteSave', undefined, lang)}</button>
+            <button style={styles.noteCancelBtn} onClick={() => { setNewText(''); setAdding(false) }}>{t('prayer.noteCancel', undefined, lang)}</button>
+          </div>
+        </div>
+      ) : (
+        <button style={{ ...styles.noteToggle, display: 'flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }} onClick={startAdd}>
+          <AppIcon name="StickyNote" size={11} style={{ flexShrink: 0 }} />
+          <span>{notes.length > 0 ? t('prayer.addAnotherNote', undefined, lang) : t('prayer.addNote', undefined, lang)}</span>
+        </button>
+      )}
     </div>
   )
 }
@@ -295,6 +389,11 @@ const styles = {
   folderDate:   { fontSize: 10, fontWeight: 500, color: 'var(--g4)' },
   folderDel:    { width: 23, height: 23, borderRadius: 6, background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 11, color: 'var(--g4)', border: 'none', flexShrink: 0 },
   noteToggle:   { alignSelf: 'flex-start', maxWidth: '100%', textAlign: 'left', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 9, padding: '5px 9px', fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  noteRow:      { display: 'flex', gap: 6, alignItems: 'flex-start' },
+  noteItemBtn:  { flex: 1, minWidth: 0, textAlign: 'left', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 9, padding: '6px 9px', cursor: 'pointer', fontFamily: 'var(--font)', display: 'flex', flexDirection: 'column', gap: 1 },
+  noteItemText: { fontSize: 11.5, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.4, wordBreak: 'break-word' },
+  noteItemDate: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)' },
+  noteDelBtn:   { width: 22, height: 22, borderRadius: 6, background: 'var(--g1)', border: '0.5px solid var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--g4)', flexShrink: 0, marginTop: 1 },
   noteBox:      { display: 'flex', flexDirection: 'column', gap: 6 },
   noteTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 10px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--g1)' },
   noteSaveBtn:  { background: 'var(--grad-primary)', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
