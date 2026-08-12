@@ -34,25 +34,29 @@ const ThemePassagesSchema = z.object({
   })).min(3).max(20),
 })
 
-// canonicalBooks — os 66 nomes canônicos válidos (ver BIBLE_BLOCKS em
-// src/data/bibleBlocks.js), pra restringir a IA a só citar livros que
-// existem de verdade. Isso reduz alucinação de NOME de livro, mas não
-// garante nada sobre os CAPÍTULOS citados — quem chama esta função ainda
-// precisa validar chStart/chEnd contra o texto real antes de confiar
-// (ver api/generate-theme-plan.js).
-export async function findThemePassages(scope, canonicalBooks, lang, targetWords = 0) {
-  const langInstruction = lang === 'en'
-    ? 'Write the "reason" field in English.'
-    : 'Escreva o campo "reason" em português.'
+function buildLangInstruction(lang) {
+  return lang === 'en'
+    ? 'Write the "reason" and "overview" fields in English.'
+    : 'Escreva os campos "reason" e "overview" em português.'
+}
 
-  // Sem isso, a IA tendia a sempre devolver passagens minúsculas (1
-  // capítulo, às vezes menos) não importa o ritmo escolhido — cada uma
-  // virava sua própria sessão, bem mais curta que o tempo pedido.
+// Sem isso, a IA tendia a sempre devolver passagens minúsculas (1 capítulo,
+// às vezes menos) não importa o ritmo escolhido — cada uma virava sua
+// própria sessão, bem mais curta que o tempo pedido.
+function buildSizeInstruction(targetWords) {
   const roughChapters = targetWords > 0 ? Math.max(1, Math.round(targetWords / AVG_WORDS_PER_CHAPTER)) : null
-  const sizeInstruction = roughChapters != null
+  return roughChapters != null
     ? `Cada passagem deve ter, ao todo, o equivalente a aproximadamente ${roughChapters} capítulo${roughChapters === 1 ? '' : 's'} de leitura (pode variar, não precisa ser exato) — o suficiente pra preencher uma sessão de leitura sozinha. Só devolva uma passagem bem mais curta que isso se não houver mais conteúdo relevante ao assunto naquele trecho da Bíblia.`
     : `Não há meta de tamanho por passagem — cada trecho relevante, mesmo curto, serve.`
+}
 
+function formatPassageList(passages) {
+  return passages
+    .map((p, i) => `${i + 1}. ${p.book} ${p.chStart === p.chEnd ? p.chStart : `${p.chStart}–${p.chEnd}`} — ${p.reason}`)
+    .join('\n')
+}
+
+async function generateDraftPassages(scope, canonicalBooks, lang, targetWords) {
   const { output } = await generateText({
     model: MODEL,
     output: Output.object({ schema: ThemePassagesSchema }),
@@ -62,13 +66,63 @@ Assunto: "${scope}"
 
 Liste entre 5 e 15 passagens da Bíblia (Antigo e Novo Testamento) diretamente relevantes a esse tema. Regras:
 - Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
-- ${sizeInstruction}
+- ${buildSizeInstruction(targetWords)}
 - Prefira passagens coerentes (nunca um livro inteiro) — cada uma precisa fazer sentido lida sozinha, sem depender do resto do livro.
 - Não repita o mesmo livro/capítulo em duas passagens diferentes.
 - Só inclua passagens que você tem certeza que existem de verdade e que realmente tratam do tema — não force uma relação fraca só pra preencher a lista.
 - Ordene da passagem mais fundamental/conhecida pra mais específica.
 - Escreva também um "overview": um parágrafo curto explicando o fio condutor do plano como um todo (não repita as razões individuais de cada passagem, dê a visão geral).
-${langInstruction}`,
+${buildLangInstruction(lang)}`,
   })
   return output
+}
+
+// Segunda chamada, agora num papel de revisor crítico em vez de gerador —
+// recebe o rascunho da primeira chamada e devolve a versão final. Existe
+// pra pegar erros que a primeira chamada comete sozinha com frequência:
+// passagens com relação fraca/forçada com o tema, referências que existem
+// mas não são as mais relevantes, ou passagens importantes que ficaram de
+// fora. Custa uma segunda chamada de IA (dobra o tempo/custo da geração),
+// mas o ganho de qualidade compensa — ver decisão com o usuário.
+async function reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: ThemePassagesSchema }),
+    prompt: `Você é um revisor teológico criterioso. Outra pessoa (ou IA) montou um rascunho de plano de leitura devocional sobre um assunto — sua tarefa é revisar esse rascunho com espírito crítico e devolver a versão FINAL, corrigida.
+
+Assunto: "${scope}"
+
+Rascunho da visão geral: "${draft.overview}"
+
+Rascunho das passagens:
+${formatPassageList(draft.passages)}
+
+Revise com atenção a:
+- Remova qualquer passagem cuja relação com o assunto seja fraca, forçada, ou genérica demais.
+- Corrija ou remova referências que pareçam erradas (livro/capítulo que não fazem sentido).
+- Se faltar alguma passagem claramente importante pro assunto, adicione.
+- Elimine duplicações ou sobreposições desnecessárias entre passagens.
+- Garanta que a ordem final faça sentido (da passagem mais fundamental/conhecida pra mais específica).
+- Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
+- ${buildSizeInstruction(targetWords)}
+- Reescreva o "overview" se necessário, pra refletir com precisão a lista final revisada (não a original).
+- Devolva SEMPRE a lista completa revisada (entre 5 e 15 passagens), nunca só as mudanças.
+${buildLangInstruction(lang)}`,
+  })
+  return output
+}
+
+// canonicalBooks — os 66 nomes canônicos válidos (ver BIBLE_BLOCKS em
+// src/data/bibleBlocks.js), pra restringir a IA a só citar livros que
+// existem de verdade. Isso reduz alucinação de NOME de livro, mas não
+// garante nada sobre os CAPÍTULOS citados — quem chama esta função ainda
+// precisa validar chStart/chEnd contra o texto real antes de confiar
+// (ver api/generate-theme-plan.js).
+//
+// Duas chamadas sequenciais (gerar rascunho → revisar criticamente) em vez
+// de uma só — o ganho de qualidade da revisão compensa o dobro de tempo/
+// custo (ambas usam o mesmo modelo, ver MODEL acima).
+export async function findThemePassages(scope, canonicalBooks, lang, targetWords = 0) {
+  const draft = await generateDraftPassages(scope, canonicalBooks, lang, targetWords)
+  return reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords)
 }

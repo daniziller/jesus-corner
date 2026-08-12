@@ -192,6 +192,8 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
                 {t('notes.cancelEdit', undefined, lang)}
               </button>
             </div>
+
+            {generating && <p style={styles.generatingHint}>{t('themePlan.generatingHint', undefined, lang)}</p>}
           </div>
         ) : atPlanLimit ? (
           <p style={styles.limitHint}>{t('themePlan.limitReached', undefined, lang)}</p>
@@ -253,6 +255,7 @@ const styles = {
   durationBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
   durationBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
   errorText:    { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginTop: 10 },
+  generatingHint: { fontSize: 11, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
   generateBtn:  { flex: 1, background: '#A21CAF', border: 'none', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
   cancelBtn:    { flex: 1, background: 'white', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
 
