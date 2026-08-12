@@ -28,6 +28,29 @@ const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 const STANDARD_PLAN = PLANS.find(p => p.id === 'standard')
 
+// Diferenciais do app, 1 por página do onboarding (ver FeatureStep) — as
+// 7 primeiras já tinham screenshot real (public/onboarding/{key}.png,
+// copy em onboarding.features.{key}); as 4 novas (chronological/themeAi/
+// highlights/notesScreen) ainda não têm esse asset, então usam um
+// mini-preview ilustrativo (ver FeatureVisual) em vez de pedir imagem
+// nova — mesma ideia visual (cores reais do recurso), sem depender de
+// asset externo.
+const FEATURE_STEP_PREFIX = 'features_'
+const FEATURE_CARDS = [
+  { key: 'routine',       icon: 'ClipboardList', iconColor: 'var(--or)',   visual: 'image' },
+  { key: 'reading',       icon: 'BookOpen',       iconColor: 'var(--or)',   visual: 'image' },
+  { key: 'chronological', icon: 'Hourglass',      iconColor: 'var(--or)',   visual: 'mockChronological' },
+  { key: 'themeAi',       icon: 'Sparkles',       iconColor: '#A21CAF',     visual: 'mockThemeAi' },
+  { key: 'prayer',        icon: 'HandHeart',      iconColor: 'var(--or)',   visual: 'image' },
+  { key: 'reflection',    icon: 'PenLine',        iconColor: 'var(--or)',   visual: 'image' },
+  { key: 'highlights',    icon: 'Highlighter',    iconColor: 'var(--gold)', visual: 'mockHighlights' },
+  { key: 'notesScreen',   icon: 'StickyNote',     iconColor: 'var(--or)',   visual: 'mockNotesScreen' },
+  { key: 'progress',      icon: 'BarChart3',      iconColor: 'var(--or)',   visual: 'image' },
+  { key: 'studies',       icon: 'GraduationCap',  iconColor: 'var(--or)',   visual: 'image' },
+  { key: 'community',     icon: 'Users',          iconColor: 'var(--or)',   visual: 'image' },
+]
+const FEATURE_STEPS = FEATURE_CARDS.map(c => `${FEATURE_STEP_PREFIX}${c.key}`)
+
 export default function AuthScreen({ onAuthenticated }) {
   // Quem nunca autenticou nesse navegador vê o onboarding primeiro (pensado
   // pra converter visitante novo); quem já tem o flag cai direto no login,
@@ -124,7 +147,7 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
   // sessões distintas, não eventos.
   useEffect(() => { trackOnboardingEvent(step) }, [step])
 
-  const STEPS = ['name', 'valueIntro', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup']
+  const STEPS = ['name', 'valueIntro', ...FEATURE_STEPS, 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup']
   const stepNum = STEPS.indexOf(step) + 1
 
   function goTo(next) { setStep(next) }
@@ -146,22 +169,30 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
         total={STEPS.length}
         name={name}
         onBackToName={() => goTo('name')}
-        onNext={() => goTo('features')}
+        onNext={() => goTo(FEATURE_STEPS[0])}
       />
     )
   }
-  if (step === 'features') {
+  if (step.startsWith(FEATURE_STEP_PREFIX)) {
+    const idx = FEATURE_CARDS.findIndex(c => `${FEATURE_STEP_PREFIX}${c.key}` === step)
+    const card = FEATURE_CARDS[idx]
+    const isLast = idx === FEATURE_CARDS.length - 1
+    const prevStep = idx === 0 ? 'valueIntro' : FEATURE_STEPS[idx - 1]
+    const nextStep = isLast ? 'prayerTime' : FEATURE_STEPS[idx + 1]
     return (
-      <FeaturesStep
-        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('valueIntro')} />}
-        onNext={() => goTo('prayerTime')}
+      <FeatureStep
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo(prevStep)} />}
+        card={card}
+        isLast={isLast}
+        onNext={() => goTo(nextStep)}
+        onSkip={() => goTo('prayerTime')}
       />
     )
   }
   if (step === 'prayerTime') {
     return (
       <DurationStep
-        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo('features')} />}
+        header={<StepHeader step={stepNum} total={STEPS.length} onBack={() => goTo(FEATURE_STEPS[FEATURE_STEPS.length - 1])} />}
         icon="HandHeart"
         color={ROUTINE_STEP_COLORS.prayer}
         title={t('onboarding.prayerTime.title')}
@@ -357,74 +388,120 @@ function ValueIntroStep({ stepNum, total, name, onBackToName, onNext }) {
   )
 }
 
-/* ── 3. Boas-vindas + recursos (screenshots) ── Rolagem manual (arrasta pro
-   lado, com scroll-snap) em vez de trocar sozinho — dá tempo de ler cada
-   card no próprio ritmo, e o "espiar" do próximo card na borda já convida a
-   arrastar. Rotina abre e Progresso vem logo em seguida de propósito — são
-   os dois recursos com mais destaque pedido (a rotina é o fio condutor pros
-   próximos passos do onboarding, o progresso reforça de cara que o app
-   acompanha o que já foi lido e quanto falta). */
-function FeaturesStep({ header, onNext }) {
-  const lang = getAppLanguage() ?? 'pt'
-  const suffix = lang === 'en' ? '-en' : ''
-  const cards = [
-    { key: 'routine', icon: 'ClipboardList', img: `/onboarding/rotina${suffix}.png` },
-    { key: 'progress', icon: 'BarChart3', img: `/onboarding/progresso${suffix}.png` },
-    { key: 'prayer', icon: 'HandHeart', img: `/onboarding/oracao${suffix}.png` },
-    { key: 'reading', icon: 'BookOpen', img: `/onboarding/leitura${suffix}.png` },
-    { key: 'reflection', icon: 'PenLine', img: `/onboarding/reflexao${suffix}.png` },
-    { key: 'studies', icon: 'GraduationCap', img: `/onboarding/estudos${suffix}.png` },
-    { key: 'community', icon: 'Users', img: `/onboarding/comunidade${suffix}.png` },
-  ]
+/* ── 3. Diferenciais do app — 1 página por recurso (ver FEATURE_CARDS no
+   topo do arquivo), cada uma seu próprio passo rastreado no funil (ver
+   trackOnboardingEvent em OnboardingWizard). Substituiu o carrossel único
+   de 7 cards que existia antes — mesmas 7 screenshots reaproveitadas
+   (nomes de arquivo em português, de antes da tradução dos nomes internos
+   pra inglês), mais 4 diferenciais novos sem screenshot ainda (ver
+   FeatureVisual). */
+const FEATURE_IMAGE_SLUG = {
+  routine: 'rotina', progress: 'progresso', prayer: 'oracao',
+  reading: 'leitura', reflection: 'reflexao', studies: 'estudos', community: 'comunidade',
+}
 
-  const scrollerRef = useRef(null)
-  const [activeIndex, setActiveIndex] = useState(0)
-
-  function handleScroll() {
-    const el = scrollerRef.current
-    if (!el) return
-    const cardWidth = el.scrollWidth / cards.length
-    setActiveIndex(Math.round(el.scrollLeft / cardWidth))
+function FeatureVisual({ card, lang }) {
+  if (card.visual === 'image') {
+    const suffix = lang === 'en' ? '-en' : ''
+    const slug = FEATURE_IMAGE_SLUG[card.key]
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <img src={`/onboarding/${slug}${suffix}.png`} alt="" style={styles.featureCardImg} />
+      </div>
+    )
   }
 
-  function scrollToIndex(i) {
-    const el = scrollerRef.current
-    if (!el) return
-    const cardWidth = el.scrollWidth / cards.length
-    el.scrollTo({ left: i * cardWidth, behavior: 'smooth' })
-  }
-
-  return (
-    <div style={styles.form}>
-      {header}
-      <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.features.title')}</h1>
-      <p style={styles.subtitle}>{t('onboarding.features.subtitle')}</p>
-
-      <div ref={scrollerRef} onScroll={handleScroll} className="feature-scroller" style={styles.featureScroller}>
-        {cards.map(card => (
-          <div key={card.key} style={styles.featureCard}>
-            <img src={card.img} alt="" style={styles.featureCardImg} />
-            <div style={styles.featureCardIconWrap}>
-              <AppIcon name={card.icon} size={16} color="var(--or)" />
+  if (card.visual === 'mockChronological') {
+    const rows = [1, 2, 3].map(n => t(`onboarding.features.chronological.mockRow${n}`))
+    return (
+      <div style={styles.previewCard}>
+        {rows.map((label, i) => (
+          <div key={label} style={{ ...styles.previewRow, ...(i === rows.length - 1 ? { borderBottom: 'none' } : {}) }}>
+            <div style={{ ...styles.previewIcon, background: 'var(--olt)' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--or)' }}>{i + 1}</span>
             </div>
-            <p style={styles.featureCardTitle}>{t(`onboarding.features.${card.key}.title`)}</p>
-            <p style={styles.featureCardDesc}>{t(`onboarding.features.${card.key}.desc`)}</p>
+            <span style={styles.previewLabel}>{label}</span>
           </div>
         ))}
       </div>
+    )
+  }
 
-      <div style={styles.welcomeDotsRow}>
-        {cards.map((card, i) => (
-          <span
-            key={card.key}
-            style={{ ...styles.welcomeDot, background: i === activeIndex ? 'var(--or)' : 'var(--g2)', cursor: 'pointer' }}
-            onClick={() => scrollToIndex(i)}
-          />
+  if (card.visual === 'mockThemeAi') {
+    const rows = [1, 2].map(n => t(`onboarding.features.themeAi.mockRow${n}`))
+    return (
+      <div style={styles.previewCard}>
+        <div style={styles.aiChip}>
+          <AppIcon name="Sparkles" size={12} color="#A21CAF" /> {t('onboarding.features.themeAi.mockTopic')}
+        </div>
+        {rows.map((label, i) => (
+          <div key={label} style={{ ...styles.previewRow, ...(i === rows.length - 1 ? { borderBottom: 'none' } : {}) }}>
+            <div style={{ ...styles.previewIcon, background: '#FAE8FF' }}>
+              <AppIcon name="BookOpen" size={14} color="#A21CAF" />
+            </div>
+            <span style={styles.previewLabel}>{label}</span>
+          </div>
         ))}
       </div>
+    )
+  }
+
+  if (card.visual === 'mockHighlights') {
+    return (
+      <div style={styles.previewCard}>
+        <p style={styles.mockHighlightText}>
+          {t('onboarding.features.highlights.mockTextBefore')}
+          <span style={styles.mockHighlightSpan}>{t('onboarding.features.highlights.mockTextHighlighted')}</span>
+          {t('onboarding.features.highlights.mockTextAfter')}
+        </p>
+        <div style={styles.mockNoteBubble}>
+          <AppIcon name="Highlighter" size={12} color="var(--gold)" style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          {t('onboarding.features.highlights.mockNote')}
+        </div>
+      </div>
+    )
+  }
+
+  // mockNotesScreen
+  const rows = [
+    { icon: 'BookOpen', label: t('onboarding.features.notesScreen.mockRow1') },
+    { icon: 'Highlighter', label: t('onboarding.features.notesScreen.mockRow2') },
+    { icon: 'PenLine', label: t('onboarding.features.notesScreen.mockRow3') },
+  ]
+  return (
+    <div style={styles.previewCard}>
+      {rows.map((r, i) => (
+        <div key={r.icon} style={{ ...styles.previewRow, ...(i === rows.length - 1 ? { borderBottom: 'none' } : {}) }}>
+          <div style={{ ...styles.previewIcon, background: 'var(--olt)' }}>
+            <AppIcon name={r.icon} size={14} color="var(--or)" />
+          </div>
+          <span style={styles.previewLabel}>{r.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FeatureStep({ header, card, isLast, onNext, onSkip }) {
+  const lang = getAppLanguage() ?? 'pt'
+  return (
+    <div style={styles.form}>
+      {header}
+      <div style={{ ...styles.tutorialIconWrap, background: `${card.iconColor}1A` }}>
+        <AppIcon name={card.icon} size={22} color={card.iconColor} />
+      </div>
+      <h1 style={{ ...styles.title, fontSize: 22 }}>{t(`onboarding.features.${card.key}.title`)}</h1>
+      <p style={styles.subtitle}>{t(`onboarding.features.${card.key}.desc`)}</p>
+
+      <FeatureVisual card={card} lang={lang} />
 
       <div style={{ marginTop: 4 }}>
-        <button type="button" className="btn-primary" onClick={onNext}>{t('onboarding.features.continueBtn')}</button>
+        <button type="button" className="btn-primary" onClick={onNext}>
+          {isLast ? t('onboarding.features.continueBtn') : t('onboarding.continueBtn')}
+        </button>
+      </div>
+      <div style={{ ...styles.linksRow, justifyContent: 'center' }}>
+        <span style={styles.link} onClick={onSkip}>{t('onboarding.features.skip')}</span>
       </div>
     </div>
   )
@@ -1337,6 +1414,10 @@ const styles = {
   previewTotalRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12 },
   previewTotalLabel: { fontSize: 15, fontWeight: 800, color: 'var(--bk)' },
   previewTotalValue: { fontSize: 18.5, fontWeight: 900, color: 'var(--or)' },
+  aiChip:        { display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start', padding: '5px 11px', borderRadius: 999, background: '#FAE8FF', color: '#A21CAF', fontSize: 13, fontWeight: 800, marginBottom: 10 },
+  mockHighlightText: { fontSize: 14.5, lineHeight: 1.6, color: 'var(--bk)', margin: '2px 0 12px' },
+  mockHighlightSpan: { background: 'rgba(201,154,74,.28)', borderRadius: 4, padding: '1px 2px' },
+  mockNoteBubble: { fontSize: 13, fontWeight: 600, color: 'var(--g6)', background: 'var(--g1)', borderRadius: 10, padding: '8px 10px' },
   checklistCard: { display: 'flex', flexDirection: 'column', gap: 9, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '13px 14px' },
   checklistRow:  { display: 'flex', alignItems: 'center', gap: 9 },
   checklistText: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--bk)' },
