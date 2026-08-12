@@ -14,29 +14,45 @@
 // session.activePlan/resolveActivePlanSessions em App.jsx) —
 // RoutineScreen.jsx não tem seletor próprio, só um resumo com link pra cá.
 //
-// Escolher ordem cronológica ou um plano por tema NÃO troca o plano fixo
-// de fundo (session.plan/readingOrder) — ele continua sozinho controlando
-// a Bíblia inteira dividida em sessões mais abaixo ("Sessões do plano"),
-// que por isso só aparece quando o plano ativo é a ordem padrão.
-import { useState } from 'react'
+// A lista "Sessões do plano" (mais abaixo) sempre reflete o plano ATIVO no
+// momento — não só a ordem padrão. Pra ordem cronológica usa os 9
+// "movimentos" (ver src/data/chronologicalPlan.js); pra um plano por tema
+// usa o bloco sintético dele (1 só, sem sub-divisão). Mesma resolução que
+// App.jsx usa pra "sessão de hoje" (ver src/plan/resolveActivePlan.js),
+// reaproveitada aqui pra não duplicar a lógica.
+import { useState, useEffect } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { groupSessionsByBook } from '../utils/groupByBook'
+import { resolveActivePlanSessions } from '../plan/resolveActivePlan'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
 export default function PlanScreen({
   session, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan,
-  onSelectActivePlan, onContinueSession, onOpenThemePlan, onToggleSession, onOpenSession, onNavigate,
+  onSelectActivePlan, onContinueSession, onOpenThemePlan, onToggleSession, onOpenSession, onOpenChronoSession, onNavigate,
 }) {
   const { lang, plan, activePlan, todaySession } = session
-  // Só o bloco ativo (onde a pessoa está lendo agora) começa aberto — os
-  // outros ficam colapsados, senão a Bíblia inteira dividida em sessões
-  // apareceria de uma vez só, uma lista gigante pra rolar.
-  const [openBlockId, setOpenBlockId] = useState(() => blocks.find(b => b.status === 'active')?.id ?? blocks[0]?.id)
+  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, plan.id)
 
+  // Só o bloco ativo (onde a pessoa está lendo agora) começa aberto — os
+  // outros ficam colapsados, senão a lista inteira apareceria de uma vez
+  // só. Reabre sozinho no bloco ativo sempre que o PLANO ativo muda (trocar
+  // ordem/ritmo/tema não deveria deixar a lista toda fechada até a pessoa
+  // tocar de novo).
+  const [openBlockId, setOpenBlockId] = useState(() => activePlanData.blocks.find(b => b.status === 'active')?.id ?? activePlanData.blocks[0]?.id)
+  useEffect(() => {
+    setOpenBlockId(activePlanData.blocks.find(b => b.status === 'active')?.id ?? activePlanData.blocks[0]?.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePlanData.kind, activeAltPlan?.planId, activeAltPlan?.paceId])
+
+  // Roteia pro destino certo conforme o plano ativo — só a ordem padrão usa
+  // o mapa de blocos de sempre (aba Bíblia); cronológica/tema têm cada uma
+  // sua própria tela de leitura (ver App.jsx).
   function openSession(blockId, sessionId) {
-    onOpenSession?.(blockId, sessionId)
+    if (activePlanData.kind === 'chrono') onOpenChronoSession?.(blockId)
+    else if (activePlanData.kind === 'theme') onOpenThemePlan?.(activeAltPlan.planId)
+    else onOpenSession?.(blockId, sessionId)
   }
 
   // Ordem e ritmo atuais — dois eixos independentes, derivados direto do
@@ -137,34 +153,28 @@ export default function PlanScreen({
           </button>
         </div>
 
-        {/* Bíblia inteira, dividida nas sessões do plano fixo — bloco >
-            livro > sessão numerada, cada uma tocável. Só faz sentido quando
-            o plano ATIVO é a ordem padrão (pra cronológica/tema, a leitura
-            já mora na tela própria). */}
-        {activePlan.kind === 'fixed' && (
-          <>
-            <div style={{ margin: '4px 2px 0' }}>
-              <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
-              <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
-            </div>
+        {/* Sessões do plano ATIVO no momento — bloco/movimento > livro >
+            sessão numerada, cada uma tocável. */}
+        <div style={{ margin: '4px 2px 0' }}>
+          <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
+          <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
+        </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {blocks.map(block => (
-                <PlanBlockSection
-                  key={block.id}
-                  block={block}
-                  sessions={sessionsByBlock[block.id] ?? []}
-                  open={openBlockId === block.id}
-                  onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
-                  completedSet={completedSet}
-                  onToggleSession={onToggleSession}
-                  onOpenSession={s => openSession(block.id, s.id)}
-                  lang={lang}
-                />
-              ))}
-            </div>
-          </>
-        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {activePlanData.blocks.map(block => (
+            <PlanBlockSection
+              key={block.id}
+              block={block}
+              sessions={activePlanData.sessionsByBlock[block.id] ?? []}
+              open={openBlockId === block.id}
+              onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
+              completedSet={completedSet}
+              onToggleSession={onToggleSession}
+              onOpenSession={s => openSession(block.id, s.id)}
+              lang={lang}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -236,7 +246,7 @@ function PlanBlockSection({ block, sessions, open, onToggle, completedSet, onTog
             quebrar linha por padrão e vaza pra fora do card (ver mesmo
             ajuste em PrayerScreen.jsx/ReflectionScreen.jsx). */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={styles.blockTag}>{tag}</p>
+          {tag && <p style={styles.blockTag}>{tag}</p>}
           <p style={styles.blockName}>{name}</p>
         </div>
         <span style={{ ...styles.blockPercent, color: accent }}>{block.percent}%</span>

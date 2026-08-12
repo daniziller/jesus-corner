@@ -35,6 +35,7 @@ import { computeRoutineStreak } from './routine/routineStreak'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
+import { resolveActivePlanSessions } from './plan/resolveActivePlan'
 import { getThemePlans } from './themePlans/themePlansStore'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
@@ -101,76 +102,6 @@ function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
   const activeSessions = sessionsByBlock[activeBlock.id]
   const session = activeSessions.find(s => s.status === 'current') ?? activeSessions[0]
   return { session, block: activeBlock }
-}
-
-// "Plano ativo" pra fins de Home/Rotina/Plano — por padrão é sempre o plano
-// fixo (Leve/Padrão/Intensivo/Livre, dono de planId/blocks/sessionsByBlock,
-// que também é o que a aba Bíblia e o Progresso sempre mostram). Quando a
-// pessoa escolhe um plano por tema ou o cronológico (activeAltPlan, ver
-// src/plan/activePlanStore.js), só a "sessão de hoje" passa a vir de lá —
-// blocks/sessionsByBlock do fixo continuam intactos, então Bíblia/Progresso
-// nunca mudam de estrutura por causa disso. findCurrentReadingSession acima
-// é 100% genérico (não referencia BIBLE_BLOCKS), por isso serve pros 3 casos.
-function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId) {
-  if (activeAltPlan?.type === 'theme') {
-    const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
-    if (themePlan) {
-      const sessions = themePlan.sessions.map(s => ({
-        ...s,
-        status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
-      }))
-      const syntheticBlock = { id: `theme:${themePlan.id}`, name: themePlan.theme, nameEn: themePlan.theme, sessionsTotal: sessions.length }
-      const doneCount = sessions.filter(s => s.status === 'done').length
-      return {
-        kind: 'theme',
-        icon: 'Sparkles',
-        label: themePlan.theme,
-        labelEn: themePlan.theme,
-        readingMinutes: themePlan.minutesPerSession,
-        doneCount,
-        totalCount: sessions.length,
-        percent: sessions.length ? Math.round((doneCount / sessions.length) * 100) : 0,
-        blocks: [syntheticBlock],
-        sessionsByBlock: { [syntheticBlock.id]: sessions },
-      }
-    }
-    // Plano referenciado não existe mais (deletado) — cai no fallback fixo.
-  }
-
-  if (activeAltPlan?.type === 'chrono') {
-    const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
-    const pace = PLANS.find(p => p.id === activeAltPlan.paceId) ?? PLANS.find(p => p.id === 'standard')
-    const doneCount = chrono.blocks.reduce((s, b) => s + b.sessionsDone, 0)
-    const totalCount = chrono.blocks.reduce((s, b) => s + b.sessionsTotal, 0)
-    return {
-      kind: 'chrono',
-      icon: 'Hourglass',
-      label: pace.label,
-      labelEn: pace.labelEn,
-      readingMinutes: pace.readingMinutes,
-      doneCount,
-      totalCount,
-      percent: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,
-      blocks: chrono.blocks,
-      sessionsByBlock: chrono.sessionsByBlock,
-    }
-  }
-
-  const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
-  const doneCount = blocks.reduce((s, b) => s + b.sessionsDone, 0)
-  const totalCount = blocks.reduce((s, b) => s + b.sessionsTotal, 0)
-  return {
-    kind: 'fixed',
-    icon: planRaw.icon,
-    label: planRaw.label,
-    labelEn: planRaw.labelEn,
-    readingMinutes: planRaw.readingMinutes,
-    doneCount,
-    totalCount,
-    percent: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,
-    blocks,
-    sessionsByBlock,
-  }
 }
 
 // ─────────────────────────────────────────
@@ -568,6 +499,15 @@ export default function App() {
     setActiveTab('themePlan')
   }
 
+  // Tocar numa sessão da lista "Sessões do plano" (PlanScreen.jsx) quando o
+  // plano ativo é o cronológico — mesma ideia de openReadingSession acima,
+  // só que abrindo o movimento certo em ChronologicalPlanScreen em vez do
+  // mapa de blocos de sempre.
+  function openChronoSession(movementId) {
+    setChronoAutoOpenMovementId(movementId)
+    setActiveTab('chronologicalPlan')
+  }
+
   // Rebusca a assinatura e atualiza o estado — usado depois de resgatar um
   // convite de acesso grátis (ver UpgradeScreen.jsx), pra liberar o
   // PaywallGate sozinho, sem precisar de F5.
@@ -865,7 +805,7 @@ export default function App() {
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} />,
-    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onToggleSession={toggleSession} onOpenSession={openReadingSession} onNavigate={navigateTo} />,
+    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
