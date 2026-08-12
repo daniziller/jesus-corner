@@ -178,9 +178,16 @@ export default function PlanScreen({
           </div>
         )}
 
+        {/* Título da linha acompanha o botão-push: enquanto o plano por tema
+            estiver ativo, mostra o título ESPECÍFICO do plano escolhido
+            (ex: "Ansiedade") na mesma altura do toggle, em vez do rótulo
+            genérico "Plano por tema (IA)" — a explicação (overview) do
+            plano fica só no card abaixo, sem repetir o título ali. */}
         <div style={styles.sectionHeaderRow}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ ...styles.sectionLabel, margin: 0 }}>{t('plan.themePlanTitle', undefined, lang)}</p>
+            <p style={{ ...styles.sectionLabel, margin: 0 }}>
+              {activeThemePlan ? themePlanTitle(activeThemePlan) : t('plan.themePlanTitle', undefined, lang)}
+            </p>
             <p style={{ ...styles.sectionSub, margin: '2px 0 0' }}>{t('plan.themePlanSub', undefined, lang)}</p>
           </div>
           <div
@@ -202,14 +209,13 @@ export default function PlanScreen({
             existir (sem `passages`) só mostram a contagem, sem checklist. */}
         {activeThemePlan && (
           <div style={styles.readingPlanCard}>
-            <p style={styles.activeThemeTitle}>{themePlanTitle(activeThemePlan)}</p>
             {/* Contexto do plano — parágrafo que a própria IA escreve na
                 hora de gerar (ver api/_lib/ai.js, campo overview),
                 explicando o fio condutor por trás das passagens escolhidas.
                 Planos salvos antes desse campo existir simplesmente não
                 mostram nada aqui. */}
             {activeThemePlan.overview && (
-              <p style={styles.themeOverview}>{activeThemePlan.overview}</p>
+              <p style={{ ...styles.themeOverview, marginTop: 0 }}>{activeThemePlan.overview}</p>
             )}
             {activeThemePlan.passages ? (
               // key={activeThemePlan.id} — remonta do zero (seleção de hoje
@@ -547,8 +553,7 @@ const styles = {
   sectionHeaderRow: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 2px 6px' },
 
   readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  activeThemeTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
-  themeOverview: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginTop: -6, marginBottom: 12 },
+  themeOverview: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginBottom: 12 },
   chipsLabel:      { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
 
   orderSel:    { display: 'flex', gap: 6 },
