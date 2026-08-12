@@ -134,42 +134,47 @@ export default function PlanScreen({
           </div>
         </div>
 
-        <div style={styles.readingPlanCard}>
-          <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
-          <div style={styles.orderSel}>
-            <button
-              style={{ ...styles.orderBtn, ...(currentOrder === 'standard' ? styles.orderBtnActive : {}) }}
-              onClick={() => chooseOrder('standard')}
-            >
-              <AppIcon name="BookOpen" size={15} color={currentOrder === 'standard' ? 'white' : 'var(--g4)'} />
-              {t('plan.orderStandard', undefined, lang)}
-            </button>
-            <button
-              style={{ ...styles.orderBtn, ...(currentOrder === 'chrono' ? styles.orderBtnActive : {}) }}
-              onClick={() => chooseOrder('chrono')}
-            >
-              <AppIcon name="Hourglass" size={15} color={currentOrder === 'chrono' ? 'white' : 'var(--g4)'} />
-              {t('plan.orderChronological', undefined, lang)}
-            </button>
-          </div>
-
-          <p style={{ ...styles.chipsLabel, marginTop: 12 }}>{t('plan.paceLabel', undefined, lang)}</p>
-          <div style={styles.paceSel}>
-            {PLANS.map(p => (
+        {/* Some junto com o botão push acima quando "Plano de leitura" não é
+            o ativo no momento — mesmo padrão do card do "Plano por tema"
+            logo abaixo, que já só aparece quando ELE é o ativo (activeThemePlan). */}
+        {activePlanData.kind !== 'theme' && (
+          <div style={styles.readingPlanCard}>
+            <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
+            <div style={styles.orderSel}>
               <button
-                key={p.id}
-                style={{ ...styles.paceBtn, ...(currentPaceId === p.id ? styles.paceBtnActive : {}) }}
-                onClick={() => choosePace(p.id)}
+                style={{ ...styles.orderBtn, ...(currentOrder === 'standard' ? styles.orderBtnActive : {}) }}
+                onClick={() => chooseOrder('standard')}
               >
-                <AppIcon name={p.icon} size={14} color={currentPaceId === p.id ? 'white' : 'var(--g4)'} />
-                <span>{lang === 'en' ? p.labelEn : p.label}</span>
-                <span style={{ ...styles.paceBtnTime, ...(currentPaceId === p.id ? styles.paceBtnTimeActive : {}) }}>
-                  {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-                </span>
+                <AppIcon name="BookOpen" size={15} color={currentOrder === 'standard' ? 'white' : 'var(--g4)'} />
+                {t('plan.orderStandard', undefined, lang)}
               </button>
-            ))}
+              <button
+                style={{ ...styles.orderBtn, ...(currentOrder === 'chrono' ? styles.orderBtnActive : {}) }}
+                onClick={() => chooseOrder('chrono')}
+              >
+                <AppIcon name="Hourglass" size={15} color={currentOrder === 'chrono' ? 'white' : 'var(--g4)'} />
+                {t('plan.orderChronological', undefined, lang)}
+              </button>
+            </div>
+
+            <p style={{ ...styles.chipsLabel, marginTop: 12 }}>{t('plan.paceLabel', undefined, lang)}</p>
+            <div style={styles.paceSel}>
+              {PLANS.map(p => (
+                <button
+                  key={p.id}
+                  style={{ ...styles.paceBtn, ...(currentPaceId === p.id ? styles.paceBtnActive : {}) }}
+                  onClick={() => choosePace(p.id)}
+                >
+                  <AppIcon name={p.icon} size={14} color={currentPaceId === p.id ? 'white' : 'var(--g4)'} />
+                  <span>{lang === 'en' ? p.labelEn : p.label}</span>
+                  <span style={{ ...styles.paceBtnTime, ...(currentPaceId === p.id ? styles.paceBtnTimeActive : {}) }}>
+                    {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div style={styles.sectionHeaderRow}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -211,7 +216,7 @@ export default function PlanScreen({
                   {PLANS.map(p => (
                     <button
                       key={p.id}
-                      style={{ ...styles.paceBtn, ...(activeThemePlan.paceId === p.id ? styles.paceBtnActive : {}) }}
+                      style={{ ...styles.paceBtn, ...(activeThemePlan.paceId === p.id ? styles.paceBtnActiveAi : {}) }}
                       onClick={() => onChangeThemePlanPace?.(activeThemePlan.id, p.id)}
                     >
                       <AppIcon name={p.icon} size={14} color={activeThemePlan.paceId === p.id ? 'white' : 'var(--g4)'} />
@@ -474,6 +479,10 @@ const styles = {
   paceSel:     { display: 'flex', gap: 6, flexWrap: 'wrap' },
   paceBtn:     { flex: '1 1 0', minWidth: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', padding: '10px 6px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   paceBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  // Mesmo roxo do resto dos cards de plano por tema (IA) — ver ActivePlanCard/
+  // ThemePlanScreen.jsx (#A21CAF) — em vez do laranja de marca usado no card
+  // "Plano de leitura" (fixo/cronológico), que nunca aparece nesse contexto.
+  paceBtnActiveAi: { color: 'white', borderColor: 'transparent', background: '#A21CAF', boxShadow: '0 4px 12px rgba(162,28,175,.3)' },
   paceBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
   paceBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
 

@@ -68,6 +68,7 @@ Liste entre 5 e 15 passagens da Bíblia (Antigo e Novo Testamento) diretamente r
 - Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
 - ${buildSizeInstruction(targetWords)}
 - Prefira passagens coerentes (nunca um livro inteiro) — cada uma precisa fazer sentido lida sozinha, sem depender do resto do livro.
+- Cada sessão de leitura só pode conter capítulos de UM livro só (nunca combina livros diferentes numa sessão) — por isso, prefira APROFUNDAR em menos livros (mais capítulos seguidos de cada um) a espalhar por muitos livros diferentes com só 1 capítulo cada, sempre que o tema permitir. Muitas passagens de 1 capítulo cada, cada uma de um livro diferente, geram sessões bem mais curtas que o ritmo pedido.
 - Não repita o mesmo livro/capítulo em duas passagens diferentes.
 - Só inclua passagens que você tem certeza que existem de verdade e que realmente tratam do tema — não force uma relação fraca só pra preencher a lista.
 - Ordene da passagem mais fundamental/conhecida pra mais específica.
@@ -102,6 +103,7 @@ Revise com atenção a:
 - Corrija ou remova referências que pareçam erradas (livro/capítulo que não fazem sentido).
 - Se faltar alguma passagem claramente importante pro assunto, adicione.
 - Elimine duplicações ou sobreposições desnecessárias entre passagens.
+- Cada sessão de leitura só pode conter capítulos de UM livro só (nunca combina livros diferentes numa sessão) — se o rascunho tem muitas passagens de 1 capítulo cada, cada uma de um livro diferente, isso vira muitas sessões bem mais curtas que o ritmo pedido. Prefira trocar 2-3 dessas passagens avulsas (livros diferentes, fraca sobreposição com o tema) por 1 passagem mais longa (vários capítulos seguidos) de um dos livros mais centrais ao assunto, sempre que possível sem perder relevância.
 - Garanta que a ordem final faça sentido (da passagem mais fundamental/conhecida pra mais específica).
 - Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
 - ${buildSizeInstruction(targetWords)}
