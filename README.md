@@ -113,8 +113,8 @@ Usar o logo do Jesus' Corner como base.
 ## Variáveis CSS do Design System
 
 ```css
---or: #F97316      /* Laranja principal */
---olt: #FFF0E6     /* Laranja claro (backgrounds) */
+--or: #9D4300      /* Marrom-queimado principal (cor da logo) */
+--olt: #F5E9DE     /* Tom claro (backgrounds) */
 --bk: #121212      /* Preto principal */
 --g1 a --g6        /* Escala de cinzas */
 --gr: #16A34A      /* Verde (pedidos atendidos) */

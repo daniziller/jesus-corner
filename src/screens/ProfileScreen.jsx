@@ -715,7 +715,7 @@ const styles = {
   deleteTitle:  { fontSize: 16, fontWeight: 800, color: 'var(--bk)', marginBottom: 8 },
   deleteBody:   { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5 },
   deleteList:   { margin: '10px 0 4px 16px', display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.45 },
-  deleteWarn:   { fontSize: 11.5, fontWeight: 600, color: 'var(--g6)', background: 'var(--olt)', border: '0.5px solid rgba(249,115,22,.3)', borderRadius: 10, padding: '9px 11px', marginTop: 10, lineHeight: 1.45 },
+  deleteWarn:   { fontSize: 11.5, fontWeight: 600, color: 'var(--g6)', background: 'var(--olt)', border: '0.5px solid rgba(157,67,0,.3)', borderRadius: 10, padding: '9px 11px', marginTop: 10, lineHeight: 1.45 },
   deleteLabel:  { display: 'block', fontSize: 11.5, fontWeight: 600, color: 'var(--g5)', marginTop: 14, marginBottom: 5 },
   deleteInput:  { width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 10, padding: '10px 12px', fontSize: 13, fontFamily: 'var(--font)', color: 'var(--bk)' },
   deleteActions:{ display: 'flex', gap: 8, marginTop: 16 },
