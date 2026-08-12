@@ -37,6 +37,14 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 
+// Mesmo limite e mesma janela (30 dias corridos, não mês-calendário) do
+// servidor (ver MAX_PLANS_PER_MONTH/THIRTY_DAYS_MS em
+// api/generate-theme-plan.js) — checado aqui também só pra dar feedback
+// na hora, sem esperar a chamada falhar; o servidor reconfere de qualquer
+// jeito antes de gastar uma chamada de IA.
+const MAX_PLANS_PER_MONTH = 4
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
 export default function ThemePlanScreen({ session, authUser, completedSet, plans, onPlansChanged, autoOpenPlanId, onToggleSession, onToggleChapter, onNavigate }) {
   const { lang } = session
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
@@ -46,6 +54,9 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
   const [paceId, setPaceId] = useState('standard')
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
+
+  const recentPlansCount = plans.filter(p => p.createdAt && Date.now() - new Date(p.createdAt).getTime() < THIRTY_DAYS_MS).length
+  const atPlanLimit = recentPlansCount >= MAX_PLANS_PER_MONTH
 
   // Re-sincroniza sempre que App.jsx pedir pra abrir um plano específico
   // (ex: "Continuar sessão" clicado de novo com essa aba já montada) —
@@ -70,9 +81,9 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
     } catch (err) {
       console.error('Failed to generate theme plan', err)
       setGenError(
-        err.message === 'subscription_required'
-          ? t('themePlan.subscriptionRequired', undefined, lang)
-          : t('themePlan.generateError', undefined, lang)
+        err.message === 'subscription_required' ? t('themePlan.subscriptionRequired', undefined, lang)
+        : err.message === 'plan_limit_reached' ? t('themePlan.limitReached', undefined, lang)
+        : t('themePlan.generateError', undefined, lang)
       )
     } finally {
       setGenerating(false)
@@ -182,6 +193,8 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
               </button>
             </div>
           </div>
+        ) : atPlanLimit ? (
+          <p style={styles.limitHint}>{t('themePlan.limitReached', undefined, lang)}</p>
         ) : (
           <button style={styles.newPlanBtn} onClick={() => setCreating(true)}>
             <AppIcon name="Sparkles" size={16} color="white" />
@@ -225,6 +238,7 @@ const styles = {
   body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
   heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
   emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
+  limitHint:  { fontSize: 12, fontWeight: 600, color: 'var(--g5)', textAlign: 'center', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: 13 },
 
   newPlanBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: '#A21CAF', boxShadow: '0 8px 20px rgba(162,28,175,.3)' },
 

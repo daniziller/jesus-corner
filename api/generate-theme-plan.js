@@ -14,6 +14,7 @@ import { findThemePassages } from './_lib/ai.js'
 import { BIBLE_BLOCKS, WORDS_PER_MINUTE, PLANS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
 import { slugify } from '../src/utils/slugify.js'
+import { mergeAdjacentPassages, chunkChaptersByWords } from '../src/utils/wordChunking.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -22,6 +23,11 @@ const APP_URL = 'https://app.jesuscorner.app'
 const ALLOWED_PACE_IDS = PLANS.map(p => p.id)
 const MAX_TITLE_LENGTH = 60
 const MAX_SCOPE_LENGTH = 200
+// "4 por mês" tratado como janela rolante de 30 dias (não mês-calendário)
+// — mais simples de calcular e evita o truque de gerar vários no fim de um
+// mês e mais no início do seguinte.
+const MAX_PLANS_PER_MONTH = 4
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 // Nome canônico (pt, o mesmo usado em session.book em todo o app) -> nome
 // em inglês — monta bookEn nas sessões geradas sem precisar pedir os dois
@@ -106,6 +112,23 @@ export default async function handler(req, res) {
   )
   if (!isPremium) return res.status(403).json({ error: 'subscription_required' })
 
+  // Limite de 4 planos por tema a cada 30 dias (não confia só na trava do
+  // client — reconfere aqui, mesmo espírito da checagem de assinatura
+  // acima, já que cada geração tem custo real de IA).
+  const { data: userRow } = await supabase
+    .from('user_data')
+    .select('theme_plans')
+    .eq('user_id', caller.id)
+    .maybeSingle()
+  const existingPlans = userRow?.theme_plans ?? []
+  const recentCount = existingPlans.filter(p => {
+    const created = p.createdAt ? new Date(p.createdAt).getTime() : NaN
+    return !Number.isNaN(created) && Date.now() - created < THIRTY_DAYS_MS
+  }).length
+  if (recentCount >= MAX_PLANS_PER_MONTH) {
+    return res.status(429).json({ error: 'plan_limit_reached' })
+  }
+
   const { title, scope, paceId, lang } = req.body ?? {}
   const cleanTitle = (title ?? '').trim()
   const cleanScope = (scope ?? '').trim()
@@ -130,20 +153,19 @@ export default async function handler(req, res) {
 
   let passages
   try {
-    passages = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang)
+    passages = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords)
   } catch (err) {
     console.error('[generate-theme-plan] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })
   }
 
-  const sessions = []
-  // Passagens validadas (livro + faixa de capítulos JÁ dentro do range real,
-  // sem o texto em si) — guardadas à parte das sessões pra permitir trocar
-  // o ritmo depois sem chamar a IA de novo (ver
-  // src/themePlans/chunkThemePassages.js, usado por App.jsx quando a
-  // pessoa muda o ritmo de um plano já salvo).
+  // Passagens validadas (livro + faixa de capítulos JÁ dentro do range
+  // real, sem o texto em si) — guardadas à parte das sessões (não
+  // fundidas ainda) pra permitir trocar o ritmo depois sem chamar a IA de
+  // novo (ver src/themePlans/chunkThemePassages.js, usado por App.jsx
+  // quando a pessoa muda o ritmo de um plano já salvo — refaz a mesma
+  // fusão+divisão abaixo a partir daqui).
   const validatedPassages = []
-  let nextId = 1
 
   for (const p of passages) {
     // Só aceita livro que está de fato na lista canônica — a IA foi
@@ -164,26 +186,34 @@ export default async function handler(req, res) {
     const chStart = Math.max(1, Math.min(Math.round(p.chStart) || 1, maxChapter))
     const chEnd = Math.max(chStart, Math.min(Math.round(p.chEnd) || chStart, maxChapter))
     validatedPassages.push({ book: p.book, chStart, chEnd, reason: p.reason })
-
-    // Divide a passagem em sessões de ~targetWords cada, sem nunca
-    // combinar capítulos de livros diferentes numa sessão só (mesma regra
-    // que SessionCard/ReadingBlockView já assumem hoje pra toda sessão).
-    let chunkStart = chStart
-    let chunkWords = 0
-    for (let ch = chStart; ch <= chEnd; ch++) {
-      const w = chapterWordCount(bookData[String(ch)])
-      if (chunkWords > 0 && chunkWords + w > targetWords) {
-        sessions.push(buildSession(nextId++, p.book, chunkStart, ch - 1, p.reason))
-        chunkStart = ch
-        chunkWords = 0
-      }
-      chunkWords += w
-    }
-    sessions.push(buildSession(nextId++, p.book, chunkStart, chEnd, p.reason))
   }
 
-  if (sessions.length === 0) {
+  if (validatedPassages.length === 0) {
     return res.status(502).json({ error: 'no_valid_passages' })
+  }
+
+  // Funde passagens adjacentes/sobrepostas do MESMO livro antes de dividir
+  // em sessões — sem isso, cada passagem da IA virava 1 sessão própria,
+  // quase sempre bem mais curta que o ritmo escolhido (era o bug
+  // reportado: sessões não respeitavam o número de palavras do ritmo).
+  const mergedPassages = mergeAdjacentPassages(validatedPassages)
+
+  const sessions = []
+  let nextId = 1
+  for (const p of mergedPassages) {
+    const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[p.book] : p.book
+    const bookData = await fetchBookChapters(folder, bookNameForFolder) // já em cache, não refaz o fetch
+    const chapters = []
+    for (let ch = p.chStart; ch <= p.chEnd; ch++) {
+      chapters.push({ ch, words: chapterWordCount(bookData[String(ch)]) })
+    }
+    // Divide em sessões de ~targetWords cada (balanceado, não guloso — ver
+    // src/utils/wordChunking.js), sem nunca combinar capítulos de livros
+    // diferentes numa sessão só (mesma regra que SessionCard/
+    // ReadingBlockView já assumem hoje pra toda sessão).
+    for (const chunk of chunkChaptersByWords(chapters, targetWords)) {
+      sessions.push(buildSession(nextId++, p.book, chunk.chStart, chunk.chEnd, p.reason))
+    }
   }
 
   const plan = {

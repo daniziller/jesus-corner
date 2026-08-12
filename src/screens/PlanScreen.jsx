@@ -6,11 +6,13 @@
 // ritmo (Leve/Padrão/Intensivo/Livre) são dois eixos independentes que se
 // combinam numa escolha só, direto ao tocar (sem botão "Escolher" — mesmo
 // padrão imediato de qualquer seletor de chips do app); (2) "Plano por
-// tema (IA)" — lista dos planos salvos, cada um com botão "Escolher"
-// (esse sim precisa de confirmação explícita, já que pode ter vários
-// salvos e só um fica ativo por vez). O escolhido (de qualquer uma das
-// duas partes) fica em destaque no topo (ActivePlanCard) E passa a ser a
-// "sessão de hoje" que Home/Rotina mostram (ver
+// tema (IA)" — só os 4 planos salvos mais recentes (ver recentThemePlans),
+// cada um com botão "Escolher" (esse sim precisa de confirmação explícita,
+// já que pode ter vários salvos e só um fica ativo por vez). Planos mais
+// antigos e a criação de um plano novo moram só em ThemePlanScreen.jsx
+// (link "Lista de planos por tema" no fim da seção). O escolhido (de
+// qualquer uma das duas partes) fica em destaque no topo (ActivePlanCard)
+// E passa a ser a "sessão de hoje" que Home/Rotina mostram (ver
 // session.activePlan/resolveActivePlanSessions em App.jsx) —
 // RoutineScreen.jsx não tem seletor próprio, só um resumo com link pra cá.
 //
@@ -36,6 +38,14 @@ export default function PlanScreen({
   const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, plan.id)
 
   const activeThemePlan = activeAltPlan?.type === 'theme' ? themePlans.find(p => p.id === activeAltPlan.planId) : null
+
+  // Só os 4 planos por tema mais recentes aparecem aqui (pra não virar uma
+  // lista enorme na aba principal) — planos mais antigos continuam
+  // acessíveis pela "Lista de planos por tema" (ThemePlanScreen.jsx, ver
+  // link mais abaixo), que mostra todos.
+  const recentThemePlans = [...themePlans]
+    .sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0))
+    .slice(0, 4)
 
   // Só o bloco ativo (onde a pessoa está lendo agora) começa aberto — os
   // outros ficam colapsados, senão a lista inteira apareceria de uma vez
@@ -83,7 +93,7 @@ export default function PlanScreen({
     onSelectActivePlan?.({ type: 'fixed', id: currentPaceId })
   }
   function activateThemePlan() {
-    const targetPlanId = activeThemePlan?.id ?? themePlans[0]?.id
+    const targetPlanId = activeThemePlan?.id ?? recentThemePlans[0]?.id
     if (!targetPlanId) return
     onSelectActivePlan?.({ type: 'theme', planId: targetPlanId })
   }
@@ -216,7 +226,7 @@ export default function PlanScreen({
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {themePlans.map(tp => (
+          {recentThemePlans.map(tp => (
             <PlanRow
               key={tp.id}
               icon="Sparkles"
@@ -232,6 +242,9 @@ export default function PlanScreen({
               onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
             />
           ))}
+          {/* Só os 4 mais recentes aparecem acima — este link sempre leva
+              pra lista completa (ThemePlanScreen.jsx), que também é onde
+              "criar plano" mora de verdade (ver comentário no topo). */}
           <button style={styles.createThemePlanLink} onClick={() => onNavigate?.('themePlan')}>
             {t('plan.createThemePlanLink', undefined, lang)}
           </button>

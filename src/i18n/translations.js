@@ -470,7 +470,7 @@ export const STRINGS = {
       themePlanSub: 'Escolha um plano salvo, ou crie um novo com título, assunto e ritmo.',
       chooseAction: 'Escolher',
       activeBadge: 'Ativo',
-      createThemePlanLink: '+ Criar novo plano por tema',
+      createThemePlanLink: 'Lista de planos por tema →',
     },
     themePlan: {
       pageTitle: 'Plano por tema',
@@ -484,6 +484,7 @@ export const STRINGS = {
       generateBtn: 'Gerar plano',
       generating: 'Buscando na Bíblia...',
       generateError: 'Não deu pra gerar o plano agora. Tenta de novo em instantes.',
+      limitReached: 'Você já criou 4 planos por tema nos últimos 30 dias — o limite mensal. Volte em breve pra criar mais.',
       subscriptionRequired: 'Essa função é só pra quem tem assinatura ativa.',
       loading: 'Carregando seus planos...',
       empty: 'Nenhum plano por tema ainda. Crie o primeiro acima.',
@@ -1307,7 +1308,7 @@ export const STRINGS = {
       themePlanSub: 'Choose a saved plan, or create a new one with a title, subject, and pace.',
       chooseAction: 'Choose',
       activeBadge: 'Active',
-      createThemePlanLink: '+ Create new theme plan',
+      createThemePlanLink: 'Theme plan list →',
     },
     themePlan: {
       pageTitle: 'Plan by theme',
@@ -1321,6 +1322,7 @@ export const STRINGS = {
       generateBtn: 'Generate plan',
       generating: 'Searching the Bible...',
       generateError: "Couldn't generate the plan right now. Try again in a moment.",
+      limitReached: "You've already created 4 theme plans in the last 30 days — the monthly limit. Check back soon to create more.",
       subscriptionRequired: 'This feature is only for active subscribers.',
       loading: 'Loading your plans...',
       empty: 'No theme plans yet. Create your first one above.',
