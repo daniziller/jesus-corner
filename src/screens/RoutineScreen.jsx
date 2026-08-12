@@ -221,10 +221,6 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
                   <span style={styles.readingStatN}>{doneSessions}/{totalSessions}</span>
                   <span style={styles.readingStatL}>{t('journey.sessionsStat', undefined, lang)}</span>
                 </div>
-                <div style={styles.readingStat}>
-                  <span style={styles.readingStatN}>~{plan.avgChapters}</span>
-                  <span style={styles.readingStatL}>{t('journey.chaptersPerSession', undefined, lang)}</span>
-                </div>
               </div>
             </div>
           </div>
