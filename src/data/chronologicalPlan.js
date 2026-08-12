@@ -19,7 +19,8 @@
 // (chave livro:capítulo / livro:reflection), o mesmo compartilhado com a
 // leitura livre e os planos Leve/Padrão/Intensivo — ler Gênesis aqui já
 // conta pro progresso geral da Bíblia.
-import { BIBLE_BLOCKS, SESSIONS_BY_PLAN, PLANS, WORDS_PER_MINUTE } from './bibleBlocks.js'
+import { BIBLE_BLOCKS, PLANS, WORDS_PER_MINUTE } from './bibleBlocks.js'
+import { getChapterWords } from './chapterWordCounts.js'
 import { sessionKeys } from '../utils/progress.js'
 
 export const CHRONOLOGICAL_MOVEMENTS = [
@@ -92,16 +93,6 @@ const BOOK_EN_BY_PT = Object.fromEntries(
   BIBLE_BLOCKS.flatMap(b => b.books.map((name, i) => [name, b.booksEn[i]]))
 )
 
-// Palavras por capítulo de cada livro, lidas do plano 'free' (que sempre
-// tem exatamente 1 sessão = 1 capítulo) — evita duplicar esse dado.
-const CHAPTER_WORDS = {}
-for (const block of BIBLE_BLOCKS) {
-  for (const s of SESSIONS_BY_PLAN.free[block.id]) {
-    if (!CHAPTER_WORDS[s.book]) CHAPTER_WORDS[s.book] = []
-    CHAPTER_WORDS[s.book][s.chStart - 1] = s.words
-  }
-}
-
 function makeSession(id, book, chStart, chEnd, chapterWords) {
   const bookEn = BOOK_EN_BY_PT[book]
   const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
@@ -130,7 +121,7 @@ function makeReflectionSession(id, book) {
 // por tema — e fecha com a mesma sessão de reflexão que os planos fixos já
 // têm ao final de cada livro (ver bibleBlocks.js).
 function buildBookSessions(book, targetWords, startId) {
-  const chapterWords = CHAPTER_WORDS[book] ?? []
+  const chapterWords = getChapterWords(book)
   const sessions = []
   let id = startId
   let chunkStart = 1

@@ -30,10 +30,23 @@ import AppIcon from '../icons/AppIcon'
 
 export default function PlanScreen({
   session, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan,
-  onSelectActivePlan, onContinueSession, onOpenThemePlan, onToggleSession, onOpenSession, onOpenChronoSession, onNavigate,
+  onSelectActivePlan, onContinueSession, onOpenThemePlan, onChangeThemePlanPace, onToggleSession, onOpenSession, onOpenChronoSession, onNavigate,
 }) {
   const { lang, plan, activePlan, todaySession } = session
   const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, plan.id)
+
+  // Botão-push no topo: qual dos dois "tipos" de plano está sendo mostrado
+  // abaixo — Bíblia toda (ordem padrão/cronológica) ou Tema (IA). Começa
+  // refletindo o que estiver ativo, e se re-sincroniza sozinho sempre que o
+  // plano ativo de verdade mudar (ex: escolhido pela Home) — mas trocar só
+  // a VISÃO aqui (sem escolher nada ainda) não mexe no que está ativo.
+  const [viewMode, setViewMode] = useState(activeAltPlan?.type === 'theme' ? 'theme' : 'bible')
+  useEffect(() => {
+    setViewMode(activeAltPlan?.type === 'theme' ? 'theme' : 'bible')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAltPlan?.type])
+
+  const activeThemePlan = activeAltPlan?.type === 'theme' ? themePlans.find(p => p.id === activeAltPlan.planId) : null
 
   // Só o bloco ativo (onde a pessoa está lendo agora) começa aberto — os
   // outros ficam colapsados, senão a lista inteira apareceria de uma vez
@@ -84,81 +97,142 @@ export default function PlanScreen({
           <ActivePlanCard activePlan={activePlan} todaySession={todaySession} lang={lang} onContinue={onContinueSession} />
         </div>
 
-        {/* Parte 1 — Plano de leitura: ordem (padrão × cronológica) e ritmo
-            (Leve/Padrão/Intensivo/Livre), dois eixos que se combinam numa
-            escolha só, direto ao tocar (ver chooseOrder/choosePace acima).
-            Título fora do card, mesmo padrão do título de "Plano por tema"
-            mais abaixo (cinza, menor, com uma frase explicando o que fazer). */}
-        <div>
-          <p style={styles.sectionLabel}>{t('plan.readingPlanTitle', undefined, lang)}</p>
-          <p style={styles.sectionSub}>{t('plan.readingPlanSub', undefined, lang)}</p>
-        </div>
-
-        <div style={styles.readingPlanCard}>
-          <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
-          <div style={styles.orderSel}>
-            <button
-              style={{ ...styles.orderBtn, ...(currentOrder === 'standard' ? styles.orderBtnActive : {}) }}
-              onClick={() => chooseOrder('standard')}
-            >
-              <AppIcon name="BookOpen" size={15} color={currentOrder === 'standard' ? 'white' : 'var(--g4)'} />
-              {t('plan.orderStandard', undefined, lang)}
-            </button>
-            <button
-              style={{ ...styles.orderBtn, ...(currentOrder === 'chrono' ? styles.orderBtnActive : {}) }}
-              onClick={() => chooseOrder('chrono')}
-            >
-              <AppIcon name="Hourglass" size={15} color={currentOrder === 'chrono' ? 'white' : 'var(--g4)'} />
-              {t('plan.orderChronological', undefined, lang)}
-            </button>
-          </div>
-
-          <p style={{ ...styles.chipsLabel, marginTop: 12 }}>{t('plan.paceLabel', undefined, lang)}</p>
-          <div style={styles.paceSel}>
-            {PLANS.map(p => (
-              <button
-                key={p.id}
-                style={{ ...styles.paceBtn, ...(currentPaceId === p.id ? styles.paceBtnActive : {}) }}
-                onClick={() => choosePace(p.id)}
-              >
-                <AppIcon name={p.icon} size={14} color={currentPaceId === p.id ? 'white' : 'var(--g4)'} />
-                <span>{lang === 'en' ? p.labelEn : p.label}</span>
-                <span style={{ ...styles.paceBtnTime, ...(currentPaceId === p.id ? styles.paceBtnTimeActive : {}) }}>
-                  {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Parte 2 — Plano por tema (IA): lista dos planos salvos, cada um
-            com botão "Escolher" (ver App.jsx, selectActivePlan). */}
-        <div>
-          <p style={styles.sectionLabel}>{t('plan.themePlanTitle', undefined, lang)}</p>
-          <p style={styles.sectionSub}>{t('plan.themePlanSub', undefined, lang)}</p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {themePlans.map(tp => (
-            <PlanRow
-              key={tp.id}
-              icon="Sparkles"
-              iconColor="#A21CAF"
-              iconBg="#FAE8FF"
-              title={themePlanTitle(tp)}
-              sub={themePlanReadingMinutes(tp) != null
-                ? `${themePlanReadingMinutes(tp)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`
-                : t('journey.noTimeTarget', undefined, lang)}
-              isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
-              lang={lang}
-              onOpen={() => onOpenThemePlan?.(tp.id)}
-              onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
-            />
-          ))}
-          <button style={styles.createThemePlanLink} onClick={() => onNavigate?.('themePlan')}>
-            {t('plan.createThemePlanLink', undefined, lang)}
+        {/* Botão-push: qual dos dois tipos de plano está sendo mostrado
+            abaixo — reflete o que está ativo, mas dá pra só espiar o outro
+            sem trocar nada (ver useEffect acima). */}
+        <div style={styles.modeSel}>
+          <button
+            style={{ ...styles.modeBtn, ...(viewMode === 'bible' ? styles.modeBtnActive : {}) }}
+            onClick={() => setViewMode('bible')}
+          >
+            <AppIcon name="BookOpen" size={15} color={viewMode === 'bible' ? 'white' : 'var(--g4)'} />
+            {t('plan.modeBible', undefined, lang)}
+          </button>
+          <button
+            style={{ ...styles.modeBtn, ...(viewMode === 'theme' ? styles.modeBtnActive : {}) }}
+            onClick={() => setViewMode('theme')}
+          >
+            <AppIcon name="Sparkles" size={15} color={viewMode === 'theme' ? 'white' : 'var(--g4)'} />
+            {t('plan.modeTheme', undefined, lang)}
           </button>
         </div>
+
+        {viewMode === 'bible' ? (
+          <>
+            {/* Ordem (padrão × cronológica) e ritmo (Leve/Padrão/Intensivo/
+                Livre), dois eixos que se combinam numa escolha só, direto
+                ao tocar (ver chooseOrder/choosePace acima). */}
+            <div>
+              <p style={styles.sectionLabel}>{t('plan.readingPlanTitle', undefined, lang)}</p>
+              <p style={styles.sectionSub}>{t('plan.readingPlanSub', undefined, lang)}</p>
+            </div>
+
+            <div style={styles.readingPlanCard}>
+              <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
+              <div style={styles.orderSel}>
+                <button
+                  style={{ ...styles.orderBtn, ...(currentOrder === 'standard' ? styles.orderBtnActive : {}) }}
+                  onClick={() => chooseOrder('standard')}
+                >
+                  <AppIcon name="BookOpen" size={15} color={currentOrder === 'standard' ? 'white' : 'var(--g4)'} />
+                  {t('plan.orderStandard', undefined, lang)}
+                </button>
+                <button
+                  style={{ ...styles.orderBtn, ...(currentOrder === 'chrono' ? styles.orderBtnActive : {}) }}
+                  onClick={() => chooseOrder('chrono')}
+                >
+                  <AppIcon name="Hourglass" size={15} color={currentOrder === 'chrono' ? 'white' : 'var(--g4)'} />
+                  {t('plan.orderChronological', undefined, lang)}
+                </button>
+              </div>
+
+              <p style={{ ...styles.chipsLabel, marginTop: 12 }}>{t('plan.paceLabel', undefined, lang)}</p>
+              <div style={styles.paceSel}>
+                {PLANS.map(p => (
+                  <button
+                    key={p.id}
+                    style={{ ...styles.paceBtn, ...(currentPaceId === p.id ? styles.paceBtnActive : {}) }}
+                    onClick={() => choosePace(p.id)}
+                  >
+                    <AppIcon name={p.icon} size={14} color={currentPaceId === p.id ? 'white' : 'var(--g4)'} />
+                    <span>{lang === 'en' ? p.labelEn : p.label}</span>
+                    <span style={{ ...styles.paceBtnTime, ...(currentPaceId === p.id ? styles.paceBtnTimeActive : {}) }}>
+                      {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <p style={styles.sectionLabel}>{t('plan.themePlanTitle', undefined, lang)}</p>
+              <p style={styles.sectionSub}>{t('plan.themePlanSub', undefined, lang)}</p>
+            </div>
+
+            {/* Plano por tema ativo no momento — mesmo padrão do card de
+                "Plano de leitura" acima: ritmo sempre visível, trocável a
+                qualquer momento (re-divide as MESMAS passagens já achadas
+                pela IA num tamanho de sessão novo, sem chamar a IA de novo
+                — ver chunkThemePassages.js). Planos salvos antes desse
+                recurso existir (sem `passages`) só mostram o ritmo, sem
+                poder trocar. */}
+            {activeThemePlan && (
+              <div style={styles.readingPlanCard}>
+                <p style={styles.activeThemeTitle}>{themePlanTitle(activeThemePlan)}</p>
+                {activeThemePlan.passages ? (
+                  <>
+                    <p style={styles.chipsLabel}>{t('plan.paceLabel', undefined, lang)}</p>
+                    <div style={styles.paceSel}>
+                      {PLANS.map(p => (
+                        <button
+                          key={p.id}
+                          style={{ ...styles.paceBtn, ...(activeThemePlan.paceId === p.id ? styles.paceBtnActive : {}) }}
+                          onClick={() => onChangeThemePlanPace?.(activeThemePlan.id, p.id)}
+                        >
+                          <AppIcon name={p.icon} size={14} color={activeThemePlan.paceId === p.id ? 'white' : 'var(--g4)'} />
+                          <span>{lang === 'en' ? p.labelEn : p.label}</span>
+                          <span style={{ ...styles.paceBtnTime, ...(activeThemePlan.paceId === p.id ? styles.paceBtnTimeActive : {}) }}>
+                            {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p style={styles.sectionSub}>
+                    {themePlanReadingMinutes(activeThemePlan) != null
+                      ? `${themePlanReadingMinutes(activeThemePlan)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`
+                      : t('journey.noTimeTarget', undefined, lang)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {themePlans.map(tp => (
+                <PlanRow
+                  key={tp.id}
+                  icon="Sparkles"
+                  iconColor="#A21CAF"
+                  iconBg="#FAE8FF"
+                  title={themePlanTitle(tp)}
+                  sub={themePlanReadingMinutes(tp) != null
+                    ? `${themePlanReadingMinutes(tp)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`
+                    : t('journey.noTimeTarget', undefined, lang)}
+                  isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
+                  lang={lang}
+                  onOpen={() => onOpenThemePlan?.(tp.id)}
+                  onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
+                />
+              ))}
+              <button style={styles.createThemePlanLink} onClick={() => onNavigate?.('themePlan')}>
+                {t('plan.createThemePlanLink', undefined, lang)}
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Sessões do plano ATIVO no momento — bloco/movimento > livro >
             sessão numerada, cada uma tocável. */}
@@ -355,7 +429,12 @@ const styles = {
   activeCardBarFill: { height: '100%', background: 'white', borderRadius: 99 },
   activeCardBtn:   { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
 
+  modeSel:     { display: 'flex', gap: 6 },
+  modeBtn:     { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  modeBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--bk)', boxShadow: 'var(--shadow-premium)' },
+
   readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
+  activeThemeTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
   chipsLabel:      { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
 
   orderSel:    { display: 'flex', gap: 6 },

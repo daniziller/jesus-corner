@@ -137,6 +137,12 @@ export default async function handler(req, res) {
   }
 
   const sessions = []
+  // Passagens validadas (livro + faixa de capítulos JÁ dentro do range real,
+  // sem o texto em si) — guardadas à parte das sessões pra permitir trocar
+  // o ritmo depois sem chamar a IA de novo (ver
+  // src/themePlans/chunkThemePassages.js, usado por App.jsx quando a
+  // pessoa muda o ritmo de um plano já salvo).
+  const validatedPassages = []
   let nextId = 1
 
   for (const p of passages) {
@@ -157,6 +163,7 @@ export default async function handler(req, res) {
     if (!maxChapter) continue
     const chStart = Math.max(1, Math.min(Math.round(p.chStart) || 1, maxChapter))
     const chEnd = Math.max(chStart, Math.min(Math.round(p.chEnd) || chStart, maxChapter))
+    validatedPassages.push({ book: p.book, chStart, chEnd, reason: p.reason })
 
     // Divide a passagem em sessões de ~targetWords cada, sem nunca
     // combinar capítulos de livros diferentes numa sessão só (mesma regra
@@ -186,6 +193,7 @@ export default async function handler(req, res) {
     paceId,
     lang: cleanLang,
     createdAt: new Date().toISOString(),
+    passages: validatedPassages,
     sessions,
   }
 

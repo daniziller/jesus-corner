@@ -36,7 +36,8 @@ import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
 import { resolveActivePlanSessions } from './plan/resolveActivePlan'
-import { getThemePlans } from './themePlans/themePlansStore'
+import { getThemePlans, saveThemePlan } from './themePlans/themePlansStore'
+import { chunkThemePassages } from './themePlans/chunkThemePassages'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { PLANS } from './data/bibleBlocks'
@@ -620,6 +621,21 @@ export default function App() {
     }
   }
 
+  // Troca o ritmo de um plano por tema JÁ GERADO (chips na aba Plano, ver
+  // PlanScreen.jsx) — sem chamar a IA de novo: as passagens (quais livros/
+  // capítulos) continuam as mesmas, só re-divide em sessões do tamanho do
+  // novo ritmo (ver chunkThemePassages). Planos salvos antes desse campo
+  // existir (sem `passages`) não têm como ser re-divididos — a tela nem
+  // mostra a opção nesse caso.
+  function changeThemePlanPace(planId, paceId) {
+    const plan = themePlans.find(p => p.id === planId)
+    if (!plan?.passages || !authUser) return
+    const updatedPlan = { ...plan, paceId, sessions: chunkThemePassages(plan.passages, paceId) }
+    saveThemePlan(authUser.email, updatedPlan)
+      .then(setThemePlans)
+      .catch(err => console.error('Failed to change theme plan pace', err))
+  }
+
   // Troca a ordem de leitura (AT primeiro / NT primeiro) — chamado a partir
   // do seletor na aba Perfil (mesmo padrão de selectPlan acima). blocks/
   // sessionsByBlock/todaySession recalculam sozinhos (useMemo depende de
@@ -805,7 +821,7 @@ export default function App() {
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} />,
-    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
+    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onChangeThemePlanPace={changeThemePlanPace} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
