@@ -143,6 +143,16 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
         <div className="page-header" style={{ padding: 0, marginBottom: 4 }}>
           <h1 className="page-title">{t('themePlan.pageTitle', undefined, lang)}</h1>
           <p style={styles.heroSub}>{t('themePlan.heroSub', undefined, lang)}</p>
+          {/* Contador de quantos planos ainda dá pra criar esse mês — só
+              enquanto não bateu no limite (atPlanLimit já mostra uma
+              mensagem própria, mais completa, nesse caso — ver abaixo) e só
+              pra quem tem limite de verdade (conta admin nunca bate nele,
+              ver isAdmin). */}
+          {!isAdmin && !atPlanLimit && (
+            <p style={styles.plansRemainingNote}>
+              {t('themePlan.plansRemaining', { remaining: MAX_PLANS_PER_MONTH - recentPlansCount, total: MAX_PLANS_PER_MONTH }, lang)}
+            </p>
+          )}
         </div>
 
         {creating ? (
@@ -242,6 +252,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
 const styles = {
   body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
   heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
+  plansRemainingNote: { fontSize: 11, fontWeight: 600, color: '#A21CAF', lineHeight: 1.4, margin: '4px 2px 0' },
   emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
   limitHint:  { fontSize: 12, fontWeight: 600, color: 'var(--g5)', textAlign: 'center', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: 13 },
 
