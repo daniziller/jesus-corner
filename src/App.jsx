@@ -349,7 +349,6 @@ export default function App() {
   // mesmo padrão de journeyEntryMode/journeyResumeSessionId abaixo.
   const [themeAutoOpenId, setThemeAutoOpenId] = useState(null)
   const [chronoAutoOpenMovementId, setChronoAutoOpenMovementId] = useState(null)
-  const [chronoAutoOpenPaceId, setChronoAutoOpenPaceId] = useState(null)
   // Rotina diária (Oração/Leitura/Reflexão) — o streak exibido é derivado
   // dela (ver computeRoutineStreak), não mais de um login diário.
   const [dailyRoutine, setDailyRoutine] = useState({})
@@ -542,7 +541,6 @@ export default function App() {
       const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
       const { block } = findCurrentReadingSession(chrono.blocks, chrono.sessionsByBlock, completedSet)
       setChronoAutoOpenMovementId(block.id)
-      setChronoAutoOpenPaceId(activeAltPlan.paceId)
       setActiveTab('chronologicalPlan')
       return
     }
@@ -680,15 +678,6 @@ export default function App() {
     if (authUser) {
       persistActiveAltPlan(authUser.email, ref).catch(err => console.error('Failed to persist active alt plan', err))
     }
-  }
-
-  // Chamado pelo ChronologicalPlanScreen quando a pessoa troca o ritmo de
-  // leitura (chips Leve/Padrão/Intensivo) enquanto o cronológico é o plano
-  // ativo no momento — sem isso, trocar o ritmo lá dessincronizaria do que
-  // Home/Rotina mostram. Não-op se o cronológico não for o ativo.
-  function updateChronoActivePace(paceId) {
-    if (activeAltPlan?.type !== 'chrono' || activeAltPlan.paceId === paceId) return
-    selectActivePlan({ type: 'chrono', paceId })
   }
 
   // Troca a ordem de leitura (AT primeiro / NT primeiro) — chamado a partir
@@ -881,7 +870,7 @@ export default function App() {
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
-    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} autoOpenMovementId={chronoAutoOpenMovementId} autoOpenPaceId={chronoAutoOpenPaceId} onPaceChanged={updateChronoActivePace} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
+    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,

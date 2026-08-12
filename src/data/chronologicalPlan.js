@@ -151,7 +151,12 @@ function buildBookSessions(book, targetWords, startId) {
 
 function buildChronoSessionsByMovement(planPaceId) {
   const pace = PLANS.find(p => p.id === planPaceId) ?? PLANS.find(p => p.id === 'standard')
-  const targetWords = (pace.readingMinutes ?? 20) * WORDS_PER_MINUTE
+  // Livre não tem meta de tempo — targetWords 0 faz buildBookSessions nunca
+  // agrupar 2 capítulos numa sessão só (a 1ª condição do chunking, "chunkWords
+  // > 0", só passa depois de já ter fechado o capítulo anterior), resultando
+  // em exatamente 1 sessão por capítulo — mesmo comportamento do plano Livre
+  // fixo (ver SESSIONS_BY_PLAN.free em bibleBlocks.js).
+  const targetWords = pace.readingMinutes == null ? 0 : pace.readingMinutes * WORDS_PER_MINUTE
   const sessionsByMovement = {}
   for (const movement of CHRONOLOGICAL_MOVEMENTS) {
     let nextId = 1

@@ -2,16 +2,22 @@
 // Aba "Plano de Leitura" (rótulo curto "Plano" no menu) — no lugar que a
 // aba Oração ocupava antes (ver App.jsx/BottomNav.jsx/Sidebar.jsx).
 //
-// Reorganizada numa lista única de "planos disponíveis": os 4 planos fixos
-// (Leve/Padrão/Intensivo/Livre) + cada plano por tema salvo + o plano
-// cronológico, cada um com um botão "Escolher". O escolhido fica em
-// destaque no topo (ActivePlanCard) E passa a ser a "sessão de hoje" que
-// Home/Rotina mostram (ver session.activePlan/resolveActivePlanSessions em
-// App.jsx) — RoutineScreen.jsx não tem mais seletor próprio, só um resumo
-// com link pra cá. Escolher um plano por tema/cronológico NÃO troca o
-// plano fixo de fundo (session.plan) — ele continua sozinho controlando a
-// Bíblia inteira dividida em sessões mais abaixo ("Sessões do plano"), que
-// por isso só aparece quando o plano ativo é um dos fixos.
+// Duas partes: (1) "Plano de leitura" — ordem (padrão × cronológica) e
+// ritmo (Leve/Padrão/Intensivo/Livre) são dois eixos independentes que se
+// combinam numa escolha só, direto ao tocar (sem botão "Escolher" — mesmo
+// padrão imediato de qualquer seletor de chips do app); (2) "Plano por
+// tema (IA)" — lista dos planos salvos, cada um com botão "Escolher"
+// (esse sim precisa de confirmação explícita, já que pode ter vários
+// salvos e só um fica ativo por vez). O escolhido (de qualquer uma das
+// duas partes) fica em destaque no topo (ActivePlanCard) E passa a ser a
+// "sessão de hoje" que Home/Rotina mostram (ver
+// session.activePlan/resolveActivePlanSessions em App.jsx) —
+// RoutineScreen.jsx não tem seletor próprio, só um resumo com link pra cá.
+//
+// Escolher ordem cronológica ou um plano por tema NÃO troca o plano fixo
+// de fundo (session.plan/readingOrder) — ele continua sozinho controlando
+// a Bíblia inteira dividida em sessões mais abaixo ("Sessões do plano"),
+// que por isso só aparece quando o plano ativo é a ordem padrão.
 import { useState } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
@@ -33,10 +39,19 @@ export default function PlanScreen({
     onOpenSession?.(blockId, sessionId)
   }
 
-  // Ritmo padrão sugerido ao escolher o cronológico direto da lista (sem
-  // passar pela tela dele antes) — usa o ritmo fixo atual se for um dos 3
-  // com meta de tempo, senão cai em 'standard' (Livre não se aplica aqui).
-  const defaultChronoPaceId = ['light', 'standard', 'intensive'].includes(plan.id) ? plan.id : 'standard'
+  // Ordem e ritmo atuais — dois eixos independentes, derivados direto do
+  // plano ativo (nada de estado próprio, pra nunca dessincronizar): ordem
+  // cronológica é só mais um "kind" de activeAltPlan, ritmo é o mesmo
+  // seletor nos dois casos (PLANS), só muda pra onde a escolha aponta.
+  const currentOrder = activeAltPlan?.type === 'chrono' ? 'chrono' : 'standard'
+  const currentPaceId = activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : plan.id
+
+  function chooseOrder(order) {
+    onSelectActivePlan?.(order === 'chrono' ? { type: 'chrono', paceId: currentPaceId } : { type: 'fixed', id: currentPaceId })
+  }
+  function choosePace(paceId) {
+    onSelectActivePlan?.(currentOrder === 'chrono' ? { type: 'chrono', paceId } : { type: 'fixed', id: paceId })
+  }
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
@@ -53,29 +68,56 @@ export default function PlanScreen({
           <ActivePlanCard activePlan={activePlan} todaySession={todaySession} lang={lang} onContinue={onContinueSession} />
         </div>
 
-        {/* Lista única de planos disponíveis — fixos + temas salvos + o
-            cronológico, cada um com um botão "Escolher" (ver App.jsx,
-            selectActivePlan). */}
+        {/* Parte 1 — Plano de leitura: ordem (padrão × cronológica) e ritmo
+            (Leve/Padrão/Intensivo/Livre), dois eixos que se combinam numa
+            escolha só, direto ao tocar (ver chooseOrder/choosePace acima). */}
+        <div style={styles.readingPlanCard}>
+          <p style={styles.readingPlanTitle}>{t('plan.readingPlanTitle', undefined, lang)}</p>
+
+          <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
+          <div style={styles.orderSel}>
+            <button
+              style={{ ...styles.orderBtn, ...(currentOrder === 'standard' ? styles.orderBtnActive : {}) }}
+              onClick={() => chooseOrder('standard')}
+            >
+              <AppIcon name="BookOpen" size={15} color={currentOrder === 'standard' ? 'white' : 'var(--g4)'} />
+              {t('plan.orderStandard', undefined, lang)}
+            </button>
+            <button
+              style={{ ...styles.orderBtn, ...(currentOrder === 'chrono' ? styles.orderBtnActive : {}) }}
+              onClick={() => chooseOrder('chrono')}
+            >
+              <AppIcon name="Hourglass" size={15} color={currentOrder === 'chrono' ? 'white' : 'var(--g4)'} />
+              {t('plan.orderChronological', undefined, lang)}
+            </button>
+          </div>
+
+          <p style={{ ...styles.chipsLabel, marginTop: 12 }}>{t('plan.paceLabel', undefined, lang)}</p>
+          <div style={styles.paceSel}>
+            {PLANS.map(p => (
+              <button
+                key={p.id}
+                style={{ ...styles.paceBtn, ...(currentPaceId === p.id ? styles.paceBtnActive : {}) }}
+                onClick={() => choosePace(p.id)}
+              >
+                <AppIcon name={p.icon} size={14} color={currentPaceId === p.id ? 'white' : 'var(--g4)'} />
+                <span>{lang === 'en' ? p.labelEn : p.label}</span>
+                <span style={{ ...styles.paceBtnTime, ...(currentPaceId === p.id ? styles.paceBtnTimeActive : {}) }}>
+                  {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Parte 2 — Plano por tema (IA): lista dos planos salvos, cada um
+            com botão "Escolher" (ver App.jsx, selectActivePlan). */}
         <div>
-          <p style={styles.sectionLabel}>{t('plan.availablePlansTitle', undefined, lang)}</p>
-          <p style={styles.sectionSub}>{t('plan.availablePlansSub', undefined, lang)}</p>
+          <p style={styles.sectionLabel}>{t('plan.themePlanTitle', undefined, lang)}</p>
+          <p style={styles.sectionSub}>{t('plan.themePlanSub', undefined, lang)}</p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {PLANS.map(p => (
-            <PlanRow
-              key={p.id}
-              icon={p.icon}
-              iconColor="var(--brand-deep)"
-              iconBg="var(--olt)"
-              title={lang === 'en' ? p.labelEn : p.label}
-              sub={p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-              isActive={activePlan.kind === 'fixed' && plan.id === p.id}
-              lang={lang}
-              onChoose={() => onSelectActivePlan?.({ type: 'fixed', id: p.id })}
-            />
-          ))}
-
           {themePlans.map(tp => (
             <PlanRow
               key={tp.id}
@@ -93,24 +135,12 @@ export default function PlanScreen({
           <button style={styles.createThemePlanLink} onClick={() => onNavigate?.('themePlan')}>
             {t('plan.createThemePlanLink', undefined, lang)}
           </button>
-
-          <PlanRow
-            icon="Hourglass"
-            iconColor="#0891B2"
-            iconBg="#CFFAFE"
-            title={t('plan.chronoPlanTitle', undefined, lang)}
-            sub={t('plan.chronoPlanSub', undefined, lang)}
-            isActive={activeAltPlan?.type === 'chrono'}
-            lang={lang}
-            onOpen={() => onNavigate?.('chronologicalPlan')}
-            onChoose={() => onSelectActivePlan?.({ type: 'chrono', paceId: activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : defaultChronoPaceId })}
-          />
         </div>
 
         {/* Bíblia inteira, dividida nas sessões do plano fixo — bloco >
             livro > sessão numerada, cada uma tocável. Só faz sentido quando
-            o plano ATIVO é um dos fixos (pra tema/cronológico, a leitura já
-            mora na tela própria). */}
+            o plano ATIVO é a ordem padrão (pra cronológica/tema, a leitura
+            já mora na tela própria). */}
         {activePlan.kind === 'fixed' && (
           <>
             <div style={{ margin: '4px 2px 0' }}>
@@ -307,6 +337,20 @@ const styles = {
   activeCardBar:   { height: 5, background: 'rgba(255,255,255,.25)', borderRadius: 99, overflow: 'hidden', margin: '10px 0' },
   activeCardBarFill: { height: '100%', background: 'white', borderRadius: 99 },
   activeCardBtn:   { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
+
+  readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
+  readingPlanTitle:{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
+  chipsLabel:      { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+
+  orderSel:    { display: 'flex', gap: 6 },
+  orderBtn:    { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 11, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  orderBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+
+  paceSel:     { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  paceBtn:     { flex: '1 1 0', minWidth: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', padding: '10px 6px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  paceBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  paceBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
+  paceBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
 
   planRow:      { display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 6, boxShadow: 'var(--shadow-card)' },
   planRowMain:  { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', padding: 6 },

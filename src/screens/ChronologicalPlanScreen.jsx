@@ -15,44 +15,36 @@
 // movimento quando termina o atual (mesma lógica de blocks[] em
 // ReadingBlockView.jsx).
 //
-// `autoOpenMovementId`/`autoOpenPaceId` abrem direto num movimento/ritmo
-// específico (usado pelo "Continuar sessão" da Home/Rotina quando o plano
-// ativo é o cronológico — ver App.jsx/continueToday). `onPaceChanged`
-// avisa App.jsx quando o ritmo muda aqui dentro, pra manter em dia o que
-// Home/Rotina mostram caso o cronológico seja o plano ativo no momento.
+// O ritmo (Leve/Padrão/Intensivo/Livre) não é mais escolhido aqui dentro —
+// é a MESMA escolha da ordem padrão, feita de uma vez só na aba Plano (ver
+// PlanScreen.jsx, seção "Ordem de leitura" + "Ritmo de leitura"), pra não
+// ter dois seletores de ritmo espalhados. `paceId` sempre vem de fora,
+// refletindo esse ritmo atual. `autoOpenMovementId` abre direto no
+// movimento onde a pessoa parou (usado pelo "Continuar sessão" da
+// Home/Rotina quando o plano ativo é o cronológico — ver
+// App.jsx/continueToday).
 import { useState, useMemo, useEffect } from 'react'
 import { CHRONOLOGICAL_MOVEMENTS, deriveChronoProgress } from '../data/chronologicalPlan'
-import { GRADIENT_MAP, PLANS } from '../data/bibleBlocks'
+import { GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 
-// "Livre" não tem meta de minutos por sessão — não faz sentido pra decidir
-// o tamanho das sessões cronológicas, então fica de fora aqui.
-const PACE_OPTIONS = PLANS.filter(p => p.readingMinutes != null)
-
 export default function ChronologicalPlanScreen({
   session, authUser, completedSet, onToggleSession, onToggleChapter, onNavigate,
-  autoOpenMovementId, autoOpenPaceId, onPaceChanged,
+  paceId, autoOpenMovementId,
 }) {
   const { lang } = session
-  const [paceId, setPaceId] = useState(autoOpenPaceId ?? 'standard')
   const [activeMovementId, setActiveMovementId] = useState(autoOpenMovementId ?? null)
 
-  // Re-sincroniza sempre que App.jsx pedir pra abrir um movimento/ritmo
-  // específico (ex: "Continuar sessão" da Home/Rotina, ver App.jsx) — mesmo
-  // padrão de JourneyScreen.jsx pra entryMode/initialBlockId.
+  // Re-sincroniza sempre que App.jsx pedir pra abrir um movimento específico
+  // (ex: "Continuar sessão" da Home/Rotina, ver App.jsx) — mesmo padrão de
+  // JourneyScreen.jsx pra entryMode/initialBlockId.
   useEffect(() => {
-    if (autoOpenPaceId) setPaceId(autoOpenPaceId)
     if (autoOpenMovementId != null) setActiveMovementId(autoOpenMovementId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoOpenMovementId, autoOpenPaceId])
-
-  function choosePace(id) {
-    setPaceId(id)
-    onPaceChanged?.(id)
-  }
+  }, [autoOpenMovementId])
 
   const { blocks, sessionsByBlock } = useMemo(
     () => deriveChronoProgress(completedSet, paceId),
@@ -94,22 +86,6 @@ export default function ChronologicalPlanScreen({
             <div style={{ ...styles.overallBarFill, width: `${overallPercent}%` }} />
           </div>
           <p style={styles.overallLabel}>{overallPercent}% · {t('chronoPlan.sessionsCount', { done: totalDone, total: totalSessions }, lang)}</p>
-        </div>
-
-        <div style={styles.paceCard}>
-          <p style={styles.paceLabel}>{t('chronoPlan.paceLabel', undefined, lang)}</p>
-          <div style={styles.paceSel}>
-            {PACE_OPTIONS.map(p => (
-              <button
-                key={p.id}
-                style={{ ...styles.paceBtn, ...(paceId === p.id ? styles.paceBtnActive : {}) }}
-                onClick={() => choosePace(p.id)}
-              >
-                <AppIcon name={p.icon} size={14} color={paceId === p.id ? 'white' : 'var(--g4)'} />
-                {lang === 'en' ? p.labelEn : p.label}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -167,12 +143,6 @@ const styles = {
   overallBar:    { height: 6, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 },
   overallBarFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99 },
   overallLabel:  { fontSize: 11, fontWeight: 700, color: 'var(--g5)' },
-
-  paceCard:    { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  paceLabel:   { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  paceSel:     { display: 'flex', gap: 6 },
-  paceBtn:     { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 6px', fontSize: 11, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 11, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  paceBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
 
   movementCard: { display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 12, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)' },
   movementName: { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 2, letterSpacing: '-0.2px' },
