@@ -493,6 +493,11 @@ function FeatureStep({ header, card, isLast, onNext, onSkip }) {
       <h1 style={{ ...styles.title, fontSize: 22 }}>{t(`onboarding.features.${card.key}.title`)}</h1>
       <p style={styles.subtitle}>{t(`onboarding.features.${card.key}.desc`)}</p>
 
+      <div style={styles.verseChip}>
+        <p style={styles.verseChipText}>&ldquo;{t(`onboarding.features.${card.key}.verseText`)}&rdquo;</p>
+        <p style={styles.verseChipRef}>{t(`onboarding.features.${card.key}.verseRef`)}</p>
+      </div>
+
       <FeatureVisual card={card} lang={lang} />
 
       <div style={{ marginTop: 4 }}>
@@ -1415,6 +1420,9 @@ const styles = {
   previewTotalLabel: { fontSize: 15, fontWeight: 800, color: 'var(--bk)' },
   previewTotalValue: { fontSize: 18.5, fontWeight: 900, color: 'var(--or)' },
   aiChip:        { display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start', padding: '5px 11px', borderRadius: 999, background: '#FAE8FF', color: '#A21CAF', fontSize: 13, fontWeight: 800, marginBottom: 10 },
+  verseChip:     { borderLeft: '3px solid var(--gold)', background: 'var(--olt)', borderRadius: '0 12px 12px 0', padding: '10px 14px', margin: '2px 0 4px' },
+  verseChipText: { fontSize: 13.5, fontStyle: 'italic', lineHeight: 1.5, color: 'var(--g6)', margin: 0 },
+  verseChipRef:  { fontSize: 12, fontWeight: 800, color: 'var(--brand-deep)', margin: '4px 0 0' },
   mockHighlightText: { fontSize: 14.5, lineHeight: 1.6, color: 'var(--bk)', margin: '2px 0 12px' },
   mockHighlightSpan: { background: 'rgba(201,154,74,.28)', borderRadius: 4, padding: '1px 2px' },
   mockNoteBubble: { fontSize: 13, fontWeight: 600, color: 'var(--g6)', background: 'var(--g1)', borderRadius: 10, padding: '8px 10px' },
