@@ -1,9 +1,13 @@
 // ThemePlanScreen.jsx
-// "Plano por tema" (IA) — a pessoa digita um tema, escolhe minutos por
-// sessão, e a IA busca passagens relevantes na Bíblia inteira, divididas
-// em sessões desse tamanho (ver api/generate-theme-plan.js). Alcançada só
-// por um card em PlanScreen.jsx — não é aba própria, mesmo padrão não-aba
-// de NotesScreen.jsx/ApplicationPhrasesScreen.jsx.
+// "Plano por tema" (IA) — a pessoa escolhe um título (só pra identificar o
+// plano na lista) e descreve o escopo (o assunto de verdade, usado pra IA
+// buscar as passagens), mais o ritmo de leitura (Leve/Padrão/Intensivo/
+// Livre — mesmo conjunto do resto do app, em vez de minutos escolhidos na
+// hora). A IA busca passagens relevantes ao escopo na Bíblia inteira,
+// divididas em sessões do tamanho do ritmo escolhido (ver
+// api/generate-theme-plan.js). Alcançada só por um card em PlanScreen.jsx
+// — não é aba própria, mesmo padrão não-aba de NotesScreen.jsx/
+// ApplicationPhrasesScreen.jsx.
 //
 // A lista de planos salvos (`plans`) vem de fora (App.jsx) em vez de ser
 // buscada aqui — App.jsx precisa dela pra saber as sessões do plano por
@@ -26,19 +30,20 @@
 // geral da Bíblia, porque é a mesma chave livro:capítulo de sempre.
 import { useState, useEffect } from 'react'
 import { saveThemePlan, deleteThemePlan, generateThemePlan } from '../themePlans/themePlansStore'
+import { themePlanTitle, themePlanReadingMinutes } from '../plan/resolveActivePlan'
+import { PLANS } from '../data/bibleBlocks'
 import { sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 
-const DURATION_OPTIONS = [5, 10, 15, 20, 30]
-
 export default function ThemePlanScreen({ session, authUser, completedSet, plans, onPlansChanged, autoOpenPlanId, onToggleSession, onToggleChapter, onNavigate }) {
   const { lang } = session
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
   const [creating, setCreating] = useState(false)
-  const [theme, setTheme] = useState('')
-  const [minutes, setMinutes] = useState(10)
+  const [title, setTitle] = useState('')
+  const [scope, setScope] = useState('')
+  const [paceId, setPaceId] = useState('standard')
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
 
@@ -51,15 +56,16 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
   }, [autoOpenPlanId])
 
   async function handleGenerate() {
-    if (!theme.trim() || generating) return
+    if (!title.trim() || !scope.trim() || generating) return
     setGenerating(true)
     setGenError('')
     try {
-      const plan = await generateThemePlan(theme.trim(), minutes, lang)
+      const plan = await generateThemePlan(title.trim(), scope.trim(), paceId, lang)
       const updated = await saveThemePlan(authUser.email, plan)
       onPlansChanged?.(updated)
       setCreating(false)
-      setTheme('')
+      setTitle('')
+      setScope('')
       setActivePlanId(plan.id)
     } catch (err) {
       console.error('Failed to generate theme plan', err)
@@ -93,10 +99,11 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
       ...s,
       status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
     }))
+    const activePlanTitleText = themePlanTitle(activePlan)
     const syntheticBlock = {
       id: `theme:${activePlan.id}`,
-      name: activePlan.theme,
-      nameEn: activePlan.theme,
+      name: activePlanTitleText,
+      nameEn: activePlanTitleText,
       sessionsTotal: sessionsWithStatus.length,
     }
     return (
@@ -126,27 +133,37 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
 
         {creating ? (
           <div style={styles.createCard}>
-            <p style={styles.createLabel}>{t('themePlan.themeLabel', undefined, lang)}</p>
+            <p style={styles.createLabel}>{t('themePlan.titleLabel', undefined, lang)}</p>
             <input
               type="text"
               style={styles.themeInput}
-              value={theme}
-              onChange={e => setTheme(e.target.value)}
-              placeholder={t('themePlan.themePlaceholder', undefined, lang)}
-              maxLength={80}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder={t('themePlan.titlePlaceholder', undefined, lang)}
+              maxLength={60}
               autoFocus
             />
 
-            <p style={{ ...styles.createLabel, marginTop: 14 }}>{t('themePlan.minutesLabel', undefined, lang)}</p>
+            <p style={{ ...styles.createLabel, marginTop: 14 }}>{t('themePlan.scopeLabel', undefined, lang)}</p>
+            <textarea
+              style={styles.scopeInput}
+              value={scope}
+              onChange={e => setScope(e.target.value)}
+              placeholder={t('themePlan.scopePlaceholder', undefined, lang)}
+              maxLength={200}
+              rows={3}
+            />
+
+            <p style={{ ...styles.createLabel, marginTop: 14 }}>{t('themePlan.paceLabel', undefined, lang)}</p>
             <div style={styles.durationSel}>
-              {DURATION_OPTIONS.map(n => (
+              {PLANS.map(p => (
                 <button
-                  key={n}
-                  style={{ ...styles.durationBtn, ...(n === minutes ? styles.durationBtnActive : {}) }}
-                  onClick={() => setMinutes(n)}
+                  key={p.id}
+                  style={{ ...styles.durationBtn, ...(p.id === paceId ? styles.durationBtnActive : {}) }}
+                  onClick={() => setPaceId(p.id)}
                 >
-                  <span style={styles.durationBtnNum}>{n}</span>
-                  <span style={styles.durationBtnUnit}>{t('routine.min', undefined, lang)}</span>
+                  <AppIcon name={p.icon} size={14} color={p.id === paceId ? 'white' : 'var(--g4)'} />
+                  <span style={styles.durationBtnLabel}>{lang === 'en' ? p.labelEn : p.label}</span>
                 </button>
               ))}
             </div>
@@ -154,7 +171,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
             {genError && <p style={styles.errorText}>{genError}</p>}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <button style={styles.generateBtn} onClick={handleGenerate} disabled={generating || !theme.trim()}>
+              <button style={styles.generateBtn} onClick={handleGenerate} disabled={generating || !title.trim() || !scope.trim()}>
                 {generating ? t('themePlan.generating', undefined, lang) : t('themePlan.generateBtn', undefined, lang)}
               </button>
               <button style={styles.cancelBtn} onClick={() => { setCreating(false); setGenError('') }} disabled={generating}>
@@ -181,9 +198,10 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
                 <button style={styles.planCardMain} onClick={() => setActivePlanId(plan.id)}>
                   <span style={styles.planCardIcon}><AppIcon name="Sparkles" size={16} color="#A21CAF" /></span>
                   <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <span style={styles.planCardTheme}>{plan.theme}</span>
+                    <span style={styles.planCardTheme}>{themePlanTitle(plan)}</span>
                     <span style={styles.planCardMeta}>
-                      {t('themePlan.sessionsCount', { done: doneCount, total: plan.sessions.length }, lang)} · {plan.minutesPerSession} {t('routine.min', undefined, lang)}/{t('themePlan.perSession', undefined, lang)}
+                      {t('themePlan.sessionsCount', { done: doneCount, total: plan.sessions.length }, lang)}
+                      {themePlanReadingMinutes(plan) != null && ` · ${themePlanReadingMinutes(plan)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`}
                     </span>
                   </span>
                   <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
@@ -210,11 +228,11 @@ const styles = {
   createCard:   { background: 'linear-gradient(135deg,#FDF4FF,#FAE8FF)', border: '0.5px dashed rgba(192,38,211,.4)', borderRadius: 18, padding: 14 },
   createLabel:  { fontSize: 9.5, fontWeight: 700, color: '#A21CAF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   themeInput:   { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'white' },
-  durationSel:  { display: 'flex', gap: 6 },
-  durationBtn:  { flex: 1, height: 44, borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 },
+  scopeInput:   { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'white', resize: 'vertical', lineHeight: 1.4 },
+  durationSel:  { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  durationBtn:  { flex: '1 1 0', minWidth: 70, height: 40, borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 },
   durationBtnActive: { color: 'white', border: 'none', background: '#A21CAF' },
-  durationBtnNum:  { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, lineHeight: 1 },
-  durationBtnUnit: { fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, opacity: 0.75, lineHeight: 1 },
+  durationBtnLabel: { fontSize: 11, fontWeight: 700 },
   errorText:    { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginTop: 10 },
   generateBtn:  { flex: 1, background: '#A21CAF', border: 'none', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
   cancelBtn:    { flex: 1, background: 'white', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },

@@ -1,14 +1,17 @@
-// Gera um plano de leitura por tema (IA) — a pessoa digita um tema (ex:
-// "perdão") e quantos minutos quer ler por sessão; este endpoint pede pra
-// IA uma lista de passagens relevantes (só livro + faixa de capítulos,
-// nunca o texto em si), valida cada uma contra o texto bíblico real, e
-// divide em sessões do tamanho escolhido (mesma heurística de palavras/
-// minuto usada pra gerar SESSIONS_BY_PLAN). Devolve o plano montado pro
-// client salvar (ver src/themePlans/themePlansStore.js) — este endpoint
-// não persiste nada, só gera.
+// Gera um plano de leitura por tema (IA) — a pessoa escolhe um título e
+// descreve o escopo (ex: "textos sobre lidar com ansiedade e confiar em
+// Deus"), mais o ritmo de leitura (Leve/Padrão/Intensivo/Livre, mesmo
+// conjunto usado no resto do app); este endpoint pede pra IA uma lista de
+// passagens relevantes ao escopo (só livro + faixa de capítulos, nunca o
+// texto em si), valida cada uma contra o texto bíblico real, e divide em
+// sessões do tamanho do ritmo escolhido (mesma heurística de palavras/
+// minuto usada pra gerar SESSIONS_BY_PLAN e o plano cronológico — ver
+// src/data/chronologicalPlan.js). Devolve o plano montado pro client
+// salvar (ver src/themePlans/themePlansStore.js) — este endpoint não
+// persiste nada, só gera.
 import { createClient } from '@supabase/supabase-js'
 import { findThemePassages } from './_lib/ai.js'
-import { BIBLE_BLOCKS, WORDS_PER_MINUTE } from '../src/data/bibleBlocks.js'
+import { BIBLE_BLOCKS, WORDS_PER_MINUTE, PLANS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
 import { slugify } from '../src/utils/slugify.js'
 
@@ -16,8 +19,9 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const APP_URL = 'https://app.jesuscorner.app'
 
-const ALLOWED_MINUTES = [5, 10, 15, 20, 30]
-const MAX_THEME_LENGTH = 80
+const ALLOWED_PACE_IDS = PLANS.map(p => p.id)
+const MAX_TITLE_LENGTH = 60
+const MAX_SCOPE_LENGTH = 200
 
 // Nome canônico (pt, o mesmo usado em session.book em todo o app) -> nome
 // em inglês — monta bookEn nas sessões geradas sem precisar pedir os dois
@@ -102,21 +106,31 @@ export default async function handler(req, res) {
   )
   if (!isPremium) return res.status(403).json({ error: 'subscription_required' })
 
-  const { theme, minutesPerSession, lang } = req.body ?? {}
-  const cleanTheme = (theme ?? '').trim()
-  if (!cleanTheme || cleanTheme.length > MAX_THEME_LENGTH) {
-    return res.status(400).json({ error: 'invalid_theme' })
+  const { title, scope, paceId, lang } = req.body ?? {}
+  const cleanTitle = (title ?? '').trim()
+  const cleanScope = (scope ?? '').trim()
+  if (!cleanTitle || cleanTitle.length > MAX_TITLE_LENGTH) {
+    return res.status(400).json({ error: 'invalid_title' })
   }
-  if (!ALLOWED_MINUTES.includes(minutesPerSession)) {
-    return res.status(400).json({ error: 'invalid_minutes' })
+  if (!cleanScope || cleanScope.length > MAX_SCOPE_LENGTH) {
+    return res.status(400).json({ error: 'invalid_scope' })
+  }
+  if (!ALLOWED_PACE_IDS.includes(paceId)) {
+    return res.status(400).json({ error: 'invalid_pace' })
   }
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const folder = BIBLE_VERSIONS[cleanLang][0].folder
-  const targetWords = minutesPerSession * WORDS_PER_MINUTE
+  const pace = PLANS.find(p => p.id === paceId)
+  // Livre não tem meta de tempo — targetWords 0 faz o chunking abaixo nunca
+  // juntar 2 capítulos numa sessão só (1ª condição do loop só passa depois
+  // de já ter fechado o capítulo anterior), resultando em exatamente 1
+  // sessão por capítulo — mesma lógica do cronológico (ver
+  // src/data/chronologicalPlan.js).
+  const targetWords = pace.readingMinutes == null ? 0 : pace.readingMinutes * WORDS_PER_MINUTE
 
   let passages
   try {
-    passages = await findThemePassages(cleanTheme, CANONICAL_BOOKS, cleanLang)
+    passages = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang)
   } catch (err) {
     console.error('[generate-theme-plan] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })
@@ -167,8 +181,9 @@ export default async function handler(req, res) {
 
   const plan = {
     id: `theme-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    theme: cleanTheme,
-    minutesPerSession,
+    title: cleanTitle,
+    scope: cleanScope,
+    paceId,
     lang: cleanLang,
     createdAt: new Date().toISOString(),
     sessions,

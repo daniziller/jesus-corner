@@ -30,7 +30,7 @@ const ThemePassagesSchema = z.object({
 // garante nada sobre os CAPÍTULOS citados — quem chama esta função ainda
 // precisa validar chStart/chEnd contra o texto real antes de confiar
 // (ver api/generate-theme-plan.js).
-export async function findThemePassages(theme, canonicalBooks, lang) {
+export async function findThemePassages(scope, canonicalBooks, lang) {
   const langInstruction = lang === 'en'
     ? 'Write the "reason" field in English.'
     : 'Escreva o campo "reason" em português.'
@@ -38,9 +38,9 @@ export async function findThemePassages(theme, canonicalBooks, lang) {
   const { output } = await generateText({
     model: MODEL,
     output: Output.object({ schema: ThemePassagesSchema }),
-    prompt: `Você é um estudioso bíblico ajudando a montar um plano de leitura devocional sobre um tema específico.
+    prompt: `Você é um estudioso bíblico ajudando a montar um plano de leitura devocional sobre um assunto específico.
 
-Tema: "${theme}"
+Assunto: "${scope}"
 
 Liste entre 5 e 15 passagens da Bíblia (Antigo e Novo Testamento) diretamente relevantes a esse tema. Regras:
 - Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.

@@ -24,7 +24,7 @@ import { useState, useEffect } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { groupSessionsByBook } from '../utils/groupByBook'
-import { resolveActivePlanSessions } from '../plan/resolveActivePlan'
+import { resolveActivePlanSessions, themePlanTitle, themePlanReadingMinutes } from '../plan/resolveActivePlan'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -140,8 +140,10 @@ export default function PlanScreen({
               icon="Sparkles"
               iconColor="#A21CAF"
               iconBg="#FAE8FF"
-              title={tp.theme}
-              sub={`${tp.minutesPerSession} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`}
+              title={themePlanTitle(tp)}
+              sub={themePlanReadingMinutes(tp) != null
+                ? `${themePlanReadingMinutes(tp)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`
+                : t('journey.noTimeTarget', undefined, lang)}
               isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
               lang={lang}
               onOpen={() => onOpenThemePlan?.(tp.id)}

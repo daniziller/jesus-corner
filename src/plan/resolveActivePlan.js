@@ -15,10 +15,23 @@ import { PLANS } from '../data/bibleBlocks'
 import { deriveChronoProgress } from '../data/chronologicalPlan'
 import { sessionKeys } from '../utils/progress'
 
+// title/paceId são os campos atuais de um plano por tema; `theme`/
+// minutesPerSession são os nomes antigos (planos salvos antes da tela
+// ganhar campo de título + ritmo separado do escopo) — os fallbacks abaixo
+// evitam que um plano salvo nesse formato antigo pareça quebrado.
+export function themePlanTitle(themePlan) {
+  return themePlan.title ?? themePlan.theme ?? ''
+}
+export function themePlanReadingMinutes(themePlan) {
+  if (themePlan.paceId) return (PLANS.find(p => p.id === themePlan.paceId) ?? PLANS.find(p => p.id === 'standard')).readingMinutes
+  return themePlan.minutesPerSession ?? null
+}
+
 export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId) {
   if (activeAltPlan?.type === 'theme') {
     const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
     if (themePlan) {
+      const title = themePlanTitle(themePlan)
       const sessions = themePlan.sessions.map(s => ({
         ...s,
         status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
@@ -30,16 +43,16 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
       // PlanBlockSection (PlanScreen.jsx) conseguir desenhar esse "bloco"
       // sintético igual aos blocos de verdade, na lista "Sessões do plano".
       const syntheticBlock = {
-        id: `theme:${themePlan.id}`, name: themePlan.theme, nameEn: themePlan.theme,
+        id: `theme:${themePlan.id}`, name: title, nameEn: title,
         sessionsTotal: sessions.length, icon: 'Sparkles', gradientKey: 'purple', percent,
         status: doneCount === sessions.length ? 'done' : doneCount > 0 ? 'active' : 'todo',
       }
       return {
         kind: 'theme',
         icon: 'Sparkles',
-        label: themePlan.theme,
-        labelEn: themePlan.theme,
-        readingMinutes: themePlan.minutesPerSession,
+        label: title,
+        labelEn: title,
+        readingMinutes: themePlanReadingMinutes(themePlan),
         doneCount,
         totalCount: sessions.length,
         percent,
