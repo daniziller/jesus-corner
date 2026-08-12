@@ -11,6 +11,7 @@
 // persiste nada, só gera.
 import { createClient } from '@supabase/supabase-js'
 import { findThemePassages } from './_lib/ai.js'
+import { isAdminEmail } from './_lib/adminAuth.js'
 import { BIBLE_BLOCKS, WORDS_PER_MINUTE, PLANS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
 import { slugify } from '../src/utils/slugify.js'
@@ -114,19 +115,23 @@ export default async function handler(req, res) {
 
   // Limite de 4 planos por tema a cada 30 dias (não confia só na trava do
   // client — reconfere aqui, mesmo espírito da checagem de assinatura
-  // acima, já que cada geração tem custo real de IA).
-  const { data: userRow } = await supabase
-    .from('user_data')
-    .select('theme_plans')
-    .eq('user_id', caller.id)
-    .maybeSingle()
-  const existingPlans = userRow?.theme_plans ?? []
-  const recentCount = existingPlans.filter(p => {
-    const created = p.createdAt ? new Date(p.createdAt).getTime() : NaN
-    return !Number.isNaN(created) && Date.now() - created < THIRTY_DAYS_MS
-  }).length
-  if (recentCount >= MAX_PLANS_PER_MONTH) {
-    return res.status(429).json({ error: 'plan_limit_reached' })
+  // acima, já que cada geração tem custo real de IA). Conta admin (ver
+  // api/_lib/adminAuth.js) fica de fora do limite — usa a função pra testar
+  // sem esperar a janela de 30 dias.
+  if (!isAdminEmail(caller.email)) {
+    const { data: userRow } = await supabase
+      .from('user_data')
+      .select('theme_plans')
+      .eq('user_id', caller.id)
+      .maybeSingle()
+    const existingPlans = userRow?.theme_plans ?? []
+    const recentCount = existingPlans.filter(p => {
+      const created = p.createdAt ? new Date(p.createdAt).getTime() : NaN
+      return !Number.isNaN(created) && Date.now() - created < THIRTY_DAYS_MS
+    }).length
+    if (recentCount >= MAX_PLANS_PER_MONTH) {
+      return res.status(429).json({ error: 'plan_limit_reached' })
+    }
   }
 
   const { title, scope, paceId, lang } = req.body ?? {}

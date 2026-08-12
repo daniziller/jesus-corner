@@ -825,7 +825,7 @@ export default function App() {
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
+    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,

@@ -45,7 +45,7 @@ import ReadingBlockView from './ReadingBlockView'
 const MAX_PLANS_PER_MONTH = 4
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
-export default function ThemePlanScreen({ session, authUser, completedSet, plans, onPlansChanged, autoOpenPlanId, onToggleSession, onToggleChapter, onNavigate }) {
+export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, onToggleSession, onToggleChapter, onNavigate }) {
   const { lang } = session
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
   const [creating, setCreating] = useState(false)
@@ -56,7 +56,10 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
   const [genError, setGenError] = useState('')
 
   const recentPlansCount = plans.filter(p => p.createdAt && Date.now() - new Date(p.createdAt).getTime() < THIRTY_DAYS_MS).length
-  const atPlanLimit = recentPlansCount >= MAX_PLANS_PER_MONTH
+  // Conta admin (mesma allowlist de api/_lib/adminAuth.js, ver isAdmin em
+  // App.jsx) fica de fora do limite — o servidor já pula a checagem pra ela
+  // (ver api/generate-theme-plan.js), então a trava daqui só atrapalharia.
+  const atPlanLimit = !isAdmin && recentPlansCount >= MAX_PLANS_PER_MONTH
 
   // Re-sincroniza sempre que App.jsx pedir pra abrir um plano específico
   // (ex: "Continuar sessão" clicado de novo com essa aba já montada) —

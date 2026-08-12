@@ -16,6 +16,14 @@ function adminEmails() {
     .filter(Boolean)
 }
 
+// Exportado à parte de requireAdmin — usado por endpoints que não são
+// admin-only, mas que precisam dar um tratamento especial pra conta da
+// Daniela sem travar o resto do fluxo (ex: pular o limite mensal de planos
+// por tema em api/generate-theme-plan.js).
+export function isAdminEmail(email) {
+  return adminEmails().includes((email ?? '').toLowerCase())
+}
+
 // Em caso de falha já escreve a resposta (401/403) e devolve null — quem
 // chama só precisa fazer:
 //   const caller = await requireAdmin(req, res)
@@ -36,8 +44,7 @@ export async function requireAdmin(req, res) {
     return null
   }
 
-  const callerEmail = (userData.user.email ?? '').toLowerCase()
-  if (!adminEmails().includes(callerEmail)) {
+  if (!isAdminEmail(userData.user.email)) {
     res.status(403).json({ error: 'forbidden' })
     return null
   }
