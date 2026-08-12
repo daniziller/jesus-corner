@@ -71,18 +71,18 @@ export default function PlanScreen({
     onSelectActivePlan?.(currentOrder === 'chrono' ? { type: 'chrono', paceId } : { type: 'fixed', id: paceId })
   }
 
-  // Botão-push (mesmo componente/estilo do lembrete e da frase do dia na
-  // aba Perfil — ver SettingsToggle em ProfileScreen.jsx) pra escolher qual
-  // dos dois planos seguir: ligado = plano por tema (IA), desligado =
-  // Bíblia toda (ordem+ritmo escolhidos no card abaixo, sem mudar nada
-  // neles). Ligar sem nenhum plano por tema salvo ainda não faz nada (não
-  // tem o que seguir) — segue o último tema ativo, ou o mais recente salvo.
-  const followingTheme = activeAltPlan?.type === 'theme'
-  function handleToggleFollowTheme() {
-    if (followingTheme) {
-      onSelectActivePlan?.({ type: 'fixed', id: currentPaceId })
-      return
-    }
+  // Um botão-push do lado de CADA título (mesmo componente/estilo do
+  // lembrete e da frase do dia na aba Perfil — ver SettingsToggle em
+  // ProfileScreen.jsx), não um seletor único — ligar o de "Plano de
+  // leitura" ativa a Bíblia toda (ordem+ritmo já escolhidos no card
+  // abaixo, sem mudar nada neles); ligar o de "Plano por tema" ativa o
+  // plano por tema em questão (o já ativo, ou o mais recente salvo). Como
+  // só um pode estar ativo por vez, ligar um sempre desliga o outro
+  // sozinho — não precisam de estado próprio, só refletem activePlanData.kind.
+  function activateBiblePlan() {
+    onSelectActivePlan?.({ type: 'fixed', id: currentPaceId })
+  }
+  function activateThemePlan() {
     const targetPlanId = activeThemePlan?.id ?? themePlans[0]?.id
     if (!targetPlanId) return
     onSelectActivePlan?.({ type: 'theme', planId: targetPlanId })
@@ -103,33 +103,25 @@ export default function PlanScreen({
           <ActivePlanCard activePlan={activePlan} todaySession={todaySession} lang={lang} onContinue={onContinueSession} />
         </div>
 
-        {/* Botão-push (mesmo componente do lembrete/frase do dia na aba
-            Perfil) pra escolher qual dos dois planos abaixo seguir. */}
-        <div style={styles.toggleCard}>
-          <div className="settings-icon" style={{ background: '#FAE8FF' }}><AppIcon name="Sparkles" size={15} color="#A21CAF" /></div>
+        {/* Ordem (padrão × cronológica) e ritmo (Leve/Padrão/Intensivo/
+            Livre), dois eixos que se combinam numa escolha só, direto ao
+            tocar (ver chooseOrder/choosePace acima). As duas seções (essa e
+            "Plano por tema" mais abaixo) ficam sempre visíveis, uma embaixo
+            da outra — o botão-push do lado de cada título só decide qual
+            das duas está ATIVA no momento, sem esconder nenhuma. */}
+        <div style={styles.sectionHeaderRow}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={styles.toggleLabel}>{t('plan.followThemeLabel', undefined, lang)}</p>
-            <p style={styles.toggleSub}>{t('plan.followThemeSub', undefined, lang)}</p>
+            <p style={{ ...styles.sectionLabel, margin: 0 }}>{t('plan.readingPlanTitle', undefined, lang)}</p>
+            <p style={{ ...styles.sectionSub, margin: '2px 0 0' }}>{t('plan.readingPlanSub', undefined, lang)}</p>
           </div>
           <div
-            className={`toggle ${followingTheme ? '' : 'off'}`}
-            style={themePlans.length === 0 ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
-            onClick={handleToggleFollowTheme}
+            className={`toggle ${activePlanData.kind !== 'theme' ? '' : 'off'}`}
+            onClick={activateBiblePlan}
             role="switch"
-            aria-checked={followingTheme}
+            aria-checked={activePlanData.kind !== 'theme'}
           >
             <div className="toggle-thumb" />
           </div>
-        </div>
-
-        {/* Ordem (padrão × cronológica) e ritmo (Leve/Padrão/Intensivo/
-            Livre), dois eixos que se combinam numa escolha só, direto ao
-            tocar (ver chooseOrder/choosePace acima). Sempre visível, um
-            embaixo do outro com a parte de tema — o botão-push acima só
-            decide qual dos dois está ATIVO, não esconde nenhum. */}
-        <div>
-          <p style={styles.sectionLabel}>{t('plan.readingPlanTitle', undefined, lang)}</p>
-          <p style={styles.sectionSub}>{t('plan.readingPlanSub', undefined, lang)}</p>
         </div>
 
         <div style={styles.readingPlanCard}>
@@ -169,9 +161,20 @@ export default function PlanScreen({
           </div>
         </div>
 
-        <div>
-          <p style={styles.sectionLabel}>{t('plan.themePlanTitle', undefined, lang)}</p>
-          <p style={styles.sectionSub}>{t('plan.themePlanSub', undefined, lang)}</p>
+        <div style={styles.sectionHeaderRow}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ ...styles.sectionLabel, margin: 0 }}>{t('plan.themePlanTitle', undefined, lang)}</p>
+            <p style={{ ...styles.sectionSub, margin: '2px 0 0' }}>{t('plan.themePlanSub', undefined, lang)}</p>
+          </div>
+          <div
+            className={`toggle ${activePlanData.kind === 'theme' ? '' : 'off'}`}
+            style={themePlans.length === 0 ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+            onClick={activateThemePlan}
+            role="switch"
+            aria-checked={activePlanData.kind === 'theme'}
+          >
+            <div className="toggle-thumb" />
+          </div>
         </div>
 
         {/* Plano por tema ativo no momento — mesmo padrão do card de "Plano
@@ -429,9 +432,7 @@ const styles = {
   activeCardBarFill: { height: '100%', background: 'white', borderRadius: 99 },
   activeCardBtn:   { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
 
-  toggleCard:  { display: 'flex', alignItems: 'center', gap: 11, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: '11px 13px', boxShadow: 'var(--shadow-card)' },
-  toggleLabel: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  toggleSub:   { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
+  sectionHeaderRow: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 2px 6px' },
 
   readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   activeThemeTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
