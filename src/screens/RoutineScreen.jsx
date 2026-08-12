@@ -20,8 +20,9 @@ const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
 export default function RoutineScreen({ session, blocks, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const { lang, plan, activePlan, todayRoutine, todaySession } = session
-  const readingCtaLabel =
-    todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
+  const readingCtaLabel = todaySession.needsThemePick
+    ? t('themePlan.chooseTodayCta', undefined, lang)
+    : todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
     : todaySession.progress > 0   ? t('home.continueSession', undefined, lang)
     : t('home.startSession', undefined, lang)
   // Estatísticas do plano de leitura — moradas antigas de JourneyScreen, que
@@ -211,7 +212,9 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={styles.activePlanSummaryLabel}>{activePlan.label}</span>
                 <span style={styles.activePlanSummarySub}>
-                  {activePlan.readingMinutes != null ? t('journey.minPerDay', { n: activePlan.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                  {activePlan.needsThemePick ? t('themePlan.chooseTodayCta', undefined, lang)
+                    : activePlan.readingMinutes != null ? t('journey.minPerDay', { n: activePlan.readingMinutes }, lang)
+                    : t('journey.noTimeTarget', undefined, lang)}
                 </span>
               </span>
               <button style={styles.changePlanBtn} onClick={() => onNavigate?.('plan')}>

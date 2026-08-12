@@ -26,13 +26,15 @@ import { useState, useEffect } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { groupSessionsByBook } from '../utils/groupByBook'
-import { resolveActivePlanSessions, themePlanTitle, themePlanReadingMinutes } from '../plan/resolveActivePlan'
+import { resolveActivePlanSessions, themePlanTitle, themePlanProgress } from '../plan/resolveActivePlan'
+import { deriveThemeTexts, themeTextKey } from '../themePlans/themeTexts'
+import { sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
 export default function PlanScreen({
-  session, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan,
-  onSelectActivePlan, onContinueSession, onOpenThemePlan, onChangeThemePlanPace, onToggleSession, onOpenSession, onOpenChronoSession, onNavigate,
+  session, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan, todayThemePicks,
+  onSelectActivePlan, onContinueSession, onOpenThemePlan, onOpenThemePlanToday, onToggleSession, onOpenSession, onOpenChronoSession, onNavigate,
 }) {
   const { lang, plan, activePlan, todaySession } = session
   const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, plan.id)
@@ -192,12 +194,12 @@ export default function PlanScreen({
           </div>
         </div>
 
-        {/* Plano por tema ativo no momento — mesmo padrão do card de "Plano
-            de leitura" acima: ritmo sempre visível, trocável a qualquer
-            momento (re-divide as MESMAS passagens já achadas pela IA num
-            tamanho de sessão novo, sem chamar a IA de novo — ver
-            chunkThemePassages.js). Planos salvos antes desse recurso
-            existir (sem `passages`) só mostram o ritmo, sem poder trocar. */}
+        {/* Plano por tema ativo no momento — em vez de sessões pré-divididas
+            por ritmo, mostra cada texto (passagem que a IA escolheu) com o
+            tempo de leitura já calculado; a pessoa marca quais vai ler hoje
+            e o total alimenta a aba Rotina (ver ThemeTextsChecklist
+            abaixo/resolveActivePlan.js). Planos salvos antes desse recurso
+            existir (sem `passages`) só mostram a contagem, sem checklist. */}
         {activeThemePlan && (
           <div style={styles.readingPlanCard}>
             <p style={styles.activeThemeTitle}>{themePlanTitle(activeThemePlan)}</p>
@@ -210,51 +212,46 @@ export default function PlanScreen({
               <p style={styles.themeOverview}>{activeThemePlan.overview}</p>
             )}
             {activeThemePlan.passages ? (
-              <>
-                <p style={styles.chipsLabel}>{t('plan.paceLabel', undefined, lang)}</p>
-                <div style={styles.paceSel}>
-                  {PLANS.map(p => (
-                    <button
-                      key={p.id}
-                      style={{ ...styles.paceBtn, ...(activeThemePlan.paceId === p.id ? styles.paceBtnActiveAi : {}) }}
-                      onClick={() => onChangeThemePlanPace?.(activeThemePlan.id, p.id)}
-                    >
-                      <AppIcon name={p.icon} size={14} color={activeThemePlan.paceId === p.id ? 'white' : 'var(--g4)'} />
-                      <span>{lang === 'en' ? p.labelEn : p.label}</span>
-                      <span style={{ ...styles.paceBtnTime, ...(activeThemePlan.paceId === p.id ? styles.paceBtnTimeActive : {}) }}>
-                        {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </>
+              // key={activeThemePlan.id} — remonta do zero (seleção de hoje
+              // limpa) sempre que o plano por tema ativo muda, em vez de
+              // carregar a seleção de um plano diferente por engano.
+              <ThemeTextsChecklist
+                key={activeThemePlan.id}
+                plan={activeThemePlan}
+                completedSet={completedSet}
+                todayThemePicks={todayThemePicks}
+                lang={lang}
+                onOpenText={key => onOpenThemePlanToday?.(activeThemePlan.id, [key])}
+                onStartToday={keys => onOpenThemePlanToday?.(activeThemePlan.id, keys)}
+              />
             ) : (
               <p style={styles.sectionSub}>
-                {themePlanReadingMinutes(activeThemePlan) != null
-                  ? `${themePlanReadingMinutes(activeThemePlan)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`
-                  : t('journey.noTimeTarget', undefined, lang)}
+                {t('themePlan.sessionsCount', { done: themePlanProgress(activeThemePlan, completedSet).done, total: themePlanProgress(activeThemePlan, completedSet).total }, lang)}
               </p>
             )}
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {recentThemePlans.map(tp => (
-            <PlanRow
-              key={tp.id}
-              icon="Sparkles"
-              iconColor="#A21CAF"
-              iconBg="#FAE8FF"
-              title={themePlanTitle(tp)}
-              sub={themePlanReadingMinutes(tp) != null
-                ? `${themePlanReadingMinutes(tp)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`
-                : t('journey.noTimeTarget', undefined, lang)}
-              isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
-              lang={lang}
-              onOpen={() => onOpenThemePlan?.(tp.id)}
-              onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
-            />
-          ))}
+          {recentThemePlans.map(tp => {
+            const progress = themePlanProgress(tp, completedSet)
+            return (
+              <PlanRow
+                key={tp.id}
+                icon="Sparkles"
+                iconColor="#A21CAF"
+                iconBg="#FAE8FF"
+                title={themePlanTitle(tp)}
+                sub={progress.totalMinutes != null
+                  ? `${t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)} · ~${progress.totalMinutes} ${t('routine.min', undefined, lang)}`
+                  : t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)}
+                isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
+                lang={lang}
+                onOpen={() => onOpenThemePlan?.(tp.id)}
+                onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
+              />
+            )
+          })}
           {/* Só os 4 mais recentes aparecem acima — este link sempre leva
               pra lista completa (ThemePlanScreen.jsx), que também é onde
               "criar plano" mora de verdade (ver comentário no topo). */}
@@ -264,35 +261,42 @@ export default function PlanScreen({
         </div>
 
         {/* Sessões do plano ATIVO no momento — bloco/movimento > livro >
-            sessão numerada, cada uma tocável. */}
-        <div style={{ margin: '4px 2px 0' }}>
-          <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
-          <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
-        </div>
+            sessão numerada, cada uma tocável. Não aparece pro plano por
+            tema — o card acima já mostra (e deixa escolher) os textos dele,
+            mostrar de novo aqui seria duplicado. */}
+        {activePlanData.kind !== 'theme' && (
+          <>
+            <div style={{ margin: '4px 2px 0' }}>
+              <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
+              <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {activePlanData.blocks.map(block => (
-            <PlanBlockSection
-              key={block.id}
-              block={block}
-              sessions={activePlanData.sessionsByBlock[block.id] ?? []}
-              open={openBlockId === block.id}
-              onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
-              completedSet={completedSet}
-              onToggleSession={onToggleSession}
-              onOpenSession={s => openSession(block.id, s.id)}
-              lang={lang}
-            />
-          ))}
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {activePlanData.blocks.map(block => (
+                <PlanBlockSection
+                  key={block.id}
+                  block={block}
+                  sessions={activePlanData.sessionsByBlock[block.id] ?? []}
+                  open={openBlockId === block.id}
+                  onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
+                  completedSet={completedSet}
+                  onToggleSession={onToggleSession}
+                  onOpenSession={s => openSession(block.id, s.id)}
+                  lang={lang}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
 function ActivePlanCard({ activePlan, todaySession, lang, onContinue }) {
-  const ctaLabel =
-    todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
+  const ctaLabel = activePlan.needsThemePick
+    ? t('themePlan.chooseTodayCta', undefined, lang)
+    : todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
     : todaySession.progress > 0   ? t('home.continueSession', undefined, lang)
     : t('home.startSession', undefined, lang)
   // Plano por tema (IA) foge do gradiente de marca de sempre — usa o mesmo
@@ -321,6 +325,81 @@ function ActivePlanCard({ activePlan, todaySession, lang, onContinue }) {
         {ctaLabel} <AppIcon name="ChevronRight" size={14} color="white" />
       </button>
     </div>
+  )
+}
+
+// Textos de um plano por tema, agrupados por livro, cada um com checkbox +
+// tempo de leitura (ver deriveThemeTexts) — a pessoa marca quais vai ler
+// hoje; o resumo no fim soma o tempo e "Começar leitura de hoje" abre a
+// leitura só com os marcados. Seleção fica em estado LOCAL até tocar em
+// "Começar" (ver key={plan.id} no chamador — remonta ao trocar de plano).
+function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang, onOpenText, onStartToday }) {
+  const texts = deriveThemeTexts(plan.passages).map(s => ({
+    ...s,
+    status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
+  }))
+  const initialKeys = todayThemePicks?.planId === plan.id ? todayThemePicks.keys ?? [] : []
+  const [selected, setSelected] = useState(() => new Set(initialKeys))
+
+  function toggle(key) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const selectedTexts = texts.filter(s => s.status !== 'done' && selected.has(themeTextKey(s)))
+  const totalMinutes = selectedTexts.reduce((sum, s) => sum + s.minutes, 0)
+  const bookGroups = groupSessionsByBook(texts)
+
+  return (
+    <>
+      <p style={styles.chipsLabel}>{t('themePlan.textsLabel', undefined, lang)}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+        {bookGroups.map(group => (
+          <div key={group.book} style={styles.textGroup}>
+            <p style={styles.textGroupHeader}>{lang === 'en' ? group.sessions[0]?.bookEn : group.book}</p>
+            {group.sessions.map(s => {
+              const key = themeTextKey(s)
+              const isDone = s.status === 'done'
+              const isChecked = !isDone && selected.has(key)
+              return (
+                <div key={s.id} style={styles.textRow}>
+                  <span
+                    role={isDone ? undefined : 'checkbox'}
+                    aria-checked={isChecked}
+                    style={{ ...styles.textCheckbox, ...(isDone ? styles.textCheckboxDone : isChecked ? styles.textCheckboxChecked : {}) }}
+                    onClick={() => !isDone && toggle(key)}
+                  >
+                    {isDone && <AppIcon name="Check" size={13} color="white" />}
+                    {!isDone && isChecked && <AppIcon name="Check" size={13} color="white" />}
+                  </span>
+                  <button style={styles.textInfo} onClick={() => onOpenText?.(key)}>
+                    <span style={styles.textTitle}>{lang === 'en' ? s.titleEn : s.title}</span>
+                    <span style={styles.textMinutes}>{t('themePlan.minutesEach', { n: s.minutes }, lang)}</span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.todaySummary}>
+        <span style={styles.todaySummaryText}>
+          {t('themePlan.todaySummary', { minutes: totalMinutes, count: selectedTexts.length }, lang)}
+        </span>
+        <button
+          style={{ ...styles.startTodayBtn, ...(selectedTexts.length === 0 ? styles.startTodayBtnDisabled : {}) }}
+          disabled={selectedTexts.length === 0}
+          onClick={() => onStartToday?.([...selected])}
+        >
+          {t('themePlan.startTodayCta', undefined, lang)} <AppIcon name="ChevronRight" size={14} color="white" />
+        </button>
+      </div>
+    </>
   )
 }
 
@@ -479,12 +558,26 @@ const styles = {
   paceSel:     { display: 'flex', gap: 6, flexWrap: 'wrap' },
   paceBtn:     { flex: '1 1 0', minWidth: 76, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', padding: '10px 6px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   paceBtnActive: { color: 'white', borderColor: 'transparent', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
-  // Mesmo roxo do resto dos cards de plano por tema (IA) — ver ActivePlanCard/
-  // ThemePlanScreen.jsx (#A21CAF) — em vez do laranja de marca usado no card
-  // "Plano de leitura" (fixo/cronológico), que nunca aparece nesse contexto.
-  paceBtnActiveAi: { color: 'white', borderColor: 'transparent', background: '#A21CAF', boxShadow: '0 4px 12px rgba(162,28,175,.3)' },
   paceBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
   paceBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
+
+  // Checklist de textos do plano por tema (ThemeTextsChecklist) — mesmo
+  // roxo do resto dos cards de IA (#A21CAF, ver ActivePlanCard/
+  // ThemePlanScreen.jsx).
+  textGroup:       { background: 'var(--white)', border: '0.5px solid var(--g1)', borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 },
+  textGroupHeader: { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', marginBottom: 2 },
+  textRow:         { display: 'flex', alignItems: 'center', gap: 9 },
+  textCheckbox:    { width: 24, height: 24, borderRadius: 7, border: '1.5px solid var(--g3)', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' },
+  textCheckboxChecked: { background: '#A21CAF', borderColor: '#A21CAF' },
+  textCheckboxDone:    { background: 'var(--grad-vivid)', borderColor: 'transparent', cursor: 'default' },
+  textInfo:        { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', padding: 0 },
+  textTitle:       { fontSize: 11.5, fontWeight: 700, color: 'var(--bk)' },
+  textMinutes:     { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)' },
+
+  todaySummary:      { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--olt)', border: '0.5px solid rgba(162,28,175,.25)', borderRadius: 13, padding: '10px 10px 10px 13px' },
+  todaySummaryText:  { flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 700, color: '#A21CAF' },
+  startTodayBtn:     { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, border: 'none', borderRadius: 10, padding: '9px 13px', fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: '#A21CAF' },
+  startTodayBtnDisabled: { background: 'var(--g3)', cursor: 'default' },
 
   planRow:      { display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 6, boxShadow: 'var(--shadow-card)' },
   planRowMain:  { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', padding: 6 },

@@ -30,14 +30,13 @@ import { levelFor, levelProgress } from './utils/levels'
 import { isAtLeast } from './utils/age'
 import { computeUnlockedAchievements } from './utils/achievements'
 import { getPrayerStats } from './prayer/prayerStatsStore'
-import { getDailyRoutine, setStepDone } from './routine/dailyRoutineStore'
+import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
 import { computeRoutineStreak } from './routine/routineStreak'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
 import { resolveActivePlanSessions } from './plan/resolveActivePlan'
-import { getThemePlans, saveThemePlan } from './themePlans/themePlansStore'
-import { chunkThemePassages } from './themePlans/chunkThemePassages'
+import { getThemePlans } from './themePlans/themePlansStore'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { PLANS } from './data/bibleBlocks'
@@ -121,10 +120,16 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // por tema/cronológico que a pessoa tenha destacado na aba Plano (ver
   // resolveActivePlanSessions acima). blocks/sessionsByBlock ORIGINAIS
   // (parâmetros desta função) continuam intactos pra gamificação/Progresso —
-  // só a leitura "de hoje" muda de fonte.
-  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId)
+  // só a leitura "de hoje" muda de fonte. todayThemePicks (quais textos a
+  // pessoa escolheu ler hoje, se o plano ativo for por tema) também vem do
+  // dia de hoje na rotina — ver src/routine/dailyRoutineStore.js/setThemePicks.
+  const todayThemePicks = todayRoutine.themePicks
+  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks)
   // Sessão (e bloco) onde o usuário realmente parou — baseado no último
   // capítulo marcado como lido, não na ordem sugerida dos livros/blocos.
+  // Continua olhando pra TODOS os textos do plano (não só os de hoje) —
+  // sessionsByBlock nunca fica vazio, então nunca quebra; a escolha do dia
+  // só afeta o que é mostrado como "sessão de hoje" logo abaixo.
   const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock, completedSet)
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
@@ -137,6 +142,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     doneCount: activePlanData.doneCount,
     totalCount: activePlanData.totalCount,
     percent: activePlanData.percent,
+    needsThemePick: activePlanData.needsThemePick ?? false,
   }
 
   // Progresso real (capítulo a capítulo) da sessão do dia — permite mostrar
@@ -201,15 +207,29 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     firstBlockName: lang === 'en' ? blocks[0].nameEn : blocks[0].name,
     dailyRoutine,
     todayRoutine,
-    todaySession: {
-      number: currentSession.id,
-      title: displayTitle,
-      subtitle: currentSession.type === 'reflection'
-        ? displayPassage
-        : `${displayPassage} · ${chapterSpan} ${chapterWord}`,
-      block: blockLine,
-      progress: sessionProgress,
-    },
+    // Plano por tema ativo sem escolha de hoje ainda (activePlan.needsThemePick)
+    // — Home/Rotina mostram um convite pra escolher os textos em vez de uma
+    // sessão normal (ver DailyRoutineCard/todaySessionCard), então título/
+    // subtítulo aqui viram só esse convite; number/progress ficam neutros.
+    todaySession: activePlan.needsThemePick
+      ? {
+        number: 0,
+        title: lang === 'en' ? "Choose today's texts" : 'Escolha os textos de hoje',
+        subtitle: lang === 'en' ? "Pick what you'll read today" : 'Escolha o que vai ler hoje',
+        block: blockLine,
+        progress: 0,
+        needsThemePick: true,
+      }
+      : {
+        number: currentSession.id,
+        title: displayTitle,
+        subtitle: currentSession.type === 'reflection'
+          ? displayPassage
+          : `${displayPassage} · ${chapterSpan} ${chapterWord}`,
+        block: blockLine,
+        progress: sessionProgress,
+        needsThemePick: false,
+      },
   }
 }
 
@@ -280,6 +300,11 @@ export default function App() {
   // quando "Continuar sessão" (Home/Rotina) aponta pra um plano alternativo,
   // mesmo padrão de journeyEntryMode/journeyResumeSessionId abaixo.
   const [themeAutoOpenId, setThemeAutoOpenId] = useState(null)
+  // Textos pra restringir a leitura quando abre um plano por tema vindo de
+  // "Continuar sessão"/"Começar leitura de hoje" — null mostra o plano
+  // inteiro (ex: abrindo pela lista completa em PlanScreen.jsx). Só vale
+  // enquanto themeAutoOpenId aponta pro MESMO plano (ver ThemePlanScreen.jsx).
+  const [themeAutoOpenKeys, setThemeAutoOpenKeys] = useState(null)
   const [chronoAutoOpenMovementId, setChronoAutoOpenMovementId] = useState(null)
   // Rotina diária (Oração/Leitura/Reflexão) — o streak exibido é derivado
   // dela (ver computeRoutineStreak), não mais de um login diário.
@@ -464,7 +489,17 @@ export default function App() {
     if (activeAltPlan?.type === 'theme') {
       const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
       if (themePlan) {
+        const todayThemePicks = dailyRoutine[dateKey()]?.themePicks
+        const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks)
+        // Sem escolha de hoje ainda — manda pra aba Plano, onde mora o
+        // checklist de textos (ver PlanScreen.jsx), em vez de abrir a
+        // leitura direto (não saberia o que abrir).
+        if (activePlanData.needsThemePick) {
+          setActiveTab('plan')
+          return
+        }
         setThemeAutoOpenId(themePlan.id)
+        setThemeAutoOpenKeys(todayThemePicks?.planId === themePlan.id ? todayThemePicks.keys : null)
         setActiveTab('themePlan')
         return
       }
@@ -495,8 +530,21 @@ export default function App() {
 
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
   // — abre direto na leitura dele, sem passar pela lista de ThemePlanScreen.
+  // Mostra o plano INTEIRO (sem restringir aos textos de hoje) — é um jeito
+  // de navegar/revisar o plano todo, diferente de "Começar leitura de hoje".
   function openThemePlanFromList(planId) {
     setThemeAutoOpenId(planId)
+    setThemeAutoOpenKeys(null)
+    setActiveTab('themePlan')
+  }
+
+  // "Começar leitura de hoje" no card do plano por tema ativo (ver
+  // PlanScreen.jsx) — grava a escolha do dia e já abre a leitura restrita a
+  // só esses textos.
+  function openThemePlanToday(planId, keys) {
+    chooseThemeTexts(planId, keys)
+    setThemeAutoOpenId(planId)
+    setThemeAutoOpenKeys(keys)
     setActiveTab('themePlan')
   }
 
@@ -621,19 +669,16 @@ export default function App() {
     }
   }
 
-  // Troca o ritmo de um plano por tema JÁ GERADO (chips na aba Plano, ver
-  // PlanScreen.jsx) — sem chamar a IA de novo: as passagens (quais livros/
-  // capítulos) continuam as mesmas, só re-divide em sessões do tamanho do
-  // novo ritmo (ver chunkThemePassages). Planos salvos antes desse campo
-  // existir (sem `passages`) não têm como ser re-divididos — a tela nem
-  // mostra a opção nesse caso.
-  function changeThemePlanPace(planId, paceId) {
-    const plan = themePlans.find(p => p.id === planId)
-    if (!plan?.passages || !authUser) return
-    const updatedPlan = { ...plan, paceId, sessions: chunkThemePassages(plan.passages, paceId) }
-    saveThemePlan(authUser.email, updatedPlan)
-      .then(setThemePlans)
-      .catch(err => console.error('Failed to change theme plan pace', err))
+  // Escolhe quais textos de um plano por tema a pessoa vai ler HOJE (card do
+  // plano ativo, ver PlanScreen.jsx) — mesmo padrão otimista de
+  // markRoutineStep abaixo: atualiza dailyRoutine local na hora, persiste em
+  // segundo plano. Reseta sozinho a cada dia novo (ver
+  // src/routine/dailyRoutineStore.js/setThemePicks).
+  function chooseThemeTexts(planId, keys) {
+    if (!authUser) return
+    const key = dateKey()
+    setDailyRoutine(prev => ({ ...prev, [key]: { ...prev[key], themePicks: { planId, keys } } }))
+    setThemePicks(planId, keys).catch(err => console.error('Failed to persist theme picks', err))
   }
 
   // Troca a ordem de leitura (AT primeiro / NT primeiro) — chamado a partir
@@ -821,11 +866,11 @@ export default function App() {
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} />,
-    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onChangeThemePlanPace={changeThemePlanPace} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
+    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onOpenThemePlanToday={openThemePlanToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
+    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,

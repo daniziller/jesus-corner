@@ -1,10 +1,10 @@
 // Divide capítulos (com contagem de palavras) em sessões de tamanho
-// próximo a targetWords — usado pelo plano por tema (geração inicial em
-// api/generate-theme-plan.js e re-cálculo de ritmo em
-// src/themePlans/chunkThemePassages.js), que precisam produzir exatamente
-// o mesmo resultado pros dois casos, daí ficar num módulo só em vez de
-// duplicado nos dois lugares (bug real que já aconteceu: as sessões
-// geradas não respeitavam o ritmo escolhido).
+// próximo a targetWords — usado pelo plano cronológico (ver
+// src/data/chronologicalPlan.js). mergeAdjacentPassages também é usado por
+// api/generate-theme-plan.js na geração do plano por tema (funde as
+// passagens antes de virarem "textos" — ver src/themePlans/themeTexts.js —
+// não existe mais ritmo dividindo isso em sessões de tamanho fixo, só o
+// cronológico ainda usa chunkChaptersByWords).
 //
 // Duas peças:
 // 1. mergeAdjacentPassages — a IA pode devolver o mesmo livro em mais de

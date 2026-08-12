@@ -1,21 +1,24 @@
 // Gera um plano de leitura por tema (IA) — a pessoa escolhe um título e
 // descreve o escopo (ex: "textos sobre lidar com ansiedade e confiar em
-// Deus"), mais o ritmo de leitura (Leve/Padrão/Intensivo/Livre, mesmo
-// conjunto usado no resto do app); este endpoint pede pra IA uma lista de
-// passagens relevantes ao escopo (só livro + faixa de capítulos, nunca o
-// texto em si), valida cada uma contra o texto bíblico real, e divide em
-// sessões do tamanho do ritmo escolhido (mesma heurística de palavras/
-// minuto usada pra gerar SESSIONS_BY_PLAN e o plano cronológico — ver
-// src/data/chronologicalPlan.js). Devolve o plano montado pro client
-// salvar (ver src/themePlans/themePlansStore.js) — este endpoint não
-// persiste nada, só gera.
+// Deus"); este endpoint pede pra IA uma lista de passagens relevantes ao
+// escopo (só livro + faixa de capítulos, nunca o texto em si), valida cada
+// uma contra o texto bíblico real, funde as adjacentes/sobrepostas do mesmo
+// livro (mergeAdjacentPassages) e devolve cada uma já com o tempo de
+// leitura calculado (mesma heurística de palavras/minuto de sempre — ver
+// SESSIONS_BY_PLAN/plano cronológico). Cada passagem final é um "texto" do
+// plano — a pessoa escolhe quais ler a cada dia (ver
+// src/themePlans/themeTexts.js/PlanScreen.jsx), não existe mais um "ritmo"
+// dividindo isso em sessões de tamanho fixo. `paceId` ainda é aceito só
+// como dica de tamanho pro prompt da IA (ver targetWords abaixo). Devolve o
+// plano montado pro client salvar (ver src/themePlans/themePlansStore.js)
+// — este endpoint não persiste nada, só gera.
 import { createClient } from '@supabase/supabase-js'
 import { findThemePassages } from './_lib/ai.js'
 import { isAdminEmail } from './_lib/adminAuth.js'
 import { BIBLE_BLOCKS, WORDS_PER_MINUTE, PLANS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
 import { slugify } from '../src/utils/slugify.js'
-import { mergeAdjacentPassages, chunkChaptersByWords } from '../src/utils/wordChunking.js'
+import { mergeAdjacentPassages } from '../src/utils/wordChunking.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -66,7 +69,7 @@ function chapterWordCount(chapterData) {
   return Object.values(chapterData.verses).reduce((sum, v) => sum + wordCount(v), 0)
 }
 
-function buildSession(id, book, chStart, chEnd, reason) {
+function buildText(id, book, chStart, chEnd, reason, words) {
   const bookEn = BOOK_EN_BY_PT[book]
   const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
   return {
@@ -80,6 +83,8 @@ function buildSession(id, book, chStart, chEnd, reason) {
     passage: `${book} ${range}`,
     passageEn: `${bookEn} ${range}`,
     reason,
+    words,
+    minutes: Math.max(1, Math.round(words / WORDS_PER_MINUTE)),
     status: 'pending',
   }
 }
@@ -149,11 +154,9 @@ export default async function handler(req, res) {
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const folder = BIBLE_VERSIONS[cleanLang][0].folder
   const pace = PLANS.find(p => p.id === paceId)
-  // Livre não tem meta de tempo — targetWords 0 faz o chunking abaixo nunca
-  // juntar 2 capítulos numa sessão só (1ª condição do loop só passa depois
-  // de já ter fechado o capítulo anterior), resultando em exatamente 1
-  // sessão por capítulo — mesma lógica do cronológico (ver
-  // src/data/chronologicalPlan.js).
+  // Só usado como dica de tamanho pro prompt da IA (ver buildSizeInstruction
+  // em api/_lib/ai.js) — o client sempre manda 'standard' aqui, já que não
+  // existe mais ritmo escolhido pela pessoa pra plano por tema.
   const targetWords = pace.readingMinutes == null ? 0 : pace.readingMinutes * WORDS_PER_MINUTE
 
   let passages, overview
@@ -167,11 +170,7 @@ export default async function handler(req, res) {
   }
 
   // Passagens validadas (livro + faixa de capítulos JÁ dentro do range
-  // real, sem o texto em si) — guardadas à parte das sessões (não
-  // fundidas ainda) pra permitir trocar o ritmo depois sem chamar a IA de
-  // novo (ver src/themePlans/chunkThemePassages.js, usado por App.jsx
-  // quando a pessoa muda o ritmo de um plano já salvo — refaz a mesma
-  // fusão+divisão abaixo a partir daqui).
+  // real, sem o texto em si).
   const validatedPassages = []
 
   for (const p of passages) {
@@ -199,28 +198,22 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: 'no_valid_passages' })
   }
 
-  // Funde passagens adjacentes/sobrepostas do MESMO livro antes de dividir
-  // em sessões — sem isso, cada passagem da IA virava 1 sessão própria,
-  // quase sempre bem mais curta que o ritmo escolhido (era o bug
-  // reportado: sessões não respeitavam o número de palavras do ritmo).
+  // Funde passagens adjacentes/sobrepostas do MESMO livro — sem isso, "Mateus
+  // 5" e "Mateus 6" viravam 2 textos separados em vez de 1 só. Cada passagem
+  // final vira 1 "texto" do plano, com o tempo de leitura já calculado —
+  // não existe mais divisão por ritmo (ver comentário no topo do arquivo).
   const mergedPassages = mergeAdjacentPassages(validatedPassages)
 
-  const sessions = []
+  const texts = []
   let nextId = 1
   for (const p of mergedPassages) {
     const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[p.book] : p.book
     const bookData = await fetchBookChapters(folder, bookNameForFolder) // já em cache, não refaz o fetch
-    const chapters = []
+    let words = 0
     for (let ch = p.chStart; ch <= p.chEnd; ch++) {
-      chapters.push({ ch, words: chapterWordCount(bookData[String(ch)]) })
+      words += chapterWordCount(bookData[String(ch)])
     }
-    // Divide em sessões de ~targetWords cada (balanceado, não guloso — ver
-    // src/utils/wordChunking.js), sem nunca combinar capítulos de livros
-    // diferentes numa sessão só (mesma regra que SessionCard/
-    // ReadingBlockView já assumem hoje pra toda sessão).
-    for (const chunk of chunkChaptersByWords(chapters, targetWords)) {
-      sessions.push(buildSession(nextId++, p.book, chunk.chStart, chunk.chEnd, p.reason))
-    }
+    texts.push(buildText(nextId++, p.book, p.chStart, p.chEnd, p.reason, words))
   }
 
   const plan = {
@@ -228,11 +221,9 @@ export default async function handler(req, res) {
     title: cleanTitle,
     scope: cleanScope,
     overview,
-    paceId,
     lang: cleanLang,
     createdAt: new Date().toISOString(),
-    passages: validatedPassages,
-    sessions,
+    passages: texts,
   }
 
   return res.status(200).json({ ok: true, plan })

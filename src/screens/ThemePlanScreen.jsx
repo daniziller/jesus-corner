@@ -1,13 +1,14 @@
 // ThemePlanScreen.jsx
 // "Plano por tema" (IA) — a pessoa escolhe um título (só pra identificar o
 // plano na lista) e descreve o escopo (o assunto de verdade, usado pra IA
-// buscar as passagens), mais o ritmo de leitura (Leve/Padrão/Intensivo/
-// Livre — mesmo conjunto do resto do app, em vez de minutos escolhidos na
-// hora). A IA busca passagens relevantes ao escopo na Bíblia inteira,
-// divididas em sessões do tamanho do ritmo escolhido (ver
-// api/generate-theme-plan.js). Alcançada só por um card em PlanScreen.jsx
-// — não é aba própria, mesmo padrão não-aba de NotesScreen.jsx/
-// ApplicationPhrasesScreen.jsx.
+// buscar as passagens). A IA busca passagens relevantes ao escopo na
+// Bíblia inteira; cada passagem vira um "texto" do plano, com o tempo de
+// leitura já calculado (ver api/generate-theme-plan.js/
+// src/themePlans/themeTexts.js) — não existe mais ritmo dividindo isso em
+// sessões de tamanho fixo, a pessoa escolhe quais textos ler a cada dia
+// (checklist em PlanScreen.jsx). Alcançada só por um card em
+// PlanScreen.jsx — não é aba própria, mesmo padrão não-aba de
+// NotesScreen.jsx/ApplicationPhrasesScreen.jsx.
 //
 // A lista de planos salvos (`plans`) vem de fora (App.jsx) em vez de ser
 // buscada aqui — App.jsx precisa dela pra saber as sessões do plano por
@@ -17,7 +18,10 @@
 // devolvem prontas. `autoOpenPlanId` abre direto num plano específico
 // (usado pelo "Continuar sessão" da Home/Rotina quando o plano ativo é um
 // plano por tema — ver App.jsx/continueToday), mesmo padrão de
-// entryMode/initialBlockId que JourneyScreen.jsx já usa.
+// entryMode/initialBlockId que JourneyScreen.jsx já usa. `autoOpenKeys`
+// (opcional, junto de autoOpenPlanId) restringe a leitura só aos textos
+// escolhidos pra hoje (ver ThemeTextsChecklist em PlanScreen.jsx) — sem
+// ele, mostra o plano inteiro (ex: abrindo pela lista completa abaixo).
 //
 // Pra LER um plano gerado, em vez de construir um leitor novo, monta um
 // "bloco" sintético em memória (só precisa de id/name/nameEn/sessionsTotal
@@ -30,8 +34,8 @@
 // geral da Bíblia, porque é a mesma chave livro:capítulo de sempre.
 import { useState, useEffect } from 'react'
 import { saveThemePlan, deleteThemePlan, generateThemePlan } from '../themePlans/themePlansStore'
-import { themePlanTitle, themePlanReadingMinutes } from '../plan/resolveActivePlan'
-import { PLANS } from '../data/bibleBlocks'
+import { themePlanTitle, themePlanProgress } from '../plan/resolveActivePlan'
+import { deriveThemeTexts, themeTextKey } from '../themePlans/themeTexts'
 import { sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -44,14 +48,17 @@ import ReadingBlockView from './ReadingBlockView'
 // jeito antes de gastar uma chamada de IA.
 const MAX_PLANS_PER_MONTH = 4
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+// Não existe mais ritmo escolhido pela pessoa pra plano por tema — esse
+// valor só serve de dica de tamanho pro prompt da IA (ver
+// buildSizeInstruction em api/_lib/ai.js), sem efeito visível.
+const DEFAULT_PACE_ID = 'standard'
 
-export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, onToggleSession, onToggleChapter, onNavigate }) {
+export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate }) {
   const { lang } = session
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
   const [creating, setCreating] = useState(false)
   const [title, setTitle] = useState('')
   const [scope, setScope] = useState('')
-  const [paceId, setPaceId] = useState('standard')
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
 
@@ -74,7 +81,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
     setGenerating(true)
     setGenError('')
     try {
-      const plan = await generateThemePlan(title.trim(), scope.trim(), paceId, lang)
+      const plan = await generateThemePlan(title.trim(), scope.trim(), DEFAULT_PACE_ID, lang)
       const updated = await saveThemePlan(authUser.email, plan)
       onPlansChanged?.(updated)
       setCreating(false)
@@ -108,11 +115,24 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
   if (activePlan) {
     // Sessões com status calculado NA HORA a partir do completedSet
     // compartilhado — nunca guardado à parte, pra nunca dessincronizar
-    // (ver comentário no topo do arquivo).
-    const sessionsWithStatus = activePlan.sessions.map(s => ({
+    // (ver comentário no topo do arquivo). Planos com `passages` (formato
+    // atual) derivam os textos na hora; planos bem antigos, sem `passages`,
+    // caem no fallback das sessões estáticas de sempre.
+    const allTexts = (activePlan.passages ? deriveThemeTexts(activePlan.passages) : (activePlan.sessions ?? [])).map(s => ({
       ...s,
       status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
     }))
+    // autoOpenKeys só vale enquanto está mostrando EXATAMENTE o plano pro
+    // qual ele foi passado — sem essa checagem, tocar num plano diferente
+    // na lista logo abaixo (setActivePlanId) podia herdar chaves de outro
+    // plano por engano.
+    const restrictKeys = activePlanId === autoOpenPlanId ? autoOpenKeys : null
+    const restricted = restrictKeys ? allTexts.filter(s => restrictKeys.includes(themeTextKey(s))) : null
+    // Nunca deixa ReadingBlockView.jsx receber uma lista vazia (ele sempre
+    // espera ter pelo menos 1 sessão pra destacar) — se a restrição não
+    // bateu com nada (chave desatualizada, por exemplo), mostra o plano
+    // inteiro em vez de travar.
+    const sessionsWithStatus = restricted?.length ? restricted : allTexts
     const activePlanTitleText = themePlanTitle(activePlan)
     const syntheticBlock = {
       id: `theme:${activePlan.id}`,
@@ -178,23 +198,6 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
               rows={3}
             />
 
-            <p style={{ ...styles.createLabel, marginTop: 14 }}>{t('themePlan.paceLabel', undefined, lang)}</p>
-            <div style={styles.durationSel}>
-              {PLANS.map(p => (
-                <button
-                  key={p.id}
-                  style={{ ...styles.durationBtn, ...(p.id === paceId ? styles.durationBtnActive : {}) }}
-                  onClick={() => setPaceId(p.id)}
-                >
-                  <AppIcon name={p.icon} size={14} color={p.id === paceId ? 'white' : 'var(--g4)'} />
-                  <span style={styles.durationBtnLabel}>{lang === 'en' ? p.labelEn : p.label}</span>
-                  <span style={{ ...styles.durationBtnTime, ...(p.id === paceId ? styles.durationBtnTimeActive : {}) }}>
-                    {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-                  </span>
-                </button>
-              ))}
-            </div>
-
             {genError && <p style={styles.errorText}>{genError}</p>}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
@@ -223,7 +226,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {plans.map(plan => {
-            const doneCount = plan.sessions.filter(s => sessionKeys(s).every(k => completedSet.has(k))).length
+            const progress = themePlanProgress(plan, completedSet)
             return (
               <div key={plan.id} style={styles.planCard}>
                 <button style={styles.planCardMain} onClick={() => setActivePlanId(plan.id)}>
@@ -231,8 +234,8 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
                   <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                     <span style={styles.planCardTheme}>{themePlanTitle(plan)}</span>
                     <span style={styles.planCardMeta}>
-                      {t('themePlan.sessionsCount', { done: doneCount, total: plan.sessions.length }, lang)}
-                      {themePlanReadingMinutes(plan) != null && ` · ${themePlanReadingMinutes(plan)} ${t('routine.min', undefined, lang)}/${t('themePlan.perSession', undefined, lang)}`}
+                      {t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)}
+                      {progress.totalMinutes != null && ` · ~${progress.totalMinutes} ${t('routine.min', undefined, lang)}`}
                     </span>
                   </span>
                   <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
@@ -262,12 +265,6 @@ const styles = {
   createLabel:  { fontSize: 9.5, fontWeight: 700, color: '#A21CAF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   themeInput:   { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'white' },
   scopeInput:   { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'white', resize: 'vertical', lineHeight: 1.4 },
-  durationSel:  { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  durationBtn:  { flex: '1 1 0', minWidth: 70, padding: '8px 6px', borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  durationBtnActive: { color: 'white', border: 'none', background: '#A21CAF' },
-  durationBtnLabel: { fontSize: 11, fontWeight: 700 },
-  durationBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
-  durationBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
   errorText:    { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginTop: 10 },
   generatingHint: { fontSize: 11, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
   generateBtn:  { flex: 1, background: '#A21CAF', border: 'none', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },

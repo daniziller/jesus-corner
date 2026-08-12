@@ -43,8 +43,9 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   const CIRCUMFERENCE = 238.76
   const offset = CIRCUMFERENCE - (biblePercent / 100) * CIRCUMFERENCE
 
-  const ctaLabel =
-    todaySession.progress === 100 ? translate('home.reviewSession', undefined, lang)
+  const ctaLabel = todaySession.needsThemePick
+    ? translate('themePlan.chooseTodayCta', undefined, lang)
+    : todaySession.progress === 100 ? translate('home.reviewSession', undefined, lang)
     : todaySession.progress > 0   ? translate('home.continueSession', undefined, lang)
     : translate('home.startSession', undefined, lang)
 
@@ -359,9 +360,11 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, 
     {
       key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading,
       title: translate('home.routineReading', undefined, lang),
-      sub: activePlan.readingMinutes == null
-        ? translate('home.routineReadingSubFree', undefined, lang)
-        : translate('home.routineReadingSub', { min: activePlan.readingMinutes }, lang),
+      sub: activePlan.needsThemePick
+        ? translate('themePlan.chooseTodayCta', undefined, lang)
+        : activePlan.readingMinutes == null
+          ? translate('home.routineReadingSubFree', undefined, lang)
+          : translate('home.routineReadingSub', { min: activePlan.readingMinutes }, lang),
       done: !!todayRoutine.reading,
       onClick: () => onContinueSession?.(),
       onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading),

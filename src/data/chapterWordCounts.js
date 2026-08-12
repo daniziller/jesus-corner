@@ -1,9 +1,10 @@
 // Palavras por capítulo de cada livro, lidas do plano 'free' (que sempre
 // tem exatamente 1 sessão = 1 capítulo — dado pronto, não precisa
 // recalcular nem buscar o texto de novo). Usado por qualquer lugar que
-// precise dividir capítulos em sessões por tamanho sem chamar rede: o
-// plano cronológico (src/data/chronologicalPlan.js) e o re-cálculo de
-// ritmo de um plano por tema já gerado (src/themePlans/chunkThemePassages.js).
+// precise saber palavras/capítulo sem chamar rede: o plano cronológico
+// (src/data/chronologicalPlan.js) e o tempo de leitura de cada texto de um
+// plano por tema (src/themePlans/themeTexts.js, fallback pra planos
+// antigos sem `words` já calculado).
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from './bibleBlocks.js'
 
 const CHAPTER_WORDS = {}

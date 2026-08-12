@@ -30,3 +30,22 @@ export function setStepDone(step, done = true, planId) {
     return updated?.daily_routine ?? next
   })
 }
+
+// Quais textos de um plano por tema a pessoa escolheu ler HOJE (ver
+// src/themePlans/themeTexts.js/PlanScreen.jsx) — mesmo mapa data → entrada
+// do dia de setStepDone acima, só que guardando `themePicks` em vez de um
+// passo concluído. Reseta sozinho a cada dia novo (chave de hoje some do
+// mapa), mesmo comportamento de prayer/reading/reflection. `keys` vazio
+// (ou chamado de novo com uma lista diferente) sobrescreve a escolha do
+// dia — não existe "acumular" escolhas dentro do mesmo dia.
+export function setThemePicks(planId, keys) {
+  return withRowLock(async () => {
+    const row = await fetchRow()
+    const current = row?.daily_routine ?? {}
+    const key = dateKey()
+    const today = { ...current[key], themePicks: { planId, keys } }
+    const next = { ...current, [key]: today }
+    const updated = await updateRow({ daily_routine: next })
+    return updated?.daily_routine ?? next
+  })
+}
