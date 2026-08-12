@@ -41,6 +41,10 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
   }
 
   const totalMinutes = prayerMinutes + reflectionMinutes + (activePlan.readingMinutes ?? 0)
+  // Mesmo roxo do card de plano ativo em PlanScreen.jsx (ActivePlanCard) —
+  // plano por tema (IA) ativo pinta a barra de "sessão de hoje" e o ícone
+  // do resumo do plano com esse tom, em vez do gradiente/marrom de sempre.
+  const isAiPlan = activePlan.kind === 'theme'
 
   // Mesma ordem/cor/ícone da DailyRoutineCard na Home — bate visualmente
   // com o resto do app. Tocar na linha leva direto pra tela do passo; tocar
@@ -177,7 +181,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
               já mostra (ver App.jsx), só que aqui dentro da aba Rotina, que
               agora concentra tudo sobre o plano de leitura. O botão leva
               direto pra tela de leitura (mesmo onContinueSession da Home). */}
-          <div style={styles.todaySessionCard}>
+          <div style={{ ...styles.todaySessionCard, ...(isAiPlan ? styles.todaySessionCardAi : {}) }}>
             <div className="today-session-row">
               <div>
                 <div style={styles.todaySessionBadge}>
@@ -187,7 +191,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
                 <h4 style={styles.todaySessionTitle}>{todaySession.title}</h4>
                 <p style={styles.todaySessionSub}>{todaySession.subtitle}</p>
               </div>
-              <button className="today-session-btn-desktop" style={styles.todaySessionBtn} onClick={onContinueSession}>
+              <button className="today-session-btn-desktop" style={{ ...styles.todaySessionBtn, ...(isAiPlan ? { color: '#A21CAF' } : {}) }} onClick={onContinueSession}>
                 {readingCtaLabel} <AppIcon name="ChevronRight" size={15} />
               </button>
             </div>
@@ -201,7 +205,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
               cronológico numa lista única com botão "Escolher". */}
           <div className="plan-row-desktop">
             <div style={styles.activePlanSummary}>
-              <span style={{ ...styles.activePlanSummaryIcon, background: ROUTINE_STEP_COLORS.reading }}>
+              <span style={{ ...styles.activePlanSummaryIcon, background: isAiPlan ? '#A21CAF' : ROUTINE_STEP_COLORS.reading }}>
                 <AppIcon name={activePlan.icon} size={15} color="white" />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
@@ -427,6 +431,7 @@ const styles = {
   readingStatL:    { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)' },
 
   todaySessionCard:   { position: 'relative', background: 'var(--grad-vivid)', borderRadius: 15, padding: '13px 14px 14px', marginBottom: 12, boxShadow: 'var(--shadow-glow)' },
+  todaySessionCardAi: { background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 10px 28px rgba(162,28,175,.35)' },
   todaySessionBadge:  { display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 },
   todaySessionDot:    { width: 5, height: 5, borderRadius: '50%', background: 'white' },
   todaySessionBlock:  { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.85)', textTransform: 'uppercase', letterSpacing: 0.4 },

@@ -290,9 +290,15 @@ function ActivePlanCard({ activePlan, todaySession, lang, onContinue }) {
     todaySession.progress === 100 ? t('home.reviewSession', undefined, lang)
     : todaySession.progress > 0   ? t('home.continueSession', undefined, lang)
     : t('home.startSession', undefined, lang)
+  // Plano por tema (IA) foge do gradiente de marca de sempre — usa o mesmo
+  // roxo já usado em ThemePlanScreen.jsx/PlanRow (#A21CAF), pra ficar claro
+  // de relance que a leitura de hoje vem de um plano gerado por IA, não do
+  // plano fixo/cronológico. Mesmo tom replicado em RoutineScreen.jsx
+  // (todaySessionCard) — se mudar aqui, mudar lá também.
+  const isAiPlan = activePlan.kind === 'theme'
 
   return (
-    <div style={styles.activeCard}>
+    <div style={{ ...styles.activeCard, ...(isAiPlan ? styles.activeCardAi : {}) }}>
       <div style={styles.activeCardTop}>
         <span style={styles.activeCardIcon}><AppIcon name={activePlan.icon} size={18} color="white" /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -444,6 +450,7 @@ const styles = {
   sectionSub:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', margin: '-4px 2px 6px' },
 
   activeCard:      { background: 'var(--grad-vivid)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-glow)' },
+  activeCardAi:    { background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 10px 28px rgba(162,28,175,.35)' },
   activeCardTop:   { display: 'flex', alignItems: 'center', gap: 10 },
   activeCardIcon:  { width: 36, height: 36, borderRadius: 11, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   activeCardLabel: { fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
