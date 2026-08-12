@@ -196,6 +196,14 @@ export default function PlanScreen({
         {activeThemePlan && (
           <div style={styles.readingPlanCard}>
             <p style={styles.activeThemeTitle}>{themePlanTitle(activeThemePlan)}</p>
+            {/* Contexto do plano — parágrafo que a própria IA escreve na
+                hora de gerar (ver api/_lib/ai.js, campo overview),
+                explicando o fio condutor por trás das passagens escolhidas.
+                Planos salvos antes desse campo existir simplesmente não
+                mostram nada aqui. */}
+            {activeThemePlan.overview && (
+              <p style={styles.themeOverview}>{activeThemePlan.overview}</p>
+            )}
             {activeThemePlan.passages ? (
               <>
                 <p style={styles.chipsLabel}>{t('plan.paceLabel', undefined, lang)}</p>
@@ -449,6 +457,7 @@ const styles = {
 
   readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   activeThemeTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
+  themeOverview: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginTop: -6, marginBottom: 12 },
   chipsLabel:      { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
 
   orderSel:    { display: 'flex', gap: 6 },

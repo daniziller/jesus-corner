@@ -25,6 +25,7 @@ const MODEL = 'anthropic/claude-sonnet-5'
 const AVG_WORDS_PER_CHAPTER = 570
 
 const ThemePassagesSchema = z.object({
+  overview: z.string().describe('Um parágrafo curto (2 a 4 frases, no mesmo idioma do assunto) explicando o fio condutor do plano: por que essas passagens foram escolhidas e organizadas nessa ordem, e o que a pessoa vai entender/vivenciar ao ler todas em sequência. Escrito pra quem ainda não viu a lista de passagens — dá o contexto antes de começar a ler.'),
   passages: z.array(z.object({
     book: z.string().describe('Nome do livro EXATAMENTE como aparece na lista de livros válidos fornecida no prompt — nenhuma variação de grafia.'),
     chStart: z.number().int().min(1).describe('Primeiro capítulo da passagem.'),
@@ -66,7 +67,8 @@ Liste entre 5 e 15 passagens da Bíblia (Antigo e Novo Testamento) diretamente r
 - Não repita o mesmo livro/capítulo em duas passagens diferentes.
 - Só inclua passagens que você tem certeza que existem de verdade e que realmente tratam do tema — não force uma relação fraca só pra preencher a lista.
 - Ordene da passagem mais fundamental/conhecida pra mais específica.
+- Escreva também um "overview": um parágrafo curto explicando o fio condutor do plano como um todo (não repita as razões individuais de cada passagem, dê a visão geral).
 ${langInstruction}`,
   })
-  return output.passages
+  return output
 }

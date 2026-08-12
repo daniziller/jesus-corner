@@ -151,9 +151,11 @@ export default async function handler(req, res) {
   // src/data/chronologicalPlan.js).
   const targetWords = pace.readingMinutes == null ? 0 : pace.readingMinutes * WORDS_PER_MINUTE
 
-  let passages
+  let passages, overview
   try {
-    passages = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords)
+    const aiResult = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords)
+    passages = aiResult.passages
+    overview = (aiResult.overview ?? '').trim()
   } catch (err) {
     console.error('[generate-theme-plan] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })
@@ -220,6 +222,7 @@ export default async function handler(req, res) {
     id: `theme-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: cleanTitle,
     scope: cleanScope,
+    overview,
     paceId,
     lang: cleanLang,
     createdAt: new Date().toISOString(),
