@@ -86,10 +86,15 @@ export default function PlanScreen({
 
         {/* Parte 1 — Plano de leitura: ordem (padrão × cronológica) e ritmo
             (Leve/Padrão/Intensivo/Livre), dois eixos que se combinam numa
-            escolha só, direto ao tocar (ver chooseOrder/choosePace acima). */}
-        <div style={styles.readingPlanCard}>
-          <p style={styles.readingPlanTitle}>{t('plan.readingPlanTitle', undefined, lang)}</p>
+            escolha só, direto ao tocar (ver chooseOrder/choosePace acima).
+            Título fora do card, mesmo padrão do título de "Plano por tema"
+            mais abaixo (cinza, menor, com uma frase explicando o que fazer). */}
+        <div>
+          <p style={styles.sectionLabel}>{t('plan.readingPlanTitle', undefined, lang)}</p>
+          <p style={styles.sectionSub}>{t('plan.readingPlanSub', undefined, lang)}</p>
+        </div>
 
+        <div style={styles.readingPlanCard}>
           <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
           <div style={styles.orderSel}>
             <button
@@ -351,7 +356,6 @@ const styles = {
   activeCardBtn:   { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
 
   readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  readingPlanTitle:{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
   chipsLabel:      { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
 
   orderSel:    { display: 'flex', gap: 6 },

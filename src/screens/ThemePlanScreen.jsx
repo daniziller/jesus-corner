@@ -164,6 +164,9 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
                 >
                   <AppIcon name={p.icon} size={14} color={p.id === paceId ? 'white' : 'var(--g4)'} />
                   <span style={styles.durationBtnLabel}>{lang === 'en' ? p.labelEn : p.label}</span>
+                  <span style={{ ...styles.durationBtnTime, ...(p.id === paceId ? styles.durationBtnTimeActive : {}) }}>
+                    {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -230,9 +233,11 @@ const styles = {
   themeInput:   { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'white' },
   scopeInput:   { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'white', resize: 'vertical', lineHeight: 1.4 },
   durationSel:  { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  durationBtn:  { flex: '1 1 0', minWidth: 70, height: 40, borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  durationBtn:  { flex: '1 1 0', minWidth: 70, padding: '8px 6px', borderRadius: 10, border: '0.5px solid var(--g2)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--g5)', background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 },
   durationBtnActive: { color: 'white', border: 'none', background: '#A21CAF' },
   durationBtnLabel: { fontSize: 11, fontWeight: 700 },
+  durationBtnTime: { fontSize: 8.5, fontWeight: 700, color: 'var(--g4)' },
+  durationBtnTimeActive: { color: 'rgba(255,255,255,.8)' },
   errorText:    { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginTop: 10 },
   generateBtn:  { flex: 1, background: '#A21CAF', border: 'none', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
   cancelBtn:    { flex: 1, background: 'white', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
