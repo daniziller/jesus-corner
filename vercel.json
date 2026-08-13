@@ -25,6 +25,9 @@
     },
     "api/generate-theme-plan.js": {
       "maxDuration": 240
+    },
+    "api/chat-about-text.js": {
+      "maxDuration": 60
     }
   }
 }

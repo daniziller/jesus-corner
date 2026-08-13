@@ -36,6 +36,14 @@ const POLICIES = [
     // Feed social: só o recente tem valor. Um ano é generoso.
     reason: 'feed de atividade — 12 meses',
   },
+  {
+    table: 'text_ai_chats',
+    days: 60,
+    // Chat sobre o texto bíblico (ver api/chat-about-text.js) — conversa
+    // costuma ser pontual, ligada à leitura daquele dia; 60 dias dá tempo
+    // de rever sem reter esse tipo de conteúdo (mais pessoal) indefinidamente.
+    reason: 'chat sobre o texto — 60 dias',
+  },
 ]
 
 export default async function handler(req, res) {

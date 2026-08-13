@@ -149,7 +149,7 @@ export const STRINGS = {
       continueReading: 'Continuar leitura',
     },
     reading: {
-      tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto Bíblico',
+      tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto Bíblico', tagAskAi: 'Perguntar à IA',
       textLoading: 'Carregando o texto...',
       textError: 'Não foi possível carregar o texto agora. Tente de novo em instantes.',
       textSourceEn: 'New Living Translation (NLT)',
@@ -508,6 +508,16 @@ export const STRINGS = {
       startTodayCta: 'Começar leitura de hoje',
       chooseTodayCta: 'Escolher textos de hoje',
       unmarkReadConfirm: '{count} dos textos desse plano já estão marcados como lidos (fora dele). Quer desmarcá-los pra poder lê-los de novo como parte desse plano?',
+    },
+    aiChat: {
+      outOfScopeNote: 'Pergunte sobre contexto histórico, geográfico ou o que esse texto diz — não entro em doutrina ou interpretação pessoal.',
+      placeholder: 'Pergunte sobre esse texto...',
+      sendBtn: 'Enviar',
+      emptyHint: 'Nenhuma pergunta ainda sobre esse trecho. O que você quer entender melhor?',
+      generatingHint: 'Pensando...',
+      subscriptionRequired: 'Esse recurso é só para assinantes ativos.',
+      dailyLimitReached: 'Você atingiu o limite de perguntas de hoje. Volte amanhã.',
+      genericError: 'Não consegui responder agora. Tente de novo em instantes.',
     },
     chronoPlan: {
       pageTitle: 'Plano Cronológico',
@@ -1009,7 +1019,7 @@ export const STRINGS = {
       continueReading: 'Continue reading',
     },
     reading: {
-      tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Bible Text',
+      tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Bible Text', tagAskAi: 'Ask AI',
       textLoading: 'Loading the text...',
       textError: "Couldn't load the text right now. Please try again shortly.",
       textSourceEn: 'New Living Translation (NLT)',
@@ -1368,6 +1378,16 @@ export const STRINGS = {
       startTodayCta: "Start today's reading",
       chooseTodayCta: "Choose today's texts",
       unmarkReadConfirm: '{count} of the texts in this plan are already marked as read (outside this plan). Do you want to unmark them so you can read them again as part of this plan?',
+    },
+    aiChat: {
+      outOfScopeNote: "Ask about historical or geographical context, or what this text says — I won't get into doctrine or personal interpretation.",
+      placeholder: 'Ask about this text...',
+      sendBtn: 'Send',
+      emptyHint: 'No questions yet about this passage. What would you like to understand better?',
+      generatingHint: 'Thinking...',
+      subscriptionRequired: 'This feature is only for active subscribers.',
+      dailyLimitReached: "You've reached today's question limit. Come back tomorrow.",
+      genericError: "Couldn't answer right now. Try again in a moment.",
     },
     chronoPlan: {
       pageTitle: 'Chronological Plan',

@@ -4,6 +4,7 @@ import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
 import { getHighlights, saveHighlight, updateHighlightText, deleteHighlight } from '../highlights/highlightsStore'
+import { getMessages, sendMessage } from '../aiChat/aiChatStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
@@ -149,8 +150,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     { key: 'mapa',         icon: 'Map',        label: t('reading.tagMap', undefined, lang) },
     { key: 'notas',        icon: 'StickyNote', label: t('reading.tagNotes', undefined, lang) },
     { key: 'curiosidades', icon: 'Lightbulb',  label: t('reading.tagTrivia', undefined, lang) },
+    { key: 'ia',           icon: 'Bot',        label: t('reading.tagAskAi', undefined, lang) },
   ]
-  const PANEL_KEYS = ['contexto', 'mapa', 'notas', 'curiosidades']
+  const PANEL_KEYS = ['contexto', 'mapa', 'notas', 'curiosidades', 'ia']
 
   const [openPanel, setOpenPanel] = useState(null)
   const [noteText, setNoteText] = useState('')
@@ -357,9 +359,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               </div>
             ) : null
           })()}
-          {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
+          {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && openPanel !== 'ia' && (
             <div style={{ padding: '0 14px 4px' }}>
               <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
+            </div>
+          )}
+          {openPanel === 'ia' && heroSession.type !== 'reflection' && (
+            <div style={{ padding: '0 14px 4px' }}>
+              <AiChatPanel session={heroSession} lang={lang} />
             </div>
           )}
 
@@ -808,6 +815,104 @@ function ReflectionCard({ bookKey, displayName, info, lang }) {
   )
 }
 
+// Chat com IA sobre o texto em destaque — ver api/chat-about-text.js
+// (escopo: contexto histórico/geográfico/cultural e o que o texto bíblico
+// em si diz, nunca doutrina/interpretação pessoal — ver outOfScopeNote
+// abaixo, sempre visível, não só quando a IA recusa algo). Histórico
+// carrega 1x ao abrir o painel (mesma passage_key de noteKeyFor, já usada
+// pelas anotações) e cresce localmente (otimista) a cada envio, sem
+// recarregar tudo de novo.
+function AiChatPanel({ session, lang }) {
+  const passageKey = noteKeyFor(session)
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+  const listRef = useRef(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError('')
+    getMessages(passageKey).then(rows => {
+      if (!cancelled) setMessages(rows)
+    }).catch(err => {
+      console.error('Failed to load AI chat history', err)
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [passageKey])
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
+  }, [messages, sending])
+
+  async function handleSend() {
+    const message = text.trim()
+    if (!message || sending) return
+    setSending(true)
+    setError('')
+    setText('')
+    try {
+      const { userMessage, assistantMessage } = await sendMessage({
+        book: session.book, chStart: session.chStart, chEnd: session.chEnd, message, lang,
+      })
+      setMessages(prev => [...prev, userMessage, assistantMessage])
+    } catch (err) {
+      setError(
+        err.message === 'subscription_required' ? t('aiChat.subscriptionRequired', undefined, lang)
+        : err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang)
+        : t('aiChat.genericError', undefined, lang)
+      )
+      setText(message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div style={styles.panel}>
+      <p style={styles.aiChatScopeNote}>{t('aiChat.outOfScopeNote', undefined, lang)}</p>
+
+      <div ref={listRef} style={styles.aiChatList}>
+        {!loading && messages.length === 0 && (
+          <p style={styles.aiChatEmptyHint}>{t('aiChat.emptyHint', undefined, lang)}</p>
+        )}
+        {messages.map(m => (
+          <div key={m.id} style={{ ...styles.aiChatBubble, ...(m.role === 'user' ? styles.aiChatBubbleUser : styles.aiChatBubbleAi) }}>
+            {m.content}
+          </div>
+        ))}
+        {sending && (
+          <div style={{ ...styles.aiChatBubble, ...styles.aiChatBubbleAi, ...styles.aiChatBubbleTyping }}>
+            {t('aiChat.generatingHint', undefined, lang)}
+          </div>
+        )}
+      </div>
+
+      {error && <p style={styles.errorText}>{error}</p>}
+
+      <div style={styles.aiChatInputRow}>
+        <input
+          type="text"
+          style={styles.aiChatInput}
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSend() }}
+          placeholder={t('aiChat.placeholder', undefined, lang)}
+          maxLength={500}
+          disabled={sending}
+        />
+        <button style={styles.aiChatSendBtn} onClick={handleSend} disabled={sending || !text.trim()}>
+          <AppIcon name="ArrowUp" size={16} color="white" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function NotesPanel({ value, onSave, lang }) {
   const [text, setText] = useState(value)
   const [justSaved, setJustSaved] = useState(false)
@@ -1105,4 +1210,19 @@ const styles = {
   highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
   highlightCancelBtn:{ flex: 1, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
+
+  // Chat com IA sobre o texto (ver AiChatPanel) — bolhas reaproveitando as
+  // mesmas cores de botão/marca já usadas no resto do app (--grad-primary
+  // pra "eu"/usuário, --g1 neutro pra IA), nada de paleta nova.
+  aiChatScopeNote: { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.4, marginBottom: 10, paddingBottom: 10, borderBottom: '0.5px solid var(--g1)' },
+  aiChatList:      { display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', marginBottom: 10 },
+  aiChatEmptyHint: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '14px 4px' },
+  aiChatBubble:    { maxWidth: '85%', padding: '9px 12px', borderRadius: 14, fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
+  aiChatBubbleUser:{ alignSelf: 'flex-end', background: 'var(--grad-primary)', color: 'white', borderBottomRightRadius: 4 },
+  aiChatBubbleAi:  { alignSelf: 'flex-start', background: 'var(--g1)', color: 'var(--bk)', borderBottomLeftRadius: 4 },
+  aiChatBubbleTyping: { color: 'var(--g5)', fontStyle: 'italic' },
+  aiChatInputRow:  { display: 'flex', gap: 8, alignItems: 'center' },
+  aiChatInput:     { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 20, padding: '10px 14px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
+  aiChatSendBtn:   { width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: 'var(--shadow-premium)' },
+  errorText:       { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginBottom: 8 },
 }

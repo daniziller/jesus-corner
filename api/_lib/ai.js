@@ -40,6 +40,15 @@ function buildLangInstruction(lang) {
     : 'Escreva os campos "reason" e "overview" em português.'
 }
 
+// Mesma ideia, só que pro campo "reply" do chat (ver answerTextQuestion) —
+// função à parte em vez de generalizar buildLangInstruction acima, que é
+// específica dos campos do plano por tema.
+function buildReplyLangInstruction(lang) {
+  return lang === 'en'
+    ? 'Write the "reply" field in English.'
+    : 'Escreva o campo "reply" em português.'
+}
+
 // Sem isso, a IA tendia a sempre devolver passagens minúsculas (1 capítulo,
 // às vezes menos) não importa o ritmo escolhido — cada uma virava sua
 // própria sessão, bem mais curta que o tempo pedido.
@@ -127,4 +136,65 @@ ${buildLangInstruction(lang)}`,
 export async function findThemePassages(scope, canonicalBooks, lang, targetWords = 0) {
   const draft = await generateDraftPassages(scope, canonicalBooks, lang, targetWords)
   return reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords)
+}
+
+// Chat com IA sobre o texto bíblico em leitura (aba "Perguntar à IA" em
+// ReadingBlockView.jsx) — usado por api/chat-about-text.js. Escopo
+// deliberadamente estreito: só contexto histórico/geográfico/cultural da
+// passagem e o que o texto bíblico em si diz — nunca doutrina, interpretação
+// teológica ou aconselhamento pessoal. `inScope`/`sensitiveTopic` saem
+// estruturados (Zod) pra que o app SEMPRE aplique a resposta certa a cada
+// categoria (e sempre garanta a linha de apoio em caso de autolesão/
+// suicídio — ver CVV_LINE_* em chat-about-text.js), em vez de confiar
+// cegamente no texto livre gerado.
+const AnswerSchema = z.object({
+  inScope: z.boolean().describe('true SOMENTE se a pergunta pede contexto histórico, geográfico, cultural ou arqueológico da passagem, ou esclarecimento do que o texto bíblico EM SI diz/narra. false para doutrina, interpretação teológica, aplicação pessoal/espiritual, opinião, comparação entre denominações, filosofia, ou qualquer assunto fora da passagem em foco.'),
+  sensitiveTopic: z.enum(['none', 'self_harm', 'other_sensitive']).describe("'self_harm' se a pergunta expressar, em primeira pessoa, ideação suicida/autolesão da PRÓPRIA pessoa perguntando — NÃO uma pergunta histórica sobre uma figura bíblica que morre ou deseja morrer (ex: Saul em 1 Samuel 31, Elias em 1 Reis 19:4, Jó), essas continuam inScope=true e sensitiveTopic='none'. 'other_sensitive' pra abuso infantil, violência explícita como instrução, ou qualquer pedido de conteúdo prejudicial/ilegal disfarçado de pergunta bíblica."),
+  reply: z.string().describe('A resposta, no mesmo idioma da pergunta. Se inScope=false ou sensitiveTopic != "none", uma recusa BREVE e gentil (1-2 frases), sem repetir a pergunta, redirecionando pro escopo do chat (contexto histórico/geográfico do texto) — se sensitiveTopic="self_harm", também acolha brevemente antes de recusar, sem dar conselho nem continuar o assunto (a linha de apoio é adicionada à parte, não invente uma).'),
+})
+
+function formatContextSections(sections, chStart, chEnd) {
+  return sections
+    .filter(s => chStart != null && chEnd != null && s.chStart <= chEnd && s.chEnd >= chStart)
+    .map(s => `- Cap. ${s.chStart}${s.chStart !== s.chEnd ? `–${s.chEnd}` : ''} (${s.title}): ${s.text}`)
+    .join('\n')
+}
+
+function formatHistory(history) {
+  if (!history?.length) return '(nenhuma mensagem anterior)'
+  return history.map(m => `${m.role === 'user' ? 'Pessoa' : 'Você'}: ${m.content}`).join('\n')
+}
+
+// bookInfo — a entrada de src/data/bookInfo.js (ou .en.js) do livro em
+// questão (contextOverview/contextSections), a MESMA fonte que a aba
+// "Contexto" já mostra — passada como fonte primária de verdade, pra
+// ancorar a resposta no que o app já exibe, não em conhecimento solto do
+// modelo. history — últimas ~10 mensagens da mesma passagem (já ordenadas,
+// mais antiga primeiro), pra manter contexto sem deixar o prompt crescer
+// sem limite.
+export async function answerTextQuestion({ book, chStart, chEnd, bookInfo, message, history, lang }) {
+  const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
+  const sections = formatContextSections(bookInfo?.contextSections ?? [], chStart, chEnd)
+  const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
+
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: AnswerSchema }),
+    prompt: `Você é um estudioso bíblico conversando com uma pessoa que está lendo ${book} ${range} agora, dentro de um app de leitura devocional. Sua função é ajudar a entender o CONTEXTO desse texto — nunca ensinar doutrina, interpretação teológica ou dar aconselhamento pessoal/espiritual.
+
+Contexto histórico/geográfico já conhecido dessa passagem (fonte primária — baseie sua resposta nisso sempre que relevante, complementando com conhecimento histórico geral só quando necessário):
+Visão geral do livro: ${overview}
+${sections || '(sem seções específicas cadastradas para esses capítulos)'}
+
+Permitido: história, geografia, cultura da época, arqueologia, autoria tradicional, gênero literário, e esclarecer o que o texto narra ou diz literalmente.
+Proibido: doutrina, interpretação teológica ("o que isso significa pra minha vida"), comparação entre denominações/tradições, filosofia, aconselhamento pessoal — nesses casos, recuse com gentileza e sugira que é uma ótima pergunta para levar a um pastor/líder da sua igreja, não a este chat. Se a pergunta for sobre outro livro/tema fora dessa passagem específica, recuse e sugira focar no texto atual.
+
+Conversa até agora:
+${formatHistory(history)}
+
+Nova pergunta da pessoa: "${message}"
+
+${buildReplyLangInstruction(lang)}`,
+  })
+  return output
 }
