@@ -363,6 +363,7 @@ function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang, onOpen
   return (
     <>
       <p style={styles.chipsLabel}>{t('themePlan.textsLabel', undefined, lang)}</p>
+      <p style={styles.textsInstructions}>{t('themePlan.textsInstructions', undefined, lang)}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
         {bookGroups.map(group => (
           <div key={group.book} style={styles.textGroup}>
@@ -555,6 +556,7 @@ const styles = {
   readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   themeOverview: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginBottom: 12 },
   chipsLabel:      { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  textsInstructions: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.45, marginTop: -6, marginBottom: 10 },
 
   orderSel:    { display: 'flex', gap: 6 },
   orderBtn:    { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 11, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },

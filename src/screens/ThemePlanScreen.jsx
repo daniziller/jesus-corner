@@ -88,6 +88,18 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
       setTitle('')
       setScope('')
       setActivePlanId(plan.id)
+
+      // As passagens que a IA escolheu podem coincidir com capítulos já
+      // lidos antes, fora desse plano — sem desmarcar, o checklist de hoje
+      // (ver ThemeTextsChecklist em PlanScreen.jsx) mostraria esses textos
+      // como "concluído", travados pra não poderem ser escolhidos de novo,
+      // mesmo sendo a primeira vez que a pessoa lê aquele texto DENTRO
+      // desse plano temático.
+      const newTexts = deriveThemeTexts(plan.passages)
+      const alreadyReadTexts = newTexts.filter(txt => sessionKeys(txt).some(k => completedSet.has(k)))
+      if (alreadyReadTexts.length > 0 && window.confirm(t('themePlan.unmarkReadConfirm', { count: alreadyReadTexts.length }, lang))) {
+        alreadyReadTexts.forEach(txt => onToggleSession?.(txt, false))
+      }
     } catch (err) {
       console.error('Failed to generate theme plan', err)
       setGenError(
