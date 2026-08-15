@@ -1018,35 +1018,31 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
     <div>
       <div
         style={{
-          display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', userSelect: 'none', cursor: 'pointer',
-          background: isCurrentBook ? 'var(--olt)' : 'var(--g1)',
-          border: `0.5px solid ${isCurrentBook ? 'rgba(157,67,0,.35)' : 'var(--g2)'}`,
-          borderRadius: 13,
-          boxShadow: isCurrentBook ? 'var(--shadow-glow)' : 'none',
+          display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', userSelect: 'none', cursor: 'pointer',
+          background: isCurrentBook ? 'var(--olt)' : 'transparent',
+          borderRadius: 11,
         }}
         onClick={handleHeaderClick}
       >
         <div style={{
-          width: 38, height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          background: allDone ? 'var(--grad-vivid)' : isCurrentBook ? 'var(--bk)' : 'var(--g2)',
+          width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          background: allDone ? 'var(--grad-vivid)' : isCurrentBook ? 'var(--bk)' : 'var(--g1)',
         }}>
-          <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={17} color={allDone || isCurrentBook ? 'white' : 'var(--g5)'} />
+          <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={14} color={allDone || isCurrentBook ? 'white' : 'var(--g5)'} />
         </div>
 
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>{displayName}</p>
-          <p style={{ fontSize: 10, fontWeight: 500, color: 'var(--g4)' }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>{displayName}</p>
+          <p style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--g4)' }}>
             {doneCount}/{total} {t(isFreePlan ? 'reading.chaptersSuffix' : 'reading.sessionsSuffix', undefined, lang)}{isCurrentBook ? ` · ${t('reading.readingNow', undefined, lang)}` : ''}
           </p>
         </div>
 
-        <span style={{ fontSize: 13, color: 'var(--g4)', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
-          ∨
-        </span>
+        <AppIcon name="ChevronDown" size={14} color="var(--g4)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
       </div>
 
       {open && (
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }} onClick={e => e.stopPropagation()}>
+        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={e => e.stopPropagation()}>
           {group.sessions.map(s => (
             <SessionCard
               key={s.id}
@@ -1104,33 +1100,31 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
     <div
       ref={el => registerCardRef?.(session.id, el)}
       style={{
-        // Só a sessão em destaque (a que foi clicada/está no topo) recebe a cor
-        // laranja — "current" continua indicado só pelo ícone de status, pra
-        // não sobrar destacada quando outra sessão é escolhida.
-        background: isFeatured ? 'var(--olt)' : 'var(--g1)',
-        border: `0.5px solid ${isFeatured ? 'var(--gold-soft)' : isReflection ? 'rgba(168,85,247,.3)' : 'var(--g2)'}`,
-        borderRadius: 13,
-        overflow: 'hidden',
+        // Redesenho minimalista: sem fundo/borda/sombra por padrão (só o
+        // espaçamento entre linhas já separa uma sessão da outra) — a
+        // sessão em destaque ganha só um fundo suave, sem borda pesada nem
+        // sombra, pra marcar sem parecer um bloco solto na tela.
+        background: isFeatured ? 'var(--olt)' : 'transparent',
+        borderRadius: 11,
         cursor: 'pointer',
-        boxShadow: isFeatured ? 'var(--shadow-premium)' : 'none',
       }}
       onClick={() => (isBrowse ? onToggleInline(session) : onFeature(session))}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px' }}>
         {/* Ícone de status — toque rápido marca/desmarca a sessão inteira */}
         <div
           style={{
-            width: 32, height: 32, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            background: isDone ? 'var(--grad-vivid)' : isBadgeActive ? 'var(--bk)' : isReflection ? '#A855F7' : 'var(--g3)',
+            width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            background: isDone ? 'var(--grad-vivid)' : isBadgeActive ? 'var(--bk)' : isReflection ? '#A855F7' : 'var(--g1)',
           }}
           onClick={e => { e.stopPropagation(); onToggle(session, !isDone) }}
         >
           {isDone ? (
-            <AppIcon name="Check" size={15} color="white" />
+            <AppIcon name="Check" size={13} color="white" />
           ) : isReflection ? (
-            <AppIcon name="PenLine" size={13} color="white" />
+            <AppIcon name="PenLine" size={11} color="white" />
           ) : (
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: isBadgeActive ? 'white' : 'var(--g5)' }}>{isFreePlan ? session.chStart : session.id}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: isBadgeActive ? 'white' : 'var(--g5)' }}>{isFreePlan ? session.chStart : session.id}</span>
           )}
         </div>
 
@@ -1159,11 +1153,11 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
             embutido; nos outros modos, já em destaque no topo ou toque pra
             destacar. */}
         {isBrowse ? (
-          <AppIcon name="ChevronDown" size={15} color="var(--g4)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
+          <AppIcon name="ChevronDown" size={14} color="var(--g4)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
         ) : isFeatured ? (
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)', whiteSpace: 'nowrap' }}>{lang === 'en' ? 'FEATURED' : 'EM DESTAQUE'}</span>
+          <span style={{ fontSize: 8.5, fontWeight: 700, color: 'var(--or)', whiteSpace: 'nowrap' }}>{lang === 'en' ? 'FEATURED' : 'EM DESTAQUE'}</span>
         ) : (
-          <AppIcon name="ArrowUp" size={14} color="var(--g4)" />
+          <AppIcon name="ArrowUp" size={13} color="var(--g4)" />
         )}
       </div>
 
