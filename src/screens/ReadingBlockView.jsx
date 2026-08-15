@@ -1016,24 +1016,23 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   // externo, o texto só fica dentro de 1 bloco (o do capítulo).
   return (
     <div>
+      {/* Cabeçalho do livro — sem card nenhum (nem fundo, nem ícone num
+          quadrado colorido): só ícone simples + texto, com uma linha fina
+          embaixo separando do próximo livro. "Lendo agora" vira só a cor do
+          texto (laranja), não mais um bloco preenchido — mesmo espírito
+          minimalista da lista de capítulos logo abaixo. */}
       <div
         style={{
-          display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', userSelect: 'none', cursor: 'pointer',
-          background: isCurrentBook ? 'var(--olt)' : 'transparent',
-          borderRadius: 11,
+          display: 'flex', alignItems: 'center', gap: 8, padding: '10px 2px', userSelect: 'none', cursor: 'pointer',
+          borderBottom: '0.5px solid var(--g1)',
         }}
         onClick={handleHeaderClick}
       >
-        <div style={{
-          width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          background: allDone ? 'var(--grad-vivid)' : isCurrentBook ? 'var(--bk)' : 'var(--g1)',
-        }}>
-          <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={14} color={allDone || isCurrentBook ? 'white' : 'var(--g5)'} />
-        </div>
+        <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={15} color={allDone ? 'var(--gr)' : isCurrentBook ? 'var(--or)' : 'var(--g4)'} style={{ flexShrink: 0 }} />
 
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>{displayName}</p>
-          <p style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--g4)' }}>
+          <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>{displayName}</p>
+          <p style={{ fontSize: 9.5, fontWeight: 500, color: isCurrentBook ? 'var(--or)' : 'var(--g4)' }}>
             {doneCount}/{total} {t(isFreePlan ? 'reading.chaptersSuffix' : 'reading.sessionsSuffix', undefined, lang)}{isCurrentBook ? ` · ${t('reading.readingNow', undefined, lang)}` : ''}
           </p>
         </div>
