@@ -260,13 +260,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // um capítulo é aberto na lista, então não precisa rastrear
   // expandedChapterId à parte aqui: abrir o chat sobre heroSession já
   // cobre tanto o card em destaque (modo 'session') quanto o capítulo
-  // aberto na navegação livre (modo 'browse'). Rola pro topo junto porque
-  // o painel abre perto do destaque lá em cima — sem isso, quem tocou o
-  // botão flutuante lendo um capítulo lá embaixo na lista não veria o chat
-  // abrir.
+  // aberto na navegação livre (modo 'browse'). Não rola a tela: o chat
+  // agora flutua por cima (ver aiChatOverlay* abaixo), então a pessoa
+  // nunca sai de onde estava lendo pra abrir/fechar ele.
   function openAiChat() {
     setOpenPanel('ia')
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -284,6 +282,28 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
           <AppIcon name="Bot" size={22} color="white" />
         </button>
+      </div>,
+      document.body
+    )}
+    {/* Chat flutua por cima da leitura (mesmo motivo do portal acima) — a
+        pessoa nunca sai de onde estava; fecha com o X ou tocando fora, e
+        volta pra exatamente a mesma posição de rolagem de antes. */}
+    {openPanel === 'ia' && heroSession.type !== 'reflection' && createPortal(
+      <div style={styles.aiChatOverlayBackdrop} onClick={() => setOpenPanel(null)}>
+        <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
+          <div style={styles.aiChatOverlayHeader}>
+            <span style={styles.aiChatOverlayTitle}>
+              <span style={styles.aiChatOverlayIcon}><AppIcon name="Bot" size={15} color="#A21CAF" /></span>
+              {t('reading.tagAskAi', undefined, lang)}
+            </span>
+            <button type="button" style={styles.aiChatOverlayClose} onClick={() => setOpenPanel(null)} aria-label={t('aiChat.close', undefined, lang)}>
+              <AppIcon name="X" size={16} color="var(--g5)" />
+            </button>
+          </div>
+          <div style={styles.aiChatOverlayBody}>
+            <AiChatPanel session={heroSession} lang={lang} />
+          </div>
+        </div>
       </div>,
       document.body
     )}
@@ -394,11 +414,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && openPanel !== 'ia' && (
             <div style={{ padding: '0 14px 4px' }}>
               <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
-            </div>
-          )}
-          {openPanel === 'ia' && heroSession.type !== 'reflection' && (
-            <div style={{ padding: '0 14px 4px' }}>
-              <AiChatPanel session={heroSession} lang={lang} />
             </div>
           )}
 
@@ -906,7 +921,7 @@ function AiChatPanel({ session, lang }) {
   }
 
   return (
-    <div style={styles.panel}>
+    <div style={styles.aiChatBody}>
       <p style={styles.aiChatScopeNote}>{t('aiChat.outOfScopeNote', undefined, lang)}</p>
 
       <div ref={listRef} style={styles.aiChatList}>
@@ -1244,20 +1259,24 @@ const styles = {
   highlightCancelBtn:{ flex: 1, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
 
-  // Chat com IA sobre o texto (ver AiChatPanel) — bolhas reaproveitando as
-  // mesmas cores de botão/marca já usadas no resto do app (--grad-primary
-  // pra "eu"/usuário, --g1 neutro pra IA), nada de paleta nova.
-  aiChatScopeNote: { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.4, marginBottom: 10, paddingBottom: 10, borderBottom: '0.5px solid var(--g1)' },
-  aiChatList:      { display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', marginBottom: 10 },
+  // Chat com IA sobre o texto (ver AiChatPanel) — flutua por cima da
+  // leitura (ver aiChatOverlay* mais abaixo) em vez de abrir um card
+  // dentro do fluxo da página, pra não tirar a pessoa de onde estava lendo.
+  // Bolhas reaproveitam as mesmas cores de botão/marca já usadas no resto
+  // do app (--grad-primary pra "eu"/usuário, --g1 neutro pra IA), nada de
+  // paleta nova.
+  aiChatBody:      { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 },
+  aiChatScopeNote: { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.4, margin: '0 0 10px', paddingBottom: 10, borderBottom: '0.5px solid var(--g1)', flexShrink: 0 },
+  aiChatList:      { display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 10 },
   aiChatEmptyHint: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '14px 4px' },
   aiChatBubble:    { maxWidth: '85%', padding: '9px 12px', borderRadius: 14, fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   aiChatBubbleUser:{ alignSelf: 'flex-end', background: 'var(--grad-primary)', color: 'white', borderBottomRightRadius: 4 },
   aiChatBubbleAi:  { alignSelf: 'flex-start', background: 'var(--g1)', color: 'var(--bk)', borderBottomLeftRadius: 4 },
   aiChatBubbleTyping: { color: 'var(--g5)', fontStyle: 'italic' },
-  aiChatInputRow:  { display: 'flex', gap: 8, alignItems: 'center' },
+  aiChatInputRow:  { display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 },
   aiChatInput:     { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 20, padding: '10px 14px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
   aiChatSendBtn:   { width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: 'var(--shadow-premium)' },
-  errorText:       { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginBottom: 8 },
+  errorText:       { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginBottom: 8, flexShrink: 0 },
 
   // Botão flutuante do chat com IA — sempre visível enquanto lendo, atalho
   // pra mesma aba "Perguntar à IA" (ver openAiChat). Wrap com o mesmo
@@ -1268,4 +1287,17 @@ const styles = {
   // (ThemePlanScreen.jsx), pra sinalizar "isso é IA" de forma consistente.
   aiFabWrap: { position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'var(--max-width)', zIndex: 90, pointerEvents: 'none' },
   aiFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: '#A21CAF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(162,28,175,.4)', pointerEvents: 'auto' },
+
+  // Janela flutuante do chat — "nuvem" pedida: aparece por cima da leitura
+  // (ancorada embaixo, tipo bandeja de mensagens), sem tirar a pessoa da
+  // posição de rolagem em que estava. Mesmo truque de centralização de
+  // .bottom-nav/.aiFabWrap, portada pro <body> (ver comentário no JSX
+  // sobre zoom:1.15 quebrar position:fixed dentro de .app-content-inner).
+  aiChatOverlayBackdrop: { position: 'fixed', inset: 0, background: 'rgba(18,18,18,.32)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
+  aiChatOverlayWindow: { width: '100%', maxWidth: 'var(--max-width)', height: '72vh', maxHeight: 640, background: 'var(--white)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(0,0,0,.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  aiChatOverlayHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '0.5px solid var(--g1)', flexShrink: 0 },
+  aiChatOverlayTitle: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--bk)' },
+  aiChatOverlayIcon: { width: 28, height: 28, borderRadius: 9, background: '#FAE8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  aiChatOverlayClose: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  aiChatOverlayBody: { flex: 1, minHeight: 0, padding: '12px 16px', display: 'flex', flexDirection: 'column' },
 }

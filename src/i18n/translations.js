@@ -521,6 +521,7 @@ export const STRINGS = {
       subscriptionRequired: 'Esse recurso é só para assinantes ativos.',
       dailyLimitReached: 'Você atingiu o limite de perguntas de hoje. Volte amanhã.',
       genericError: 'Não consegui responder agora. Tente de novo em instantes.',
+      close: 'Fechar',
     },
     chronoPlan: {
       pageTitle: 'Plano Cronológico',
@@ -1394,6 +1395,7 @@ export const STRINGS = {
       subscriptionRequired: 'This feature is only for active subscribers.',
       dailyLimitReached: "You've reached today's question limit. Come back tomorrow.",
       genericError: "Couldn't answer right now. Try again in a moment.",
+      close: 'Close',
     },
     chronoPlan: {
       pageTitle: 'Chronological Plan',
