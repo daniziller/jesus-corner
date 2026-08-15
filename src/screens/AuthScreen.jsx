@@ -147,6 +147,16 @@ function OnboardingWizard({ onAuthenticated, onGoLogin }) {
   // sessões distintas, não eventos.
   useEffect(() => { trackOnboardingEvent(step) }, [step])
 
+  // Volta pro topo a cada passo — .auth-sheet (o scroll de verdade, ver
+  // AuthScreen mais abaixo) é um só elemento fixo que troca só o conteúdo
+  // de dentro (OnboardingWizard nunca desmonta entre passos do mesmo tipo,
+  // ex: as 11 páginas de FeatureStep reaproveitam a MESMA instância só
+  // trocando props) — sem isso, quem rolou pra baixo numa página caía no
+  // meio da próxima, não no topo dela.
+  useEffect(() => {
+    document.querySelector('.auth-sheet')?.scrollTo({ top: 0 })
+  }, [step])
+
   const STEPS = ['name', 'valueIntro', ...FEATURE_STEPS, 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup']
   const stepNum = STEPS.indexOf(step) + 1
 
