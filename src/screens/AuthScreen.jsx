@@ -1203,6 +1203,7 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
   const [password, setPassword]   = useState('')
   const [confirm, setConfirm]     = useState('')
   const [error, setError]         = useState('')
+  const [note, setNote]           = useState('')
   const [loading, setLoading]     = useState(false)
 
   async function submitRequest(e) {
@@ -1211,9 +1212,22 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
     try {
       await requestPasswordReset(email)
       setError('')
+      setNote('')
       setStep('reset')
     } catch (err) {
-      setError(err.message)
+      if (err.message === 'rate_limited') {
+        // Um código já foi mandado há pouco (pedir de novo cedo demais é
+        // rejeitado pelo Supabase) — segue pra tela de digitar o código
+        // mesmo assim, com um aviso, em vez de travar a pessoa numa "conta
+        // não encontrada" quando na verdade ela já tem um código válido
+        // esperando no email.
+        setError('')
+        setNote(t('auth.resetRateLimitedNote'))
+        setStep('reset')
+      } else {
+        setNote('')
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -1266,6 +1280,7 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
       <PasswordField label={t('auth.newPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
       <PasswordField label={t('auth.confirmNewPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
 
+      {note && <p style={styles.resendSuccess}>{note}</p>}
       {error && <p style={styles.error}>{error}</p>}
 
       <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading}>{loading ? t('auth.loading') : t('auth.submitReset')}</button>

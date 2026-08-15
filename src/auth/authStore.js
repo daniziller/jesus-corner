@@ -157,7 +157,14 @@ export async function logout() {
 export async function requestPasswordReset(email) {
   const cleanEmail = normalizeEmail(email)
   const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail)
-  if (error) throw new Error('Não encontramos uma conta com esse email.')
+  // O Supabase NUNCA devolve erro aqui só por email não existir (de
+  // propósito, pra não deixar dar pra descobrir quais emails têm conta só
+  // tentando recuperar senha) — então "Não encontramos uma conta com esse
+  // email" (o que este catch dizia antes) na prática só disparava quando o
+  // erro de verdade era limite de envio (pedir de novo rápido demais),
+  // mostrando uma mensagem enganosa dizendo que a conta não existe quando
+  // ela existe e o código já tinha sido mandado segundos antes.
+  if (error) throw new Error(isRateLimitError(error.message) ? 'rate_limited' : error.message)
   return { email: cleanEmail }
 }
 
