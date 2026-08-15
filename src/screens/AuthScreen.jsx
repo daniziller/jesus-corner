@@ -800,7 +800,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       const url = await startCheckout({ interval: billingMode === 'annual' ? 'year' : 'month', currency })
       window.location.href = url
     } catch (err) {
-      setError(err.message)
+      setError(err.message === 'rate_limited' ? t('auth.signupRateLimited') : err.message)
       setLoading(false)
     }
   }
@@ -1135,14 +1135,22 @@ function ForceChangePasswordStep({ onDone }) {
 // reenvio. Cooldown de 30s entre reenvios evita spam e dá tempo do email
 // anterior chegar antes de pedir outro.
 function ConfirmEmailView({ email, onGoLogin }) {
-  const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error'
+  const [status, setStatus] = useState('idle') // 'idle' | 'sending' | 'sent' | 'error' | 'rateLimited'
   const [cooldown, setCooldown] = useState(0)
   const intervalRef = useRef(null)
 
+  // O Supabase só libera um novo pedido de email pro mesmo endereço depois
+  // de ~55-60s (visto na prática, não documentado com precisão) — 30s de
+  // cooldown local deixava a pessoa tentar de novo antes disso, batendo no
+  // limite do servidor e vendo um erro sem entender por quê. 60s aqui cobre
+  // a janela real; começa a contar já ao abrir esta tela, porque o
+  // cadastro que trouxe a pessoa até aqui ACABOU de disparar um email —
+  // sem isso, um "reenviar" impaciente logo de cara também bateria no limite.
+  useEffect(() => { startCooldown() }, [])
   useEffect(() => () => clearInterval(intervalRef.current), [])
 
   function startCooldown() {
-    setCooldown(30)
+    setCooldown(60)
     clearInterval(intervalRef.current)
     intervalRef.current = setInterval(() => {
       setCooldown(c => {
@@ -1158,8 +1166,9 @@ function ConfirmEmailView({ email, onGoLogin }) {
       await resendConfirmationEmail(email)
       setStatus('sent')
       startCooldown()
-    } catch {
-      setStatus('error')
+    } catch (err) {
+      setStatus(err.message === 'rate_limited' ? 'rateLimited' : 'error')
+      startCooldown()
     }
   }
 
@@ -1169,6 +1178,7 @@ function ConfirmEmailView({ email, onGoLogin }) {
       <p style={styles.subtitle}>{t('auth.confirmEmailSubtitle', { email })}</p>
 
       {status === 'sent' && <p style={styles.resendSuccess}>{t('auth.resendEmailSuccess')}</p>}
+      {status === 'rateLimited' && <p style={styles.resendSuccess}>{t('auth.resendEmailRateLimited')}</p>}
       {status === 'error' && <p style={styles.error}>{t('auth.resendEmailError')}</p>}
 
       <button

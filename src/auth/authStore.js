@@ -32,6 +32,19 @@ function normalizeEmail(email) {
   return email.trim().toLowerCase()
 }
 
+// O Supabase throttla envio de email de confirmação/recuperação por dois
+// motivos: um cooldown curto por email ("For security purposes, you can
+// only request this after N seconds") e uma cota do projeto inteiro
+// ("email rate limit exceeded", 2/hora por padrão sem SMTP customizado —
+// ver docs/lgpd.md ou o painel do Supabase, Authentication → Rate Limits).
+// Sem esse tratamento, quem tentasse de novo rápido demais (ex: cadastro
+// que não confirmou e tenta cadastrar com o mesmo email outra vez) via o
+// texto cru em inglês do Supabase na tela — confuso, e não deixa claro que
+// um email JÁ foi mandado na tentativa anterior.
+function isRateLimitError(message) {
+  return /security purposes|rate limit/i.test(message ?? '')
+}
+
 function mapUser(authUser) {
   if (!authUser) return null
   return {
@@ -93,6 +106,7 @@ export async function signup({ name, email, password, language, birthdate, isPub
     options: { data: { name: name.trim(), language: language ?? 'pt', birthdate, is_public: !!isPublic } },
   })
   if (error) {
+    if (isRateLimitError(error.message)) throw new Error('rate_limited')
     if (/already/i.test(error.message)) throw new Error('Já existe uma conta com esse email.')
     throw new Error(error.message)
   }
@@ -107,7 +121,7 @@ export async function signup({ name, email, password, language, birthdate, isPub
 export async function resendConfirmationEmail(email) {
   const cleanEmail = normalizeEmail(email)
   const { error } = await supabase.auth.resend({ type: 'signup', email: cleanEmail })
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(isRateLimitError(error.message) ? 'rate_limited' : error.message)
 }
 
 export async function login({ email, password }) {
