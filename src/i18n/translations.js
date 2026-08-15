@@ -68,6 +68,7 @@ export const STRINGS = {
       agreeToTermsMiddle: ' e a ',
       agreeToTermsSuffix: '.',
       mustAgreeToTerms: 'É preciso marcar os dois consentimentos obrigatórios pra criar a conta.',
+      inviteCodeFailedNote: 'O código que você digitou não funcionou — pode estar errado, expirado ou já ter sido usado. Sua conta foi criada normalmente; você pode tentar o código de novo depois, em Perfil → Minha assinatura.',
       // Consentimento por finalidade — ver src/privacy/consent.js
       agreeToSensitiveData: 'Autorizo o tratamento dos meus dados de leitura, oração e reflexão, que revelam convicção religiosa, para o app funcionar. Obrigatório.',
       agreeToMarketing: 'Quero receber emails com novidades e conteúdos. Opcional, e dá para cancelar quando quiser.',
@@ -945,6 +946,7 @@ export const STRINGS = {
       agreeToTermsMiddle: ' and the ',
       agreeToTermsSuffix: '.',
       mustAgreeToTerms: 'You need to check both required consents to create an account.',
+      inviteCodeFailedNote: "The code you entered didn't work — it may be incorrect, expired, or already used. Your account was created normally; you can try the code again later, under Profile → My subscription.",
       // Per-purpose consent — see src/privacy/consent.js
       agreeToSensitiveData: 'I authorise the processing of my reading, prayer and reflection data, which reveals religious belief, so the app can work. Required.',
       agreeToMarketing: 'Send me emails with news and content. Optional, and you can unsubscribe any time.',

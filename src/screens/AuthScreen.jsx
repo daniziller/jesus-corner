@@ -793,7 +793,14 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
             return
           }
         } catch {
-          // Código inválido não deve travar o cadastro — segue pro checkout normal.
+          // Código inválido não deve travar o cadastro — segue pro checkout
+          // normal. Mas isso NÃO pode ficar em silêncio: sem aviso nenhum,
+          // a pessoa via o código "sumir" e cair direto na tela de
+          // pagamento, sem entender que o código não funcionou (parecia
+          // que o app simplesmente ignorou o que ela digitou). alert()
+          // porque a essa altura já saímos do formulário (onAuthenticated
+          // já rodou) — não tem mais um campo de erro na tela pra usar.
+          window.alert(t('auth.inviteCodeFailedNote'))
         }
       }
       trackOnboardingEvent('checkout_started', { userId: user.id })
