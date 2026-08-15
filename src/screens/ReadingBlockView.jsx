@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
@@ -254,7 +255,38 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const heroChapterWord = lang === 'en' ? (heroChapterSpan === 1 ? 'chapter' : 'chapters') : (heroChapterSpan === 1 ? 'capítulo' : 'capítulos')
   const heroBookDisplayName = lang === 'en' ? heroSession.bookEn : heroSession.book
 
+  // heroSession já é sempre "o que a pessoa está lendo agora" mesmo em modo
+  // 'browse' — toggleInlineChapter (acima) chama featureSession sempre que
+  // um capítulo é aberto na lista, então não precisa rastrear
+  // expandedChapterId à parte aqui: abrir o chat sobre heroSession já
+  // cobre tanto o card em destaque (modo 'session') quanto o capítulo
+  // aberto na navegação livre (modo 'browse'). Rola pro topo junto porque
+  // o painel abre perto do destaque lá em cima — sem isso, quem tocou o
+  // botão flutuante lendo um capítulo lá embaixo na lista não veria o chat
+  // abrir.
+  function openAiChat() {
+    setOpenPanel('ia')
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
+    <>
+    {/* Portal pro <body> — não pro fluxo normal: .app-content-inner tem
+        zoom:1.15 (recurso de texto grande, sempre ativo nessa escala
+        mínima), e "zoom" cria um novo bloco de containment pra
+        position:fixed no Chrome/Safari, fazendo o botão calcular a
+        posição errada (testado: aparecia fora da tela). Fora dessa
+        árvore, o mesmo truque de centralização de .bottom-nav
+        (left:50%+translateX(-50%) dentro de max-width:var(--max-width))
+        funciona igual. */}
+    {heroSession.type !== 'reflection' && createPortal(
+      <div style={styles.aiFabWrap}>
+        <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
+          <AppIcon name="Bot" size={22} color="white" />
+        </button>
+      </div>,
+      document.body
+    )}
     <div ref={scrollRef} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
       <div className="rb-body">
 
@@ -433,6 +465,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         </div>
       </div>
     </div>
+    </>
   )
 }
 
@@ -1225,4 +1258,14 @@ const styles = {
   aiChatInput:     { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 20, padding: '10px 14px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
   aiChatSendBtn:   { width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: 'var(--shadow-premium)' },
   errorText:       { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginBottom: 8 },
+
+  // Botão flutuante do chat com IA — sempre visível enquanto lendo, atalho
+  // pra mesma aba "Perguntar à IA" (ver openAiChat). Wrap com o mesmo
+  // truque de centralização de .bottom-nav (left:50%+translateX(-50%)
+  // dentro de max-width:var(--max-width)) pra ficar alinhado com a coluna
+  // real do app em telas largas, não colado na borda física da janela.
+  // Cor roxa (#A21CAF) — mesmo tom já usado em todo recurso de IA do app
+  // (ThemePlanScreen.jsx), pra sinalizar "isso é IA" de forma consistente.
+  aiFabWrap: { position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'var(--max-width)', zIndex: 90, pointerEvents: 'none' },
+  aiFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: '#A21CAF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(162,28,175,.4)', pointerEvents: 'auto' },
 }
