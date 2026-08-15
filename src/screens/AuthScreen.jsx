@@ -13,7 +13,7 @@ import { setSavedReflectionMinutes } from '../reflection/reflectionDurationStore
 import { STORE_TIERS } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
 import { startCheckout } from '../billing/subscriptionStore'
-import { redeemInviteCode } from '../invites/inviteStore'
+import { redeemInviteCode, savePendingInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consent'
 import { MIN_AGE } from '../privacy/minAge'
@@ -764,7 +764,17 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
         { purpose: PURPOSES.MARKETING_EMAIL, granted: agreedToMarketing },
         { purpose: PURPOSES.PUBLIC_PROFILE, granted: isPublic },
       ])
+      const trimmedCode = inviteCode.trim()
+
       if (user.needsEmailConfirmation) {
+        // Sem sessão ainda — não dá pra chamar redeemInviteCode agora (o
+        // endpoint exige Authorization). Salva o código pra tentar de novo
+        // assim que a pessoa voltar com sessão de verdade, depois de
+        // confirmar o email: o link de confirmação faz um redirect de
+        // página inteira, que apagaria essa variável local (e o código
+        // digitado) se não fosse salvo aqui (ver redeemPendingInviteCode
+        // em App.jsx).
+        if (trimmedCode) savePendingInviteCode(trimmedCode)
         setConfirmationEmail(user.email)
         setLoading(false)
         return
@@ -784,7 +794,6 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       // consegue escolher o plano de novo (ver App.jsx).
       onAuthenticated(user)
 
-      const trimmedCode = inviteCode.trim()
       if (trimmedCode) {
         try {
           const { applied } = await redeemInviteCode(trimmedCode)

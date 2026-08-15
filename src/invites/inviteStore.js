@@ -29,3 +29,36 @@ export async function applyPendingInvite() {
     return false
   }
 }
+
+// Guarda o código digitado no cadastro pra sobreviver ao desvio de
+// confirmação de email — o projeto sempre exige confirmar o email antes de
+// criar sessão (signUp() nunca devolve session nesse caso, ver
+// needsEmailConfirmation em authStore.js), e o link de confirmação faz um
+// redirect de página inteira (via /auth/v1/verify do próprio Supabase, ver
+// api/auth-email-hook.js), o que apaga todo o estado do React — incluindo o
+// código que a pessoa tinha acabado de digitar no formulário. Sem isso, o
+// código nunca chegava a ser resgatado: SignupStep.submit() retorna assim
+// que vê needsEmailConfirmation, antes mesmo de tentar redeemInviteCode.
+const PENDING_CODE_KEY = 'jc_pending_invite_code'
+
+export function savePendingInviteCode(code) {
+  const trimmed = (code ?? '').trim()
+  if (trimmed) localStorage.setItem(PENDING_CODE_KEY, trimmed)
+}
+
+// Chamado no bootstrap (ver src/App.jsx), junto de applyPendingInvite() —
+// tenta resgatar o código salvo (se houver) assim que a pessoa volta com
+// uma sessão de verdade (depois de confirmar o email), e sempre limpa a
+// chave depois, sucesso ou não — não deve tentar de novo a cada login,
+// senão um código já usado/errado vira erro repetido pra sempre.
+export async function redeemPendingInviteCode() {
+  const code = localStorage.getItem(PENDING_CODE_KEY)
+  if (!code) return false
+  localStorage.removeItem(PENDING_CODE_KEY)
+  try {
+    const { applied } = await redeemInviteCode(code)
+    return applied === 'free'
+  } catch {
+    return false
+  }
+}

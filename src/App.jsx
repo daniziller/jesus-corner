@@ -50,7 +50,7 @@ import { getPendingFriendRequestsCount } from './friends/friendsStore'
 import { getMyProfile } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { checkIsAdmin } from './admin/adminStore'
-import { applyPendingInvite } from './invites/inviteStore'
+import { applyPendingInvite, redeemPendingInviteCode } from './invites/inviteStore'
 import { logActivity } from './activity/activityStore'
 import { avatarInitialsOf } from './utils/avatarInitials'
 
@@ -378,7 +378,7 @@ export default function App() {
         return
       }
 
-      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -392,8 +392,14 @@ export default function App() {
         getMySubscription(),
         checkIsAdmin(),
         applyPendingInvite(),
+        // Código de convite digitado num cadastro que precisou confirmar
+        // email antes (ver savePendingInviteCode em AuthScreen.jsx) — só
+        // existe algo pra fazer aqui se a chave estiver salva; do
+        // contrário devolve false na hora, sem custo.
+        redeemPendingInviteCode(),
       ])
       if (cancelled) return
+      const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
 
       // Se um convite de acesso grátis acabou de ser aplicado, a assinatura
       // buscada acima (em paralelo) já está desatualizada — busca de novo
@@ -569,7 +575,7 @@ export default function App() {
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
-    const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteApplied] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -583,7 +589,9 @@ export default function App() {
       getMySubscription(),
       checkIsAdmin(),
       applyPendingInvite(),
+      redeemPendingInviteCode(),
     ])
+    const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
     const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
     setAuthUser(user)
     setCompletedSet(set)
