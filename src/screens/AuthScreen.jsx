@@ -13,7 +13,7 @@ import { setSavedReflectionMinutes } from '../reflection/reflectionDurationStore
 import { STORE_TIERS } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
 import { startCheckout } from '../billing/subscriptionStore'
-import { redeemInviteCode, savePendingInviteCode } from '../invites/inviteStore'
+import { redeemInviteCode, savePendingInviteCode, validateInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consent'
 import { MIN_AGE } from '../privacy/minAge'
@@ -717,6 +717,11 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
   const [currency, setCurrency]   = useState('brl')
   const [billingMode, setBillingMode] = useState('monthly')
   const [inviteCode, setInviteCode] = useState('')
+  // null = ainda não verificado; 'checking' = chamada em andamento; depois
+  // vira o resultado de validateInviteCode ({ valid, kind, ... }). Reseta
+  // pra null sempre que o texto do campo muda, pra nunca mostrar "válido"
+  // preso a um código diferente do que está escrito agora.
+  const [codeCheck, setCodeCheck] = useState(null)
   const [error, setError]         = useState('')
   const [loading, setLoading]     = useState(false)
   const lang = getAppLanguage() ?? 'pt'
@@ -732,6 +737,23 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
 
   const tier = STORE_TIERS[billingMode]
   const amountCents = Math.round(tier[currency] * 100)
+
+  // Só confere o código e mostra o benefício — não resgata nada ainda (não
+  // existe sessão nesse ponto, o código só é resgatado de verdade dentro de
+  // submit(), depois de logada/confirmada — ver savePendingInviteCode).
+  // Puramente informativo: pedir a mesma verificação de novo em submit()
+  // seria redundante, então o resultado daqui não muda o que acontece lá.
+  async function handleCheckCode() {
+    const code = inviteCode.trim()
+    if (!code || codeCheck === 'checking') return
+    setCodeCheck('checking')
+    try {
+      const result = await validateInviteCode(code)
+      setCodeCheck(result)
+    } catch {
+      setCodeCheck({ valid: false })
+    }
+  }
 
   async function submit(e) {
     e.preventDefault()
@@ -881,13 +903,36 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
 
       <label style={styles.fieldWrap}>
         <span style={styles.fieldLabel}>{t('onboarding.inviteCodeLabel')}</span>
-        <input
-          style={{ ...styles.input, textTransform: 'uppercase', letterSpacing: 2 }}
-          type="text"
-          value={inviteCode}
-          onChange={e => setInviteCode(e.target.value)}
-          placeholder={t('onboarding.inviteCodePlaceholder')}
-        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            style={{ ...styles.input, textTransform: 'uppercase', letterSpacing: 2, flex: 1 }}
+            type="text"
+            value={inviteCode}
+            onChange={e => { setInviteCode(e.target.value); setCodeCheck(null) }}
+            placeholder={t('onboarding.inviteCodePlaceholder')}
+          />
+          {/* Confere o benefício ANTES de terminar o cadastro — não resgata
+              nada ainda (sem sessão nesse ponto), só mostra o que vai ser
+              aplicado, pra a pessoa confiar que o código é válido antes de
+              seguir pra confirmação de email. */}
+          <button
+            type="button"
+            style={{ ...styles.checkCodeBtn, ...((!inviteCode.trim() || codeCheck === 'checking') ? styles.checkCodeBtnDisabled : {}) }}
+            onClick={handleCheckCode}
+            disabled={!inviteCode.trim() || codeCheck === 'checking'}
+          >
+            {codeCheck === 'checking' ? t('onboarding.inviteCodeChecking') : t('onboarding.inviteCodeCheckBtn')}
+          </button>
+        </div>
+        {codeCheck && codeCheck !== 'checking' && (
+          <p style={{ ...styles.codeCheckFeedback, color: codeCheck.valid ? 'var(--gr)' : 'var(--re)' }}>
+            {codeCheck.valid
+              ? codeCheck.kind === 'free'
+                ? t('onboarding.inviteCodeValidFree')
+                : t(codeCheck.discountDuration === 'forever' ? 'onboarding.inviteCodeValidDiscountForever' : 'onboarding.inviteCodeValidDiscountOnce', { pct: codeCheck.discountPercent })
+              : t('onboarding.inviteCodeInvalid')}
+          </p>
+        )}
       </label>
 
       {/* Consentimento em camadas — art. 8º, §4º da LGPD: consentimento para
@@ -1413,6 +1458,9 @@ const styles = {
   fieldLabel:    { fontSize: 12, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
   input:         { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '12px 13px', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
   pinInput:      { letterSpacing: 6, fontSize: 19, textAlign: 'center' },
+  checkCodeBtn:  { flexShrink: 0, border: 'none', borderRadius: 10, padding: '0 16px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', background: 'var(--grad-primary)' },
+  checkCodeBtnDisabled: { background: 'var(--g2)', color: 'var(--g5)', cursor: 'default' },
+  codeCheckFeedback: { fontSize: 12, fontWeight: 600, lineHeight: 1.4, margin: 0 },
   passwordInputWrap: { position: 'relative', display: 'flex' },
   passwordToggle:    { position: 'absolute', right: 4, top: 0, bottom: 0, width: 36, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   passwordChecklist: { display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 },

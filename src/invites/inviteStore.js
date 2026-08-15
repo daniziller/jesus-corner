@@ -19,6 +19,20 @@ export async function redeemInviteCode(code) {
   return authorizedPost('/api/redeem-invite-code', { code })
 }
 
+// Só confere o código (sem sessão, sem consumir) — usado no formulário de
+// cadastro pra mostrar o benefício ANTES de submeter, ver SignupStep em
+// AuthScreen.jsx. Devolve { valid: false } ou { valid: true, kind,
+// discountPercent, discountDuration }.
+export async function validateInviteCode(code) {
+  const res = await fetch('/api/validate-invite-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+  if (!res.ok) throw new Error(`request_failed_${res.status}`)
+  return res.json()
+}
+
 // Chamado automaticamente a cada login (ver src/App.jsx) — nunca deixa o
 // erro subir, mesmo espírito de checkIsAdmin() em adminStore.js.
 export async function applyPendingInvite() {
