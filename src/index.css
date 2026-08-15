@@ -767,7 +767,12 @@ html.large-text .app-content-inner {
    então ≥1024px nunca precisa "desfazer" a regra. */
 @media (max-width: 1023.98px) {
   .hide-on-mobile {
-    display: none;
+    /* !important — igual .hide-on-desktop (mais abaixo). Sem isso, um
+       elemento com display inline (ex: o card "% chapado" da aba
+       Progresso, que usa display:'flex' pra alinhar os filhos) vence a
+       regra da classe e continua visível no mobile também, duplicando a
+       mesma porcentagem que já aparece no anel logo acima. */
+    display: none !important;
   }
 }
 .master-detail {
