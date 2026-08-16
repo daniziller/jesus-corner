@@ -523,6 +523,14 @@ export const STRINGS = {
       planCreatedTitle: 'Plano criado!',
       addToRoutineCta: 'Adicionar sessões à rotina do dia',
     },
+    goals: {
+      // "Metas" — não "Desafios": essa palavra já é usada pros desafios de
+      // leitura em grupo, na aba Comunidade (ver src/groups/challengesStore.js).
+      sectionTitle: 'Metas da rotina',
+      daysProgress: '{current} de {target} dias',
+      completedLabel: 'Meta batida!',
+      viewAllLink: 'Ver todas →',
+    },
     aiChat: {
       outOfScopeNote: 'Pergunte sobre o contexto, o que o texto diz, ou peça correlações e ensinamentos baseados na própria Bíblia — não entro em doutrina de denominação nem aconselhamento pessoal.',
       placeholder: 'Pergunte sobre esse texto...',
@@ -1414,6 +1422,12 @@ export const STRINGS = {
       unmarkReadConfirm: '{count} of the texts in this plan are already marked as read (outside this plan). Do you want to unmark them so you can read them again as part of this plan?',
       planCreatedTitle: 'Plan created!',
       addToRoutineCta: "Add sessions to today's routine",
+    },
+    goals: {
+      sectionTitle: 'Routine goals',
+      daysProgress: '{current} of {target} days',
+      completedLabel: 'Goal reached!',
+      viewAllLink: 'View all →',
     },
     aiChat: {
       outOfScopeNote: "Ask about context, what the text says, or for correlations and teachings grounded in the Bible itself — I won't get into denominational doctrine or personal advice.",

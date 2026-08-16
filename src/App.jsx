@@ -32,6 +32,8 @@ import { computeUnlockedAchievements } from './utils/achievements'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
 import { computeRoutineStreak } from './routine/routineStreak'
+import { computeGoalsStatus } from './routine/goals'
+import { getCompletedGoals, recordCompletedGoal } from './routine/goalsStore'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
@@ -112,7 +114,7 @@ function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals) {
   const lang = authUser.language ?? 'pt'
   const streak = computeRoutineStreak(dailyRoutine)
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
@@ -156,10 +158,17 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const chapterWord = lang === 'en' ? (chapterSpan === 1 ? 'chapter' : 'chapters') : (chapterSpan === 1 ? 'capítulo' : 'capítulos')
 
   // Gamificação: nada aqui é medido em tempo — XP vem de capítulos, livros e
-  // blocos concluídos, e alimenta um sistema de níveis + conquistas.
+  // blocos concluídos, e alimenta um sistema de níveis + conquistas. Metas
+  // de constância (goals.js) somam um bônus por cima — não entram em
+  // computeGamificationStats (que fica só sobre leitura) pra não misturar
+  // as duas fontes; a soma acontece só aqui, no ponto em que tudo já foi
+  // calculado.
   const gami = computeGamificationStats(completedSet, sessionsByBlock, blocks)
-  const level = levelFor(gami.xp, lang)
-  const progressToNext = levelProgress(gami.xp, lang)
+  const goals = computeGoalsStatus(dailyRoutine, completedGoals, lang)
+  const goalsXpBonus = goals.reduce((sum, g) => sum + (g.completed ? g.xp : 0), 0)
+  const xp = gami.xp + goalsXpBonus
+  const level = levelFor(xp, lang)
+  const progressToNext = levelProgress(xp, lang)
   const achievements = computeUnlockedAchievements({
     ...gami,
     ...prayerStats,
@@ -192,12 +201,13 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     totalChapters: gami.totalChapters,
     booksCompleted: gami.booksCompleted,
     totalBooks: gami.totalBooks,
-    xp: gami.xp,
+    xp,
     level,
     nextLevel: progressToNext.next,
     levelPercent: progressToNext.percent,
     xpForNext: progressToNext.xpForNext,
     achievements,
+    goals,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     plan,
     activePlan,
@@ -311,6 +321,12 @@ export default function App() {
   // dela (ver computeRoutineStreak), não mais de um login diário.
   const [dailyRoutine, setDailyRoutine] = useState({})
   const [prayerStats, setPrayerStats] = useState(DEFAULT_PRAYER_STATS)
+  // Metas de constância já concluídas pra sempre (ver src/routine/goals.js/
+  // goalsStore.js) — { [goalId]: { completedAt } }. Mesmo motivo de
+  // dailyRoutine não entrar no refresh periódico abaixo: a detecção de
+  // meta nova (useEffect logo depois do bootstrap) já atualiza isso local
+  // e otimista, uma busca atrasada poderia sobrescrever com dado velho.
+  const [completedGoals, setCompletedGoals] = useState({})
   // Foto de perfil (profiles.avatar_url) — mora fora de authUser porque não
   // é user_metadata, é a tabela profiles (pensada pra ser visível a amigos).
   // Refletida no Sidebar/AppHeader assim que muda (ver onProfileUpdated).
@@ -387,7 +403,7 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, stats, userCompletedGoals, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -395,6 +411,7 @@ export default function App() {
         getThemePlans(user.email),
         getDailyRoutine(),
         getPrayerStats(user.email),
+        getCompletedGoals(),
         getMyActiveChallenges(),
         getPendingSocialCount(),
         getMyProfile(),
@@ -425,6 +442,7 @@ export default function App() {
       setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
       setDailyRoutine(routine)
       setPrayerStats(stats)
+      setCompletedGoals(userCompletedGoals)
       setActiveChallenges(challenges)
       setPendingSocialCount(pendingSocial)
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
@@ -435,6 +453,29 @@ export default function App() {
     bootstrap()
     return () => { cancelled = true }
   }, [])
+
+  // Detecta metas de constância recém-batidas (ver src/routine/goals.js)
+  // sempre que dailyRoutine mudar — cobre tanto marcar um passo da rotina
+  // quanto o dia virar sozinho (uma janela como "300 dos últimos 365" pode
+  // passar a qualificar sem nenhuma ação nova hoje). Atualiza o estado
+  // local na hora (otimista, mesmo espírito de markRoutineStep) e grava no
+  // backend em segundo plano — goalsStore.recordCompletedGoal já evita
+  // gravar 2x a mesma meta.
+  useEffect(() => {
+    if (!authUser?.email) return
+    const status = computeGoalsStatus(dailyRoutine, completedGoals, 'pt')
+    const newlyCompleted = status.filter(g => g.completed && !completedGoals[g.id])
+    if (newlyCompleted.length === 0) return
+    setCompletedGoals(prev => {
+      const next = { ...prev }
+      for (const g of newlyCompleted) if (!next[g.id]) next[g.id] = { completedAt: new Date().toISOString() }
+      return next
+    })
+    for (const g of newlyCompleted) {
+      recordCompletedGoal(g.id).catch(err => console.error('Failed to persist completed goal', err))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyRoutine, authUser?.email])
 
   // Mantém as estatísticas de oração, o indicador de pendência e os
   // desafios ativos em dia ao trocar de aba — evita mostrar conquistas
@@ -870,7 +911,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals)
 
   // O app inteiro agora exige assinatura ativa — não existe mais versão
   // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de

@@ -22,7 +22,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, lang,
-    dailyRoutine, todayRoutine, plan, activePlan, achievements,
+    dailyRoutine, todayRoutine, plan, activePlan, achievements, goals,
   } = session
 
   // Cartão de progresso pra compartilhar em rede social (ver
@@ -215,6 +215,13 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             {/* Nível e XP */}
             <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
 
+            {/* Resumo da meta mais próxima de bater (ver src/routine/
+                goals.js) — não confundir com "Desafios", já usado pros
+                desafios de leitura em grupo, na aba Comunidade. Lista
+                completa mora na aba Progresso; aqui só a mais próxima, pra
+                não sobrecarregar a Home. */}
+            <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
+
             {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
                 passo é feito de verdade (oração/leitura), com um calendário
                 de histórico embutido. */}
@@ -307,6 +314,31 @@ function LevelCard({ level, nextLevel, percent, xpForNext, lang }) {
         </p>
       </div>
     </div>
+  )
+}
+
+// Mostra só a meta ainda não concluída com maior progresso (%) — quando
+// tudo já foi concluído, some (sem "parabéns, tudo feito" fixo ocupando
+// espaço na Home).
+function GoalTeaserCard({ goals, lang, onNavigate }) {
+  const pending = (goals ?? []).filter(g => !g.completed).sort((a, b) => b.percent - a.percent)
+  if (pending.length === 0) return null
+  const goal = pending[0]
+
+  return (
+    <button style={styles.goalTeaserCard} onClick={() => onNavigate?.('stats')}>
+      <span style={styles.goalTeaserIcon}><AppIcon name={goal.icon} size={18} color="var(--or)" /></span>
+      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+          <span style={styles.goalTeaserTitle}>{goal.title}</span>
+          <span style={styles.goalTeaserLink}>{translate('goals.viewAllLink', undefined, lang)}</span>
+        </div>
+        <div style={styles.goalTeaserBar}>
+          <div style={{ ...styles.goalTeaserBarFill, width: `${goal.percent}%` }} />
+        </div>
+        <p style={styles.goalTeaserProgress}>{translate('goals.daysProgress', { current: goal.current, target: goal.target }, lang)}</p>
+      </div>
+    </button>
   )
 }
 
@@ -637,4 +669,12 @@ const styles = {
   levelBar:      { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
   levelBarFill:  { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
   levelSub:      { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
+
+  goalTeaserCard:     { display: 'flex', gap: 11, alignItems: 'center', width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 12, boxShadow: 'var(--shadow-card)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  goalTeaserIcon:     { width: 34, height: 34, borderRadius: 10, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  goalTeaserTitle:    { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
+  goalTeaserLink:     { fontSize: 10, fontWeight: 700, color: 'var(--or)', flexShrink: 0 },
+  goalTeaserBar:      { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
+  goalTeaserBarFill:  { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
+  goalTeaserProgress: { fontSize: 10, fontWeight: 600, color: 'var(--g5)', marginTop: 4 },
 }

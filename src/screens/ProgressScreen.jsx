@@ -137,6 +137,24 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                 </p>
               </div>
             </div>
+
+            {/* Metas — desafios pessoais de constância da rotina completa
+                (ver src/routine/goals.js). Diferente de Conquistas, cada
+                card mostra progresso ao vivo (barra + fração), não só
+                travado/destravado — o valor central aqui é "quanto falta",
+                não só "já bati ou não". Não confundir com "Desafios", que
+                já é o nome usado pros desafios de leitura em GRUPO, na aba
+                Comunidade. */}
+            <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' }}>
+              <p style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>
+                {translate('goals.sectionTitle', undefined, lang)} · {session.goals.filter(g => g.completed).length}/{session.goals.length}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {session.goals.map(g => (
+                  <GoalCard key={g.id} goal={g} lang={lang} />
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Coluna direita: conquistas + sessões restantes */}
@@ -227,6 +245,33 @@ function StatBox({ icon, iconBg, iconColor, value, label }) {
   )
 }
 
+function GoalCard({ goal, lang }) {
+  return (
+    <div style={{ ...styles.goalCard, ...(goal.completed ? styles.goalCardCompleted : {}) }}>
+      <span style={{ ...styles.goalIcon, ...(goal.completed ? styles.goalIconCompleted : {}) }}>
+        <AppIcon name={goal.completed ? 'Check' : goal.icon} size={15} color={goal.completed ? 'white' : 'var(--g5)'} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
+          <span style={styles.goalTitle}>{goal.title}</span>
+          <span style={styles.goalXp}>+{goal.xp} XP</span>
+        </div>
+        <p style={styles.goalDesc}>{goal.desc}</p>
+        {goal.completed ? (
+          <p style={styles.goalCompletedLabel}>{translate('goals.completedLabel', undefined, lang)}</p>
+        ) : (
+          <>
+            <div style={styles.goalBar}>
+              <div style={{ ...styles.goalBarFill, width: `${goal.percent}%` }} />
+            </div>
+            <p style={styles.goalProgressText}>{translate('goals.daysProgress', { current: goal.current, target: goal.target }, lang)}</p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const styles = {
   bigRingCard: { background: 'var(--grad-vivid)', borderRadius: 32, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
   bigRingGlow: { position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 240, height: 240, background: 'radial-gradient(circle,rgba(255,255,255,.18) 0%,transparent 65%)', borderRadius: '50%' },
@@ -245,4 +290,16 @@ const styles = {
   achievementCardUnlocked: { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)' },
   achievementTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.25 },
   achievementDesc:  { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },
+
+  goalCard:      { display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: 11 },
+  goalCardCompleted: { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)' },
+  goalIcon:      { width: 30, height: 30, borderRadius: 9, background: 'var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  goalIconCompleted: { background: 'var(--or)' },
+  goalTitle:     { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
+  goalXp:        { fontSize: 10, fontWeight: 700, color: 'var(--or)', flexShrink: 0 },
+  goalDesc:      { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', margin: '2px 0 6px', lineHeight: 1.35 },
+  goalBar:       { height: 5, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden' },
+  goalBarFill:   { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
+  goalProgressText: { fontSize: 10, fontWeight: 600, color: 'var(--g5)', marginTop: 4 },
+  goalCompletedLabel: { fontSize: 10.5, fontWeight: 700, color: 'var(--or)', margin: 0 },
 }
