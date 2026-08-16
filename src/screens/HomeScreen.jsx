@@ -15,9 +15,14 @@ import { getShowApplicationCard } from '../reflection/applicationCardVisibilityS
 import { STAT_THEMES } from '../utils/statThemes'
 import { shareProgressCard } from '../share/shareProgressCard'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
+import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 
-const ROUTINE_STEP_ORDER = ['prayer', 'reading', 'reflection']
-const ROUTINE_STEP_ICON = { prayer: 'HandHeart', reading: 'BookOpen', reflection: 'PenLine' }
+// Anéis concêntricos por dia (referência: o resumo semanal do app Apple
+// Health/Fitness) — 3 cores próprias pra ler bem sobre o gradiente escuro
+// do card, diferentes de ROUTINE_STEP_COLORS (pensadas pra fundo claro,
+// onde --or/preto/cinza têm contraste; aqui --or some quase por completo,
+// é quase a mesma cor do início do gradiente).
+const WEEK_RING_COLORS = { prayer: '#FFFFFF', reading: '#D9AF6B', reflection: '#F3A6C6' }
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
@@ -33,7 +38,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   async function handleShareCard() {
     setShareState('generating')
     try {
-      await shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules: plan?.modules })
+      await shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine })
       setShareState('idle')
     } catch (err) {
       // AbortError = a pessoa fechou a folha de compartilhamento nativa sem
@@ -70,13 +75,9 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   const weeklyStats = computeWeeklyRoutineStats(dailyRoutine ?? {}, 4)
   const consistencyValue = averageFullRoutineDays(weeklyStats).toFixed(1).replace(/\.0$/, '')
 
-  // Estado (feito/a fazer) dos passos de hoje, só pra um indicador
-  // compacto no card de %. O detalhe (título, botão, sub-texto) já mora no
-  // DailyRoutineCard logo abaixo — repetir tudo aqui duplicaria a mesma
-  // informação duas vezes na mesma tela.
-  const routineStepsToday = ROUTINE_STEP_ORDER
-    .filter(key => plan.modules.includes(key))
-    .map(key => ({ key, done: !!todayRoutine[key] }))
+  // Semana atual (segunda a domingo) pros anéis de constância no card de %
+  // — mesma função usada na imagem compartilhável, pra nunca divergir.
+  const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
 
   const ctaLabel = todaySession.needsThemePick
     ? translate('themePlan.chooseTodayCta', undefined, lang)
@@ -185,18 +186,15 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 </div>
               </div>
 
-              {/* Rotina de hoje — só um indicador compacto (sem repetir o
-                  "X/3 passos hoje" que já é o subtítulo do DailyRoutineCard
-                  logo abaixo, com todo o detalhe de cada passo). */}
-              <div style={styles.pctRoutineRow}>
-                <span style={styles.pctRoutineLabel}>{translate('home.shareCardTodayRoutine', undefined, lang)}</span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {routineStepsToday.map(step => (
-                    <span key={step.key} style={{ ...styles.pctRoutineDot, background: step.done ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)' }}>
-                      <AppIcon name={ROUTINE_STEP_ICON[step.key]} size={13} color={step.done ? 'var(--or)' : 'rgba(255,255,255,.6)'} />
-                    </span>
-                  ))}
-                </div>
+              {/* Anéis da semana (segunda a domingo) — referência: o
+                  resumo semanal do app Apple Health/Fitness, um anel por
+                  dia. Substitui o antigo indicador de só hoje: mostra a
+                  mesma informação (feito/a fazer) e mais constância ao
+                  longo da semana, sem repetir o "X/3 passos hoje" que já é
+                  o subtítulo do DailyRoutineCard logo abaixo. */}
+              <div>
+                <p style={styles.pctRoutineLabel}>{translate('home.weekRingsTitle', undefined, lang)}</p>
+                <WeekRings days={weekDays} lang={lang} />
               </div>
 
               {/* Barras AT/NT */}
@@ -503,6 +501,52 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, 
   )
 }
 
+// Anéis da semana (segunda a domingo) — 3 anéis concêntricos por dia
+// (oração·leitura·reflexão, de fora pra dentro, na ordem em que a pessoa
+// faz cada um), mesmo espírito do resumo semanal do Apple Health/Fitness.
+// Dia atual ganha destaque; dias futuros da semana ficam só com a trilha
+// vazia (mesmo tratamento visual de "não feito" — não dá pra já ter
+// acontecido, então nunca aparecem preenchidos).
+function WeekRings({ days, lang }) {
+  const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 4 }}>
+      {days.map((day, i) => (
+        <div key={day.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+          <DayRingCluster day={day} size={34} />
+          <span style={{
+            fontSize: 10, fontWeight: 700,
+            color: day.isToday ? '#FFFFFF' : 'rgba(255,255,255,.55)',
+          }}>
+            {letters[i]}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DayRingCluster({ day, size }) {
+  const strokeW = 3.2
+  const gap = 1.6
+  const c = size / 2
+  const rOuter = c - strokeW / 2
+  const rMid = rOuter - strokeW - gap
+  const rInner = rMid - strokeW - gap
+  const track = 'rgba(255,255,255,.18)'
+  const ring = (r, done, color) => (
+    <circle cx={c} cy={c} r={r} fill="none" stroke={done ? color : track} strokeWidth={strokeW} strokeLinecap="round" />
+  )
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {day.isToday && <circle cx={c} cy={c} r={rOuter + strokeW / 2 + 1.5} fill="none" stroke="rgba(255,255,255,.4)" strokeWidth={1} strokeDasharray="1.5 2.5" />}
+      {ring(rOuter, !day.isFuture && day.prayer, WEEK_RING_COLORS.prayer)}
+      {ring(rMid, !day.isFuture && day.reading, WEEK_RING_COLORS.reading)}
+      {ring(rInner, !day.isFuture && day.reflection, WEEK_RING_COLORS.reflection)}
+    </svg>
+  )
+}
+
 function BarRow({ label, pct, color }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -557,9 +601,7 @@ const styles = {
   pctStatChip:   { flex: 1, background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
   pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1 },
   pctStatLabel:  { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
-  pctRoutineRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  pctRoutineLabel: { fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1, textTransform: 'uppercase' },
-  pctRoutineDot: { width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pctRoutineLabel: { fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
   shareCardBtn:  { position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
   shareCardErrorText: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', margin: '-4px 0 0' },

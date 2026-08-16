@@ -5,17 +5,17 @@
 // ver conversa que motivou essa escolha em vez de um html2canvas rápido.
 import { t } from '../i18n'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
-
-// Mesmo emoji+chave dos 3 passos da rotina diária (ver home.routinePrayer/
-// routineReading/routineReflection) — usado na seção "rotina de hoje" do
-// cartão. Emoji em vez de rasterizar os ícones Lucide da UI: manter tudo
-// desenhado num <canvas> já é bastante código; puxar SVGs arbitrários pra
-// dentro dele só pra 3 ícones pequenos não paga o esforço.
-const ROUTINE_STEP_EMOJI = { prayer: '🙏', reading: '📖', reflection: '✍️' }
+import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 
 const CARD_W = 1080
 const CARD_H = 1920
 const GOLD = '#C99A4A' // mesmo --gold do design system — acento claro sobre fundo escuro
+
+// Mesmas 3 cores do anel da semana na Home (ver WEEK_RING_COLORS em
+// HomeScreen.jsx) — cores próprias pra fundo escuro, diferentes de
+// ROUTINE_STEP_COLORS (pensadas pra fundo claro; --or, por exemplo, é quase
+// a mesma cor do início deste gradiente).
+const WEEK_RING_COLORS = { prayer: '#FFFFFF', reading: '#D9AF6B', reflection: '#F3A6C6' }
 
 // Da mais "impressionante" pra menos, pra escolher UMA conquista pra
 // destacar no cartão (mostrar as 22 não caberia/não faria sentido aqui).
@@ -102,23 +102,55 @@ function drawStatChip(ctx, { x, y, w, h, emoji, value, label }) {
   ctx.fillText(label, cx, y + h - 18)
 }
 
-// Pontinhos da rotina de hoje — mesmo tratamento compacto (rótulo à
-// esquerda, ícones à direita, uma linha só) do card real na Home, em vez
-// de 3 caixas grandes com legenda — pra esse cartão continuar reconhecível
-// como "o mesmo card", só maior.
-function drawRoutineDots(ctx, { steps, rightEdge, y, size }) {
-  const gap = 14
-  steps.forEach((step, i) => {
-    const idx = steps.length - 1 - i // desenha da direita pra esquerda
-    const cx = rightEdge - idx * (size + gap) - size / 2
+// Anéis da semana (segunda a domingo) — mesmo desenho do WeekRings/
+// DayRingCluster em HomeScreen.jsx ("use o card mesmo", ver conversa):
+// 3 anéis concêntricos por dia (oração·leitura·reflexão, de fora pra
+// dentro), dia atual com uma trilha pontilhada de destaque, dias futuros
+// sempre vazios (mesmo tratamento de "não feito" — ainda não podem ter
+// acontecido).
+function drawDayRingCluster(ctx, { day, cx, cy, size }) {
+  const strokeW = size * 0.09
+  const gap = size * 0.045
+  const rOuter = size / 2 - strokeW / 2
+  const rMid = rOuter - strokeW - gap
+  const rInner = rMid - strokeW - gap
+  const track = 'rgba(255,255,255,.18)'
+
+  const ring = (r, done, color) => {
     ctx.beginPath()
-    ctx.arc(cx, y, size / 2, 0, Math.PI * 2)
-    ctx.fillStyle = step.done ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)'
-    ctx.fill()
-    ctx.font = `${Math.round(size * 0.5)}px sans-serif`
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.strokeStyle = done ? color : track
+    ctx.lineWidth = strokeW
+    ctx.lineCap = 'round'
+    ctx.stroke()
+  }
+
+  if (day.isToday) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(cx, cy, rOuter + strokeW / 2 + size * 0.045, 0, Math.PI * 2)
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([2.5, 4])
+    ctx.stroke()
+    ctx.restore()
+  }
+  ring(rOuter, !day.isFuture && day.prayer, WEEK_RING_COLORS.prayer)
+  ring(rMid, !day.isFuture && day.reading, WEEK_RING_COLORS.reading)
+  ring(rInner, !day.isFuture && day.reflection, WEEK_RING_COLORS.reflection)
+}
+
+function drawWeekRings(ctx, { days, lang, left, width, y, size }) {
+  const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
+  const colW = width / days.length
+  days.forEach((day, i) => {
+    const cx = left + colW * i + colW / 2
+    drawDayRingCluster(ctx, { day, cx, cy: y, size })
     ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(ROUTINE_STEP_EMOJI[step.key], cx, y + 2)
+    ctx.textBaseline = 'alphabetic'
+    ctx.font = '700 22px "Be Vietnam Pro"'
+    ctx.fillStyle = day.isToday ? '#FFFFFF' : 'rgba(255,255,255,.55)'
+    ctx.fillText(letters[i], cx, y + size / 2 + 34)
   })
 }
 
@@ -187,7 +219,7 @@ function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
   lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight))
 }
 
-export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
+export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine }) {
   await ensureFontsReady()
   const logo = await loadImage('/icons/icon-192.png').catch(() => null)
 
@@ -274,24 +306,22 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
     emoji: '📊', value: avgLabel, label: t('home.shareCardConsistencyLabel', undefined, lang),
   })
 
-  // Rotina de hoje — rótulo à esquerda + pontinhos à direita, uma linha só
-  // (mesmo tratamento compacto do card real na Home, "use o card mesmo"),
-  // sempre na ordem Oração·Leitura·Reflexão, só os módulos do plano ativo.
-  const activeModules = planModules ?? ['prayer', 'reading', 'reflection']
-  const steps = ['prayer', 'reading', 'reflection']
-    .filter(key => activeModules.includes(key))
-    .map(key => ({ key, done: !!todayRoutine?.[key] }))
-
-  const routineY = statsTop + statsH + 74
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
+  // Anéis da semana (segunda a domingo) — mesma função de src/routine/
+  // weekRings.js usada na Home, pra nunca divergir o que aparece nos dois
+  // lugares.
+  const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
+  const routineLabelY = statsTop + statsH + 56
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
   ctx.font = '700 26px "Be Vietnam Pro"'
   ctx.fillStyle = GOLD
-  ctx.fillText(t('home.shareCardTodayRoutine', undefined, lang).toUpperCase(), 90, routineY)
-  drawRoutineDots(ctx, { steps, rightEdge: CARD_W - 90, y: routineY, size: 56 })
+  ctx.fillText(t('home.weekRingsTitle', undefined, lang).toUpperCase(), cx, routineLabelY)
+
+  const ringsY = routineLabelY + 62
+  drawWeekRings(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: ringsY, size: 72 })
 
   // Barras AT/NT
-  const barsTop = routineY + 64
+  const barsTop = ringsY + 92
   drawBarRow(ctx, { label: 'AT', pct: atPercent, x: 90, y: barsTop, width: CARD_W - 180 })
   drawBarRow(ctx, { label: 'NT', pct: ntPercent, x: 90, y: barsTop + 54, width: CARD_W - 180 })
 
@@ -351,8 +381,8 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
 // nada; só existe pra facilitar teste/depuração).
 const INSTAGRAM_URL = 'https://www.instagram.com/jesuscorner.app/'
 
-export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
-  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules })
+export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine }) {
+  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine })
   if (!blob) throw new Error('blob_failed')
   const file = new File([blob], 'jesus-corner-progresso.png', { type: 'image/png' })
 
