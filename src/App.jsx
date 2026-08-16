@@ -51,6 +51,7 @@ import { getMyProfile } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { checkIsAdmin } from './admin/adminStore'
 import { applyPendingInvite, redeemPendingInviteCode } from './invites/inviteStore'
+import { applyPendingOnboardingChoices } from './onboarding/pendingOnboardingChoices'
 import { logActivity } from './activity/activityStore'
 import { avatarInitialsOf } from './utils/avatarInitials'
 
@@ -378,6 +379,14 @@ export default function App() {
         return
       }
 
+      // Aplica plano/ordem de leitura pendentes (salvos no onboarding se a
+      // confirmação de email interrompeu o cadastro) ANTES de ler
+      // plano/ordem abaixo — senão a leitura corre em paralelo com essa
+      // escrita e pode vencer a corrida, mostrando o default por engano
+      // mesmo com o valor certo já salvo um instante depois.
+      await applyPendingOnboardingChoices()
+      if (cancelled) return
+
       const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
@@ -575,6 +584,9 @@ export default function App() {
   // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
   // frame renderizando o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
+    // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
+    // contra a leitura de plano/ordem logo abaixo.
+    await applyPendingOnboardingChoices()
     const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
@@ -622,7 +634,6 @@ export default function App() {
     logout().catch(err => console.error('Failed to logout', err))
     setAuthUser(null)
     setCompletedSet(new Set())
-    setStreak(0)
     setPlanId('standard')
     setReadingOrderState('ot_first')
     setActiveAltPlanState(null)
