@@ -95,12 +95,11 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               à frente do card de leitura do dia. */}
           <div className="dashboard-col">
 
-            {/* Destaque % da Bíblia — anel com gradiente no mobile (mesmo
-                tratamento do Progresso); no desktop o Figma troca por um
-                card "chapado" com números e barras (ver BibleStatDesktop
-                logo abaixo), então os dois coexistem e a CSS decide qual
-                aparece (.home-pct-hero-mobile / .hide-on-mobile). */}
-            <div className="home-pct-hero-mobile" style={styles.pctHero}>
+            {/* Destaque % da Bíblia — anel com gradiente, mesmo tratamento
+                do Progresso. Volta a aparecer também no desktop (pedido
+                explícito: mesmo card do início do mobile em vez do card
+                "chapado" que existia antes só ali). */}
+            <div className="home-pct-hero" style={styles.pctHero}>
               <div style={styles.pctHeroGlow} />
 
               {/* Anel SVG */}
@@ -128,30 +127,6 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                   <BarRow label="AT" pct={atPercent}  color="var(--white)" />
                   <BarRow label="NT" pct={ntPercent}  color="var(--white)" />
                 </div>
-              </div>
-            </div>
-
-            {/* Versão desktop do card acima — mesmo dado, tratamento "chapado"
-                do Figma (sem anel, fundo claro) em vez do card com
-                gradiente do mobile. */}
-            <div className="hide-on-mobile" style={styles.bibleStatCard}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={styles.bibleStatLabel}>{translate('home.bibleReadLabel', undefined, lang)}</span>
-                <span style={styles.bibleStatPct}>{biblePercent}%</span>
-              </div>
-              <div style={{ display: 'flex', gap: 24, margin: '14px 0 18px' }}>
-                <div>
-                  <div style={styles.bibleStatNum}>{chaptersRead}</div>
-                  <div style={styles.bibleStatSub}>{translate('home.chaptersLabel', undefined, lang)}</div>
-                </div>
-                <div>
-                  <div style={styles.bibleStatNum}>{streak}</div>
-                  <div style={styles.bibleStatSub}>{translate('home.streakLabel', undefined, lang)}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <StatBarRow label={translate('journey.oldTestament', undefined, lang)} pct={atPercent} color="var(--or)" />
-                <StatBarRow label={translate('journey.newTestament', undefined, lang)} pct={ntPercent} color="#B5005D" />
               </div>
             </div>
 
@@ -471,23 +446,6 @@ function BarRow({ label, pct, color }) {
   )
 }
 
-// Barra AT/NT do card desktop "chapado" — rótulo à esquerda, trilha cinza
-// clara (fundo do card é claro, ao contrário do BarRow acima, feito pra
-// trilha translúcida sobre o hero escuro).
-function StatBarRow({ label, pct, color }) {
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--bk)' }}>{label}</span>
-        <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, color }}>{pct}%</span>
-      </div>
-      <div style={{ height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' }}>
-        <div style={{ height: '100%', background: color, borderRadius: 99, width: `${pct}%` }} />
-      </div>
-    </div>
-  )
-}
-
 function StatCard({ value, suffix, label, theme }) {
   const t = STAT_THEMES[theme]
   return (
@@ -546,11 +504,6 @@ const styles = {
   pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
   pctTitle:      { fontSize: 15, fontWeight: 800, color: 'white', lineHeight: 1.25, letterSpacing: '-0.2px' },
   pctSub:        { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.7)' },
-  bibleStatCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 20, boxShadow: 'var(--shadow-card)' },
-  bibleStatLabel:{ fontSize: 11, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase' },
-  bibleStatPct:  { fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--bk)' },
-  bibleStatNum:  { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' },
-  bibleStatSub:  { fontSize: 10, fontWeight: 600, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
   todayCard:     { position: 'relative', background: 'var(--white)', border: '0.5px solid var(--gold-soft)', borderRadius: 20, padding: '16px 16px 16px 21px', overflow: 'hidden', boxShadow: 'var(--shadow-premium)' },
   todayAccent:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg, var(--gold), var(--or))' },
   todayBadge:    { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(157,67,0,.12)', border: '0.5px solid rgba(157,67,0,.25)', borderRadius: 20, padding: '3px 9px', marginBottom: 10 },

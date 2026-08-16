@@ -852,16 +852,11 @@ html.large-text .app-content-inner {
     flex-shrink: 0;
     margin-top: 0 !important;
   }
-  /* HomeScreen: card "Bíblia lida" com anel é só mobile — o desktop usa o
-     card chapado (.hide-on-mobile, ao lado dele no JSX). !important pra
-     vencer o display:flex inline do styles.pctHero. */
-  .home-pct-hero-mobile {
-    display: none !important;
-  }
 }
 /* Inverso de .hide-on-mobile — some só no desktop. Usado em pares com
    .hide-on-mobile pra alternar entre dois tratamentos da mesma seção
-   (ex.: anel de progresso no mobile vs. card chapado no desktop). */
+   (ex.: anel de progresso no mobile vs. barras + card resumido no desktop,
+   ver ProgressScreen.jsx). */
 @media (min-width: 1024px) {
   .hide-on-desktop {
     display: none !important;
