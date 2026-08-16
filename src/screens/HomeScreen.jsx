@@ -14,6 +14,10 @@ import { getPinnedApplicationPhrase } from '../reflection/applicationPhraseStore
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { STAT_THEMES } from '../utils/statThemes'
 import { shareProgressCard } from '../share/shareProgressCard'
+import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
+
+const ROUTINE_STEP_ORDER = ['prayer', 'reading', 'reflection']
+const ROUTINE_STEP_ICON = { prayer: 'HandHeart', reading: 'BookOpen', reflection: 'PenLine' }
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
@@ -60,6 +64,19 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   // Calcula o offset do anel SVG (circunferência = 2π×38 ≈ 238.76)
   const CIRCUMFERENCE = 238.76
   const offset = CIRCUMFERENCE - (biblePercent / 100) * CIRCUMFERENCE
+
+  // Constância — mesma métrica de RoutineScreen.jsx (média de dias/semana
+  // com a rotina completa nas últimas 4 semanas), agora também na Home.
+  const weeklyStats = computeWeeklyRoutineStats(dailyRoutine ?? {}, 4)
+  const consistencyValue = averageFullRoutineDays(weeklyStats).toFixed(1).replace(/\.0$/, '')
+
+  // Estado (feito/a fazer) dos passos de hoje, só pra um indicador
+  // compacto no card de %. O detalhe (título, botão, sub-texto) já mora no
+  // DailyRoutineCard logo abaixo — repetir tudo aqui duplicaria a mesma
+  // informação duas vezes na mesma tela.
+  const routineStepsToday = ROUTINE_STEP_ORDER
+    .filter(key => plan.modules.includes(key))
+    .map(key => ({ key, done: !!todayRoutine[key] }))
 
   const ctaLabel = todaySession.needsThemePick
     ? translate('themePlan.chooseTodayCta', undefined, lang)
@@ -132,33 +149,60 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 <AppIcon name={shareState === 'generating' ? 'RefreshCw' : 'Share2'} size={15} color="white" className={shareState === 'generating' ? 'icon-spin' : undefined} />
               </button>
 
-              {/* Anel SVG */}
-              <div style={styles.ringWrap}>
-                <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
-                  <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
-                  <circle cx="44" cy="44" r="38" fill="none" stroke="white" strokeWidth="7"
-                    strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
-                </svg>
-                <div style={styles.ringText}>
-                  <span style={styles.ringValue}>
-                    <span style={styles.ringNum}>{biblePercent}</span>
-                    <span style={styles.ringPct}>%</span>
-                  </span>
+              {/* Anel + legenda — só UMA vez a % (antes repetia em texto
+                  logo abaixo: "Bíblia concluída: X%", igual ao número já
+                  escrito dentro do anel). */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 18, position: 'relative' }}>
+                <div style={styles.ringWrap}>
+                  <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+                    <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
+                    <circle cx="44" cy="44" r="38" fill="none" stroke="white" strokeWidth="7"
+                      strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
+                  </svg>
+                  <div style={styles.ringText}>
+                    <span style={styles.ringValue}>
+                      <span style={styles.ringNum}>{biblePercent}</span>
+                      <span style={styles.ringPct}>%</span>
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p style={styles.pctLabel}>{translate('home.bibleReadLabel', undefined, lang)}</p>
+                  <p style={styles.pctSub}>{translate('home.chaptersRead', { n: chaptersRead }, lang)}</p>
                 </div>
               </div>
 
-              {/* Info */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
-                <div>
-                  <p style={styles.pctLabel}>{translate('home.bibleReadLabel', undefined, lang)}</p>
-                  <p style={styles.pctTitle}>{translate('progress.bibleComplete', undefined, lang)}: {biblePercent}%</p>
-                  <p style={styles.pctSub}>{translate('home.chaptersRead', { n: chaptersRead }, lang)} · {streak} {lang === 'en' ? 'days' : 'dias'} <AppIcon name="Flame" size={11} style={{ verticalAlign: 'middle' }} /></p>
+              {/* Streak + constância — a mesma métrica de constância que só
+                  existia na aba Rotina, agora também aqui. */}
+              <div style={styles.pctStatsRow}>
+                <div style={styles.pctStatChip}>
+                  <span style={styles.pctStatValue}><AppIcon name="Flame" size={16} /> {streak}</span>
+                  <span style={styles.pctStatLabel}>{translate('home.streakLabel', undefined, lang)}</span>
                 </div>
-                {/* Barras AT/NT */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <BarRow label="AT" pct={atPercent}  color="var(--white)" />
-                  <BarRow label="NT" pct={ntPercent}  color="var(--white)" />
+                <div style={styles.pctStatChip}>
+                  <span style={styles.pctStatValue}>{consistencyValue}</span>
+                  <span style={styles.pctStatLabel}>{translate('home.shareCardConsistencyLabel', undefined, lang)}</span>
                 </div>
+              </div>
+
+              {/* Rotina de hoje — só um indicador compacto (sem repetir o
+                  "X/3 passos hoje" que já é o subtítulo do DailyRoutineCard
+                  logo abaixo, com todo o detalhe de cada passo). */}
+              <div style={styles.pctRoutineRow}>
+                <span style={styles.pctRoutineLabel}>{translate('home.shareCardTodayRoutine', undefined, lang)}</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {routineStepsToday.map(step => (
+                    <span key={step.key} style={{ ...styles.pctRoutineDot, background: step.done ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)' }}>
+                      <AppIcon name={ROUTINE_STEP_ICON[step.key]} size={13} color={step.done ? 'var(--or)' : 'rgba(255,255,255,.6)'} />
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Barras AT/NT */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <BarRow label="AT" pct={atPercent}  color="var(--white)" />
+                <BarRow label="NT" pct={ntPercent}  color="var(--white)" />
               </div>
             </div>
             {shareState === 'error' && (
@@ -167,16 +211,6 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
             {/* Nível e XP */}
             <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
-
-            {/* Stats */}
-            <div>
-              <div className="section-header"><h3 className="section-title">{translate('home.thisWeek', undefined, lang)}</h3></div>
-              <div style={styles.statsRow}>
-                <StatCard value={streak}       suffix={<AppIcon name="Flame" size={12} />} label={translate('home.streakLabel', undefined, lang)}  theme="orange" />
-                <StatCard value={level.level}  suffix=""   label={level.title}    theme="purple" />
-                <StatCard value={Math.round((100 - biblePercent) * 10) / 10} suffix="%" label={translate('home.remainingLabel', undefined, lang)} theme="green"  />
-              </div>
-            </div>
 
             {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
                 passo é feito de verdade (oração/leitura), com um calendário
@@ -481,18 +515,6 @@ function BarRow({ label, pct, color }) {
   )
 }
 
-function StatCard({ value, suffix, label, theme }) {
-  const t = STAT_THEMES[theme]
-  return (
-    <div style={{ flex: 1, background: t.bg, border: `0.5px solid ${t.border}`, borderRadius: 15, padding: 12, textAlign: 'center' }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 800, color: t.color, lineHeight: 1, marginBottom: 2, letterSpacing: '-1px' }}>
-        {value}<span style={{ fontSize: 12, fontWeight: 700 }}>{suffix}</span>
-      </div>
-      <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--g6)' }}>{label}</div>
-    </div>
-  )
-}
-
 const styles = {
   routineCard:        { background: 'white', border: '0.5px solid var(--gold-soft)', borderRadius: 18, boxShadow: 'var(--shadow-premium)', padding: 14 },
   routineTitle:       { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--bk)', letterSpacing: '-0.1px' },
@@ -530,7 +552,14 @@ const styles = {
   greeting:      { fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 3 },
   sessionTitle:  { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.3, letterSpacing: '-0.2px' },
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
-  pctHero:       { background: 'var(--grad-vivid)', borderRadius: 22, padding: 20, display: 'flex', alignItems: 'center', gap: 18, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
+  pctHero:       { background: 'var(--grad-vivid)', borderRadius: 22, padding: 20, display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
+  pctStatsRow:   { display: 'flex', gap: 10 },
+  pctStatChip:   { flex: 1, background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
+  pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1 },
+  pctStatLabel:  { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
+  pctRoutineRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  pctRoutineLabel: { fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1, textTransform: 'uppercase' },
+  pctRoutineDot: { width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
   shareCardBtn:  { position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
   shareCardErrorText: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', margin: '-4px 0 0' },
@@ -540,7 +569,6 @@ const styles = {
   ringNum:       { fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1, letterSpacing: '-0.8px' },
   ringPct:       { fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, color: 'white', lineHeight: 1 },
   pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
-  pctTitle:      { fontSize: 15, fontWeight: 800, color: 'white', lineHeight: 1.25, letterSpacing: '-0.2px' },
   pctSub:        { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.7)' },
   todayCard:     { position: 'relative', background: 'var(--white)', border: '0.5px solid var(--gold-soft)', borderRadius: 20, padding: '16px 16px 16px 21px', overflow: 'hidden', boxShadow: 'var(--shadow-premium)' },
   todayAccent:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg, var(--gold), var(--or))' },
@@ -551,7 +579,6 @@ const styles = {
   progressBar:   { height: 3, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 },
   progressFill:  { height: '100%', background: 'var(--grad-premium)', borderRadius: 99, transition: 'width 0.6s ease' },
   continueBtn:   { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
-  statsRow:      { display: 'flex', gap: 8 },
   activityCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, boxShadow: 'var(--shadow-card)' },
   levelCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:    { fontSize: 26, flexShrink: 0 },
