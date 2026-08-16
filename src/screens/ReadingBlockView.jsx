@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { groupSessionsByBook } from '../utils/groupByBook'
+import { sessionKeys } from '../utils/progress'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
@@ -64,6 +65,17 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId ?? null)
 
   const heroSession = sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
+
+  // Progresso real DESTA sessão (não da "sessão de hoje" do plano ativo
+  // global) — session.todaySession.progress era usado aqui antes, mas é o
+  // progresso de outra sessão sempre que o hero está mostrando algo aberto
+  // pela navegação livre (ex: um livro do NT nunca lido enquanto a leitura
+  // ativa de verdade está em outro lugar), fazendo a barra mostrar uma
+  // porcentagem sem relação nenhuma com o capítulo exibido.
+  const heroSessionKeys = sessionKeys(heroSession)
+  const heroSessionProgress = heroSessionKeys.length
+    ? Math.round((heroSessionKeys.filter(k => completedSet.has(k)).length / heroSessionKeys.length) * 100)
+    : 0
 
   // Qual capítulo tem o texto aberto INLINE, direto na lista de livros —
   // só existe em modo 'browse' (navegação livre pela Bíblia). Diferente do
@@ -330,10 +342,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                 {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
               </p>
               <div style={{ height: 4, background: 'rgba(255,255,255,.2)', borderRadius: 99, marginTop: 10, overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${heroSession.status === 'current' ? session.todaySession.progress : 0}%` }} />
+                <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${heroSessionProgress}%` }} />
               </div>
               <div style={styles.heroTags}>
-                {TAGS.map(tag => (
+                {/* O chat de IA (FAB/overlay, mais abaixo) fica escondido em
+                    sessões de Reflexão — sem isso a tag ficava "ativa"
+                    (destacada) sem nenhum painel abrir de verdade. */}
+                {(heroSession.type === 'reflection' ? TAGS.filter(tag => tag.key !== 'ia') : TAGS).map(tag => (
                   <span
                     key={tag.key}
                     style={{ ...styles.heroTag, ...(openPanel === tag.key ? styles.heroTagActive : {}) }}
