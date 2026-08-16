@@ -40,9 +40,11 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                     strokeDasharray={CIRC} strokeDashoffset={offset} strokeLinecap="round" />
                 </svg>
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 46, fontWeight: 800, color: 'var(--white)', lineHeight: 1, letterSpacing: '-3px' }}>{session.biblePercent}</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--white)', marginTop: -2 }}>%</span>
-                  <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.9)', marginTop: 2 }}>{lang === 'en' ? 'of the Bible' : 'da Bíblia'}</span>
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 34, fontWeight: 800, color: 'var(--white)', lineHeight: 1, letterSpacing: '-1.5px' }}>{session.biblePercent}</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--white)', lineHeight: 1 }}>%</span>
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.9)', marginTop: 4 }}>{lang === 'en' ? 'of the Bible' : 'da Bíblia'}</span>
                 </div>
               </div>
 

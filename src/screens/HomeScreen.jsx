@@ -110,8 +110,10 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                     strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
                 </svg>
                 <div style={styles.ringText}>
-                  <span style={styles.ringNum}>{biblePercent}</span>
-                  <span style={styles.ringPct}>%</span>
+                  <span style={styles.ringValue}>
+                    <span style={styles.ringNum}>{biblePercent}</span>
+                    <span style={styles.ringPct}>%</span>
+                  </span>
                 </div>
               </div>
 
@@ -498,9 +500,10 @@ const styles = {
   pctHero:       { background: 'var(--grad-vivid)', borderRadius: 22, padding: 20, display: 'flex', alignItems: 'center', gap: 18, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
   ringWrap:      { position: 'relative', width: 88, height: 88, flexShrink: 0 },
-  ringText:      { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
-  ringNum:       { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1, letterSpacing: '-1px' },
-  ringPct:       { fontSize: 10, fontWeight: 700, color: 'white' },
+  ringText:      { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  ringValue:     { display: 'flex', alignItems: 'baseline', gap: 1 },
+  ringNum:       { fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1, letterSpacing: '-0.8px' },
+  ringPct:       { fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, color: 'white', lineHeight: 1 },
   pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
   pctTitle:      { fontSize: 15, fontWeight: 800, color: 'white', lineHeight: 1.25, letterSpacing: '-0.2px' },
   pctSub:        { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.7)' },
