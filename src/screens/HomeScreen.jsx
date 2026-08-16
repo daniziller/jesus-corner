@@ -29,7 +29,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   async function handleShareCard() {
     setShareState('generating')
     try {
-      await shareProgressCard({ biblePercent, streak, achievements, lang })
+      await shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang })
       setShareState('idle')
     } catch (err) {
       // AbortError = a pessoa fechou a folha de compartilhamento nativa sem

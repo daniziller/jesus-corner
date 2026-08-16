@@ -75,6 +75,32 @@ function drawPercent(ctx, cx, cy, percent) {
   ctx.fillText('%', startX + numW + gap, cy + 44)
 }
 
+// Uma barra AT/NT — mesma composição (rótulo · trilha · %) do BarRow em
+// HomeScreen.jsx, só que desenhada.
+function drawBarRow(ctx, { label, pct, y, left, width }) {
+  const barH = 10
+  const labelW = 66
+  const pctW = 76
+  const barX = left + labelW
+  const barW = width - labelW - pctW
+
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.font = '700 26px "Be Vietnam Pro"'
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillText(label, left, y)
+
+  ctx.fillStyle = 'rgba(255,255,255,.25)'
+  roundRect(ctx, barX, y - barH / 2, barW, barH, barH / 2)
+  ctx.fill()
+  ctx.fillStyle = '#FFFFFF'
+  roundRect(ctx, barX, y - barH / 2, barW * Math.min(pct, 100) / 100, barH, barH / 2)
+  ctx.fill()
+
+  ctx.textAlign = 'right'
+  ctx.fillText(`${pct}%`, left + width, y)
+}
+
 function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
   const words = text.split(' ')
   let line = ''
@@ -93,7 +119,7 @@ function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
   lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight))
 }
 
-export async function buildProgressCardBlob({ biblePercent, streak, achievements, lang }) {
+export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang }) {
   await ensureFontsReady()
   const logo = await loadImage('/icons/icon-192.png').catch(() => null)
 
@@ -157,6 +183,7 @@ export async function buildProgressCardBlob({ biblePercent, streak, achievements
 
   // Melhor conquista desbloqueada
   const badge = pickBestBadge(achievements)
+  let contentBottom = cy + r + 210
   if (badge) {
     const boxY = cy + r + 250
     const boxH = 210
@@ -169,7 +196,15 @@ export async function buildProgressCardBlob({ biblePercent, streak, achievements
     ctx.font = '800 46px "Plus Jakarta Sans"'
     ctx.fillStyle = '#FFFFFF'
     wrapText(ctx, badge.title, cx, boxY + 128, CARD_W - 260, 54)
+    contentBottom = boxY + boxH
   }
+
+  // Barras AT/NT — preenche o card com mais dado (bom pra compartilhar) em
+  // vez de deixar um vão vazio entre o badge e o rodapé.
+  const barsLeft = 130
+  const barsWidth = CARD_W - 260
+  drawBarRow(ctx, { label: t('journey.oldTestament', undefined, lang), pct: atPercent, y: contentBottom + 90, left: barsLeft, width: barsWidth })
+  drawBarRow(ctx, { label: t('journey.newTestament', undefined, lang), pct: ntPercent, y: contentBottom + 150, left: barsLeft, width: barsWidth })
 
   // Tagline + domínio
   ctx.font = '600 32px "Be Vietnam Pro"'
@@ -187,8 +222,8 @@ export async function buildProgressCardBlob({ biblePercent, streak, achievements
 // arquivo) ou baixa direto (desktop/navegadores sem suporte). Devolve
 // 'shared' | 'downloaded' — quem chama decide o que fazer com isso (hoje,
 // nada; só existe pra facilitar teste/depuração).
-export async function shareProgressCard({ biblePercent, streak, achievements, lang }) {
-  const blob = await buildProgressCardBlob({ biblePercent, streak, achievements, lang })
+export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang }) {
+  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang })
   if (!blob) throw new Error('blob_failed')
   const file = new File([blob], 'jesus-corner-progresso.png', { type: 'image/png' })
 
