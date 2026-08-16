@@ -226,13 +226,17 @@ export async function buildProgressCardBlob({ biblePercent, streak, achievements
   })
   drawStatChip(ctx, {
     x: 90 + statsChipW + statsGap, y: statsTop, w: statsChipW, h: statsH,
-    emoji: '📅', value: avgLabel, label: t('home.shareCardConsistencyLabel', undefined, lang),
+    emoji: '📊', value: avgLabel, label: t('home.shareCardConsistencyLabel', undefined, lang),
   })
 
-  // Rotina de hoje — só os módulos do plano ativo (mesma regra de
-  // RoutineScreen.jsx: nem todo plano tem os 3 passos).
+  // Rotina de hoje — sempre nesta ordem (Oração·Leitura·Reflexão, mesma de
+  // HomeScreen/RoutineScreen), só os módulos do plano ativo (mesma regra de
+  // RoutineScreen.jsx: nem todo plano tem os 3 passos — plan.modules pode
+  // vir em qualquer ordem, não é ordem de exibição).
   const routineTop = statsTop + statsH + 70
-  const steps = (planModules ?? ['prayer', 'reading', 'reflection'])
+  const activeModules = planModules ?? ['prayer', 'reading', 'reflection']
+  const steps = ['prayer', 'reading', 'reflection']
+    .filter(key => activeModules.includes(key))
     .map(key => ({ key, done: !!todayRoutine?.[key] }))
   const doneCount = steps.filter(s => s.done).length
 
