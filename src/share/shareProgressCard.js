@@ -333,14 +333,14 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   // weekRings.js usada na Home, pra nunca divergir o que aparece nos dois
   // lugares.
   const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
-  const routineLabelY = statsTop + statsH + 56
+  const routineLabelY = statsTop + statsH + 44
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
   ctx.font = '700 26px "Be Vietnam Pro"'
   ctx.fillStyle = GOLD
   ctx.fillText(t('home.weekRingsTitle', undefined, lang).toUpperCase(), cx, routineLabelY)
 
-  const ringsY = routineLabelY + 62
+  const ringsY = routineLabelY + 54
   const ringSize = 72
   drawWeekRings(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: ringsY, size: ringSize })
 
@@ -348,47 +348,52 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   // (ver drawWeekRings) — a legenda precisa de folga clara abaixo disso,
   // senão sobrepõe o texto (bug já visto: "W"/"T"/"F" colados em cima de
   // "Prayer"/"Reading"/"Reflection").
-  const legendY = ringsY + ringSize / 2 + 34 + 56
+  const legendY = ringsY + ringSize / 2 + 34 + 40
   drawRingLegend(ctx, { cx, y: legendY, lang })
 
   // Barras AT/NT
-  const barsTop = legendY + 60
+  const barsTop = legendY + 50
   drawBarRow(ctx, { label: 'AT', pct: atPercent, x: 90, y: barsTop, width: CARD_W - 180 })
-  drawBarRow(ctx, { label: 'NT', pct: ntPercent, x: 90, y: barsTop + 54, width: CARD_W - 180 })
+  drawBarRow(ctx, { label: 'NT', pct: ntPercent, x: 90, y: barsTop + 50, width: CARD_W - 180 })
 
   // Melhor conquista desbloqueada
   const badge = pickBestBadge(achievements)
-  let contentBottom = barsTop + 54
+  let contentBottom = barsTop + 44
   if (badge) {
-    const boxY = contentBottom + 60
-    const boxH = 190
+    const boxY = contentBottom + 46
+    const boxH = 170
     ctx.fillStyle = 'rgba(255,255,255,.14)'
     roundRect(ctx, 90, boxY, CARD_W - 180, boxH, 28)
     ctx.fill()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.font = '700 25px "Be Vietnam Pro"'
+    ctx.font = '700 24px "Be Vietnam Pro"'
     ctx.fillStyle = GOLD
-    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 50)
-    ctx.font = '800 40px "Plus Jakarta Sans"'
+    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 46)
+    ctx.font = '800 38px "Plus Jakarta Sans"'
     ctx.fillStyle = '#FFFFFF'
-    wrapText(ctx, badge.title, cx, boxY + 114, CARD_W - 260, 48)
+    wrapText(ctx, badge.title, cx, boxY + 106, CARD_W - 260, 46)
     contentBottom = boxY + boxH
   }
 
   // Rodapé: tagline + Instagram (pedido explícito — a marca precisa
   // aparecer de um jeito que dê pra achar a conta, não só o site).
+  // Ancorado em contentBottom (não em CARD_H fixo) — o badge (opcional) e
+  // agora os anéis/legenda mudam quanto espaço o conteúdo ocupa; um
+  // rodapé fixo já colidiu uma vez com o badge quando o conteúdo cresceu
+  // (bug visto: tagline em cima de "Pentateuch").
+  const footerTop = contentBottom + 56
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  ctx.font = '600 30px "Be Vietnam Pro"'
+  ctx.font = '600 28px "Be Vietnam Pro"'
   ctx.fillStyle = 'rgba(255,255,255,.8)'
-  wrapText(ctx, t('auth.tagline', undefined, lang), cx, CARD_H - 210, CARD_W - 220, 40)
+  wrapText(ctx, t('auth.tagline', undefined, lang), cx, footerTop + 16, CARD_W - 220, 36)
 
-  const igY = CARD_H - 120
+  const igY = footerTop + 96
   const igHandle = t('profile.instagramSub', undefined, lang)
-  ctx.font = '800 34px "Plus Jakarta Sans"'
+  ctx.font = '800 32px "Plus Jakarta Sans"'
   const igHandleW = ctx.measureText(igHandle).width
-  const igIconSize = 34
+  const igIconSize = 32
   const igGap = 12
   const igTotalW = igIconSize + igGap + igHandleW
   drawInstagramIcon(ctx, cx - igTotalW / 2 + igIconSize / 2, igY, igIconSize, '#FFFFFF')
@@ -399,9 +404,9 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  ctx.font = '700 26px "Be Vietnam Pro"'
+  ctx.font = '700 24px "Be Vietnam Pro"'
   ctx.fillStyle = 'rgba(255,255,255,.6)'
-  ctx.fillText('jesuscorner.app', cx, CARD_H - 56)
+  ctx.fillText('jesuscorner.app', cx, footerTop + 144)
 
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95))
 }
