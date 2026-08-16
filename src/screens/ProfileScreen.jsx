@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { t, LANGUAGES } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { getMyProfile, updateProfile } from '../profile/profileStore'
@@ -365,7 +366,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             </div>
           )}
           <SettingsLink
-            icon="Globe" iconBg="#EFF6FF"
+            icon="Globe" iconBg="var(--olt)"
             label={t('profile.languageLabel')} sub={`${currentLang.flag} ${currentLang.label}`}
             onPress={() => setLangPickerOpen(v => !v)}
           />
@@ -452,7 +453,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             onPress={() => window.open('https://www.instagram.com/jesuscorner.app/', '_blank', 'noopener,noreferrer')}
           />
           <SettingsLink
-            icon="Download" iconBg="#EFF6FF"
+            icon="Download" iconBg="var(--olt)"
             label={t('profile.exportDataLabel')} sub={t('profile.exportDataSub')}
             onPress={handleExport}
           />
@@ -582,7 +583,12 @@ function DeleteAccountDialog({ email, hasStoreSubscription, onCancel, onDeleted 
     }
   }
 
-  return (
+  // position:'fixed' aqui dentro quebrava (aparecia fora da tela) porque
+  // .app-content-inner tem zoom:1.15 sempre ativo, o que cria um novo
+  // "containing block" pra descendentes fixed em Chromium/WebKit — mesmo
+  // bug já documentado e corrigido no FAB/overlay de chat da IA em
+  // ReadingBlockView.jsx. createPortal escapa dessa árvore, direto pro body.
+  return createPortal(
     <div style={styles.deleteBackdrop} role="dialog" aria-modal="true">
       <div style={styles.deleteCard}>
         <p style={styles.deleteTitle}>{t('profile.deleteAccountTitle')}</p>
@@ -618,7 +624,8 @@ function DeleteAccountDialog({ email, hasStoreSubscription, onCancel, onDeleted 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
