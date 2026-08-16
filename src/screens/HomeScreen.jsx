@@ -21,7 +21,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   const {
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
-    level, nextLevel, levelPercent, xpForNext, lang,
+    level, nextLevel, levelPercent, xpForNext, xp, lang,
     dailyRoutine, todayRoutine, plan, activePlan, achievements, goals,
   } = session
 
@@ -213,7 +213,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             )}
 
             {/* Nível e XP */}
-            <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
+            <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} xp={xp} lang={lang} />
 
             {/* Resumo da meta mais próxima de bater (ver src/routine/
                 goals.js) — não confundir com "Desafios", já usado pros
@@ -296,13 +296,14 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   )
 }
 
-function LevelCard({ level, nextLevel, percent, xpForNext, lang }) {
+function LevelCard({ level, nextLevel, percent, xpForNext, xp, lang }) {
   return (
     <div style={styles.levelCard}>
       <div style={styles.levelEmoji}><AppIcon name={level.icon} size={24} color="var(--or)" /></div>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
           <span style={styles.levelTitle}>{lang === 'en' ? 'Level' : 'Nível'} {level.level} · {level.title}</span>
+          <span style={{ ...styles.levelXp, fontFamily: 'var(--font-display)' }}>{xp} XP</span>
         </div>
         <div style={styles.levelBar}>
           <div style={{ ...styles.levelBarFill, width: `${percent}%` }} />
@@ -666,6 +667,7 @@ const styles = {
   levelCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:    { fontSize: 26, flexShrink: 0 },
   levelTitle:    { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
+  levelXp:       { fontSize: 10.5, fontWeight: 700, color: 'var(--or)' },
   levelBar:      { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
   levelBarFill:  { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
   levelSub:      { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },

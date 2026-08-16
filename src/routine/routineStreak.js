@@ -92,3 +92,25 @@ export function averageFullRoutineDays(weeks) {
   if (!weeks.length) return 0
   return weeks.reduce((sum, w) => sum + w.fullDays, 0) / weeks.length
 }
+
+// XP de Oração/Reflexão concluídas + bônus por fechar a rotina inteira no
+// dia — diferente do XP de leitura (computeGamificationStats, em
+// utils/progress.js), que tem um teto natural (a Bíblia acaba), isso NÃO
+// tem teto: cresce um pouco a cada dia de uso, pra sempre. Valores baixos
+// de propósito (1 capítulo lido = 10 XP; um dia inteiro de rotina, com
+// oração+reflexão+bônus, soma 10 também) — rotina não deve valer mais que
+// leitura de verdade, só reforçar que ela também conta.
+const PRAYER_DAY_XP = 3
+const REFLECTION_DAY_XP = 3
+const FULL_ROUTINE_DAY_BONUS_XP = 4
+
+export function computeRoutineXpBonus(dailyRoutine) {
+  let prayerDays = 0, reflectionDays = 0, fullDays = 0
+  for (const key in dailyRoutine) {
+    const day = dailyRoutine[key]
+    if (day?.prayer) prayerDays++
+    if (day?.reflection) reflectionDays++
+    if (isDayComplete(day)) fullDays++
+  }
+  return prayerDays * PRAYER_DAY_XP + reflectionDays * REFLECTION_DAY_XP + fullDays * FULL_ROUTINE_DAY_BONUS_XP
+}

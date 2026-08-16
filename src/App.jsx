@@ -31,7 +31,7 @@ import { isAtLeast } from './utils/age'
 import { computeUnlockedAchievements } from './utils/achievements'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
-import { computeRoutineStreak } from './routine/routineStreak'
+import { computeRoutineStreak, computeRoutineXpBonus } from './routine/routineStreak'
 import { computeGoalsStatus } from './routine/goals'
 import { getCompletedGoals, recordCompletedGoal } from './routine/goalsStore'
 import { dateKey } from './utils/dateKey'
@@ -157,16 +157,17 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const chapterSpan = currentSession.type === 'reflection' ? 0 : currentSession.chEnd - currentSession.chStart + 1
   const chapterWord = lang === 'en' ? (chapterSpan === 1 ? 'chapter' : 'chapters') : (chapterSpan === 1 ? 'capítulo' : 'capítulos')
 
-  // Gamificação: nada aqui é medido em tempo — XP vem de capítulos, livros e
-  // blocos concluídos, e alimenta um sistema de níveis + conquistas. Metas
-  // de constância (goals.js) somam um bônus por cima — não entram em
-  // computeGamificationStats (que fica só sobre leitura) pra não misturar
-  // as duas fontes; a soma acontece só aqui, no ponto em que tudo já foi
-  // calculado.
+  // Gamificação: XP vem de 3 fontes somadas aqui — leitura (capítulos,
+  // livros, blocos concluídos, computeGamificationStats, com teto natural:
+  // a Bíblia acaba), Metas batidas (goals.js, bônus único por meta), e
+  // Oração/Reflexão do dia + bônus de rotina completa (computeRoutineXpBonus,
+  // SEM teto — cresce a cada dia de uso). Cada fonte fica pura/isolada no
+  // seu próprio arquivo; a soma acontece só aqui.
   const gami = computeGamificationStats(completedSet, sessionsByBlock, blocks)
   const goals = computeGoalsStatus(dailyRoutine, completedGoals, lang)
   const goalsXpBonus = goals.reduce((sum, g) => sum + (g.completed ? g.xp : 0), 0)
-  const xp = gami.xp + goalsXpBonus
+  const routineXpBonus = computeRoutineXpBonus(dailyRoutine)
+  const xp = gami.xp + goalsXpBonus + routineXpBonus
   const level = levelFor(xp, lang)
   const progressToNext = levelProgress(xp, lang)
   const achievements = computeUnlockedAchievements({
