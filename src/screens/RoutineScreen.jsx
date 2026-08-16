@@ -51,11 +51,16 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
   // com o resto do app. Tocar na linha leva direto pra tela do passo; tocar
   // no ícone (stopPropagation, mesmo padrão da Home) marca/desmarca concluído
   // na hora, pra quem já orou/leu/refletiu fora do app e só quer marcar.
-  const steps = [
+  // Filtra por plan.modules — mesma regra que HomeScreen.jsx já aplica
+  // (allSteps.filter(s => plan.modules.includes(s.key))). Sem isso, um
+  // plano com menos de 3 módulos mostraria uma contagem "X de 3" aqui
+  // divergindo do "X de N" da Home pro mesmo dia.
+  const allSteps = [
     { key: 'prayer', icon: 'HandHeart', color: ROUTINE_STEP_COLORS.prayer, title: t('home.routinePrayer', undefined, lang), done: !!todayRoutine.prayer, onClick: () => onNavigate?.('prayer'), onToggleCheck: () => onMarkRoutineStep?.('prayer', !todayRoutine.prayer) },
     { key: 'reading', icon: 'BookOpen', color: ROUTINE_STEP_COLORS.reading, title: t('home.routineReading', undefined, lang), done: !!todayRoutine.reading, onClick: () => onContinueSession?.(), onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading) },
     { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection, title: t('home.routineReflection', undefined, lang), done: !!todayRoutine.reflection, onClick: () => onNavigate?.('reflection'), onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection) },
   ]
+  const steps = allSteps.filter(s => plan.modules.includes(s.key))
 
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
