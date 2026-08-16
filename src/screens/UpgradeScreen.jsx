@@ -12,7 +12,7 @@
 // no Perfil (pra quem já tem acesso, ver/trocar o plano). Moeda mostrada já
 // reflete BRL/USD certo, mas quem decide de verdade a moeda cobrada é o
 // backend (api/create-checkout-session.js, mesmo header x-vercel-ip-country).
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import {
@@ -34,6 +34,11 @@ const FEATURES = [
 export default function UpgradeScreen({ session, subscription, onSubscriptionRefreshed }) {
   const { lang } = session
   const [currency, setCurrency] = useState('brl')
+  // Trava a detecção por IP depois que a pessoa escolhe a moeda na mão (ver
+  // switchCurrency) — mesmo motivo/mesmo padrão de AuthScreen.jsx: /api/geo
+  // é assíncrono e pode responder depois do clique, sobrescrevendo a
+  // escolha manual sem a pessoa perceber.
+  const currencyTouchedRef = useRef(false)
   const [mode, setMode] = useState('monthly') // 'monthly' | 'annual'
   const [changingAmount, setChangingAmount] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -51,7 +56,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
   useEffect(() => {
     let cancelled = false
     fetch('/api/geo').then(res => res.json()).then(({ country }) => {
-      if (!cancelled && country && country !== 'BR') setCurrency('usd')
+      if (!cancelled && !currencyTouchedRef.current && country && country !== 'BR') setCurrency('usd')
     }).catch(() => {})
     return () => { cancelled = true }
   }, [])
@@ -106,6 +111,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
   }
 
   function switchCurrency(next) {
+    currencyTouchedRef.current = true
     setCurrency(next)
     setError('')
   }

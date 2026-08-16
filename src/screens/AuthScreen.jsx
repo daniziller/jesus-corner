@@ -10,6 +10,7 @@ import { setSelectedPlanId } from '../plan/planStore'
 import { setReadingOrder } from '../reading/readingOrderStore'
 import { setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { savePendingOnboardingChoices } from '../onboarding/pendingOnboardingChoices'
 import { STORE_TIERS } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
 import { startCheckout } from '../billing/subscriptionStore'
@@ -725,6 +726,11 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
   const [agreedToSensitive, setAgreedToSensitive] = useState(false)
   const [agreedToMarketing, setAgreedToMarketing] = useState(false)
   const [currency, setCurrency]   = useState('brl')
+  // true assim que a pessoa toca em "R$"/"US$" — trava a detecção por IP
+  // pra não sobrescrever a escolha manual se /api/geo responder depois do
+  // clique (a chamada é assíncrona e pode demorar mais que uma decisão
+  // rápida da pessoa).
+  const currencyTouchedRef = useRef(false)
   const [billingMode, setBillingMode] = useState('monthly')
   const [inviteCode, setInviteCode] = useState('')
   // null = ainda não verificado; 'checking' = chamada em andamento; depois
@@ -740,7 +746,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
   useEffect(() => {
     let cancelled = false
     fetch('/api/geo').then(res => res.json()).then(({ country }) => {
-      if (!cancelled && country && country !== 'BR') setCurrency('usd')
+      if (!cancelled && !currencyTouchedRef.current && country && country !== 'BR') setCurrency('usd')
     }).catch(() => {})
     return () => { cancelled = true }
   }, [])
@@ -798,27 +804,34 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       ])
       const trimmedCode = inviteCode.trim()
 
+      // Tempos de oração/reflexão são só localStorage (ver
+      // src/prayer/prayerDurationStore.js) — não dependem de sessão, então
+      // já podem ser salvos aqui mesmo, antes de saber se email precisa de
+      // confirmação. Plano/ordem de leitura (linha abaixo) exigem sessão de
+      // verdade pra gravar no backend, e é isso que precisa do mecanismo de
+      // "pendente" quando a confirmação é exigida.
+      setSavedPrayerMinutes(prayerMinutes)
+      setSavedReflectionMinutes(reflectionMinutes)
+
       if (user.needsEmailConfirmation) {
-        // Sem sessão ainda — não dá pra chamar redeemInviteCode agora (o
-        // endpoint exige Authorization). Salva o código pra tentar de novo
-        // assim que a pessoa voltar com sessão de verdade, depois de
-        // confirmar o email: o link de confirmação faz um redirect de
-        // página inteira, que apagaria essa variável local (e o código
-        // digitado) se não fosse salvo aqui (ver redeemPendingInviteCode
-        // em App.jsx).
+        // Sem sessão ainda — não dá pra chamar redeemInviteCode/
+        // setSelectedPlanId/setReadingOrder agora (todos exigem
+        // Authorization). Salva pra tentar de novo assim que a pessoa
+        // voltar com sessão de verdade, depois de confirmar o email: o link
+        // de confirmação faz um redirect de página inteira, que apagaria
+        // essas variáveis locais se não fossem salvas aqui (ver
+        // redeemPendingInviteCode/applyPendingOnboardingChoices em App.jsx).
         if (trimmedCode) savePendingInviteCode(trimmedCode)
+        savePendingOnboardingChoices({ planId, readingOrder })
         setConfirmationEmail(user.email)
         setLoading(false)
         return
       }
 
-      // Persiste as escolhas do onboarding — plano no backend (precisa de
-      // sessão, por isso só agora), tempos de oração/reflexão são só
-      // localStorage (ver src/prayer/prayerDurationStore.js).
+      // Persiste plano/ordem de leitura no backend (precisa de sessão, por
+      // isso só agora).
       setSelectedPlanId(user.email, planId).catch(() => {})
       setReadingOrder(user.email, readingOrder).catch(() => {})
-      setSavedPrayerMinutes(prayerMinutes)
-      setSavedReflectionMinutes(reflectionMinutes)
       trackOnboardingEvent('signup_completed', { userId: user.id })
 
       // Entra no app na hora — se o checkout abaixo falhar por qualquer
@@ -898,8 +911,8 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       <div style={styles.planPickerCard}>
         <p style={styles.publicToggleLabel}>{t('onboarding.plan.label')}</p>
         <div style={styles.currencyToggle}>
-          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'brl' ? styles.currencyBtnActive : {}) }} onClick={() => setCurrency('brl')}>R$</button>
-          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'usd' ? styles.currencyBtnActive : {}) }} onClick={() => setCurrency('usd')}>US$</button>
+          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'brl' ? styles.currencyBtnActive : {}) }} onClick={() => { currencyTouchedRef.current = true; setCurrency('brl') }}>R$</button>
+          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'usd' ? styles.currencyBtnActive : {}) }} onClick={() => { currencyTouchedRef.current = true; setCurrency('usd') }}>US$</button>
         </div>
         <div style={styles.modeToggle}>
           <button type="button" style={{ ...styles.modeBtn, ...(billingMode === 'monthly' ? styles.modeBtnActive : {}) }} onClick={() => setBillingMode('monthly')}>{t('billing.modeMonthly')}</button>
@@ -1163,7 +1176,7 @@ function ForceChangePasswordStep({ onDone }) {
       await changePassword(password)
       onDone()
     } catch (err) {
-      setError(err.message)
+      setError(err.message === 'same_as_old_password' ? t('auth.samePasswordError') : err.message)
       setLoading(false)
     }
   }
@@ -1316,7 +1329,7 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
       setError('')
       onAuthenticated(user)
     } catch (err) {
-      setError(err.message)
+      setError(err.message === 'same_as_old_password' ? t('auth.samePasswordError') : err.message)
     } finally {
       setLoading(false)
     }

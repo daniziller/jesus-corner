@@ -45,6 +45,14 @@ function isRateLimitError(message) {
   return /security purposes|rate limit/i.test(message ?? '')
 }
 
+// O GoTrue recusa updateUser({password}) quando a nova senha é igual à
+// atual, com mensagem só em inglês ("New password should be different from
+// the old password.") — sem esse mapeamento, esse texto cru subia direto
+// pra tela (mesmo padrão dos outros erros crus já corrigidos nesta área).
+function isSamePasswordError(message) {
+  return /different from the old password/i.test(message ?? '')
+}
+
 function mapUser(authUser) {
   if (!authUser) return null
   return {
@@ -178,7 +186,7 @@ export async function resetPassword({ email, code, newPassword }) {
   if (error) throw new Error('Código inválido ou expirado.')
 
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-  if (updateError) throw new Error(updateError.message)
+  if (updateError) throw new Error(isSamePasswordError(updateError.message) ? 'same_as_old_password' : updateError.message)
 
   // A senha nova já nasce no padrão forte, então não faz sentido pedir troca
   // de novo no próximo login — mesmo raciocínio de changePassword() abaixo.
@@ -230,6 +238,6 @@ export async function changePassword(newPassword) {
   }
   const { data: userData } = await supabase.auth.getUser()
   const { error } = await supabase.auth.updateUser({ password: newPassword })
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(isSamePasswordError(error.message) ? 'same_as_old_password' : error.message)
   await clearPasswordNeedsUpdate(userData?.user?.id)
 }
