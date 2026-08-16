@@ -9,15 +9,20 @@ const ACTS_DATA = [
     subtitle: { pt: 'Louve quem Deus é', en: 'Praise who God is' },
     duration: { pt: '4 min', en: '4 min' },
     durationMin: 4,
-    bgColor: 'rgba(249,115,22,.1)',
-    letterColor: '#C2410C',
-    borderColor: 'rgba(249,115,22,.4)',
-    stepBg: '#FFF7ED',
-    dotColor: '#EA580C',
-    glow: 'rgba(249,115,22,.28)',
-    verseBg: '#FFF7ED',
-    verseBorder: '#EA580C',
-    verseRefColor: '#C2410C',
+    // Âmbar (não laranja) de propósito — rgba(249,115,22)/#EA580C/#C2410C
+    // eram exatamente o laranja de marca antigo, removido do resto do app
+    // (ver commit "Limpa os últimos rastros do laranja antigo"); esse card
+    // não representa a marca, só uma categoria entre 4 (A·C·T·S), mas usar
+    // o hex idêntico ao banido lia como resíduo esquecido da limpeza.
+    bgColor: 'rgba(217,119,6,.1)',
+    letterColor: '#92400E',
+    borderColor: 'rgba(217,119,6,.4)',
+    stepBg: '#FFFBEB',
+    dotColor: '#D97706',
+    glow: 'rgba(217,119,6,.28)',
+    verseBg: '#FFFBEB',
+    verseBorder: '#D97706',
+    verseRefColor: '#92400E',
     description: {
       pt: 'Comece focando em <b>quem Deus é</b>, não no que Ele fez. Declare Seus atributos com louvor genuíno.',
       en: 'Start by focusing on <b>who God is</b>, not what He has done. Declare His attributes with genuine praise.',
