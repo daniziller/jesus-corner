@@ -4,6 +4,14 @@
 // print da UI) pra ter controle total de proporção/enquadramento/marca —
 // ver conversa que motivou essa escolha em vez de um html2canvas rápido.
 import { t } from '../i18n'
+import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
+
+// Mesmo emoji+chave dos 3 passos da rotina diária (ver home.routinePrayer/
+// routineReading/routineReflection) — usado na seção "rotina de hoje" do
+// cartão. Emoji em vez de rasterizar os ícones Lucide da UI: manter tudo
+// desenhado num <canvas> já é bastante código; puxar SVGs arbitrários pra
+// dentro dele só pra 3 ícones pequenos não paga o esforço.
+const ROUTINE_STEP_EMOJI = { prayer: '🙏', reading: '📖', reflection: '✍️' }
 
 const CARD_W = 1080
 const CARD_H = 1920
@@ -75,30 +83,53 @@ function drawPercent(ctx, cx, cy, percent) {
   ctx.fillText('%', startX + numW + gap, cy + 44)
 }
 
-// Uma barra AT/NT — mesma composição (rótulo · trilha · %) do BarRow em
-// HomeScreen.jsx, só que desenhada.
-function drawBarRow(ctx, { label, pct, y, left, width }) {
-  const barH = 10
-  const labelW = 66
-  const pctW = 76
-  const barX = left + labelW
-  const barW = width - labelW - pctW
-
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
-  ctx.font = '700 26px "Be Vietnam Pro"'
-  ctx.fillStyle = '#FFFFFF'
-  ctx.fillText(label, left, y)
-
-  ctx.fillStyle = 'rgba(255,255,255,.25)'
-  roundRect(ctx, barX, y - barH / 2, barW, barH, barH / 2)
-  ctx.fill()
-  ctx.fillStyle = '#FFFFFF'
-  roundRect(ctx, barX, y - barH / 2, barW * Math.min(pct, 100) / 100, barH, barH / 2)
+// Chip de estatística (streak / constância) — emoji, número grande, rótulo.
+function drawStatChip(ctx, { x, y, w, h, emoji, value, label }) {
+  ctx.fillStyle = 'rgba(255,255,255,.14)'
+  roundRect(ctx, x, y, w, h, 24)
   ctx.fill()
 
-  ctx.textAlign = 'right'
-  ctx.fillText(`${pct}%`, left + width, y)
+  const cx = x + w / 2
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = '46px sans-serif'
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillText(emoji, cx, y + 60)
+  ctx.font = '800 44px "Plus Jakarta Sans"'
+  ctx.fillText(value, cx, y + 114)
+  ctx.font = '700 23px "Be Vietnam Pro"'
+  ctx.fillStyle = 'rgba(255,255,255,.8)'
+  ctx.fillText(label, cx, y + h - 18)
+}
+
+// Chip de um passo da rotina de hoje — apagado se ainda não feito, com
+// borda + check dourado se já feito (mesma lógica visual do
+// DailyRoutineCard da Home: feito vs. a fazer).
+function drawRoutineChip(ctx, { x, y, w, h, emoji, label, done }) {
+  ctx.fillStyle = done ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.08)'
+  roundRect(ctx, x, y, w, h, 20)
+  ctx.fill()
+  if (done) {
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'
+    ctx.lineWidth = 2.5
+    roundRect(ctx, x, y, w, h, 20)
+    ctx.stroke()
+  }
+
+  const cx = x + w / 2
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = '38px sans-serif'
+  ctx.fillStyle = done ? '#FFFFFF' : 'rgba(255,255,255,.5)'
+  ctx.fillText(emoji, cx, y + 52)
+  ctx.font = '700 21px "Be Vietnam Pro"'
+  ctx.fillStyle = done ? '#FFFFFF' : 'rgba(255,255,255,.55)'
+  ctx.fillText(label, cx, y + 84)
+  if (done) {
+    ctx.font = '800 20px "Be Vietnam Pro"'
+    ctx.fillStyle = GOLD
+    ctx.fillText('✓', cx, y + h - 12)
+  }
 }
 
 function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
@@ -119,7 +150,7 @@ function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
   lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight))
 }
 
-export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang }) {
+export async function buildProgressCardBlob({ biblePercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
   await ensureFontsReady()
   const logo = await loadImage('/icons/icon-192.png').catch(() => null)
 
@@ -157,8 +188,8 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
 
   // Anel de progresso
   const cx = CARD_W / 2
-  const cy = 660
-  const r = 260
+  const cy = 610
+  const r = 250
   ctx.lineCap = 'round'
   ctx.strokeStyle = 'rgba(255,255,255,.25)'
   ctx.lineWidth = 34
@@ -172,45 +203,78 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   drawPercent(ctx, cx, cy, biblePercent)
 
   ctx.textAlign = 'center'
-  ctx.font = '700 32px "Be Vietnam Pro"'
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = '700 30px "Be Vietnam Pro"'
   ctx.fillStyle = 'rgba(255,255,255,.85)'
-  ctx.fillText(t('home.bibleReadLabel', undefined, lang).toUpperCase(), cx, cy + r + 68)
+  ctx.fillText(t('home.bibleReadLabel', undefined, lang).toUpperCase(), cx, cy + r + 58)
 
-  // Streak
-  ctx.font = '800 54px "Plus Jakarta Sans"'
-  ctx.fillStyle = '#FFFFFF'
-  ctx.fillText(`🔥 ${streak} ${t('home.streakLabel', undefined, lang)}`, cx, cy + r + 156)
+  // Streak + constância — dois chips lado a lado. Constância é a mesma
+  // métrica da aba Rotina (averageFullRoutineDays: média de dias/semana
+  // com os 3 passos completos nas últimas 4 semanas), não só o streak
+  // (que zera fácil e não conta o padrão de uso ao longo do tempo).
+  const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, 4)
+  const avgFullDays = averageFullRoutineDays(weeks)
+  const avgLabel = avgFullDays.toFixed(1).replace(/\.0$/, '')
+
+  const statsTop = cy + r + 90
+  const statsH = 172
+  const statsGap = 26
+  const statsChipW = (CARD_W - 180 - statsGap) / 2
+  drawStatChip(ctx, {
+    x: 90, y: statsTop, w: statsChipW, h: statsH,
+    emoji: '🔥', value: `${streak}`, label: t('home.streakLabel', undefined, lang),
+  })
+  drawStatChip(ctx, {
+    x: 90 + statsChipW + statsGap, y: statsTop, w: statsChipW, h: statsH,
+    emoji: '📅', value: avgLabel, label: t('home.shareCardConsistencyLabel', undefined, lang),
+  })
+
+  // Rotina de hoje — só os módulos do plano ativo (mesma regra de
+  // RoutineScreen.jsx: nem todo plano tem os 3 passos).
+  const routineTop = statsTop + statsH + 70
+  const steps = (planModules ?? ['prayer', 'reading', 'reflection'])
+    .map(key => ({ key, done: !!todayRoutine?.[key] }))
+  const doneCount = steps.filter(s => s.done).length
+
+  ctx.textAlign = 'center'
+  ctx.font = '700 30px "Be Vietnam Pro"'
+  ctx.fillStyle = GOLD
+  ctx.fillText(
+    `${t('home.shareCardTodayRoutine', undefined, lang).toUpperCase()} · ${doneCount}/${steps.length}`,
+    cx, routineTop,
+  )
+
+  const chipsTop = routineTop + 30
+  const chipsH = 132
+  const chipsGap = 22
+  const chipW = (CARD_W - 180 - chipsGap * (steps.length - 1)) / steps.length
+  steps.forEach((step, i) => {
+    drawRoutineChip(ctx, {
+      x: 90 + i * (chipW + chipsGap), y: chipsTop, w: chipW, h: chipsH,
+      emoji: ROUTINE_STEP_EMOJI[step.key], label: t(`home.routine${step.key[0].toUpperCase()}${step.key.slice(1)}`, undefined, lang),
+      done: step.done,
+    })
+  })
 
   // Melhor conquista desbloqueada
   const badge = pickBestBadge(achievements)
-  let contentBottom = cy + r + 210
+  let contentBottom = chipsTop + chipsH
   if (badge) {
-    const boxY = cy + r + 250
-    const boxH = 210
+    const boxY = contentBottom + 56
+    const boxH = 200
     ctx.fillStyle = 'rgba(255,255,255,.14)'
     roundRect(ctx, 90, boxY, CARD_W - 180, boxH, 28)
     ctx.fill()
-    ctx.font = '700 28px "Be Vietnam Pro"'
+    ctx.textAlign = 'center'
+    ctx.font = '700 26px "Be Vietnam Pro"'
     ctx.fillStyle = GOLD
-    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 56)
-    ctx.font = '800 46px "Plus Jakarta Sans"'
+    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 52)
+    ctx.font = '800 42px "Plus Jakarta Sans"'
     ctx.fillStyle = '#FFFFFF'
-    wrapText(ctx, badge.title, cx, boxY + 128, CARD_W - 260, 54)
-    contentBottom = boxY + boxH
+    wrapText(ctx, badge.title, cx, boxY + 118, CARD_W - 260, 50)
   }
 
-  // Barras AT/NT — preenche o card com mais dado (bom pra compartilhar) em
-  // vez de deixar um vão vazio entre o badge e o rodapé. Sigla curta
-  // (AT/NT), não o nome cheio — mesmo tratamento do BarRow original (nome
-  // cheio não cabia ao lado da trilha sem sobrepor).
-  const barsLeft = 130
-  const barsWidth = CARD_W - 260
-  drawBarRow(ctx, { label: 'AT', pct: atPercent, y: contentBottom + 90, left: barsLeft, width: barsWidth })
-  drawBarRow(ctx, { label: 'NT', pct: ntPercent, y: contentBottom + 150, left: barsLeft, width: barsWidth })
-
-  // Tagline + domínio — drawBarRow deixa textAlign:'right' (pro %), reseta
-  // antes de qualquer fillText que dependa de 'center' (wrapText/fillText
-  // abaixo confiam nisso, não setam sozinhos).
+  // Tagline + domínio
   ctx.textAlign = 'center'
   ctx.font = '600 32px "Be Vietnam Pro"'
   ctx.fillStyle = 'rgba(255,255,255,.85)'
@@ -227,8 +291,8 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
 // arquivo) ou baixa direto (desktop/navegadores sem suporte). Devolve
 // 'shared' | 'downloaded' — quem chama decide o que fazer com isso (hoje,
 // nada; só existe pra facilitar teste/depuração).
-export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang }) {
-  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang })
+export async function shareProgressCard({ biblePercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
+  const blob = await buildProgressCardBlob({ biblePercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules })
   if (!blob) throw new Error('blob_failed')
   const file = new File([blob], 'jesus-corner-progresso.png', { type: 'image/png' })
 
