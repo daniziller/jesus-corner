@@ -106,6 +106,17 @@ export default async function handler(req, res) {
         if (session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription)
           await upsertFromSubscription(subscription)
+          // Só cancela a assinatura antiga (troca de valor/periodicidade)
+          // depois que a nova já está confirmada e gravada — ver o
+          // comentário em api/create-checkout-session.js sobre por que essa
+          // ordem importa (evita ficar sem assinatura nenhuma se o checkout
+          // for abandonado).
+          const previousId = session.metadata?.previous_subscription_id
+          if (previousId && previousId !== subscription.id) {
+            await stripe.subscriptions.cancel(previousId).catch((err) => {
+              console.error('Failed to cancel previous subscription after upgrade:', err.message)
+            })
+          }
         } else if (session.mode === 'payment' && session.payment_status === 'paid') {
           await upsertFromOneTimeSession(session)
         }

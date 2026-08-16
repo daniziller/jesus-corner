@@ -130,20 +130,28 @@ export default async function handler(req, res) {
   try {
     const productId = await getOrFetchProductId()
 
-    // Trocar de valor ou de periodicidade cancela a assinatura antiga antes
-    // de criar a nova cobrança — pra nunca ficar cobrando duas ao mesmo tempo.
-    if (existing?.stripe_subscription_id && existing.status !== 'canceled') {
-      await stripe.subscriptions.cancel(existing.stripe_subscription_id).catch((err) => {
-        console.error('Failed to cancel previous subscription:', err.message)
-      })
-    }
+    // Trocar de valor ou de periodicidade precisa cancelar a assinatura
+    // antiga — mas só DEPOIS que a nova for confirmada (ver
+    // api/stripe-webhook.js, checkout.session.completed), nunca aqui na
+    // criação da sessão: cancelar de antemão deixava a pessoa sem assinatura
+    // nenhuma caso ela abandonasse o checkout (fechasse a aba, clicasse
+    // "voltar" na página do Stripe etc.) — a antiga já tinha sido cancelada
+    // e nenhuma nova chegou a ser criada. Só guarda o id aqui, pro webhook
+    // cancelar quando (e se) a nova assinatura de fato existir.
+    const previousSubscriptionId = (existing?.stripe_subscription_id && existing.status !== 'canceled')
+      ? existing.stripe_subscription_id
+      : null
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
       client_reference_id: caller.id,
       currency,
-      metadata: { supabase_user_id: caller.id, access_type: 'recurring' },
+      metadata: {
+        supabase_user_id: caller.id,
+        access_type: 'recurring',
+        ...(previousSubscriptionId ? { previous_subscription_id: previousSubscriptionId } : {}),
+      },
       line_items: [{
         price_data: {
           currency,
