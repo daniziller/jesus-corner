@@ -44,6 +44,14 @@ const POLICIES = [
     // de rever sem reter esse tipo de conteúdo (mais pessoal) indefinidamente.
     reason: 'chat sobre o texto — 60 dias',
   },
+  {
+    table: 'notifications',
+    days: 90,
+    // Alertas in-app (convite, curtida, lembrete etc.) — só têm valor
+    // enquanto recentes; sem prazo, cresciam pra sempre pra quem usa o app
+    // há muito tempo.
+    reason: 'alertas in-app — 90 dias',
+  },
 ]
 
 export default async function handler(req, res) {
@@ -80,17 +88,27 @@ export default async function handler(req, res) {
 
     let removed = 0
     for (const { user_id } of tombstones ?? []) {
-      const counts = await Promise.all(
-        ['group_comments', 'group_prayer_requests', 'group_prayer_comments', 'reading_groups']
-          .map(t => supabaseAdmin
-            .from(t)
-            .select('*', { count: 'exact', head: true })
-            .eq(t === 'reading_groups' ? 'created_by' : 'user_id', user_id)),
-      )
-      const stillReferenced = counts.some(c => (c.count ?? 0) > 0)
-      if (!stillReferenced) {
-        await supabaseAdmin.from('profiles').delete().eq('user_id', user_id)
-        removed++
+      try {
+        const counts = await Promise.all(
+          ['group_comments', 'group_prayer_requests', 'group_prayer_comments', 'reading_groups', 'reading_challenges']
+            .map(t => supabaseAdmin
+              .from(t)
+              .select('*', { count: 'exact', head: true })
+              .eq((t === 'reading_groups' || t === 'reading_challenges') ? 'created_by' : 'user_id', user_id)),
+        )
+        const stillReferenced = counts.some(c => (c.count ?? 0) > 0)
+        if (!stillReferenced) {
+          // invited_by não tem ON DELETE (não é FK dela que deve decidir se a
+          // lápide pode sumir) — zera antes, senão o delete abaixo falha com
+          // violação de FK sempre que essa lápide já convidou alguém que
+          // ainda está no grupo, e por estar no mesmo try teria travado o
+          // laço inteiro no meio, parando a limpeza das lápides seguintes.
+          await supabaseAdmin.from('reading_group_members').update({ invited_by: null }).eq('invited_by', user_id)
+          await supabaseAdmin.from('profiles').delete().eq('user_id', user_id)
+          removed++
+        }
+      } catch (err) {
+        console.error(`retention: falha ao limpar lápide ${user_id}`, err)
       }
     }
     results.push({ table: 'profiles (lápides órfãs)', deleted: removed })
