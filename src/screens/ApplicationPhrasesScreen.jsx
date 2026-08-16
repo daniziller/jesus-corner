@@ -9,6 +9,7 @@
 // valem o acoplamento de compartilhar componente.
 import { useState, useEffect } from 'react'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, noteSessionTitleOf, parseNoteKey } from '../notes/notesStore'
+import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -58,6 +59,23 @@ export default function ApplicationPhrasesScreen({ session, authUser }) {
     setEditText('')
   }
 
+  // A frase fixada na Home (application:pinned) é uma cópia à parte do
+  // histórico diário (application:{data}), sem nenhuma referência de volta
+  // pra qual dia ela veio — editar/apagar a entrada do histórico não tocava
+  // nela, então o card da Home podia continuar mostrando um texto já
+  // editado ou apagado, indefinidamente. Compara pelo TEXTO (não existe
+  // outra forma de saber "essa é a mesma frase" entre as duas chaves) e
+  // atualiza/limpa a fixada junto sempre que ela for a que está sendo
+  // editada ou apagada.
+  async function syncPinnedIfMatches(oldText, newText) {
+    const pinned = await getPinnedApplicationPhrase(authUser.email).catch(() => '')
+    if (pinned && pinned === oldText) {
+      await setPinnedApplicationPhrase(authUser.email, newText).catch(err => {
+        console.error('Failed to sync pinned application phrase', err)
+      })
+    }
+  }
+
   async function saveEdit(phrase) {
     if (!editText.trim()) return
     setBusyKey(phrase.key)
@@ -65,6 +83,7 @@ export default function ApplicationPhrasesScreen({ session, authUser }) {
       // Mantém o mesmo sessionTitle já gravado — editar o texto não muda
       // qual foi a sessão de leitura daquele dia.
       await saveNote(authUser.email, phrase.key, editText, { sessionTitle: phrase.sessionTitle })
+      await syncPinnedIfMatches(phrase.text, editText)
       setState(s => ({
         ...s,
         phrases: s.phrases
@@ -85,6 +104,7 @@ export default function ApplicationPhrasesScreen({ session, authUser }) {
     setBusyKey(phrase.key)
     try {
       await saveNote(authUser.email, phrase.key, '')
+      await syncPinnedIfMatches(phrase.text, '')
       setState(s => ({ ...s, phrases: s.phrases.filter(p => p.key !== phrase.key) }))
     } catch (err) {
       console.error('Failed to delete application phrase', err)

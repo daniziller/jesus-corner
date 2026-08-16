@@ -7,6 +7,7 @@
 // ContactScreen.jsx/UpgradeScreen.jsx.
 import { useState, useEffect, useMemo } from 'react'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
+import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getHighlights, updateHighlightText, deleteHighlight } from '../highlights/highlightsStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { t } from '../i18n'
@@ -146,6 +147,20 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     setEditText('')
   }
 
+  // A frase fixada na Home (application:pinned) é uma cópia à parte,
+  // comparável só pelo texto (ver mesmo helper em
+  // ApplicationPhrasesScreen.jsx) — sem isso, editar/apagar uma frase de
+  // aplicação por aqui (ela também aparece no filtro "Reflexão" desta
+  // tela) deixava o card da Home com um texto já editado ou apagado.
+  async function syncPinnedIfMatches(oldText, newText) {
+    const pinned = await getPinnedApplicationPhrase(authUser.email).catch(() => '')
+    if (pinned && pinned === oldText) {
+      await setPinnedApplicationPhrase(authUser.email, newText).catch(err => {
+        console.error('Failed to sync pinned application phrase', err)
+      })
+    }
+  }
+
   async function saveEdit(note) {
     // Texto vazio deletaria a nota (mesma regra de saveNote) — pra isso
     // tem o botão de deletar, específico e com confirmação; edição vazia
@@ -157,6 +172,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       // mapa de notas de sempre — ver src/highlights/highlightsStore.js.
       if (note.type === 'highlight') await updateHighlightText(authUser.email, note.id, editText)
       else await saveNote(authUser.email, note.key, editText)
+      if (note.type === 'application-phrase') await syncPinnedIfMatches(note.text, editText)
       setState(s => ({
         ...s,
         notes: s.notes
@@ -178,6 +194,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     try {
       if (note.type === 'highlight') await deleteHighlight(authUser.email, note.id)
       else await saveNote(authUser.email, note.key, '')
+      if (note.type === 'application-phrase') await syncPinnedIfMatches(note.text, '')
       setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
     } catch (err) {
       console.error('Failed to delete note', err)
