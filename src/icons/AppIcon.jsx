@@ -21,7 +21,7 @@ import {
   Sailboat, Amphora, PawPrint, MapPin, Circle,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
   X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
-  Highlighter,
+  Highlighter, Share2,
 } from 'lucide-react'
 
 // A versão de lucide-react instalada (1.23.0) não inclui o ícone do
@@ -58,7 +58,7 @@ const REGISTRY = {
   Sailboat, Amphora, PawPrint, MapPin,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
   X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
-  Highlighter,
+  Highlighter, Share2,
   Instagram,
 }
 

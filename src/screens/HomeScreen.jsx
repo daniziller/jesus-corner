@@ -13,14 +13,32 @@ import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore
 import { getPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { STAT_THEMES } from '../utils/statThemes'
+import { shareProgressCard } from '../share/shareProgressCard'
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, lang,
-    dailyRoutine, todayRoutine, plan, activePlan,
+    dailyRoutine, todayRoutine, plan, activePlan, achievements,
   } = session
+
+  // Cartão de progresso pra compartilhar em rede social (ver
+  // src/share/shareProgressCard.js) — 'idle' | 'generating' | 'error'.
+  const [shareState, setShareState] = useState('idle')
+  async function handleShareCard() {
+    setShareState('generating')
+    try {
+      await shareProgressCard({ biblePercent, streak, achievements, lang })
+      setShareState('idle')
+    } catch (err) {
+      // AbortError = a pessoa fechou a folha de compartilhamento nativa sem
+      // escolher nada — cancelamento normal, não é erro pra mostrar.
+      if (err?.name === 'AbortError') { setShareState('idle'); return }
+      console.error('Failed to share progress card', err)
+      setShareState('error')
+    }
+  }
 
   const [friendActivity, setFriendActivity] = useState([])
   useEffect(() => {
@@ -102,6 +120,18 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             <div className="home-pct-hero" style={styles.pctHero}>
               <div style={styles.pctHeroGlow} />
 
+              {/* Compartilhar em rede social — gera uma imagem própria
+                  (não é print da tela), ver src/share/shareProgressCard.js. */}
+              <button
+                onClick={handleShareCard}
+                disabled={shareState === 'generating'}
+                aria-label={translate('home.shareCardBtn', undefined, lang)}
+                title={translate('home.shareCardBtn', undefined, lang)}
+                style={styles.shareCardBtn}
+              >
+                <AppIcon name={shareState === 'generating' ? 'RefreshCw' : 'Share2'} size={15} color="white" className={shareState === 'generating' ? 'icon-spin' : undefined} />
+              </button>
+
               {/* Anel SVG */}
               <div style={styles.ringWrap}>
                 <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
@@ -131,6 +161,9 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 </div>
               </div>
             </div>
+            {shareState === 'error' && (
+              <p style={styles.shareCardErrorText}>{translate('home.shareCardError', undefined, lang)}</p>
+            )}
 
             {/* Nível e XP */}
             <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} lang={lang} />
@@ -499,6 +532,8 @@ const styles = {
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
   pctHero:       { background: 'var(--grad-vivid)', borderRadius: 22, padding: 20, display: 'flex', alignItems: 'center', gap: 18, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
+  shareCardBtn:  { position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
+  shareCardErrorText: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', margin: '-4px 0 0' },
   ringWrap:      { position: 'relative', width: 88, height: 88, flexShrink: 0 },
   ringText:      { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   ringValue:     { display: 'flex', alignItems: 'baseline', gap: 1 },

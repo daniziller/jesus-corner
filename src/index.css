@@ -314,6 +314,15 @@ html.large-text .app-content-inner {
   50% { opacity: 0.5; transform: scale(0.8); }
 }
 
+/* Ícone girando — usado no botão de compartilhar progresso (Home) enquanto
+   a imagem do cartão é gerada. */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.icon-spin {
+  animation: spin 0.9s linear infinite;
+}
+
 /* ── Tela de boas-vindas (primeiro acesso, AuthScreen.jsx) ── */
 @keyframes fadeUpIn {
   from { opacity: 0; transform: translateY(14px); }
