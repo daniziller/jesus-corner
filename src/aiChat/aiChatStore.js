@@ -28,6 +28,29 @@ export async function sendMessage({ book, chStart, chEnd, message, lang }) {
     body: JSON.stringify({ book, chStart, chEnd, message, lang }),
   })
   const body = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    // 429 (limite diário) já vem com used/remaining/max — anexa no próprio
+    // erro pra quem chamou atualizar o contador mesmo no caminho de falha,
+    // sem precisar de uma segunda chamada.
+    const err = new Error(body?.error || `request_failed_${res.status}`)
+    if (body?.remaining != null) Object.assign(err, { used: body.used, remaining: body.remaining, max: body.max })
+    throw err
+  }
+  return { userMessage: body.userMessage, assistantMessage: body.assistantMessage, used: body.used, remaining: body.remaining, max: body.max }
+}
+
+// Quantas perguntas já foram feitas hoje (limite diário, ver
+// MAX_MESSAGES_PER_DAY em api/chat-about-text.js) — só consulta, não gasta
+// nada. Chamado ao abrir o painel do chat, pra mostrar o limite ANTES da
+// pessoa esbarrar nele, não só depois de um erro.
+export async function getDailyLimitStatus() {
+  const { data: { session: authSession } } = await supabase.auth.getSession()
+  if (!authSession) throw new Error('not_authenticated')
+  const res = await fetch('/api/chat-about-text', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${authSession.access_token}` },
+  })
+  const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body?.error || `request_failed_${res.status}`)
-  return { userMessage: body.userMessage, assistantMessage: body.assistantMessage }
+  return { used: body.used, remaining: body.remaining, max: body.max }
 }

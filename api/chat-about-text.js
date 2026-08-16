@@ -37,17 +37,30 @@ function startOfTodayIso() {
   return d.toISOString()
 }
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
+async function countTodayMessages(supabase, userId) {
+  const { count, error } = await supabase
+    .from('text_ai_chats')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('role', 'user')
+    .gte('created_at', startOfTodayIso())
+  if (error) throw error
+  return count ?? 0
+}
 
+// Compartilhado entre GET (só consulta o limite, sem gastar nada — usado
+// pelo painel do chat pra mostrar quantas perguntas restam ANTES da
+// pessoa esbarrar no limite, não só depois) e POST (manda a pergunta de
+// verdade).
+async function authenticateAndCheckPremium(req, res) {
   const authHeader = req.headers.authorization
-  if (!authHeader) return res.status(401).json({ error: 'unauthorized' })
+  if (!authHeader) { res.status(401).json({ error: 'unauthorized' }); return null }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   })
   const { data: userData, error: userErr } = await supabase.auth.getUser()
-  if (userErr || !userData?.user) return res.status(401).json({ error: 'unauthorized' })
+  if (userErr || !userData?.user) { res.status(401).json({ error: 'unauthorized' }); return null }
   const caller = userData.user
 
   // Reconfere assinatura no servidor — mesmo espírito de
@@ -65,7 +78,33 @@ export default async function handler(req, res) {
       ? sub.status === 'active'
       : sub.status === 'active' || sub.status === 'trialing'
   )
-  if (!isPremium) return res.status(403).json({ error: 'subscription_required' })
+  if (!isPremium) { res.status(403).json({ error: 'subscription_required' }); return null }
+
+  return { supabase, caller }
+}
+
+export default async function handler(req, res) {
+  // GET — só devolve quantas perguntas já foram feitas hoje (usado`s pelo
+  // painel do chat ao abrir, e depois de cada envio) — nunca escreve nada,
+  // pra mostrar o limite de forma clara ANTES da pessoa esbarrar nele, não
+  // só como erro de surpresa depois.
+  if (req.method === 'GET') {
+    const auth = await authenticateAndCheckPremium(req, res)
+    if (!auth) return
+    try {
+      const used = await countTodayMessages(auth.supabase, auth.caller.id)
+      return res.status(200).json({ used, remaining: Math.max(0, MAX_MESSAGES_PER_DAY - used), max: MAX_MESSAGES_PER_DAY })
+    } catch (err) {
+      console.error('[chat-about-text] failed to count today messages (GET):', err.message)
+      return res.status(500).json({ error: 'internal_error' })
+    }
+  }
+
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
+
+  const auth = await authenticateAndCheckPremium(req, res)
+  if (!auth) return
+  const { supabase, caller } = auth
 
   const { book, chStart, chEnd, message, lang } = req.body ?? {}
   const cleanMessage = (message ?? '').trim()
@@ -78,18 +117,15 @@ export default async function handler(req, res) {
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const passageKey = passageKeyFor(book, chStart, chEnd)
 
-  const { count: todayCount, error: countErr } = await supabase
-    .from('text_ai_chats')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', caller.id)
-    .eq('role', 'user')
-    .gte('created_at', startOfTodayIso())
-  if (countErr) {
-    console.error('[chat-about-text] failed to count today messages:', countErr.message)
+  let todayCount
+  try {
+    todayCount = await countTodayMessages(supabase, caller.id)
+  } catch (err) {
+    console.error('[chat-about-text] failed to count today messages:', err.message)
     return res.status(500).json({ error: 'internal_error' })
   }
-  if ((todayCount ?? 0) >= MAX_MESSAGES_PER_DAY) {
-    return res.status(429).json({ error: 'daily_limit_reached' })
+  if (todayCount >= MAX_MESSAGES_PER_DAY) {
+    return res.status(429).json({ error: 'daily_limit_reached', used: todayCount, remaining: 0, max: MAX_MESSAGES_PER_DAY })
   }
 
   const { data: historyRows, error: historyErr } = await supabase
@@ -135,5 +171,11 @@ export default async function handler(req, res) {
   const userMessage = inserted.find(m => m.role === 'user')
   const assistantMessage = inserted.find(m => m.role === 'assistant')
 
-  return res.status(200).json({ ok: true, userMessage, assistantMessage })
+  // usedAfter conta esta mensagem que acabou de ser gravada — todayCount
+  // (checado acima) ainda não incluía ela.
+  const usedAfter = todayCount + 1
+  return res.status(200).json({
+    ok: true, userMessage, assistantMessage,
+    used: usedAfter, remaining: Math.max(0, MAX_MESSAGES_PER_DAY - usedAfter), max: MAX_MESSAGES_PER_DAY,
+  })
 }

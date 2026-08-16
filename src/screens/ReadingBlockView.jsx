@@ -6,7 +6,7 @@ import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
 import { getHighlights, saveHighlight, updateHighlightText, deleteHighlight } from '../highlights/highlightsStore'
-import { getMessages, sendMessage } from '../aiChat/aiChatStore'
+import { getMessages, sendMessage, getDailyLimitStatus } from '../aiChat/aiChatStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
@@ -892,6 +892,11 @@ function AiChatPanel({ session, lang }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  // Quantas perguntas já foram feitas hoje (limite diário) — null enquanto
+  // não carregou ainda. Buscado uma vez ao abrir o painel (não depende da
+  // passagem, é um limite por dia pra pessoa toda) e atualizado a cada
+  // envio, pra mostrar o limite de forma clara ANTES de esbarrar nele.
+  const [limitStatus, setLimitStatus] = useState(null)
   const listRef = useRef(null)
 
   useEffect(() => {
@@ -909,21 +914,35 @@ function AiChatPanel({ session, lang }) {
   }, [passageKey])
 
   useEffect(() => {
+    let cancelled = false
+    getDailyLimitStatus().then(status => {
+      if (!cancelled) setLimitStatus(status)
+    }).catch(err => {
+      console.error('Failed to load AI chat daily limit', err)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
   }, [messages, sending])
 
+  const atLimit = limitStatus != null && limitStatus.remaining <= 0
+
   async function handleSend() {
     const message = text.trim()
-    if (!message || sending) return
+    if (!message || sending || atLimit) return
     setSending(true)
     setError('')
     setText('')
     try {
-      const { userMessage, assistantMessage } = await sendMessage({
+      const { userMessage, assistantMessage, used, remaining, max } = await sendMessage({
         book: session.book, chStart: session.chStart, chEnd: session.chEnd, message, lang,
       })
       setMessages(prev => [...prev, userMessage, assistantMessage])
+      if (remaining != null) setLimitStatus({ used, remaining, max })
     } catch (err) {
+      if (err.remaining != null) setLimitStatus({ used: err.used, remaining: err.remaining, max: err.max })
       setError(
         err.message === 'subscription_required' ? t('aiChat.subscriptionRequired', undefined, lang)
         : err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang)
@@ -955,7 +974,10 @@ function AiChatPanel({ session, lang }) {
         )}
       </div>
 
-      {error && <p style={styles.errorText}>{error}</p>}
+      {/* Erro pontual de um envio (ex: falha de rede) tem prioridade; sem
+          erro novo, mas já no limite, mostra a mensagem de limite de forma
+          persistente — não só depois de tentar enviar e falhar. */}
+      {(error || atLimit) && <p style={styles.errorText}>{error || t('aiChat.dailyLimitReached', undefined, lang)}</p>}
 
       <div style={styles.aiChatInputRow}>
         <input
@@ -966,12 +988,21 @@ function AiChatPanel({ session, lang }) {
           onKeyDown={e => { if (e.key === 'Enter') handleSend() }}
           placeholder={t('aiChat.placeholder', undefined, lang)}
           maxLength={500}
-          disabled={sending}
+          disabled={sending || atLimit}
         />
-        <button style={styles.aiChatSendBtn} onClick={handleSend} disabled={sending || !text.trim()}>
+        <button style={styles.aiChatSendBtn} onClick={handleSend} disabled={sending || atLimit || !text.trim()}>
           <AppIcon name="ArrowUp" size={16} color="white" />
         </button>
       </div>
+
+      {/* Contador do limite diário — sempre visível assim que carrega, pra
+          o limite nunca ser surpresa (pedido explícito: deixar mais claro
+          pro usuário). */}
+      {limitStatus && !atLimit && (
+        <p style={styles.aiChatLimitCounter}>
+          {t('aiChat.dailyLimitCounter', { remaining: limitStatus.remaining, max: limitStatus.max }, lang)}
+        </p>
+      )}
     </div>
   )
 }
@@ -1285,6 +1316,7 @@ const styles = {
   aiChatInput:     { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 20, padding: '10px 14px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
   aiChatSendBtn:   { width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: 'var(--shadow-premium)' },
   errorText:       { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginBottom: 8, flexShrink: 0 },
+  aiChatLimitCounter: { fontSize: 10, fontWeight: 500, color: 'var(--g4)', textAlign: 'right', margin: '5px 2px 0', flexShrink: 0 },
 
   // Botão flutuante do chat com IA — sempre visível enquanto lendo, atalho
   // pra mesma aba "Perguntar à IA" (ver openAiChat). Wrap com o mesmo
