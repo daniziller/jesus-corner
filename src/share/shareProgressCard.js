@@ -200,13 +200,18 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   }
 
   // Barras AT/NT — preenche o card com mais dado (bom pra compartilhar) em
-  // vez de deixar um vão vazio entre o badge e o rodapé.
+  // vez de deixar um vão vazio entre o badge e o rodapé. Sigla curta
+  // (AT/NT), não o nome cheio — mesmo tratamento do BarRow original (nome
+  // cheio não cabia ao lado da trilha sem sobrepor).
   const barsLeft = 130
   const barsWidth = CARD_W - 260
-  drawBarRow(ctx, { label: t('journey.oldTestament', undefined, lang), pct: atPercent, y: contentBottom + 90, left: barsLeft, width: barsWidth })
-  drawBarRow(ctx, { label: t('journey.newTestament', undefined, lang), pct: ntPercent, y: contentBottom + 150, left: barsLeft, width: barsWidth })
+  drawBarRow(ctx, { label: 'AT', pct: atPercent, y: contentBottom + 90, left: barsLeft, width: barsWidth })
+  drawBarRow(ctx, { label: 'NT', pct: ntPercent, y: contentBottom + 150, left: barsLeft, width: barsWidth })
 
-  // Tagline + domínio
+  // Tagline + domínio — drawBarRow deixa textAlign:'right' (pro %), reseta
+  // antes de qualquer fillText que dependa de 'center' (wrapText/fillText
+  // abaixo confiam nisso, não setam sozinhos).
+  ctx.textAlign = 'center'
   ctx.font = '600 32px "Be Vietnam Pro"'
   ctx.fillStyle = 'rgba(255,255,255,.85)'
   wrapText(ctx, t('auth.tagline', undefined, lang), cx, CARD_H - 170, CARD_W - 220, 42)
