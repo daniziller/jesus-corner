@@ -102,34 +102,71 @@ function drawStatChip(ctx, { x, y, w, h, emoji, value, label }) {
   ctx.fillText(label, cx, y + h - 18)
 }
 
-// Chip de um passo da rotina de hoje — apagado se ainda não feito, com
-// borda + check dourado se já feito (mesma lógica visual do
-// DailyRoutineCard da Home: feito vs. a fazer).
-function drawRoutineChip(ctx, { x, y, w, h, emoji, label, done }) {
-  ctx.fillStyle = done ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.08)'
-  roundRect(ctx, x, y, w, h, 20)
-  ctx.fill()
-  if (done) {
-    ctx.strokeStyle = 'rgba(255,255,255,.55)'
-    ctx.lineWidth = 2.5
-    roundRect(ctx, x, y, w, h, 20)
-    ctx.stroke()
-  }
+// Pontinhos da rotina de hoje — mesmo tratamento compacto (rótulo à
+// esquerda, ícones à direita, uma linha só) do card real na Home, em vez
+// de 3 caixas grandes com legenda — pra esse cartão continuar reconhecível
+// como "o mesmo card", só maior.
+function drawRoutineDots(ctx, { steps, rightEdge, y, size }) {
+  const gap = 14
+  steps.forEach((step, i) => {
+    const idx = steps.length - 1 - i // desenha da direita pra esquerda
+    const cx = rightEdge - idx * (size + gap) - size / 2
+    ctx.beginPath()
+    ctx.arc(cx, y, size / 2, 0, Math.PI * 2)
+    ctx.fillStyle = step.done ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)'
+    ctx.fill()
+    ctx.font = `${Math.round(size * 0.5)}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(ROUTINE_STEP_EMOJI[step.key], cx, y + 2)
+  })
+}
 
-  const cx = x + w / 2
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'alphabetic'
-  ctx.font = '38px sans-serif'
-  ctx.fillStyle = done ? '#FFFFFF' : 'rgba(255,255,255,.5)'
-  ctx.fillText(emoji, cx, y + 52)
-  ctx.font = '700 21px "Be Vietnam Pro"'
-  ctx.fillStyle = done ? '#FFFFFF' : 'rgba(255,255,255,.55)'
-  ctx.fillText(label, cx, y + 84)
-  if (done) {
-    ctx.font = '800 20px "Be Vietnam Pro"'
-    ctx.fillStyle = GOLD
-    ctx.fillText('✓', cx, y + h - 12)
-  }
+// Barra AT/NT — sigla curta, trilha fina, % à direita (mesmo BarRow da
+// Home, desenhado).
+function drawBarRow(ctx, { label, pct, x, y, width }) {
+  const barH = 8
+  const labelW = 56
+  const pctW = 70
+  const barX = x + labelW
+  const barW = width - labelW - pctW
+
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.font = '700 24px "Be Vietnam Pro"'
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillText(label, x, y)
+
+  ctx.fillStyle = 'rgba(255,255,255,.25)'
+  roundRect(ctx, barX, y - barH / 2, barW, barH, barH / 2)
+  ctx.fill()
+  ctx.fillStyle = '#FFFFFF'
+  roundRect(ctx, barX, y - barH / 2, barW * Math.min(pct, 100) / 100, barH, barH / 2)
+  ctx.fill()
+
+  ctx.textAlign = 'right'
+  ctx.fillText(`${pct}%`, x + width, y)
+}
+
+// Ícone do Instagram — mesmo desenho (traço, sem preenchimento) do
+// componente Instagram custom em src/icons/AppIcon.jsx, feito à mão porque
+// a versão instalada do lucide-react não tem esse ícone.
+function drawInstagramIcon(ctx, cx, cy, size, color) {
+  ctx.save()
+  ctx.strokeStyle = color
+  ctx.lineWidth = Math.max(2, size * 0.09)
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  roundRect(ctx, cx - size / 2, cy - size / 2, size, size, size * 0.24)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(cx, cy, size * 0.24, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(cx + size * 0.29, cy - size * 0.29, size * 0.045, 0, Math.PI * 2)
+  ctx.fillStyle = color
+  ctx.fill()
+  ctx.restore()
 }
 
 function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
@@ -150,7 +187,7 @@ function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
   lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight))
 }
 
-export async function buildProgressCardBlob({ biblePercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
+export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
   await ensureFontsReady()
   const logo = await loadImage('/icons/icon-192.png').catch(() => null)
 
@@ -175,8 +212,16 @@ export async function buildProgressCardBlob({ biblePercent, streak, achievements
   ctx.beginPath(); ctx.arc(CARD_W * 0.08, CARD_H * 0.9, 260, 0, Math.PI * 2); ctx.fill()
   ctx.restore()
 
-  // Wordmark
-  if (logo) ctx.drawImage(logo, 80, 92, 76, 76)
+  // Wordmark — o ícone (icon-192.png) tem fundo marrom sólido, quase
+  // idêntico ao início do gradiente do card (#9D4300); sem um contraste
+  // próprio ele "sumia" ali em cima. Fundo branco atrás resolve pra
+  // qualquer posição do gradiente.
+  if (logo) {
+    ctx.fillStyle = '#FFFFFF'
+    roundRect(ctx, 76, 88, 84, 84, 20)
+    ctx.fill()
+    ctx.drawImage(logo, 84, 96, 68, 68)
+  }
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   ctx.font = '800 46px "Plus Jakarta Sans"'
@@ -229,64 +274,73 @@ export async function buildProgressCardBlob({ biblePercent, streak, achievements
     emoji: '📊', value: avgLabel, label: t('home.shareCardConsistencyLabel', undefined, lang),
   })
 
-  // Rotina de hoje — sempre nesta ordem (Oração·Leitura·Reflexão, mesma de
-  // HomeScreen/RoutineScreen), só os módulos do plano ativo (mesma regra de
-  // RoutineScreen.jsx: nem todo plano tem os 3 passos — plan.modules pode
-  // vir em qualquer ordem, não é ordem de exibição).
-  const routineTop = statsTop + statsH + 70
+  // Rotina de hoje — rótulo à esquerda + pontinhos à direita, uma linha só
+  // (mesmo tratamento compacto do card real na Home, "use o card mesmo"),
+  // sempre na ordem Oração·Leitura·Reflexão, só os módulos do plano ativo.
   const activeModules = planModules ?? ['prayer', 'reading', 'reflection']
   const steps = ['prayer', 'reading', 'reflection']
     .filter(key => activeModules.includes(key))
     .map(key => ({ key, done: !!todayRoutine?.[key] }))
-  const doneCount = steps.filter(s => s.done).length
 
-  ctx.textAlign = 'center'
-  ctx.font = '700 30px "Be Vietnam Pro"'
+  const routineY = statsTop + statsH + 74
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.font = '700 26px "Be Vietnam Pro"'
   ctx.fillStyle = GOLD
-  ctx.fillText(
-    `${t('home.shareCardTodayRoutine', undefined, lang).toUpperCase()} · ${doneCount}/${steps.length}`,
-    cx, routineTop,
-  )
+  ctx.fillText(t('home.shareCardTodayRoutine', undefined, lang).toUpperCase(), 90, routineY)
+  drawRoutineDots(ctx, { steps, rightEdge: CARD_W - 90, y: routineY, size: 56 })
 
-  const chipsTop = routineTop + 30
-  const chipsH = 132
-  const chipsGap = 22
-  const chipW = (CARD_W - 180 - chipsGap * (steps.length - 1)) / steps.length
-  steps.forEach((step, i) => {
-    drawRoutineChip(ctx, {
-      x: 90 + i * (chipW + chipsGap), y: chipsTop, w: chipW, h: chipsH,
-      emoji: ROUTINE_STEP_EMOJI[step.key], label: t(`home.routine${step.key[0].toUpperCase()}${step.key.slice(1)}`, undefined, lang),
-      done: step.done,
-    })
-  })
+  // Barras AT/NT
+  const barsTop = routineY + 64
+  drawBarRow(ctx, { label: 'AT', pct: atPercent, x: 90, y: barsTop, width: CARD_W - 180 })
+  drawBarRow(ctx, { label: 'NT', pct: ntPercent, x: 90, y: barsTop + 54, width: CARD_W - 180 })
 
   // Melhor conquista desbloqueada
   const badge = pickBestBadge(achievements)
-  let contentBottom = chipsTop + chipsH
+  let contentBottom = barsTop + 54
   if (badge) {
-    const boxY = contentBottom + 56
-    const boxH = 200
+    const boxY = contentBottom + 60
+    const boxH = 190
     ctx.fillStyle = 'rgba(255,255,255,.14)'
     roundRect(ctx, 90, boxY, CARD_W - 180, boxH, 28)
     ctx.fill()
     ctx.textAlign = 'center'
-    ctx.font = '700 26px "Be Vietnam Pro"'
+    ctx.textBaseline = 'alphabetic'
+    ctx.font = '700 25px "Be Vietnam Pro"'
     ctx.fillStyle = GOLD
-    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 52)
-    ctx.font = '800 42px "Plus Jakarta Sans"'
+    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 50)
+    ctx.font = '800 40px "Plus Jakarta Sans"'
     ctx.fillStyle = '#FFFFFF'
-    wrapText(ctx, badge.title, cx, boxY + 118, CARD_W - 260, 50)
+    wrapText(ctx, badge.title, cx, boxY + 114, CARD_W - 260, 48)
+    contentBottom = boxY + boxH
   }
 
-  // Tagline + domínio
+  // Rodapé: tagline + Instagram (pedido explícito — a marca precisa
+  // aparecer de um jeito que dê pra achar a conta, não só o site).
   ctx.textAlign = 'center'
-  ctx.font = '600 32px "Be Vietnam Pro"'
-  ctx.fillStyle = 'rgba(255,255,255,.85)'
-  wrapText(ctx, t('auth.tagline', undefined, lang), cx, CARD_H - 170, CARD_W - 220, 42)
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = '600 30px "Be Vietnam Pro"'
+  ctx.fillStyle = 'rgba(255,255,255,.8)'
+  wrapText(ctx, t('auth.tagline', undefined, lang), cx, CARD_H - 210, CARD_W - 220, 40)
 
-  ctx.font = '700 28px "Be Vietnam Pro"'
+  const igY = CARD_H - 120
+  const igHandle = t('profile.instagramSub', undefined, lang)
+  ctx.font = '800 34px "Plus Jakarta Sans"'
+  const igHandleW = ctx.measureText(igHandle).width
+  const igIconSize = 34
+  const igGap = 12
+  const igTotalW = igIconSize + igGap + igHandleW
+  drawInstagramIcon(ctx, cx - igTotalW / 2 + igIconSize / 2, igY, igIconSize, '#FFFFFF')
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillText(igHandle, cx - igTotalW / 2 + igIconSize + igGap, igY + 2)
+
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = '700 26px "Be Vietnam Pro"'
   ctx.fillStyle = 'rgba(255,255,255,.6)'
-  ctx.fillText('jesuscorner.app', cx, CARD_H - 68)
+  ctx.fillText('jesuscorner.app', cx, CARD_H - 56)
 
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95))
 }
@@ -295,13 +349,23 @@ export async function buildProgressCardBlob({ biblePercent, streak, achievements
 // arquivo) ou baixa direto (desktop/navegadores sem suporte). Devolve
 // 'shared' | 'downloaded' — quem chama decide o que fazer com isso (hoje,
 // nada; só existe pra facilitar teste/depuração).
-export async function shareProgressCard({ biblePercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
-  const blob = await buildProgressCardBlob({ biblePercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules })
+const INSTAGRAM_URL = 'https://www.instagram.com/jesuscorner.app/'
+
+export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules }) {
+  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, todayRoutine, planModules })
   if (!blob) throw new Error('blob_failed')
   const file = new File([blob], 'jesus-corner-progresso.png', { type: 'image/png' })
 
+  // O link do Instagram não dá pra "gravar" clicável dentro do PNG (imagem
+  // achatada não carrega link nenhum) — a forma real de anexar um link é
+  // via texto que acompanha o compartilhamento. Nem todo app de destino
+  // mostra esse texto (o Instagram Stories em si, por exemplo, ignora —
+  // mostra só a imagem), mas WhatsApp/Twitter/etc. costumam exibir como
+  // legenda, e o handle já fica visível na própria imagem de qualquer jeito.
+  const shareText = `${t('home.shareCardShareText', undefined, lang)}\n${INSTAGRAM_URL}`
+
   if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], text: t('home.shareCardShareText', undefined, lang) })
+    await navigator.share({ files: [file], text: shareText, url: INSTAGRAM_URL })
     return 'shared'
   }
 
