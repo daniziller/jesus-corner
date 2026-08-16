@@ -339,7 +339,11 @@ function ActivePlanCard({ activePlan, todaySession, lang, onContinue }) {
 // hoje; o resumo no fim soma o tempo e "Começar leitura de hoje" abre a
 // leitura só com os marcados. Seleção fica em estado LOCAL até tocar em
 // "Começar" (ver key={plan.id} no chamador — remonta ao trocar de plano).
-function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang, onOpenText, onStartToday }) {
+// Exportado (não só usado aqui) — ThemePlanScreen.jsx reaproveita pra
+// deixar escolher os textos de hoje logo depois de gerar um plano novo,
+// mesmo componente/estilos, só troca o texto do botão via `ctaLabel`
+// (padrão "genuine reuse" já usado com LegendDot em RoutineCalendar.jsx).
+export function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang, onOpenText, onStartToday, ctaLabel }) {
   const texts = deriveThemeTexts(plan.passages).map(s => ({
     ...s,
     status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
@@ -403,7 +407,7 @@ function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang, onOpen
           disabled={selectedTexts.length === 0}
           onClick={() => onStartToday?.([...selected])}
         >
-          {t('themePlan.startTodayCta', undefined, lang)} <AppIcon name="ChevronRight" size={14} color="white" />
+          {ctaLabel ?? t('themePlan.startTodayCta', undefined, lang)} <AppIcon name="ChevronRight" size={14} color="white" />
         </button>
       </div>
     </>

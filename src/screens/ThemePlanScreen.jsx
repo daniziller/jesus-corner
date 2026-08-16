@@ -40,6 +40,7 @@ import { sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
+import { ThemeTextsChecklist } from './PlanScreen'
 
 // Mesmo limite e mesma janela (30 dias corridos, não mês-calendário) do
 // servidor (ver MAX_PLANS_PER_MONTH/THIRTY_DAYS_MS em
@@ -53,9 +54,15 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 // buildSizeInstruction em api/_lib/ai.js), sem efeito visível.
 const DEFAULT_PACE_ID = 'standard'
 
-export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate }) {
+export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onAddSessionsToRoutine }) {
   const { lang } = session
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
+  // Plano recém-gerado (ainda não é o ativo do app) — em vez de já pular
+  // pra leitura, mostra o checklist de textos de hoje (mesmo componente da
+  // aba Plano) com um CTA pra ativar o plano e mandar pra Rotina, já com o
+  // tempo escolhido (ver onAddSessionsToRoutine/App.jsx). Só existe entre
+  // gerar o plano e a pessoa decidir; nunca reidratado de autoOpenPlanId.
+  const [justCreatedPlan, setJustCreatedPlan] = useState(null)
   const [creating, setCreating] = useState(false)
   const [title, setTitle] = useState('')
   const [scope, setScope] = useState('')
@@ -87,7 +94,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
       setCreating(false)
       setTitle('')
       setScope('')
-      setActivePlanId(plan.id)
+      setJustCreatedPlan(plan)
 
       // As passagens que a IA escolheu podem coincidir com capítulos já
       // lidos antes, fora desse plano — sem desmarcar, o checklist de hoje
@@ -120,6 +127,34 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
     } catch (err) {
       console.error('Failed to delete theme plan', err)
     }
+  }
+
+  if (justCreatedPlan) {
+    return (
+      <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+        <div style={styles.body}>
+          <div style={styles.createdHeader}>
+            <span style={styles.createdIcon}><AppIcon name="Sparkles" size={18} color="#A21CAF" /></span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={styles.createdTitle}>{t('themePlan.planCreatedTitle', undefined, lang)}</p>
+              <p style={styles.createdSub}>{themePlanTitle(justCreatedPlan)}</p>
+            </div>
+            <button style={styles.createdCloseBtn} onClick={() => setJustCreatedPlan(null)} aria-label={t('notes.cancelEdit', undefined, lang)}>
+              <AppIcon name="X" size={15} color="var(--g5)" />
+            </button>
+          </div>
+          {justCreatedPlan.overview && <p style={styles.createdOverview}>{justCreatedPlan.overview}</p>}
+          <ThemeTextsChecklist
+            plan={justCreatedPlan}
+            completedSet={completedSet}
+            todayThemePicks={null}
+            lang={lang}
+            ctaLabel={t('themePlan.addToRoutineCta', undefined, lang)}
+            onStartToday={keys => onAddSessionsToRoutine?.(justCreatedPlan.id, keys)}
+          />
+        </div>
+      </div>
+    )
   }
 
   const activePlan = plans.find(p => p.id === activePlanId)
@@ -266,6 +301,13 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
 
 const styles = {
   body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
+
+  createdHeader:  { display: 'flex', alignItems: 'center', gap: 10 },
+  createdIcon:    { width: 36, height: 36, borderRadius: 11, background: '#FAE8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  createdTitle:   { fontSize: 14, fontWeight: 800, color: 'var(--bk)', margin: 0 },
+  createdSub:     { fontSize: 12, fontWeight: 600, color: 'var(--g5)', margin: '1px 0 0' },
+  createdCloseBtn:{ width: 28, height: 28, border: 'none', background: 'var(--g1)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  createdOverview:{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '2px 2px 0' },
   heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
   plansRemainingNote: { fontSize: 11, fontWeight: 600, color: '#A21CAF', lineHeight: 1.4, margin: '4px 2px 0' },
   emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },

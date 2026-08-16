@@ -520,6 +520,8 @@ export const STRINGS = {
       startTodayCta: 'Começar leitura de hoje',
       chooseTodayCta: 'Escolher textos de hoje',
       unmarkReadConfirm: '{count} dos textos desse plano já estão marcados como lidos (fora dele). Quer desmarcá-los pra poder lê-los de novo como parte desse plano?',
+      planCreatedTitle: 'Plano criado!',
+      addToRoutineCta: 'Adicionar sessões à rotina do dia',
     },
     aiChat: {
       outOfScopeNote: 'Pergunte sobre o contexto, o que o texto diz, ou peça correlações e ensinamentos baseados na própria Bíblia — não entro em doutrina de denominação nem aconselhamento pessoal.',
@@ -1410,6 +1412,8 @@ export const STRINGS = {
       startTodayCta: "Start today's reading",
       chooseTodayCta: "Choose today's texts",
       unmarkReadConfirm: '{count} of the texts in this plan are already marked as read (outside this plan). Do you want to unmark them so you can read them again as part of this plan?',
+      planCreatedTitle: 'Plan created!',
+      addToRoutineCta: "Add sessions to today's routine",
     },
     aiChat: {
       outOfScopeNote: "Ask about context, what the text says, or for correlations and teachings grounded in the Bible itself — I won't get into denominational doctrine or personal advice.",

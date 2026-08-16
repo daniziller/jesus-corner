@@ -563,6 +563,17 @@ export default function App() {
     setActiveTab('themePlan')
   }
 
+  // "Adicionar sessões à rotina do dia" logo depois de gerar um plano por
+  // tema novo (ver ThemePlanScreen.jsx) — diferente de openThemePlanToday
+  // acima, não pula direto pra leitura: torna o plano ativo, grava a
+  // escolha de hoje e manda pra aba Rotina, já mostrando o tempo calculado
+  // (activePlan.readingMinutes, ver resolveActivePlan.js/RoutineScreen.jsx).
+  function addThemePlanToRoutine(planId, keys) {
+    selectActivePlan({ type: 'theme', planId })
+    chooseThemeTexts(planId, keys)
+    setActiveTab('routine')
+  }
+
   // Tocar numa sessão da lista "Sessões do plano" (PlanScreen.jsx) quando o
   // plano ativo é o cronológico — mesma ideia de openReadingSession acima,
   // só que abrindo o movimento certo em ChronologicalPlanScreen em vez do
@@ -889,7 +900,7 @@ export default function App() {
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
+    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
