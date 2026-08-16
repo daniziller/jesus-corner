@@ -341,9 +341,14 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   ctx.fillText(t('home.weekRingsTitle', undefined, lang).toUpperCase(), cx, routineLabelY)
 
   const ringsY = routineLabelY + 62
-  drawWeekRings(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: ringsY, size: 72 })
+  const ringSize = 72
+  drawWeekRings(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: ringsY, size: ringSize })
 
-  const legendY = ringsY + 74
+  // Pontinhos alinhados sob os anéis ficam em `ringsY + ringSize/2 + 34`
+  // (ver drawWeekRings) — a legenda precisa de folga clara abaixo disso,
+  // senão sobrepõe o texto (bug já visto: "W"/"T"/"F" colados em cima de
+  // "Prayer"/"Reading"/"Reflection").
+  const legendY = ringsY + ringSize / 2 + 34 + 56
   drawRingLegend(ctx, { cx, y: legendY, lang })
 
   // Barras AT/NT
