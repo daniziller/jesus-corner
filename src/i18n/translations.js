@@ -522,7 +522,7 @@ export const STRINGS = {
       unmarkReadConfirm: '{count} dos textos desse plano já estão marcados como lidos (fora dele). Quer desmarcá-los pra poder lê-los de novo como parte desse plano?',
     },
     aiChat: {
-      outOfScopeNote: 'Pergunte sobre contexto histórico, geográfico ou o que esse texto diz — não entro em doutrina ou interpretação pessoal.',
+      outOfScopeNote: 'Pergunte sobre o contexto, o que o texto diz, ou peça correlações e ensinamentos baseados na própria Bíblia — não entro em doutrina de denominação nem aconselhamento pessoal.',
       placeholder: 'Pergunte sobre esse texto...',
       sendBtn: 'Enviar',
       emptyHint: 'Nenhuma pergunta ainda sobre esse trecho. O que você quer entender melhor?',
@@ -1411,7 +1411,7 @@ export const STRINGS = {
       unmarkReadConfirm: '{count} of the texts in this plan are already marked as read (outside this plan). Do you want to unmark them so you can read them again as part of this plan?',
     },
     aiChat: {
-      outOfScopeNote: "Ask about historical or geographical context, or what this text says — I won't get into doctrine or personal interpretation.",
+      outOfScopeNote: "Ask about context, what the text says, or for correlations and teachings grounded in the Bible itself — I won't get into denominational doctrine or personal advice.",
       placeholder: 'Ask about this text...',
       sendBtn: 'Send',
       emptyHint: 'No questions yet about this passage. What would you like to understand better?',

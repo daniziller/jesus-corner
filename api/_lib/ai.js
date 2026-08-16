@@ -139,18 +139,23 @@ export async function findThemePassages(scope, canonicalBooks, lang, targetWords
 }
 
 // Chat com IA sobre o texto bíblico em leitura (aba "Perguntar à IA" em
-// ReadingBlockView.jsx) — usado por api/chat-about-text.js. Escopo
-// deliberadamente estreito: só contexto histórico/geográfico/cultural da
-// passagem e o que o texto bíblico em si diz — nunca doutrina, interpretação
-// teológica ou aconselhamento pessoal. `inScope`/`sensitiveTopic` saem
+// ReadingBlockView.jsx) — usado por api/chat-about-text.js. Escopo: contexto
+// histórico/geográfico/cultural da passagem, o que o texto bíblico em si diz,
+// e — a partir do pedido de ampliar o chat pra usar a Bíblia como fonte —
+// correlações com OUTRAS passagens da Escritura sobre o mesmo tema/pessoa/
+// evento e os ensinamentos que o próprio texto bíblico transmite. A régua
+// que separa "permitido" de "proibido" nunca foi história-vs-teologia; é
+// "ancorado numa passagem bíblica específica" vs. "opinião/doutrina/
+// aconselhamento que não vem do texto" — doutrina de denominação, filosofia
+// e aconselhamento pessoal continuam fora. `inScope`/`sensitiveTopic` saem
 // estruturados (Zod) pra que o app SEMPRE aplique a resposta certa a cada
 // categoria (e sempre garanta a linha de apoio em caso de autolesão/
 // suicídio — ver CVV_LINE_* em chat-about-text.js), em vez de confiar
 // cegamente no texto livre gerado.
 const AnswerSchema = z.object({
-  inScope: z.boolean().describe('true SOMENTE se a pergunta pede contexto histórico, geográfico, cultural ou arqueológico da passagem, ou esclarecimento do que o texto bíblico EM SI diz/narra. false para doutrina, interpretação teológica, aplicação pessoal/espiritual, opinião, comparação entre denominações, filosofia, ou qualquer assunto fora da passagem em foco.'),
+  inScope: z.boolean().describe('true se a pergunta pede contexto histórico/geográfico/cultural/arqueológico da passagem, esclarecimento do que o texto bíblico EM SI diz/narra, correlações com OUTRAS passagens da Bíblia sobre o mesmo tema/pessoa/evento, ou os ensinamentos que o texto bíblico transmite (sempre ancorados em passagens específicas da Escritura, nunca em opinião teológica solta). false para doutrina de denominação/tradição específica, filosofia, aconselhamento pessoal/psicológico/espiritual sobre a vida de quem pergunta, ou qualquer assunto fora da Bíblia.'),
   sensitiveTopic: z.enum(['none', 'self_harm', 'other_sensitive']).describe("'self_harm' se a pergunta expressar, em primeira pessoa, ideação suicida/autolesão da PRÓPRIA pessoa perguntando — NÃO uma pergunta histórica sobre uma figura bíblica que morre ou deseja morrer (ex: Saul em 1 Samuel 31, Elias em 1 Reis 19:4, Jó), essas continuam inScope=true e sensitiveTopic='none'. 'other_sensitive' pra abuso infantil, violência explícita como instrução, ou qualquer pedido de conteúdo prejudicial/ilegal disfarçado de pergunta bíblica."),
-  reply: z.string().describe('A resposta, no mesmo idioma da pergunta. Se inScope=false ou sensitiveTopic != "none", uma recusa BREVE e gentil (1-2 frases), sem repetir a pergunta, redirecionando pro escopo do chat (contexto histórico/geográfico do texto) — se sensitiveTopic="self_harm", também acolha brevemente antes de recusar, sem dar conselho nem continuar o assunto (a linha de apoio é adicionada à parte, não invente uma).'),
+  reply: z.string().describe('A resposta, no mesmo idioma da pergunta. Ao citar uma passagem correlata, sempre nomeie livro e capítulo (e versículo, se souber) — nunca cite de memória sem ter certeza da referência. Se inScope=false ou sensitiveTopic != "none", uma recusa BREVE e gentil (1-2 frases), sem repetir a pergunta, redirecionando pro escopo do chat (o texto e o que a Bíblia diz sobre ele) — se sensitiveTopic="self_harm", também acolha brevemente antes de recusar, sem dar conselho nem continuar o assunto (a linha de apoio é adicionada à parte, não invente uma).'),
 })
 
 function formatContextSections(sections, chStart, chEnd) {
@@ -180,14 +185,14 @@ export async function answerTextQuestion({ book, chStart, chEnd, bookInfo, messa
   const { output } = await generateText({
     model: MODEL,
     output: Output.object({ schema: AnswerSchema }),
-    prompt: `Você é um estudioso bíblico conversando com uma pessoa que está lendo ${book} ${range} agora, dentro de um app de leitura devocional. Sua função é ajudar a entender o CONTEXTO desse texto — nunca ensinar doutrina, interpretação teológica ou dar aconselhamento pessoal/espiritual.
+    prompt: `Você é um estudioso bíblico conversando com uma pessoa que está lendo ${book} ${range} agora, dentro de um app de leitura devocional. Sua função é ajudar a entender esse texto em profundidade, usando a PRÓPRIA BÍBLIA como fonte — contexto, o que o texto diz, como ele se conecta com o resto da Escritura, e o que ensina.
 
 Contexto histórico/geográfico já conhecido dessa passagem (fonte primária — baseie sua resposta nisso sempre que relevante, complementando com conhecimento histórico geral só quando necessário):
 Visão geral do livro: ${overview}
 ${sections || '(sem seções específicas cadastradas para esses capítulos)'}
 
-Permitido: história, geografia, cultura da época, arqueologia, autoria tradicional, gênero literário, e esclarecer o que o texto narra ou diz literalmente.
-Proibido: doutrina, interpretação teológica ("o que isso significa pra minha vida"), comparação entre denominações/tradições, filosofia, aconselhamento pessoal — nesses casos, recuse com gentileza e sugira que é uma ótima pergunta para levar a um pastor/líder da sua igreja, não a este chat. Se a pergunta for sobre outro livro/tema fora dessa passagem específica, recuse e sugira focar no texto atual.
+Permitido: história, geografia, cultura da época, arqueologia, autoria tradicional, gênero literário, esclarecer o que o texto narra ou diz literalmente, apontar correlações com OUTRAS passagens da Bíblia sobre o mesmo tema/pessoa/evento/tipologia (sempre citando livro e capítulo, e versículo quando souber com certeza), e explicar os ensinamentos que o PRÓPRIO texto bíblico transmite — sempre ancorado em passagens reais da Escritura, nunca na sua opinião teológica pessoal. É legítimo sair da passagem atual pra citar outra, contanto que a ligação com o texto em foco fique clara.
+Proibido: doutrina de denominação/tradição específica ("o que a minha igreja ensina sobre isso"), filosofia, aconselhamento pessoal/psicológico/espiritual sobre a vida de quem pergunta ("o que isso significa pra mim", "o que eu devo fazer") — nesses casos, recuse com gentileza e sugira que é uma ótima pergunta para levar a um pastor/líder da sua igreja, não a este chat. Se a pergunta for sobre um assunto sem nenhuma relação com a Bíblia, recuse e sugira focar no texto atual.
 
 Conversa até agora:
 ${formatHistory(history)}
