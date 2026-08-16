@@ -5,17 +5,11 @@
 // ver conversa que motivou essa escolha em vez de um html2canvas rápido.
 import { t } from '../i18n'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
-import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
+import { computeCurrentWeekDays, WEEKDAY_LETTERS, WEEK_RING_COLORS } from '../routine/weekRings'
 
 const CARD_W = 1080
 const CARD_H = 1920
 const GOLD = '#C99A4A' // mesmo --gold do design system — acento claro sobre fundo escuro
-
-// Mesmas 3 cores do anel da semana na Home (ver WEEK_RING_COLORS em
-// HomeScreen.jsx) — cores próprias pra fundo escuro, diferentes de
-// ROUTINE_STEP_COLORS (pensadas pra fundo claro; --or, por exemplo, é quase
-// a mesma cor do início deste gradiente).
-const WEEK_RING_COLORS = { prayer: '#FFFFFF', reading: '#D9AF6B', reflection: '#F3A6C6' }
 
 // Da mais "impressionante" pra menos, pra escolher UMA conquista pra
 // destacar no cartão (mostrar as 22 não caberia/não faria sentido aqui).
@@ -151,6 +145,35 @@ function drawWeekRings(ctx, { days, lang, left, width, y, size }) {
     ctx.font = '700 22px "Be Vietnam Pro"'
     ctx.fillStyle = day.isToday ? '#FFFFFF' : 'rgba(255,255,255,.55)'
     ctx.fillText(letters[i], cx, y + size / 2 + 34)
+  })
+}
+
+// Legenda de qual cor é qual passo — sem ela, os 3 anéis (de fora pra
+// dentro) não dizem sozinhos o que cada um representa.
+function drawRingLegend(ctx, { cx, y, lang }) {
+  const items = [
+    { key: 'prayer', label: t('home.routinePrayer', undefined, lang) },
+    { key: 'reading', label: t('home.routineReading', undefined, lang) },
+    { key: 'reflection', label: t('home.routineReflection', undefined, lang) },
+  ]
+  const dotR = 6
+  const gapAfterDot = 10
+  const gapBetween = 26
+  ctx.font = '700 24px "Be Vietnam Pro"'
+  const widths = items.map(item => dotR * 2 + gapAfterDot + ctx.measureText(item.label).width)
+  const totalW = widths.reduce((a, b) => a + b, 0) + gapBetween * (items.length - 1)
+
+  let x = cx - totalW / 2
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  items.forEach((item, i) => {
+    ctx.beginPath()
+    ctx.arc(x + dotR, y, dotR, 0, Math.PI * 2)
+    ctx.fillStyle = WEEK_RING_COLORS[item.key]
+    ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255,.8)'
+    ctx.fillText(item.label, x + dotR * 2 + gapAfterDot, y + 1)
+    x += widths[i] + gapBetween
   })
 }
 
@@ -320,8 +343,11 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   const ringsY = routineLabelY + 62
   drawWeekRings(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: ringsY, size: 72 })
 
+  const legendY = ringsY + 74
+  drawRingLegend(ctx, { cx, y: legendY, lang })
+
   // Barras AT/NT
-  const barsTop = ringsY + 92
+  const barsTop = legendY + 60
   drawBarRow(ctx, { label: 'AT', pct: atPercent, x: 90, y: barsTop, width: CARD_W - 180 })
   drawBarRow(ctx, { label: 'NT', pct: ntPercent, x: 90, y: barsTop + 54, width: CARD_W - 180 })
 

@@ -15,14 +15,7 @@ import { getShowApplicationCard } from '../reflection/applicationCardVisibilityS
 import { STAT_THEMES } from '../utils/statThemes'
 import { shareProgressCard } from '../share/shareProgressCard'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
-import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
-
-// Anéis concêntricos por dia (referência: o resumo semanal do app Apple
-// Health/Fitness) — 3 cores próprias pra ler bem sobre o gradiente escuro
-// do card, diferentes de ROUTINE_STEP_COLORS (pensadas pra fundo claro,
-// onde --or/preto/cinza têm contraste; aqui --or some quase por completo,
-// é quase a mesma cor do início do gradiente).
-const WEEK_RING_COLORS = { prayer: '#FFFFFF', reading: '#D9AF6B', reflection: '#F3A6C6' }
+import { computeCurrentWeekDays, WEEKDAY_LETTERS, WEEK_RING_COLORS } from '../routine/weekRings'
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
@@ -195,6 +188,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               <div>
                 <p style={styles.pctRoutineLabel}>{translate('home.weekRingsTitle', undefined, lang)}</p>
                 <WeekRings days={weekDays} lang={lang} />
+                <RingLegend lang={lang} />
               </div>
 
               {/* Barras AT/NT */}
@@ -521,6 +515,26 @@ function WeekRings({ days, lang }) {
             {letters[i]}
           </span>
         </div>
+      ))}
+    </div>
+  )
+}
+
+// Legenda de qual cor é qual passo — sem ela, os 3 anéis (de fora pra
+// dentro) não dizem sozinhos o que cada um representa.
+function RingLegend({ lang }) {
+  const items = [
+    { key: 'prayer', label: translate('home.routinePrayer', undefined, lang) },
+    { key: 'reading', label: translate('home.routineReading', undefined, lang) },
+    { key: 'reflection', label: translate('home.routineReflection', undefined, lang) },
+  ]
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 10 }}>
+      {items.map(item => (
+        <span key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: WEEK_RING_COLORS[item.key], flexShrink: 0 }} />
+          {item.label}
+        </span>
       ))}
     </div>
   )
