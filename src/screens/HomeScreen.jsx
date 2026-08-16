@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ActivityFeedItem from '../components/ActivityFeedItem'
-import RoutineCalendar from '../components/RoutineCalendar'
+import RoutineCalendar, { LegendDot } from '../components/RoutineCalendar'
 import { getFriendsActivity } from '../activity/activityStore'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
@@ -14,8 +14,8 @@ import { getPinnedApplicationPhrase } from '../reflection/applicationPhraseStore
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { STAT_THEMES } from '../utils/statThemes'
 import { shareProgressCard } from '../share/shareProgressCard'
-import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
-import { computeCurrentWeekDays, WEEKDAY_LETTERS, WEEK_RING_COLORS } from '../routine/weekRings'
+import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete } from '../routine/routineStreak'
+import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
@@ -127,7 +127,12 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             {/* Destaque % da Bíblia — anel com gradiente, mesmo tratamento
                 do Progresso. Volta a aparecer também no desktop (pedido
                 explícito: mesmo card do início do mobile em vez do card
-                "chapado" que existia antes só ali). */}
+                "chapado" que existia antes só ali). Envolvido junto com o
+                card de rotina da semana logo abaixo (mesmo wrapper, sem
+                gap) pra parecer um card só que muda de cor na metade —
+                mesmo efeito já usado no hero escuro → sheet clara desta
+                própria tela. */}
+            <div style={styles.pctHeroWrap}>
             <div className="home-pct-hero" style={styles.pctHero}>
               <div style={styles.pctHeroGlow} />
 
@@ -179,23 +184,29 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 </div>
               </div>
 
-              {/* Anéis da semana (segunda a domingo) — referência: o
-                  resumo semanal do app Apple Health/Fitness, um anel por
-                  dia. Substitui o antigo indicador de só hoje: mostra a
-                  mesma informação (feito/a fazer) e mais constância ao
-                  longo da semana, sem repetir o "X/3 passos hoje" que já é
-                  o subtítulo do DailyRoutineCard logo abaixo. */}
-              <div>
-                <p style={styles.pctRoutineLabel}>{translate('home.weekRingsTitle', undefined, lang)}</p>
-                <WeekRings days={weekDays} lang={lang} />
-                <RingLegend lang={lang} />
-              </div>
-
               {/* Barras AT/NT */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <BarRow label="AT" pct={atPercent}  color="var(--white)" />
                 <BarRow label="NT" pct={ntPercent}  color="var(--white)" />
               </div>
+            </div>
+
+            {/* Rotina da semana (segunda a domingo) — mesma lógica de
+                cores do calendário de histórico (RoutineCalendar.jsx):
+                círculo com gradiente dourado→marrom só quando os 3 passos
+                do dia foram concluídos, 3 pontinhos coloridos por
+                ROUTINE_STEP_COLORS embaixo. Cores pensadas pra fundo claro
+                — por isso mora numa seção clara própria, não dentro do
+                card com gradiente escuro (onde --or e preto quase somem). */}
+            <div style={styles.weekRoutineCard}>
+              <p style={styles.weekRoutineTitle}>{translate('home.weekRingsTitle', undefined, lang)}</p>
+              <WeekRoutineRow days={weekDays} lang={lang} />
+              <div style={styles.calendarLegendRow}>
+                <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />
+                <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />
+                <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />
+              </div>
+            </div>
             </div>
             {shareState === 'error' && (
               <p style={styles.shareCardErrorText}>{translate('home.shareCardError', undefined, lang)}</p>
@@ -501,63 +512,34 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, 
 // Dia atual ganha destaque; dias futuros da semana ficam só com a trilha
 // vazia (mesmo tratamento visual de "não feito" — não dá pra já ter
 // acontecido, então nunca aparecem preenchidos).
-function WeekRings({ days, lang }) {
+// Fileira segunda-domingo — mesmo desenho de cada dia do RoutineCalendar
+// (círculo com gradiente dourado→marrom só nos dias com os 3 passos
+// completos, 3 pontinhos ROUTINE_STEP_COLORS embaixo), só trocando o
+// número do dia do mês pela letra do dia da semana.
+function WeekRoutineRow({ days, lang }) {
   const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 4 }}>
-      {days.map((day, i) => (
-        <div key={day.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-          <DayRingCluster day={day} size={34} />
-          <span style={{
-            fontSize: 10, fontWeight: 700,
-            color: day.isToday ? '#FFFFFF' : 'rgba(255,255,255,.55)',
-          }}>
-            {letters[i]}
-          </span>
-        </div>
-      ))}
+    <div style={styles.weekRoutineGrid}>
+      {days.map((day, i) => {
+        const complete = !day.isFuture && isDayComplete(day)
+        return (
+          <div key={day.key} style={styles.calendarDayCell}>
+            <span style={{
+              ...styles.calendarDayNum,
+              ...(complete ? styles.calendarDayNumComplete : {}),
+              ...(day.isToday && !complete ? styles.weekRoutineTodayNum : {}),
+            }}>
+              {letters[i]}
+            </span>
+            <div style={styles.calendarStepDots}>
+              <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />
+              <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />
+              <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />
+            </div>
+          </div>
+        )
+      })}
     </div>
-  )
-}
-
-// Legenda de qual cor é qual passo — sem ela, os 3 anéis (de fora pra
-// dentro) não dizem sozinhos o que cada um representa.
-function RingLegend({ lang }) {
-  const items = [
-    { key: 'prayer', label: translate('home.routinePrayer', undefined, lang) },
-    { key: 'reading', label: translate('home.routineReading', undefined, lang) },
-    { key: 'reflection', label: translate('home.routineReflection', undefined, lang) },
-  ]
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 10 }}>
-      {items.map(item => (
-        <span key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: WEEK_RING_COLORS[item.key], flexShrink: 0 }} />
-          {item.label}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function DayRingCluster({ day, size }) {
-  const strokeW = 3.2
-  const gap = 1.6
-  const c = size / 2
-  const rOuter = c - strokeW / 2
-  const rMid = rOuter - strokeW - gap
-  const rInner = rMid - strokeW - gap
-  const track = 'rgba(255,255,255,.18)'
-  const ring = (r, done, color) => (
-    <circle cx={c} cy={c} r={r} fill="none" stroke={done ? color : track} strokeWidth={strokeW} strokeLinecap="round" />
-  )
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {day.isToday && <circle cx={c} cy={c} r={rOuter + strokeW / 2 + 1.5} fill="none" stroke="rgba(255,255,255,.4)" strokeWidth={1} strokeDasharray="1.5 2.5" />}
-      {ring(rOuter, !day.isFuture && day.prayer, WEEK_RING_COLORS.prayer)}
-      {ring(rMid, !day.isFuture && day.reading, WEEK_RING_COLORS.reading)}
-      {ring(rInner, !day.isFuture && day.reflection, WEEK_RING_COLORS.reflection)}
-    </svg>
   )
 }
 
@@ -610,13 +592,26 @@ const styles = {
   greeting:      { fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 3 },
   sessionTitle:  { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.3, letterSpacing: '-0.2px' },
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
-  pctHero:       { background: 'var(--grad-vivid)', borderRadius: 22, padding: 20, display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
+  pctHeroWrap:   {},
+  pctHero:       { background: 'var(--grad-vivid)', borderRadius: '22px 22px 0 0', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
   pctStatsRow:   { display: 'flex', gap: 10 },
   pctStatChip:   { flex: 1, background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
   pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1 },
   pctStatLabel:  { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
-  pctRoutineLabel: { fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
+  // Rotina da semana — sheet clara logo abaixo do card de %, sem gap (a
+  // sombra "puxa pra cima" o mesmo jeito que .body faz com o hero escuro
+  // no topo da tela), pra ler como um card só mudando de cor na metade.
+  weekRoutineCard:   { background: 'var(--card-bg)', borderRadius: '0 0 22px 22px', padding: '16px 18px 14px', boxShadow: '0 10px 24px rgba(0,0,0,.06)' },
+  weekRoutineTitle:  { fontSize: 9.5, fontWeight: 700, color: 'var(--g5)', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px' },
+  weekRoutineGrid:   { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' },
+  weekRoutineTodayNum: { background: 'var(--olt)', color: 'var(--or)', fontWeight: 800 },
+  calendarDayCell:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '2px 0' },
+  calendarDayNum:    { fontSize: 11, fontWeight: 700, color: 'var(--g5)', borderRadius: '50%', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calendarDayNumComplete: { background: 'linear-gradient(135deg, var(--gold), var(--or))', color: 'white' },
+  calendarStepDots:  { display: 'flex', gap: 3 },
+  calendarStepDot:   { width: 6, height: 6, borderRadius: 2, flexShrink: 0 },
+  calendarLegendRow: { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
   shareCardBtn:  { position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
   shareCardErrorText: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', margin: '-4px 0 0' },
   ringWrap:      { position: 'relative', width: 88, height: 88, flexShrink: 0 },

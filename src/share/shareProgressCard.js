@@ -4,12 +4,14 @@
 // print da UI) pra ter controle total de proporção/enquadramento/marca —
 // ver conversa que motivou essa escolha em vez de um html2canvas rápido.
 import { t } from '../i18n'
-import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
-import { computeCurrentWeekDays, WEEKDAY_LETTERS, WEEK_RING_COLORS } from '../routine/weekRings'
+import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete } from '../routine/routineStreak'
+import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
+import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 
 const CARD_W = 1080
 const CARD_H = 1920
-const GOLD = '#C99A4A' // mesmo --gold do design system — acento claro sobre fundo escuro
+const GOLD = '#C99A4A'  // mesmo --gold — acento claro sobre fundo escuro (zona do gradiente)
+const BROWN = '#9D4300' // mesmo --or — acento sobre fundo claro (zona clara)
 
 // Da mais "impressionante" pra menos, pra escolher UMA conquista pra
 // destacar no cartão (mostrar as 22 não caberia/não faria sentido aqui).
@@ -96,65 +98,66 @@ function drawStatChip(ctx, { x, y, w, h, emoji, value, label }) {
   ctx.fillText(label, cx, y + h - 18)
 }
 
-// Anéis da semana (segunda a domingo) — mesmo desenho do WeekRings/
-// DayRingCluster em HomeScreen.jsx ("use o card mesmo", ver conversa):
-// 3 anéis concêntricos por dia (oração·leitura·reflexão, de fora pra
-// dentro), dia atual com uma trilha pontilhada de destaque, dias futuros
-// sempre vazios (mesmo tratamento de "não feito" — ainda não podem ter
-// acontecido).
-function drawDayRingCluster(ctx, { day, cx, cy, size }) {
-  const strokeW = size * 0.09
-  const gap = size * 0.045
-  const rOuter = size / 2 - strokeW / 2
-  const rMid = rOuter - strokeW - gap
-  const rInner = rMid - strokeW - gap
-  const track = 'rgba(255,255,255,.18)'
-
-  const ring = (r, done, color) => {
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.strokeStyle = done ? color : track
-    ctx.lineWidth = strokeW
-    ctx.lineCap = 'round'
-    ctx.stroke()
-  }
-
-  if (day.isToday) {
-    ctx.save()
-    ctx.beginPath()
-    ctx.arc(cx, cy, rOuter + strokeW / 2 + size * 0.045, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(255,255,255,.4)'
-    ctx.lineWidth = 1.5
-    ctx.setLineDash([2.5, 4])
-    ctx.stroke()
-    ctx.restore()
-  }
-  ring(rOuter, !day.isFuture && day.prayer, WEEK_RING_COLORS.prayer)
-  ring(rMid, !day.isFuture && day.reading, WEEK_RING_COLORS.reading)
-  ring(rInner, !day.isFuture && day.reflection, WEEK_RING_COLORS.reflection)
-}
-
-function drawWeekRings(ctx, { days, lang, left, width, y, size }) {
+// Rotina da semana (segunda a domingo) — mesma lógica de cores do
+// calendário de histórico (RoutineCalendar.jsx, "mesma lógica de cores do
+// calendário", ver conversa): círculo com gradiente dourado→marrom só nos
+// dias com os 3 passos completos (a letra do dia dentro, branca), 3
+// pontinhos ROUTINE_STEP_COLORS embaixo. Pensado pra fundo claro — por
+// isso mora na zona clara do cartão, não sobre o gradiente.
+function drawWeekRoutineRow(ctx, { days, lang, left, width, y }) {
   const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
   const colW = width / days.length
+  const circleR = 26
+  const dotR = 5
+  const dotGap = 8
+
   days.forEach((day, i) => {
     const cx = left + colW * i + colW / 2
-    drawDayRingCluster(ctx, { day, cx, cy: y, size })
+    const complete = !day.isFuture && isDayComplete(day)
+
+    ctx.beginPath()
+    ctx.arc(cx, y, circleR, 0, Math.PI * 2)
+    if (complete) {
+      const g = ctx.createLinearGradient(cx - circleR, y - circleR, cx + circleR, y + circleR)
+      g.addColorStop(0, GOLD)
+      g.addColorStop(1, BROWN)
+      ctx.fillStyle = g
+      ctx.fill()
+    } else if (day.isToday) {
+      ctx.fillStyle = '#F5E9DE' // var(--olt) — mesmo destaque do "hoje" da Home
+      ctx.fill()
+    }
+
     ctx.textAlign = 'center'
-    ctx.textBaseline = 'alphabetic'
-    ctx.font = '700 22px "Be Vietnam Pro"'
-    ctx.fillStyle = day.isToday ? '#FFFFFF' : 'rgba(255,255,255,.55)'
-    ctx.fillText(letters[i], cx, y + size / 2 + 34)
+    ctx.textBaseline = 'middle'
+    ctx.font = '700 24px "Be Vietnam Pro"'
+    ctx.fillStyle = complete ? '#FFFFFF' : (day.isToday ? BROWN : '#737373')
+    ctx.fillText(letters[i], cx, y + 2)
+
+    const dotsW = dotR * 2 * 3 + dotGap * 2
+    let dx = cx - dotsW / 2 + dotR
+    const dotY = y + circleR + 18;
+    [
+      !day.isFuture && day.prayer ? ROUTINE_STEP_COLORS.prayer : '#E5E5E5',
+      !day.isFuture && day.reading ? ROUTINE_STEP_COLORS.reading : '#E5E5E5',
+      !day.isFuture && day.reflection ? ROUTINE_STEP_COLORS.reflection : '#E5E5E5',
+    ].forEach(color => {
+      ctx.beginPath()
+      ctx.arc(dx, dotY, dotR, 0, Math.PI * 2)
+      ctx.fillStyle = color
+      ctx.fill()
+      dx += dotR * 2 + dotGap
+    })
   })
 }
 
-// Legenda de qual cor é qual passo — sem ela, os 3 anéis (de fora pra
-// dentro) não dizem sozinhos o que cada um representa.
-function drawRingLegend(ctx, { cx, y, lang }) {
+// Legenda de qual cor é qual passo — sem ela, os 3 pontinhos não dizem
+// sozinhos o que cada um representa. Mesmas cores/rótulos do calendário.
+function drawCalendarLegend(ctx, { cx, y, lang }) {
   const items = [
-    { key: 'prayer', label: t('home.routinePrayer', undefined, lang) },
-    { key: 'reading', label: t('home.routineReading', undefined, lang) },
-    { key: 'reflection', label: t('home.routineReflection', undefined, lang) },
+    { color: ROUTINE_STEP_COLORS.prayer, label: t('home.routinePrayer', undefined, lang) },
+    { color: ROUTINE_STEP_COLORS.reading, label: t('home.routineReading', undefined, lang) },
+    { color: ROUTINE_STEP_COLORS.reflection, label: t('home.routineReflection', undefined, lang) },
   ]
   const dotR = 6
   const gapAfterDot = 10
@@ -169,9 +172,9 @@ function drawRingLegend(ctx, { cx, y, lang }) {
   items.forEach((item, i) => {
     ctx.beginPath()
     ctx.arc(x + dotR, y, dotR, 0, Math.PI * 2)
-    ctx.fillStyle = WEEK_RING_COLORS[item.key]
+    ctx.fillStyle = item.color
     ctx.fill()
-    ctx.fillStyle = 'rgba(255,255,255,.8)'
+    ctx.fillStyle = '#404040'
     ctx.fillText(item.label, x + dotR * 2 + gapAfterDot, y + 1)
     x += widths[i] + gapBetween
   })
@@ -251,20 +254,37 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   canvas.height = CARD_H
   const ctx = canvas.getContext('2d')
 
-  // Fundo — mesmo gradiente do card de % (--grad-vivid) usado na Home/Progresso.
+  // O cartão tem duas zonas: gradiente escuro (marca/anel/streak — mesmo
+  // conteúdo do card de % da Home) e, a partir de `splitY`, uma zona clara
+  // (mesmo fundo --card-bg dos cards comuns do app) pra rotina da semana —
+  // as cores do calendário (ROUTINE_STEP_COLORS, gradiente dourado→marrom)
+  // são pensadas pra fundo claro, --or e preto quase somem sobre o
+  // gradiente escuro. `splitY` é calculado a partir do conteúdo real da
+  // zona escura (anel + chips + barras AT/NT), não um valor fixo.
+  const cx = CARD_W / 2
+  const cy = 610
+  const r = 250
+  const statsTop = cy + r + 90
+  const statsH = 172
+  const barsTop = statsTop + statsH + 60
+  const splitY = barsTop + 50 + 60
+
   const bg = ctx.createLinearGradient(0, 0, CARD_W, CARD_H)
   bg.addColorStop(0, '#9D4300')
   bg.addColorStop(1, '#B5005D')
   ctx.fillStyle = bg
-  ctx.fillRect(0, 0, CARD_W, CARD_H)
+  ctx.fillRect(0, 0, CARD_W, splitY)
+  ctx.fillStyle = '#F6F3F2' // mesmo --card-bg
+  ctx.fillRect(0, splitY, CARD_W, CARD_H - splitY)
 
-  // Glow decorativo, mesmo espírito dos orbs do hero.
+  // Glow decorativo, mesmo espírito dos orbs do hero — só dentro da zona
+  // escura, senão vira um borrão claro sem função sobre o fundo já claro.
   ctx.save()
   ctx.filter = 'blur(90px)'
   ctx.fillStyle = 'rgba(255,255,255,.16)'
-  ctx.beginPath(); ctx.arc(CARD_W * 0.88, CARD_H * 0.1, 220, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(CARD_W * 0.88, splitY * 0.06, 220, 0, Math.PI * 2); ctx.fill()
   ctx.fillStyle = 'rgba(255,255,255,.10)'
-  ctx.beginPath(); ctx.arc(CARD_W * 0.08, CARD_H * 0.9, 260, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(CARD_W * 0.08, splitY * 0.94, 260, 0, Math.PI * 2); ctx.fill()
   ctx.restore()
 
   // Wordmark — o ícone (icon-192.png) tem fundo marrom sólido, quase
@@ -287,9 +307,6 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   ctx.fillText('CORNER', 180 + jesusW, 130)
 
   // Anel de progresso
-  const cx = CARD_W / 2
-  const cy = 610
-  const r = 250
   ctx.lineCap = 'round'
   ctx.strokeStyle = 'rgba(255,255,255,.25)'
   ctx.lineWidth = 34
@@ -316,8 +333,6 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   const avgFullDays = averageFullRoutineDays(weeks)
   const avgLabel = avgFullDays.toFixed(1).replace(/\.0$/, '')
 
-  const statsTop = cy + r + 90
-  const statsH = 172
   const statsGap = 26
   const statsChipW = (CARD_W - 180 - statsGap) / 2
   drawStatChip(ctx, {
@@ -329,84 +344,90 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
     emoji: '📊', value: avgLabel, label: t('home.shareCardConsistencyLabel', undefined, lang),
   })
 
-  // Anéis da semana (segunda a domingo) — mesma função de src/routine/
-  // weekRings.js usada na Home, pra nunca divergir o que aparece nos dois
-  // lugares.
-  const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
-  const routineLabelY = statsTop + statsH + 44
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'alphabetic'
-  ctx.font = '700 26px "Be Vietnam Pro"'
-  ctx.fillStyle = GOLD
-  ctx.fillText(t('home.weekRingsTitle', undefined, lang).toUpperCase(), cx, routineLabelY)
-
-  const ringsY = routineLabelY + 54
-  const ringSize = 72
-  drawWeekRings(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: ringsY, size: ringSize })
-
-  // Pontinhos alinhados sob os anéis ficam em `ringsY + ringSize/2 + 34`
-  // (ver drawWeekRings) — a legenda precisa de folga clara abaixo disso,
-  // senão sobrepõe o texto (bug já visto: "W"/"T"/"F" colados em cima de
-  // "Prayer"/"Reading"/"Reflection").
-  const legendY = ringsY + ringSize / 2 + 34 + 40
-  drawRingLegend(ctx, { cx, y: legendY, lang })
-
-  // Barras AT/NT
-  const barsTop = legendY + 50
+  // Barras AT/NT — ainda na zona escura, mesmo lugar de dentro do card de
+  // % na Home (só a rotina da semana, com as cores do calendário, é que
+  // precisa da zona clara abaixo).
   drawBarRow(ctx, { label: 'AT', pct: atPercent, x: 90, y: barsTop, width: CARD_W - 180 })
   drawBarRow(ctx, { label: 'NT', pct: ntPercent, x: 90, y: barsTop + 50, width: CARD_W - 180 })
 
-  // Melhor conquista desbloqueada
+  // ── Zona clara (a partir de splitY) ──────────────────────────────────
+  // Rotina da semana — mesma lógica de cores do calendário de histórico.
+  const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
+  const routineLabelY = splitY + 50
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = '700 26px "Be Vietnam Pro"'
+  ctx.fillStyle = '#737373' // var(--g5) — mesmo tom do rótulo na Home
+  ctx.fillText(t('home.weekRingsTitle', undefined, lang).toUpperCase(), cx, routineLabelY)
+
+  const dayCellsY = routineLabelY + 54
+  drawWeekRoutineRow(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: dayCellsY })
+
+  // Pontinhos ficam em `dayCellsY + circleR(26) + 18` (ver
+  // drawWeekRoutineRow) — legenda com folga clara abaixo disso.
+  const legendY = dayCellsY + 26 + 18 + 5 + 36
+  drawCalendarLegend(ctx, { cx, y: legendY, lang })
+
+  // Melhor conquista desbloqueada — mesmo tratamento visual dos cards de
+  // destaque em fundo claro (--card-highlight-bg/border), não mais o card
+  // translúcido branco (pensado pra fundo escuro).
   const badge = pickBestBadge(achievements)
-  let contentBottom = barsTop + 44
+  let contentBottom = legendY + 36
   if (badge) {
-    const boxY = contentBottom + 46
-    const boxH = 170
-    ctx.fillStyle = 'rgba(255,255,255,.14)'
+    const boxY = legendY + 44
+    const boxH = 160
+    const boxG = ctx.createLinearGradient(90, boxY, CARD_W - 90, boxY + boxH)
+    boxG.addColorStop(0, '#FFF3E8')
+    boxG.addColorStop(1, '#FFE0BE')
+    ctx.fillStyle = boxG
     roundRect(ctx, 90, boxY, CARD_W - 180, boxH, 28)
     ctx.fill()
+    ctx.strokeStyle = 'rgba(157,67,0,.25)'
+    ctx.lineWidth = 1.5
+    roundRect(ctx, 90, boxY, CARD_W - 180, boxH, 28)
+    ctx.stroke()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.font = '700 24px "Be Vietnam Pro"'
-    ctx.fillStyle = GOLD
-    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 46)
-    ctx.font = '800 38px "Plus Jakarta Sans"'
-    ctx.fillStyle = '#FFFFFF'
-    wrapText(ctx, badge.title, cx, boxY + 106, CARD_W - 260, 46)
+    ctx.font = '700 22px "Be Vietnam Pro"'
+    ctx.fillStyle = BROWN
+    ctx.fillText(t('home.shareCardAchievementUnlocked', undefined, lang).toUpperCase(), cx, boxY + 42)
+    ctx.font = '800 36px "Plus Jakarta Sans"'
+    ctx.fillStyle = '#121212'
+    wrapText(ctx, badge.title, cx, boxY + 98, CARD_W - 260, 44)
     contentBottom = boxY + boxH
   }
 
   // Rodapé: tagline + Instagram (pedido explícito — a marca precisa
   // aparecer de um jeito que dê pra achar a conta, não só o site).
   // Ancorado em contentBottom (não em CARD_H fixo) — o badge (opcional) e
-  // agora os anéis/legenda mudam quanto espaço o conteúdo ocupa; um
+  // o tamanho da rotina da semana mudam quanto espaço o conteúdo ocupa; um
   // rodapé fixo já colidiu uma vez com o badge quando o conteúdo cresceu
   // (bug visto: tagline em cima de "Pentateuch").
-  const footerTop = contentBottom + 56
+  const footerTop = contentBottom + 50
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
   ctx.font = '600 28px "Be Vietnam Pro"'
-  ctx.fillStyle = 'rgba(255,255,255,.8)'
+  ctx.fillStyle = '#404040' // var(--g6)
   wrapText(ctx, t('auth.tagline', undefined, lang), cx, footerTop + 16, CARD_W - 220, 36)
 
-  const igY = footerTop + 96
+  const igY = footerTop + 92
   const igHandle = t('profile.instagramSub', undefined, lang)
   ctx.font = '800 32px "Plus Jakarta Sans"'
   const igHandleW = ctx.measureText(igHandle).width
   const igIconSize = 32
   const igGap = 12
   const igTotalW = igIconSize + igGap + igHandleW
-  drawInstagramIcon(ctx, cx - igTotalW / 2 + igIconSize / 2, igY, igIconSize, '#FFFFFF')
+  drawInstagramIcon(ctx, cx - igTotalW / 2 + igIconSize / 2, igY, igIconSize, BROWN)
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#FFFFFF'
+  ctx.fillStyle = BROWN
   ctx.fillText(igHandle, cx - igTotalW / 2 + igIconSize + igGap, igY + 2)
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
   ctx.font = '700 24px "Be Vietnam Pro"'
-  ctx.fillStyle = 'rgba(255,255,255,.6)'
-  ctx.fillText('jesuscorner.app', cx, footerTop + 144)
+  ctx.fillStyle = '#A3A3A3' // var(--g4)
+  ctx.fillText('jesuscorner.app', cx, footerTop + 138)
 
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95))
 }

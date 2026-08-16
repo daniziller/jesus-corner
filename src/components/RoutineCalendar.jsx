@@ -66,7 +66,7 @@ export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle }) {
   )
 }
 
-function LegendDot({ color, label }) {
+export function LegendDot({ color, label }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       <span style={{ width: 6, height: 6, borderRadius: 2, background: color, flexShrink: 0 }} />
