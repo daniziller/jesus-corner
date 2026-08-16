@@ -148,39 +148,42 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 <AppIcon name={shareState === 'generating' ? 'RefreshCw' : 'Share2'} size={15} color="white" className={shareState === 'generating' ? 'icon-spin' : undefined} />
               </button>
 
-              {/* Anel + legenda — só UMA vez a % (antes repetia em texto
-                  logo abaixo: "Bíblia concluída: X%", igual ao número já
-                  escrito dentro do anel). */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 18, position: 'relative' }}>
-                <div style={styles.ringWrap}>
-                  <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
-                    <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
-                    <circle cx="44" cy="44" r="38" fill="none" stroke="white" strokeWidth="7"
-                      strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
-                  </svg>
-                  <div style={styles.ringText}>
-                    <span style={styles.ringValue}>
-                      <span style={styles.ringNum}>{biblePercent}</span>
-                      <span style={styles.ringPct}>%</span>
-                    </span>
+              {/* Anel (com % só UMA vez, dentro dele) + texto "Bíblia lida"
+                  embaixo, e os dois retângulos de stat (streak/constância)
+                  empilhados ao lado — tudo numa linha só, mais compacto que
+                  antes (3 blocos empilhados viraram 1 linha + as barras). */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                  <div style={styles.ringWrap}>
+                    <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+                      <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
+                      <circle cx="44" cy="44" r="38" fill="none" stroke="white" strokeWidth="7"
+                        strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
+                    </svg>
+                    <div style={styles.ringText}>
+                      <span style={styles.ringValue}>
+                        <span style={styles.ringNum}>{biblePercent}</span>
+                        <span style={styles.ringPct}>%</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={styles.pctLabel}>{translate('home.bibleReadLabel', undefined, lang)}</p>
+                    <p style={styles.pctSub}>{translate('home.chaptersRead', { n: chaptersRead }, lang)}</p>
                   </div>
                 </div>
-                <div>
-                  <p style={styles.pctLabel}>{translate('home.bibleReadLabel', undefined, lang)}</p>
-                  <p style={styles.pctSub}>{translate('home.chaptersRead', { n: chaptersRead }, lang)}</p>
-                </div>
-              </div>
 
-              {/* Streak + constância — a mesma métrica de constância que só
-                  existia na aba Rotina, agora também aqui. */}
-              <div style={styles.pctStatsRow}>
-                <div style={styles.pctStatChip}>
-                  <span style={styles.pctStatValue}><AppIcon name="Flame" size={16} /> {streak}</span>
-                  <span style={styles.pctStatLabel}>{translate('home.streakLabel', undefined, lang)}</span>
-                </div>
-                <div style={styles.pctStatChip}>
-                  <span style={styles.pctStatValue}>{consistencyValue}</span>
-                  <span style={styles.pctStatLabel}>{translate('home.shareCardConsistencyLabel', undefined, lang)}</span>
+                {/* Streak + constância — a mesma métrica de constância que só
+                    existia na aba Rotina, agora também aqui. */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+                  <div style={styles.pctStatChip}>
+                    <span style={styles.pctStatValue}><AppIcon name="Flame" size={16} /> {streak}</span>
+                    <span style={styles.pctStatLabel}>{translate('home.streakLabel', undefined, lang)}</span>
+                  </div>
+                  <div style={styles.pctStatChip}>
+                    <span style={styles.pctStatValue}>{consistencyValue}</span>
+                    <span style={styles.pctStatLabel}>{translate('home.shareCardConsistencyLabel', undefined, lang)}</span>
+                  </div>
                 </div>
               </div>
 
@@ -626,10 +629,9 @@ const styles = {
   sessionTitle:  { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.3, letterSpacing: '-0.2px' },
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
   pctHeroWrap:   {},
-  pctHero:       { background: 'var(--grad-vivid)', borderRadius: '22px 22px 0 0', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
-  pctStatsRow:   { display: 'flex', gap: 10 },
-  pctStatChip:   { flex: 1, background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 },
-  pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1 },
+  pctHero:       { background: 'var(--grad-vivid)', borderRadius: '22px 22px 0 0', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
+  pctStatChip:   { background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', lineHeight: 1 },
   pctStatLabel:  { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
   // Rotina da semana — sheet clara logo abaixo do card de %, sem gap (a
