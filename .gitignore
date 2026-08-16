@@ -34,3 +34,7 @@ android-twa/*.idsig
 
 # Metadados do Finder (macOS) — criados em qualquer pasta aberta no Finder
 .DS_Store
+
+# Scripts/artefatos de teste manual (Playwright ao vivo, screenshots) —
+# nunca devem ir pro repo, só existem durante verificação local.
+.debug-*
