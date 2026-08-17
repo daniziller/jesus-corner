@@ -321,13 +321,14 @@ function LevelCard({ level, nextLevel, percent, xpForNext, xp, lang }) {
   )
 }
 
-// Mostra só a meta ainda não concluída com maior progresso (%) — quando
-// tudo já foi concluído, some (sem "parabéns, tudo feito" fixo ocupando
-// espaço na Home).
+// Metas são por liberação (ver ProgressScreen.jsx) — mostra a PRÓXIMA da
+// fila, não a de maior %. `goals` já vem na ordem certa (mesma ordem de
+// GOALS em routine/goals.js), então a primeira ainda não concluída já é
+// a próxima. Quando tudo já foi concluído, some (sem "parabéns, tudo
+// feito" fixo ocupando espaço na Home).
 function GoalTeaserCard({ goals, lang, onNavigate }) {
-  const pending = (goals ?? []).filter(g => !g.completed).sort((a, b) => b.percent - a.percent)
-  if (pending.length === 0) return null
-  const goal = pending[0]
+  const goal = (goals ?? []).find(g => !g.completed)
+  if (!goal) return null
 
   return (
     <button style={styles.goalTeaserCard} onClick={() => onNavigate?.('stats')}>

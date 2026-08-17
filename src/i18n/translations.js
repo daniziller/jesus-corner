@@ -529,6 +529,7 @@ export const STRINGS = {
       sectionTitle: 'Metas da rotina',
       daysProgress: '{current} de {target} dias',
       completedLabel: 'Meta batida!',
+      lockedLabel: 'Bloqueada — conclua a meta anterior',
       viewAllLink: 'Ver todas →',
     },
     aiChat: {
@@ -1427,6 +1428,7 @@ export const STRINGS = {
       sectionTitle: 'Routine goals',
       daysProgress: '{current} of {target} days',
       completedLabel: 'Goal reached!',
+      lockedLabel: 'Locked — finish the previous goal',
       viewAllLink: 'View all →',
     },
     aiChat: {

@@ -150,9 +150,17 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                 {translate('goals.sectionTitle', undefined, lang)} · {session.goals.filter(g => g.completed).length}/{session.goals.length}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {session.goals.map(g => (
-                  <GoalCard key={g.id} goal={g} lang={lang} />
-                ))}
+                {/* Por liberação: as já batidas aparecem normal (selo), a
+                    PRÓXIMA da fila mostra progresso ao vivo, e as demais
+                    ficam bloqueadas/esmaecidas até chegar a vez delas — mas
+                    o progresso em si nunca reseta (continua vindo do
+                    streak/janela real, computeGoalsStatus não muda). */}
+                {(() => {
+                  const nextIdx = session.goals.findIndex(g => !g.completed)
+                  return session.goals.map((g, i) => (
+                    <GoalCard key={g.id} goal={g} lang={lang} locked={nextIdx >= 0 && i > nextIdx} />
+                  ))
+                })()}
               </div>
             </div>
           </div>
@@ -245,11 +253,16 @@ function StatBox({ icon, iconBg, iconColor, value, label }) {
   )
 }
 
-function GoalCard({ goal, lang }) {
+// Por liberação: `locked` é a única coisa nova aqui — não é um estado
+// próprio de `goal` (que continua vindo puro de computeGoalsStatus), é
+// decidido pelo chamador (a posição na fila, ver seção "Metas" acima).
+// Bloqueada não mostra progresso (mesmo que já tenha alguma coisa contando
+// por trás) — o valor central de "por liberação" é focar só na próxima.
+function GoalCard({ goal, lang, locked }) {
   return (
-    <div style={{ ...styles.goalCard, ...(goal.completed ? styles.goalCardCompleted : {}) }}>
+    <div style={{ ...styles.goalCard, ...(goal.completed ? styles.goalCardCompleted : {}), ...(locked ? styles.goalCardLocked : {}) }}>
       <span style={{ ...styles.goalIcon, ...(goal.completed ? styles.goalIconCompleted : {}) }}>
-        <AppIcon name={goal.completed ? 'Check' : goal.icon} size={15} color={goal.completed ? 'white' : 'var(--g5)'} />
+        <AppIcon name={locked ? 'Lock' : goal.completed ? 'Check' : goal.icon} size={14} color={goal.completed ? 'white' : 'var(--g5)'} />
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
@@ -259,6 +272,8 @@ function GoalCard({ goal, lang }) {
         <p style={styles.goalDesc}>{goal.desc}</p>
         {goal.completed ? (
           <p style={styles.goalCompletedLabel}>{translate('goals.completedLabel', undefined, lang)}</p>
+        ) : locked ? (
+          <p style={styles.goalLockedLabel}>{translate('goals.lockedLabel', undefined, lang)}</p>
         ) : (
           <>
             <div style={styles.goalBar}>
@@ -302,4 +317,6 @@ const styles = {
   goalBarFill:   { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
   goalProgressText: { fontSize: 10, fontWeight: 600, color: 'var(--g5)', marginTop: 4 },
   goalCompletedLabel: { fontSize: 10.5, fontWeight: 700, color: 'var(--or)', margin: 0 },
+  goalCardLocked: { opacity: 0.5 },
+  goalLockedLabel: { fontSize: 10.5, fontWeight: 600, color: 'var(--g5)', margin: 0 },
 }
