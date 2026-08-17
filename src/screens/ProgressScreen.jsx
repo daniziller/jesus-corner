@@ -63,7 +63,7 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
               <div className="hide-on-desktop" style={{ width: '100%' }}>
                 <p style={styles.testLabel}>{translate('progress.testaments', undefined, lang)}</p>
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 7, position: 'relative', marginTop: 7 }}>
-                  <TestBar label="AT" pct={session.atPercent} color="var(--white)" />
+                  <TestBar label={lang === 'en' ? 'OT' : 'AT'} pct={session.atPercent} color="var(--white)" />
                   <TestBar label="NT" pct={session.ntPercent} color="var(--white)" />
                 </div>
               </div>

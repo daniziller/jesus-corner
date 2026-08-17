@@ -189,7 +189,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
               {/* Barras AT/NT */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <BarRow label="AT" pct={atPercent}  color="var(--white)" />
+                <BarRow label={lang === 'en' ? 'OT' : 'AT'} pct={atPercent}  color="var(--white)" />
                 <BarRow label="NT" pct={ntPercent}  color="var(--white)" />
               </div>
             </div>
