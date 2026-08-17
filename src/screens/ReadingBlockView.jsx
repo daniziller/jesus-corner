@@ -30,7 +30,7 @@ function useIsDesktop() {
   return isDesktop
 }
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack, onGoToReflection }) {
   const { lang } = session
   const isDesktop = useIsDesktop()
   // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
@@ -455,7 +455,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               fim do cronômetro de Oração (PrayerScreen.jsx). */}
           {mode !== 'browse' && heroSession.status === 'done' && (
             <div style={{ padding: '0 14px 4px' }}>
-              <button style={styles.nextStepBtn} onClick={() => onNavigate?.('reflection')}>
+              <button style={styles.nextStepBtn} onClick={() => (onGoToReflection ? onGoToReflection(heroSession) : onNavigate?.('reflection'))}>
                 {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
               </button>
             </div>

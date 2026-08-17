@@ -39,7 +39,7 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, authUser, onReflectionCompleted }) {
+export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading }) {
   const { lang } = session
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
@@ -304,6 +304,16 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
       </div>
 
       <div style={styles.body}>
+        {/* Só aparece vindo de "Ir para Reflexão" logo depois de marcar uma
+            sessão como lida (ver App.jsx/lastReadSession) — some sozinho
+            quando a Reflexão de hoje é concluída, ou se a tela foi aberta
+            direto pela aba, sem sessão recente pra voltar. */}
+        {hasPreviousReadingSession && (
+          <button style={styles.backToReadingBtn} onClick={onBackToReading}>
+            <AppIcon name="ArrowLeft" size={13} color="#6B21A8" />
+            {t('reflection.backToReading', undefined, lang)}
+          </button>
+        )}
         <div style={styles.timer}>
           <span style={styles.timerLabel}>{t('reflection.timerLabel', undefined, lang)}</span>
           <span style={styles.timerDisplay}>{fmt(remaining)}</span>
@@ -482,6 +492,7 @@ function NotesPanel({ value, hasSavedNote, onSave, lang }) {
 }
 
 const styles = {
+  backToReadingBtn: { display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', border: '0.5px solid rgba(107,33,168,.3)', background: '#F3E8FF', borderRadius: 10, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, color: '#6B21A8', cursor: 'pointer', fontFamily: 'var(--font)', marginBottom: 4 },
   hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 24, overflow: 'hidden', position: 'relative', background: 'var(--bk-hero)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(0,0,0,.25)' },
   heroOrbPurple: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
   heroOrbFuchsia: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },

@@ -33,7 +33,7 @@ import ReadingBlockView from './ReadingBlockView'
 
 export default function ChronologicalPlanScreen({
   session, authUser, completedSet, onToggleSession, onToggleChapter, onNavigate,
-  paceId, autoOpenMovementId,
+  paceId, autoOpenMovementId, onGoToReflectionFrom,
 }) {
   const { lang } = session
   const [activeMovementId, setActiveMovementId] = useState(autoOpenMovementId ?? null)
@@ -65,6 +65,7 @@ export default function ChronologicalPlanScreen({
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}
         onBack={() => setActiveMovementId(null)}
+        onGoToReflection={() => onGoToReflectionFrom?.({ tab: 'chronologicalPlan', movementId: activeMovementId })}
       />
     )
   }

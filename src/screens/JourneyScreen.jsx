@@ -14,7 +14,7 @@ function normalizeSearch(str) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, onNavigate,
+  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, onNavigate, onGoToReflectionFrom,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -79,6 +79,7 @@ export default function JourneyScreen({
         onToggleChapter={onToggleChapter}
         initialSessionId={initialSessionId}
         onBack={closeBlock}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id })}
       />
     )
   }

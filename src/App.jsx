@@ -328,6 +328,15 @@ export default function App() {
   // meta nova (useEffect logo depois do bootstrap) já atualiza isso local
   // e otimista, uma busca atrasada poderia sobrescrever com dado velho.
   const [completedGoals, setCompletedGoals] = useState({})
+  // De onde veio a última sessão de leitura marcada como concluída antes de
+  // ir pra Reflexão (ver ReadingBlockView.jsx/onGoToReflection) — só o
+  // suficiente pra reabrir EXATAMENTE aquela sessão (não a próxima, que já
+  // avançou — ver findCurrentReadingSession), de qualquer uma das 3
+  // superfícies de leitura (plano fixo, por tema, cronológico). Local só —
+  // nunca persistido, não precisa sobreviver a um F5. null = nenhuma
+  // sessão recente conhecida (Reflexão aberta direto pela aba, por
+  // exemplo) — nesse caso o botão de voltar simplesmente não aparece.
+  const [lastReadSession, setLastReadSession] = useState(null)
   // Foto de perfil (profiles.avatar_url) — mora fora de authUser porque não
   // é user_metadata, é a tabela profiles (pensada pra ser visível a amigos).
   // Refletida no Sidebar/AppHeader assim que muda (ver onProfileUpdated).
@@ -636,6 +645,35 @@ export default function App() {
     setActiveTab('chronologicalPlan')
   }
 
+  // "Ir para Reflexão" a partir de uma sessão de leitura recém-concluída
+  // (ver ReadingBlockView.jsx/onGoToReflection, chamado por JourneyScreen/
+  // ThemePlanScreen/ChronologicalPlanScreen) — guarda COMO voltar exatamente
+  // pra essa sessão antes de trocar de aba (ver backToLastReadSession).
+  function goToReflectionFrom(descriptor) {
+    setLastReadSession(descriptor)
+    setActiveTab('reflection')
+  }
+
+  // Botão "Voltar à sessão de leitura" na Reflexão — reabre a sessão que
+  // ficou guardada em lastReadSession, reaproveitando os MESMOS mecanismos
+  // de "abrir sessão específica" que já existem pra cada superfície de
+  // leitura, exceto no caso do plano por tema: openThemePlanToday chama
+  // chooseThemeTexts de novo, o que RESTRINGIRIA a escolha de hoje só a
+  // esse texto — se a pessoa tinha escolhido vários textos pra hoje e leu
+  // só um antes de refletir, isso apagaria os outros da escolha do dia. Só
+  // reabre a tela no texto certo, sem tocar na escolha já salva.
+  function backToLastReadSession() {
+    if (!lastReadSession) return
+    const d = lastReadSession
+    if (d.tab === 'journey') openReadingSession(d.blockId, d.sessionId)
+    else if (d.tab === 'themePlan') {
+      setThemeAutoOpenId(d.planId)
+      setThemeAutoOpenKeys(d.keys)
+      setActiveTab('themePlan')
+    }
+    else if (d.tab === 'chronologicalPlan') openChronoSession(d.movementId)
+  }
+
   // Rebusca a assinatura e atualiza o estado — usado depois de resgatar um
   // convite de acesso grátis (ver UpgradeScreen.jsx), pra liberar o
   // PaywallGate sozinho, sem precisar de F5.
@@ -856,6 +894,11 @@ export default function App() {
       return { ...prev, [key]: today }
     })
     setStepDone(step, done, planId).catch(err => console.error('Failed to persist routine step', err))
+    // Reflexão concluída — "Voltar à sessão de leitura" (ver
+    // lastReadSession/backToLastReadSession abaixo) deixa de fazer sentido
+    // depois disso, então some sozinho em vez de continuar apontando pra
+    // uma sessão já fechada.
+    if (step === 'reflection' && done) setLastReadSession(null)
   }
 
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
@@ -953,9 +996,9 @@ export default function App() {
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} />,
-    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
+    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
+    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
@@ -991,7 +1034,7 @@ export default function App() {
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => markRoutineStep('reflection')} />
+                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => markRoutineStep('reflection')} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} />
               </div>
             )}
           </div>

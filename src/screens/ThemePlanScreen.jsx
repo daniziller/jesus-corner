@@ -54,7 +54,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 // buildSizeInstruction em api/_lib/ai.js), sem efeito visível.
 const DEFAULT_PACE_ID = 'standard'
 
-export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onAddSessionsToRoutine, onStartThemeReading }) {
+export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onAddSessionsToRoutine, onStartThemeReading, onGoToReflectionFrom }) {
   const { lang } = session
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
   // Plano recém-gerado (ainda não é o ativo do app) — em vez de já pular
@@ -201,6 +201,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}
         onBack={() => setActivePlanId(null)}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'themePlan', planId: activePlan.id, keys: [themeTextKey(heroSession)] })}
       />
     )
   }
