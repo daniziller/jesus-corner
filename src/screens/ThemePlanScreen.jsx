@@ -54,7 +54,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 // buildSizeInstruction em api/_lib/ai.js), sem efeito visível.
 const DEFAULT_PACE_ID = 'standard'
 
-export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onAddSessionsToRoutine }) {
+export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onAddSessionsToRoutine, onStartThemeReading }) {
   const { lang } = session
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
   // Plano recém-gerado (ainda não é o ativo do app) — em vez de já pular
@@ -149,8 +149,9 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
             completedSet={completedSet}
             todayThemePicks={null}
             lang={lang}
-            ctaLabel={t('themePlan.addToRoutineCta', undefined, lang)}
-            onStartToday={keys => onAddSessionsToRoutine?.(justCreatedPlan.id, keys)}
+            onOpenText={key => onStartThemeReading?.(justCreatedPlan.id, [key])}
+            onAddToRoutine={keys => onAddSessionsToRoutine?.(justCreatedPlan.id, keys)}
+            onStartReading={keys => onStartThemeReading?.(justCreatedPlan.id, keys)}
           />
         </div>
       </div>

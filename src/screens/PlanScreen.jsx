@@ -34,7 +34,7 @@ import AppIcon from '../icons/AppIcon'
 
 export default function PlanScreen({
   session, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan, todayThemePicks,
-  onSelectActivePlan, onContinueSession, onOpenThemePlan, onOpenThemePlanToday, onToggleSession, onOpenSession, onOpenChronoSession, onNavigate,
+  onSelectActivePlan, onContinueSession, onOpenThemePlan, onAddSessionsToRoutine, onStartThemeReading, onToggleSession, onOpenSession, onOpenChronoSession, onNavigate,
 }) {
   const { lang, plan, activePlan, todaySession } = session
   const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, plan.id)
@@ -227,8 +227,9 @@ export default function PlanScreen({
                 completedSet={completedSet}
                 todayThemePicks={todayThemePicks}
                 lang={lang}
-                onOpenText={key => onOpenThemePlanToday?.(activeThemePlan.id, [key])}
-                onStartToday={keys => onOpenThemePlanToday?.(activeThemePlan.id, keys)}
+                onOpenText={key => onStartThemeReading?.(activeThemePlan.id, [key])}
+                onAddToRoutine={keys => onAddSessionsToRoutine?.(activeThemePlan.id, keys)}
+                onStartReading={keys => onStartThemeReading?.(activeThemePlan.id, keys)}
               />
             ) : (
               <p style={styles.sectionSub}>
@@ -341,9 +342,13 @@ function ActivePlanCard({ activePlan, todaySession, lang, onContinue }) {
 // "Começar" (ver key={plan.id} no chamador — remonta ao trocar de plano).
 // Exportado (não só usado aqui) — ThemePlanScreen.jsx reaproveita pra
 // deixar escolher os textos de hoje logo depois de gerar um plano novo,
-// mesmo componente/estilos, só troca o texto do botão via `ctaLabel`
-// (padrão "genuine reuse" já usado com LegendDot em RoutineCalendar.jsx).
-export function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang, onOpenText, onStartToday, ctaLabel }) {
+// mesmo componente/estilos (padrão "genuine reuse" já usado com LegendDot
+// em RoutineCalendar.jsx). Dois botões, sempre os dois — "Adicionar à
+// rotina" grava a escolha e leva pra aba Rotina (mostrando o tempo somado
+// lá); "Começar leitura de hoje" grava a mesma escolha e já pula pra
+// leitura. Ambos os chamadores (aqui e ThemePlanScreen.jsx) passam as duas
+// funções — nenhum caso precisa esconder uma das opções.
+export function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang, onOpenText, onAddToRoutine, onStartReading }) {
   const texts = deriveThemeTexts(plan.passages).map(s => ({
     ...s,
     status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
@@ -402,12 +407,21 @@ export function ThemeTextsChecklist({ plan, completedSet, todayThemePicks, lang,
         <span style={styles.todaySummaryText}>
           {t('themePlan.todaySummary', { minutes: totalMinutes, count: selectedTexts.length }, lang)}
         </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+        <button
+          style={{ ...styles.addToRoutineBtn, ...(selectedTexts.length === 0 ? styles.addToRoutineBtnDisabled : {}) }}
+          disabled={selectedTexts.length === 0}
+          onClick={() => onAddToRoutine?.([...selected])}
+        >
+          {t('themePlan.addToRoutineCta', undefined, lang)}
+        </button>
         <button
           style={{ ...styles.startTodayBtn, ...(selectedTexts.length === 0 ? styles.startTodayBtnDisabled : {}) }}
           disabled={selectedTexts.length === 0}
-          onClick={() => onStartToday?.([...selected])}
+          onClick={() => onStartReading?.([...selected])}
         >
-          {ctaLabel ?? t('themePlan.startTodayCta', undefined, lang)} <AppIcon name="ChevronRight" size={14} color="white" />
+          {t('themePlan.startTodayCta', undefined, lang)} <AppIcon name="ChevronRight" size={14} color="white" />
         </button>
       </div>
     </>
@@ -587,8 +601,10 @@ const styles = {
 
   todaySummary:      { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--olt)', border: '0.5px solid rgba(162,28,175,.25)', borderRadius: 13, padding: '10px 10px 10px 13px' },
   todaySummaryText:  { flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 700, color: '#A21CAF' },
-  startTodayBtn:     { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, border: 'none', borderRadius: 10, padding: '9px 13px', fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: '#A21CAF' },
+  startTodayBtn:     { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, border: 'none', borderRadius: 10, padding: '10px 13px', fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: '#A21CAF' },
   startTodayBtnDisabled: { background: 'var(--g3)', cursor: 'default' },
+  addToRoutineBtn:   { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, border: '0.5px solid rgba(162,28,175,.35)', borderRadius: 10, padding: '10px 13px', fontSize: 11.5, fontWeight: 700, color: '#A21CAF', cursor: 'pointer', fontFamily: 'var(--font)', background: 'white' },
+  addToRoutineBtnDisabled: { color: 'var(--g4)', borderColor: 'var(--g3)', cursor: 'default' },
 
   planRow:      { display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 6, boxShadow: 'var(--shadow-card)' },
   planRowMain:  { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', padding: 6 },

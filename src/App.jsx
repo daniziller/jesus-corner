@@ -616,6 +616,17 @@ export default function App() {
     setActiveTab('routine')
   }
 
+  // "Começar a leitura" no mesmo checklist (ThemeTextsChecklist, usado tanto
+  // em PlanScreen.jsx — plano já ativo — quanto em ThemePlanScreen.jsx —
+  // plano recém-gerado, ainda não ativo). selectActivePlan é idempotente
+  // (reselecionar o mesmo plano não tem efeito colateral), então esta MESMA
+  // função serve pros dois casos: garante que o plano está ativo e já pula
+  // pra leitura, restrita aos textos escolhidos (ver openThemePlanToday).
+  function startThemePlanReadingToday(planId, keys) {
+    selectActivePlan({ type: 'theme', planId })
+    openThemePlanToday(planId, keys)
+  }
+
   // Tocar numa sessão da lista "Sessões do plano" (PlanScreen.jsx) quando o
   // plano ativo é o cronológico — mesma ideia de openReadingSession acima,
   // só que abrindo o movimento certo em ChronologicalPlanScreen em vez do
@@ -938,11 +949,11 @@ export default function App() {
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} />,
-    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onOpenThemePlanToday={openThemePlanToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
+    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} />,
+    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
