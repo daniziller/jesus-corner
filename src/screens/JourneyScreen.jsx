@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { GRADIENT_MAP } from '../data/bibleBlocks'
-import { ACCENT_MAP, GLOW_MAP, TINT_MAP, BORDER_MAP } from '../utils/blockColors'
-import { pickActiveBlock, sessionKeys } from '../utils/progress'
+import { pickActiveBlock, sessionKeys, computeBookChapterCounts } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
+import { getBookSortMode, setBookSortMode } from '../utils/bookSortStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
@@ -12,12 +11,32 @@ function normalizeSearch(str) {
   return str.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 }
 
+// Achata os livros de um subconjunto de blocos numa lista única — reaproveitado
+// tanto pela busca quanto pelas seções de testamento (Antigo/Novo). A ordem
+// dos blocos passados já é a ordem canônica/bíblica dentro daquele
+// testamento (blocks 1→4 = AT, 5→8 = NT), então concatenar na ordem em que
+// os blocos chegam já dá a ordem bíblica, sem precisar de uma lista própria.
+function flattenBooks(blocksSubset, lang) {
+  return blocksSubset.flatMap(block => {
+    const names = lang === 'en' ? block.booksEn : block.books
+    return names.map((displayName, i) => ({ displayName, canonicalName: block.books[i], block }))
+  })
+}
+
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
   onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, onNavigate, onGoToReflectionFrom,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
+  // Ordem dos livros na visão de mapa (fora de busca) — 'biblical' (padrão,
+  // ordem canônica) ou 'alpha' (A-Z). Por dispositivo, sobrevive entre
+  // sessões (ver src/utils/bookSortStore.js).
+  const [sortMode, setSortMode] = useState(getBookSortMode)
+  function changeSortMode(mode) {
+    setSortMode(mode)
+    setBookSortMode(mode)
+  }
 
   // Bloco "aberto" (visão de leitura) — null significa visão geral (mapa de
   // blocos). Quando entryMode é 'reading' (ex: botão "Continuar sessão" na
@@ -97,18 +116,23 @@ export default function JourneyScreen({
   const lastOpenedSession = lastOpened ? browseSessionsByBlock[lastOpened.blockId]?.find(s => s.id === lastOpened.sessionId) : null
   const lastOpenedBlock = lastOpened ? blocks.find(b => b.id === lastOpened.blockId) : null
 
+  // Progresso real por livro (capítulos lidos/total) — mostrado em cada
+  // linha de livro, tanto na busca quanto nas seções de testamento.
+  const bookChapterCounts = computeBookChapterCounts(sessionsByBlock)
+
   // Busca de livro — achata todos os blocos numa lista única de livros
-  // pesquisáveis, independente de qual bloco/testamento eles pertencem, já
-  // que o usuário pode não saber de cabeça em qual bloco um livro está.
+  // pesquisáveis, independente de qual testamento eles pertencem, já que o
+  // usuário pode não saber de cabeça onde um livro está.
   const trimmedQuery = searchQuery.trim()
   const searchResults = trimmedQuery
-    ? blocks.flatMap(block => {
-        const names = lang === 'en' ? block.booksEn : block.books
-        return names
-          .map((displayName, i) => ({ displayName, canonicalName: block.books[i], block }))
-          .filter(entry => normalizeSearch(entry.displayName).includes(normalizeSearch(trimmedQuery)))
-      })
+    ? flattenBooks(blocks, lang).filter(entry => normalizeSearch(entry.displayName).includes(normalizeSearch(trimmedQuery)))
     : null
+
+  const atBooks = flattenBooks(blocks.filter(b => b.id <= 4), lang)
+  const ntBooks = flattenBooks(blocks.filter(b => b.id >= 5), lang)
+  const sortBooks = list => sortMode === 'alpha'
+    ? [...list].sort((a, b) => a.displayName.localeCompare(b.displayName, lang === 'en' ? 'en' : 'pt'))
+    : list
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingBottom: 83 }}>
@@ -185,38 +209,53 @@ export default function JourneyScreen({
               <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
-                {searchResults.map(({ displayName, canonicalName, block }) => (
-                  <button
-                    key={`${block.id}-${canonicalName}`}
-                    style={styles.searchResultRow}
-                    onClick={() => openBook(block, canonicalName)}
-                  >
-                    <div>
-                      <p style={styles.searchResultBook}>{displayName}</p>
-                      <p style={styles.searchResultBlock}>{lang === 'en' ? block.nameEn : block.name}</p>
-                    </div>
-                    <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
-                  </button>
+                {searchResults.map(entry => (
+                  <BookRow
+                    key={`${entry.block.id}-${entry.canonicalName}`}
+                    entry={entry}
+                    bookChapterCounts={bookChapterCounts}
+                    completedSet={completedSet}
+                    onOpen={() => openBook(entry.block, entry.canonicalName)}
+                  />
                 ))}
               </div>
             )
           ) : (
             <>
+              {/* Ordem bíblica (padrão) ou A-Z — só faz sentido fora da
+                  busca, que já tem sua própria lista filtrada. */}
+              <div style={styles.sortRow}>
+                <button
+                  style={{ ...styles.sortBtn, ...(sortMode === 'biblical' ? styles.sortBtnActive : {}) }}
+                  onClick={() => changeSortMode('biblical')}
+                >
+                  {t('journey.sortBiblical', undefined, lang)}
+                </button>
+                <button
+                  style={{ ...styles.sortBtn, ...(sortMode === 'alpha' ? styles.sortBtnActive : {}) }}
+                  onClick={() => changeSortMode('alpha')}
+                >
+                  {t('journey.sortAlpha', undefined, lang)}
+                </button>
+              </div>
+
               <TestamentSection
                 testamentKey="at"
                 label={t('journey.oldTestament', undefined, lang)}
                 blocks={blocks.filter(b => b.id <= 4)}
-                onOpenBlock={openBlock}
+                books={sortBooks(atBooks)}
+                bookChapterCounts={bookChapterCounts}
+                completedSet={completedSet}
                 onOpenBook={openBook}
-                lang={lang}
               />
               <TestamentSection
                 testamentKey="nt"
                 label={t('journey.newTestament', undefined, lang)}
                 blocks={blocks.filter(b => b.id >= 5)}
-                onOpenBlock={openBlock}
+                books={sortBooks(ntBooks)}
+                bookChapterCounts={bookChapterCounts}
+                completedSet={completedSet}
                 onOpenBook={openBook}
-                lang={lang}
                 style={{ marginTop: 12 }}
               />
             </>
@@ -228,9 +267,11 @@ export default function JourneyScreen({
 }
 
 /* ── Seção expansível de testamento (Antigo/Novo) — começa sempre
-   compacta, mesmo se o bloco ativo estiver dentro dela; o usuário decide
-   quando quer ver os blocos, em vez do app abrir um dos dois sozinho. ── */
-function TestamentSection({ testamentKey, label, blocks, onOpenBlock, onOpenBook, lang, style }) {
+   compacta; o usuário decide quando quer ver a lista de livros, em vez do
+   app abrir um dos dois sozinho. Sem agrupamento por bloco temático — só
+   Antigo/Novo Testamento, cada um com a lista (achatada) dos seus livros,
+   na ordem escolhida em `books` (bíblica ou A-Z, decidido por quem chama). ── */
+function TestamentSection({ testamentKey, label, blocks, books, bookChapterCounts, completedSet, onOpenBook, style }) {
   const [open, setOpen] = useState(false)
 
   const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
@@ -248,9 +289,15 @@ function TestamentSection({ testamentKey, label, blocks, onOpenBlock, onOpenBook
       </button>
 
       {open && (
-        <div className="block-grid" style={{ marginTop: 9 }}>
-          {blocks.map(block => (
-            <BlockCard key={block.id} block={block} onOpenBlock={onOpenBlock} onOpenBook={onOpenBook} lang={lang} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 9 }}>
+          {books.map(entry => (
+            <BookRow
+              key={`${testamentKey}-${entry.canonicalName}`}
+              entry={entry}
+              bookChapterCounts={bookChapterCounts}
+              completedSet={completedSet}
+              onOpen={() => onOpenBook(entry.block, entry.canonicalName)}
+            />
           ))}
         </div>
       )}
@@ -258,73 +305,25 @@ function TestamentSection({ testamentKey, label, blocks, onOpenBlock, onOpenBook
   )
 }
 
-function BlockCard({ block, onOpenBlock, onOpenBook, lang }) {
-  const gradient = GRADIENT_MAP[block.gradientKey]
-  const accent   = ACCENT_MAP[block.gradientKey]
-  const name = lang === 'en' ? block.nameEn : block.name
-  const tag  = lang === 'en' ? block.tagEn : block.tag
-  const books = lang === 'en' ? block.booksEn : block.books
-  const currentBookName = lang === 'en' ? block.currentBookEn : block.currentBook
-  // "Iniciar bloco" se nada foi lido ainda (0%); "Continuar bloco" assim que
-  // pelo menos um capítulo do bloco já foi marcado.
-  const actionLabel = block.status === 'todo'
-    ? t('journey.startBlock', undefined, lang)
-    : t('journey.continueBlock', undefined, lang)
-
-  const isActive = block.status === 'active'
+// Linha de livro — nome + progresso real (capítulos lidos/total, ou um
+// check quando o livro inteiro já foi lido) + seta. Usado tanto nas seções
+// de testamento quanto nos resultados de busca (mesmo componente, um só
+// lugar pra manter esse visual consistente).
+function BookRow({ entry, bookChapterCounts, completedSet, onOpen }) {
+  const { displayName, canonicalName } = entry
+  const total = bookChapterCounts[canonicalName] ?? 0
+  let done = 0
+  for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${canonicalName}:${ch}`)) done++
+  const isDone = total > 0 && done === total
 
   return (
-    <div style={{
-      ...styles.blockCard,
-      boxShadow: isActive ? `var(--shadow-premium), 0 8px 22px ${GLOW_MAP[block.gradientKey]}` : `0 8px 22px ${GLOW_MAP[block.gradientKey]}`,
-      border: isActive ? '0.5px solid var(--gold-soft)' : styles.blockCard.border,
-    }}>
-      {/* Topo */}
-      <div style={styles.blockTop}>
-        <div style={{ width: 48, height: 48, borderRadius: 14, background: gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <AppIcon name={block.icon} size={22} color={accent} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={styles.blockTag}>{tag}</p>
-          <h3 style={styles.blockTitle}>{name}</h3>
-          {block.status === 'active' && <span className="badge badge-orange">{t('journey.inProgressBadge', undefined, lang)}</span>}
-          {block.status === 'todo' && <span className="badge badge-locked">{t('journey.startBadge', undefined, lang)}</span>}
-          {block.status === 'done' && <span className="badge badge-green">{t('journey.doneBadge', undefined, lang)}</span>}
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: accent, letterSpacing: '-1px' }}>{block.percent}%</div>
-          {block.status === 'active' && <div style={{ fontSize: 9, fontWeight: 500, color: 'var(--g5)' }}>{currentBookName}</div>}
-        </div>
-      </div>
-
-      {/* Barra */}
-      <div style={{ height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', margin: '0 12px 10px' }}>
-        <div style={{ height: '100%', background: accent, borderRadius: 99, width: `${block.percent}%` }} />
-      </div>
-
-      {/* Livros do bloco — clicáveis, pulam direto pro livro na leitura */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '0 12px 12px' }}>
-        {books.map((bookName, i) => (
-          <span
-            key={bookName}
-            style={{ ...styles.bookChip, background: TINT_MAP[block.gradientKey], color: accent, borderColor: BORDER_MAP[block.gradientKey] }}
-            onClick={() => onOpenBook(block, block.books[i])}
-          >
-            {bookName}
-          </span>
-        ))}
-      </div>
-
-      {/* Botão */}
-      <div style={{ margin: '0 12px 12px' }}>
-        <div
-          style={{ background: 'var(--grad-primary)', borderRadius: 11, padding: 10, textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', boxShadow: 'var(--shadow-premium)' }}
-          onClick={() => onOpenBlock(block.id)}
-        >
-          {actionLabel}
-        </div>
-      </div>
-    </div>
+    <button style={styles.bookRow} onClick={onOpen}>
+      <span style={styles.bookRowName}>{displayName}</span>
+      {isDone
+        ? <span style={styles.bookRowDone}><AppIcon name="Check" size={13} color="white" /></span>
+        : <span style={styles.bookRowMeta}>{done}/{total}</span>}
+      <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
+    </button>
   )
 }
 
@@ -337,9 +336,13 @@ const styles = {
   continueReadingTitle:{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   searchClearBtn:    { border: 'none', background: 'var(--g2)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   searchEmptyHint:   { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '14px 2px', textAlign: 'center' },
-  searchResultRow:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 17, padding: '10px 13px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },
-  searchResultBook:  { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  searchResultBlock: { fontSize: 10, fontWeight: 500, color: 'var(--g4)', marginTop: 1 },
+  sortRow:         { display: 'flex', gap: 6, marginBottom: 12 },
+  sortBtn:         { flex: 1, border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 10, padding: '8px 10px', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  sortBtnActive:   { background: 'var(--bk)', border: '0.5px solid var(--bk)', color: 'white' },
+  bookRow:         { display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 14, padding: '10px 13px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },
+  bookRowName:     { flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  bookRowMeta:     { fontSize: 10.5, fontWeight: 600, color: 'var(--g4)', flexShrink: 0 },
+  bookRowDone:     { width: 18, height: 18, borderRadius: '50%', background: 'var(--or)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   hero:            { background: 'var(--bk-hero)', padding: '18px 16px 30px', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange:   { position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -70, right: -60 },
   heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },
@@ -354,9 +357,4 @@ const styles = {
   testamentHeader: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 13px', cursor: 'pointer', fontFamily: 'var(--font)' },
   testamentLabel:  { fontSize: 11.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: 0.3, textTransform: 'uppercase' },
   testamentMeta:   { display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 800, color: 'var(--or)' },
-  blockCard:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, overflow: 'hidden' },
-  blockTop:        { padding: '13px 12px 10px', display: 'flex', gap: 10, alignItems: 'flex-start' },
-  blockTag:        { fontSize: 8, fontWeight: 700, color: 'var(--g4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 },
-  blockTitle:      { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 4, letterSpacing: '-0.2px' },
-  bookChip:        { borderWidth: 0.5, borderStyle: 'solid', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer' },
 }
