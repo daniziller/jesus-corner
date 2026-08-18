@@ -50,6 +50,11 @@ export default function JourneyScreen({
   const [expandedBlockId, setExpandedBlockId] = useState(entryMode === 'reading' ? initialBlockId : null)
   const [initialSessionId, setInitialSessionId] = useState(entryMode === 'reading' ? resumeSessionId : null)
   const [readingMode, setReadingMode] = useState(entryMode === 'reading' ? 'session' : 'browse')
+  // Só true quando abrindo um capítulo que a pessoa JÁ tinha escolhido ler
+  // antes (ver RecentChaptersRow/openRecentChapter abaixo) — nesse caso faz
+  // sentido já cair lendo, diferente de abrir um livro do zero (onOpenBook),
+  // que mostra só os números dos capítulos pra escolher (ver ReadingBlockView.jsx).
+  const [initialTextOpen, setInitialTextOpen] = useState(false)
 
   // O botão "Ir para a leitura de hoje" (Rotina) chama onContinueSession
   // mesmo com a tela já montada (usuário já está na aba Bíblia) — os
@@ -68,7 +73,19 @@ export default function JourneyScreen({
     setExpandedBlockId(blockId)
     setInitialSessionId(sessionIdToFeature)
     setReadingMode('browse')
+    setInitialTextOpen(false)
   }
+
+  // Tocar um card de "lido recentemente" (RecentChaptersRow) — diferente de
+  // abrir um livro do zero, aqui já cai lendo o capítulo exato, sem passar
+  // pela lista de números primeiro (ver initialTextOpen acima).
+  function openRecentChapter(blockId, sessionId) {
+    setExpandedBlockId(blockId)
+    setInitialSessionId(sessionId)
+    setReadingMode('browse')
+    setInitialTextOpen(true)
+  }
+
   function closeBlock() {
     setExpandedBlockId(null)
     setInitialSessionId(null)
@@ -107,9 +124,10 @@ export default function JourneyScreen({
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}
         initialSessionId={initialSessionId}
+        initialTextOpen={initialTextOpen}
         onBack={closeBlock}
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id })}
-        onJumpToChapter={openBlock}
+        onJumpToChapter={openRecentChapter}
       />
     )
   }
@@ -177,7 +195,7 @@ export default function JourneyScreen({
         {/* Cards estilo "stories" dos últimos capítulos lidos — fora do
             padding do conteúdo abaixo de propósito, pra rolar de ponta a
             ponta (ver RecentChaptersRow, que já cuida da própria margem). */}
-        <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={openBlock} />
+        <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={openRecentChapter} />
 
         {/* Conteúdo */}
         <div style={{ padding: '13px 14px 18px', display: 'flex', flexDirection: 'column' }}>

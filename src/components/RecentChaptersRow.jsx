@@ -36,7 +36,13 @@ const styles = {
   wrap:   { padding: '8px 0 4px' },
   sticky: { position: 'sticky', top: 0, zIndex: 5, background: 'var(--white)' },
   title:  { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.5, textTransform: 'uppercase', margin: '0 14px 8px' },
-  row:    { display: 'flex', gap: 12, overflowX: 'auto', padding: '0 14px 2px' },
+  // touchAction: 'pan-x' — sem isso, um gesto vertical (rolar a página)
+  // iniciado em cima dessa fileira (rolagem horizontal) podia ser
+  // "sequestrado" pelo scroll horizontal no celular, travando a rolagem
+  // vertical da lista de capítulos logo abaixo enquanto o dedo estivesse
+  // sobre os cards. Com pan-x, só gestos horizontais ficam contidos aqui;
+  // verticais passam direto pro scroll da página.
+  row:    { display: 'flex', gap: 12, overflowX: 'auto', padding: '0 14px 2px', touchAction: 'pan-x' },
   item:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', flexShrink: 0, width: 52 },
   circle: { width: 46, height: 46, borderRadius: '50%', background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.25)' },
   label:  { fontSize: 9, fontWeight: 600, color: 'var(--g5)', maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },

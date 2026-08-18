@@ -357,10 +357,16 @@ html.large-text .app-content-inner {
 
 /* Abrir um livro na navegação livre da aba Bíblia (JourneyScreen.jsx →
    ReadingBlockView.jsx, mode 'browse') — a tela nova "sobe" de baixo pro
-   topo em vez de simplesmente trocar sem transição nenhuma. */
+   topo em vez de simplesmente trocar sem transição nenhuma. `to` usa
+   transform:none (não translateY(0)) — mesmo resultado visual, mas
+   translateY(0) ainda CRIA um novo contexto de empilhamento/containing
+   block (só `none` remove de verdade); aplicado bem em cima do elemento
+   com overflow-y:auto (ver .rb-enter no JSX, que fica num wrapper à
+   parte, nunca no próprio elemento que rola), pra não arriscar celular
+   "travando" o toque de rolar logo depois da animação. */
 @keyframes bookOpenIn {
   from { opacity: 0; transform: translateY(28px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 .rb-enter {
   animation: bookOpenIn .4s cubic-bezier(.2,.8,.2,1) forwards;

@@ -32,7 +32,7 @@ function useIsDesktop() {
   return isDesktop
 }
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack, onGoToReflection, onJumpToChapter }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter }) {
   const { lang } = session
   const isDesktop = useIsDesktop()
   // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
@@ -90,12 +90,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // só existe em modo 'browse' (navegação livre pela Bíblia). Diferente do
   // modo 'session', aqui o texto não mora no card de destaque lá em cima:
   // abre embaixo do próprio capítulo que foi tocado, ver SessionCard.
-  // Começa SEMPRE fechado (nenhum capítulo pré-aberto) — ao tocar um livro,
-  // a pessoa vê os números dos capítulos e escolhe qual quer ler, em vez de
-  // já cair lendo um escolhido pelo app. O livro em si (selectedSessionId/
-  // heroSession, abaixo) continua abrindo já expandido — só o TEXTO de um
-  // capítulo específico não é mais assumido.
-  const [expandedChapterId, setExpandedChapterId] = useState(null)
+  // Fechado por padrão (nenhum capítulo pré-aberto) — ao tocar um livro do
+  // zero, a pessoa vê os números dos capítulos e escolhe qual quer ler, em
+  // vez de já cair lendo um escolhido pelo app. Exceção: initialTextOpen
+  // (true só quando vem de um card de "lido recentemente", ver
+  // RecentChaptersRow/openRecentChapter em JourneyScreen.jsx) — aí já cai
+  // lendo o capítulo exato, sem repetir o passo de escolher de novo algo
+  // que a pessoa já tinha escolhido antes.
+  const [expandedChapterId, setExpandedChapterId] = useState(initialTextOpen ? initialSessionId : null)
 
   // Cards estilo "stories" dos últimos capítulos lidos (ver
   // RecentChaptersRow/recentChaptersStore.js) — precisa de estado próprio
@@ -348,7 +350,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       </div>,
       document.body
     )}
-    <div ref={scrollRef} className={mode === 'browse' ? 'rb-enter' : undefined} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    {/* rb-enter (transição de entrada) mora neste wrapper de FORA, nunca no
+        próprio elemento que rola (scrollRef, overflow-y:auto logo abaixo)
+        — animar transform num elemento com scroll pode travar o toque de
+        rolar em alguns navegadores mobile, mesmo depois da animação
+        terminar (ver comentário do keyframe em index.css). */}
+    <div className={mode === 'browse' ? 'rb-enter' : undefined} style={{ height: '100%' }}>
+    <div ref={scrollRef} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
       <div className="rb-body">
 
         {/* Detalhe: sessão em destaque + marcação + painéis — vem primeiro no
@@ -576,6 +584,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           ))}
         </div>
       </div>
+    </div>
     </div>
     </>
   )
