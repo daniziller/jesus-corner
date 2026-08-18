@@ -136,8 +136,8 @@ export const STRINGS = {
       routineAdjustTimes: 'Ajustar tempos da rotina',
     },
     journey: {
-      heroLabel: 'Minha jornada',
-      heroTitle: 'Caminhada bíblica',
+      heroVerseText: '"Lâmpada para os meus pés é a tua palavra, e luz para o meu caminho."',
+      heroVerseRef: 'Salmos 119:105',
       heroDesc: '{books} livros · Plano {plan} · NVT',
       overallProgress: 'Progresso geral',
       bibleComplete: 'Bíblia concluída 🎉',
@@ -1040,8 +1040,8 @@ export const STRINGS = {
       routineAdjustTimes: 'Adjust routine times',
     },
     journey: {
-      heroLabel: 'My journey',
-      heroTitle: 'Bible journey',
+      heroVerseText: '"Your word is a lamp to guide my feet and a light for my path."',
+      heroVerseRef: 'Psalm 119:105',
       heroDesc: '{books} books · {plan} plan · NLT',
       overallProgress: 'Overall progress',
       bibleComplete: 'Bible completed 🎉',

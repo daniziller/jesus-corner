@@ -141,8 +141,8 @@ export default function JourneyScreen({
       <div style={styles.hero}>
         <div style={styles.heroOrbOrange} />
         <div style={styles.heroOrbPink} />
-        <p style={styles.heroLabel}>{t('journey.heroLabel', undefined, lang)}</p>
-        <h2 style={styles.heroTitle}>{t('journey.heroTitle', undefined, lang)}</h2>
+        <p style={styles.heroVerse}>{t('journey.heroVerseText', undefined, lang)}</p>
+        <p style={styles.heroVerseRef}>{t('journey.heroVerseRef', undefined, lang)}</p>
         <p style={styles.heroDesc}>{t('journey.heroDesc', { books: totalBooks, plan: session.plan.label }, lang)}</p>
         <div style={styles.heroProgressBar}>
           <div style={{ ...styles.heroProgressFill, width: `${session.biblePercent}%` }} />
@@ -346,8 +346,8 @@ const styles = {
   hero:            { background: 'var(--bk-hero)', padding: '18px 16px 30px', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange:   { position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -70, right: -60 },
   heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },
-  heroLabel:       { position: 'relative', fontSize: 9, fontWeight: 700, color: 'var(--or)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
-  heroTitle:       { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 700, fontStyle: 'italic', color: 'white', marginBottom: 3, letterSpacing: '-0.2px' },
+  heroVerse:       { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.35, marginBottom: 5, letterSpacing: '-0.1px' },
+  heroVerseRef:    { position: 'relative', fontSize: 10.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.5, marginBottom: 12 },
   heroDesc:        { position: 'relative', fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 13 },
   heroProgressBar: { position: 'relative', height: 6, background: 'rgba(255,255,255,.15)', borderRadius: 99, overflow: 'hidden', marginBottom: 5 },
   heroProgressFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99 },
