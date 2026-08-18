@@ -16,6 +16,7 @@ import { STAT_THEMES } from '../utils/statThemes'
 import { shareProgressCard } from '../share/shareProgressCard'
 import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete } from '../routine/routineStreak'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
+import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
@@ -78,6 +79,11 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
     : todaySession.progress > 0   ? translate('home.continueSession', undefined, lang)
     : translate('home.startSession', undefined, lang)
 
+  // Versículo do dia, em rodízio (ver src/utils/upliftingVerse.js) — no
+  // lugar do slogan fixo, no topo da Home. Mesmo versículo o dia inteiro,
+  // sempre na versão licenciada de cada idioma (NVT/NLT).
+  const todayVerse = getTodayUpliftingVerse(lang)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingBottom: 83 }}>
 
@@ -87,10 +93,13 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
         <div style={styles.heroOrbPink} />
         <div style={styles.heroContent}>
 
-          {/* Saudação + slogan do app */}
+          {/* Saudação + versículo do dia (rodízio, ver todayVerse acima) —
+              antes era o slogan fixo do app; agora sempre um trecho da
+              Bíblia (NVT/NLT), pra abrir a Home com algo que anima. */}
           <div>
             <p style={styles.greeting}>{translate('home.greeting', { name: userName }, lang)}</p>
-            <h2 style={styles.sessionTitle}>{translate('auth.tagline', undefined, lang)}</h2>
+            <h2 style={styles.sessionTitle}>“{todayVerse.text}”</h2>
+            <p style={styles.heroVerseRef}>{todayVerse.ref}</p>
           </div>
 
         </div>
@@ -628,6 +637,7 @@ const styles = {
   heroContent:   { position: 'relative', zIndex: 2, padding: '18px 20px 30px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
   greeting:      { fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 3 },
   sessionTitle:  { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.3, letterSpacing: '-0.2px' },
+  heroVerseRef:  { fontSize: 11, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.4, marginTop: 6 },
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
   pctHeroWrap:   {},
   pctHero:       { background: 'var(--grad-vivid)', borderRadius: '22px 22px 0 0', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
