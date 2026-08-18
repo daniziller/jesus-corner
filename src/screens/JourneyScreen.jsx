@@ -254,8 +254,19 @@ export default function JourneyScreen({
 
         {/* Cards estilo "stories" dos últimos capítulos lidos — fora do
             padding do conteúdo abaixo de propósito, pra rolar de ponta a
-            ponta (ver RecentChaptersRow, que já cuida da própria margem). */}
-        <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={openRecentChapter} />
+            ponta (ver RecentChaptersRow, que já cuida da própria margem).
+            Fixo (sticky) ao rolar — antes só existia dentro de um livro já
+            aberto (ReadingBlockView.jsx, tela cheia); agora que o livro
+            expande dentro desta mesma lista (ver expandedBookKey acima),
+            faz falta aqui também: sem isso, quem rola pra ler um capítulo
+            mais pra baixo perde o atalho pro capítulo anterior, tendo que
+            voltar ao topo da tela pra achá-lo de novo. `.sheet` (pai direto
+            deste componente) já cobre a lista inteira, do topo ao fim do
+            último livro expandido — é por isso que dá pra ficar fixo por
+            toda a rolagem, não só enquanto o topo da tela está visível (ver
+            mesmo raciocínio, com mais detalhe, no comentário de `sticky` em
+            ReadingBlockView.jsx). */}
+        <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={openRecentChapter} sticky />
 
         {/* Conteúdo */}
         <div style={{ padding: '13px 14px 18px', display: 'flex', flexDirection: 'column' }}>
