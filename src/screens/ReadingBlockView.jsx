@@ -81,11 +81,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // só existe em modo 'browse' (navegação livre pela Bíblia). Diferente do
   // modo 'session', aqui o texto não mora no card de destaque lá em cima:
   // abre embaixo do próprio capítulo que foi tocado, ver SessionCard.
-  // Começa já aberto no capítulo de entrada (ex: veio de um chip de livro
-  // clicável), pra já cair lendo sem precisar tocar de novo.
-  const [expandedChapterId, setExpandedChapterId] = useState(
-    mode === 'browse' ? (initialSessionId ?? autoHeroSession.id) : null
-  )
+  // Começa SEMPRE fechado (nenhum capítulo pré-aberto) — ao tocar um livro,
+  // a pessoa vê os números dos capítulos e escolhe qual quer ler, em vez de
+  // já cair lendo um escolhido pelo app. O livro em si (selectedSessionId/
+  // heroSession, abaixo) continua abrindo já expandido — só o TEXTO de um
+  // capítulo específico não é mais assumido.
+  const [expandedChapterId, setExpandedChapterId] = useState(null)
 
   // Lembra o último capítulo aberto na navegação livre (mode 'browse') —
   // só aqui, não no fluxo guiado da Rotina/Plano (mode 'session'), que já
