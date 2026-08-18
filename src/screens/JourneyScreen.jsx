@@ -55,6 +55,9 @@ export default function JourneyScreen({
   // sentido já cair lendo, diferente de abrir um livro do zero (onOpenBook),
   // que mostra só os números dos capítulos pra escolher (ver ReadingBlockView.jsx).
   const [initialTextOpen, setInitialTextOpen] = useState(false)
+  // Bloco de onde a pessoa acabou de voltar (ver closeBlock) — só serve pra
+  // decidir qual seção de testamento no mapa já volta aberta.
+  const [lastViewedBlockId, setLastViewedBlockId] = useState(null)
 
   // O botão "Ir para a leitura de hoje" (Rotina) chama onContinueSession
   // mesmo com a tela já montada (usuário já está na aba Bíblia) — os
@@ -87,6 +90,14 @@ export default function JourneyScreen({
   }
 
   function closeBlock() {
+    // Guarda de qual bloco a pessoa estava saindo — usado só pra decidir
+    // qual seção de testamento (Antigo/Novo) volta já aberta no mapa (ver
+    // lastViewedBlockId/TestamentSection abaixo). Sem isso, a seção sempre
+    // voltava fechada (padrão de TestamentSection é começar fechada), e
+    // quem tinha acabado de rolar fundo numa lista longa de livros perdia
+    // o lugar inteiro ao voltar — parecia rolagem quebrada, mas era só a
+    // lista recolhendo sozinha.
+    setLastViewedBlockId(expandedBlockId)
     setExpandedBlockId(null)
     setInitialSessionId(null)
   }
@@ -287,6 +298,7 @@ export default function JourneyScreen({
                 bookChapterCounts={bookChapterCounts}
                 completedSet={completedSet}
                 onOpenBook={openBook}
+                defaultOpen={lastViewedBlockId != null && lastViewedBlockId <= 4}
               />
               <TestamentSection
                 testamentKey="nt"
@@ -296,6 +308,7 @@ export default function JourneyScreen({
                 bookChapterCounts={bookChapterCounts}
                 completedSet={completedSet}
                 onOpenBook={openBook}
+                defaultOpen={lastViewedBlockId != null && lastViewedBlockId >= 5}
                 style={{ marginTop: 12 }}
               />
             </>
@@ -306,13 +319,16 @@ export default function JourneyScreen({
   )
 }
 
-/* ── Seção expansível de testamento (Antigo/Novo) — começa sempre
-   compacta; o usuário decide quando quer ver a lista de livros, em vez do
-   app abrir um dos dois sozinho. Sem agrupamento por bloco temático — só
+/* ── Seção expansível de testamento (Antigo/Novo) — começa fechada por
+   padrão (o usuário decide quando quer ver a lista de livros, em vez do
+   app abrir um dos dois sozinho), EXCETO quando `defaultOpen` vem true —
+   usado só ao voltar de um livro desse testamento (ver lastViewedBlockId
+   em JourneyScreen.jsx), pra não perder o lugar numa lista longa só por
+   ter tocado um livro e voltado. Sem agrupamento por bloco temático — só
    Antigo/Novo Testamento, cada um com a lista (achatada) dos seus livros,
    na ordem escolhida em `books` (bíblica ou A-Z, decidido por quem chama). ── */
-function TestamentSection({ testamentKey, label, blocks, books, bookChapterCounts, completedSet, onOpenBook, style }) {
-  const [open, setOpen] = useState(false)
+function TestamentSection({ testamentKey, label, blocks, books, bookChapterCounts, completedSet, onOpenBook, defaultOpen, style }) {
+  const [open, setOpen] = useState(defaultOpen ?? false)
 
   const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
   const totalSessions = blocks.reduce((s, b) => s + b.sessionsTotal, 0)
