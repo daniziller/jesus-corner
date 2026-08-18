@@ -38,3 +38,7 @@ android-twa/*.idsig
 # Scripts/artefatos de teste manual (Playwright ao vivo, screenshots) —
 # nunca devem ir pro repo, só existem durante verificação local.
 .debug-*
+
+# Estado local do CLI da Supabase (link do projeto) — específico desta
+# máquina, regenerado a qualquer momento com `supabase link`.
+supabase/.temp/
