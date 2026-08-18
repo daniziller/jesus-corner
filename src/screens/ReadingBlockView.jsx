@@ -280,12 +280,102 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     })
   }
 
+  // Grifar/anotar um trecho — antes abria uma caixinha inline embaixo do
+  // próprio texto (HighlightNoteBox dentro de BibleTextPanel); agora abre
+  // flutuando por cima, mesmo padrão do chat de IA (ver aiChatOverlay* e o
+  // FAB de lápis logo abaixo), pra caber mais espaço pra escrever e não
+  // empurrar o texto/lista pra baixo. Por isso mora aqui (não mais dentro
+  // de BibleTextPanel): o FAB e a janela flutuante ficam neste nível,
+  // junto do FAB/janela da IA — BibleTextPanel só recebe de volta o
+  // essencial pra pintar o texto (`highlightSelection`, pra sublinhar o
+  // que está selecionado) e dois callbacks de toque/seleção.
+  const [highlightSelection, setHighlightSelection] = useState(null) // { chapter, verses: Set<number> } | null
+  const [highlightEditingId, setHighlightEditingId] = useState(null)
+
+  // Toque no NÚMERO de um versículo — alterna ele dentro/fora da seleção em
+  // andamento (ou, se esse versículo já tem um grifo salvo, troca pro modo
+  // "editar esse grifo" em vez de somar à seleção. Sempre abre a janela
+  // flutuante ao mexer em algo; fecha sozinha se a seleção esvaziar.
+  function handleHighlightVerseClick(ch, v) {
+    const existing = highlights?.find(h => h.book === heroSession.book && h.chapter === ch && h.verses.includes(v))
+    if (existing) {
+      setHighlightEditingId(existing.id)
+      setHighlightSelection(null)
+      setOpenPanel('grifo')
+      return
+    }
+    setHighlightEditingId(null)
+    let next
+    if (!highlightSelection || highlightSelection.chapter !== ch) {
+      next = { chapter: ch, verses: new Set([v]) }
+    } else {
+      const verses = new Set(highlightSelection.verses)
+      if (verses.has(v)) verses.delete(v)
+      else verses.add(v)
+      next = verses.size === 0 ? null : { chapter: ch, verses }
+    }
+    setHighlightSelection(next)
+    setOpenPanel(next ? 'grifo' : null)
+  }
+
+  // Seleção de texto "de verdade" (arrastar o dedo/mouse como se fosse
+  // copiar) — ver detecção em BibleTextPanel (escuta selectionchange e
+  // resolve o intervalo de versículos pelos atributos data-chapter/
+  // data-verse). Sempre substitui a seleção em andamento (não soma a um
+  // grifo já aberto pra edição), mesmo espírito de handleHighlightVerseClick.
+  function handleHighlightTextRange(ch, verses) {
+    setHighlightEditingId(null)
+    setHighlightSelection({ chapter: ch, verses })
+    setOpenPanel('grifo')
+  }
+
+  function submitNewHighlight(text) {
+    if (!highlightSelection || !text.trim()) return
+    handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text)
+    setHighlightSelection(null)
+    setOpenPanel(null)
+  }
+
+  function submitHighlightEdit(text) {
+    if (!highlightEditingId || !text.trim()) return
+    handleUpdateHighlightText(highlightEditingId, text)
+    setHighlightEditingId(null)
+    setOpenPanel(null)
+  }
+
+  function removeEditingHighlight() {
+    if (!highlightEditingId) return
+    handleDeleteHighlight(highlightEditingId)
+    setHighlightEditingId(null)
+    setOpenPanel(null)
+  }
+
+  function cancelHighlightCompose() {
+    setHighlightSelection(null)
+    setHighlightEditingId(null)
+    setOpenPanel(null)
+  }
+
+  // Tocar num grifo já salvo, dentro da lista da janela flutuante (estado
+  // vazio, sem seleção em andamento) — abre ele pra ver/editar/apagar, sem
+  // precisar fechar a janela e caçar o versículo de novo na lista.
+  function editExistingHighlight(id) {
+    setHighlightSelection(null)
+    setHighlightEditingId(id)
+  }
+
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
   const heroTitle = lang === 'en' ? heroSession.titleEn : heroSession.title
   const heroPassage = lang === 'en' ? heroSession.passageEn : heroSession.passage
   const heroChapterSpan = heroSession.type === 'reflection' ? 0 : heroSession.chEnd - heroSession.chStart + 1
   const heroChapterWord = lang === 'en' ? (heroChapterSpan === 1 ? 'chapter' : 'chapters') : (heroChapterSpan === 1 ? 'capítulo' : 'capítulos')
   const heroBookDisplayName = lang === 'en' ? heroSession.bookEn : heroSession.book
+  const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
+  // Grifos já salvos dentro do alcance da sessão em destaque — mostrados na
+  // janela flutuante de grifo quando ela abre sem nenhuma seleção em
+  // andamento (ver FAB de lápis), pra dar acesso rápido a editar/apagar um
+  // já feito sem precisar caçar o versículo de novo na lista.
+  const highlightsInHero = heroSession.type === 'reflection' ? [] : (highlights?.filter(h => h.book === heroSession.book && h.chapter >= heroSession.chStart && h.chapter <= heroSession.chEnd) ?? [])
 
   // heroSession já é sempre "o que a pessoa está lendo agora" mesmo em modo
   // 'browse' — toggleInlineChapter (acima) chama featureSession sempre que
@@ -410,9 +500,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               completedSet={completedSet}
               onToggleChapter={onToggleChapter}
               highlights={highlights}
-              onSaveHighlight={handleSaveHighlight}
-              onUpdateHighlightText={handleUpdateHighlightText}
-              onDeleteHighlight={handleDeleteHighlight}
+              highlightSelection={highlightSelection}
+              onVerseNumberClick={handleHighlightVerseClick}
+              onTextSelectionRange={handleHighlightTextRange}
             />
             {nextForHero && (
               <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
@@ -490,9 +580,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       isDesktop={!embedded && isDesktop}
       hasNoteFor={hasNoteFor}
       highlights={highlights}
-      onSaveHighlight={handleSaveHighlight}
-      onUpdateHighlightText={handleUpdateHighlightText}
-      onDeleteHighlight={handleDeleteHighlight}
+      highlightSelection={highlightSelection}
+      onHighlightVerseClick={handleHighlightVerseClick}
+      onHighlightTextRange={handleHighlightTextRange}
     />
   ))
 
@@ -508,6 +598,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         funciona igual. */}
     {heroSession.type !== 'reflection' && createPortal(
       <div style={styles.aiFabWrap}>
+        {/* Lápis em cima do robô da IA — mesmo FAB flutuante, mesma coluna,
+            só empilhado (ver styles.highlightFab: mesmo `right`, `bottom`
+            maior). Abre a mesma janela flutuante do grifo (ver embaixo);
+            com uma seleção em andamento ela já mostra o compositor, sem
+            seleção mostra os grifos já feitos neste trecho. */}
+        <button type="button" style={styles.highlightFab} onClick={() => setOpenPanel('grifo')} aria-label={t('reading.tagHighlight', undefined, lang)}>
+          <AppIcon name="Pencil" size={19} color="white" />
+        </button>
         <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
           <AppIcon name="Bot" size={22} color="white" />
         </button>
@@ -531,6 +629,40 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           </div>
           <div style={styles.aiChatOverlayBody}>
             <AiChatPanel session={heroSession} lang={lang} />
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    {/* Grifar/anotar — antes era uma caixinha inline embaixo do versículo
+        tocado (ver comentário em handleHighlightVerseClick); agora flutua
+        por cima igual o chat de IA acima, aberta tanto por selecionar um
+        trecho (toque no número OU seleção "de copiar", ver BibleTextPanel)
+        quanto pelo FAB de lápis. */}
+    {openPanel === 'grifo' && heroSession.type !== 'reflection' && createPortal(
+      <div style={styles.aiChatOverlayBackdrop} onClick={cancelHighlightCompose}>
+        <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
+          <div style={styles.aiChatOverlayHeader}>
+            <span style={styles.aiChatOverlayTitle}>
+              <span style={{ ...styles.aiChatOverlayIcon, background: 'var(--olt)' }}><AppIcon name="Pencil" size={14} color="var(--brand-deep)" /></span>
+              {t('reading.tagHighlight', undefined, lang)}
+            </span>
+            <button type="button" style={styles.aiChatOverlayClose} onClick={cancelHighlightCompose} aria-label={t('aiChat.close', undefined, lang)}>
+              <AppIcon name="X" size={16} color="var(--g5)" />
+            </button>
+          </div>
+          <div style={styles.aiChatOverlayBody}>
+            <HighlightComposer
+              lang={lang}
+              chLabel={chLabel}
+              selection={highlightSelection}
+              editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId) : null}
+              existingHighlights={highlightsInHero}
+              onSaveNew={submitNewHighlight}
+              onSaveEdit={submitHighlightEdit}
+              onDelete={removeEditingHighlight}
+              onEditExisting={editExistingHighlight}
+            />
           </div>
         </div>
       </div>,
@@ -738,12 +870,13 @@ function groupIntoParagraphs(chapter) {
   return paragraphs
 }
 
-function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, onSaveHighlight, onUpdateHighlightText, onDeleteHighlight }) {
+function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, onVerseNumberClick, onTextSelectionRange }) {
   const bookKey = lang === 'en' ? session.bookEn : session.book
   const availableVersions = BIBLE_VERSIONS[lang] ?? []
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
   const version = findBibleVersion(versionId) ?? availableVersions[0]
   const [state, setState] = useState({ status: 'loading', chapters: null })
+  const textRef = useRef(null)
 
   // Reidrata a versão escolhida quando o idioma muda (ex: pessoa troca de
   // idioma do app enquanto está com esse painel montado em outra sessão).
@@ -763,39 +896,45 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
     return () => { cancelled = true }
   }, [versionId, bookKey])
 
-  // Versículos escolhidos AGORA pra virar um highlight novo — sempre de um
-  // capítulo só (ver decisão de escopo no plano); tocar num versículo de
-  // outro capítulo enquanto uma seleção está em andamento troca pra ela,
-  // não soma (evita misturar capítulos numa marcação só). `editingId` é o
-  // highlight JÁ salvo aberto pra ver/editar/apagar (tocar num versículo
-  // que já pertence a um cai aqui em vez de somar à seleção).
-  const [selection, setSelection] = useState(null) // { chapter, verses: Set<number> } | null
-  const [editingId, setEditingId] = useState(null)
+  // Selecionar um trecho arrastando o dedo/mouse (como se fosse copiar)
+  // também grifa — além de tocar no número do versículo (ver onClick do
+  // <sup> abaixo). Escuta `selectionchange` (não mouseup/touchend: no
+  // toque, a seleção às vezes só "assenta" de vez um instante depois de
+  // soltar o dedo) com um pequeno atraso, resolve o capítulo/intervalo de
+  // versículos pelos atributos data-chapter/data-verse dos elementos onde
+  // a seleção começa/termina (ver mais abaixo), e limpa a seleção nativa
+  // do navegador — a marcação visual daqui pra frente é toda nossa (ver
+  // isSelected/isHighlighted mais abaixo).
+  useEffect(() => {
+    let timer = null
+    function handleSelectionChange() {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        const sel = window.getSelection()
+        if (!sel || sel.isCollapsed || !sel.toString().trim()) return
+        if (!textRef.current || !sel.anchorNode || !textRef.current.contains(sel.anchorNode)) return
+        const anchorEl = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode
+        const focusEl = sel.focusNode?.nodeType === 3 ? sel.focusNode.parentElement : sel.focusNode
+        const startVerseEl = anchorEl?.closest('[data-verse]')
+        const endVerseEl = focusEl?.closest('[data-verse]')
+        const chapterEl = anchorEl?.closest('[data-chapter]')
+        if (!startVerseEl || !endVerseEl || !chapterEl) return
+        let vStart = Number(startVerseEl.dataset.verse)
+        let vEnd = Number(endVerseEl.dataset.verse)
+        if (vStart > vEnd) { const tmp = vStart; vStart = vEnd; vEnd = tmp }
+        const verses = new Set()
+        for (let v = vStart; v <= vEnd; v++) verses.add(v)
+        sel.removeAllRanges()
+        onTextSelectionRange?.(Number(chapterEl.dataset.chapter), verses)
+      }, 250)
+    }
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => { document.removeEventListener('selectionchange', handleSelectionChange); clearTimeout(timer) }
+  }, [onTextSelectionRange])
 
   function highlightForVerse(ch, v) {
     return highlights?.find(h => h.book === session.book && h.chapter === ch && h.verses.includes(v))
   }
-
-  function handleVerseNumberClick(ch, v) {
-    const existing = highlightForVerse(ch, v)
-    if (existing) { setEditingId(existing.id); setSelection(null); return }
-    setEditingId(null)
-    setSelection(prev => {
-      if (!prev || prev.chapter !== ch) return { chapter: ch, verses: new Set([v]) }
-      const verses = new Set(prev.verses)
-      if (verses.has(v)) verses.delete(v)
-      else verses.add(v)
-      return verses.size === 0 ? null : { chapter: ch, verses }
-    })
-  }
-
-  function handleSaveSelection(text) {
-    if (!selection || !text.trim() || !onSaveHighlight) return
-    onSaveHighlight(session.book, session.bookEn, selection.chapter, [...selection.verses].sort((a, b) => a - b), text)
-    setSelection(null)
-  }
-
-  const editingHighlight = editingId ? highlights?.find(h => h.id === editingId) : null
 
   const chapterNumbers = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapterNumbers.push(ch)
@@ -806,7 +945,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
     // sozinho usa 14px) — texto corrido de leitura ganha mais com uma
     // coluna larga do que com respiro lateral generoso (ver também os dois
     // wrappers que chamam este componente, ambos com o mesmo ajuste).
-    <div style={{ ...styles.panel, padding: '14px 8px' }}>
+    <div style={{ ...styles.panel, padding: '14px 8px' }} ref={textRef}>
       {availableVersions.length > 1 ? (
         <div style={styles.bibleTextVersionRow}>
           {availableVersions.map(v => (
@@ -831,23 +970,27 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         const paragraphs = groupIntoParagraphs(chapter)
         const chDone = completedSet?.has(`${session.book}:${ch}`)
         return (
-          <div key={ch} style={styles.bibleTextChapter}>
+          <div key={ch} data-chapter={ch} style={styles.bibleTextChapter}>
             <p style={styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
             {paragraphs.map((verseNums, pIdx) => (
               <p key={pIdx} style={styles.bibleTextBody}>
                 {verseNums.map((v, vIdx) => {
                   // Toca no NÚMERO (não no texto corrido) pra marcar — evita
-                  // brigar com o toque normal de ler/rolar a tela. Versículo
-                  // já marcado (highlight salvo) ganha fundo dourado sempre;
-                  // em seleção (ainda não salvo) ganha um contorno tracejado.
+                  // brigar com o toque normal de ler/rolar a tela; SELECIONAR
+                  // o texto corrido (arrastar, como se fosse copiar) também
+                  // marca — ver o efeito de selectionchange acima, que usa
+                  // este data-verse (e o data-chapter do <div> acima) pra
+                  // descobrir o intervalo. Versículo já marcado (highlight
+                  // salvo) ganha fundo dourado sempre; em seleção (ainda não
+                  // salvo) ganha um contorno tracejado.
                   const isHighlighted = Boolean(highlightForVerse(ch, v))
-                  const isSelected = selection?.chapter === ch && selection.verses.has(v)
+                  const isSelected = highlightSelection?.chapter === ch && highlightSelection.verses.has(v)
                   return (
-                    <span key={v} style={isHighlighted ? styles.verseHighlighted : isSelected ? styles.verseSelected : undefined}>
+                    <span key={v} data-verse={v} style={isHighlighted ? styles.verseHighlighted : isSelected ? styles.verseSelected : undefined}>
                       {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
                       <sup
                         style={{ ...styles.bibleTextVerseNum, ...styles.verseNumBtn }}
-                        onClick={() => handleVerseNumberClick(ch, v)}
+                        onClick={() => onVerseNumberClick?.(ch, v)}
                       >
                         {v}
                       </sup>
@@ -862,28 +1005,6 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                 })}
               </p>
             ))}
-
-            {/* Compor um highlight novo (versículos selecionados nesse
-                capítulo) ou ver/editar/apagar um já salvo — só um dos dois
-                por vez, nunca junto (ver handleVerseNumberClick). */}
-            {selection?.chapter === ch && (
-              <HighlightNoteBox
-                countLabel={t('reading.markVerses', { n: selection.verses.size }, lang)}
-                onSave={handleSaveSelection}
-                onCancel={() => setSelection(null)}
-                lang={lang}
-              />
-            )}
-            {editingHighlight?.chapter === ch && (
-              <HighlightNoteBox
-                countLabel={`${chLabel} ${ch}:${formatVerseRanges(editingHighlight.verses)}`}
-                initialText={editingHighlight.text}
-                onSave={text => { onUpdateHighlightText?.(editingHighlight.id, text); setEditingId(null) }}
-                onDelete={() => { onDeleteHighlight?.(editingHighlight.id); setEditingId(null) }}
-                onCancel={() => setEditingId(null)}
-                lang={lang}
-              />
-            )}
 
             {/* Marcar o capítulo como lido direto no fim do texto — sem
                 precisar voltar pro topo e caçar o chip dele (ver
@@ -908,35 +1029,72 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
   )
 }
 
-// Caixa pra compor a nota de um highlight novo (countLabel = "Marcar N
-// versículos") ou ver/editar/apagar um já salvo (countLabel = referência
-// tipo "Cap. 6:9–13", initialText preenchido, onDelete presente). Mesmo
-// padrão visual das outras caixas de nota do arquivo (NotesPanel).
-function HighlightNoteBox({ countLabel, initialText = '', onSave, onDelete, onCancel, lang }) {
-  const [text, setText] = useState(initialText)
+// Corpo da janela flutuante de grifo (ver openPanel === 'grifo' no
+// componente principal) — três estados possíveis:
+// 1. `editingHighlight` preenchido: ver/editar/apagar um grifo já salvo.
+// 2. `selection` preenchida (sem editingHighlight): compor um grifo novo
+//    com os versículos escolhidos AGORA (toque no número ou seleção de
+//    texto, ver handleHighlightVerseClick/handleHighlightTextRange).
+// 3. Nenhum dos dois (FAB de lápis tocado sem nada selecionado): dica de
+//    como grifar + lista dos grifos já feitos nesta sessão, cada um
+//    tocável pra cair direto no estado 1.
+function HighlightComposer({ lang, chLabel, selection, editingHighlight, existingHighlights, onSaveNew, onSaveEdit, onDelete, onEditExisting }) {
+  const [text, setText] = useState(editingHighlight?.text ?? '')
+
+  // Troca de alvo (editar outro grifo da lista, ou uma seleção nova chegar)
+  // enquanto a janela já está aberta — reidrata o texto do zero, senão
+  // ficaria mostrando o rascunho do alvo anterior.
+  useEffect(() => {
+    setText(editingHighlight?.text ?? '')
+  }, [editingHighlight?.id])
+
+  if (!selection && !editingHighlight) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0 }}>
+        <p style={styles.aiChatScopeNote}>{t('reading.highlightEmptyHint', undefined, lang)}</p>
+        {existingHighlights?.length > 0 && (
+          <>
+            <p style={styles.highlightListTitle}>{t('reading.highlightYourNotes', undefined, lang)}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
+              {existingHighlights.map(h => (
+                <button key={h.id} style={styles.highlightListItem} onClick={() => onEditExisting(h.id)}>
+                  <span style={styles.highlightListRef}>{chLabel} {h.chapter}:{formatVerseRanges(h.verses)}</span>
+                  <span style={styles.highlightListText}>{h.text}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  const countLabel = editingHighlight
+    ? `${chLabel} ${editingHighlight.chapter}:${formatVerseRanges(editingHighlight.verses)}`
+    : t('reading.markVerses', { n: selection.verses.size }, lang)
 
   return (
-    <div style={styles.highlightBox}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
       <p style={styles.highlightBoxLabel}>
-        <AppIcon name="Highlighter" size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+        <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
         {countLabel}
       </p>
       <textarea
-        style={styles.notesTextarea}
+        style={{ ...styles.notesTextarea, flex: 1, marginBottom: 0 }}
         value={text}
         onChange={e => setText(e.target.value)}
         placeholder={t('reading.highlightNotePlaceholder', undefined, lang)}
-        rows={2}
         autoFocus
       />
       <div style={{ display: 'flex', gap: 6 }}>
-        <button style={{ ...styles.notesSaveBtn, width: 'auto', flex: 1, marginBottom: 0 }} onClick={() => onSave(text)} disabled={!text.trim()}>
+        <button
+          style={{ ...styles.notesSaveBtn, width: 'auto', flex: 1, marginBottom: 0 }}
+          onClick={() => (editingHighlight ? onSaveEdit(text) : onSaveNew(text))}
+          disabled={!text.trim()}
+        >
           {t('reading.highlightSave', undefined, lang)}
         </button>
-        <button style={styles.highlightCancelBtn} onClick={onCancel}>
-          {t('reading.highlightCancel', undefined, lang)}
-        </button>
-        {onDelete && (
+        {editingHighlight && (
           <button style={styles.highlightDeleteBtn} onClick={onDelete} aria-label={t('reading.highlightDelete', undefined, lang)}>
             <AppIcon name="Trash2" size={13} />
           </button>
@@ -1127,7 +1285,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop, hasNoteFor, highlights, onSaveHighlight, onUpdateHighlightText, onDeleteHighlight }) {
+function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop, hasNoteFor, highlights, highlightSelection, onHighlightVerseClick, onHighlightTextRange }) {
   const [open, setOpen] = useState(isCurrentBook)
   const total = group.sessions.length
   const doneCount = group.sessions.filter(s => s.status === 'done').length
@@ -1200,9 +1358,9 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
               isDesktop={isDesktop}
               hasNote={hasNoteFor(s)}
               highlights={highlights}
-              onSaveHighlight={onSaveHighlight}
-              onUpdateHighlightText={onUpdateHighlightText}
-              onDeleteHighlight={onDeleteHighlight}
+              highlightSelection={highlightSelection}
+              onHighlightVerseClick={onHighlightVerseClick}
+              onHighlightTextRange={onHighlightTextRange}
             />
           ))}
         </div>
@@ -1211,7 +1369,7 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
   )
 }
 
-function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop, hasNote, highlights, onSaveHighlight, onUpdateHighlightText, onDeleteHighlight }) {
+function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop, hasNote, highlights, highlightSelection, onHighlightVerseClick, onHighlightTextRange }) {
   const isDone       = session.status === 'done'
   const isCurrent    = session.status === 'current'
   const isReflection = session.type === 'reflection'
@@ -1315,9 +1473,9 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
             completedSet={completedSet}
             onToggleChapter={onToggleChapter}
             highlights={highlights}
-            onSaveHighlight={onSaveHighlight}
-            onUpdateHighlightText={onUpdateHighlightText}
-            onDeleteHighlight={onDeleteHighlight}
+            highlightSelection={highlightSelection}
+            onVerseNumberClick={onHighlightVerseClick}
+            onTextSelectionRange={onHighlightTextRange}
           />
           {nextSession && (
             <button style={styles.nextChapterBtn} onClick={() => onNextInline(session)}>
@@ -1383,10 +1541,12 @@ const styles = {
   verseNumBtn:     { cursor: 'pointer', padding: '0 2px' },
   verseHighlighted:{ background: 'rgba(201,154,74,.28)', borderRadius: 3 },
   verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
-  highlightBox:    { background: 'var(--olt)', border: '0.5px dashed var(--gold-soft)', borderRadius: 13, padding: 11, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 },
   highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
-  highlightCancelBtn:{ flex: 1, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
+  highlightListTitle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.4, textTransform: 'uppercase', margin: '2px 0 0' },
+  highlightListItem:{ width: '100%', textAlign: 'left', background: 'var(--olt)', border: '0.5px solid var(--gold-soft)', borderRadius: 12, padding: '9px 11px', cursor: 'pointer', fontFamily: 'var(--font)', display: 'flex', flexDirection: 'column', gap: 2 },
+  highlightListRef: { fontSize: 9.5, fontWeight: 700, color: 'var(--brand-deep)' },
+  highlightListText:{ fontSize: 11.5, fontWeight: 500, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
 
   // Chat com IA sobre o texto (ver AiChatPanel) — flutua por cima da
   // leitura (ver aiChatOverlay* mais abaixo) em vez de abrir um card
@@ -1417,6 +1577,12 @@ const styles = {
   // (ThemePlanScreen.jsx), pra sinalizar "isso é IA" de forma consistente.
   aiFabWrap: { position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'var(--max-width)', zIndex: 90, pointerEvents: 'none' },
   aiFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: '#A21CAF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(162,28,175,.4)', pointerEvents: 'auto' },
+  // Lápis de grifar — mesmo FAB, empilhado em cima do da IA (mesmo `right`,
+  // `bottom` maior em 52px do botão + 12px de respiro). Cor dourada/marrom
+  // (var(--brand-deep)), mesmo tom já usado nos grifos salvos (verseHighlighted/
+  // highlightBoxLabel), pra sinalizar "isso é sobre marcar o texto" — cor
+  // diferente da roxa da IA, mesmo formato/tamanho.
+  highlightFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px + 64px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: 'var(--brand-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(157,67,0,.4)', pointerEvents: 'auto' },
 
   // Janela flutuante do chat — "nuvem" pedida: aparece por cima da leitura
   // (ancorada embaixo, tipo bandeja de mensagens), sem tirar a pessoa da
