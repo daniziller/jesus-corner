@@ -348,7 +348,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       </div>,
       document.body
     )}
-    <div ref={scrollRef} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div ref={scrollRef} className={mode === 'browse' ? 'rb-enter' : undefined} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
       <div className="rb-body">
 
         {/* Detalhe: sessão em destaque + marcação + painéis — vem primeiro no

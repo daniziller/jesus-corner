@@ -354,6 +354,20 @@ html.large-text .app-content-inner {
   .welcome-cta-pulse { animation: none; }
   .welcome-preview-fade { animation: none; }
 }
+
+/* Abrir um livro na navegação livre da aba Bíblia (JourneyScreen.jsx →
+   ReadingBlockView.jsx, mode 'browse') — a tela nova "sobe" de baixo pro
+   topo em vez de simplesmente trocar sem transição nenhuma. */
+@keyframes bookOpenIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rb-enter {
+  animation: bookOpenIn .4s cubic-bezier(.2,.8,.2,1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rb-enter { animation: none; }
+}
 .pulse {
   width: 5px;
   height: 5px;
