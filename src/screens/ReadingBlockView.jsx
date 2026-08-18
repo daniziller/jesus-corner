@@ -1,7 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { groupSessionsByBook } from '../utils/groupByBook'
-import { sessionKeys } from '../utils/progress'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
@@ -75,16 +74,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
 
   const heroSession = sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
 
-  // Progresso real DESTA sessão (não da "sessão de hoje" do plano ativo
-  // global) — session.todaySession.progress era usado aqui antes, mas é o
-  // progresso de outra sessão sempre que o hero está mostrando algo aberto
-  // pela navegação livre (ex: um livro do NT nunca lido enquanto a leitura
-  // ativa de verdade está em outro lugar), fazendo a barra mostrar uma
-  // porcentagem sem relação nenhuma com o capítulo exibido.
-  const heroSessionKeys = sessionKeys(heroSession)
-  const heroSessionProgress = heroSessionKeys.length
-    ? Math.round((heroSessionKeys.filter(k => completedSet.has(k)).length / heroSessionKeys.length) * 100)
-    : 0
 
   // Qual capítulo tem o texto aberto INLINE, direto na lista de livros —
   // só existe em modo 'browse' (navegação livre pela Bíblia). Diferente do
@@ -364,80 +353,59 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             direita e mantém fixo (sticky) enquanto a lista de livros rola. */}
         <div className="rb-detail">
 
-          {/* Navegação livre (aba Bíblia, fora de um plano): sem o hero
-              grande — pular direto pra lista de capítulos com o texto já
-              aberto embaixo é o pedido (não "levar pra uma sessão", só
-              abrir o texto). Fica só um cabeçalho compacto — voltar +
-              nome do livro + as mesmas abas de Contexto/Mapa/Notas/
-              Curiosidades (o chat de IA já tem seu próprio botão flutuante,
-              independente do hero). ChapterChecklist/"Marcar concluído"
-              somem — a lista abaixo (BookGroup) já cobre as duas coisas,
-              capítulo a capítulo. */}
-          {mode === 'browse' ? (
+          {/* Cabeçalho compacto e branco — mesmo layout nos dois modos
+              (pedido explícito: fluxo guiado do plano igual à navegação
+              livre da aba Bíblia, sem o card grande/escuro de antes). Só
+              muda o CONTEÚDO: navegação livre mostra só o nome do livro;
+              dentro de um plano mostra também bloco/sessão e a passagem/
+              contagem de capítulos, já que ali "sessão" carrega informação
+              de verdade (pode cobrir vários capítulos de uma vez). Sem
+              barra de progresso — fica redundante com os checks por
+              capítulo logo abaixo (ChapterChecklist/lista). */}
+          <div style={styles.browseHeader}>
+            <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
+              <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
+            </button>
+            {mode !== 'browse' && (
+              <p style={styles.browseHeaderCycle}>
+                {isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}
+              </p>
+            )}
+            <span style={styles.browseHeaderTitle}>{mode === 'browse' ? heroBookDisplayName : heroTitle}</span>
+            {mode !== 'browse' && (
+              <p style={styles.browseHeaderSub}>
+                {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
+              </p>
+            )}
+            <div style={styles.browseTagsRow}>
+              {/* IA nunca entra aqui — tem seu próprio botão flutuante (FAB),
+                  em qualquer um dos dois modos; repetir na lista de abas
+                  seria a mesma coisa duas vezes. */}
+              {TAGS.filter(tag => tag.key !== 'ia').map(tag => (
+                <span
+                  key={tag.key}
+                  style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
+                  onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
+                >
+                  <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
+                </span>
+              ))}
+            </div>
+          </div>
+          {/* Cards de "lidos recentemente" — só na navegação livre. No
+              desktop moram aqui dentro de .rb-detail, que já é sticky por
+              conta própria (CSS, ≥1024px). No celular teriam que ficar de
+              FORA daqui: sticky só funciona dentro dos limites do próprio
+              pai, e .rb-detail é curto (só o cabeçalho) — colado nele, o
+              card sairia de tela assim que .rb-detail acabasse, bem antes
+              da lista de capítulos terminar de rolar. Ver o mesmo
+              componente renderizado de novo, fora da .rb-detail, logo
+              abaixo. */}
+          {mode === 'browse' && isDesktop && (
+            <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
+          )}
+          {mode !== 'browse' && (
             <>
-              <div style={styles.browseHeader}>
-                <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
-                  <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
-                </button>
-                <span style={styles.browseHeaderTitle}>{heroBookDisplayName}</span>
-                <div style={styles.browseTagsRow}>
-                  {TAGS.filter(tag => tag.key !== 'ia').map(tag => (
-                    <span
-                      key={tag.key}
-                      style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
-                      onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
-                    >
-                      <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {/* Cards de "lidos recentemente" — no desktop moram aqui dentro
-                  de .rb-detail, que já é sticky por conta própria (CSS,
-                  ≥1024px). No celular teriam que ficar de FORA daqui: sticky
-                  só funciona dentro dos limites do próprio pai, e .rb-detail
-                  é curto (só o cabeçalho) — colado nele, o card sairia de
-                  tela assim que .rb-detail acabasse, bem antes da lista de
-                  capítulos terminar de rolar. Ver o mesmo componente
-                  renderizado de novo, fora da .rb-detail, logo abaixo. */}
-              {isDesktop && <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />}
-            </>
-          ) : (
-            <>
-              {/* Hero da sessão atual */}
-              <div style={styles.hero}>
-                <div style={styles.heroOrbOrange} />
-                <div style={styles.heroOrbPink} />
-                <div style={styles.heroOverlay} />
-                <button onClick={onBack} style={styles.heroBackBtn} aria-label="back">
-                  <AppIcon name="ArrowLeft" size={17} color="white" />
-                </button>
-                <div style={styles.heroContent}>
-                  <p style={styles.heroCycle}>{isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}</p>
-                  <h2 style={styles.heroTitle}>{heroTitle}</h2>
-                  <p style={styles.heroSub}>
-                    {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
-                  </p>
-                  <div style={{ height: 4, background: 'rgba(255,255,255,.2)', borderRadius: 99, marginTop: 10, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${heroSessionProgress}%` }} />
-                  </div>
-                  <div style={styles.heroTags}>
-                    {/* O chat de IA (FAB/overlay, mais abaixo) fica escondido em
-                        sessões de Reflexão — sem isso a tag ficava "ativa"
-                        (destacada) sem nenhum painel abrir de verdade. */}
-                    {(heroSession.type === 'reflection' ? TAGS.filter(tag => tag.key !== 'ia') : TAGS).map(tag => (
-                      <span
-                        key={tag.key}
-                        style={{ ...styles.heroTag, ...(openPanel === tag.key ? styles.heroTagActive : {}) }}
-                        onClick={() => PANEL_KEYS.includes(tag.key) && setOpenPanel(p => (p === tag.key ? null : tag.key))}
-                      >
-                        <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               {/* Marcação capítulo a capítulo da sessão em destaque — só no
                   fluxo guiado (mode 'session'); a navegação livre pula essa
                   linha (ver acima). */}
@@ -1332,26 +1300,16 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
 }
 
 const styles = {
-  hero:        { height: 224, margin: '10px 14px', borderRadius: 22, overflow: 'hidden', position: 'relative', background: 'var(--bk-hero)', flexShrink: 0, boxShadow: '0 12px 28px rgba(0,0,0,.18)' },
-  heroOrbOrange:{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, right: -50 },
-  heroOrbPink: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -50, left: -40 },
-  heroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 65%)' },
-  heroBackBtn: { position: 'absolute', top: 14, left: 14, zIndex: 1, width: 32, height: 32, borderRadius: '50%', border: '0.5px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.15)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  heroContent: { position: 'absolute', bottom: 14, left: 14, right: 14 },
-  heroCycle:   { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
-  heroTitle:   { fontFamily: 'var(--font-display)', fontSize: 25, fontWeight: 700, fontStyle: 'italic', color: 'white', marginBottom: 4, letterSpacing: '-0.2px', lineHeight: 1.15 },
-  heroSub:     { fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.7)' },
-  heroTags:    { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 12 },
-  heroTag:     { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.12)', border: '0.5px solid rgba(255,255,255,.18)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', cursor: 'pointer' },
-  heroTagActive:{ background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.4)' },
   heroTagDot:  { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 5 },
   // Cabeçalho compacto da navegação livre (mode 'browse') — substitui o
   // hero grande: sem título/barra de progresso/gradiente, só voltar + nome
   // do livro + as mesmas abas de Contexto/Mapa/Notas/Curiosidades.
-  browseHeader:    { padding: '12px 14px 6px', display: 'flex', flexDirection: 'column', gap: 10 },
-  browseBackBtn:   { width: 32, height: 32, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  browseHeader:    { padding: '12px 14px 6px', display: 'flex', flexDirection: 'column', gap: 4 },
+  browseBackBtn:   { width: 32, height: 32, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginBottom: 6 },
+  browseHeaderCycle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1.2, textTransform: 'uppercase' },
   browseHeaderTitle:{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--bk)', letterSpacing: '-0.2px' },
-  browseTagsRow:   { display: 'flex', gap: 7, overflowX: 'auto' },
+  browseHeaderSub: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
+  browseTagsRow:   { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 6 },
   browseTag:       { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'var(--g5)', cursor: 'pointer' },
   browseTagActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.3)' },
   completeBtn: { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
