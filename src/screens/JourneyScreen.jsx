@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { pickActiveBlock, sessionKeys, computeBookChapterCounts } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { getRecentChapters } from '../reading/recentChaptersStore'
@@ -55,9 +55,24 @@ export default function JourneyScreen({
   // sentido já cair lendo, diferente de abrir um livro do zero (onOpenBook),
   // que mostra só os números dos capítulos pra escolher (ver ReadingBlockView.jsx).
   const [initialTextOpen, setInitialTextOpen] = useState(false)
-  // Bloco de onde a pessoa acabou de voltar (ver closeBlock) — só serve pra
-  // decidir qual seção de testamento no mapa já volta aberta.
+  // Bloco de onde a pessoa acabou de voltar (fluxo guiado, ver closeBlock)
+  // OU pro qual acabou de pular um livro (navegação livre, ver expandBook
+  // abaixo) — nos dois casos, só serve pra garantir que a seção de
+  // testamento certa (Antigo/Novo) já esteja aberta no mapa.
   const [lastViewedBlockId, setLastViewedBlockId] = useState(null)
+
+  // Livro expandido INLINE na própria lista (navegação livre pela aba
+  // Bíblia) — chave `${blockId}:${bookName}`, só um por vez (abrir outro
+  // fecha o anterior). Substitui a navegação de tela cheia que existia
+  // antes só pra esse caso (o fluxo guiado acima continua tela cheia).
+  const [expandedBookKey, setExpandedBookKey] = useState(null)
+  const [expandedInitialSessionId, setExpandedInitialSessionId] = useState(null)
+  const [expandedInitialTextOpen, setExpandedInitialTextOpen] = useState(false)
+  // Chave do livro pro qual precisa rolar a lista assim que ele expandir —
+  // só usado quando o pulo vem de FORA da lista de livros visível no
+  // momento ("Continuar leitura", card de "lido recentemente"); um toque
+  // direto na própria linha do livro não precisa rolar pra lugar nenhum.
+  const [scrollTargetKey, setScrollTargetKey] = useState(null)
 
   // O botão "Ir para a leitura de hoje" (Rotina) chama onContinueSession
   // mesmo com a tela já montada (usuário já está na aba Bíblia) — os
@@ -72,21 +87,36 @@ export default function JourneyScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryMode, initialBlockId, resumeSessionId])
 
-  function openBlock(blockId, sessionIdToFeature = null) {
-    setExpandedBlockId(blockId)
-    setInitialSessionId(sessionIdToFeature)
-    setReadingMode('browse')
-    setInitialTextOpen(false)
+  // Expande um livro inline na lista — usado tanto por um toque direto na
+  // própria linha (openBook abaixo) quanto por um pulo vindo de fora dela
+  // (jumpToBook abaixo). Guarda o bloco real (não um id sintético) pra
+  // manter compatível o "onde parei"/"lidos recentemente" (lastOpenedChapterStore/
+  // recentChaptersStore, gravados por ReadingBlockView.jsx usando block.id).
+  function expandBook(block, bookName, sessionIdToFeature, textOpen) {
+    setExpandedBookKey(`${block.id}:${bookName}`)
+    setExpandedInitialSessionId(sessionIdToFeature)
+    setExpandedInitialTextOpen(textOpen)
+    setLastViewedBlockId(block.id)
+  }
+
+  // Pulo pra um livro vindo de FORA da lista de livros visível agora
+  // ("Continuar leitura", card de "lido recentemente") — limpa a busca
+  // (o livro alvo pode não bater com uma busca ativa) e marca a linha do
+  // livro como alvo de rolagem (ver BookRow/scrollTargetKey).
+  function jumpToBook(block, bookName, sessionIdToFeature, textOpen) {
+    setSearchQuery('')
+    expandBook(block, bookName, sessionIdToFeature, textOpen)
+    setScrollTargetKey(`${block.id}:${bookName}`)
   }
 
   // Tocar um card de "lido recentemente" (RecentChaptersRow) — diferente de
   // abrir um livro do zero, aqui já cai lendo o capítulo exato, sem passar
   // pela lista de números primeiro (ver initialTextOpen acima).
   function openRecentChapter(blockId, sessionId) {
-    setExpandedBlockId(blockId)
-    setInitialSessionId(sessionId)
-    setReadingMode('browse')
-    setInitialTextOpen(true)
+    const block = blocks.find(b => b.id === blockId)
+    const targetSession = browseSessionsByBlock[blockId]?.find(s => s.id === sessionId)
+    if (!block || !targetSession) return
+    jumpToBook(block, targetSession.book, sessionId, true)
   }
 
   function closeBlock() {
@@ -102,15 +132,23 @@ export default function JourneyScreen({
     setInitialSessionId(null)
   }
 
-  // Clicar num livro específico (dentro da descrição de um bloco) pula direto
-  // pro primeiro capítulo pendente (ou o 1o) daquele livro, já em destaque —
-  // sempre pela divisão "1 capítulo = 1 sessão" (browseSessionsByBlock),
-  // já que isso é sempre navegação livre, nunca o fluxo guiado da Rotina.
+  // Toque direto numa linha de livro (mapa de testamento ou busca) — expande
+  // ali mesmo, na lista (nunca navega). Tocar de novo o mesmo livro já
+  // expandido fecha (acordeão); tocar outro livro troca qual está aberto.
+  // Ao abrir do zero, já pula pro primeiro capítulo pendente (ou o 1o)
+  // daquele livro, em destaque — sempre pela divisão "1 capítulo = 1 sessão"
+  // (browseSessionsByBlock), já que isso é sempre navegação livre, nunca o
+  // fluxo guiado da Rotina.
   function openBook(block, bookName) {
+    const key = `${block.id}:${bookName}`
+    if (expandedBookKey === key) {
+      setExpandedBookKey(null)
+      return
+    }
     const sessions = browseSessionsByBlock[block.id]
     const bookSessions = sessions.filter(s => s.book === bookName)
     const target = bookSessions.find(s => sessionKeys(s).some(k => !completedSet.has(k))) ?? bookSessions[0]
-    openBlock(block.id, target?.id ?? null)
+    expandBook(block, bookName, target?.id ?? null, false)
   }
 
   if (expandedBlockId != null) {
@@ -180,6 +218,17 @@ export default function JourneyScreen({
     ? [...list].sort((a, b) => a.displayName.localeCompare(b.displayName, lang === 'en' ? 'en' : 'pt'))
     : list
 
+  // Tudo que uma linha de livro (BookRow) precisa pra saber se é ELA que
+  // está expandida agora e, se for, alimentar a instância embutida de
+  // ReadingBlockView — um objeto só pra não espalhar uma dúzia de props
+  // soltas por TestamentSection/BookRow.
+  const embedCtx = {
+    session, authUser, onNavigate, browseSessionsByBlock, completedSet,
+    onToggleSession, onToggleChapter, onGoToReflectionFrom,
+    expandedBookKey, expandedInitialSessionId, expandedInitialTextOpen,
+    scrollTargetKey, clearScrollTarget: () => setScrollTargetKey(null),
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingBottom: 83 }}>
 
@@ -233,7 +282,7 @@ export default function JourneyScreen({
               tem sua própria lista de resultados) ou quando nunca abriu
               nada ainda por aqui (lastOpenedSession null). */}
           {!trimmedQuery && lastOpenedSession && (
-            <button style={styles.continueReadingBtn} onClick={() => openBlock(lastOpened.blockId, lastOpened.sessionId)}>
+            <button style={styles.continueReadingBtn} onClick={() => jumpToBook(lastOpenedBlock, lastOpenedSession.book, lastOpenedSession.id, false)}>
               <span style={styles.continueReadingIcon}>
                 <AppIcon name="BookOpen" size={16} color="white" />
               </span>
@@ -267,6 +316,7 @@ export default function JourneyScreen({
                     bookChapterCounts={bookChapterCounts}
                     completedSet={completedSet}
                     onOpen={() => openBook(entry.block, entry.canonicalName)}
+                    embedCtx={embedCtx}
                   />
                 ))}
               </div>
@@ -299,6 +349,7 @@ export default function JourneyScreen({
                 completedSet={completedSet}
                 onOpenBook={openBook}
                 defaultOpen={lastViewedBlockId != null && lastViewedBlockId <= 4}
+                embedCtx={embedCtx}
               />
               <TestamentSection
                 testamentKey="nt"
@@ -309,6 +360,7 @@ export default function JourneyScreen({
                 completedSet={completedSet}
                 onOpenBook={openBook}
                 defaultOpen={lastViewedBlockId != null && lastViewedBlockId >= 5}
+                embedCtx={embedCtx}
                 style={{ marginTop: 12 }}
               />
             </>
@@ -322,13 +374,26 @@ export default function JourneyScreen({
 /* ── Seção expansível de testamento (Antigo/Novo) — começa fechada por
    padrão (o usuário decide quando quer ver a lista de livros, em vez do
    app abrir um dos dois sozinho), EXCETO quando `defaultOpen` vem true —
-   usado só ao voltar de um livro desse testamento (ver lastViewedBlockId
-   em JourneyScreen.jsx), pra não perder o lugar numa lista longa só por
-   ter tocado um livro e voltado. Sem agrupamento por bloco temático — só
-   Antigo/Novo Testamento, cada um com a lista (achatada) dos seus livros,
-   na ordem escolhida em `books` (bíblica ou A-Z, decidido por quem chama). ── */
-function TestamentSection({ testamentKey, label, blocks, books, bookChapterCounts, completedSet, onOpenBook, defaultOpen, style }) {
+   usado ao voltar de um livro desse testamento no fluxo guiado, OU ao
+   pular pra um livro dele vindo de fora da lista, ex: "Continuar leitura"
+   (ver lastViewedBlockId em JourneyScreen.jsx), pra não perder o lugar
+   numa lista longa só por ter tocado um livro e voltado/pulado. Sem
+   agrupamento por bloco temático — só Antigo/Novo Testamento, cada um com
+   a lista (achatada) dos seus livros, na ordem escolhida em `books`
+   (bíblica ou A-Z, decidido por quem chama). ── */
+function TestamentSection({ testamentKey, label, blocks, books, bookChapterCounts, completedSet, onOpenBook, defaultOpen, embedCtx, style }) {
   const [open, setOpen] = useState(defaultOpen ?? false)
+
+  // Reabre sozinha quando `defaultOpen` vira true DEPOIS da 1a montagem —
+  // diferente do valor inicial acima (que só conta na 1a vez), isso cobre
+  // pular pra um livro deste testamento com a tela já montada (ela nunca
+  // desmonta mais pra navegação livre, só o fluxo guiado ainda troca de
+  // tela). Só ABRE sozinha, nunca fecha — tocar um livro nunca deveria
+  // recolher a seção sem a pessoa pedir.
+  useEffect(() => {
+    if (defaultOpen) setOpen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultOpen])
 
   const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
   const totalSessions = blocks.reduce((s, b) => s + b.sessionsTotal, 0)
@@ -353,6 +418,7 @@ function TestamentSection({ testamentKey, label, blocks, books, bookChapterCount
               bookChapterCounts={bookChapterCounts}
               completedSet={completedSet}
               onOpen={() => onOpenBook(entry.block, entry.canonicalName)}
+              embedCtx={embedCtx}
             />
           ))}
         </div>
@@ -364,22 +430,63 @@ function TestamentSection({ testamentKey, label, blocks, books, bookChapterCount
 // Linha de livro — nome + progresso real (capítulos lidos/total, ou um
 // check quando o livro inteiro já foi lido) + seta. Usado tanto nas seções
 // de testamento quanto nos resultados de busca (mesmo componente, um só
-// lugar pra manter esse visual consistente).
-function BookRow({ entry, bookChapterCounts, completedSet, onOpen }) {
-  const { displayName, canonicalName } = entry
+// lugar pra manter esse visual consistente). Quando é O livro expandido no
+// momento (embedCtx.expandedBookKey bate com este), cresce logo abaixo de
+// si mesma com a lista de capítulos daquele livro — mesmo componente
+// ReadingBlockView.jsx de sempre, só que embutido (prop `embedded`) em vez
+// de navegar pra uma tela cheia à parte.
+function BookRow({ entry, bookChapterCounts, completedSet, onOpen, embedCtx }) {
+  const { displayName, canonicalName, block } = entry
   const total = bookChapterCounts[canonicalName] ?? 0
   let done = 0
   for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${canonicalName}:${ch}`)) done++
   const isDone = total > 0 && done === total
 
+  const rowKey = `${block.id}:${canonicalName}`
+  const isExpanded = embedCtx?.expandedBookKey === rowKey
+  const isScrollTarget = embedCtx?.scrollTargetKey === rowKey
+
+  const rowRef = useRef(null)
+  useEffect(() => {
+    if (isScrollTarget && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      embedCtx.clearScrollTarget()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScrollTarget])
+
   return (
-    <button style={styles.bookRow} onClick={onOpen}>
-      <span style={styles.bookRowName}>{displayName}</span>
-      {isDone
-        ? <span style={styles.bookRowDone}><AppIcon name="Check" size={13} color="white" /></span>
-        : <span style={styles.bookRowMeta}>{done}/{total}</span>}
-      <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <button ref={rowRef} style={{ ...styles.bookRow, ...(isExpanded ? styles.bookRowActive : {}) }} onClick={onOpen}>
+        <span style={styles.bookRowName}>{displayName}</span>
+        {isDone
+          ? <span style={styles.bookRowDone}><AppIcon name="Check" size={13} color="white" /></span>
+          : <span style={styles.bookRowMeta}>{done}/{total}</span>}
+        <AppIcon name="ChevronRight" size={15} color="var(--g4)" style={{ transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }} />
+      </button>
+
+      {isExpanded && (
+        <div style={styles.bookExpandWrap}>
+          <ReadingBlockView
+            key={`${rowKey}:${embedCtx.expandedInitialSessionId}:${embedCtx.expandedInitialTextOpen}`}
+            embedded
+            mode="browse"
+            session={embedCtx.session}
+            authUser={embedCtx.authUser}
+            onNavigate={embedCtx.onNavigate}
+            blockId={block.id}
+            blocks={[block]}
+            sessionsByBlock={{ [block.id]: embedCtx.browseSessionsByBlock[block.id].filter(s => s.book === canonicalName) }}
+            completedSet={completedSet}
+            onToggleSession={embedCtx.onToggleSession}
+            onToggleChapter={embedCtx.onToggleChapter}
+            initialSessionId={embedCtx.expandedInitialSessionId}
+            initialTextOpen={embedCtx.expandedInitialTextOpen}
+            onGoToReflection={heroSession => embedCtx.onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id })}
+          />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -396,9 +503,11 @@ const styles = {
   sortBtn:         { flex: 1, border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 10, padding: '8px 10px', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   sortBtnActive:   { background: 'var(--bk)', border: '0.5px solid var(--bk)', color: 'white' },
   bookRow:         { display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 14, padding: '10px 13px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },
+  bookRowActive:   { border: '1.5px solid var(--or)' },
   bookRowName:     { flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
   bookRowMeta:     { fontSize: 10.5, fontWeight: 600, color: 'var(--g4)', flexShrink: 0 },
   bookRowDone:     { width: 18, height: 18, borderRadius: '50%', background: 'var(--or)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  bookExpandWrap:  { background: 'var(--white)', border: '0.5px solid var(--g2)', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
   hero:            { background: 'var(--bk-hero)', padding: '18px 16px 30px', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange:   { position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -70, right: -60 },
   heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },

@@ -31,7 +31,7 @@ function useIsDesktop() {
   return isDesktop
 }
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, embedded = false }) {
   const { lang } = session
   const isDesktop = useIsDesktop()
   // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
@@ -299,6 +299,203 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setOpenPanel('ia')
   }
 
+  // Cabeçalho + painéis (Contexto/Mapa/Notas/Curiosidades/Texto) — extraído
+  // numa variável porque `embedded` (ver JourneyScreen.jsx: um livro
+  // expandido dentro da própria lista de testamento, sem navegar) usa
+  // exatamente o mesmo conteúdo, só SEM o wrapper de tela cheia (rb-enter/
+  // scrollRef/rb-detail·rb-master) por fora. Sem essa variável, o mesmo
+  // JSX teria que ser escrito duas vezes.
+  const headerAndPanels = (
+    <>
+      <div style={styles.browseHeader}>
+        {!embedded && (
+          <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
+            <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
+          </button>
+        )}
+        {mode !== 'browse' && (
+          <p style={styles.browseHeaderCycle}>
+            {isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}
+          </p>
+        )}
+        {/* Embutido: o nome do livro já mora na linha da lista, fora deste
+            componente (ver BookRow em JourneyScreen.jsx) — repetir aqui
+            seria redundante. */}
+        {!embedded && (
+          <span style={styles.browseHeaderTitle}>{mode === 'browse' ? heroBookDisplayName : heroTitle}</span>
+        )}
+        {mode !== 'browse' && (
+          <p style={styles.browseHeaderSub}>
+            {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
+          </p>
+        )}
+        <div style={styles.browseTagsRow}>
+          {/* IA nunca entra aqui — tem seu próprio botão flutuante (FAB),
+              em qualquer um dos dois modos; repetir na lista de abas
+              seria a mesma coisa duas vezes. */}
+          {TAGS.filter(tag => tag.key !== 'ia').map(tag => (
+            <span
+              key={tag.key}
+              style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
+              onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
+            >
+              <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
+            </span>
+          ))}
+        </div>
+      </div>
+      {/* Cards de "lidos recentemente" — só na navegação livre de tela
+          cheia, nunca embutido (não faz sentido por livro). No desktop
+          moram aqui dentro de .rb-detail, que já é sticky por conta
+          própria (CSS, ≥1024px). No celular ficam de FORA daqui (ver logo
+          abaixo, fora desta variável) — sticky só funciona dentro dos
+          limites do próprio pai, e .rb-detail é curto (só o cabeçalho). */}
+      {!embedded && mode === 'browse' && isDesktop && (
+        <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
+      )}
+      {mode !== 'browse' && (
+        <>
+          {/* Marcação capítulo a capítulo da sessão em destaque — só no
+              fluxo guiado (mode 'session'); a navegação livre pula essa
+              linha (ver acima). */}
+          {heroSession.type !== 'reflection' && (
+            <div style={{ padding: '0 14px 4px' }}>
+              <ChapterChecklist
+                session={heroSession}
+                completedSet={completedSet}
+                onToggleChapter={onToggleChapter}
+                lang={lang}
+                textOpen={openPanel === 'texto'}
+                onToggleText={() => setOpenPanel(p => (p === 'texto' ? null : 'texto'))}
+                highlights={highlights}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Painel de texto / contexto / mapa / notas / curiosidades da
+          sessão atual. */}
+      {openPanel === 'notas' && (
+        <div style={{ padding: '0 14px 4px' }}>
+          <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
+        </div>
+      )}
+      {/* Em modo 'browse' o texto normalmente mora embutido embaixo do
+          capítulo tocado na lista (ver SessionCard) — faz sentido no
+          celular, onde a lista já ocupa a tela toda. No desktop, porém,
+          essa lista vira a coluna "mestre" fixa em 300px (.rb-master),
+          estreita demais pra texto corrido, enquanto esse card de
+          destaque vira a coluna larga da direita (.rb-detail) e já fica
+          parado (sticky) na tela — então ali sim o texto aparece aqui
+          em cima, com o botão "Próximo" também (mesmo que a versão
+          embutida do celular), pra continuar a leitura sem precisar
+          caçar o próximo capítulo na lista estreita ao lado. Embutido
+          (embedded) nunca usa esse caminho — não tem coluna "mestre"
+          separada, então o texto sempre aparece junto do capítulo na
+          lista (ver isDesktop abaixo forçado a false pra embedded). */}
+      {(() => {
+        const browseTextInHero = !embedded && mode === 'browse' && isDesktop && expandedChapterId != null
+        const nextForHero = browseTextInHero ? getNextSessionFor(heroSession) : null
+        return (mode !== 'browse' && openPanel === 'texto') || browseTextInHero ? (
+          // Margem lateral bem menor que os outros painéis (Contexto/Mapa/
+          // Notas usam 14px) — é texto corrido pra ler, não uma lista de
+          // botões/cards, então vale abrir mão de respiro lateral em troca
+          // de uma coluna de leitura mais larga (ver também styles.panel
+          // sobrescrito dentro de BibleTextPanel).
+          <div style={{ padding: '0 6px 4px' }}>
+            <BibleTextPanel
+              session={heroSession}
+              lang={lang}
+              completedSet={completedSet}
+              onToggleChapter={onToggleChapter}
+              highlights={highlights}
+              onSaveHighlight={handleSaveHighlight}
+              onUpdateHighlightText={handleUpdateHighlightText}
+              onDeleteHighlight={handleDeleteHighlight}
+            />
+            {nextForHero && (
+              <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
+                {t('reading.nextChapter', { title: lang === 'en' ? nextForHero.titleEn : nextForHero.title }, lang)}
+                <AppIcon name="ChevronRight" size={15} />
+              </button>
+            )}
+          </div>
+        ) : null
+      })()}
+      {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && openPanel !== 'ia' && (
+        <div style={{ padding: '0 14px 4px' }}>
+          <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
+        </div>
+      )}
+
+      {/* Sessão de reflexão ao final do livro */}
+      {heroSession.type === 'reflection' && (
+        <div style={{ padding: '0 14px 4px' }}>
+          <ReflectionCard bookKey={heroSession.book} displayName={heroBookDisplayName} info={bookInfoSource[heroSession.book]} lang={lang} />
+        </div>
+      )}
+
+      {/* Marcar/desmarcar a sessão em destaque — só no fluxo guiado; na
+          navegação livre, cada capítulo já se marca sozinho na lista
+          abaixo (BookGroup), sem precisar desse botão redundante. */}
+      {mode !== 'browse' && (
+        <div style={{ padding: '0 14px 4px' }}>
+          <button
+            style={{ ...styles.completeBtn, ...(heroSession.status === 'done' ? styles.completeBtnDone : {}) }}
+            onClick={() => onToggleSession(heroSession, heroSession.status !== 'done')}
+          >
+            {heroSession.status === 'done' ? t('reading.markUndone', undefined, lang) : t('reading.markDone', undefined, lang)}
+          </button>
+        </div>
+      )}
+
+      {/* Sessão concluída no fluxo guiado (mode 'session', não a
+          navegação livre da aba Bíblia) — próximo passo da rotina é a
+          Reflexão, mesmo padrão do "Ir para a Leitura" que aparece no
+          fim do cronômetro de Oração (PrayerScreen.jsx). */}
+      {mode !== 'browse' && heroSession.status === 'done' && (
+        <div style={{ padding: '0 14px 4px' }}>
+          <button style={styles.nextStepBtn} onClick={() => (onGoToReflection ? onGoToReflection(heroSession) : onNavigate?.('reflection'))}>
+            {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
+          </button>
+        </div>
+      )}
+    </>
+  )
+
+  // Lista de livros do bloco (agrupados; só o livro em leitura já vem
+  // expandido) — extraída pelo mesmo motivo de headerAndPanels acima:
+  // embedded reaproveita exatamente essa lista, só sem virar a coluna
+  // "mestre" (.rb-master) de tela cheia.
+  const bookListItems = bookGroups.map(group => (
+    <BookGroup
+      key={`${block.id}-${group.book}`}
+      group={group}
+      isCurrentBook={group.sessions.includes(heroSession)}
+      heroSessionId={heroSession.id}
+      completedSet={completedSet}
+      onToggle={onToggleSession}
+      onToggleChapter={onToggleChapter}
+      onFeature={featureSession}
+      isFreePlan={isFreePlan}
+      lang={lang}
+      mode={mode}
+      expandedChapterId={expandedChapterId}
+      onToggleInline={toggleInlineChapter}
+      onNextInline={goToNextInline}
+      getNextSessionFor={getNextSessionFor}
+      registerCardRef={registerCardRef}
+      lastClickedId={selectedSessionId}
+      isDesktop={!embedded && isDesktop}
+      hasNoteFor={hasNoteFor}
+      highlights={highlights}
+      onSaveHighlight={handleSaveHighlight}
+      onUpdateHighlightText={handleUpdateHighlightText}
+      onDeleteHighlight={handleDeleteHighlight}
+    />
+  ))
+
   return (
     <>
     {/* Portal pro <body> — não pro fluxo normal: .app-content-inner tem
@@ -339,221 +536,56 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       </div>,
       document.body
     )}
-    {/* rb-enter (transição de entrada) mora neste wrapper de FORA, nunca no
-        próprio elemento que rola (scrollRef, overflow-y:auto logo abaixo)
-        — animar transform num elemento com scroll pode travar o toque de
-        rolar em alguns navegadores mobile, mesmo depois da animação
-        terminar (ver comentário do keyframe em index.css). */}
-    <div className={mode === 'browse' ? 'rb-enter' : undefined} style={{ height: '100%' }}>
-    <div ref={scrollRef} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-      <div className="rb-body">
+    {embedded ? (
+      // Embutido: sem wrapper de tela cheia nenhum — quem rola é a página
+      // que contém isso (a lista da aba Bíblia), não este componente. Sem
+      // transição de entrada (rb-enter) também — não é uma tela nova
+      // abrindo, é um item da lista crescendo no lugar.
+      <>
+        {headerAndPanels}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {bookListItems}
+        </div>
+      </>
+    ) : (
+      // Tela cheia (fluxo guiado, mode 'session' — ou navegação livre
+      // antiga, mantida só pro caso de algum caller ainda não migrado).
+      // rb-enter (transição de entrada) mora neste wrapper de FORA, nunca
+      // no próprio elemento que rola (scrollRef, overflow-y:auto logo
+      // abaixo) — animar transform num elemento com scroll pode travar o
+      // toque de rolar em alguns navegadores mobile, mesmo depois da
+      // animação terminar (ver comentário do keyframe em index.css).
+      <div className={mode === 'browse' ? 'rb-enter' : undefined} style={{ height: '100%' }}>
+        <div ref={scrollRef} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+          <div className="rb-body">
+            {/* Detalhe: sessão em destaque + marcação + painéis — vem
+                primeiro no DOM (ordem certa no celular); no desktop o CSS
+                reordena pra direita e mantém fixo (sticky) enquanto a
+                lista de livros rola. */}
+            <div className="rb-detail">
+              {headerAndPanels}
+            </div>
 
-        {/* Detalhe: sessão em destaque + marcação + painéis — vem primeiro no
-            DOM (ordem certa no celular); no desktop o CSS reordena pra
-            direita e mantém fixo (sticky) enquanto a lista de livros rola. */}
-        <div className="rb-detail">
+            {/* Versão celular dos cards de "lidos recentemente" — de
+                propósito FORA de .rb-detail (ver comentário dentro de
+                headerAndPanels): como filha direta de .rb-body (que cobre
+                TODA a altura, cabeçalho + lista), sticky consegue ficar
+                colada no topo por toda a rolagem da lista de capítulos
+                abaixo, não só enquanto .rb-detail (curto) durar. */}
+            {mode === 'browse' && !isDesktop && (
+              <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
+            )}
 
-          {/* Cabeçalho compacto e branco — mesmo layout nos dois modos
-              (pedido explícito: fluxo guiado do plano igual à navegação
-              livre da aba Bíblia, sem o card grande/escuro de antes). Só
-              muda o CONTEÚDO: navegação livre mostra só o nome do livro;
-              dentro de um plano mostra também bloco/sessão e a passagem/
-              contagem de capítulos, já que ali "sessão" carrega informação
-              de verdade (pode cobrir vários capítulos de uma vez). Sem
-              barra de progresso — fica redundante com os checks por
-              capítulo logo abaixo (ChapterChecklist/lista). */}
-          <div style={styles.browseHeader}>
-            <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
-              <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
-            </button>
-            {mode !== 'browse' && (
-              <p style={styles.browseHeaderCycle}>
-                {isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}
-              </p>
-            )}
-            <span style={styles.browseHeaderTitle}>{mode === 'browse' ? heroBookDisplayName : heroTitle}</span>
-            {mode !== 'browse' && (
-              <p style={styles.browseHeaderSub}>
-                {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
-              </p>
-            )}
-            <div style={styles.browseTagsRow}>
-              {/* IA nunca entra aqui — tem seu próprio botão flutuante (FAB),
-                  em qualquer um dos dois modos; repetir na lista de abas
-                  seria a mesma coisa duas vezes. */}
-              {TAGS.filter(tag => tag.key !== 'ia').map(tag => (
-                <span
-                  key={tag.key}
-                  style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
-                  onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
-                >
-                  <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
-                </span>
-              ))}
+            {/* Lista de livros do bloco (agrupados; só o livro em leitura
+                já vem expandido) — no desktop vira o painel "mestre" à
+                esquerda. */}
+            <div className="rb-master" style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {bookListItems}
             </div>
           </div>
-          {/* Cards de "lidos recentemente" — só na navegação livre. No
-              desktop moram aqui dentro de .rb-detail, que já é sticky por
-              conta própria (CSS, ≥1024px). No celular teriam que ficar de
-              FORA daqui: sticky só funciona dentro dos limites do próprio
-              pai, e .rb-detail é curto (só o cabeçalho) — colado nele, o
-              card sairia de tela assim que .rb-detail acabasse, bem antes
-              da lista de capítulos terminar de rolar. Ver o mesmo
-              componente renderizado de novo, fora da .rb-detail, logo
-              abaixo. */}
-          {mode === 'browse' && isDesktop && (
-            <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
-          )}
-          {mode !== 'browse' && (
-            <>
-              {/* Marcação capítulo a capítulo da sessão em destaque — só no
-                  fluxo guiado (mode 'session'); a navegação livre pula essa
-                  linha (ver acima). */}
-              {heroSession.type !== 'reflection' && (
-                <div style={{ padding: '0 14px 4px' }}>
-                  <ChapterChecklist
-                    session={heroSession}
-                    completedSet={completedSet}
-                    onToggleChapter={onToggleChapter}
-                    lang={lang}
-                    textOpen={openPanel === 'texto'}
-                    onToggleText={() => setOpenPanel(p => (p === 'texto' ? null : 'texto'))}
-                    highlights={highlights}
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Painel de texto / contexto / mapa / notas / curiosidades da
-              sessão atual. */}
-          {openPanel === 'notas' && (
-            <div style={{ padding: '0 14px 4px' }}>
-              <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
-            </div>
-          )}
-          {/* Em modo 'browse' o texto normalmente mora embutido embaixo do
-              capítulo tocado na lista (ver SessionCard) — faz sentido no
-              celular, onde a lista já ocupa a tela toda. No desktop, porém,
-              essa lista vira a coluna "mestre" fixa em 300px (.rb-master),
-              estreita demais pra texto corrido, enquanto esse card de
-              destaque vira a coluna larga da direita (.rb-detail) e já fica
-              parado (sticky) na tela — então ali sim o texto aparece aqui
-              em cima, com o botão "Próximo" também (mesmo que a versão
-              embutida do celular), pra continuar a leitura sem precisar
-              caçar o próximo capítulo na lista estreita ao lado. */}
-          {(() => {
-            const browseTextInHero = mode === 'browse' && isDesktop && expandedChapterId != null
-            const nextForHero = browseTextInHero ? getNextSessionFor(heroSession) : null
-            return (mode !== 'browse' && openPanel === 'texto') || browseTextInHero ? (
-              // Margem lateral bem menor que os outros painéis (Contexto/Mapa/
-              // Notas usam 14px) — é texto corrido pra ler, não uma lista de
-              // botões/cards, então vale abrir mão de respiro lateral em troca
-              // de uma coluna de leitura mais larga (ver também styles.panel
-              // sobrescrito dentro de BibleTextPanel).
-              <div style={{ padding: '0 6px 4px' }}>
-                <BibleTextPanel
-                  session={heroSession}
-                  lang={lang}
-                  completedSet={completedSet}
-                  onToggleChapter={onToggleChapter}
-                  highlights={highlights}
-                  onSaveHighlight={handleSaveHighlight}
-                  onUpdateHighlightText={handleUpdateHighlightText}
-                  onDeleteHighlight={handleDeleteHighlight}
-                />
-                {nextForHero && (
-                  <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
-                    {t('reading.nextChapter', { title: lang === 'en' ? nextForHero.titleEn : nextForHero.title }, lang)}
-                    <AppIcon name="ChevronRight" size={15} />
-                  </button>
-                )}
-              </div>
-            ) : null
-          })()}
-          {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && openPanel !== 'ia' && (
-            <div style={{ padding: '0 14px 4px' }}>
-              <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
-            </div>
-          )}
-
-          {/* Sessão de reflexão ao final do livro */}
-          {heroSession.type === 'reflection' && (
-            <div style={{ padding: '0 14px 4px' }}>
-              <ReflectionCard bookKey={heroSession.book} displayName={heroBookDisplayName} info={bookInfoSource[heroSession.book]} lang={lang} />
-            </div>
-          )}
-
-          {/* Marcar/desmarcar a sessão em destaque — só no fluxo guiado; na
-              navegação livre, cada capítulo já se marca sozinho na lista
-              abaixo (BookGroup), sem precisar desse botão redundante. */}
-          {mode !== 'browse' && (
-            <div style={{ padding: '0 14px 4px' }}>
-              <button
-                style={{ ...styles.completeBtn, ...(heroSession.status === 'done' ? styles.completeBtnDone : {}) }}
-                onClick={() => onToggleSession(heroSession, heroSession.status !== 'done')}
-              >
-                {heroSession.status === 'done' ? t('reading.markUndone', undefined, lang) : t('reading.markDone', undefined, lang)}
-              </button>
-            </div>
-          )}
-
-          {/* Sessão concluída no fluxo guiado (mode 'session', não a
-              navegação livre da aba Bíblia) — próximo passo da rotina é a
-              Reflexão, mesmo padrão do "Ir para a Leitura" que aparece no
-              fim do cronômetro de Oração (PrayerScreen.jsx). */}
-          {mode !== 'browse' && heroSession.status === 'done' && (
-            <div style={{ padding: '0 14px 4px' }}>
-              <button style={styles.nextStepBtn} onClick={() => (onGoToReflection ? onGoToReflection(heroSession) : onNavigate?.('reflection'))}>
-                {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Versão celular dos cards de "lidos recentemente" — de propósito
-            FORA de .rb-detail (ver comentário lá dentro): como filha direta
-            de .rb-body (que cobre TODA a altura, cabeçalho + lista), sticky
-            consegue ficar colada no topo por toda a rolagem da lista de
-            capítulos abaixo, não só enquanto .rb-detail (curto) durar. */}
-        {mode === 'browse' && !isDesktop && (
-          <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
-        )}
-
-        {/* Lista de livros do bloco (agrupados; só o livro em leitura já vem
-            expandido) — no desktop vira o painel "mestre" à esquerda. */}
-        <div className="rb-master" style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {bookGroups.map(group => (
-            <BookGroup
-              key={`${block.id}-${group.book}`}
-              group={group}
-              isCurrentBook={group.sessions.includes(heroSession)}
-              heroSessionId={heroSession.id}
-              completedSet={completedSet}
-              onToggle={onToggleSession}
-              onToggleChapter={onToggleChapter}
-              onFeature={featureSession}
-              isFreePlan={isFreePlan}
-              lang={lang}
-              mode={mode}
-              expandedChapterId={expandedChapterId}
-              onToggleInline={toggleInlineChapter}
-              onNextInline={goToNextInline}
-              getNextSessionFor={getNextSessionFor}
-              registerCardRef={registerCardRef}
-              lastClickedId={selectedSessionId}
-              isDesktop={isDesktop}
-              hasNoteFor={hasNoteFor}
-              highlights={highlights}
-              onSaveHighlight={handleSaveHighlight}
-              onUpdateHighlightText={handleUpdateHighlightText}
-              onDeleteHighlight={handleDeleteHighlight}
-            />
-          ))}
         </div>
       </div>
-    </div>
-    </div>
+    )}
     </>
   )
 }
