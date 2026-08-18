@@ -12,9 +12,11 @@ import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
+import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import RecentChaptersRow from '../components/RecentChaptersRow'
 
 // Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
 // .rb-detail, min-width: 1024px) — usado só em modo 'browse' pra decidir
@@ -30,7 +32,7 @@ function useIsDesktop() {
   return isDesktop
 }
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack, onGoToReflection }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, onBack, onGoToReflection, onJumpToChapter }) {
   const { lang } = session
   const isDesktop = useIsDesktop()
   // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
@@ -62,6 +64,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // Sessão escolhida na lista abaixo, se houver — sobrepõe a sessão "atual"
   // automática e sobe pro destaque no topo. Começa a partir de um livro
   // específico quando aberto por um chip de livro clicável (initialSessionId).
+  // SÓ funciona corretamente porque quem chama este componente usa
+  // key={blockId} (ver JourneyScreen.jsx) — sem isso, pular pra um livro
+  // DIFERENTE com a tela já montada (ex: tocar um card de "lido
+  // recentemente") manteria esse estado (e o de BookGroup mais abaixo)
+  // com o id antigo, que por coincidência pode ser válido no bloco novo
+  // (ids de sessão são só sequenciais dentro de cada bloco) — abriria o
+  // capítulo errado sem nenhum erro visível.
   const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId ?? null)
 
   const heroSession = sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
@@ -88,13 +97,32 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // capítulo específico não é mais assumido.
   const [expandedChapterId, setExpandedChapterId] = useState(null)
 
+  // Cards estilo "stories" dos últimos capítulos lidos (ver
+  // RecentChaptersRow/recentChaptersStore.js) — precisa de estado próprio
+  // (não só ler localStorage direto no render, como JourneyScreen.jsx faz)
+  // porque É este componente que grava um capítulo novo na lista (efeito
+  // abaixo); sem re-renderizar sozinho, o card recém-aberto só apareceria
+  // na próxima vez que a tela montasse.
+  const [recentChapters, setRecentChapters] = useState(getRecentChapters)
+
   // Lembra o último capítulo aberto na navegação livre (mode 'browse') —
   // só aqui, não no fluxo guiado da Rotina/Plano (mode 'session'), que já
-  // tem seu próprio "onde parei" (a sessão "current" do plano). É o que
-  // alimenta o botão "Continuar leitura" na aba Bíblia (JourneyScreen.jsx).
+  // tem seu próprio "onde parei" (a sessão "current" do plano). Alimenta o
+  // botão "Continuar leitura" (lastOpenedChapterStore) e os cards de
+  // "lidos recentemente" (recentChaptersStore) — mesmo gatilho pros dois.
   useEffect(() => {
     if (mode === 'browse' && expandedChapterId != null) {
       setLastOpenedChapter(block.id, expandedChapterId)
+      const openedSession = sessions.find(s => s.id === expandedChapterId)
+      if (openedSession) {
+        setRecentChapters(addRecentChapter({
+          blockId: block.id,
+          sessionId: openedSession.id,
+          book: openedSession.book,
+          bookEn: openedSession.bookEn,
+          chapter: openedSession.chStart,
+        }))
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, block.id, expandedChapterId])
@@ -338,23 +366,34 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               somem — a lista abaixo (BookGroup) já cobre as duas coisas,
               capítulo a capítulo. */}
           {mode === 'browse' ? (
-            <div style={styles.browseHeader}>
-              <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
-                <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
-              </button>
-              <span style={styles.browseHeaderTitle}>{heroBookDisplayName}</span>
-              <div style={styles.browseTagsRow}>
-                {TAGS.filter(tag => tag.key !== 'ia').map(tag => (
-                  <span
-                    key={tag.key}
-                    style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
-                    onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
-                  >
-                    <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
-                  </span>
-                ))}
+            <>
+              <div style={styles.browseHeader}>
+                <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
+                  <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
+                </button>
+                <span style={styles.browseHeaderTitle}>{heroBookDisplayName}</span>
+                <div style={styles.browseTagsRow}>
+                  {TAGS.filter(tag => tag.key !== 'ia').map(tag => (
+                    <span
+                      key={tag.key}
+                      style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
+                      onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
+                    >
+                      <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+              {/* Cards de "lidos recentemente" — no desktop moram aqui dentro
+                  de .rb-detail, que já é sticky por conta própria (CSS,
+                  ≥1024px). No celular teriam que ficar de FORA daqui: sticky
+                  só funciona dentro dos limites do próprio pai, e .rb-detail
+                  é curto (só o cabeçalho) — colado nele, o card sairia de
+                  tela assim que .rb-detail acabasse, bem antes da lista de
+                  capítulos terminar de rolar. Ver o mesmo componente
+                  renderizado de novo, fora da .rb-detail, logo abaixo. */}
+              {isDesktop && <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />}
+            </>
           ) : (
             <>
               {/* Hero da sessão atual */}
@@ -495,6 +534,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             </div>
           )}
         </div>
+
+        {/* Versão celular dos cards de "lidos recentemente" — de propósito
+            FORA de .rb-detail (ver comentário lá dentro): como filha direta
+            de .rb-body (que cobre TODA a altura, cabeçalho + lista), sticky
+            consegue ficar colada no topo por toda a rolagem da lista de
+            capítulos abaixo, não só enquanto .rb-detail (curto) durar. */}
+        {mode === 'browse' && !isDesktop && (
+          <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
+        )}
 
         {/* Lista de livros do bloco (agrupados; só o livro em leitura já vem
             expandido) — no desktop vira o painel "mestre" à esquerda. */}

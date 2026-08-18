@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { pickActiveBlock, sessionKeys, computeBookChapterCounts } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
+import { getRecentChapters } from '../reading/recentChaptersStore'
 import { getBookSortMode, setBookSortMode } from '../utils/bookSortStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
+import RecentChaptersRow from '../components/RecentChaptersRow'
 
 // Remove acentos pra busca não exigir digitar "Êxodo" com acento certo.
 function normalizeSearch(str) {
@@ -84,8 +86,16 @@ export default function JourneyScreen({
   }
 
   if (expandedBlockId != null) {
+    // key inclui initialSessionId, não só expandedBlockId — vários livros
+    // diferentes moram no MESMO bloco (ex: Evangelhos = Matthew+Mark+Luke+
+    // John), então pular de um capítulo de um livro pro de outro dentro do
+    // mesmo bloco (ex: via RecentChaptersRow) também precisa remontar do
+    // zero, senão o estado interno (sessão em destaque, capítulo
+    // expandido, livro aberto na lista) fica preso no livro antigo — ver
+    // comentário em ReadingBlockView.jsx.
     return (
       <ReadingBlockView
+        key={`${expandedBlockId}-${initialSessionId}`}
         session={session}
         authUser={authUser}
         onNavigate={onNavigate}
@@ -99,6 +109,7 @@ export default function JourneyScreen({
         initialSessionId={initialSessionId}
         onBack={closeBlock}
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id })}
+        onJumpToChapter={openBlock}
       />
     )
   }
@@ -115,6 +126,12 @@ export default function JourneyScreen({
   const lastOpened = getLastOpenedChapter()
   const lastOpenedSession = lastOpened ? browseSessionsByBlock[lastOpened.blockId]?.find(s => s.id === lastOpened.sessionId) : null
   const lastOpenedBlock = lastOpened ? blocks.find(b => b.id === lastOpened.blockId) : null
+
+  // Últimos capítulos abertos (cards estilo "stories", ver
+  // RecentChaptersRow/recentChaptersStore.js) — mesmo espírito de
+  // lastOpened acima (lido direto do localStorage a cada render, sem
+  // useState, pra nunca ficar desatualizado).
+  const recentChapters = getRecentChapters()
 
   // Progresso real por livro (capítulos lidos/total) — mostrado em cada
   // linha de livro, tanto na busca quanto nas seções de testamento.
@@ -156,6 +173,11 @@ export default function JourneyScreen({
       {/* Sheet flutuante sobre o hero — plano de leitura e progresso do dia
           agora moram só na aba Rotina; aqui fica só a Bíblia em si. */}
       <div style={styles.sheet}>
+
+        {/* Cards estilo "stories" dos últimos capítulos lidos — fora do
+            padding do conteúdo abaixo de propósito, pra rolar de ponta a
+            ponta (ver RecentChaptersRow, que já cuida da própria margem). */}
+        <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={openBlock} />
 
         {/* Conteúdo */}
         <div style={{ padding: '13px 14px 18px', display: 'flex', flexDirection: 'column' }}>
