@@ -30,7 +30,6 @@ export default function JourneyScreen({
   onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, onNavigate, onGoToReflectionFrom,
 }) {
   const { lang } = session
-  const scrollDiagRef = useRef(null)
   const [searchQuery, setSearchQuery] = useState('')
   // Ordem dos livros na visão de mapa (fora de busca) — 'biblical' (padrão,
   // ordem canônica) ou 'alpha' (A-Z). Por dispositivo, sobrevive entre
@@ -231,11 +230,7 @@ export default function JourneyScreen({
   }
 
   return (
-    <div ref={scrollDiagRef} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'scroll', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain', paddingBottom: 83 }}>
-
-      {/* DIAGNÓSTICO TEMPORÁRIO — investigando bug de rolagem travada com
-          texto grande ligado no Safari/iOS. Remover assim que resolver. */}
-      <ScrollDiagBox containerRef={scrollDiagRef} />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'scroll', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain', paddingBottom: 83 }}>
 
       {/* Hero */}
       <div style={styles.hero}>
@@ -383,60 +378,6 @@ export default function JourneyScreen({
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-// DIAGNÓSTICO TEMPORÁRIO — mostra na tela os números de rolagem/zoom pra
-// investigar um bug relatado só com "texto grande" ligado no Safari/iOS
-// (rolagem trava assim que abre a aba). Remover depois de resolver.
-function ScrollDiagBox({ containerRef }) {
-  const [info, setInfo] = useState('medindo…')
-  const counts = useRef({ start: 0, move: 0, end: 0, scroll: 0 })
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const onStart = () => { counts.current.start++ }
-    const onMove = () => { counts.current.move++ }
-    const onEnd = () => { counts.current.end++ }
-    const onScroll = () => { counts.current.scroll++ }
-    el.addEventListener('touchstart', onStart, { passive: true })
-    el.addEventListener('touchmove', onMove, { passive: true })
-    el.addEventListener('touchend', onEnd, { passive: true })
-    el.addEventListener('scroll', onScroll, { passive: true })
-
-    function measure() {
-      const zoomEl = document.querySelector('.app-content-inner')
-      const zoom = zoomEl ? getComputedStyle(zoomEl).zoom : '?'
-      const largeText = document.documentElement.classList.contains('large-text')
-      const vv = window.visualViewport
-      const uaMatch = navigator.userAgent.match(/OS (\d+)_(\d+)/)
-      const cs = getComputedStyle(el)
-      const c = counts.current
-      setInfo(
-        `sH:${el.scrollHeight} cH:${el.clientHeight} top:${Math.round(el.scrollTop)} rola:${el.scrollHeight > el.clientHeight + 1 ? 'SIM' : 'NAO'} ovY:${cs.overflowY} | ` +
-        `toques: start:${c.start} move:${c.move} end:${c.end} scrollEvt:${c.scroll} | ` +
-        `innerH:${window.innerHeight} vvH:${vv ? Math.round(vv.height) : '-'} standalone:${window.navigator.standalone ? 'SIM' : 'NAO'} | ` +
-        `zoom:${zoom} textoGrande:${largeText ? 'SIM' : 'NAO'} | ` +
-        `iOS:${uaMatch ? `${uaMatch[1]}.${uaMatch[2]}` : '?'}`
-      )
-    }
-    measure()
-    const iv = setInterval(measure, 500)
-    window.addEventListener('resize', measure)
-    return () => {
-      clearInterval(iv)
-      window.removeEventListener('resize', measure)
-      el.removeEventListener('touchstart', onStart)
-      el.removeEventListener('touchmove', onMove)
-      el.removeEventListener('touchend', onEnd)
-      el.removeEventListener('scroll', onScroll)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  return (
-    <div style={{ position: 'sticky', top: 0, zIndex: 999, background: '#000', color: '#0f0', fontSize: 9, fontFamily: 'monospace', padding: '5px 8px', wordBreak: 'break-word', lineHeight: 1.5 }}>
-      DIAG (temporário): {info}
     </div>
   )
 }
