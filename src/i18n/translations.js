@@ -634,6 +634,8 @@ export const STRINGS = {
       notesPlaceholder: 'O que Deus falou com você\nna reflexão de hoje?',
       saveNote: 'Salvar anotação',
       savedNote: 'Salvo',
+      routineCompleteTitle: 'Rotina de hoje completa! 🎉',
+      goToProgress: 'Ver seu progresso',
     },
     billing: {
       pageTitle: 'Assinatura',
@@ -1538,6 +1540,8 @@ export const STRINGS = {
       notesPlaceholder: 'What did God speak to you\nin today\'s reflection?',
       saveNote: 'Save note',
       savedNote: 'Saved',
+      routineCompleteTitle: "Today's routine complete! 🎉",
+      goToProgress: 'See your progress',
     },
     billing: {
       pageTitle: 'Subscription',

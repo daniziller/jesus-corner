@@ -39,7 +39,7 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading }) {
+export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading, onNavigate }) {
   const { lang } = session
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
@@ -289,6 +289,14 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
     : elapsed > 0 ? t('reflection.resume', undefined, lang)
     : t('reflection.start', undefined, lang)
 
+  // Rotina de hoje inteira concluída (só os passos que o plano da pessoa
+  // realmente tem — ver mesmo filtro em RoutineScreen.jsx) — mostra um
+  // atalho pra aba Progresso embaixo de tudo. Lido direto de
+  // session.todayRoutine (não do cronômetro local desta tela), então
+  // aparece tanto assim que o 3o passo termina quanto ao reabrir esta tela
+  // depois, já com os três feitos.
+  const allStepsDone = session.plan.modules.every(m => session.todayRoutine?.[m])
+
   return (
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
 
@@ -410,6 +418,18 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
         {/* Anotação do dia — uma por dia (não por etapa), guardada no mesmo
             backend das anotações de leitura (ver notesStore.js). */}
         <NotesPanel value={noteText} hasSavedNote={hasSavedNote} onSave={handleSaveNote} lang={lang} />
+
+        {/* Oração + Leitura + Reflexão de hoje, todas concluídas (ver
+            allStepsDone acima) — atalho pra ver o progresso, fechando o
+            ciclo da rotina do dia. */}
+        {allStepsDone && (
+          <div style={styles.routineCompleteCard}>
+            <p style={styles.routineCompleteTitle}>{t('reflection.routineCompleteTitle', undefined, lang)}</p>
+            <button style={styles.nextStepBtn} onClick={() => onNavigate?.('stats')}>
+              {t('reflection.goToProgress', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -527,4 +547,8 @@ const styles = {
   markedTextBody: { fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   notesTextarea:{ width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--g1)' },
   notesSaveBtn:{ width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
+
+  routineCompleteCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 14, textAlign: 'center', boxShadow: 'var(--shadow-card)' },
+  routineCompleteTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
+  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
 }
