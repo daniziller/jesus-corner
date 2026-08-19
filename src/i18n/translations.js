@@ -231,6 +231,8 @@ export const STRINGS = {
       createByThemeLimitReached: 'Você já criou 4 estudos por tema nos últimos 30 dias — o limite mensal. Volte em breve pra criar mais.',
       createByThemeSubscriptionRequired: 'Essa função é só pra quem tem assinatura ativa.',
       createByThemeCancel: 'Cancelar',
+      deleteAction: 'Deletar estudo',
+      deleteConfirm: 'Deletar esse estudo criado por IA? Não dá pra desfazer.',
     },
     groups: {
       pageTitle: 'Comunidade',
@@ -1165,6 +1167,8 @@ export const STRINGS = {
       createByThemeLimitReached: "You've already created 4 theme studies in the last 30 days — the monthly limit. Check back soon to create more.",
       createByThemeSubscriptionRequired: 'This feature is only for active subscribers.',
       createByThemeCancel: 'Cancel',
+      deleteAction: 'Delete study',
+      deleteConfirm: "Delete this AI-generated study? Can't be undone.",
     },
     groups: {
       pageTitle: 'Community',

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, setStudySessionDone, isStudySessionDone } from '../studies/studiesProgressStore'
-import { generateStudy, getAiStudies, saveAiStudy } from '../studies/aiStudiesStore'
+import { generateStudy, getAiStudies, saveAiStudy, deleteAiStudy } from '../studies/aiStudiesStore'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function StudiesScreen({ session, authUser, onNavigate, onContinueSession, onMarkRoutineStep }) {
+export default function StudiesScreen({ session, authUser, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy }) {
   const { lang } = session
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [openStudyId, setOpenStudyId] = useState(null)
@@ -50,6 +50,21 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
       )
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // Só estudos criados por IA podem ser apagados (os estáticos de STUDIES
+  // não têm essa opção). Se o estudo apagado era o aberto/ativo, limpa
+  // ambos pra não deixar ponteiro pra um estudo que não existe mais.
+  async function handleDeleteStudy(study) {
+    if (!window.confirm(t('studies.deleteConfirm', undefined, lang))) return
+    try {
+      const updated = await deleteAiStudy(authUser.email, study.id)
+      setAiStudies(updated)
+      if (openStudyId === study.id) { setOpenStudyId(null); setOpenSessionId(null) }
+      if (session.activeStudyId === study.id) onSelectActiveStudy?.(null)
+    } catch (err) {
+      console.error('Failed to delete AI study', err)
     }
   }
 
@@ -146,6 +161,7 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
               lang={lang}
               completedSet={completedSet}
               onOpen={() => setOpenStudyId(study.id)}
+              onDelete={aiStudies.some(s => s.id === study.id) ? () => handleDeleteStudy(study) : null}
             />
           ))}
         </div>
@@ -190,7 +206,7 @@ function StudiesEmptyState({ lang }) {
   )
 }
 
-function StudyCard({ study, lang, completedSet, onOpen }) {
+function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
   const title = lang === 'en' ? study.titleEn : study.title
   const subtitle = lang === 'en' ? study.subtitleEn : study.subtitle
   const doneCount = study.sessions.filter(s => isStudySessionDone(completedSet, study.id, s.id)).length
@@ -207,10 +223,19 @@ function StudyCard({ study, lang, completedSet, onOpen }) {
         <div style={styles.studyIcon}>
           <AppIcon name={study.icon} size={22} color="var(--or)" />
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={styles.studyTitle}>{title}</h3>
           <p style={styles.studySubtitle}>{subtitle}</p>
         </div>
+        {onDelete && (
+          <button
+            style={styles.studyDeleteBtn}
+            onClick={e => { e.stopPropagation(); onDelete() }}
+            aria-label={t('studies.deleteAction', undefined, lang)}
+          >
+            <AppIcon name="Trash2" size={13} color="var(--re)" />
+          </button>
+        )}
       </div>
       <div style={{ height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', margin: '12px 0 8px' }}>
         <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${percent}%` }} />
@@ -328,6 +353,7 @@ const styles = {
   studySubtitle:{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   studyMeta:    { fontSize: 10.5, fontWeight: 600, color: 'var(--g5)' },
   studyCta:     { fontSize: 11, fontWeight: 700, color: 'var(--or)' },
+  studyDeleteBtn:{ width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   sessionRow:   { display: 'flex', alignItems: 'center', gap: 11, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 19, padding: 12, cursor: 'pointer', boxShadow: 'var(--shadow-card)' },
   sessionIcon:  { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sessionTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
