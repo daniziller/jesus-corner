@@ -59,6 +59,9 @@ export default function RoutineScreen({
   }, [authUser?.email])
   const allStudies = [...STUDIES, ...aiStudies]
   const isOn = key => routineModules.includes(key)
+  // Qual passo está expandido no card "Adicionar à minha rotina" — só um
+  // por vez (accordion), começa tudo fechado.
+  const [expandedModule, setExpandedModule] = useState(null)
 
   // ── Leitura: mesma resolução de plano ativo (fixo/tema/cronológico) que
   // antes morava só em PlanScreen.jsx — usada tanto pro resumo/checklist
@@ -151,37 +154,7 @@ export default function RoutineScreen({
           <p style={styles.heroSub}>{t('routine.heroSub', undefined, lang)}</p>
         </div>
 
-        {/* Os 4 botões push — decidem o que entra na rotina de hoje,
-            independente de qual plano de leitura está configurado abaixo.
-            Ligar "Leitura" não muda o plano escolhido; desligar só tira o
-            passo da rotina do dia, sem mexer no que já estava configurado. */}
-        <div style={styles.moduleToggleCard}>
-          <p style={styles.moduleToggleTitle}>{t('routine.addToRoutineTitle', undefined, lang)}</p>
-          {MODULE_ORDER.map(key => {
-            const meta = MODULE_META[key]
-            const on = isOn(key)
-            return (
-              <div key={key} style={styles.moduleToggleRow}>
-                <span style={{ ...styles.moduleToggleIcon, background: on ? `${ROUTINE_STEP_COLORS[key]}1A` : 'var(--g1)' }}>
-                  <AppIcon name={meta.icon} size={16} color={on ? ROUTINE_STEP_COLORS[key] : 'var(--g4)'} />
-                </span>
-                <span style={styles.moduleToggleLabel}>{t(meta.labelKey, undefined, lang)}</span>
-                <div
-                  className={`toggle ${on ? '' : 'off'}`}
-                  style={on ? { background: ROUTINE_STEP_COLORS[key] } : undefined}
-                  onClick={() => onToggleRoutineModule?.(key, !on)}
-                  role="switch"
-                  aria-checked={on}
-                  aria-label={t(meta.labelKey, undefined, lang)}
-                >
-                  <div className="toggle-thumb" />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Total do dia */}
+        {/* Total do dia — vem primeiro agora (resumo antes do detalhe). */}
         <div style={styles.hero}>
           <div style={styles.heroOrb} />
           <span style={{ position: 'relative', ...styles.heroTotal }}>
@@ -249,268 +222,300 @@ export default function RoutineScreen({
           </div>
         )}
 
-        {steps.length > 0 && (
-          <p style={styles.chooseTimeLabel}>
-            <AppIcon name="Timer" size={13} color="var(--g4)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
-            {t('routine.chooseTimeLabel', undefined, lang)}
-          </p>
-        )}
-
-        {/* Oração */}
-        {isOn('prayer') && (
-          <PickerSection
-            title={t('routine.sectionPrayer', undefined, lang)} sub={t('routine.sectionPrayerSub', undefined, lang)} icon="HandHeart" color={ROUTINE_STEP_COLORS.prayer} inline
-            footer={
-              <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.prayer }} onClick={() => onNavigate?.('prayer')}>
-                {t('routine.goToPrayer', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
-              </button>
-            }
-          >
-            <div className="duration-sel" style={styles.durationSel}>
-              {PRAYER_DURATION_OPTIONS.map(n => (
+        {/* Os 4 passos — cada linha liga/desliga o passo (independente de
+            qual plano de leitura está configurado; desligar "Leitura" não
+            muda o plano escolhido, só tira o passo da rotina do dia) e,
+            quando ligado, expande ao tocar pra revelar a configuração
+            daquele passo (duração, plano de leitura, ou estudo guiado
+            ativo) — antes cada passo ligado tinha sua própria seção sempre
+            aberta abaixo; agora tudo mora dentro deste card só, uma linha
+            por passo. Passo desligado fica esmaecido e não expande — não
+            tem o que configurar num passo que não faz parte da rotina
+            agora. */}
+        <div style={styles.moduleToggleCard}>
+          <p style={styles.moduleToggleTitle}>{t('routine.addToRoutineTitle', undefined, lang)}</p>
+          {MODULE_ORDER.map((key, i) => {
+            const meta = MODULE_META[key]
+            const on = isOn(key)
+            const expanded = on && expandedModule === key
+            return (
+              <div key={key} style={i > 0 ? styles.moduleAccordionDivider : undefined}>
                 <button
-                  key={n}
-                  style={{ ...styles.durationBtn, ...(n === prayerMinutes ? { ...styles.durationBtnActive, background: ROUTINE_STEP_COLORS.prayer } : {}) }}
-                  onClick={() => choosePrayer(n)}
+                  type="button"
+                  style={{ ...styles.moduleToggleRow, ...(on ? {} : styles.moduleToggleRowOff) }}
+                  onClick={() => on && setExpandedModule(v => (v === key ? null : key))}
                 >
-                  <span style={styles.durationBtnNum}>{n}</span>
-                  <span style={styles.durationBtnUnit}>{t('routine.min', undefined, lang)}</span>
-                </button>
-              ))}
-            </div>
-          </PickerSection>
-        )}
-
-        {/* Leitura da Bíblia — plano fixo (ordem/ritmo) OU por tema (IA),
-            um botão-push do lado de cada título decide qual dos dois está
-            ATIVO (mesmo padrão de antes em PlanScreen.jsx), tudo isso só
-            aparece quando o passo "Leitura" está ligado acima. */}
-        {isOn('reading') && (
-          <>
-            <div>
-              <p style={styles.sectionLabel}>{t('plan.activePlanTitle', undefined, lang)}</p>
-              <ActivePlanCard activePlan={activePlan} todaySession={todaySession} lang={lang} onContinue={onContinueSession} />
-            </div>
-
-            <div style={styles.sectionHeaderRow}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ ...styles.sectionLabel, margin: 0 }}>{t('plan.readingPlanTitle', undefined, lang)}</p>
-                <p style={{ ...styles.sectionSub, margin: '2px 0 0' }}>{t('plan.readingPlanSub', undefined, lang)}</p>
-              </div>
-              <div
-                className={`toggle ${activePlanData.kind !== 'theme' ? '' : 'off'}`}
-                onClick={activateBiblePlan}
-                role="switch"
-                aria-checked={activePlanData.kind !== 'theme'}
-              >
-                <div className="toggle-thumb" />
-              </div>
-            </div>
-
-            {activePlanData.kind !== 'theme' && (
-              <div style={styles.readingPlanCard}>
-                <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
-                <div style={styles.orderSel}>
-                  <button
-                    style={{ ...styles.orderBtn, ...(currentOrder === 'standard' ? styles.orderBtnActive : {}) }}
-                    onClick={() => chooseOrder('standard')}
-                  >
-                    <AppIcon name="BookOpen" size={15} color={currentOrder === 'standard' ? 'white' : 'var(--g4)'} />
-                    {t('plan.orderStandard', undefined, lang)}
-                  </button>
-                  <button
-                    style={{ ...styles.orderBtn, ...(currentOrder === 'chrono' ? styles.orderBtnActive : {}) }}
-                    onClick={() => chooseOrder('chrono')}
-                  >
-                    <AppIcon name="Hourglass" size={15} color={currentOrder === 'chrono' ? 'white' : 'var(--g4)'} />
-                    {t('plan.orderChronological', undefined, lang)}
-                  </button>
-                </div>
-
-                <p style={{ ...styles.chipsLabel, marginTop: 12 }}>{t('plan.paceLabel', undefined, lang)}</p>
-                <div style={styles.paceSel}>
-                  {PLANS.map(p => (
-                    <button
-                      key={p.id}
-                      style={{ ...styles.paceBtn, ...(currentPaceId === p.id ? styles.paceBtnActive : {}) }}
-                      onClick={() => choosePace(p.id)}
-                    >
-                      <AppIcon name={p.icon} size={14} color={currentPaceId === p.id ? 'white' : 'var(--g4)'} />
-                      <span>{lang === 'en' ? p.labelEn : p.label}</span>
-                      <span style={{ ...styles.paceBtnTime, ...(currentPaceId === p.id ? styles.paceBtnTimeActive : {}) }}>
-                        {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={styles.sectionHeaderRow}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ ...styles.sectionLabel, margin: 0 }}>
-                  {activeThemePlan ? themePlanTitle(activeThemePlan) : t('plan.themePlanTitle', undefined, lang)}
-                </p>
-                <p style={{ ...styles.sectionSub, margin: '2px 0 0' }}>{t('plan.themePlanSub', undefined, lang)}</p>
-              </div>
-              <div
-                className={`toggle ${activePlanData.kind === 'theme' ? '' : 'off'}`}
-                style={themePlans.length === 0 ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
-                onClick={activateThemePlan}
-                role="switch"
-                aria-checked={activePlanData.kind === 'theme'}
-              >
-                <div className="toggle-thumb" />
-              </div>
-            </div>
-
-            {activeThemePlan && (
-              <div style={styles.readingPlanCard}>
-                {activeThemePlan.overview && (
-                  <p style={{ ...styles.themeOverview, marginTop: 0 }}>{activeThemePlan.overview}</p>
-                )}
-                {activeThemePlan.passages ? (
-                  <ThemeTextsChecklist
-                    key={activeThemePlan.id}
-                    plan={activeThemePlan}
-                    completedSet={completedSet}
-                    todayThemePicks={todayThemePicks}
-                    lang={lang}
-                    onOpenText={key => onStartThemeReading?.(activeThemePlan.id, [key])}
-                    onAddToRoutine={keys => onAddSessionsToRoutine?.(activeThemePlan.id, keys)}
-                    onStartReading={keys => onStartThemeReading?.(activeThemePlan.id, keys)}
-                  />
-                ) : (
-                  <p style={styles.sectionSub}>
-                    {t('themePlan.sessionsCount', { done: themePlanProgress(activeThemePlan, completedSet).done, total: themePlanProgress(activeThemePlan, completedSet).total }, lang)}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {recentThemePlans.map(tp => {
-                const progress = themePlanProgress(tp, completedSet)
-                return (
-                  <PlanRow
-                    key={tp.id}
-                    icon="Sparkles"
-                    iconColor="#A21CAF"
-                    iconBg="#FAE8FF"
-                    title={themePlanTitle(tp)}
-                    sub={progress.totalMinutes != null
-                      ? `${t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)} · ~${progress.totalMinutes} ${t('routine.min', undefined, lang)}`
-                      : t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)}
-                    isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
-                    lang={lang}
-                    onOpen={() => onOpenThemePlan?.(tp.id)}
-                    onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
-                  />
-                )
-              })}
-              <button style={styles.createThemePlanLink} onClick={() => onNavigate?.('themePlan')}>
-                {t('plan.createThemePlanLink', undefined, lang)}
-              </button>
-            </div>
-
-            {activePlanData.kind !== 'theme' && (
-              <>
-                <div style={{ margin: '4px 2px 0' }}>
-                  <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
-                  <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {activePlanData.blocks.map(block => (
-                    <PlanBlockSection
-                      key={block.id}
-                      block={block}
-                      sessions={activePlanData.sessionsByBlock[block.id] ?? []}
-                      open={openBlockId === block.id}
-                      onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
-                      completedSet={completedSet}
-                      onToggleSession={onToggleSession}
-                      onOpenSession={s => openSession(block.id, s.id)}
-                      lang={lang}
+                  <span style={{ ...styles.moduleToggleIcon, background: on ? `${ROUTINE_STEP_COLORS[key]}1A` : 'var(--g1)' }}>
+                    <AppIcon name={meta.icon} size={16} color={on ? ROUTINE_STEP_COLORS[key] : 'var(--g4)'} />
+                  </span>
+                  <span style={styles.moduleToggleLabel}>{t(meta.labelKey, undefined, lang)}</span>
+                  {on && (
+                    <AppIcon
+                      name="ChevronDown"
+                      size={15}
+                      color="var(--g4)"
+                      style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }}
                     />
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div style={styles.readingStatsRow}>
-              <div style={styles.readingStat}>
-                <span style={styles.readingStatN}>{doneSessions}/{totalSessions}</span>
-                <span style={styles.readingStatL}>{t('journey.sessionsStat', undefined, lang)}</span>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Estudo guiado — escolhe UM estudo ativo (dos prontos hoje; os
-            criados por IA entram na mesma lista quando essa opção existir
-            em StudiesScreen.jsx); a sessão de hoje e marcar concluído
-            moram lá, que já sabe calcular isso a partir do progresso
-            salvo. */}
-        {isOn('study') && (
-          <PickerSection
-            title={t('routine.sectionStudy', undefined, lang)} sub={t('routine.sectionStudySub', undefined, lang)} icon="GraduationCap" color={ROUTINE_STEP_COLORS.study}
-            footer={
-              <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.study }} onClick={() => onNavigate?.('studies')}>
-                {t('routine.goToStudy', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
-              </button>
-            }
-          >
-            {activeStudy && (
-              <div style={styles.activeStudyCard}>
-                <span style={styles.activeStudyIcon}><AppIcon name={activeStudy.icon} size={16} color={ROUTINE_STEP_COLORS.study} /></span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={styles.activePlanSummaryLabel}>{lang === 'en' ? activeStudy.titleEn : activeStudy.title}</span>
-                  <span style={styles.activePlanSummarySub}>{t('themePlan.sessionsCount', { done: 0, total: activeStudy.sessions.length }, lang)}</span>
-                </span>
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: activeStudy ? 8 : 0 }}>
-              {allStudies.map(s => (
-                <PlanRow
-                  key={s.id}
-                  icon={s.icon}
-                  iconColor={ROUTINE_STEP_COLORS.study}
-                  iconBg="#DBEAFE"
-                  title={lang === 'en' ? s.titleEn : s.title}
-                  sub={`${s.sessions.length} ${lang === 'en' ? 'sessions' : 'sessões'}`}
-                  isActive={activeStudyId === s.id}
-                  lang={lang}
-                  onChoose={() => onSelectActiveStudy?.(s.id)}
-                />
-              ))}
-            </div>
-          </PickerSection>
-        )}
-
-        {/* Reflexão */}
-        {isOn('reflection') && (
-          <PickerSection
-            title={t('routine.sectionReflection', undefined, lang)} sub={t('routine.sectionReflectionSub', undefined, lang)} icon="PenLine" color={ROUTINE_STEP_COLORS.reflection} inline
-            footer={
-              <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.reflection }} onClick={() => onNavigate?.('reflection')}>
-                {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
-              </button>
-            }
-          >
-            <div className="duration-sel" style={styles.durationSel}>
-              {REFLECTION_DURATION_OPTIONS.map(n => (
-                <button
-                  key={n}
-                  style={{ ...styles.durationBtn, ...(n === reflectionMinutes ? { ...styles.durationBtnActive, background: ROUTINE_STEP_COLORS.reflection } : {}) }}
-                  onClick={() => chooseReflection(n)}
-                >
-                  <span style={styles.durationBtnNum}>{n}</span>
-                  <span style={styles.durationBtnUnit}>{t('routine.min', undefined, lang)}</span>
+                  )}
+                  <div
+                    className={`toggle ${on ? '' : 'off'}`}
+                    style={on ? { background: ROUTINE_STEP_COLORS[key] } : undefined}
+                    onClick={e => { e.stopPropagation(); onToggleRoutineModule?.(key, !on) }}
+                    role="switch"
+                    aria-checked={on}
+                    aria-label={t(meta.labelKey, undefined, lang)}
+                  >
+                    <div className="toggle-thumb" />
+                  </div>
                 </button>
-              ))}
-            </div>
-          </PickerSection>
-        )}
+
+                {expanded && key === 'prayer' && (
+                  <div style={styles.moduleAccordionBody}>
+                    <p style={styles.moduleAccordionSub}>{t('routine.sectionPrayerSub', undefined, lang)}</p>
+                    <div className="duration-sel" style={styles.durationSel}>
+                      {PRAYER_DURATION_OPTIONS.map(n => (
+                        <button
+                          key={n}
+                          style={{ ...styles.durationBtn, ...(n === prayerMinutes ? { ...styles.durationBtnActive, background: ROUTINE_STEP_COLORS.prayer } : {}) }}
+                          onClick={() => choosePrayer(n)}
+                        >
+                          <span style={styles.durationBtnNum}>{n}</span>
+                          <span style={styles.durationBtnUnit}>{t('routine.min', undefined, lang)}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.prayer }} onClick={() => onNavigate?.('prayer')}>
+                      {t('routine.goToPrayer', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Leitura da Bíblia — plano fixo (ordem/ritmo) OU por tema
+                    (IA), um botão-push do lado de cada título decide qual
+                    dos dois está ATIVO (mesmo padrão de antes em
+                    PlanScreen.jsx). */}
+                {expanded && key === 'reading' && (
+                  <div style={styles.moduleAccordionBody}>
+                    <div>
+                      <p style={styles.sectionLabel}>{t('plan.activePlanTitle', undefined, lang)}</p>
+                      <ActivePlanCard activePlan={activePlan} todaySession={todaySession} lang={lang} onContinue={onContinueSession} />
+                    </div>
+
+                    <div style={styles.sectionHeaderRow}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ ...styles.sectionLabel, margin: 0 }}>{t('plan.readingPlanTitle', undefined, lang)}</p>
+                        <p style={{ ...styles.sectionSub, margin: '2px 0 0' }}>{t('plan.readingPlanSub', undefined, lang)}</p>
+                      </div>
+                      <div
+                        className={`toggle ${activePlanData.kind !== 'theme' ? '' : 'off'}`}
+                        onClick={activateBiblePlan}
+                        role="switch"
+                        aria-checked={activePlanData.kind !== 'theme'}
+                      >
+                        <div className="toggle-thumb" />
+                      </div>
+                    </div>
+
+                    {activePlanData.kind !== 'theme' && (
+                      <div style={styles.readingPlanCard}>
+                        <p style={styles.chipsLabel}>{t('plan.orderLabel', undefined, lang)}</p>
+                        <div style={styles.orderSel}>
+                          <button
+                            style={{ ...styles.orderBtn, ...(currentOrder === 'standard' ? styles.orderBtnActive : {}) }}
+                            onClick={() => chooseOrder('standard')}
+                          >
+                            <AppIcon name="BookOpen" size={15} color={currentOrder === 'standard' ? 'white' : 'var(--g4)'} />
+                            {t('plan.orderStandard', undefined, lang)}
+                          </button>
+                          <button
+                            style={{ ...styles.orderBtn, ...(currentOrder === 'chrono' ? styles.orderBtnActive : {}) }}
+                            onClick={() => chooseOrder('chrono')}
+                          >
+                            <AppIcon name="Hourglass" size={15} color={currentOrder === 'chrono' ? 'white' : 'var(--g4)'} />
+                            {t('plan.orderChronological', undefined, lang)}
+                          </button>
+                        </div>
+
+                        <p style={{ ...styles.chipsLabel, marginTop: 12 }}>{t('plan.paceLabel', undefined, lang)}</p>
+                        <div style={styles.paceSel}>
+                          {PLANS.map(p => (
+                            <button
+                              key={p.id}
+                              style={{ ...styles.paceBtn, ...(currentPaceId === p.id ? styles.paceBtnActive : {}) }}
+                              onClick={() => choosePace(p.id)}
+                            >
+                              <AppIcon name={p.icon} size={14} color={currentPaceId === p.id ? 'white' : 'var(--g4)'} />
+                              <span>{lang === 'en' ? p.labelEn : p.label}</span>
+                              <span style={{ ...styles.paceBtnTime, ...(currentPaceId === p.id ? styles.paceBtnTimeActive : {}) }}>
+                                {p.readingMinutes != null ? t('journey.minPerDay', { n: p.readingMinutes }, lang) : t('journey.noTimeTarget', undefined, lang)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={styles.sectionHeaderRow}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ ...styles.sectionLabel, margin: 0 }}>
+                          {activeThemePlan ? themePlanTitle(activeThemePlan) : t('plan.themePlanTitle', undefined, lang)}
+                        </p>
+                        <p style={{ ...styles.sectionSub, margin: '2px 0 0' }}>{t('plan.themePlanSub', undefined, lang)}</p>
+                      </div>
+                      <div
+                        className={`toggle ${activePlanData.kind === 'theme' ? '' : 'off'}`}
+                        style={themePlans.length === 0 ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+                        onClick={activateThemePlan}
+                        role="switch"
+                        aria-checked={activePlanData.kind === 'theme'}
+                      >
+                        <div className="toggle-thumb" />
+                      </div>
+                    </div>
+
+                    {activeThemePlan && (
+                      <div style={styles.readingPlanCard}>
+                        {activeThemePlan.overview && (
+                          <p style={{ ...styles.themeOverview, marginTop: 0 }}>{activeThemePlan.overview}</p>
+                        )}
+                        {activeThemePlan.passages ? (
+                          <ThemeTextsChecklist
+                            key={activeThemePlan.id}
+                            plan={activeThemePlan}
+                            completedSet={completedSet}
+                            todayThemePicks={todayThemePicks}
+                            lang={lang}
+                            onOpenText={key => onStartThemeReading?.(activeThemePlan.id, [key])}
+                            onAddToRoutine={keys => onAddSessionsToRoutine?.(activeThemePlan.id, keys)}
+                            onStartReading={keys => onStartThemeReading?.(activeThemePlan.id, keys)}
+                          />
+                        ) : (
+                          <p style={styles.sectionSub}>
+                            {t('themePlan.sessionsCount', { done: themePlanProgress(activeThemePlan, completedSet).done, total: themePlanProgress(activeThemePlan, completedSet).total }, lang)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {recentThemePlans.map(tp => {
+                        const progress = themePlanProgress(tp, completedSet)
+                        return (
+                          <PlanRow
+                            key={tp.id}
+                            icon="Sparkles"
+                            iconColor="#A21CAF"
+                            iconBg="#FAE8FF"
+                            title={themePlanTitle(tp)}
+                            sub={progress.totalMinutes != null
+                              ? `${t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)} · ~${progress.totalMinutes} ${t('routine.min', undefined, lang)}`
+                              : t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)}
+                            isActive={activeAltPlan?.type === 'theme' && activeAltPlan.planId === tp.id}
+                            lang={lang}
+                            onOpen={() => onOpenThemePlan?.(tp.id)}
+                            onChoose={() => onSelectActivePlan?.({ type: 'theme', planId: tp.id })}
+                          />
+                        )
+                      })}
+                      <button style={styles.createThemePlanLink} onClick={() => onNavigate?.('themePlan')}>
+                        {t('plan.createThemePlanLink', undefined, lang)}
+                      </button>
+                    </div>
+
+                    {activePlanData.kind !== 'theme' && (
+                      <>
+                        <div style={{ margin: '4px 2px 0' }}>
+                          <p style={styles.overviewTitle}>{t('plan.sessionsOverviewTitle', undefined, lang)}</p>
+                          <p style={styles.overviewSub}>{t('plan.sessionsOverviewSub', undefined, lang)}</p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {activePlanData.blocks.map(block => (
+                            <PlanBlockSection
+                              key={block.id}
+                              block={block}
+                              sessions={activePlanData.sessionsByBlock[block.id] ?? []}
+                              open={openBlockId === block.id}
+                              onToggle={() => setOpenBlockId(v => (v === block.id ? null : block.id))}
+                              completedSet={completedSet}
+                              onToggleSession={onToggleSession}
+                              onOpenSession={s => openSession(block.id, s.id)}
+                              lang={lang}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    <div style={styles.readingStatsRow}>
+                      <div style={styles.readingStat}>
+                        <span style={styles.readingStatN}>{doneSessions}/{totalSessions}</span>
+                        <span style={styles.readingStatL}>{t('journey.sessionsStat', undefined, lang)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Estudo guiado — escolhe UM estudo ativo (dos prontos
+                    hoje; os criados por IA entram na mesma lista); a sessão
+                    de hoje e marcar concluído moram em StudiesScreen.jsx,
+                    que já sabe calcular isso a partir do progresso salvo. */}
+                {expanded && key === 'study' && (
+                  <div style={styles.moduleAccordionBody}>
+                    <p style={styles.moduleAccordionSub}>{t('routine.sectionStudySub', undefined, lang)}</p>
+                    {activeStudy && (
+                      <div style={styles.activeStudyCard}>
+                        <span style={styles.activeStudyIcon}><AppIcon name={activeStudy.icon} size={16} color={ROUTINE_STEP_COLORS.study} /></span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={styles.activePlanSummaryLabel}>{lang === 'en' ? activeStudy.titleEn : activeStudy.title}</span>
+                          <span style={styles.activePlanSummarySub}>{t('themePlan.sessionsCount', { done: 0, total: activeStudy.sessions.length }, lang)}</span>
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {allStudies.map(s => (
+                        <PlanRow
+                          key={s.id}
+                          icon={s.icon}
+                          iconColor={ROUTINE_STEP_COLORS.study}
+                          iconBg="#DBEAFE"
+                          title={lang === 'en' ? s.titleEn : s.title}
+                          sub={`${s.sessions.length} ${lang === 'en' ? 'sessions' : 'sessões'}`}
+                          isActive={activeStudyId === s.id}
+                          lang={lang}
+                          onChoose={() => onSelectActiveStudy?.(s.id)}
+                        />
+                      ))}
+                    </div>
+                    <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.study }} onClick={() => onNavigate?.('studies')}>
+                      {t('routine.goToStudy', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {expanded && key === 'reflection' && (
+                  <div style={styles.moduleAccordionBody}>
+                    <p style={styles.moduleAccordionSub}>{t('routine.sectionReflectionSub', undefined, lang)}</p>
+                    <div className="duration-sel" style={styles.durationSel}>
+                      {REFLECTION_DURATION_OPTIONS.map(n => (
+                        <button
+                          key={n}
+                          style={{ ...styles.durationBtn, ...(n === reflectionMinutes ? { ...styles.durationBtnActive, background: ROUTINE_STEP_COLORS.reflection } : {}) }}
+                          onClick={() => chooseReflection(n)}
+                        >
+                          <span style={styles.durationBtnNum}>{n}</span>
+                          <span style={styles.durationBtnUnit}>{t('routine.min', undefined, lang)}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.reflection }} onClick={() => onNavigate?.('reflection')}>
+                      {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
 
         {/* Calendário mensal — visão completa de quais dias tiveram cada
             passo concluído. */}
@@ -524,30 +529,6 @@ export default function RoutineScreen({
             nas últimas 4 semanas. */}
         <RoutineUsageCard dailyRoutine={session.dailyRoutine} lang={lang} modules={routineModules} />
       </div>
-    </div>
-  )
-}
-
-// footer fica FORA do wrapper "inline" de propósito — no desktop, esse
-// wrapper vira uma linha (cabeçalho + seletor de duração lado a lado, ver
-// .picker-section-inline no index.css); um botão de largura cheia dentro
-// dela viraria mais um item espremido nessa linha em vez de ficar embaixo.
-function PickerSection({ title, sub, icon, color, children, inline, footer }) {
-  return (
-    <div style={styles.section}>
-      <div className={inline ? 'picker-section-inline' : undefined}>
-        <div style={styles.sectionHeader}>
-          <span style={{ ...styles.sectionIcon, background: `${color}1A` }}>
-            <AppIcon name={icon} size={15} color={color} />
-          </span>
-          <div>
-            <span style={styles.sectionTitle}>{title}</span>
-            {sub && <p style={styles.sectionSub}>{sub}</p>}
-          </div>
-        </div>
-        {children}
-      </div>
-      {footer}
     </div>
   )
 }
@@ -874,9 +855,13 @@ const styles = {
 
   moduleToggleCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 2 },
   moduleToggleTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  moduleToggleRow:   { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' },
+  moduleToggleRow:   { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', background: 'none', padding: '7px 0', margin: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', transition: 'opacity .15s' },
+  moduleToggleRowOff:{ opacity: 0.5, cursor: 'default' },
   moduleToggleIcon:  { width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   moduleToggleLabel: { flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  moduleAccordionDivider: { borderTop: '0.5px solid var(--g1)', marginTop: 2, paddingTop: 2 },
+  moduleAccordionBody: { padding: '2px 2px 16px', display: 'flex', flexDirection: 'column', gap: 12 },
+  moduleAccordionSub:  { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', margin: '-4px 2px 0' },
 
   hero:        { position: 'relative', overflow: 'hidden', borderRadius: 24, padding: '20px 20px 18px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },
@@ -899,15 +884,8 @@ const styles = {
   stepLineTrack: { flex: 1, height: 3, background: 'var(--g2)', borderRadius: 2, marginTop: 18, overflow: 'hidden' },
   stepLineFill:  { height: '100%', borderRadius: 2, transition: 'width .6s ease' },
 
-  chooseTimeLabel: { display: 'flex', alignItems: 'center', fontSize: 11.5, fontWeight: 600, color: 'var(--g5)', margin: '0 2px' },
-
   sectionLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 2px 6px' },
   sectionSub:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', margin: '-4px 2px 6px' },
-
-  section:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  sectionHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
-  sectionIcon: { width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
 
   sectionHeaderRow: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 2px 6px' },
   readingPlanCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
