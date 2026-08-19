@@ -24,6 +24,7 @@ export function computeCurrentWeekDays(dailyRoutine, today = new Date()) {
       isFuture: key > todayKey,
       prayer: !!entry?.prayer,
       reading: !!entry?.reading,
+      study: !!entry?.study,
       reflection: !!entry?.reflection,
     })
   }

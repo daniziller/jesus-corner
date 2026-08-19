@@ -24,6 +24,7 @@ export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle, modules
     return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'narrow' }).format(d)
   })
   const monthLabel = new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'long', year: 'numeric' }).format(monthCursor)
+  const todayKey = dateKey(new Date())
 
   const cells = []
   for (let i = 0; i < startWeekday; i++) cells.push(null)
@@ -44,12 +45,19 @@ export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle, modules
         {weekdayLabels.map((w, i) => <span key={i} style={styles.calendarWeekday}>{w}</span>)}
         {cells.map((day, i) => {
           if (day == null) return <span key={i} />
-          const dayData = (dailyRoutine ?? {})[dateKey(new Date(year, month, day))]
-          const complete = isDayComplete(dayData, modules)
+          const cellKey = dateKey(new Date(year, month, day))
+          const dayData = (dailyRoutine ?? {})[cellKey]
+          // Ligar/desligar um passo em "Meu Plano" só vale a partir de
+          // hoje — dias passados continuam mostrando o anel com os passos
+          // de ANTES da mudança (DEFAULT_ROUTINE_MODULES, o conjunto fixo
+          // que sempre existiu), pra não "inventar" retroativamente uma
+          // fatia vazia pra um passo que nem existia na rotina daquele dia.
+          const dayModules = cellKey >= todayKey ? modules : DEFAULT_ROUTINE_MODULES
+          const complete = isDayComplete(dayData, dayModules)
           return (
             <div key={i} style={styles.calendarDayCell}>
               <div style={styles.calendarDayRingWrap}>
-                <RoutineDayRing modules={modules} done={dayData ?? {}} size={26} strokeWidth={2.5} />
+                <RoutineDayRing modules={dayModules} done={dayData ?? {}} size={26} strokeWidth={2.5} />
                 <span style={{ ...styles.calendarDayNum, ...(complete ? styles.calendarDayNumComplete : {}) }}>{day}</span>
               </div>
             </div>

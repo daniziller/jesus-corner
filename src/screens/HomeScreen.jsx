@@ -15,7 +15,7 @@ import { getPinnedApplicationPhrase } from '../reflection/applicationPhraseStore
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { STAT_THEMES } from '../utils/statThemes'
 import { shareProgressCard } from '../share/shareProgressCard'
-import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete } from '../routine/routineStreak'
+import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
 
@@ -581,11 +581,16 @@ function WeekRoutineRow({ days, lang, modules }) {
   return (
     <div style={styles.weekRoutineGrid}>
       {days.map((day, i) => {
-        const complete = !day.isFuture && isDayComplete(day, modules)
+        // Ligar/desligar um passo em "Meu Plano" só vale a partir de hoje
+        // — dias passados continuam com o anel de ANTES da mudança
+        // (DEFAULT_ROUTINE_MODULES), sem "inventar" retroativamente uma
+        // fatia vazia pra um passo que nem existia na rotina daquele dia.
+        const dayModules = (day.isToday || day.isFuture) ? modules : DEFAULT_ROUTINE_MODULES
+        const complete = !day.isFuture && isDayComplete(day, dayModules)
         return (
           <div key={day.key} style={styles.calendarDayCell}>
             <div style={styles.calendarDayRingWrap}>
-              <RoutineDayRing modules={modules} done={day.isFuture ? {} : day} size={32} strokeWidth={3} />
+              <RoutineDayRing modules={dayModules} done={day.isFuture ? {} : day} size={32} strokeWidth={3} />
               <span style={{
                 ...styles.calendarDayNum,
                 ...(complete ? styles.calendarDayNumComplete : {}),
