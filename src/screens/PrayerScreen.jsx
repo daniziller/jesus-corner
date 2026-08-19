@@ -249,13 +249,6 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
         <span style={{ ...styles.heroSub, position: 'relative' }}>{t('prayer.heroSub', undefined, lang)}</span>
       </div>
 
-      <RoutineStepSwitcher
-        session={session}
-        activeStep="prayer"
-        onGoReading={() => onContinueSession?.()}
-        onGoReflection={() => onNavigate?.('reflection')}
-      />
-
       <div style={styles.body}>
         <div className="dashboard-grid">
 
@@ -319,6 +312,13 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
                 </button>
               )}
             </div>
+
+            <RoutineStepSwitcher
+              session={session}
+              activeStep="prayer"
+              onGoReading={() => onContinueSession?.()}
+              onGoReflection={() => onNavigate?.('reflection')}
+            />
 
             {/* ACTS acordeão — o card do trecho atual abre sozinho conforme
                 o cronômetro avança, com aviso sonoro na troca. */}

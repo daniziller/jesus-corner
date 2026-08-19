@@ -520,18 +520,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           ))}
         </div>
       </div>
-      {/* Seletor pra pular direto pra Oração/Reflexão sem voltar pra aba
-          Rotina — só no fluxo guiado de tela cheia (a leitura livre não é
-          "o passo de hoje" de coisa nenhuma, e embutido na aba Bíblia não
-          tem esse contexto de rotina). */}
-      {!embedded && mode !== 'browse' && heroSession.type !== 'reflection' && (
-        <RoutineStepSwitcher
-          session={session}
-          activeStep="reading"
-          onGoPrayer={() => onNavigate?.('prayer')}
-          onGoReflection={() => onNavigate?.('reflection')}
-        />
-      )}
       {/* Cards de "lidos recentemente" — só na navegação livre de tela
           cheia, nunca embutido (não faz sentido por livro). No desktop
           moram aqui dentro de .rb-detail, que já é sticky por conta
@@ -560,6 +548,20 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             </div>
           )}
         </>
+      )}
+
+      {/* Seletor pra pular direto pra Oração/Reflexão sem voltar pra aba
+          Rotina — só no fluxo guiado de tela cheia (a leitura livre não é
+          "o passo de hoje" de coisa nenhuma, e embutido na aba Bíblia não
+          tem esse contexto de rotina). Logo acima do texto de propósito —
+          depois da lista de capítulos da sessão, não colado no cabeçalho. */}
+      {!embedded && mode !== 'browse' && heroSession.type !== 'reflection' && (
+        <RoutineStepSwitcher
+          session={session}
+          activeStep="reading"
+          onGoPrayer={() => onNavigate?.('prayer')}
+          onGoReflection={() => onNavigate?.('reflection')}
+        />
       )}
 
       {/* Painel de texto / contexto / mapa / notas / curiosidades da

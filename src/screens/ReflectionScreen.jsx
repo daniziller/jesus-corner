@@ -312,13 +312,6 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
         <span style={{ ...styles.heroSub, position: 'relative' }}>{t('reflection.heroSub', undefined, lang)}</span>
       </div>
 
-      <RoutineStepSwitcher
-        session={session}
-        activeStep="reflection"
-        onGoPrayer={() => onNavigate?.('prayer')}
-        onGoReading={() => onContinueSession?.()}
-      />
-
       <div style={styles.body}>
         {/* Só aparece vindo de "Ir para Reflexão" logo depois de marcar uma
             sessão como lida (ver App.jsx/lastReadSession) — some sozinho
@@ -381,6 +374,13 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
           </div>
           {running && <p style={styles.wakeLockHint}>{t('reflection.wakeLockHint', undefined, lang)}</p>}
         </div>
+
+        <RoutineStepSwitcher
+          session={session}
+          activeStep="reflection"
+          onGoPrayer={() => onNavigate?.('prayer')}
+          onGoReading={() => onContinueSession?.()}
+        />
 
         {/* Roteiro acordeão — o card da etapa atual abre sozinho conforme o
             cronômetro avança, com aviso sonoro na troca (mesmo padrão do ACTS). */}
