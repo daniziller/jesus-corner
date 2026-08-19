@@ -22,6 +22,7 @@ import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/ro
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import RoutineCalendar from '../components/RoutineCalendar'
+import RoutineDayRing from '../components/RoutineDayRing'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -764,13 +765,16 @@ function PlanSessionRow({ s, onToggleSession, onOpen, lang }) {
   )
 }
 
-// Métrica de constância — mini gráfico de barras com o número de dias em
-// que cada passo LIGADO foi feito, semana a semana.
+// Métrica de constância — um anel por semana (mesmo desenho do calendário
+// mensal, ver RoutineDayRing.jsx: uma fatia fixa por passo LIGADO), só que
+// cada fatia vem parcialmente preenchida em vez de cheia/vazia — a fração
+// de quantos dos 7 dias da semana aquele passo foi feito.
 function RoutineUsageCard({ dailyRoutine, lang, modules }) {
   const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, modules, 4)
   const hasAnyData = weeks.some(w => w.prayerDays > 0 || w.readingDays > 0 || w.studyDays > 0 || w.reflectionDays > 0)
   const MAX_DAYS = 7
   const avgFullDays = averageFullRoutineDays(weeks)
+  const weekFraction = w => Object.fromEntries(modules.map(key => [key, (w[`${key}Days`] ?? 0) / MAX_DAYS]))
 
   return (
     <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' }}>
@@ -786,11 +790,8 @@ function RoutineUsageCard({ dailyRoutine, lang, modules }) {
                 <div key={i} style={{ ...styles.routineUsageMonthCol, ...(isCurrent ? styles.routineUsageMonthColCurrent : {}) }}>
                   {isCurrent && <span style={styles.routineUsageCurrentTag}>{t('progress.routineUsageThisWeek', undefined, lang)}</span>}
                   <span style={{ ...styles.routineUsageMonthNum, ...(isCurrent ? styles.routineUsageMonthNumCurrent : {}) }}>{w.fullDays}</span>
-                  <div style={styles.routineUsageRings}>
-                    {modules.includes('prayer') && <StepRing days={w.prayerDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.prayer} />}
-                    {modules.includes('reading') && <StepRing days={w.readingDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reading} />}
-                    {modules.includes('study') && <StepRing days={w.studyDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.study} />}
-                    {modules.includes('reflection') && <StepRing days={w.reflectionDays} maxDays={MAX_DAYS} color={ROUTINE_STEP_COLORS.reflection} />}
+                  <div style={styles.routineUsageRingWrap}>
+                    <RoutineDayRing modules={modules} done={weekFraction(w)} size={34} strokeWidth={3.5} />
                   </div>
                   <span style={{ ...styles.routineUsageMonthLabel, ...(isCurrent ? styles.routineUsageMonthLabelCurrent : {}) }}>
                     {new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'numeric' }).format(w.start)}
@@ -821,22 +822,6 @@ function RoutineUsageCard({ dailyRoutine, lang, modules }) {
         </p>
       )}
     </div>
-  )
-}
-
-function StepRing({ days, maxDays, color, size = 16, strokeWidth = 2.5 }) {
-  const r = (size - strokeWidth) / 2
-  const c = 2 * Math.PI * r
-  const frac = maxDays ? Math.min(1, days / maxDays) : 0
-  const offset = c - frac * c
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--g2)" strokeWidth={strokeWidth} />
-      {frac > 0 && (
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />
-      )}
-    </svg>
   )
 }
 
@@ -966,7 +951,7 @@ const styles = {
   routineUsageCurrentTag: { fontSize: 7, fontWeight: 800, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
   routineUsageMonthNum:   { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', lineHeight: 1 },
   routineUsageMonthNumCurrent: { color: 'var(--or)', fontSize: 15 },
-  routineUsageRings:      { display: 'flex', alignItems: 'center', gap: 2 },
+  routineUsageRingWrap:   { position: 'relative', width: 34, height: 34, flexShrink: 0 },
   routineUsageMonthLabel: { fontSize: 8.5, fontWeight: 600, color: 'var(--g4)', textTransform: 'capitalize' },
   routineUsageMonthLabelCurrent: { color: 'var(--or)', fontWeight: 800 },
   routineUsageLegend:     { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
