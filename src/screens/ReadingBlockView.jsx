@@ -1402,7 +1402,14 @@ function HighlightComposer({
     : `${chLabel} ${selection.chapter}:${formatVerseRanges([...selection.verses])}`
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    // flex:1 + minHeight:0 + overflowY:auto: dentro da folha (altura
+    // travada em 52vh, ver highlightListSheetWindow), sem isso o conteúdo
+    // (citação + cor + textarea + Salvar) só cresce naturalmente e o
+    // overflow:hidden do avô esconde o que não coube — inclusive o botão
+    // Salvar, sem jeito nenhum de rolar até ele. Com isso, é este bloco
+    // (não a folha inteira) que rola quando o texto grande deixa tudo alto
+    // demais pra caber de uma vez.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <p style={styles.highlightBoxLabel}>
         <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
         {countLabel}
