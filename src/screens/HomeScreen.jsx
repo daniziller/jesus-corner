@@ -23,7 +23,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, xp, lang,
-    dailyRoutine, todayRoutine, plan, activePlan, achievements, goals, routineModules,
+    dailyRoutine, todayRoutine, plan, activePlan, achievements, goals, routineModules, activeStudyId,
   } = session
 
   // Cartão de progresso pra compartilhar em rede social (ver
@@ -214,9 +214,10 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               <p style={styles.weekRoutineTitle}>{translate('home.weekRingsTitle', undefined, lang)}</p>
               <WeekRoutineRow days={weekDays} lang={lang} modules={routineModules} />
               <div style={styles.calendarLegendRow}>
-                <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />
-                <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />
-                <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />
+                {routineModules.includes('prayer') && <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />}
+                {routineModules.includes('reading') && <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />}
+                {routineModules.includes('study') && <LegendDot color={ROUTINE_STEP_COLORS.study} label={translate('home.routineStudy', undefined, lang)} />}
+                {routineModules.includes('reflection') && <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />}
               </div>
             </div>
             </div>
@@ -243,6 +244,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               plan={plan}
               activePlan={activePlan}
               routineModules={routineModules}
+              activeStudyId={activeStudyId}
               lang={lang}
               onNavigate={onNavigate}
               onContinueSession={onContinueSession}
@@ -425,21 +427,22 @@ function TutorialStep({ icon, time, title, desc, theme }) {
   )
 }
 
-/* ── "Sua rotina com Deus" — 3 passos diários clicáveis + calendário de
-   histórico. A linha inteira de Oração e Leitura navega pra onde o passo é
-   feito de verdade; os dois também têm um ícone-checkbox próprio (clique
-   separado, com stopPropagation, sem navegar) pra quem já orou/leu fora do
-   app e só quer marcar. Reflexão não tem uma tela própria, então o toggle
-   acontece direto no card, na linha inteira. ── */
-function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, routineModules, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
+/* ── "Sua rotina com Deus" — passos diários clicáveis + calendário de
+   histórico. A linha inteira de Oração/Leitura/Estudo navega pra onde o
+   passo é feito de verdade; todos (menos Reflexão) também têm um
+   ícone-checkbox próprio (clique separado, com stopPropagation, sem
+   navegar) pra quem já fez fora do app e só quer marcar. Reflexão não tem
+   uma tela própria, então o toggle acontece direto no card, na linha
+   inteira. ── */
+function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, routineModules, activeStudyId, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
-  // Os 3 passos sempre aparecem (ver PLANS[].modules em bibleBlocks.js) — o
-  // que muda de um plano pro outro é a duração de cada um. Oração/Reflexão
-  // mostram a duração escolhida na aba Rotina (jc_prayer_minutes /
-  // jc_reflection_minutes), não o padrão do plano — ela fica valendo até a
-  // pessoa trocar de novo, mesmo padrão que PrayerScreen/ReflectionScreen
-  // já seguem.
+  // Quais passos aparecem é decidido por routineModules (toggles
+  // independentes em "Meu Plano" — ver routineModulesStore.js), não mais
+  // fixo por plano. Oração/Reflexão mostram a duração escolhida na aba
+  // Rotina (jc_prayer_minutes/jc_reflection_minutes), não o padrão do
+  // plano — ela fica valendo até a pessoa trocar de novo, mesmo padrão que
+  // PrayerScreen/ReflectionScreen já seguem.
   const prayerMinutes = getSavedPrayerMinutes() ?? plan.prayerMinutes
   const reflectionMinutes = getSavedReflectionMinutes() ?? plan.reflectionMinutes
   const allSteps = [
@@ -462,6 +465,14 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, routin
       done: !!todayRoutine.reading,
       onClick: () => onContinueSession?.(),
       onToggleCheck: () => onMarkRoutineStep?.('reading', !todayRoutine.reading),
+    },
+    {
+      key: 'study', icon: 'GraduationCap', color: ROUTINE_STEP_COLORS.study,
+      title: translate('home.routineStudy', undefined, lang),
+      sub: activeStudyId ? translate('home.routineStudySub', undefined, lang) : translate('home.routineStudyNoneSub', undefined, lang),
+      done: !!todayRoutine.study,
+      onClick: () => onNavigate?.('studies'),
+      onToggleCheck: () => onMarkRoutineStep?.('study', !todayRoutine.study),
     },
     {
       key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection,
@@ -580,9 +591,10 @@ function WeekRoutineRow({ days, lang, modules }) {
               {letters[i]}
             </span>
             <div style={styles.calendarStepDots}>
-              <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />
-              <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />
-              <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />
+              {modules.includes('prayer') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />}
+              {modules.includes('reading') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />}
+              {modules.includes('study') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.study ? ROUTINE_STEP_COLORS.study : 'var(--g2)' }} />}
+              {modules.includes('reflection') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />}
             </div>
           </div>
         )

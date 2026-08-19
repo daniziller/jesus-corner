@@ -380,6 +380,7 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
           activeStep="reflection"
           onGoPrayer={() => onNavigate?.('prayer')}
           onGoReading={() => onContinueSession?.()}
+          onGoStudy={() => onNavigate?.('studies')}
         />
 
         {/* Roteiro acordeão — o card da etapa atual abre sozinho conforme o

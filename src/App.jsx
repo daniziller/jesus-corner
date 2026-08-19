@@ -556,7 +556,7 @@ export default function App() {
         // checklist de textos (ver PlanScreen.jsx), em vez de abrir a
         // leitura direto (não saberia o que abrir).
         if (activePlanData.needsThemePick) {
-          setActiveTab('plan')
+          setActiveTab('routine')
           return
         }
         setThemeAutoOpenId(themePlan.id)

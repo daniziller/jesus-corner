@@ -49,18 +49,20 @@ export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle, modules
             <div key={i} style={styles.calendarDayCell}>
               <span style={{ ...styles.calendarDayNum, ...(complete ? styles.calendarDayNumComplete : {}) }}>{day}</span>
               <div style={styles.calendarStepDots}>
-                <span style={{ ...styles.calendarStepDot, background: dayData?.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />
-                <span style={{ ...styles.calendarStepDot, background: dayData?.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />
-                <span style={{ ...styles.calendarStepDot, background: dayData?.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />
+                {modules.includes('prayer') && <span style={{ ...styles.calendarStepDot, background: dayData?.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />}
+                {modules.includes('reading') && <span style={{ ...styles.calendarStepDot, background: dayData?.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />}
+                {modules.includes('study') && <span style={{ ...styles.calendarStepDot, background: dayData?.study ? ROUTINE_STEP_COLORS.study : 'var(--g2)' }} />}
+                {modules.includes('reflection') && <span style={{ ...styles.calendarStepDot, background: dayData?.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />}
               </div>
             </div>
           )
         })}
       </div>
       <div style={styles.calendarLegend}>
-        <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />
-        <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />
-        <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />
+        {modules.includes('prayer') && <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />}
+        {modules.includes('reading') && <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />}
+        {modules.includes('study') && <LegendDot color={ROUTINE_STEP_COLORS.study} label={translate('home.routineStudy', undefined, lang)} />}
+        {modules.includes('reflection') && <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />}
       </div>
     </div>
   )

@@ -317,6 +317,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
               session={session}
               activeStep="prayer"
               onGoReading={() => onContinueSession?.()}
+              onGoStudy={() => onNavigate?.('studies')}
               onGoReflection={() => onNavigate?.('reflection')}
             />
 
