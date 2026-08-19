@@ -185,9 +185,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     { key: 'curiosidades', icon: 'Lightbulb',  label: t('reading.tagTrivia', undefined, lang) },
     { key: 'ia',           icon: 'Bot',        label: t('reading.tagAskAi', undefined, lang) },
   ]
-  const PANEL_KEYS = ['contexto', 'mapa', 'notas', 'curiosidades', 'ia']
 
   const [openPanel, setOpenPanel] = useState(null)
+  // Chat de IA e janela de grifo flutuam por CIMA da leitura (portal pro
+  // <body>, ver mais abaixo) — de propósito em estados PRÓPRIOS, separados
+  // de openPanel: abrir um dos dois não pode fechar/trocar o que já estava
+  // aberto embaixo (o texto do capítulo, Contexto, Notas...). Antes os três
+  // dividiam o mesmo openPanel, então abrir a IA com o texto aberto (modo
+  // 'session') trocava openPanel de 'texto' pra 'ia' — ao fechar a IA,
+  // openPanel virava null (não voltava pra 'texto'), e o texto que a
+  // pessoa estava lendo sumia da tela sozinho.
+  const [aiChatOpen, setAiChatOpen] = useState(false)
+  const [highlightPanelOpen, setHighlightPanelOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [hasSavedNote, setHasSavedNote] = useState(false)
   // Mapa INTEIRO de anotações (não só a da sessão em destaque) — é o que
@@ -301,7 +310,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     if (existing) {
       setHighlightEditingId(existing.id)
       setHighlightSelection(null)
-      setOpenPanel('grifo')
+      setHighlightPanelOpen(true)
       return
     }
     setHighlightEditingId(null)
@@ -315,7 +324,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       next = verses.size === 0 ? null : { chapter: ch, verses }
     }
     setHighlightSelection(next)
-    setOpenPanel(next ? 'grifo' : null)
+    setHighlightPanelOpen(Boolean(next))
   }
 
   // Seleção de texto "de verdade" (arrastar o dedo/mouse como se fosse
@@ -326,34 +335,34 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   function handleHighlightTextRange(ch, verses) {
     setHighlightEditingId(null)
     setHighlightSelection({ chapter: ch, verses })
-    setOpenPanel('grifo')
+    setHighlightPanelOpen(true)
   }
 
   function submitNewHighlight(text) {
     if (!highlightSelection || !text.trim()) return
     handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text)
     setHighlightSelection(null)
-    setOpenPanel(null)
+    setHighlightPanelOpen(false)
   }
 
   function submitHighlightEdit(text) {
     if (!highlightEditingId || !text.trim()) return
     handleUpdateHighlightText(highlightEditingId, text)
     setHighlightEditingId(null)
-    setOpenPanel(null)
+    setHighlightPanelOpen(false)
   }
 
   function removeEditingHighlight() {
     if (!highlightEditingId) return
     handleDeleteHighlight(highlightEditingId)
     setHighlightEditingId(null)
-    setOpenPanel(null)
+    setHighlightPanelOpen(false)
   }
 
   function cancelHighlightCompose() {
     setHighlightSelection(null)
     setHighlightEditingId(null)
-    setOpenPanel(null)
+    setHighlightPanelOpen(false)
   }
 
   // Tocar num grifo já salvo, dentro da lista da janela flutuante (estado
@@ -386,7 +395,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // agora flutua por cima (ver aiChatOverlay* abaixo), então a pessoa
   // nunca sai de onde estava lendo pra abrir/fechar ele.
   function openAiChat() {
-    setOpenPanel('ia')
+    setAiChatOpen(true)
   }
 
   // Cabeçalho + painéis (Contexto/Mapa/Notas/Curiosidades/Texto) — extraído
@@ -513,7 +522,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           </div>
         ) : null
       })()}
-      {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && openPanel !== 'ia' && (
+      {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
         <div style={{ padding: '0 14px 4px' }}>
           <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
         </div>
@@ -603,7 +612,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             maior). Abre a mesma janela flutuante do grifo (ver embaixo);
             com uma seleção em andamento ela já mostra o compositor, sem
             seleção mostra os grifos já feitos neste trecho. */}
-        <button type="button" style={styles.highlightFab} onClick={() => setOpenPanel('grifo')} aria-label={t('reading.tagHighlight', undefined, lang)}>
+        <button type="button" style={styles.highlightFab} onClick={() => setHighlightPanelOpen(true)} aria-label={t('reading.tagHighlight', undefined, lang)}>
           <AppIcon name="Pencil" size={19} color="white" />
         </button>
         <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
@@ -614,16 +623,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     )}
     {/* Chat flutua por cima da leitura (mesmo motivo do portal acima) — a
         pessoa nunca sai de onde estava; fecha com o X ou tocando fora, e
-        volta pra exatamente a mesma posição de rolagem de antes. */}
-    {openPanel === 'ia' && heroSession.type !== 'reflection' && createPortal(
-      <div style={styles.aiChatOverlayBackdrop} onClick={() => setOpenPanel(null)}>
+        volta pra exatamente a mesma posição de rolagem de antes. Estado
+        próprio (aiChatOpen, não openPanel) — abrir a IA não pode fechar o
+        que já estava aberto embaixo (o texto do capítulo, Contexto...), e
+        fechar a IA não pode fazer o que estava aberto sumir junto. */}
+    {aiChatOpen && heroSession.type !== 'reflection' && createPortal(
+      <div style={styles.aiChatOverlayBackdrop} onClick={() => setAiChatOpen(false)}>
         <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
           <div style={styles.aiChatOverlayHeader}>
             <span style={styles.aiChatOverlayTitle}>
               <span style={styles.aiChatOverlayIcon}><AppIcon name="Bot" size={15} color="#A21CAF" /></span>
               {t('reading.tagAskAi', undefined, lang)}
             </span>
-            <button type="button" style={styles.aiChatOverlayClose} onClick={() => setOpenPanel(null)} aria-label={t('aiChat.close', undefined, lang)}>
+            <button type="button" style={styles.aiChatOverlayClose} onClick={() => setAiChatOpen(false)} aria-label={t('aiChat.close', undefined, lang)}>
               <AppIcon name="X" size={16} color="var(--g5)" />
             </button>
           </div>
@@ -639,7 +651,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         por cima igual o chat de IA acima, aberta tanto por selecionar um
         trecho (toque no número OU seleção "de copiar", ver BibleTextPanel)
         quanto pelo FAB de lápis. */}
-    {openPanel === 'grifo' && heroSession.type !== 'reflection' && createPortal(
+    {highlightPanelOpen && heroSession.type !== 'reflection' && createPortal(
       <div style={styles.aiChatOverlayBackdrop} onClick={cancelHighlightCompose}>
         <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
           <div style={styles.aiChatOverlayHeader}>
@@ -1029,7 +1041,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
   )
 }
 
-// Corpo da janela flutuante de grifo (ver openPanel === 'grifo' no
+// Corpo da janela flutuante de grifo (ver highlightPanelOpen no
 // componente principal) — três estados possíveis:
 // 1. `editingHighlight` preenchido: ver/editar/apagar um grifo já salvo.
 // 2. `selection` preenchida (sem editingHighlight): compor um grifo novo
