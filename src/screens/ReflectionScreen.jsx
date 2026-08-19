@@ -189,7 +189,7 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   useEffect(() => {
     if (!authUser?.email) { setTodayHighlights([]); return }
     getHighlights(authUser.email).then(list => {
-      setTodayHighlights(list.filter(h => h.date === dateKey() && h.sessionMode === 'session'))
+      setTodayHighlights(list.filter(h => !h.hidden && h.date === dateKey() && h.sessionMode === 'session'))
     }).catch(err => console.error('Failed to load highlights', err))
   }, [authUser?.email])
 

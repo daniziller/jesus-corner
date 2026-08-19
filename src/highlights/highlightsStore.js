@@ -31,10 +31,16 @@ export function updateHighlightText(_email, id, text, color) {
   })
 }
 
-export function deleteHighlight(_email, id) {
+// "Apagar" pela interface NUNCA remove o registro de verdade — só marca
+// `hidden`, escondendo de toda a UI (ver os filtros `!h.hidden` em quem lê
+// highlights). O texto que a pessoa escreveu continua no banco pra
+// sempre, só sai de fato se a conta inteira for cancelada (aí a linha de
+// user_data inteira é apagada, ver api/delete-account.js — não precisa de
+// nenhuma limpeza extra aqui).
+export function hideHighlight(_email, id) {
   return withRowLock(async () => {
     const current = await getHighlights(_email)
-    const next = current.filter(h => h.id !== id)
+    const next = current.map(h => h.id === id ? { ...h, hidden: true, hiddenAt: new Date().toISOString() } : h)
     const updated = await updateRow({ highlights: next })
     return updated?.highlights ?? next
   })

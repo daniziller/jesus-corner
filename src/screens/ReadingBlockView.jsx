@@ -4,7 +4,7 @@ import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
-import { getHighlights, saveHighlight, updateHighlightText, deleteHighlight } from '../highlights/highlightsStore'
+import { getHighlights, saveHighlight, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { getMessages, sendMessage, getDailyLimitStatus } from '../aiChat/aiChatStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { fetchBookText } from '../bible-text/bibleTextStore'
@@ -284,10 +284,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     })
   }
 
-  function handleDeleteHighlight(id) {
-    setHighlights(prev => prev.filter(h => h.id !== id))
-    deleteHighlight(authUser?.email, id).catch(err => {
-      console.error('Failed to delete highlight', err)
+  // "Remover" nunca apaga de verdade — só esconde (ver comentário em
+  // hideHighlight). Local, marca `hidden` sem tirar do array, pra todo
+  // filtro `!h.hidden` (highlightForVerse, highlightsInHero, o pontinho
+  // de ChapterChips) parar de mostrar na hora.
+  function handleHideHighlight(id) {
+    setHighlights(prev => prev.map(h => h.id === id ? { ...h, hidden: true } : h))
+    hideHighlight(authUser?.email, id).catch(err => {
+      console.error('Failed to hide highlight', err)
     })
   }
 
@@ -309,17 +313,25 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // completo (não passa pela etapa de cor sozinha), então não usa este
   // estado — ver HighlightComposer.
   const [wantsToAnnotate, setWantsToAnnotate] = useState(false)
+  // Retângulo (coordenadas de tela, de getBoundingClientRect) de onde a
+  // pessoa tocou o número do versículo ou terminou de selecionar um
+  // trecho — usado só pra ancorar o popup pequeno perto do toque (ver
+  // HighlightPopup mais abaixo). Fica null quando a entrada foi pelo FAB
+  // de lápis sem nada selecionado (sem um alvo específico na tela pra
+  // ancorar) — nesse caso o painel some direto na folha de sempre.
+  const [highlightAnchorRect, setHighlightAnchorRect] = useState(null)
 
   // Toque no NÚMERO de um versículo — alterna ele dentro/fora da seleção em
   // andamento (ou, se esse versículo já tem um grifo salvo, troca pro modo
-  // "editar esse grifo" em vez de somar à seleção. Sempre abre a janela
-  // flutuante ao mexer em algo; fecha sozinha se a seleção esvaziar.
-  function handleHighlightVerseClick(ch, v) {
-    const existing = highlights?.find(h => h.book === heroSession.book && h.chapter === ch && h.verses.includes(v))
+  // "editar esse grifo" em vez de somar à seleção. Sempre abre o popup
+  // ancorado perto do toque; fecha sozinho se a seleção esvaziar.
+  function handleHighlightVerseClick(ch, v, rect) {
+    const existing = highlights?.find(h => !h.hidden && h.book === heroSession.book && h.chapter === ch && h.verses.includes(v))
     if (existing) {
       setHighlightEditingId(existing.id)
       setHighlightSelection(null)
       setWantsToAnnotate(false)
+      setHighlightAnchorRect(rect ?? null)
       setHighlightPanelOpen(true)
       return
     }
@@ -335,6 +347,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       next = verses.size === 0 ? null : { chapter: ch, verses }
     }
     setHighlightSelection(next)
+    setHighlightAnchorRect(next ? (rect ?? null) : null)
     setHighlightPanelOpen(Boolean(next))
   }
 
@@ -343,21 +356,32 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // resolve o intervalo de versículos pelos atributos data-chapter/
   // data-verse). Sempre substitui a seleção em andamento (não soma a um
   // grifo já aberto pra edição), mesmo espírito de handleHighlightVerseClick.
-  function handleHighlightTextRange(ch, verses) {
+  function handleHighlightTextRange(ch, verses, rect) {
     setHighlightEditingId(null)
     setHighlightSelection({ chapter: ch, verses })
     setWantsToAnnotate(false)
+    setHighlightAnchorRect(rect ?? null)
     setHighlightPanelOpen(true)
   }
 
-  // Tocar direto numa cor, na etapa de escolha (sem escrever nada) — grifa
-  // na hora, com texto vazio; "Adicionar anotação" (startAnnotating) é o
-  // único jeito de chegar na etapa de escrever de verdade.
+  // Tocar direto numa cor, na etapa de escolha (sem escrever nada) —
+  // "Adicionar anotação" (startAnnotating) é o único jeito de chegar na
+  // etapa de escrever de verdade. Dois casos: seleção NOVA (grifa na hora,
+  // texto vazio) ou reabrindo um grifo JÁ salvo (só troca a cor, mantém
+  // a anotação que já tinha — ou continua vazia, se nunca teve uma).
   function chooseQuickColor(colorId) {
-    if (!highlightSelection) return
-    handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), '', colorId)
-    setHighlightSelection(null)
+    if (highlightEditingId) {
+      const current = highlights?.find(h => h.id === highlightEditingId)
+      handleUpdateHighlightText(highlightEditingId, current?.text ?? '', colorId)
+      setHighlightEditingId(null)
+    } else if (highlightSelection) {
+      handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), '', colorId)
+      setHighlightSelection(null)
+    } else {
+      return
+    }
     setWantsToAnnotate(false)
+    setHighlightAnchorRect(null)
     setHighlightPanelOpen(false)
   }
 
@@ -370,6 +394,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text, color)
     setHighlightSelection(null)
     setWantsToAnnotate(false)
+    setHighlightAnchorRect(null)
     setHighlightPanelOpen(false)
   }
 
@@ -381,14 +406,16 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     handleUpdateHighlightText(highlightEditingId, text, color)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
+    setHighlightAnchorRect(null)
     setHighlightPanelOpen(false)
   }
 
   function removeEditingHighlight() {
     if (!highlightEditingId) return
-    handleDeleteHighlight(highlightEditingId)
+    handleHideHighlight(highlightEditingId)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
+    setHighlightAnchorRect(null)
     setHighlightPanelOpen(false)
   }
 
@@ -396,6 +423,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setHighlightSelection(null)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
+    setHighlightAnchorRect(null)
     setHighlightPanelOpen(false)
   }
 
@@ -406,6 +434,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setHighlightSelection(null)
     setHighlightEditingId(id)
     setWantsToAnnotate(false)
+    setHighlightAnchorRect(null) // veio da lista (sem versículo específico na tela) — fica na folha
+  }
+
+  // FAB de lápis, sem nada selecionado — sempre a lista de grifos já
+  // feitos (folha no rodapé, sem âncora), nunca um resquício de seleção/
+  // edição de uma interação anterior.
+  function openHighlightList() {
+    setHighlightSelection(null)
+    setHighlightEditingId(null)
+    setWantsToAnnotate(false)
+    setHighlightAnchorRect(null)
+    setHighlightPanelOpen(true)
   }
 
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
@@ -419,7 +459,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // janela flutuante de grifo quando ela abre sem nenhuma seleção em
   // andamento (ver FAB de lápis), pra dar acesso rápido a editar/apagar um
   // já feito sem precisar caçar o versículo de novo na lista.
-  const highlightsInHero = heroSession.type === 'reflection' ? [] : (highlights?.filter(h => h.book === heroSession.book && h.chapter >= heroSession.chStart && h.chapter <= heroSession.chEnd) ?? [])
+  const highlightsInHero = heroSession.type === 'reflection' ? [] : (highlights?.filter(h => !h.hidden && h.book === heroSession.book && h.chapter >= heroSession.chStart && h.chapter <= heroSession.chEnd) ?? [])
 
   // heroSession já é sempre "o que a pessoa está lendo agora" mesmo em modo
   // 'browse' — toggleInlineChapter (acima) chama featureSession sempre que
@@ -647,7 +687,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             maior). Abre a mesma janela flutuante do grifo (ver embaixo);
             com uma seleção em andamento ela já mostra o compositor, sem
             seleção mostra os grifos já feitos neste trecho. */}
-        <button type="button" style={styles.highlightFab} onClick={() => setHighlightPanelOpen(true)} aria-label={t('reading.tagHighlight', undefined, lang)}>
+        <button type="button" style={styles.highlightFab} onClick={openHighlightList} aria-label={t('reading.tagHighlight', undefined, lang)}>
           <AppIcon name="Pencil" size={19} color="white" />
         </button>
         <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
@@ -681,44 +721,68 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       </div>,
       document.body
     )}
-    {/* Grifar/anotar — antes era uma caixinha inline embaixo do versículo
-        tocado (ver comentário em handleHighlightVerseClick); agora flutua
-        por cima igual o chat de IA acima, aberta tanto por selecionar um
-        trecho (toque no número OU seleção "de copiar", ver BibleTextPanel)
-        quanto pelo FAB de lápis. */}
-    {highlightPanelOpen && heroSession.type !== 'reflection' && createPortal(
-      <div style={styles.aiChatOverlayBackdrop} onClick={cancelHighlightCompose}>
-        <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
-          <div style={styles.aiChatOverlayHeader}>
-            <span style={styles.aiChatOverlayTitle}>
-              <span style={{ ...styles.aiChatOverlayIcon, background: 'var(--olt)' }}><AppIcon name="Pencil" size={14} color="var(--brand-deep)" /></span>
-              {t('reading.tagHighlight', undefined, lang)}
-            </span>
-            <button type="button" style={styles.aiChatOverlayClose} onClick={cancelHighlightCompose} aria-label={t('aiChat.close', undefined, lang)}>
-              <AppIcon name="X" size={16} color="var(--g5)" />
-            </button>
+    {/* Grifar/anotar — dois jeitos de mostrar o mesmo HighlightComposer:
+        um popup pequeno ANCORADO perto de onde a pessoa tocou o
+        versículo/selecionou um trecho (highlightAnchorRect preenchido —
+        ver handleHighlightVerseClick/handleHighlightTextRange), deixando
+        o próprio versículo visível por trás; ou, sem âncora nenhuma (FAB
+        de lápis tocado sem nada selecionado — ver openHighlightList), a
+        folha de sempre no rodapé, agora só pra navegar a lista de grifos
+        já feitos. */}
+    {highlightPanelOpen && heroSession.type !== 'reflection' && (
+      highlightAnchorRect ? (
+        <AnchoredHighlightPopup anchorRect={highlightAnchorRect} onClose={cancelHighlightCompose} lang={lang}>
+          <HighlightComposer
+            lang={lang}
+            chLabel={chLabel}
+            heroBook={heroSession.book}
+            heroBookEn={heroSession.bookEn}
+            selection={highlightSelection}
+            wantsToAnnotate={wantsToAnnotate}
+            editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
+            existingHighlights={highlightsInHero}
+            onQuickColor={chooseQuickColor}
+            onWantsToAnnotate={startAnnotating}
+            onSaveNew={submitNewHighlight}
+            onSaveEdit={submitHighlightEdit}
+            onDelete={removeEditingHighlight}
+            onEditExisting={editExistingHighlight}
+          />
+        </AnchoredHighlightPopup>
+      ) : createPortal(
+        <div style={styles.aiChatOverlayBackdrop} onClick={cancelHighlightCompose}>
+          <div style={styles.highlightListSheetWindow} onClick={e => e.stopPropagation()}>
+            <div style={styles.aiChatOverlayHeader}>
+              <span style={styles.aiChatOverlayTitle}>
+                <span style={{ ...styles.aiChatOverlayIcon, background: 'var(--olt)' }}><AppIcon name="Pencil" size={14} color="var(--brand-deep)" /></span>
+                {t('reading.tagHighlight', undefined, lang)}
+              </span>
+              <button type="button" style={styles.aiChatOverlayClose} onClick={cancelHighlightCompose} aria-label={t('aiChat.close', undefined, lang)}>
+                <AppIcon name="X" size={16} color="var(--g5)" />
+              </button>
+            </div>
+            <div style={styles.aiChatOverlayBody}>
+              <HighlightComposer
+                lang={lang}
+                chLabel={chLabel}
+                heroBook={heroSession.book}
+                heroBookEn={heroSession.bookEn}
+                selection={highlightSelection}
+                wantsToAnnotate={wantsToAnnotate}
+                editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
+                existingHighlights={highlightsInHero}
+                onQuickColor={chooseQuickColor}
+                onWantsToAnnotate={startAnnotating}
+                onSaveNew={submitNewHighlight}
+                onSaveEdit={submitHighlightEdit}
+                onDelete={removeEditingHighlight}
+                onEditExisting={editExistingHighlight}
+              />
+            </div>
           </div>
-          <div style={styles.aiChatOverlayBody}>
-            <HighlightComposer
-              lang={lang}
-              chLabel={chLabel}
-              heroBook={heroSession.book}
-              heroBookEn={heroSession.bookEn}
-              selection={highlightSelection}
-              wantsToAnnotate={wantsToAnnotate}
-              editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId) : null}
-              existingHighlights={highlightsInHero}
-              onQuickColor={chooseQuickColor}
-              onWantsToAnnotate={startAnnotating}
-              onSaveNew={submitNewHighlight}
-              onSaveEdit={submitHighlightEdit}
-              onDelete={removeEditingHighlight}
-              onEditExisting={editExistingHighlight}
-            />
-          </div>
-        </div>
-      </div>,
-      document.body
+        </div>,
+        document.body
+      )
     )}
     {embedded ? (
       // Embutido: sem wrapper de tela cheia nenhum — quem rola é a página
@@ -799,7 +863,7 @@ function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, 
         // específico (um capítulo pode ter vários, de cores diferentes) —
         // só avisa que esse capítulo tem algum trecho marcado, sem
         // precisar abrir o texto pra descobrir.
-        const hasHighlight = highlights?.some(h => h.book === session.book && h.chapter === ch)
+        const hasHighlight = highlights?.some(h => !h.hidden && h.book === session.book && h.chapter === ch)
         return (
           <button
             key={ch}
@@ -977,8 +1041,14 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         if (vStart > vEnd) { const tmp = vStart; vStart = vEnd; vEnd = tmp }
         const verses = new Set()
         for (let v = vStart; v <= vEnd; v++) verses.add(v)
+        // Retângulo da seleção em si (não de um elemento) — pra ancorar o
+        // popup de grifo perto de onde o dedo/mouse realmente passou, não
+        // só perto do primeiro versículo tocado. Precisa ser lido ANTES de
+        // limpar a seleção (removeAllRanges) — depois disso o Range não dá
+        // mais coordenadas úteis.
+        const rect = sel.getRangeAt(0).getBoundingClientRect()
         sel.removeAllRanges()
-        onTextSelectionRange?.(Number(chapterEl.dataset.chapter), verses)
+        onTextSelectionRange?.(Number(chapterEl.dataset.chapter), verses, rect)
       }, 250)
     }
     document.addEventListener('selectionchange', handleSelectionChange)
@@ -986,7 +1056,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
   }, [onTextSelectionRange])
 
   function highlightForVerse(ch, v) {
-    return highlights?.find(h => h.book === session.book && h.chapter === ch && h.verses.includes(v))
+    return highlights?.find(h => !h.hidden && h.book === session.book && h.chapter === ch && h.verses.includes(v))
   }
 
   const chapterNumbers = []
@@ -1040,14 +1110,21 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                   const existingHighlight = highlightForVerse(ch, v)
                   const isSelected = highlightSelection?.chapter === ch && highlightSelection.verses.has(v)
                   const highlightStyle = existingHighlight
-                    ? { background: highlightColorBg(existingHighlight.color), borderRadius: 3 }
+                    ? {
+                        background: highlightColorBg(existingHighlight.color),
+                        borderRadius: 3,
+                        // Sublinhado leve SÓ quando tem anotação de verdade
+                        // escrita (texto não-vazio) — grifo só de cor não
+                        // ganha, já que não há "anotação" nenhuma pra indicar.
+                        ...(existingHighlight.text ? styles.verseAnnotatedUnderline : {}),
+                      }
                     : isSelected ? styles.verseSelected : undefined
                   return (
                     <span key={v} data-verse={v} style={highlightStyle}>
                       {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
                       <sup
                         style={{ ...styles.bibleTextVerseNum, ...styles.verseNumBtn }}
-                        onClick={() => onVerseNumberClick?.(ch, v)}
+                        onClick={e => onVerseNumberClick?.(ch, v, e.currentTarget.getBoundingClientRect())}
                       >
                         {v}
                       </sup>
@@ -1086,6 +1163,90 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
   )
 }
 
+// Popup pequeno, ancorado perto de onde a pessoa tocou o versículo (ou
+// terminou de selecionar um trecho) — diferente do chat de IA/da folha de
+// grifos salvos (sempre no rodapé, com fundo escuro cobrindo a tela), aqui
+// o pedido foi manter o próprio versículo visível por trás/ao redor do
+// popup. Por isso: sem fundo escuro (só uma camada TRANSPARENTE pra
+// capturar o toque de fora e fechar) e posição calculada a partir do
+// retângulo âncora, não fixa no rodapé.
+//
+// Mede o próprio tamanho depois de montar (useLayoutEffect roda antes da
+// pintura, então não pisca na posição errada) porque o conteúdo muda de
+// tamanho conforme a etapa (círculos de cor → editor com textarea), e o
+// tamanho final só se sabe depois de renderizado.
+function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
+  const popupRef = useRef(null)
+  const [pos, setPos] = useState(null) // { top, left } | null (ainda não medido)
+
+  useLayoutEffect(() => {
+    const el = popupRef.current
+    if (!el || !anchorRect) return
+    function reposition() {
+      // window.visualViewport, quando existe, reflete a área REALMENTE
+      // visível (exclui o teclado virtual aberto) — sem ele (Safari mais
+      // antigo etc.) cai pro innerWidth/innerHeight de sempre.
+      const vv = window.visualViewport
+      const vw = vv?.width ?? window.innerWidth
+      const vh = vv?.height ?? window.innerHeight
+      const vLeft = vv?.offsetLeft ?? 0
+      const vTop = vv?.offsetTop ?? 0
+      const rect = el.getBoundingClientRect()
+      const margin = 10
+
+      let left = anchorRect.left + (anchorRect.width - rect.width) / 2
+      left = Math.min(Math.max(left, vLeft + margin), vLeft + vw - rect.width - margin)
+
+      // Prefere abrir embaixo do alvo; sem espaço (perto do rodapé da tela
+      // ou do teclado), vira pra cima dele.
+      let top = anchorRect.bottom + 8
+      if (top + rect.height > vTop + vh - margin) {
+        top = anchorRect.top - rect.height - 8
+      }
+      top = Math.min(Math.max(top, vTop + margin), vTop + vh - rect.height - margin)
+
+      setPos({ top, left })
+    }
+    reposition()
+    window.visualViewport?.addEventListener('resize', reposition)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', reposition)
+      window.removeEventListener('resize', reposition)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchorRect, children])
+
+  // Rolar a lista invalida a posição âncora (o versículo tocado já não
+  // está mais onde estava) — mais simples fechar do que tentar
+  // reacompanhar em tempo real; a interação costuma ser rápida.
+  useEffect(() => {
+    function handleScroll() { onClose() }
+    document.addEventListener('scroll', handleScroll, true)
+    return () => document.removeEventListener('scroll', handleScroll, true)
+  }, [onClose])
+
+  return createPortal(
+    <>
+      <div style={styles.highlightPopupCatcher} onClick={onClose} />
+      <div
+        ref={popupRef}
+        style={{
+          ...styles.highlightPopup,
+          ...(pos ? { top: pos.top, left: pos.left, visibility: 'visible' } : { top: -9999, left: -9999, visibility: 'hidden' }),
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button type="button" style={styles.highlightPopupClose} onClick={onClose} aria-label={t('aiChat.close', undefined, lang)}>
+          <AppIcon name="X" size={13} color="var(--g5)" />
+        </button>
+        {children}
+      </div>
+    </>,
+    document.body
+  )
+}
+
 // Corpo da janela flutuante de grifo (ver highlightPanelOpen no componente
 // principal) — quatro estados possíveis:
 // 1. `editingHighlight` preenchido: editor completo (cor + anotação) de um
@@ -1103,7 +1264,11 @@ function HighlightComposer({
   onQuickColor, onWantsToAnnotate, onSaveNew, onSaveEdit, onDelete, onEditExisting,
 }) {
   const isEditing = Boolean(editingHighlight)
-  const showComposer = isEditing || (Boolean(selection) && wantsToAnnotate)
+  // wantsToAnnotate é o único portão pro editor completo — inclusive
+  // reabrir um versículo JÁ grifado passa primeiro pela etapa de cor
+  // (com a cor atual já marcada, ver colorSwatchPickRow abaixo), só
+  // revelando a anotação salva quando a pessoa toca o lápis de novo.
+  const showComposer = wantsToAnnotate
 
   const [text, setText] = useState(editingHighlight?.text ?? '')
   const [color, setColor] = useState(editingHighlight?.color ?? DEFAULT_HIGHLIGHT_COLOR)
@@ -1146,7 +1311,7 @@ function HighlightComposer({
 
   if (!selection && !editingHighlight) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <p style={styles.aiChatScopeNote}>{t('reading.highlightEmptyHint', undefined, lang)}</p>
         {existingHighlights?.length > 0 && (
           <>
@@ -1168,15 +1333,20 @@ function HighlightComposer({
     )
   }
 
-  // Etapa de cor — seleção nova, ainda sem decidir anotar (estado 2).
+  // Etapa de cor — seleção nova, ainda sem decidir anotar (estado 2). Bem
+  // enxuta de propósito (retângulo pequeno, ancorado perto do toque, ver
+  // AnchoredHighlightPopup): sem repetir a citação do versículo aqui — ele
+  // já está visível na tela, por trás/ao redor do próprio popup.
   if (!showComposer) {
+    const pickLabel = isEditing
+      ? `${chLabel} ${editingHighlight.chapter}:${formatVerseRanges(editingHighlight.verses)}`
+      : t('reading.markVerses', { n: selection.verses.size }, lang)
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <p style={styles.highlightBoxLabel}>
           <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-          {t('reading.markVerses', { n: selection.verses.size }, lang)}
+          {pickLabel}
         </p>
-        {previewText && <p style={styles.highlightPreviewText}>“{previewText}”</p>}
         <div style={styles.colorSwatchPickRow}>
           {HIGHLIGHT_COLORS.map(c => (
             <button
@@ -1184,27 +1354,27 @@ function HighlightComposer({
               type="button"
               onClick={() => onQuickColor(c.id)}
               aria-label={t(c.labelKey, undefined, lang)}
-              style={{ ...styles.colorSwatch, background: c.swatch }}
+              style={{ ...styles.colorSwatch, background: c.swatch, ...(isEditing && editingHighlight.color === c.id ? styles.colorSwatchActive : {}) }}
             />
           ))}
         </div>
         <button style={styles.highlightAddNoteBtn} onClick={onWantsToAnnotate}>
           <AppIcon name="PenLine" size={14} /> {t('reading.highlightAddNote', undefined, lang)}
         </button>
-        <p style={{ ...styles.aiChatScopeNote, margin: 0, paddingBottom: 0, borderBottom: 'none' }}>
-          {t('reading.highlightPickColorHint', undefined, lang)}
-        </p>
       </div>
     )
   }
 
   // Editor completo — grifo novo (com anotação) ou editando um já salvo.
+  // Aqui SIM mostra a citação do trecho (pedido explícito: saber sobre o
+  // que está anotando) — o popup já cresceu um pouco pra caber isso mais
+  // a textarea, então pode estar cobrindo o próprio versículo na tela.
   const countLabel = editingHighlight
     ? `${chLabel} ${editingHighlight.chapter}:${formatVerseRanges(editingHighlight.verses)}`
     : `${chLabel} ${selection.chapter}:${formatVerseRanges([...selection.verses])}`
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <p style={styles.highlightBoxLabel}>
         <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
         {countLabel}
@@ -1222,10 +1392,11 @@ function HighlightComposer({
         ))}
       </div>
       <textarea
-        style={{ ...styles.notesTextarea, flex: 1, marginBottom: 0 }}
+        style={{ ...styles.notesTextarea, marginBottom: 0, maxHeight: 130, overflowY: 'auto' }}
         value={text}
         onChange={e => setText(e.target.value)}
         placeholder={t('reading.highlightNotePlaceholder', undefined, lang)}
+        rows={3}
         autoFocus
       />
       <div style={{ display: 'flex', gap: 6 }}>
@@ -1682,6 +1853,7 @@ const styles = {
   chapterChipDot:  { position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: 'var(--gold)', border: '1.5px solid var(--card-bg)' },
   verseNumBtn:     { cursor: 'pointer', padding: '0 2px' },
   verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
+  verseAnnotatedUnderline: { textDecorationLine: 'underline', textDecorationColor: 'rgba(0,0,0,.38)', textDecorationThickness: 1.5, textUnderlineOffset: 3 },
   highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
   highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
   highlightListTitle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.4, textTransform: 'uppercase', margin: '2px 0 0' },
@@ -1697,6 +1869,10 @@ const styles = {
   // dessa etapa.
   colorSwatchPickRow: { display: 'flex', gap: 16, justifyContent: 'center', padding: '4px 0 2px' },
   colorSwatch: { width: 42, height: 42, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, boxShadow: '0 2px 6px rgba(0,0,0,.15)', flexShrink: 0 },
+  // Anel indicando a cor JÁ ativa (reabrindo um grifo existente) — mesmo
+  // espírito do colorSwatchSmallActive do editor completo, só num círculo
+  // maior.
+  colorSwatchActive: { boxShadow: '0 0 0 2.5px var(--bk), 0 2px 6px rgba(0,0,0,.15)' },
   // Seletor de cor PEQUENO (dentro do editor/composer, pra trocar a cor sem
   // sair da tela de escrever) — mais discreto, um círculo com contorno
   // marca qual está selecionada agora.
@@ -1758,4 +1934,17 @@ const styles = {
   aiChatOverlayIcon: { width: 28, height: 28, borderRadius: 9, background: '#FAE8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   aiChatOverlayClose: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   aiChatOverlayBody: { flex: 1, minHeight: 0, padding: '12px 16px', display: 'flex', flexDirection: 'column' },
+
+  // Folha do FAB (lista de grifos já feitos, sem versículo específico pra
+  // ancorar) — mesma família visual de aiChatOverlayWindow, só mais baixa
+  // ("não tão grande" vale pra ela também, ver plano) em vez da altura
+  // fixa de 72vh usada pelo chat de IA.
+  highlightListSheetWindow: { width: '100%', maxWidth: 'var(--max-width)', height: 'auto', maxHeight: '52vh', background: 'var(--white)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(0,0,0,.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+
+  // Popup ancorado (ver AnchoredHighlightPopup) — camada transparente só
+  // pra capturar o toque de fora (SEM escurecer nada, diferente de
+  // aiChatOverlayBackdrop: o versículo grifado precisa continuar visível).
+  highlightPopupCatcher: { position: 'fixed', inset: 0, zIndex: 200, background: 'transparent' },
+  highlightPopup: { position: 'fixed', zIndex: 201, width: 252, maxWidth: 'calc(100vw - 20px)', maxHeight: '46vh', overflowY: 'auto', background: 'var(--white)', borderRadius: 16, boxShadow: '0 12px 32px rgba(0,0,0,.22), 0 0 0 0.5px rgba(0,0,0,.06)', padding: '14px 14px 12px' },
+  highlightPopupClose: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 }

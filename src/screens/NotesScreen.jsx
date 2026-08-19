@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
-import { getHighlights, updateHighlightText, deleteHighlight } from '../highlights/highlightsStore'
+import { getHighlights, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -67,7 +67,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         // de cima), então id vira a "key" aqui só pra reaproveitar o mesmo
         // formato de card/edição/exclusão da lista.
         const highlightEntries = highlightList
-          .filter(h => h.text)
+          .filter(h => h.text && !h.hidden)
           .map(h => ({
             key: h.id, id: h.id, text: h.text, updatedAt: h.createdAt ?? h.updatedAt,
             type: 'highlight', book: h.book, chapter: h.chapter, verses: h.verses,
@@ -192,7 +192,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (!window.confirm(t('notes.deleteConfirm', undefined, lang))) return
     setBusyKey(note.key)
     try {
-      if (note.type === 'highlight') await deleteHighlight(authUser.email, note.id)
+      if (note.type === 'highlight') await hideHighlight(authUser.email, note.id)
       else await saveNote(authUser.email, note.key, '')
       if (note.type === 'application-phrase') await syncPinnedIfMatches(note.text, '')
       setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
