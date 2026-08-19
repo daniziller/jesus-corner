@@ -61,50 +61,29 @@ function defaultBlockIdFor(completedSet, planId, readingOrder) {
   return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder).blocks).id
 }
 
-// Capítulo mais recentemente marcado como lido (Sets em JS preservam a ordem
-// de inserção — markKeysDone só usa .add(), que não reordena uma chave já
-// existente — então o último item ao iterar o Set é o último capítulo
-// marcado pela primeira vez, não importa a ordem "sugerida" dos livros).
-function lastCompletedKey(completedSet) {
-  let last = null
-  for (const key of completedSet) last = key
-  return last
-}
-
-// Sessão (e respectivo bloco) "onde o usuário parou": a que contém o último
-// capítulo marcado como lido, seguindo a ordem real de leitura do usuário, e
-// não a ordem sugerida dos blocos/livros. Se essa sessão já foi concluída por
-// completo, avança pra próxima sessão (do mesmo bloco, ou a primeira do
-// próximo bloco) e a exibe como "Iniciar sessão".
-function findCurrentReadingSession(blocks, sessionsByBlock, completedSet) {
-  const lastKey = lastCompletedKey(completedSet)
-  if (lastKey) {
-    for (const block of blocks) {
-      const sessions = sessionsByBlock[block.id]
-      const idx = sessions.findIndex(s => sessionKeys(s).includes(lastKey))
-      if (idx === -1) continue
-
-      const session = sessions[idx]
-      if (session.status !== 'done') return { session, block }
-
-      const nextInBlock = sessions[idx + 1]
-      if (nextInBlock) return { session: nextInBlock, block }
-
-      // Próximo bloco na ordem de PERCURSO atual (blocks já vem ordenado por
-      // deriveProgress conforme reading_order) — não necessariamente id+1,
-      // já que a ordem pode ser NT primeiro (ver src/utils/progress.js).
-      const nextBlock = blocks[blocks.indexOf(block) + 1]
-      if (nextBlock) return { session: sessionsByBlock[nextBlock.id][0], block: nextBlock }
-
-      return { session, block } // Bíblia inteira concluída — não há próxima sessão.
-    }
+// Sessão (e respectivo bloco) "de hoje": sempre a PRÓXIMA sessão pendente na
+// ordem do plano (blocks já vem ordenado conforme reading_order — ver
+// src/utils/progress.js — então percorrer na ordem dada já é a ordem certa
+// de percurso, AT ou NT primeiro conforme a preferência da pessoa).
+// Antes essa função tentava adivinhar "onde a pessoa parou" a partir do
+// ÚLTIMO capítulo marcado como lido (Sets em JS preservam ordem de
+// inserção) — mas completedSet é global, sem distinguir capítulo marcado
+// pelo fluxo guiado de capítulo marcado navegando livre pela aba Bíblia; um
+// capítulo lido fora de ordem por lá (ex: adiantar ou reler algo) fazia
+// "leitura de hoje" pular pra um lugar que não tinha nada a ver com o
+// próximo texto do plano. Sempre pegar a primeira sessão pendente, na ordem
+// do plano, corrige isso: "leitura de hoje" e o botão "Continuar sessão"
+// (ver continueToday) sempre concordam com o próximo texto de verdade.
+function findCurrentReadingSession(blocks, sessionsByBlock) {
+  for (const block of blocks) {
+    const session = sessionsByBlock[block.id].find(s => s.status !== 'done')
+    if (session) return { session, block }
   }
-
-  // Nada foi lido ainda: cai no fallback de sempre (primeira sessão pendente do bloco ativo).
-  const activeBlock = pickActiveBlock(blocks)
-  const activeSessions = sessionsByBlock[activeBlock.id]
-  const session = activeSessions.find(s => s.status === 'current') ?? activeSessions[0]
-  return { session, block: activeBlock }
+  // Plano inteiro concluído — não há próxima sessão; mostra a última do
+  // último bloco, como "Revisar sessão" (ver ctaLabel em HomeScreen.jsx).
+  const lastBlock = blocks[blocks.length - 1]
+  const lastSessions = sessionsByBlock[lastBlock.id]
+  return { session: lastSessions[lastSessions.length - 1], block: lastBlock }
 }
 
 // ─────────────────────────────────────────
@@ -133,7 +112,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // Continua olhando pra TODOS os textos do plano (não só os de hoje) —
   // sessionsByBlock nunca fica vazio, então nunca quebra; a escolha do dia
   // só afeta o que é mostrado como "sessão de hoje" logo abaixo.
-  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock, completedSet)
+  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock)
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
   const plan = { ...planRaw, label: lang === 'en' ? planRaw.labelEn : planRaw.label }
@@ -572,12 +551,12 @@ export default function App() {
     }
     if (activeAltPlan?.type === 'chrono') {
       const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
-      const { block } = findCurrentReadingSession(chrono.blocks, chrono.sessionsByBlock, completedSet)
+      const { block } = findCurrentReadingSession(chrono.blocks, chrono.sessionsByBlock)
       setChronoAutoOpenMovementId(block.id)
       setActiveTab('chronologicalPlan')
       return
     }
-    const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock, completedSet)
+    const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock)
     setActiveBlockId(block.id)
     setJourneyResumeSessionId(resumeSession.id)
     setJourneyEntryMode('reading')
