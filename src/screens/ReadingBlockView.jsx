@@ -1235,10 +1235,19 @@ function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
   // no que está por baixo — sem isso, a página fica travada até a pessoa
   // tocar (parado, sem arrastar) de propósito fora do popup. Ignora gestos
   // que começam DENTRO do próprio popup (ex: rolar uma anotação comprida) —
-  // só fecha quando o arraste é no resto da tela.
+  // só fecha quando o arraste é no resto da tela. Ignora TAMBÉM quando o
+  // foco está dentro do popup (ex: a textarea com autoFocus, ao abrir o
+  // teclado): o próprio Safari costuma rolar a página pra manter o campo
+  // focado visível, e esse scroll do NAVEGADOR (não da pessoa) teria o alvo
+  // fora do popup (a página por trás, não o popup em si, que é portalado
+  // pro body) — sem essa checagem, o popup fechava sozinho bem na hora de
+  // abrir "Adicionar anotação".
   useEffect(() => {
     function handleOutsideScroll(e) {
-      if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
+      if (popupRef.current) {
+        if (e.target instanceof Node && popupRef.current.contains(e.target)) return
+        if (document.activeElement && popupRef.current.contains(document.activeElement)) return
+      }
       onClose()
     }
     document.addEventListener('scroll', handleOutsideScroll, true)
