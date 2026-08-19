@@ -6,6 +6,7 @@ import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ActivityFeedItem from '../components/ActivityFeedItem'
 import RoutineCalendar, { LegendDot } from '../components/RoutineCalendar'
+import RoutineDayRing from '../components/RoutineDayRing'
 import { getFriendsActivity } from '../activity/activityStore'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
@@ -572,8 +573,8 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, routin
 // vazia (mesmo tratamento visual de "não feito" — não dá pra já ter
 // acontecido, então nunca aparecem preenchidos).
 // Fileira segunda-domingo — mesmo desenho de cada dia do RoutineCalendar
-// (círculo com gradiente dourado→marrom só nos dias com os 3 passos
-// completos, 3 pontinhos ROUTINE_STEP_COLORS embaixo), só trocando o
+// (anel dividido em fatias iguais por passo LIGADO, cada fatia na cor do
+// passo quando feito naquele dia — ver RoutineDayRing.jsx), só trocando o
 // número do dia do mês pela letra do dia da semana.
 function WeekRoutineRow({ days, lang, modules }) {
   const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
@@ -583,18 +584,15 @@ function WeekRoutineRow({ days, lang, modules }) {
         const complete = !day.isFuture && isDayComplete(day, modules)
         return (
           <div key={day.key} style={styles.calendarDayCell}>
-            <span style={{
-              ...styles.calendarDayNum,
-              ...(complete ? styles.calendarDayNumComplete : {}),
-              ...(day.isToday && !complete ? styles.weekRoutineTodayNum : {}),
-            }}>
-              {letters[i]}
-            </span>
-            <div style={styles.calendarStepDots}>
-              {modules.includes('prayer') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />}
-              {modules.includes('reading') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />}
-              {modules.includes('study') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.study ? ROUTINE_STEP_COLORS.study : 'var(--g2)' }} />}
-              {modules.includes('reflection') && <span style={{ ...styles.calendarStepDot, background: !day.isFuture && day.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />}
+            <div style={styles.calendarDayRingWrap}>
+              <RoutineDayRing modules={modules} done={day.isFuture ? {} : day} size={32} strokeWidth={3} />
+              <span style={{
+                ...styles.calendarDayNum,
+                ...(complete ? styles.calendarDayNumComplete : {}),
+                ...(day.isToday && !complete ? styles.weekRoutineTodayNum : {}),
+              }}>
+                {letters[i]}
+              </span>
             </div>
           </div>
         )
@@ -670,11 +668,10 @@ const styles = {
   weekRoutineTitle:  { fontSize: 9.5, fontWeight: 700, color: 'var(--g5)', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px' },
   weekRoutineGrid:   { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' },
   weekRoutineTodayNum: { background: 'var(--olt)', color: 'var(--or)', fontWeight: 800 },
-  calendarDayCell:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '2px 0' },
-  calendarDayNum:    { fontSize: 11, fontWeight: 700, color: 'var(--g5)', borderRadius: '50%', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calendarDayCell:   { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2px 0' },
+  calendarDayRingWrap: { position: 'relative', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calendarDayNum:    { position: 'relative', fontSize: 11, fontWeight: 700, color: 'var(--g5)', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   calendarDayNumComplete: { background: 'linear-gradient(135deg, var(--gold), var(--or))', color: 'white' },
-  calendarStepDots:  { display: 'flex', gap: 3 },
-  calendarStepDot:   { width: 6, height: 6, borderRadius: 2, flexShrink: 0 },
   calendarLegendRow: { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
   shareCardBtn:  { position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
   shareCardErrorText: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', margin: '-4px 0 0' },

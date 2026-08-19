@@ -8,6 +8,7 @@ import AppIcon from '../icons/AppIcon'
 import { isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { dateKey } from '../utils/dateKey'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
+import RoutineDayRing from './RoutineDayRing'
 
 export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle, modules = DEFAULT_ROUTINE_MODULES }) {
   const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); d.setDate(1); return d })
@@ -47,12 +48,9 @@ export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle, modules
           const complete = isDayComplete(dayData, modules)
           return (
             <div key={i} style={styles.calendarDayCell}>
-              <span style={{ ...styles.calendarDayNum, ...(complete ? styles.calendarDayNumComplete : {}) }}>{day}</span>
-              <div style={styles.calendarStepDots}>
-                {modules.includes('prayer') && <span style={{ ...styles.calendarStepDot, background: dayData?.prayer ? ROUTINE_STEP_COLORS.prayer : 'var(--g2)' }} />}
-                {modules.includes('reading') && <span style={{ ...styles.calendarStepDot, background: dayData?.reading ? ROUTINE_STEP_COLORS.reading : 'var(--g2)' }} />}
-                {modules.includes('study') && <span style={{ ...styles.calendarStepDot, background: dayData?.study ? ROUTINE_STEP_COLORS.study : 'var(--g2)' }} />}
-                {modules.includes('reflection') && <span style={{ ...styles.calendarStepDot, background: dayData?.reflection ? ROUTINE_STEP_COLORS.reflection : 'var(--g2)' }} />}
+              <div style={styles.calendarDayRingWrap}>
+                <RoutineDayRing modules={modules} done={dayData ?? {}} size={26} strokeWidth={2.5} />
+                <span style={{ ...styles.calendarDayNum, ...(complete ? styles.calendarDayNumComplete : {}) }}>{day}</span>
               </div>
             </div>
           )
@@ -86,10 +84,9 @@ const styles = {
   calendarMonthLabel: { fontSize: 12, fontWeight: 700, color: 'var(--bk)', textTransform: 'capitalize' },
   calendarGrid:       { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' },
   calendarWeekday:    { fontSize: 9, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', padding: '2px 0' },
-  calendarDayCell:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '2px 0' },
-  calendarDayNum:     { fontSize: 10, fontWeight: 600, color: 'var(--g6)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calendarDayCell:    { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2px 0' },
+  calendarDayRingWrap:{ position: 'relative', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calendarDayNum:     { position: 'relative', fontSize: 10, fontWeight: 600, color: 'var(--g6)', borderRadius: '50%', width: 19, height: 19, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   calendarDayNumComplete: { background: 'linear-gradient(135deg, var(--gold), var(--or))', color: 'white', fontWeight: 800 },
-  calendarStepDots:   { display: 'flex', gap: 2 },
-  calendarStepDot:    { width: 5, height: 5, borderRadius: 1.5, flexShrink: 0 },
   calendarLegend:      { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
 }
