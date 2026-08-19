@@ -275,6 +275,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     saveHighlight(authUser?.email, highlight).catch(err => {
       console.error('Failed to persist highlight', err)
     })
+    return highlight.id
   }
 
   function handleUpdateHighlightText(id, text, color) {
@@ -364,25 +365,25 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setHighlightPanelOpen(true)
   }
 
-  // Tocar direto numa cor, na etapa de escolha (sem escrever nada) —
-  // "Adicionar anotação" (startAnnotating) é o único jeito de chegar na
-  // etapa de escrever de verdade. Dois casos: seleção NOVA (grifa na hora,
-  // texto vazio) ou reabrindo um grifo JÁ salvo (só troca a cor, mantém
-  // a anotação que já tinha — ou continua vazia, se nunca teve uma).
+  // Tocar direto numa cor, na etapa de escolha (sem escrever nada) — grifa
+  // na hora, mas continua com a caixinha aberta (não fecha mais sozinha):
+  // dá pra trocar de cor de novo, tocar "Adicionar anotação" em seguida, ou
+  // tocar mais versículos pra somar à seleção, tudo sem precisar reabrir.
+  // "Adicionar anotação" (startAnnotating) continua sendo o único jeito de
+  // chegar na etapa de escrever de verdade. Dois casos: seleção NOVA (grifa
+  // na hora, texto vazio, e passa a editar ESSE grifo recém-criado — assim
+  // tocar outra cor em seguida atualiza em vez de criar um grifo duplicado)
+  // ou reabrindo um grifo JÁ salvo (só troca a cor, mantém a anotação que
+  // já tinha — ou continua vazia, se nunca teve uma).
   function chooseQuickColor(colorId) {
     if (highlightEditingId) {
       const current = highlights?.find(h => h.id === highlightEditingId)
       handleUpdateHighlightText(highlightEditingId, current?.text ?? '', colorId)
-      setHighlightEditingId(null)
     } else if (highlightSelection) {
-      handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), '', colorId)
+      const newId = handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), '', colorId)
+      setHighlightEditingId(newId)
       setHighlightSelection(null)
-    } else {
-      return
     }
-    setWantsToAnnotate(false)
-    setHighlightAnchorRect(null)
-    setHighlightPanelOpen(false)
   }
 
   function startAnnotating() {
