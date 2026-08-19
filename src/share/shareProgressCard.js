@@ -4,7 +4,7 @@
 // print da UI) pra ter controle total de proporção/enquadramento/marca —
 // ver conversa que motivou essa escolha em vez de um html2canvas rápido.
 import { t } from '../i18n'
-import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
+import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, modulesForDay, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 
@@ -110,10 +110,13 @@ function drawWeekRoutineRow(ctx, { days, lang, left, width, y, modules = DEFAULT
   const circleR = 26
   const dotR = 5
   const dotGap = 8
+  // Ligar/desligar um passo não deve reescrever retroativamente se um dia
+  // já passado foi "completo" (mesmo critério de routineStreak.js).
+  const todayKeyStr = days.find(d => d.isToday)?.key ?? days[0]?.key
 
   days.forEach((day, i) => {
     const cx = left + colW * i + colW / 2
-    const complete = !day.isFuture && isDayComplete(day, modules)
+    const complete = !day.isFuture && isDayComplete(day, modulesForDay(day.key, modules, todayKeyStr))
 
     ctx.beginPath()
     ctx.arc(cx, y, circleR, 0, Math.PI * 2)

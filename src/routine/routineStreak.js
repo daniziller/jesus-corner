@@ -16,6 +16,17 @@ export function isDayComplete(day, modules = DEFAULT_ROUTINE_MODULES) {
   return modules.every(step => !!day[step])
 }
 
+// Ligar/desligar um passo em "Meu Plano" só vale a partir de hoje — dias já
+// passados sempre usam o trio original (DEFAULT_ROUTINE_MODULES), pra não
+// reescrever retroativamente se um dia passado foi "completo" ou não (ex:
+// ligar "Estudo guiado" não pode derrubar da meta um dia de semana passada
+// que já tinha oração+leitura+reflexão feitos, só porque agora "completo"
+// também exige estudo). Usado por toda função abaixo que varre dias —
+// mesmo critério do RoutineDayRing.jsx/RoutineCalendar.jsx.
+export function modulesForDay(dayKeyStr, modules, todayKeyStr) {
+  return dayKeyStr >= todayKeyStr ? modules : DEFAULT_ROUTINE_MODULES
+}
+
 // Quantos passos do plano daquele dia foram concluídos — usado pro
 // calendário mostrar dias parcialmente concluídos de forma diferente de
 // dias vazios.
@@ -29,12 +40,13 @@ export function dayStepCount(day, modules = DEFAULT_ROUTINE_MODULES) {
 // hora — conta a partir de ontem, já que o dia de hoje ainda está "em
 // aberto" até acabar.
 export function computeRoutineStreak(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES, today = new Date()) {
+  const todayKeyStr = dateKey(today)
   const cursor = new Date(today)
-  if (!isDayComplete(dailyRoutine[dateKey(cursor)], modules)) {
+  if (!isDayComplete(dailyRoutine[dateKey(cursor)], modulesForDay(dateKey(cursor), modules, todayKeyStr))) {
     cursor.setDate(cursor.getDate() - 1)
   }
   let streak = 0
-  while (isDayComplete(dailyRoutine[dateKey(cursor)], modules)) {
+  while (isDayComplete(dailyRoutine[dateKey(cursor)], modulesForDay(dateKey(cursor), modules, todayKeyStr))) {
     streak++
     cursor.setDate(cursor.getDate() - 1)
   }
@@ -60,6 +72,7 @@ function mondayOf(d) {
 // ainda nem aconteceram.
 export function computeWeeklyRoutineStats(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES, weeksBack = 6, today = new Date()) {
   const currentWeekStart = mondayOf(today)
+  const todayKeyStr = dateKey(today)
 
   const weeks = []
   for (let i = weeksBack - 1; i >= 0; i--) {
@@ -71,12 +84,13 @@ export function computeWeeklyRoutineStats(dailyRoutine, modules = DEFAULT_ROUTIN
     let prayerDays = 0, readingDays = 0, studyDays = 0, reflectionDays = 0, fullDays = 0, totalDays = 0
     for (const d = new Date(start); d <= lastDay; d.setDate(d.getDate() + 1)) {
       totalDays++
-      const day = dailyRoutine[dateKey(d)]
+      const dayKeyStr = dateKey(d)
+      const day = dailyRoutine[dayKeyStr]
       if (day?.prayer) prayerDays++
       if (day?.reading) readingDays++
       if (day?.study) studyDays++
       if (day?.reflection) reflectionDays++
-      if (isDayComplete(day, modules)) fullDays++
+      if (isDayComplete(day, modulesForDay(dayKeyStr, modules, todayKeyStr))) fullDays++
     }
 
     weeks.push({ start, totalDays, prayerDays, readingDays, studyDays, reflectionDays, fullDays })
@@ -102,13 +116,14 @@ const PRAYER_DAY_XP = 3
 const REFLECTION_DAY_XP = 3
 const FULL_ROUTINE_DAY_BONUS_XP = 4
 
-export function computeRoutineXpBonus(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES) {
+export function computeRoutineXpBonus(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES, today = new Date()) {
+  const todayKeyStr = dateKey(today)
   let prayerDays = 0, reflectionDays = 0, fullDays = 0
   for (const key in dailyRoutine) {
     const day = dailyRoutine[key]
     if (day?.prayer) prayerDays++
     if (day?.reflection) reflectionDays++
-    if (isDayComplete(day, modules)) fullDays++
+    if (isDayComplete(day, modulesForDay(key, modules, todayKeyStr))) fullDays++
   }
   return prayerDays * PRAYER_DAY_XP + reflectionDays * REFLECTION_DAY_XP + fullDays * FULL_ROUTINE_DAY_BONUS_XP
 }

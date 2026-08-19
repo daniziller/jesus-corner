@@ -12,7 +12,7 @@
 // se a pessoa quebrar a sequência. `computeGoalsStatus` combina os dois:
 // progresso ao vivo (current/target) + o que já foi persistido como
 // concluído (completedGoals, vindo do backend).
-import { computeRoutineStreak, isDayComplete, DEFAULT_ROUTINE_MODULES } from './routineStreak'
+import { computeRoutineStreak, isDayComplete, modulesForDay, DEFAULT_ROUTINE_MODULES } from './routineStreak'
 import { dateKey } from '../utils/dateKey'
 
 export const GOALS = [
@@ -70,10 +70,12 @@ export const GOALS = [
 // faz por semana (routineStreak.js), só que sobre uma janela de dias
 // corridos em vez de semanas de calendário.
 function countCompleteDaysInWindow(dailyRoutine, windowDays, today, modules) {
+  const todayKeyStr = dateKey(today)
   let count = 0
   const cursor = new Date(today)
   for (let i = 0; i < windowDays; i++) {
-    if (isDayComplete(dailyRoutine[dateKey(cursor)], modules)) count++
+    const cursorKeyStr = dateKey(cursor)
+    if (isDayComplete(dailyRoutine[cursorKeyStr], modulesForDay(cursorKeyStr, modules, todayKeyStr))) count++
     cursor.setDate(cursor.getDate() - 1)
   }
   return count
