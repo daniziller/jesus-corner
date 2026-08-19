@@ -22,10 +22,10 @@ export function saveHighlight(_email, highlight) {
   })
 }
 
-export function updateHighlightText(_email, id, text) {
+export function updateHighlightText(_email, id, text, color) {
   return withRowLock(async () => {
     const current = await getHighlights(_email)
-    const next = current.map(h => h.id === id ? { ...h, text, updatedAt: new Date().toISOString() } : h)
+    const next = current.map(h => h.id === id ? { ...h, text, color: color ?? h.color, updatedAt: new Date().toISOString() } : h)
     const updated = await updateRow({ highlights: next })
     return updated?.highlights ?? next
   })

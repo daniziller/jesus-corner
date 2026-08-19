@@ -13,6 +13,7 @@ import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
+import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RecentChaptersRow from '../components/RecentChaptersRow'
@@ -260,11 +261,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // persiste em segundo plano. sessionMode ('session'|'browse') é o que
   // decide se esse highlight aparece na Reflexão do dia (ver
   // ReflectionScreen.jsx) — só os feitos durante uma sessão guiada contam.
-  function handleSaveHighlight(book, bookEn, chapter, verses, text) {
+  function handleSaveHighlight(book, bookEn, chapter, verses, text, color) {
     const highlight = {
       id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       book, bookEn, chapter, verses,
       text: text.trim(),
+      color: color ?? DEFAULT_HIGHLIGHT_COLOR,
       createdAt: new Date().toISOString(),
       date: dateKey(),
       sessionMode: mode === 'session' ? 'session' : 'browse',
@@ -275,9 +277,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     })
   }
 
-  function handleUpdateHighlightText(id, text) {
-    setHighlights(prev => prev.map(h => h.id === id ? { ...h, text } : h))
-    updateHighlightText(authUser?.email, id, text).catch(err => {
+  function handleUpdateHighlightText(id, text, color) {
+    setHighlights(prev => prev.map(h => h.id === id ? { ...h, text, color: color ?? h.color } : h))
+    updateHighlightText(authUser?.email, id, text, color).catch(err => {
       console.error('Failed to update highlight', err)
     })
   }
@@ -300,6 +302,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // que está selecionado) e dois callbacks de toque/seleção.
   const [highlightSelection, setHighlightSelection] = useState(null) // { chapter, verses: Set<number> } | null
   const [highlightEditingId, setHighlightEditingId] = useState(null)
+  // Uma seleção NOVA (ainda não salva) sempre abre na etapa de escolher cor
+  // primeiro (círculos), não direto na anotação — só vira a etapa de
+  // escrever quando a pessoa toca em "Adicionar anotação" (ver
+  // startAnnotating). Editar um grifo já salvo pula direto pro editor
+  // completo (não passa pela etapa de cor sozinha), então não usa este
+  // estado — ver HighlightComposer.
+  const [wantsToAnnotate, setWantsToAnnotate] = useState(false)
 
   // Toque no NÚMERO de um versículo — alterna ele dentro/fora da seleção em
   // andamento (ou, se esse versículo já tem um grifo salvo, troca pro modo
@@ -310,6 +319,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     if (existing) {
       setHighlightEditingId(existing.id)
       setHighlightSelection(null)
+      setWantsToAnnotate(false)
       setHighlightPanelOpen(true)
       return
     }
@@ -317,6 +327,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     let next
     if (!highlightSelection || highlightSelection.chapter !== ch) {
       next = { chapter: ch, verses: new Set([v]) }
+      setWantsToAnnotate(false) // seleção nova — sempre começa na etapa de cor
     } else {
       const verses = new Set(highlightSelection.verses)
       if (verses.has(v)) verses.delete(v)
@@ -335,20 +346,41 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   function handleHighlightTextRange(ch, verses) {
     setHighlightEditingId(null)
     setHighlightSelection({ chapter: ch, verses })
+    setWantsToAnnotate(false)
     setHighlightPanelOpen(true)
   }
 
-  function submitNewHighlight(text) {
-    if (!highlightSelection || !text.trim()) return
-    handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text)
+  // Tocar direto numa cor, na etapa de escolha (sem escrever nada) — grifa
+  // na hora, com texto vazio; "Adicionar anotação" (startAnnotating) é o
+  // único jeito de chegar na etapa de escrever de verdade.
+  function chooseQuickColor(colorId) {
+    if (!highlightSelection) return
+    handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), '', colorId)
     setHighlightSelection(null)
+    setWantsToAnnotate(false)
     setHighlightPanelOpen(false)
   }
 
-  function submitHighlightEdit(text) {
-    if (!highlightEditingId || !text.trim()) return
-    handleUpdateHighlightText(highlightEditingId, text)
+  function startAnnotating() {
+    setWantsToAnnotate(true)
+  }
+
+  function submitNewHighlight(text, color) {
+    if (!highlightSelection || !text.trim()) return
+    handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text, color)
+    setHighlightSelection(null)
+    setWantsToAnnotate(false)
+    setHighlightPanelOpen(false)
+  }
+
+  // Sem exigir texto (diferente de submitNewHighlight) — editar um grifo já
+  // salvo pode ser só pra trocar a cor, sem mexer na anotação (que pode
+  // continuar vazia, se nunca teve uma).
+  function submitHighlightEdit(text, color) {
+    if (!highlightEditingId) return
+    handleUpdateHighlightText(highlightEditingId, text, color)
     setHighlightEditingId(null)
+    setWantsToAnnotate(false)
     setHighlightPanelOpen(false)
   }
 
@@ -356,12 +388,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     if (!highlightEditingId) return
     handleDeleteHighlight(highlightEditingId)
     setHighlightEditingId(null)
+    setWantsToAnnotate(false)
     setHighlightPanelOpen(false)
   }
 
   function cancelHighlightCompose() {
     setHighlightSelection(null)
     setHighlightEditingId(null)
+    setWantsToAnnotate(false)
     setHighlightPanelOpen(false)
   }
 
@@ -371,6 +405,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   function editExistingHighlight(id) {
     setHighlightSelection(null)
     setHighlightEditingId(id)
+    setWantsToAnnotate(false)
   }
 
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
@@ -667,9 +702,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             <HighlightComposer
               lang={lang}
               chLabel={chLabel}
+              heroBook={heroSession.book}
+              heroBookEn={heroSession.bookEn}
               selection={highlightSelection}
+              wantsToAnnotate={wantsToAnnotate}
               editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId) : null}
               existingHighlights={highlightsInHero}
+              onQuickColor={chooseQuickColor}
+              onWantsToAnnotate={startAnnotating}
               onSaveNew={submitNewHighlight}
               onSaveEdit={submitHighlightEdit}
               onDelete={removeEditingHighlight}
@@ -755,9 +795,10 @@ function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, 
       )}
       {chapters.map(ch => {
         const done = completedSet.has(`${session.book}:${ch}`)
-        // Ponto dourado — mesmo tom das marcações em si (ver
-        // styles.verseHighlighted) — avisa que esse capítulo tem algum
-        // trecho marcado, sem precisar abrir o texto pra descobrir.
+        // Ponto dourado — não tenta bater com a cor de nenhum grifo
+        // específico (um capítulo pode ter vários, de cores diferentes) —
+        // só avisa que esse capítulo tem algum trecho marcado, sem
+        // precisar abrir o texto pra descobrir.
         const hasHighlight = highlights?.some(h => h.book === session.book && h.chapter === ch)
         return (
           <button
@@ -993,12 +1034,16 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                   // marca — ver o efeito de selectionchange acima, que usa
                   // este data-verse (e o data-chapter do <div> acima) pra
                   // descobrir o intervalo. Versículo já marcado (highlight
-                  // salvo) ganha fundo dourado sempre; em seleção (ainda não
-                  // salvo) ganha um contorno tracejado.
-                  const isHighlighted = Boolean(highlightForVerse(ch, v))
+                  // salvo) ganha o fundo da COR escolhida na hora de grifar
+                  // (ver HIGHLIGHT_COLORS); em seleção (ainda não salvo)
+                  // ganha um contorno tracejado.
+                  const existingHighlight = highlightForVerse(ch, v)
                   const isSelected = highlightSelection?.chapter === ch && highlightSelection.verses.has(v)
+                  const highlightStyle = existingHighlight
+                    ? { background: highlightColorBg(existingHighlight.color), borderRadius: 3 }
+                    : isSelected ? styles.verseSelected : undefined
                   return (
-                    <span key={v} data-verse={v} style={isHighlighted ? styles.verseHighlighted : isSelected ? styles.verseSelected : undefined}>
+                    <span key={v} data-verse={v} style={highlightStyle}>
                       {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
                       <sup
                         style={{ ...styles.bibleTextVerseNum, ...styles.verseNumBtn }}
@@ -1041,24 +1086,63 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
   )
 }
 
-// Corpo da janela flutuante de grifo (ver highlightPanelOpen no
-// componente principal) — três estados possíveis:
-// 1. `editingHighlight` preenchido: ver/editar/apagar um grifo já salvo.
-// 2. `selection` preenchida (sem editingHighlight): compor um grifo novo
-//    com os versículos escolhidos AGORA (toque no número ou seleção de
-//    texto, ver handleHighlightVerseClick/handleHighlightTextRange).
-// 3. Nenhum dos dois (FAB de lápis tocado sem nada selecionado): dica de
+// Corpo da janela flutuante de grifo (ver highlightPanelOpen no componente
+// principal) — quatro estados possíveis:
+// 1. `editingHighlight` preenchido: editor completo (cor + anotação) de um
+//    grifo já salvo, com opção de apagar.
+// 2. `selection` preenchida e `wantsToAnnotate` false: ETAPA DE COR —
+//    círculos grandes pra grifar na hora (sem escrever nada) + botão
+//    "Adicionar anotação", que leva pro editor completo (estado 3).
+// 3. `selection` preenchida e `wantsToAnnotate` true: editor completo de um
+//    grifo NOVO (mesma UI do 1, só que salva em vez de atualizar).
+// 4. Nenhum dos dois (FAB de lápis tocado sem nada selecionado): dica de
 //    como grifar + lista dos grifos já feitos nesta sessão, cada um
 //    tocável pra cair direto no estado 1.
-function HighlightComposer({ lang, chLabel, selection, editingHighlight, existingHighlights, onSaveNew, onSaveEdit, onDelete, onEditExisting }) {
-  const [text, setText] = useState(editingHighlight?.text ?? '')
+function HighlightComposer({
+  lang, chLabel, heroBook, heroBookEn, selection, wantsToAnnotate, editingHighlight, existingHighlights,
+  onQuickColor, onWantsToAnnotate, onSaveNew, onSaveEdit, onDelete, onEditExisting,
+}) {
+  const isEditing = Boolean(editingHighlight)
+  const showComposer = isEditing || (Boolean(selection) && wantsToAnnotate)
 
-  // Troca de alvo (editar outro grifo da lista, ou uma seleção nova chegar)
-  // enquanto a janela já está aberta — reidrata o texto do zero, senão
-  // ficaria mostrando o rascunho do alvo anterior.
+  const [text, setText] = useState(editingHighlight?.text ?? '')
+  const [color, setColor] = useState(editingHighlight?.color ?? DEFAULT_HIGHLIGHT_COLOR)
+
+  // Troca de alvo (editar outro grifo da lista, uma seleção nova chegar, ou
+  // avançar da etapa de cor pra de anotação) enquanto a janela já está
+  // aberta — reidrata texto/cor do zero, senão ficaria mostrando o
+  // rascunho do alvo anterior.
   useEffect(() => {
     setText(editingHighlight?.text ?? '')
-  }, [editingHighlight?.id])
+    setColor(editingHighlight?.color ?? DEFAULT_HIGHLIGHT_COLOR)
+  }, [editingHighlight?.id, selection?.chapter, wantsToAnnotate])
+
+  // Texto de VERDADE do(s) versículo(s) sendo grifado(s) — pedido
+  // explícito: a pessoa precisa ver sobre o que está anotando, não só a
+  // referência ("Cap. 6:9-13"). Busca via o mesmo fetchBookText de
+  // BibleTextPanel (cache em memória por versão+livro — chamar de novo
+  // aqui não repete a rede se aquele painel já carregou o mesmo livro).
+  const previewBook = editingHighlight?.book ?? heroBook
+  const previewBookEn = editingHighlight?.bookEn ?? heroBookEn
+  const previewChapter = editingHighlight?.chapter ?? selection?.chapter
+  const previewVerses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
+  const previewVersesKey = previewVerses.join(',')
+  const [previewText, setPreviewText] = useState('')
+  useEffect(() => {
+    if (!showComposer || !previewChapter || !previewVersesKey) { setPreviewText(''); return }
+    let cancelled = false
+    const versionId = getSelectedVersionId(lang)
+    const bookKey = lang === 'en' ? previewBookEn : previewBook
+    fetchBookText(versionId, bookKey).then(chapters => {
+      if (cancelled) return
+      const chapterData = chapters[String(previewChapter)]
+      if (!chapterData) { setPreviewText(''); return }
+      const joined = previewVersesKey.split(',').map(v => chapterData.verses[v] ?? '').join(' ').replace(/\n/g, ' ')
+      setPreviewText(joined)
+    }).catch(() => { if (!cancelled) setPreviewText('') })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showComposer, previewBook, previewBookEn, previewChapter, previewVersesKey, lang])
 
   if (!selection && !editingHighlight) {
     return (
@@ -1070,8 +1154,11 @@ function HighlightComposer({ lang, chLabel, selection, editingHighlight, existin
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
               {existingHighlights.map(h => (
                 <button key={h.id} style={styles.highlightListItem} onClick={() => onEditExisting(h.id)}>
-                  <span style={styles.highlightListRef}>{chLabel} {h.chapter}:{formatVerseRanges(h.verses)}</span>
-                  <span style={styles.highlightListText}>{h.text}</span>
+                  <span style={styles.highlightListRefRow}>
+                    <span style={{ ...styles.highlightColorDot, background: HIGHLIGHT_COLORS.find(c => c.id === h.color)?.swatch ?? HIGHLIGHT_COLORS[0].swatch }} />
+                    <span style={styles.highlightListRef}>{chLabel} {h.chapter}:{formatVerseRanges(h.verses)}</span>
+                  </span>
+                  <span style={styles.highlightListText}>{h.text || t('reading.highlightNoNoteYet', undefined, lang)}</span>
                 </button>
               ))}
             </div>
@@ -1081,9 +1168,40 @@ function HighlightComposer({ lang, chLabel, selection, editingHighlight, existin
     )
   }
 
+  // Etapa de cor — seleção nova, ainda sem decidir anotar (estado 2).
+  if (!showComposer) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
+        <p style={styles.highlightBoxLabel}>
+          <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          {t('reading.markVerses', { n: selection.verses.size }, lang)}
+        </p>
+        {previewText && <p style={styles.highlightPreviewText}>“{previewText}”</p>}
+        <div style={styles.colorSwatchPickRow}>
+          {HIGHLIGHT_COLORS.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onQuickColor(c.id)}
+              aria-label={t(c.labelKey, undefined, lang)}
+              style={{ ...styles.colorSwatch, background: c.swatch }}
+            />
+          ))}
+        </div>
+        <button style={styles.highlightAddNoteBtn} onClick={onWantsToAnnotate}>
+          <AppIcon name="PenLine" size={14} /> {t('reading.highlightAddNote', undefined, lang)}
+        </button>
+        <p style={{ ...styles.aiChatScopeNote, margin: 0, paddingBottom: 0, borderBottom: 'none' }}>
+          {t('reading.highlightPickColorHint', undefined, lang)}
+        </p>
+      </div>
+    )
+  }
+
+  // Editor completo — grifo novo (com anotação) ou editando um já salvo.
   const countLabel = editingHighlight
     ? `${chLabel} ${editingHighlight.chapter}:${formatVerseRanges(editingHighlight.verses)}`
-    : t('reading.markVerses', { n: selection.verses.size }, lang)
+    : `${chLabel} ${selection.chapter}:${formatVerseRanges([...selection.verses])}`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
@@ -1091,6 +1209,18 @@ function HighlightComposer({ lang, chLabel, selection, editingHighlight, existin
         <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
         {countLabel}
       </p>
+      {previewText && <p style={styles.highlightPreviewText}>“{previewText}”</p>}
+      <div style={styles.colorSwatchSmallRow}>
+        {HIGHLIGHT_COLORS.map(c => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setColor(c.id)}
+            aria-label={t(c.labelKey, undefined, lang)}
+            style={{ ...styles.colorSwatchSmall, background: c.swatch, ...(color === c.id ? styles.colorSwatchSmallActive : {}) }}
+          />
+        ))}
+      </div>
       <textarea
         style={{ ...styles.notesTextarea, flex: 1, marginBottom: 0 }}
         value={text}
@@ -1101,8 +1231,8 @@ function HighlightComposer({ lang, chLabel, selection, editingHighlight, existin
       <div style={{ display: 'flex', gap: 6 }}>
         <button
           style={{ ...styles.notesSaveBtn, width: 'auto', flex: 1, marginBottom: 0 }}
-          onClick={() => (editingHighlight ? onSaveEdit(text) : onSaveNew(text))}
-          disabled={!text.trim()}
+          onClick={() => (editingHighlight ? onSaveEdit(text, color) : onSaveNew(text, color))}
+          disabled={!editingHighlight && !text.trim()}
         >
           {t('reading.highlightSave', undefined, lang)}
         </button>
@@ -1551,14 +1681,34 @@ const styles = {
   // pra não confundir com "capítulo lido" (chapterChipDone já usa --grad-vivid).
   chapterChipDot:  { position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: 'var(--gold)', border: '1.5px solid var(--card-bg)' },
   verseNumBtn:     { cursor: 'pointer', padding: '0 2px' },
-  verseHighlighted:{ background: 'rgba(201,154,74,.28)', borderRadius: 3 },
   verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
   highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
   highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
   highlightListTitle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.4, textTransform: 'uppercase', margin: '2px 0 0' },
   highlightListItem:{ width: '100%', textAlign: 'left', background: 'var(--olt)', border: '0.5px solid var(--gold-soft)', borderRadius: 12, padding: '9px 11px', cursor: 'pointer', fontFamily: 'var(--font)', display: 'flex', flexDirection: 'column', gap: 2 },
+  highlightListRefRow: { display: 'flex', alignItems: 'center', gap: 5 },
   highlightListRef: { fontSize: 9.5, fontWeight: 700, color: 'var(--brand-deep)' },
   highlightListText:{ fontSize: 11.5, fontWeight: 500, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  // Bolinha de cor — mesma cor sólida (swatch) usada nos seletores, só
+  // pequena, pra identificar de relance a cor de cada grifo salvo na lista.
+  highlightColorDot: { width: 9, height: 9, borderRadius: '50%', flexShrink: 0 },
+  // Seletor de cor GRANDE (etapa 1, escolher rápido sem escrever nada) —
+  // círculos maiores, mais fáceis de tocar, já que é a interação principal
+  // dessa etapa.
+  colorSwatchPickRow: { display: 'flex', gap: 16, justifyContent: 'center', padding: '4px 0 2px' },
+  colorSwatch: { width: 42, height: 42, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, boxShadow: '0 2px 6px rgba(0,0,0,.15)', flexShrink: 0 },
+  // Seletor de cor PEQUENO (dentro do editor/composer, pra trocar a cor sem
+  // sair da tela de escrever) — mais discreto, um círculo com contorno
+  // marca qual está selecionada agora.
+  colorSwatchSmallRow: { display: 'flex', gap: 8 },
+  colorSwatchSmall: { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', padding: 0, flexShrink: 0 },
+  colorSwatchSmallActive: { border: '2px solid var(--bk)', boxShadow: '0 0 0 2px white inset' },
+  highlightAddNoteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--bk)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  // Trecho de verdade sendo grifado, mostrado dentro do editor — pra pessoa
+  // lembrar do que está falando sem precisar sair pra conferir (pedido
+  // explícito: "deixar o texto visível pra saber sobre o que está
+  // anotando"). Itálico + aspas, mesmo espírito de uma citação.
+  highlightPreviewText: { fontSize: 12, fontWeight: 500, fontStyle: 'italic', color: 'var(--g6)', lineHeight: 1.45, background: 'var(--g1)', borderRadius: 10, padding: '8px 10px', margin: 0 },
 
   // Chat com IA sobre o texto (ver AiChatPanel) — flutua por cima da
   // leitura (ver aiChatOverlay* mais abaixo) em vez de abrir um card
@@ -1591,9 +1741,9 @@ const styles = {
   aiFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: '#A21CAF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(162,28,175,.4)', pointerEvents: 'auto' },
   // Lápis de grifar — mesmo FAB, empilhado em cima do da IA (mesmo `right`,
   // `bottom` maior em 52px do botão + 12px de respiro). Cor dourada/marrom
-  // (var(--brand-deep)), mesmo tom já usado nos grifos salvos (verseHighlighted/
-  // highlightBoxLabel), pra sinalizar "isso é sobre marcar o texto" — cor
-  // diferente da roxa da IA, mesmo formato/tamanho.
+  // (var(--brand-deep)), mesmo tom já usado em highlightBoxLabel, pra
+  // sinalizar "isso é sobre marcar o texto" — cor diferente da roxa da IA,
+  // mesmo formato/tamanho.
   highlightFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px + 64px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: 'var(--brand-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(157,67,0,.4)', pointerEvents: 'auto' },
 
   // Janela flutuante do chat — "nuvem" pedida: aparece por cima da leitura
