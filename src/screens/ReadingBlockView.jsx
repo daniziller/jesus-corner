@@ -1228,11 +1228,27 @@ function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
 
   // Rolar a lista invalida a posição âncora (o versículo tocado já não
   // está mais onde estava) — mais simples fechar do que tentar
-  // reacompanhar em tempo real; a interação costuma ser rápida.
+  // reacompanhar em tempo real; a interação costuma ser rápida. Escuta
+  // também touchmove/wheel (não só o evento "scroll" em si): a camada
+  // catcher abaixo cobre a tela inteira e não tem como rolar sozinha, então
+  // um arrastar que começa nela nunca chega a gerar um "scroll" de verdade
+  // no que está por baixo — sem isso, a página fica travada até a pessoa
+  // tocar (parado, sem arrastar) de propósito fora do popup. Ignora gestos
+  // que começam DENTRO do próprio popup (ex: rolar uma anotação comprida) —
+  // só fecha quando o arraste é no resto da tela.
   useEffect(() => {
-    function handleScroll() { onClose() }
-    document.addEventListener('scroll', handleScroll, true)
-    return () => document.removeEventListener('scroll', handleScroll, true)
+    function handleOutsideScroll(e) {
+      if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
+      onClose()
+    }
+    document.addEventListener('scroll', handleOutsideScroll, true)
+    document.addEventListener('touchmove', handleOutsideScroll, { passive: true })
+    document.addEventListener('wheel', handleOutsideScroll, { passive: true })
+    return () => {
+      document.removeEventListener('scroll', handleOutsideScroll, true)
+      document.removeEventListener('touchmove', handleOutsideScroll)
+      document.removeEventListener('wheel', handleOutsideScroll)
+    }
   }, [onClose])
 
   return createPortal(
