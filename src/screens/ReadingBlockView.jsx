@@ -1098,15 +1098,19 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
             {paragraphs.map((verseNums, pIdx) => (
               <p key={pIdx} style={styles.bibleTextBody}>
                 {verseNums.map((v, vIdx) => {
-                  // Toca no NÚMERO (não no texto corrido) pra marcar — evita
-                  // brigar com o toque normal de ler/rolar a tela; SELECIONAR
-                  // o texto corrido (arrastar, como se fosse copiar) também
-                  // marca — ver o efeito de selectionchange acima, que usa
-                  // este data-verse (e o data-chapter do <div> acima) pra
-                  // descobrir o intervalo. Versículo já marcado (highlight
-                  // salvo) ganha o fundo da COR escolhida na hora de grifar
-                  // (ver HIGHLIGHT_COLORS); em seleção (ainda não salvo)
-                  // ganha um contorno tracejado.
+                  // Toca no versículo inteiro (número OU texto corrido) pra
+                  // marcar — usa as coordenadas do toque (não o retângulo do
+                  // span, que pode ser gigante em versículo de várias linhas)
+                  // pra ancorar o popup exatamente onde a pessoa tocou.
+                  // SELECIONAR o texto corrido (arrastar, como se fosse
+                  // copiar) também marca — ver o efeito de selectionchange
+                  // acima, que usa este data-verse (e o data-chapter do <div>
+                  // acima) pra descobrir o intervalo; navegadores não disparam
+                  // "click" depois de um arraste que gerou seleção, então os
+                  // dois caminhos não brigam entre si. Versículo já marcado
+                  // (highlight salvo) ganha o fundo da COR escolhida na hora
+                  // de grifar (ver HIGHLIGHT_COLORS); em seleção (ainda não
+                  // salvo) ganha um contorno tracejado.
                   const existingHighlight = highlightForVerse(ch, v)
                   const isSelected = highlightSelection?.chapter === ch && highlightSelection.verses.has(v)
                   const highlightStyle = existingHighlight
@@ -1119,15 +1123,20 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                         ...(existingHighlight.text ? styles.verseAnnotatedUnderline : {}),
                       }
                     : isSelected ? styles.verseSelected : undefined
+                  const handleVerseTap = e => {
+                    if (window.getSelection?.()?.toString()) return
+                    const point = { top: e.clientY, bottom: e.clientY, left: e.clientX, right: e.clientX, width: 0, height: 0 }
+                    onVerseNumberClick?.(ch, v, point)
+                  }
                   return (
-                    <span key={v} data-verse={v} style={highlightStyle}>
+                    <span
+                      key={v}
+                      data-verse={v}
+                      style={{ ...highlightStyle, ...styles.verseTapTarget }}
+                      onClick={handleVerseTap}
+                    >
                       {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
-                      <sup
-                        style={{ ...styles.bibleTextVerseNum, ...styles.verseNumBtn }}
-                        onClick={e => onVerseNumberClick?.(ch, v, e.currentTarget.getBoundingClientRect())}
-                      >
-                        {v}
-                      </sup>
+                      <sup style={styles.bibleTextVerseNum}>{v}</sup>
                       {chapter.verses[String(v)].split('\n').map((line, lIdx, arr) => (
                         <span key={lIdx}>
                           {line}
@@ -1851,7 +1860,7 @@ const styles = {
   // app pra "destaque" (--gold), não o marrom/laranja de marca (--or),
   // pra não confundir com "capítulo lido" (chapterChipDone já usa --grad-vivid).
   chapterChipDot:  { position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: 'var(--gold)', border: '1.5px solid var(--card-bg)' },
-  verseNumBtn:     { cursor: 'pointer', padding: '0 2px' },
+  verseTapTarget:  { cursor: 'pointer' },
   verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
   verseAnnotatedUnderline: { textDecorationLine: 'underline', textDecorationColor: 'rgba(0,0,0,.38)', textDecorationThickness: 1.5, textUnderlineOffset: 3 },
   highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
