@@ -49,6 +49,13 @@ function buildReplyLangInstruction(lang) {
     : 'Escreva o campo "reply" em português.'
 }
 
+// Mesma ideia, campos do StudySchema (ver generateStudy abaixo).
+function buildStudyLangInstruction(lang) {
+  return lang === 'en'
+    ? 'Write all text fields (title, subtitle, historical, geographical, theological, reflectionQuestions) in English.'
+    : 'Escreva todos os campos de texto (title, subtitle, historical, geographical, theological, reflectionQuestions) em português.'
+}
+
 // Sem isso, a IA tendia a sempre devolver passagens minúsculas (1 capítulo,
 // às vezes menos) não importa o ritmo escolhido — cada uma virava sua
 // própria sessão, bem mais curta que o tempo pedido.
@@ -136,6 +143,57 @@ ${buildLangInstruction(lang)}`,
 export async function findThemePassages(scope, canonicalBooks, lang, targetWords = 0) {
   const draft = await generateDraftPassages(scope, canonicalBooks, lang, targetWords)
   return reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords)
+}
+
+// Estudo temático gerado por IA (aba Estudos) — mesmo espírito de
+// densidade dos estudos estáticos em src/data/studies.js (contexto
+// histórico/geográfico/teológico + perguntas de reflexão por sessão), só
+// que sobre um tema escolhido pela pessoa em vez de pré-escrito à mão. Ao
+// contrário do plano por tema (que só pede livro+capítulos e busca o texto
+// real depois), aqui a IA já escreve o CONTEÚDO — não tem "texto real" pra
+// validar contra, só o nome do livro/faixa de capítulos da passagem (essa
+// parte é validada do mesmo jeito, ver api/generate-study.js). Só uma
+// chamada (não duas como findThemePassages) — o schema já é bem maior por
+// sessão, uma segunda passada de revisão dobraria o custo/tempo de uma
+// geração que já é grande.
+const StudySchema = z.object({
+  title: z.string().describe('Título curto do estudo (2-5 palavras), no mesmo idioma do tema.'),
+  subtitle: z.string().describe('1-2 frases descrevendo o que o estudo cobre e por que vale a pena, terminando por mencionar quantas sessões tem.'),
+  sessions: z.array(z.object({
+    title: z.string().describe('Título curto da sessão (ex: "As Origens do Mundo").'),
+    book: z.string().describe('Nome do livro EXATAMENTE como aparece na lista de livros válidos fornecida no prompt — nenhuma variação de grafia.'),
+    chStart: z.number().int().min(1).describe('Primeiro capítulo da passagem desta sessão.'),
+    chEnd: z.number().int().min(1).describe('Último capítulo da passagem desta sessão (igual a chStart se for 1 capítulo só).'),
+    historical: z.string().describe('Contexto histórico/autoria/data/pano de fundo cultural da passagem — 3 a 5 frases densas.'),
+    geographical: z.string().describe('Contexto geográfico: lugares, rotas, geografia física relevante à passagem — 2 a 4 frases.'),
+    theological: z.string().describe('Temas teológicos/literários centrais da passagem, como ela se conecta com o resto da Bíblia — 3 a 5 frases.'),
+    reflectionQuestions: z.array(z.string()).min(3).max(5).describe('Perguntas de reflexão pessoal ligadas ao conteúdo da sessão, pra aplicar à própria vida.'),
+  })).min(3).max(8),
+})
+
+async function generateStudyDraft(theme, canonicalBooks, lang) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: StudySchema }),
+    prompt: `Você é um estudioso bíblico montando um estudo devocional aprofundado sobre um tema específico, no mesmo formato de um curso bíblico: cada sessão cobre uma passagem da Bíblia com contexto histórico, geográfico e teológico, além de perguntas de reflexão pessoal.
+
+Tema: "${theme}"
+
+Monte entre 3 e 8 sessões, cada uma sobre uma passagem bíblica relevante ao tema. Regras:
+- Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
+- Cada sessão cobre capítulos de UM livro só (nunca combina livros diferentes numa sessão).
+- Não repita o mesmo livro/capítulo em duas sessões diferentes.
+- Ordene as sessões numa progressão que faça sentido (cronológica, temática, ou do mais fundamental ao mais específico).
+- Escreva contexto histórico/geográfico/teológico dignos de um comentário bíblico sério — específico daquela passagem, nunca genérico.
+- As perguntas de reflexão devem convidar a pessoa a aplicar o texto à própria vida, não só testar conhecimento.
+- Só inclua passagens que você tem certeza que existem de verdade e que realmente tratam do tema.
+${buildStudyLangInstruction(lang)}`,
+  })
+  return output
+}
+
+export async function generateStudy(theme, canonicalBooks, lang) {
+  return generateStudyDraft(theme, canonicalBooks, lang)
 }
 
 // Chat com IA sobre o texto bíblico em leitura (aba "Perguntar à IA" em

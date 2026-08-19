@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, setStudySessionDone, isStudySessionDone } from '../studies/studiesProgressStore'
+import { generateStudy, getAiStudies, saveAiStudy } from '../studies/aiStudiesStore'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -10,11 +11,47 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [openStudyId, setOpenStudyId] = useState(null)
   const [openSessionId, setOpenSessionId] = useState(null)
+  // Estudos criados por IA (ver "Criar estudo por tema" abaixo) — somados
+  // aos estáticos de STUDIES numa lista só (allStudies), mesmo formato de
+  // item (StudyDetail/SessionView não precisam saber a origem de cada um).
+  const [aiStudies, setAiStudies] = useState([])
+  const [creating, setCreating] = useState(false)
+  const [title, setTitle] = useState('')
+  const [scope, setScope] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [genError, setGenError] = useState('')
 
   useEffect(() => {
     if (!authUser) return
     getCompletedStudySessions(authUser.email).then(setCompletedSet)
+    getAiStudies(authUser.email).then(setAiStudies)
   }, [authUser?.email])
+
+  const allStudies = [...STUDIES, ...aiStudies]
+
+  async function handleGenerate() {
+    if (!title.trim() || !scope.trim() || generating) return
+    setGenerating(true)
+    setGenError('')
+    try {
+      const study = await generateStudy(title.trim(), scope.trim(), lang)
+      const updated = await saveAiStudy(authUser.email, study)
+      setAiStudies(updated)
+      setCreating(false)
+      setTitle('')
+      setScope('')
+      setOpenStudyId(study.id)
+    } catch (err) {
+      console.error('Failed to generate study', err)
+      setGenError(
+        err.message === 'subscription_required' ? t('studies.createByThemeSubscriptionRequired', undefined, lang)
+        : err.message === 'study_limit_reached' ? t('studies.createByThemeLimitReached', undefined, lang)
+        : t('studies.createByThemeError', undefined, lang)
+      )
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   // Concluir uma sessão do estudo ATIVO (o escolhido em "Meu Plano" pra
   // seguir dia após dia — ver session.activeStudyId) também marca o passo
@@ -34,7 +71,7 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
     if (done && studyId === session.activeStudyId) onMarkRoutineStep?.('study', true)
   }
 
-  const openStudy = STUDIES.find(s => s.id === openStudyId) ?? null
+  const openStudy = allStudies.find(s => s.id === openStudyId) ?? null
   const openSession = openStudy?.sessions.find(s => s.id === openSessionId) ?? null
 
   // No celular, master (lista) e detail (detalhe/sessão) funcionam como
@@ -63,7 +100,46 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
         />
 
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {STUDIES.map(study => (
+          {creating ? (
+            <div style={styles.createCard}>
+              <p style={styles.createLabel}>{t('studies.createByThemeTitleLabel', undefined, lang)}</p>
+              <input
+                type="text"
+                style={styles.themeInput}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder={t('studies.createByThemeTitlePlaceholder', undefined, lang)}
+                maxLength={60}
+                autoFocus
+              />
+              <p style={{ ...styles.createLabel, marginTop: 14 }}>{t('studies.createByThemeScopeLabel', undefined, lang)}</p>
+              <textarea
+                style={styles.scopeInput}
+                value={scope}
+                onChange={e => setScope(e.target.value)}
+                placeholder={t('studies.createByThemeScopePlaceholder', undefined, lang)}
+                maxLength={200}
+                rows={3}
+              />
+              {genError && <p style={styles.errorText}>{genError}</p>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <button style={styles.generateBtn} onClick={handleGenerate} disabled={generating || !title.trim() || !scope.trim()}>
+                  {generating ? t('studies.createByThemeGenerating', undefined, lang) : t('studies.createByThemeGenerateBtn', undefined, lang)}
+                </button>
+                <button style={styles.cancelBtn} onClick={() => { setCreating(false); setGenError('') }} disabled={generating}>
+                  {t('studies.createByThemeCancel', undefined, lang)}
+                </button>
+              </div>
+              {generating && <p style={styles.generatingHint}>{t('studies.createByThemeGeneratingHint', undefined, lang)}</p>}
+            </div>
+          ) : (
+            <button style={styles.newStudyBtn} onClick={() => setCreating(true)}>
+              <AppIcon name="Sparkles" size={16} color="white" />
+              {t('studies.createByThemeBtn', undefined, lang)}
+            </button>
+          )}
+
+          {allStudies.map(study => (
             <StudyCard
               key={study.id}
               study={study}
@@ -265,4 +341,14 @@ const styles = {
   qNumber:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--or)', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   completeBtn:      { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   completeBtnDone:  { background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
+
+  newStudyBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 10px 24px rgba(162,28,175,.3)' },
+  createCard:    { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
+  createLabel:   { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', marginBottom: 6 },
+  themeInput:    { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  scopeInput:    { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)', resize: 'none' },
+  errorText:     { fontSize: 11, fontWeight: 600, color: 'var(--re, #DC2626)', marginTop: 8 },
+  generateBtn:   { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
+  cancelBtn:     { border: '0.5px solid var(--g2)', borderRadius: 11, padding: '11px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'var(--g5)', cursor: 'pointer', background: 'var(--g1)' },
+  generatingHint:{ fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
 }

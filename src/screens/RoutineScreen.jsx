@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { STUDIES } from '../data/studies'
+import { getAiStudies } from '../studies/aiStudiesStore'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { resolveActivePlanSessions, themePlanTitle, themePlanProgress } from '../plan/resolveActivePlan'
@@ -42,12 +43,21 @@ const MODULE_META = {
 const MODULE_ORDER = ['prayer', 'reading', 'study', 'reflection']
 
 export default function RoutineScreen({
-  session, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan, todayThemePicks,
+  session, authUser, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan, todayThemePicks,
   onNavigate, onContinueSession, onMarkRoutineStep, onToggleRoutineModule, onSelectActiveStudy,
   onSelectActivePlan, onOpenThemePlan, onAddSessionsToRoutine, onStartThemeReading,
   onToggleSession, onOpenSession, onOpenChronoSession,
 }) {
   const { lang, plan, activePlan, todayRoutine, todaySession, routineModules, activeStudyId } = session
+  // Estudos criados por IA somam à lista estática pro seletor de "estudo
+  // ativo" abaixo — mesmo formato de item, sem precisar de UI própria aqui
+  // (a criação em si mora em StudiesScreen.jsx).
+  const [aiStudies, setAiStudies] = useState([])
+  useEffect(() => {
+    if (!authUser) return
+    getAiStudies(authUser.email).then(setAiStudies)
+  }, [authUser?.email])
+  const allStudies = [...STUDIES, ...aiStudies]
   const isOn = key => routineModules.includes(key)
 
   // ── Leitura: mesma resolução de plano ativo (fixo/tema/cronológico) que
@@ -100,7 +110,7 @@ export default function RoutineScreen({
   // progressão sessão a sessão de verdade (qual é "a sessão de hoje",
   // marcar concluída) mora em StudiesScreen.jsx, que já sabe calcular isso
   // a partir de studies_completed. Aqui só uma lista pra trocar/escolher. ──
-  const activeStudy = STUDIES.find(s => s.id === activeStudyId) ?? null
+  const activeStudy = allStudies.find(s => s.id === activeStudyId) ?? null
 
   // ── Oração/Reflexão: duração escolhida, mesmo padrão de sempre. ──
   const [prayerMinutes, setPrayerMinutesState] = useState(() => getSavedPrayerMinutes() ?? plan.prayerMinutes)
@@ -460,7 +470,7 @@ export default function RoutineScreen({
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: activeStudy ? 8 : 0 }}>
-              {STUDIES.map(s => (
+              {allStudies.map(s => (
                 <PlanRow
                   key={s.id}
                   icon={s.icon}
