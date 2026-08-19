@@ -5,6 +5,7 @@ import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 
 const DURATION_OPTIONS = [5, 10, 15, 20, 30]
 
@@ -31,7 +32,7 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function PrayerScreen({ session, authUser, onPrayerCompleted, onContinueSession }) {
+export default function PrayerScreen({ session, authUser, onPrayerCompleted, onContinueSession, onNavigate }) {
   const { lang } = session
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
@@ -247,6 +248,13 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
         <span style={{ ...styles.heroTitle, position: 'relative' }}>{t('prayer.heroTitle', undefined, lang)}</span>
         <span style={{ ...styles.heroSub, position: 'relative' }}>{t('prayer.heroSub', undefined, lang)}</span>
       </div>
+
+      <RoutineStepSwitcher
+        session={session}
+        activeStep="prayer"
+        onGoReading={() => onContinueSession?.()}
+        onGoReflection={() => onNavigate?.('reflection')}
+      />
 
       <div style={styles.body}>
         <div className="dashboard-grid">

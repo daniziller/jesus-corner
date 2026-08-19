@@ -1008,12 +1008,12 @@ export default function App() {
                 o height:100% que a tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} />
+                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} />
               </div>
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => markRoutineStep('reflection')} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} onNavigate={navigateTo} />
+                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => markRoutineStep('reflection')} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} />
               </div>
             )}
           </div>

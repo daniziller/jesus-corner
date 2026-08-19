@@ -17,6 +17,7 @@ import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RecentChaptersRow from '../components/RecentChaptersRow'
+import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 
 // Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
 // .rb-detail, min-width: 768px) — usado só em modo 'browse' pra decidir
@@ -519,6 +520,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           ))}
         </div>
       </div>
+      {/* Seletor pra pular direto pra Oração/Reflexão sem voltar pra aba
+          Rotina — só no fluxo guiado de tela cheia (a leitura livre não é
+          "o passo de hoje" de coisa nenhuma, e embutido na aba Bíblia não
+          tem esse contexto de rotina). */}
+      {!embedded && mode !== 'browse' && heroSession.type !== 'reflection' && (
+        <RoutineStepSwitcher
+          session={session}
+          activeStep="reading"
+          onGoPrayer={() => onNavigate?.('prayer')}
+          onGoReflection={() => onNavigate?.('reflection')}
+        />
+      )}
       {/* Cards de "lidos recentemente" — só na navegação livre de tela
           cheia, nunca embutido (não faz sentido por livro). No desktop
           moram aqui dentro de .rb-detail, que já é sticky por conta

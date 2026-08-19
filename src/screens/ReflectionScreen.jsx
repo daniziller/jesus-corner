@@ -9,6 +9,7 @@ import { formatVerseRanges } from '../utils/verseRanges'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 
 // Inclui 8 porque é o padrão do plano Leve (session.plan.reflectionMinutes)
 // — sem ele, quem estivesse no Leve abriria a tela sem nenhum botão aceso.
@@ -39,7 +40,7 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading, onNavigate }) {
+export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading, onNavigate, onContinueSession }) {
   const { lang } = session
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
@@ -310,6 +311,13 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
         <span style={{ ...styles.heroTitle, position: 'relative' }}>{t('reflection.heroTitle', undefined, lang)}</span>
         <span style={{ ...styles.heroSub, position: 'relative' }}>{t('reflection.heroSub', undefined, lang)}</span>
       </div>
+
+      <RoutineStepSwitcher
+        session={session}
+        activeStep="reflection"
+        onGoPrayer={() => onNavigate?.('prayer')}
+        onGoReading={() => onContinueSession?.()}
+      />
 
       <div style={styles.body}>
         {/* Só aparece vindo de "Ir para Reflexão" logo depois de marcar uma
