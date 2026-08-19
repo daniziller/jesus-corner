@@ -38,7 +38,7 @@ export default function StudiesScreen({ session, authUser }) {
   // "desaparece" quando um estudo é aberto.
   return (
     <div className="master-detail">
-      <div className={`master-pane${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+      <div className={`master-pane${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
         {/* Título + subtítulo — só no desktop (≥768px), igual
             Rotina/Início/Progresso. No mobile o Figma não tem esse
             cabeçalho (Estudos só tem frame desktop, sem referência mobile). */}
@@ -136,7 +136,7 @@ function StudyDetail({ study, lang, completedSet, onOpenSession, onBack }) {
   const title = lang === 'en' ? study.titleEn : study.title
 
   return (
-    <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button onClick={onBack} style={styles.backBtn} aria-label="back">
           <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />
@@ -176,7 +176,7 @@ function SessionView({ study, studySession, lang, isDone, onToggleDone, onBack }
   const questions = lang === 'en' ? studySession.reflectionQuestionsEn : studySession.reflectionQuestions
 
   return (
-    <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button onClick={onBack} style={styles.backBtn} aria-label="back">
           <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />

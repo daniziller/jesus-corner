@@ -75,7 +75,7 @@ export default function GroupsScreen({ session, authUser, onSocialChange }) {
   return (
     <div className="master-detail">
       {/* Master: convites pendentes + meus grupos + amigos */}
-      <div className={`master-pane${openGroupId ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+      <div className={`master-pane${openGroupId ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
         {/* Título — só no desktop (≥768px), igual Rotina/Início/Progresso.
             No mobile o Figma não mostra esse cabeçalho aqui. */}
         <div className="page-header hide-on-mobile" style={{ padding: '20px 14px 0' }}>
@@ -520,7 +520,7 @@ function GroupDetailView({ groupId, groupName, lang, authUser, onBack, onLeft })
   }
 
   return (
-    <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button onClick={onBack} style={styles.backBtn} aria-label="back">
           <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />

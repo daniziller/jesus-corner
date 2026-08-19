@@ -804,7 +804,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       // toque de rolar em alguns navegadores mobile, mesmo depois da
       // animação terminar (ver comentário do keyframe em index.css).
       <div className={mode === 'browse' ? 'rb-enter' : undefined} style={{ height: '100%' }}>
-        <div ref={scrollRef} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+        <div ref={scrollRef} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
           <div className="rb-body">
             {/* Detalhe: sessão em destaque + marcação + painéis — vem
                 primeiro no DOM (ordem certa no celular); no desktop o CSS

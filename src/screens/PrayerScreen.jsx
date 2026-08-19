@@ -235,7 +235,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
     : t('prayer.start', undefined, lang)
 
   return (
-    <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
 
       {/* Header */}
 

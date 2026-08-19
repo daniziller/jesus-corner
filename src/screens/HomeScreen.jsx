@@ -85,7 +85,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   const todayVerse = getTodayUpliftingVerse(lang)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingBottom: 83 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83 }}>
 
       {/* ── Hero ── */}
       <div style={styles.hero}>

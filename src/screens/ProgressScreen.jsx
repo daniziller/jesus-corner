@@ -8,7 +8,7 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
   const offset = CIRC - (session.biblePercent / 100) * CIRC
 
   return (
-    <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
       <div style={{ padding: '20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         {/* Título + subtítulo — só no desktop (≥768px), igual Rotina/Início.

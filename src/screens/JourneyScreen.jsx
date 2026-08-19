@@ -230,7 +230,7 @@ export default function JourneyScreen({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingBottom: 83 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83 }}>
 
       {/* Hero */}
       <div style={styles.hero}>

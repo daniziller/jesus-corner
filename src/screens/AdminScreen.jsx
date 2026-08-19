@@ -16,7 +16,7 @@ export default function AdminScreen({ session }) {
   const [tab, setTab] = useState('metrics')
 
   return (
-    <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
+    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
 
       <div style={styles.body}>
         {/* Título — só no desktop (≥768px), igual Rotina/Início/Progresso.
