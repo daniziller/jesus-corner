@@ -11,7 +11,7 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
       <div style={{ padding: '20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Título + subtítulo — só no desktop (≥1024px), igual Rotina/Início.
+        {/* Título + subtítulo — só no desktop (≥768px), igual Rotina/Início.
             No mobile o Figma não mostra esse cabeçalho. */}
         <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>
           <h1 className="page-title">{translate('progress.pageTitleLong', undefined, lang)}</h1>
@@ -301,7 +301,7 @@ const styles = {
   levelBarFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
   levelSub:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
   achievementsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
-  achievementCard:  { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 },
+  achievementCard:  { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0 },
   achievementCardUnlocked: { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)' },
   achievementTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.25 },
   achievementDesc:  { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },

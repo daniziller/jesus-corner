@@ -2,7 +2,7 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import NotificationBell from './NotificationBell'
 
-// Navegação lateral exibida só em telas ≥1024px (ver index.css) — substitui
+// Navegação lateral exibida só em telas ≥768px (ver index.css) — substitui
 // o AppHeader + BottomNav do layout de celular por uma coluna fixa com logo,
 // abas e o usuário logado, no formato comum de dashboards desktop.
 // Oração não tem aba própria — mora só dentro de Rotina (card com botão pra

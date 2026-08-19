@@ -32,14 +32,14 @@ export default function StudiesScreen({ session, authUser }) {
 
   // No celular, master (lista) e detail (detalhe/sessão) funcionam como
   // antes — uma tela cheia de cada vez, trocando via hide-on-mobile conforme
-  // openStudyId. No desktop (≥1024px) as duas ficam sempre visíveis lado a
+  // openStudyId. No desktop (≥768px) as duas ficam sempre visíveis lado a
   // lado (ver .master-detail/.master-pane/.detail-pane em index.css —
   // padrão compartilhado com GroupsScreen.jsx), então a lista nunca
   // "desaparece" quando um estudo é aberto.
   return (
     <div className="master-detail">
       <div className={`master-pane${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
-        {/* Título + subtítulo — só no desktop (≥1024px), igual
+        {/* Título + subtítulo — só no desktop (≥768px), igual
             Rotina/Início/Progresso. No mobile o Figma não tem esse
             cabeçalho (Estudos só tem frame desktop, sem referência mobile). */}
         <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>

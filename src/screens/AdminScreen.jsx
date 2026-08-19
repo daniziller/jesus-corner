@@ -19,7 +19,7 @@ export default function AdminScreen({ session }) {
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
 
       <div style={styles.body}>
-        {/* Título — só no desktop (≥1024px), igual Rotina/Início/Progresso.
+        {/* Título — só no desktop (≥768px), igual Rotina/Início/Progresso.
             No mobile o Figma pula direto pras abas de métricas. */}
         <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>
           <h1 className="page-title">{t('admin.pageTitle', undefined, lang)}</h1>
@@ -34,7 +34,7 @@ export default function AdminScreen({ session }) {
               title={t(`admin.tab.${id}`, undefined, lang)}
             >
               <AppIcon name={TAB_ICONS[id]} size={14} color={tab === id ? 'white' : 'var(--g5)'} />
-              {/* Rótulo só em telas desktop (≥1024px, ver .admin-tab-label no
+              {/* Rótulo só em telas desktop (≥768px, ver .admin-tab-label no
                   index.css) — no mobile os 5 botões só cabem sem rolar de
                   lado ficando ícone-only, igual a maioria dos bottom tabs. */}
               <span className="admin-tab-label">{t(`admin.tab.${id}`, undefined, lang)}</span>

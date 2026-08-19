@@ -1011,11 +1011,11 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {/* Navegação lateral — só visível em telas ≥1024px (ver index.css) */}
+      {/* Navegação lateral — só visível em telas ≥768px (ver index.css) */}
       <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
       <div className="app-main">
-        {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <1024px */}
+        {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <768px */}
         <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
         {/* Conteúdo da tela ativa */}
@@ -1040,7 +1040,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Navegação inferior — só em telas <1024px */}
+        {/* Navegação inferior — só em telas <768px */}
         <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
       </div>
 

@@ -503,8 +503,11 @@ html.large-text .app-content-inner {
 .settings-sub { font-size: 10px; font-weight: 500; color: var(--g4); }
 .settings-arrow { font-size: 13px; color: var(--g3); }
 
-/* ── Responsive (tablet — moldura de celular ampliada) ── */
-@media (min-width: 430px) {
+/* ── Responsive (janela larga ainda em modo celular — moldura decorativa)
+   — teto em 767.98px porque a partir de 768px entra o layout de tablet/
+   desktop de verdade (ver bloco "≥768px" mais abaixo), que não deve ficar
+   com essa moldura por cima. ── */
+@media (min-width: 430px) and (max-width: 767.98px) {
   #root {
     height: 100vh;
     border-radius: 44px;
@@ -654,15 +657,15 @@ html.large-text .app-content-inner {
 .admin-tab-label {
   display: none;
 }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .admin-tab-label {
     display: inline;
   }
 }
 
-/* ── Responsive (desktop — abandona a moldura de celular por um shell
-   com navegação lateral) ── */
-@media (min-width: 1024px) {
+/* ── Responsive (tablet/desktop, ≥768px — abandona a moldura de celular
+   por um shell com navegação lateral) ── */
+@media (min-width: 768px) {
   :root {
     --max-width: 1200px;
   }
@@ -730,7 +733,7 @@ html.large-text .app-content-inner {
 
 /* ── Dashboard reflow (telas com layout em 2 colunas no desktop) ──
    Mobile: empilhado em coluna, igual ao comportamento de sempre.
-   Desktop (≥1024px): vira layout em linha (2 colunas) ou grade. */
+   Tablet/desktop (≥768px): vira layout em linha (2 colunas) ou grade. */
 .dashboard-grid {
   display: flex;
   flex-direction: column;
@@ -747,7 +750,7 @@ html.large-text .app-content-inner {
   flex-direction: column;
   gap: 9px;
 }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .dashboard-grid {
     flex-direction: row;
     align-items: flex-start;
@@ -769,7 +772,7 @@ html.large-text .app-content-inner {
   display: flex;
   flex-direction: column;
 }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .rb-body {
     flex-direction: row;
     align-items: flex-start;
@@ -793,8 +796,8 @@ html.large-text .app-content-inner {
    lista sempre visível à esquerda no desktop, detalhe à direita, sem
    trocar de tela. No celular, cada painel continua ocupando a tela
    inteira sozinho — .hide-on-mobile só existe dentro dessa media query,
-   então ≥1024px nunca precisa "desfazer" a regra. */
-@media (max-width: 1023.98px) {
+   então ≥768px nunca precisa "desfazer" a regra. */
+@media (max-width: 767.98px) {
   .hide-on-mobile {
     /* !important — igual .hide-on-desktop (mais abaixo). Sem isso, um
        elemento com display inline (ex: o card "% chapado" da aba
@@ -816,7 +819,7 @@ html.large-text .app-content-inner {
 .detail-pane {
   height: 100%;
 }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .master-detail {
     display: flex;
     align-items: stretch;
@@ -837,7 +840,7 @@ html.large-text .app-content-inner {
    de duração lado a lado (no mobile fica empilhado, um embaixo do outro).
    !important pra vencer os estilos inline de largura/margem — mesmo
    padrão já usado em .auth-sheet acima. ── */
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .picker-section-inline {
     display: flex;
     align-items: center;
@@ -886,7 +889,7 @@ html.large-text .app-content-inner {
    .hide-on-mobile pra alternar entre dois tratamentos da mesma seção
    (ex.: anel de progresso no mobile vs. barras + card resumido no desktop,
    ver ProgressScreen.jsx). */
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .hide-on-desktop {
     display: none !important;
   }

@@ -66,7 +66,7 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
     <div style={{ overflowY: 'auto', paddingBottom: 83, height: '100%' }}>
 
       <div style={styles.body}>
-        {/* Título + subtítulo — só no desktop (≥1024px). No mobile o Figma
+        {/* Título + subtítulo — só no desktop (≥768px). No mobile o Figma
             pula direto pro card de hero; no desktop ele abre com "Rotina"
             + a mesma frase que já usávamos como heroSub. */}
         <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>

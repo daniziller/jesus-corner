@@ -161,7 +161,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                   embaixo, e os dois retângulos de stat (streak/constância)
                   empilhados ao lado — tudo numa linha só, mais compacto que
                   antes (3 blocos empilhados viraram 1 linha + as barras). */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, position: 'relative' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                   <div style={styles.ringWrap}>
                     <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
@@ -184,7 +184,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
                 {/* Streak + constância — a mesma métrica de constância que só
                     existia na aba Rotina, agora também aqui. */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 140 }}>
                   <div style={styles.pctStatChip}>
                     <span style={styles.pctStatValue}><AppIcon name="Flame" size={16} /> {streak}</span>
                     <span style={styles.pctStatLabel}>{translate('home.streakLabel', undefined, lang)}</span>
@@ -641,7 +641,11 @@ const styles = {
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
   pctHeroWrap:   {},
   pctHero:       { background: 'var(--grad-vivid)', borderRadius: '22px 22px 0 0', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-glow)' },
-  pctStatChip:   { background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  // Coluna (valor em cima, rótulo embaixo) em vez de linha com
+  // justify-content:space-between — numa coluna estreita (2 colunas no
+  // tablet/desktop, ver .dashboard-grid em index.css) não sobra largura
+  // pro rótulo ("day streak"/"days/week") ao lado do valor sem cortar.
+  pctStatChip:   { background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 2 },
   pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', lineHeight: 1 },
   pctStatLabel:  { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },

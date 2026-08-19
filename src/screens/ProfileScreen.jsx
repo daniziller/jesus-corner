@@ -220,7 +220,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
       <div style={{ padding: '20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 13 }}>
 
-        {/* Título — só no desktop (≥1024px). Perfil não tem frame próprio
+        {/* Título — só no desktop (≥768px). Perfil não tem frame próprio
             no Figma (só mobile), então isso segue o padrão confirmado nas
             outras telas (Rotina/Início/Progresso/Estudos/Comunidade/Admin)
             em vez de uma referência direta. */}
