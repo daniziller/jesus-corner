@@ -725,12 +725,16 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         um popup pequeno ANCORADO perto de onde a pessoa tocou o
         versículo/selecionou um trecho (highlightAnchorRect preenchido —
         ver handleHighlightVerseClick/handleHighlightTextRange), deixando
-        o próprio versículo visível por trás; ou, sem âncora nenhuma (FAB
-        de lápis tocado sem nada selecionado — ver openHighlightList), a
-        folha de sempre no rodapé, agora só pra navegar a lista de grifos
-        já feitos. */}
+        o próprio versículo visível por trás; ou a folha de sempre no
+        rodapé — usada tanto sem âncora nenhuma (FAB de lápis tocado sem
+        nada selecionado, pra navegar a lista de grifos já feitos) quanto
+        assim que `wantsToAnnotate` liga (etapa de ESCREVER a anotação):
+        essa etapa cresce bem mais que a de cor (citação + textarea), e
+        ancorada perto do toque original ela às vezes ia parar perto do
+        topo da tela, quase saindo da área visível — no rodapé sempre cabe
+        inteira, com espaço de sobra pra rolar se precisar. */}
     {highlightPanelOpen && heroSession.type !== 'reflection' && (
-      highlightAnchorRect ? (
+      highlightAnchorRect && !wantsToAnnotate ? (
         <AnchoredHighlightPopup anchorRect={highlightAnchorRect} onClose={cancelHighlightCompose} lang={lang}>
           <HighlightComposer
             lang={lang}
@@ -1226,43 +1230,33 @@ function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchorRect, children])
 
-  // Rolar a lista invalida a posição âncora (o versículo tocado já não
-  // está mais onde estava) — mais simples fechar do que tentar
-  // reacompanhar em tempo real; a interação costuma ser rápida. Escuta
-  // também touchmove/wheel (não só o evento "scroll" em si): a camada
-  // catcher abaixo cobre a tela inteira e não tem como rolar sozinha, então
-  // um arrastar que começa nela nunca chega a gerar um "scroll" de verdade
-  // no que está por baixo — sem isso, a página fica travada até a pessoa
-  // tocar (parado, sem arrastar) de propósito fora do popup. Ignora gestos
-  // que começam DENTRO do próprio popup (ex: rolar uma anotação comprida) —
-  // só fecha quando o arraste é no resto da tela. Ignora TAMBÉM quando o
-  // foco está dentro do popup (ex: a textarea com autoFocus, ao abrir o
-  // teclado): o próprio Safari costuma rolar a página pra manter o campo
-  // focado visível, e esse scroll do NAVEGADOR (não da pessoa) teria o alvo
-  // fora do popup (a página por trás, não o popup em si, que é portalado
-  // pro body) — sem essa checagem, o popup fechava sozinho bem na hora de
-  // abrir "Adicionar anotação".
+  // Fecha ao tocar fora do popup — MAS deixa passar toques num OUTRO
+  // versículo (elemento com data-verse): esses precisam continuar chegando
+  // no onClick de cada <span> (ver handleVerseTap/handleHighlightVerseClick
+  // em BibleTextPanel/ReadingBlockView), que já sabe somar esse versículo à
+  // seleção em andamento — é assim que a pessoa marca mais de um versículo
+  // de uma vez, tocando um a um. Uma camada catcher cobrindo a tela inteira
+  // (como antes) capturaria esses toques ANTES de chegarem no versículo,
+  // fechando o popup em vez de estender a seleção — por isso não existe
+  // mais uma div catcher aqui, só este listener no document (não intercepta
+  // nada, só observa). Também não fecha mais ao ROLAR a tela (existia antes
+  // uma versão que fechava): rolar é exatamente como a pessoa alcança um
+  // versículo mais distante pra somar à seleção em andamento — fechar aí
+  // perderia a seleção bem no meio do gesto. O popup (position:fixed) só
+  // fica visualmente "parado" enquanto a lista rola por baixo dele; ao
+  // tocar um novo versículo ele pula pra perto do toque de novo.
   useEffect(() => {
-    function handleOutsideScroll(e) {
-      if (popupRef.current) {
-        if (e.target instanceof Node && popupRef.current.contains(e.target)) return
-        if (document.activeElement && popupRef.current.contains(document.activeElement)) return
-      }
+    function handleOutsideClick(e) {
+      if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
+      if (e.target instanceof Element && e.target.closest('[data-verse]')) return
       onClose()
     }
-    document.addEventListener('scroll', handleOutsideScroll, true)
-    document.addEventListener('touchmove', handleOutsideScroll, { passive: true })
-    document.addEventListener('wheel', handleOutsideScroll, { passive: true })
-    return () => {
-      document.removeEventListener('scroll', handleOutsideScroll, true)
-      document.removeEventListener('touchmove', handleOutsideScroll)
-      document.removeEventListener('wheel', handleOutsideScroll)
-    }
+    document.addEventListener('click', handleOutsideClick, true)
+    return () => document.removeEventListener('click', handleOutsideClick, true)
   }, [onClose])
 
   return createPortal(
     <>
-      <div style={styles.highlightPopupCatcher} onClick={onClose} />
       <div
         ref={popupRef}
         style={{
@@ -1901,8 +1895,8 @@ const styles = {
   // Seletor de cor GRANDE (etapa 1, escolher rápido sem escrever nada) —
   // círculos maiores, mais fáceis de tocar, já que é a interação principal
   // dessa etapa.
-  colorSwatchPickRow: { display: 'flex', gap: 16, justifyContent: 'center', padding: '4px 0 2px' },
-  colorSwatch: { width: 42, height: 42, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, boxShadow: '0 2px 6px rgba(0,0,0,.15)', flexShrink: 0 },
+  colorSwatchPickRow: { display: 'flex', gap: 12, justifyContent: 'center', padding: '4px 0 2px' },
+  colorSwatch: { width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, boxShadow: '0 2px 6px rgba(0,0,0,.15)', flexShrink: 0 },
   // Anel indicando a cor JÁ ativa (reabrindo um grifo existente) — mesmo
   // espírito do colorSwatchSmallActive do editor completo, só num círculo
   // maior.
@@ -1911,7 +1905,7 @@ const styles = {
   // sair da tela de escrever) — mais discreto, um círculo com contorno
   // marca qual está selecionada agora.
   colorSwatchSmallRow: { display: 'flex', gap: 8 },
-  colorSwatchSmall: { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', padding: 0, flexShrink: 0 },
+  colorSwatchSmall: { width: 22, height: 22, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', padding: 0, flexShrink: 0 },
   colorSwatchSmallActive: { border: '2px solid var(--bk)', boxShadow: '0 0 0 2px white inset' },
   highlightAddNoteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--bk)', cursor: 'pointer', fontFamily: 'var(--font)' },
   // Trecho de verdade sendo grifado, mostrado dentro do editor — pra pessoa
@@ -1975,10 +1969,11 @@ const styles = {
   // fixa de 72vh usada pelo chat de IA.
   highlightListSheetWindow: { width: '100%', maxWidth: 'var(--max-width)', height: 'auto', maxHeight: '52vh', background: 'var(--white)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(0,0,0,.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
 
-  // Popup ancorado (ver AnchoredHighlightPopup) — camada transparente só
-  // pra capturar o toque de fora (SEM escurecer nada, diferente de
-  // aiChatOverlayBackdrop: o versículo grifado precisa continuar visível).
-  highlightPopupCatcher: { position: 'fixed', inset: 0, zIndex: 200, background: 'transparent' },
+  // Popup ancorado (ver AnchoredHighlightPopup) — fecha via listener no
+  // document (não uma camada cobrindo a tela, ver handleOutsideClick), pra
+  // deixar passar toque num outro versículo (soma à seleção) e gestos de
+  // rolagem, sem escurecer nada (o versículo grifado precisa continuar
+  // visível, diferente de aiChatOverlayBackdrop).
   highlightPopup: { position: 'fixed', zIndex: 201, width: 252, maxWidth: 'calc(100vw - 20px)', maxHeight: '46vh', overflowY: 'auto', background: 'var(--white)', borderRadius: 16, boxShadow: '0 12px 32px rgba(0,0,0,.22), 0 0 0 0.5px rgba(0,0,0,.06)', padding: '14px 14px 12px' },
   highlightPopupClose: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 }
