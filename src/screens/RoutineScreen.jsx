@@ -155,6 +155,16 @@ export default function RoutineScreen({ session, blocks, onNavigate, onContinueS
           ))}
         </div>
 
+        {/* Deixa claro que dá pra escolher a duração de cada etapa abaixo —
+            essa explicação já existia (heroSub), mas só no cabeçalho de
+            desktop (hide-on-mobile lá em cima); no celular, onde a maioria
+            usa o app, a pessoa caía direto nos seletores de tempo sem
+            nenhum aviso de que dava pra mexer neles. Aparece nos dois. */}
+        <p style={styles.chooseTimeLabel}>
+          <AppIcon name="Timer" size={13} color="var(--g4)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
+          {t('routine.chooseTimeLabel', undefined, lang)}
+        </p>
+
         {/* Oração — não tem mais aba própria na navegação (só mora aqui
             dentro de Rotina), então esse botão é o jeito principal de
             abrir a tela dela agora (além do passo "Oração" na linha do
@@ -426,6 +436,8 @@ const styles = {
   stepTag:     { fontSize: 8.5, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.3, transition: 'color .4s ease' },
   stepLineTrack: { flex: 1, height: 3, background: 'var(--g2)', borderRadius: 2, marginTop: 18, overflow: 'hidden' },
   stepLineFill:  { height: '100%', borderRadius: 2, transition: 'width .6s ease' },
+
+  chooseTimeLabel: { display: 'flex', alignItems: 'center', fontSize: 11.5, fontWeight: 600, color: 'var(--g5)', margin: '0 2px' },
 
   section:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   sectionHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },

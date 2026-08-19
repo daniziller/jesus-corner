@@ -462,6 +462,7 @@ export const STRINGS = {
     routine: {
       pageTitle: 'Rotina',
       heroSub: 'Escolha o tempo de cada passo e veja o total do seu dia.',
+      chooseTimeLabel: 'Escolha o tempo de cada etapa do seu momento com Deus',
       totalLabel: 'Tempo total hoje',
       totalLabelFree: 'min + leitura livre',
       sectionReading: 'Leitura',
@@ -1369,6 +1370,7 @@ export const STRINGS = {
     routine: {
       pageTitle: 'Routine',
       heroSub: 'Choose how long each step takes and see your total for the day.',
+      chooseTimeLabel: 'Choose how long you want for each step of your time with God',
       totalLabel: 'Total time today',
       totalLabelFree: 'min + free reading',
       sectionReading: 'Reading',
