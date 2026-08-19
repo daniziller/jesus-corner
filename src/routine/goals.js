@@ -12,7 +12,7 @@
 // se a pessoa quebrar a sequência. `computeGoalsStatus` combina os dois:
 // progresso ao vivo (current/target) + o que já foi persistido como
 // concluído (completedGoals, vindo do backend).
-import { computeRoutineStreak, isDayComplete } from './routineStreak'
+import { computeRoutineStreak, isDayComplete, DEFAULT_ROUTINE_MODULES } from './routineStreak'
 import { dateKey } from '../utils/dateKey'
 
 export const GOALS = [
@@ -69,11 +69,11 @@ export const GOALS = [
 // tiveram a rotina completa — mesmo loop que computeWeeklyRoutineStats já
 // faz por semana (routineStreak.js), só que sobre uma janela de dias
 // corridos em vez de semanas de calendário.
-function countCompleteDaysInWindow(dailyRoutine, windowDays, today) {
+function countCompleteDaysInWindow(dailyRoutine, windowDays, today, modules) {
   let count = 0
   const cursor = new Date(today)
   for (let i = 0; i < windowDays; i++) {
-    if (isDayComplete(dailyRoutine[dateKey(cursor)])) count++
+    if (isDayComplete(dailyRoutine[dateKey(cursor)], modules)) count++
     cursor.setDate(cursor.getDate() - 1)
   }
   return count
@@ -82,10 +82,10 @@ function countCompleteDaysInWindow(dailyRoutine, windowDays, today) {
 // current/target ao vivo pra uma meta — não sabe (nem precisa saber) se ela
 // já foi persistida como concluída antes; isso é responsabilidade de
 // computeGoalsStatus, abaixo.
-export function computeGoalProgress(goal, dailyRoutine, today = new Date()) {
+export function computeGoalProgress(goal, dailyRoutine, modules = DEFAULT_ROUTINE_MODULES, today = new Date()) {
   const current = goal.kind === 'streak'
-    ? computeRoutineStreak(dailyRoutine, today)
-    : countCompleteDaysInWindow(dailyRoutine, goal.window, today)
+    ? computeRoutineStreak(dailyRoutine, modules, today)
+    : countCompleteDaysInWindow(dailyRoutine, goal.window, today, modules)
   return { current: Math.min(current, goal.target), target: goal.target, qualifiesNow: current >= goal.target }
 }
 
@@ -94,10 +94,10 @@ export function computeGoalProgress(goal, dailyRoutine, today = new Date()) {
 // fica true se JÁ foi persistido OU se qualifica agora — quem decide
 // gravar uma qualificação nova no backend é o chamador (App.jsx), não esta
 // função (que é pura, sem I/O).
-export function computeGoalsStatus(dailyRoutine, completedGoals, lang = 'pt', today = new Date()) {
+export function computeGoalsStatus(dailyRoutine, completedGoals, modules = DEFAULT_ROUTINE_MODULES, lang = 'pt', today = new Date()) {
   return GOALS.map(g => {
     const persisted = completedGoals?.[g.id] ?? null
-    const progress = computeGoalProgress(g, dailyRoutine, today)
+    const progress = computeGoalProgress(g, dailyRoutine, modules, today)
     return {
       id: g.id,
       icon: g.icon,

@@ -40,7 +40,7 @@ import { sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
-import { ThemeTextsChecklist } from './PlanScreen'
+import { ThemeTextsChecklist } from './RoutineScreen'
 
 // Mesmo limite e mesma janela (30 dias corridos, não mês-calendário) do
 // servidor (ver MAX_PLANS_PER_MONTH/THIRTY_DAYS_MS em

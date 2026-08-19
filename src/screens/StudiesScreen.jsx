@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, setStudySessionDone, isStudySessionDone } from '../studies/studiesProgressStore'
+import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function StudiesScreen({ session, authUser }) {
+export default function StudiesScreen({ session, authUser, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const { lang } = session
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [openStudyId, setOpenStudyId] = useState(null)
@@ -15,6 +16,11 @@ export default function StudiesScreen({ session, authUser }) {
     getCompletedStudySessions(authUser.email).then(setCompletedSet)
   }, [authUser?.email])
 
+  // Concluir uma sessão do estudo ATIVO (o escolhido em "Meu Plano" pra
+  // seguir dia após dia — ver session.activeStudyId) também marca o passo
+  // "Estudo guiado" de hoje na rotina, mesmo padrão de onPrayerCompleted/
+  // onReflectionCompleted. Sessões de OUTROS estudos (não o ativo) não
+  // contam — só progresso salvo, sem refletir na rotina do dia.
   function toggleSessionDone(studyId, sessionId, done) {
     if (!authUser) return
     const key = `${studyId}:${sessionId}`
@@ -25,6 +31,7 @@ export default function StudiesScreen({ session, authUser }) {
     setStudySessionDone(authUser.email, studyId, sessionId, done).catch(err => {
       console.error('Failed to persist study progress', err)
     })
+    if (done && studyId === session.activeStudyId) onMarkRoutineStep?.('study', true)
   }
 
   const openStudy = STUDIES.find(s => s.id === openStudyId) ?? null
@@ -46,6 +53,14 @@ export default function StudiesScreen({ session, authUser }) {
           <h1 className="page-title">{t('studies.pageTitle', undefined, lang)}</h1>
           <p style={{ ...styles.pageSubtitle, padding: 0, marginTop: 4, marginBottom: 0 }}>{t('studies.pageSubtitle', undefined, lang)}</p>
         </div>
+
+        <RoutineStepSwitcher
+          session={session}
+          activeStep="study"
+          onGoPrayer={() => onNavigate?.('prayer')}
+          onGoReading={() => onContinueSession?.()}
+          onGoReflection={() => onNavigate?.('reflection')}
+        />
 
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {STUDIES.map(study => (

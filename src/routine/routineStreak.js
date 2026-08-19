@@ -1,43 +1,40 @@
 // Funções puras sobre o mapa de rotina diária — sem I/O, fáceis de testar e
 // de reusar tanto no cálculo do streak quanto no calendário da Home.
 import { dateKey } from '../utils/dateKey.js'
-import { PLANS } from '../data/bibleBlocks.js'
 
-// Dias salvos antes da reestruturação em módulos (sem `planId` guardado)
-// continuam exigindo os 3 passos, exatamente como sempre exigiram — só dias
-// novos (com `planId` gravado por markRoutineStep) passam a ser avaliados
-// pelos módulos do plano que estava ativo naquele dia.
-const LEGACY_MODULES = ['prayer', 'reading', 'reflection']
+// Quais passos avaliar como "a rotina da pessoa" — antes vinha fixo do
+// plano de leitura ativo (todo PLANS[i].modules sempre foi o mesmo trio,
+// nunca variou de verdade); agora é a escolha independente da pessoa (ver
+// session.routineModules/routineModulesStore.js), então essas funções
+// recebem `modules` de quem chama em vez de derivar de `day.planId`.
+// DEFAULT_ROUTINE_MODULES cobre chamadas sem esse argumento (compatibilidade)
+// e dias salvos antes dessa mudança.
+export const DEFAULT_ROUTINE_MODULES = ['prayer', 'reading', 'reflection']
 
-function modulesForDay(day) {
-  if (!day?.planId) return LEGACY_MODULES
-  return PLANS.find(p => p.id === day.planId)?.modules ?? LEGACY_MODULES
-}
-
-export function isDayComplete(day) {
+export function isDayComplete(day, modules = DEFAULT_ROUTINE_MODULES) {
   if (!day) return false
-  return modulesForDay(day).every(step => !!day[step])
+  return modules.every(step => !!day[step])
 }
 
 // Quantos passos do plano daquele dia foram concluídos — usado pro
 // calendário mostrar dias parcialmente concluídos de forma diferente de
 // dias vazios.
-export function dayStepCount(day) {
+export function dayStepCount(day, modules = DEFAULT_ROUTINE_MODULES) {
   if (!day) return 0
-  return modulesForDay(day).filter(step => day[step]).length
+  return modules.filter(step => day[step]).length
 }
 
-// Sequência de dias seguidos com os 3 passos completos, terminando hoje.
-// Se hoje ainda não terminou os 3 passos, isso não zera a sequência na
+// Sequência de dias seguidos com todos os passos da rotina completos,
+// terminando hoje. Se hoje ainda não terminou, isso não zera a sequência na
 // hora — conta a partir de ontem, já que o dia de hoje ainda está "em
 // aberto" até acabar.
-export function computeRoutineStreak(dailyRoutine, today = new Date()) {
+export function computeRoutineStreak(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES, today = new Date()) {
   const cursor = new Date(today)
-  if (!isDayComplete(dailyRoutine[dateKey(cursor)])) {
+  if (!isDayComplete(dailyRoutine[dateKey(cursor)], modules)) {
     cursor.setDate(cursor.getDate() - 1)
   }
   let streak = 0
-  while (isDayComplete(dailyRoutine[dateKey(cursor)])) {
+  while (isDayComplete(dailyRoutine[dateKey(cursor)], modules)) {
     streak++
     cursor.setDate(cursor.getDate() - 1)
   }
@@ -61,7 +58,7 @@ function mondayOf(d) {
 // visão mensal — dá pra ver quedas de constância bem mais cedo. A semana
 // ainda em andamento conta só até hoje, pra não contar dias futuros que
 // ainda nem aconteceram.
-export function computeWeeklyRoutineStats(dailyRoutine, weeksBack = 6, today = new Date()) {
+export function computeWeeklyRoutineStats(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES, weeksBack = 6, today = new Date()) {
   const currentWeekStart = mondayOf(today)
 
   const weeks = []
@@ -71,17 +68,18 @@ export function computeWeeklyRoutineStats(dailyRoutine, weeksBack = 6, today = n
     const isCurrentWeek = i === 0
     const lastDay = isCurrentWeek ? today : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
 
-    let prayerDays = 0, readingDays = 0, reflectionDays = 0, fullDays = 0, totalDays = 0
+    let prayerDays = 0, readingDays = 0, studyDays = 0, reflectionDays = 0, fullDays = 0, totalDays = 0
     for (const d = new Date(start); d <= lastDay; d.setDate(d.getDate() + 1)) {
       totalDays++
       const day = dailyRoutine[dateKey(d)]
       if (day?.prayer) prayerDays++
       if (day?.reading) readingDays++
+      if (day?.study) studyDays++
       if (day?.reflection) reflectionDays++
-      if (isDayComplete(day)) fullDays++
+      if (isDayComplete(day, modules)) fullDays++
     }
 
-    weeks.push({ start, totalDays, prayerDays, readingDays, reflectionDays, fullDays })
+    weeks.push({ start, totalDays, prayerDays, readingDays, studyDays, reflectionDays, fullDays })
   }
   return weeks
 }
@@ -104,13 +102,13 @@ const PRAYER_DAY_XP = 3
 const REFLECTION_DAY_XP = 3
 const FULL_ROUTINE_DAY_BONUS_XP = 4
 
-export function computeRoutineXpBonus(dailyRoutine) {
+export function computeRoutineXpBonus(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES) {
   let prayerDays = 0, reflectionDays = 0, fullDays = 0
   for (const key in dailyRoutine) {
     const day = dailyRoutine[key]
     if (day?.prayer) prayerDays++
     if (day?.reflection) reflectionDays++
-    if (isDayComplete(day)) fullDays++
+    if (isDayComplete(day, modules)) fullDays++
   }
   return prayerDays * PRAYER_DAY_XP + reflectionDays * REFLECTION_DAY_XP + fullDays * FULL_ROUTINE_DAY_BONUS_XP
 }

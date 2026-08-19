@@ -1,28 +1,30 @@
-// Seletor pequeno e discreto (3 bolinhas) pra pular direto entre os passos
-// da rotina de hoje (Oração/Leitura/Reflexão) sem precisar voltar pra aba
-// Rotina — usado logo acima do conteúdo principal das telas de cada passo
-// (PrayerScreen.jsx, ReflectionScreen.jsx, ReadingBlockView.jsx no fluxo
-// guiado). Oração e Reflexão não têm aba própria na navegação (só moram
-// dentro de Rotina ou chegando por aqui), então sem isso o único jeito de ir
-// de uma pra outra era voltar pra Rotina toda vez. Só mostra os passos que o
-// plano ativo realmente usa (plan.modules) — mesmo filtro do "stepper" da
-// RoutineScreen. O ícone de cada passo fica sempre visível (nunca vira um
-// check genérico quando concluído) — é o que diferencia uma bolinha da
-// outra à primeira vista; "concluído" fica só na cor de fundo.
+// Seletor pequeno e discreto (bolinhas) pra pular direto entre os passos
+// da rotina de hoje (Oração/Leitura/Estudo guiado/Reflexão) sem precisar
+// voltar pra aba Rotina — usado logo acima do conteúdo principal das telas
+// de cada passo (PrayerScreen.jsx, ReflectionScreen.jsx,
+// ReadingBlockView.jsx no fluxo guiado, StudiesScreen.jsx). Oração,
+// Reflexão e Estudo não têm aba própria na navegação (só moram dentro de
+// Rotina ou chegando por aqui), então sem isso o único jeito de ir de uma
+// pra outra era voltar pra Rotina toda vez. Só mostra os passos que a
+// pessoa realmente ligou (session.routineModules — independente do plano
+// de leitura, ver "Meu Plano"). O ícone de cada passo fica sempre visível
+// (nunca vira um check genérico quando concluído) — é o que diferencia uma
+// bolinha da outra à primeira vista; "concluído" fica só na cor de fundo.
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 
 const STEP_META = {
-  prayer:     { icon: 'HandHeart', labelKey: 'home.routinePrayer' },
-  reading:    { icon: 'BookOpen',  labelKey: 'home.routineReading' },
-  reflection: { icon: 'PenLine',   labelKey: 'home.routineReflection' },
+  prayer:     { icon: 'HandHeart',    labelKey: 'home.routinePrayer' },
+  reading:    { icon: 'BookOpen',     labelKey: 'home.routineReading' },
+  study:      { icon: 'GraduationCap', labelKey: 'home.routineStudy' },
+  reflection: { icon: 'PenLine',      labelKey: 'home.routineReflection' },
 }
 
-export default function RoutineStepSwitcher({ session, activeStep, onGoPrayer, onGoReading, onGoReflection }) {
-  const { lang, plan, todayRoutine } = session
-  const goTo = { prayer: onGoPrayer, reading: onGoReading, reflection: onGoReflection }
-  const steps = (plan?.modules ?? []).filter(key => STEP_META[key])
+export default function RoutineStepSwitcher({ session, activeStep, onGoPrayer, onGoReading, onGoStudy, onGoReflection }) {
+  const { lang, todayRoutine, routineModules } = session
+  const goTo = { prayer: onGoPrayer, reading: onGoReading, study: onGoStudy, reflection: onGoReflection }
+  const steps = (routineModules ?? []).filter(key => STEP_META[key])
   // Só um passo no plano (raro) — nada pra trocar, não faz sentido mostrar.
   if (steps.length < 2) return null
 

@@ -296,7 +296,7 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   // session.todayRoutine (não do cronômetro local desta tela), então
   // aparece tanto assim que o 3o passo termina quanto ao reabrir esta tela
   // depois, já com os três feitos.
-  const allStepsDone = session.plan.modules.every(m => session.todayRoutine?.[m])
+  const allStepsDone = session.routineModules.every(m => session.todayRoutine?.[m])
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>

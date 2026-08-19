@@ -23,7 +23,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, xp, lang,
-    dailyRoutine, todayRoutine, plan, activePlan, achievements, goals,
+    dailyRoutine, todayRoutine, plan, activePlan, achievements, goals, routineModules,
   } = session
 
   // Cartão de progresso pra compartilhar em rede social (ver
@@ -32,7 +32,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   async function handleShareCard() {
     setShareState('generating')
     try {
-      await shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine })
+      await shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules })
       setShareState('idle')
     } catch (err) {
       // AbortError = a pessoa fechou a folha de compartilhamento nativa sem
@@ -66,7 +66,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
   // Constância — mesma métrica de RoutineScreen.jsx (média de dias/semana
   // com a rotina completa nas últimas 4 semanas), agora também na Home.
-  const weeklyStats = computeWeeklyRoutineStats(dailyRoutine ?? {}, 4)
+  const weeklyStats = computeWeeklyRoutineStats(dailyRoutine ?? {}, routineModules, 4)
   const consistencyValue = averageFullRoutineDays(weeklyStats).toFixed(1).replace(/\.0$/, '')
 
   // Semana atual (segunda a domingo) pros anéis de constância no card de %
@@ -212,7 +212,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 card com gradiente escuro (onde --or e preto quase somem). */}
             <div style={styles.weekRoutineCard}>
               <p style={styles.weekRoutineTitle}>{translate('home.weekRingsTitle', undefined, lang)}</p>
-              <WeekRoutineRow days={weekDays} lang={lang} />
+              <WeekRoutineRow days={weekDays} lang={lang} modules={routineModules} />
               <div style={styles.calendarLegendRow}>
                 <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />
                 <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />
@@ -242,6 +242,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               todayRoutine={todayRoutine}
               plan={plan}
               activePlan={activePlan}
+              routineModules={routineModules}
               lang={lang}
               onNavigate={onNavigate}
               onContinueSession={onContinueSession}
@@ -430,7 +431,7 @@ function TutorialStep({ icon, time, title, desc, theme }) {
    separado, com stopPropagation, sem navegar) pra quem já orou/leu fora do
    app e só quer marcar. Reflexão não tem uma tela própria, então o toggle
    acontece direto no card, na linha inteira. ── */
-function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
+function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, routineModules, lang, onNavigate, onContinueSession, onMarkRoutineStep }) {
   const [showCalendar, setShowCalendar] = useState(false)
 
   // Os 3 passos sempre aparecem (ver PLANS[].modules em bibleBlocks.js) — o
@@ -471,7 +472,7 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, 
       onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection),
     },
   ]
-  const steps = allSteps.filter(s => plan.modules.includes(s.key))
+  const steps = allSteps.filter(s => routineModules.includes(s.key))
   const doneCount = steps.filter(s => s.done).length
   // O primeiro passo ainda não feito ganha destaque — é "pra onde seguir"
   // depois de terminar o anterior.
@@ -545,6 +546,7 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, 
         <RoutineCalendar
           dailyRoutine={dailyRoutine}
           lang={lang}
+          modules={routineModules}
           wrapStyle={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)' }}
         />
       )}
@@ -562,12 +564,12 @@ function DailyRoutineCard({ dailyRoutine, todayRoutine, plan, activePlan, lang, 
 // (círculo com gradiente dourado→marrom só nos dias com os 3 passos
 // completos, 3 pontinhos ROUTINE_STEP_COLORS embaixo), só trocando o
 // número do dia do mês pela letra do dia da semana.
-function WeekRoutineRow({ days, lang }) {
+function WeekRoutineRow({ days, lang, modules }) {
   const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
   return (
     <div style={styles.weekRoutineGrid}>
       {days.map((day, i) => {
-        const complete = !day.isFuture && isDayComplete(day)
+        const complete = !day.isFuture && isDayComplete(day, modules)
         return (
           <div key={day.key} style={styles.calendarDayCell}>
             <span style={{

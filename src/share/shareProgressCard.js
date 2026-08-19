@@ -4,7 +4,7 @@
 // print da UI) pra ter controle total de proporção/enquadramento/marca —
 // ver conversa que motivou essa escolha em vez de um html2canvas rápido.
 import { t } from '../i18n'
-import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete } from '../routine/routineStreak'
+import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 
@@ -104,7 +104,7 @@ function drawStatChip(ctx, { x, y, w, h, emoji, value, label }) {
 // dias com os 3 passos completos (a letra do dia dentro, branca), 3
 // pontinhos ROUTINE_STEP_COLORS embaixo. Pensado pra fundo claro — por
 // isso mora na zona clara do cartão, não sobre o gradiente.
-function drawWeekRoutineRow(ctx, { days, lang, left, width, y }) {
+function drawWeekRoutineRow(ctx, { days, lang, left, width, y, modules = DEFAULT_ROUTINE_MODULES }) {
   const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
   const colW = width / days.length
   const circleR = 26
@@ -113,7 +113,7 @@ function drawWeekRoutineRow(ctx, { days, lang, left, width, y }) {
 
   days.forEach((day, i) => {
     const cx = left + colW * i + colW / 2
-    const complete = !day.isFuture && isDayComplete(day)
+    const complete = !day.isFuture && isDayComplete(day, modules)
 
     ctx.beginPath()
     ctx.arc(cx, y, circleR, 0, Math.PI * 2)
@@ -329,7 +329,7 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   // métrica da aba Rotina (averageFullRoutineDays: média de dias/semana
   // com os 3 passos completos nas últimas 4 semanas), não só o streak
   // (que zera fácil e não conta o padrão de uso ao longo do tempo).
-  const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, 4)
+  const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, routineModules, 4)
   const avgFullDays = averageFullRoutineDays(weeks)
   const avgLabel = avgFullDays.toFixed(1).replace(/\.0$/, '')
 
@@ -361,7 +361,7 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   ctx.fillText(t('home.weekRingsTitle', undefined, lang).toUpperCase(), cx, routineLabelY)
 
   const dayCellsY = routineLabelY + 54
-  drawWeekRoutineRow(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: dayCellsY })
+  drawWeekRoutineRow(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: dayCellsY, modules: routineModules })
 
   // Pontinhos ficam em `dayCellsY + circleR(26) + 18` (ver
   // drawWeekRoutineRow) — legenda com folga clara abaixo disso.
@@ -438,7 +438,7 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
 // nada; só existe pra facilitar teste/depuração).
 const INSTAGRAM_URL = 'https://www.instagram.com/jesuscorner.app/'
 
-export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine }) {
+export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules = DEFAULT_ROUTINE_MODULES }) {
   const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine })
   if (!blob) throw new Error('blob_failed')
   const file = new File([blob], 'jesus-corner-progresso.png', { type: 'image/png' })

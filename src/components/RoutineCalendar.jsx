@@ -5,11 +5,11 @@
 import { useState } from 'react'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { isDayComplete } from '../routine/routineStreak'
+import { isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { dateKey } from '../utils/dateKey'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 
-export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle }) {
+export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle, modules = DEFAULT_ROUTINE_MODULES }) {
   const [monthCursor, setMonthCursor] = useState(() => { const d = new Date(); d.setDate(1); return d })
 
   const year = monthCursor.getFullYear()
@@ -44,7 +44,7 @@ export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle }) {
         {cells.map((day, i) => {
           if (day == null) return <span key={i} />
           const dayData = (dailyRoutine ?? {})[dateKey(new Date(year, month, day))]
-          const complete = isDayComplete(dayData)
+          const complete = isDayComplete(dayData, modules)
           return (
             <div key={i} style={styles.calendarDayCell}>
               <span style={{ ...styles.calendarDayNum, ...(complete ? styles.calendarDayNumComplete : {}) }}>{day}</span>

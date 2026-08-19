@@ -10,7 +10,6 @@ import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
-import PlanScreen from './screens/PlanScreen'
 import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
@@ -31,7 +30,9 @@ import { isAtLeast } from './utils/age'
 import { computeUnlockedAchievements } from './utils/achievements'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
-import { computeRoutineStreak, computeRoutineXpBonus } from './routine/routineStreak'
+import { computeRoutineStreak, computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES } from './routine/routineStreak'
+import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
+import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
 import { computeGoalsStatus } from './routine/goals'
 import { getCompletedGoals, recordCompletedGoal } from './routine/goalsStore'
 import { dateKey } from './utils/dateKey'
@@ -93,9 +94,9 @@ function findCurrentReadingSession(blocks, sessionsByBlock) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals, routineModules, activeStudyId) {
   const lang = authUser.language ?? 'pt'
-  const streak = computeRoutineStreak(dailyRoutine)
+  const streak = computeRoutineStreak(dailyRoutine, routineModules)
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
 
   // Plano ativo pra fins de "sessão de hoje" — o fixo de sempre, ou um plano
@@ -143,9 +144,9 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // SEM teto — cresce a cada dia de uso). Cada fonte fica pura/isolada no
   // seu próprio arquivo; a soma acontece só aqui.
   const gami = computeGamificationStats(completedSet, sessionsByBlock, blocks)
-  const goals = computeGoalsStatus(dailyRoutine, completedGoals, lang)
+  const goals = computeGoalsStatus(dailyRoutine, completedGoals, routineModules, lang)
   const goalsXpBonus = goals.reduce((sum, g) => sum + (g.completed ? g.xp : 0), 0)
-  const routineXpBonus = computeRoutineXpBonus(dailyRoutine)
+  const routineXpBonus = computeRoutineXpBonus(dailyRoutine, routineModules)
   const xp = gami.xp + goalsXpBonus + routineXpBonus
   const level = levelFor(xp, lang)
   const progressToNext = levelProgress(xp, lang)
@@ -192,6 +193,11 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     plan,
     activePlan,
     readingOrder,
+    // Quais passos entram na rotina diária, independente do plano de
+    // leitura acima (ver routineModulesStore.js) — Home/Rotina/Reflexão e
+    // o RoutineStepSwitcher leem daqui em vez de plan.modules.
+    routineModules: routineModules ?? DEFAULT_ROUTINE_MODULES,
+    activeStudyId: activeStudyId ?? null,
     // Nome do 1º bloco na ordem ATUAL (Pentateuco ou Evangelhos) — usado no
     // texto de "Reiniciar leitura" da aba Perfil, pra não ficar hardcoded
     // "Pentateuco" quando a ordem for NT primeiro (ver ProfileScreen.jsx).
@@ -300,6 +306,12 @@ export default function App() {
   // Rotina diária (Oração/Leitura/Reflexão) — o streak exibido é derivado
   // dela (ver computeRoutineStreak), não mais de um login diário.
   const [dailyRoutine, setDailyRoutine] = useState({})
+  // Quais passos entram na rotina diária (ver routineModulesStore.js) — e
+  // qual Estudo guiado está ativo no momento (activeStudyStore.js), pro
+  // passo "study" saber pra onde continuar. Ambos independentes do plano de
+  // leitura (planId acima).
+  const [routineModules, setRoutineModulesState] = useState(DEFAULT_ROUTINE_MODULES)
+  const [activeStudyId, setActiveStudyIdState] = useState(null)
   const [prayerStats, setPrayerStats] = useState(DEFAULT_PRAYER_STATS)
   // Metas de constância já concluídas pra sempre (ver src/routine/goals.js/
   // goalsStore.js) — { [goalId]: { completedAt } }. Mesmo motivo de
@@ -392,13 +404,15 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, stats, userCompletedGoals, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, userCompletedGoals, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
         getActiveAltPlan(user.email),
         getThemePlans(user.email),
         getDailyRoutine(),
+        getRoutineModules(user.email),
+        getActiveStudyId(user.email),
         getPrayerStats(user.email),
         getCompletedGoals(),
         getMyActiveChallenges(),
@@ -430,6 +444,8 @@ export default function App() {
       setThemePlans(userThemePlans)
       setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
       setDailyRoutine(routine)
+      setRoutineModulesState(userRoutineModules)
+      setActiveStudyIdState(userActiveStudyId)
       setPrayerStats(stats)
       setCompletedGoals(userCompletedGoals)
       setActiveChallenges(challenges)
@@ -452,7 +468,7 @@ export default function App() {
   // gravar 2x a mesma meta.
   useEffect(() => {
     if (!authUser?.email) return
-    const status = computeGoalsStatus(dailyRoutine, completedGoals, 'pt')
+    const status = computeGoalsStatus(dailyRoutine, completedGoals, routineModules, 'pt')
     const newlyCompleted = status.filter(g => g.completed && !completedGoals[g.id])
     if (newlyCompleted.length === 0) return
     setCompletedGoals(prev => {
@@ -668,7 +684,7 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, stats, routine, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -676,6 +692,8 @@ export default function App() {
       getThemePlans(user.email),
       getPrayerStats(user.email),
       getDailyRoutine(),
+      getRoutineModules(user.email),
+      getActiveStudyId(user.email),
       getMyActiveChallenges(),
       getPendingSocialCount(),
       getMyProfile(),
@@ -695,6 +713,8 @@ export default function App() {
     setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
     setPrayerStats(stats)
     setDailyRoutine(routine)
+    setRoutineModulesState(userRoutineModules)
+    setActiveStudyIdState(userActiveStudyId)
     setActiveChallenges(challenges)
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
@@ -719,6 +739,8 @@ export default function App() {
     setReadingOrderState('ot_first')
     setActiveAltPlanState(null)
     setThemePlans([])
+    setRoutineModulesState(DEFAULT_ROUTINE_MODULES)
+    setActiveStudyIdState(null)
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
     setPendingSocialCount(false)
@@ -880,6 +902,27 @@ export default function App() {
     if (step === 'reflection' && done) setLastReadSession(null)
   }
 
+  // Liga/desliga um passo da rotina diária (Oração/Leitura/Estudo guiado/
+  // Reflexão) — independente de qual plano de leitura está ativo (ver
+  // "Meu Plano"/routineModulesStore.js). Atualiza o estado local na hora,
+  // persiste em segundo plano.
+  function toggleRoutineModule(key, on) {
+    if (!authUser) return
+    setRoutineModulesState(prev => {
+      const next = on ? [...new Set([...prev, key])] : prev.filter(m => m !== key)
+      persistRoutineModules(authUser.email, next).catch(err => console.error('Failed to persist routine modules', err))
+      return next
+    })
+  }
+
+  // Qual Estudo guiado está ativo (ver activeStudyStore.js) — passar null
+  // limpa a escolha (ex: apagar/trocar de estudo).
+  function selectActiveStudy(studyId) {
+    if (!authUser) return
+    setActiveStudyIdState(studyId)
+    persistActiveStudyId(authUser.email, studyId).catch(err => console.error('Failed to persist active study', err))
+  }
+
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
   // quiser — nenhuma sessão ou bloco fica bloqueado esperando ordem. O
   // progresso é salvo por capítulo (não por id de sessão), então sobrevive a
@@ -945,7 +988,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals, routineModules, activeStudyId)
 
   // O app inteiro agora exige assinatura ativa — não existe mais versão
   // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de
@@ -970,8 +1013,7 @@ export default function App() {
 
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
-    routine: <RoutineScreen session={session} blocks={blocks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} />,
-    plan:    <PlanScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onSelectActivePlan={selectActivePlan} onContinueSession={continueToday} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onNavigate={navigateTo} />,
+    routine: <RoutineScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActiveStudy={selectActiveStudy} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
@@ -979,7 +1021,7 @@ export default function App() {
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
-    studies: <StudiesScreen session={session} authUser={authUser} />,
+    studies: <StudiesScreen session={session} authUser={authUser} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onProfileUpdated={handleProfileUpdated} />,
