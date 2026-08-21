@@ -2,16 +2,18 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
 // "journey" (Bíblia) fica centralizada na fileira — é a ação principal do
-// app — com o ícone um pouco maior pra se destacar das outras abas.
-// "routine" (rótulo "Meu Plano", ver nav.routine em translations.js) logo
-// depois de "home", pra montar o dia antes de agir, seguida de Progresso.
-// Depois da Bíblia vem Estudos, Notas (antes só um link em Perfil, ver
-// NotesScreen.jsx) e por último Comunidade. Oração não tem aba própria —
-// mora só dentro de "Meu Plano" (card com botão pra abrir a tela, ver
-// RoutineScreen.jsx), que já é o passo 1 do dia. Plano de leitura (antes
-// uma aba à parte, PlanScreen.jsx) também foi absorvido pela mesma tela —
-// Plano+Rotina viraram uma coisa só.
-const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'studies', 'notes', 'groups']
+// app — com o ícone um pouco maior pra se destacar das outras abas. Notas
+// (antes só um link em Perfil, ver NotesScreen.jsx) logo do lado direito
+// da Bíblia — as marcações/anotações de leitura moram lá dentro, então
+// fica perto de onde são criadas. "routine" (rótulo "Meu Plano", ver
+// nav.routine em translations.js) logo depois de "home", pra montar o dia
+// antes de agir, seguida de Progresso. Depois de Notas vem Estudos, e por
+// último Comunidade. Oração não tem aba própria — mora só dentro de "Meu
+// Plano" (card com botão pra abrir a tela, ver RoutineScreen.jsx), que já
+// é o passo 1 do dia. Plano de leitura (antes uma aba à parte,
+// PlanScreen.jsx) também foi absorvido pela mesma tela — Plano+Rotina
+// viraram uma coisa só.
+const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'notes', 'studies', 'groups']
 const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3', notes: 'StickyNote' }
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações

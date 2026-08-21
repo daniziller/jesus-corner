@@ -12,19 +12,22 @@ import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '.
 import { searchNotesByTheme } from '../notes/notesSearchStore'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getHighlights, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
+import { HIGHLIGHT_COLORS } from '../data/highlightColors'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-// 'reading' cobre nota de capítulo, reflexão de fechamento de livro E
-// marcação de trecho específico (highlight, ver src/highlights/
-// highlightsStore.js) — as três vivem dentro do fluxo de leitura da
-// Bíblia. 'reflection' cobre a anotação geral E a frase de aplicação da
-// Reflexão diária — as duas vêm da mesma aba, só em campos separados (ver
-// ReflectionScreen.jsx).
+// 'reading' cobre nota de capítulo e reflexão de fechamento de livro;
+// 'highlight' é a marcação de trecho específico (ver src/highlights/
+// highlightsStore.js) — ganhou aba própria (antes vinha junto de
+// 'reading') pra dar espaço ao filtro por cor, só faz sentido pra
+// marcações. 'reflection' cobre a anotação geral E a frase de aplicação
+// da Reflexão diária — as duas vêm da mesma aba, só em campos separados
+// (ver ReflectionScreen.jsx).
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
-  { key: 'reading', types: ['reading', 'book-reflection', 'highlight'], labelKey: 'notes.filterReading' },
+  { key: 'reading', types: ['reading', 'book-reflection'], labelKey: 'notes.filterReading' },
+  { key: 'highlight', types: ['highlight'], labelKey: 'notes.filterHighlights' },
   { key: 'reflection', types: ['daily-reflection', 'application-phrase'], labelKey: 'notes.filterReflection' },
 ]
 
@@ -32,6 +35,9 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   const [filter, setFilter] = useState('all')
+  // Filtro por cor — só faz sentido dentro da aba "Marcações" (ver
+  // FILTERS acima); null = todas as cores.
+  const [colorFilter, setColorFilter] = useState(null)
   // Busca por palavra — casa substring no texto, ao vivo, sem custo. Busca
   // por tema (IA) é uma AÇÃO à parte (botão), não roda a cada tecla —
   // manda o texto atual da caixa como o "tema" pra api/search-notes.js e
@@ -77,12 +83,15 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         // Marcações de trecho específico (ver src/highlights/
         // highlightsStore.js) — id próprio (não uma chave do mapa de notas
         // de cima), então id vira a "key" aqui só pra reaproveitar o mesmo
-        // formato de card/edição/exclusão da lista.
+        // formato de card/edição/exclusão da lista. Sem exigir texto — um
+        // versículo só marcado com uma cor, sem anotação nenhuma, ainda é
+        // uma marcação de verdade e deve aparecer na lista (ver
+        // styles.cardTextEmpty abaixo, pro card sem corpo escrito).
         const highlightEntries = highlightList
-          .filter(h => h.text && !h.hidden)
+          .filter(h => !h.hidden)
           .map(h => ({
-            key: h.id, id: h.id, text: h.text, updatedAt: h.createdAt ?? h.updatedAt,
-            type: 'highlight', book: h.book, chapter: h.chapter, verses: h.verses,
+            key: h.id, id: h.id, text: h.text ?? '', updatedAt: h.createdAt ?? h.updatedAt,
+            type: 'highlight', book: h.book, chapter: h.chapter, verses: h.verses, color: h.color,
           }))
         // Mais recentes primeiro; anotações salvas antes desta tela existir
         // não têm updatedAt (formato antigo, só texto) — ficam no fim, sem
@@ -252,6 +261,11 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const typeFiltered = activeFilter.types
     ? state.notes.filter(n => activeFilter.types.includes(n.type))
     : state.notes
+  // Filtro por cor só se aplica dentro da aba "Marcações" — nas outras,
+  // colorFilter é sempre null (ver função que troca de aba abaixo).
+  const colorTypeFiltered = colorFilter
+    ? typeFiltered.filter(n => n.color === colorFilter)
+    : typeFiltered
   const trimmedQuery = searchQuery.trim().toLowerCase()
   // Modo IA ativo (aiMatchKeys != null) ignora o filtro por origem de
   // propósito — buscar por tema deve olhar TODAS as anotações, não só a
@@ -263,8 +277,13 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const filteredNotes = aiMatchKeys !== null
     ? aiMatchKeys.map(k => state.notes.find(n => n.key === k)).filter(Boolean)
     : trimmedQuery
-      ? typeFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
-      : typeFiltered
+      ? colorTypeFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
+      : colorTypeFiltered
+
+  function chooseFilter(key) {
+    setFilter(key)
+    setColorFilter(null)
+  }
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
@@ -326,10 +345,32 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
               <button
                 key={f.key}
                 style={{ ...styles.filterBtn, ...(filter === f.key ? styles.filterBtnActive : {}) }}
-                onClick={() => setFilter(f.key)}
+                onClick={() => chooseFilter(f.key)}
               >
                 {t(f.labelKey, undefined, lang)}
               </button>
+            ))}
+          </div>
+        )}
+
+        {/* Filtro por cor — só dentro da aba "Marcações", pra achar um
+            versículo pela cor usada em vez de vasculhar a lista inteira. */}
+        {state.status === 'ready' && aiMatchKeys === null && filter === 'highlight' && (
+          <div style={styles.colorFilterRow}>
+            <button
+              style={{ ...styles.colorFilterAllBtn, ...(colorFilter === null ? styles.colorFilterAllBtnActive : {}) }}
+              onClick={() => setColorFilter(null)}
+            >
+              {t('notes.filterColorAll', undefined, lang)}
+            </button>
+            {HIGHLIGHT_COLORS.map(c => (
+              <button
+                key={c.id}
+                style={{ ...styles.colorSwatchBtn, background: c.swatch, ...(colorFilter === c.id ? styles.colorSwatchBtnActive : {}) }}
+                onClick={() => setColorFilter(v => (v === c.id ? null : c.id))}
+                aria-label={t(c.labelKey, undefined, lang)}
+                aria-pressed={colorFilter === c.id}
+              />
             ))}
           </div>
         )}
@@ -351,10 +392,18 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           {filteredNotes.map(note => {
             const isEditing = editingKey === note.key
             const isBusy = busyKey === note.key
+            // Marcação usa a própria cor escolhida em vez do laranja padrão
+            // — é a informação principal que diferencia uma marcação da
+            // outra numa lista (ver HIGHLIGHT_COLORS).
+            const hc = note.type === 'highlight'
+              ? (HIGHLIGHT_COLORS.find(c => c.id === note.color) ?? HIGHLIGHT_COLORS[0])
+              : null
             return (
               <div key={note.key} style={styles.card}>
                 <div style={styles.cardHeader}>
-                  <span style={styles.cardIcon}><AppIcon name={iconFor(note.type)} size={13} color="var(--or)" /></span>
+                  <span style={{ ...styles.cardIcon, ...(hc ? { background: hc.bg } : {}) }}>
+                    <AppIcon name={iconFor(note.type)} size={13} color={hc ? hc.swatch : 'var(--or)'} />
+                  </span>
                   <span style={styles.cardLabel}>{labelFor(note)}</span>
                   {!isEditing && (
                     <span style={styles.cardActions}>
@@ -395,8 +444,10 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                       </button>
                     </div>
                   </>
-                ) : (
+                ) : note.text ? (
                   <p style={styles.cardText}>{note.text}</p>
+                ) : (
+                  <p style={{ ...styles.cardText, ...styles.cardTextEmpty }}>{t('notes.noAnnotationText', undefined, lang)}</p>
                 )}
               </div>
             )
@@ -421,12 +472,18 @@ const styles = {
   filterRow:  { display: 'flex', gap: 6 },
   filterBtn:  { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   filterBtnActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },
+  colorFilterRow:      { display: 'flex', alignItems: 'center', gap: 8, margin: '-2px 2px 0' },
+  colorFilterAllBtn:   { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  colorFilterAllBtnActive: { background: 'var(--bk)', color: 'white', border: '0.5px solid transparent' },
+  colorSwatchBtn:      { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', boxShadow: '0 0 0 1px var(--g2)' },
+  colorSwatchBtnActive:{ border: '2px solid white', boxShadow: '0 0 0 2px var(--bk)' },
   emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
   card:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 13, boxShadow: 'var(--shadow-card)' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
   cardIcon:   { width: 22, height: 22, borderRadius: 7, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   cardLabel:  { flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
   cardText:   { fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.55, whiteSpace: 'pre-wrap' },
+  cardTextEmpty: { color: 'var(--g4)', fontStyle: 'italic' },
   cardActions:  { display: 'flex', gap: 2, flexShrink: 0 },
   cardActionBtn:{ width: 24, height: 24, border: 'none', background: 'none', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   editTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--g1)' },
