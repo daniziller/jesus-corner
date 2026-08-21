@@ -2,11 +2,14 @@
 // Histórico de todas as anotações da pessoa (leitura + Reflexão diária)
 // num lugar só — hoje cada uma só era visível "no contexto" onde foi
 // escrita (a passagem exata, ou só no dia em que a Reflexão foi feita).
-// Alcançável só por um link em Perfil (ver profile.notesLabel em
-// ProfileScreen.jsx) — não é aba própria na navegação, mesmo padrão de
-// ContactScreen.jsx/UpgradeScreen.jsx.
+// Aba própria na navegação (ver BottomNav.jsx/Sidebar.jsx) — antes só um
+// link em Perfil. Duas formas de achar uma anotação: busca por palavra
+// (instantânea, client-side, casa substring no texto) e busca por tema
+// com IA (api/search-notes.js) — pra quando a pessoa lembra do ASSUNTO
+// mas não da palavra exata que usou.
 import { useState, useEffect, useMemo } from 'react'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
+import { searchNotesByTheme } from '../notes/notesSearchStore'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getHighlights, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { formatVerseRanges } from '../utils/verseRanges'
@@ -29,6 +32,15 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   const [filter, setFilter] = useState('all')
+  // Busca por palavra — casa substring no texto, ao vivo, sem custo. Busca
+  // por tema (IA) é uma AÇÃO à parte (botão), não roda a cada tecla —
+  // manda o texto atual da caixa como o "tema" pra api/search-notes.js e
+  // troca a lista pras chaves que voltarem. aiMatchKeys null = navegação
+  // normal (filtro por origem + busca por palavra); array = modo IA ativo.
+  const [searchQuery, setSearchQuery] = useState('')
+  const [aiMatchKeys, setAiMatchKeys] = useState(null)
+  const [aiSearching, setAiSearching] = useState(false)
+  const [aiError, setAiError] = useState('')
   // Nota sendo editada agora (key) + o texto em rascunho — só uma por vez.
   const [editingKey, setEditingKey] = useState(null)
   const [editText, setEditText] = useState('')
@@ -203,10 +215,56 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     }
   }
 
+  // Editar a busca por palavra enquanto uma busca por tema (IA) está ativa
+  // sai do modo IA — os resultados antigos não fazem mais sentido pra um
+  // texto novo que ainda nem foi buscado.
+  function handleSearchChange(value) {
+    setSearchQuery(value)
+    if (aiMatchKeys !== null) { setAiMatchKeys(null); setAiError('') }
+  }
+
+  async function runAiSearch() {
+    const query = searchQuery.trim()
+    if (!query || aiSearching) return
+    setAiSearching(true)
+    setAiError('')
+    try {
+      const notesForSearch = state.notes.map(n => ({ key: n.key, text: n.text }))
+      const matches = await searchNotesByTheme(query, notesForSearch)
+      setAiMatchKeys(matches)
+    } catch (err) {
+      console.error('Failed to search notes by theme', err)
+      setAiError(
+        err.message === 'subscription_required' ? t('notes.searchAiSubscriptionRequired', undefined, lang)
+        : t('notes.searchAiError', undefined, lang)
+      )
+    } finally {
+      setAiSearching(false)
+    }
+  }
+
+  function clearAiSearch() {
+    setAiMatchKeys(null)
+    setAiError('')
+  }
+
   const activeFilter = FILTERS.find(f => f.key === filter)
-  const filteredNotes = activeFilter.types
+  const typeFiltered = activeFilter.types
     ? state.notes.filter(n => activeFilter.types.includes(n.type))
     : state.notes
+  const trimmedQuery = searchQuery.trim().toLowerCase()
+  // Modo IA ativo (aiMatchKeys != null) ignora o filtro por origem de
+  // propósito — buscar por tema deve olhar TODAS as anotações, não só a
+  // aba selecionada; a ordem devolvida (mais relevante primeiro) também é
+  // preservada, ao contrário da lista normal (mais recente primeiro).
+  // Busca por palavra casa tanto o corpo da anotação quanto o rótulo
+  // (nome do livro, data) — "genesis" deve achar as anotações de Gênesis
+  // mesmo que a palavra em si nunca apareça no texto escrito.
+  const filteredNotes = aiMatchKeys !== null
+    ? aiMatchKeys.map(k => state.notes.find(n => n.key === k)).filter(Boolean)
+    : trimmedQuery
+      ? typeFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
+      : typeFiltered
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
@@ -216,10 +274,53 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           <p style={styles.heroSub}>{t('notes.heroSub', undefined, lang)}</p>
         </div>
 
+        {/* Busca por palavra (instantânea, casa substring no texto) +
+            busca por tema com IA (botão à parte — só dispara ao tocar, não
+            a cada tecla) — pra quando a pessoa lembra do assunto mas não
+            da palavra exata que escreveu. */}
+        {state.status === 'ready' && state.notes.length > 0 && (
+          <>
+            <div style={styles.searchRow}>
+              <div style={styles.searchInputWrap}>
+                <AppIcon name="Search" size={14} color="var(--g4)" />
+                <input
+                  type="text"
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  placeholder={t('notes.searchPlaceholder', undefined, lang)}
+                />
+              </div>
+              <button
+                style={{ ...styles.searchAiBtn, opacity: (!searchQuery.trim() || aiSearching) ? 0.5 : 1, cursor: (!searchQuery.trim() || aiSearching) ? 'default' : 'pointer' }}
+                onClick={runAiSearch}
+                disabled={!searchQuery.trim() || aiSearching}
+                aria-label={t('notes.searchAiBtn', undefined, lang)}
+                title={t('notes.searchAiBtn', undefined, lang)}
+              >
+                <AppIcon name={aiSearching ? 'RefreshCw' : 'Sparkles'} size={15} color="white" className={aiSearching ? 'icon-spin' : undefined} />
+              </button>
+            </div>
+
+            {aiMatchKeys !== null && (
+              <div style={styles.aiActiveRow}>
+                <span style={styles.aiActiveTag}>
+                  <AppIcon name="Sparkles" size={11} color="#A21CAF" /> {t('notes.searchAiBtn', undefined, lang)}
+                </span>
+                <button style={styles.aiClearBtn} onClick={clearAiSearch}>{t('notes.searchAiClear', undefined, lang)}</button>
+              </div>
+            )}
+            {aiError && <p style={styles.aiErrorText}>{aiError}</p>}
+          </>
+        )}
+
         {/* Filtro por origem — leitura (capítulo + reflexão de fechamento
             de livro) vs a Reflexão diária, as duas fontes de anotação que
-            existem hoje. */}
-        {state.status === 'ready' && state.notes.length > 0 && (
+            existem hoje. A busca por palavra respeita o filtro ativo (dá
+            pra combinar as duas); a busca por tema (IA) ignora de
+            propósito — por isso o filtro some só no modo IA, ver
+            comentário em filteredNotes acima. */}
+        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
           <div style={styles.filterRow}>
             {FILTERS.map(f => (
               <button
@@ -239,7 +340,11 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           <p style={styles.emptyHint}>{t('notes.empty', undefined, lang)}</p>
         )}
         {state.status === 'ready' && state.notes.length > 0 && filteredNotes.length === 0 && (
-          <p style={styles.emptyHint}>{t('notes.emptyFiltered', undefined, lang)}</p>
+          <p style={styles.emptyHint}>
+            {aiMatchKeys !== null ? t('notes.searchAiEmpty', undefined, lang)
+              : trimmedQuery ? t('notes.emptySearch', undefined, lang)
+              : t('notes.emptyFiltered', undefined, lang)}
+          </p>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -305,6 +410,14 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
 const styles = {
   body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
   heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
+  searchRow:      { display: 'flex', gap: 8 },
+  searchInputWrap:{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, border: '0.5px solid var(--g2)', borderRadius: 13, padding: '0 12px', background: 'var(--card-bg)' },
+  searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)' },
+  searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 6px 16px rgba(162,28,175,.3)' },
+  aiActiveRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-4px 2px 0' },
+  aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, color: '#A21CAF' },
+  aiClearBtn:     { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', padding: '2px 4px' },
+  aiErrorText:    { fontSize: 11.5, fontWeight: 600, color: 'var(--re, #DC2626)', margin: '-4px 2px 0' },
   filterRow:  { display: 'flex', gap: 6 },
   filterBtn:  { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   filterBtnActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },

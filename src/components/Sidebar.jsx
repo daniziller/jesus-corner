@@ -8,9 +8,10 @@ import NotificationBell from './NotificationBell'
 // Oração não tem aba própria — mora só dentro de "Meu Plano" (rótulo de
 // nav.routine, ver RoutineScreen.jsx), que já é o passo 1 do dia. Plano de
 // leitura (antes PlanScreen.jsx, aba à parte) também foi absorvido pela
-// mesma tela.
-const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'studies', 'groups']
-const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3' }
+// mesma tela. Notas (antes só um link em Perfil, ver NotesScreen.jsx)
+// agora também é aba própria.
+const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'studies', 'notes', 'groups']
+const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3', notes: 'StickyNote' }
 
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-primary)', border: 'none', boxShadow: 'var(--shadow-premium)' }

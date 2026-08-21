@@ -261,3 +261,29 @@ ${buildReplyLangInstruction(lang)}`,
   })
   return output
 }
+
+// Busca por tema nas anotações pessoais (aba Notas — ver
+// api/search-notes.js/src/notes/notesSearchStore.js) — complementa a busca
+// por palavra (client-side, instantânea, sem custo) pra quando a pessoa
+// lembra do ASSUNTO mas não da palavra exata que usou (ex: tema "medo"
+// deve achar uma anotação sobre ansiedade, mesmo sem a palavra "medo" no
+// texto). Só devolve as chaves (não gera texto novo nenhum) — o app
+// já sabe renderizar cada anotação a partir da própria chave.
+const NotesSearchSchema = z.object({
+  matches: z.array(z.string()).describe('As "key" (entre colchetes) das anotações fornecidas que REALMENTE se relacionam com o tema buscado, da mais pra menos relevante. Vazio se nenhuma se relacionar de verdade — não force uma relação fraca só pra devolver algo.'),
+})
+
+export async function searchNotesByTheme(query, notes) {
+  const list = notes.map(n => `- [${n.key}] ${n.text}`).join('\n')
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: NotesSearchSchema }),
+    prompt: `Você recebe uma lista de anotações pessoais que alguém escreveu lendo a Bíblia e refletindo, num app de leitura devocional — cada uma com uma chave curta entre colchetes — e um TEMA que essa pessoa está buscando entre elas agora. Devolva só as chaves das anotações que realmente se relacionam com esse tema, mesmo que a palavra exata não apareça no texto (ex: tema "medo" deve encontrar anotações sobre ansiedade, coragem, ou confiança em meio a uma dificuldade).
+
+Anotações:
+${list}
+
+Tema buscado: "${query}"`,
+  })
+  return output.matches
+}

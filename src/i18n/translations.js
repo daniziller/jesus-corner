@@ -5,7 +5,7 @@
 export const STRINGS = {
   pt: {
     nav: {
-      home: 'Início', prayer: 'Oração', journey: 'Bíblia', routine: 'Meu Plano', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil', admin: 'Admin',
+      home: 'Início', prayer: 'Oração', journey: 'Bíblia', routine: 'Meu Plano', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil', admin: 'Admin', notes: 'Notas',
     },
     a11y: {
       largeTextToggle: 'Texto grande',
@@ -402,8 +402,6 @@ export const STRINGS = {
       readingOrderNtFirstBtn: 'Novo Testamento primeiro',
       resetReadingLabel: 'Reiniciar leitura',
       resetReadingSub: 'Voltar para a Sessão 1 de {block}',
-      notesLabel: 'Minhas anotações',
-      notesSub: 'Tudo que você já escreveu, leitura e reflexão',
       applicationPhrasesLabel: 'Frases de aplicação',
       applicationPhrasesSub: 'Todas as frases que você já salvou na Reflexão',
       applicationCardLabel: 'Frase de aplicação na Home',
@@ -589,6 +587,14 @@ export const STRINGS = {
       error: 'Não foi possível carregar as anotações agora.',
       empty: 'Nenhuma anotação ainda. Escreva uma na leitura de um capítulo ou na Reflexão do dia.',
       emptyFiltered: 'Nenhuma anotação nesse filtro ainda.',
+      searchPlaceholder: 'Buscar por palavra...',
+      searchAiBtn: 'Buscar por tema (IA)',
+      searchAiSearching: 'Buscando...',
+      searchAiClear: 'Limpar busca por tema',
+      searchAiEmpty: 'Nenhuma anotação parece falar sobre esse tema.',
+      searchAiError: 'Não deu pra buscar por tema agora. Tenta de novo em instantes.',
+      searchAiSubscriptionRequired: 'Buscar por tema com IA é só pra quem tem assinatura ativa.',
+      emptySearch: 'Nenhuma anotação bate com essa busca.',
       filterAll: 'Todas',
       filterReading: 'Leitura',
       filterReflection: 'Reflexão',
@@ -946,7 +952,7 @@ export const STRINGS = {
   },
   en: {
     nav: {
-      home: 'Home', prayer: 'Prayer', journey: 'Bible', routine: 'My Plan', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile', admin: 'Admin',
+      home: 'Home', prayer: 'Prayer', journey: 'Bible', routine: 'My Plan', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile', admin: 'Admin', notes: 'Notes',
     },
     a11y: {
       largeTextToggle: 'Large text',
@@ -1338,8 +1344,6 @@ export const STRINGS = {
       readingOrderNtFirstBtn: 'New Testament first',
       resetReadingLabel: 'Restart reading',
       resetReadingSub: 'Go back to Session 1 of {block}',
-      notesLabel: 'My notes',
-      notesSub: 'Everything you have written, reading and reflection',
       applicationPhrasesLabel: 'Application phrases',
       applicationPhrasesSub: 'Every phrase you have saved in Reflection',
       applicationCardLabel: 'Application phrase on Home',
@@ -1523,6 +1527,14 @@ export const STRINGS = {
       error: 'Could not load your notes right now.',
       empty: 'No notes yet. Write one while reading a chapter or in your daily Reflection.',
       emptyFiltered: 'No notes in this filter yet.',
+      searchPlaceholder: 'Search by word...',
+      searchAiBtn: 'Search by theme (AI)',
+      searchAiSearching: 'Searching...',
+      searchAiClear: 'Clear theme search',
+      searchAiEmpty: 'No notes seem to be about that theme.',
+      searchAiError: "Couldn't search by theme right now. Try again in a moment.",
+      searchAiSubscriptionRequired: 'Searching by theme with AI is only for active subscribers.',
+      emptySearch: 'No notes match that search.',
       filterAll: 'All',
       filterReading: 'Reading',
       filterReflection: 'Reflection',
