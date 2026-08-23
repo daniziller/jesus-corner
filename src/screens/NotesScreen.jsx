@@ -87,6 +87,9 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // Filtro por cor — só faz sentido dentro da aba "Marcações" (ver
   // FILTERS acima); null = todas as cores.
   const [colorFilter, setColorFilter] = useState(null)
+  // Filtro por preletor — só faz sentido dentro da aba "Sermão"; null =
+  // todos os preletores.
+  const [preacherFilter, setPreacherFilter] = useState(null)
   // Filtro por data de quando a anotação foi adicionada — independente dos
   // outros três, combina com eles (ver DATE_FILTERS acima).
   const [dateFilterKey, setDateFilterKey] = useState('all')
@@ -145,6 +148,17 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     }
     return ordered
   }, [state.notes, blocks])
+
+  // Preletores já usados em alguma anotação de sermão — mesma ideia de
+  // availableBooks (só quem já apareceu, não uma lista fixa), em ordem
+  // alfabética (sem ordem canônica pra nomes de pessoa, ao contrário de
+  // livro).
+  const availablePreachers = useMemo(() => {
+    const present = new Set(
+      state.notes.filter(n => n.type === 'sermon' && n.preacher).map(n => n.preacher)
+    )
+    return [...present].sort((a, b) => a.localeCompare(b))
+  }, [state.notes])
 
   // TODOS os 66 livros, em ordem canônica — usado no seletor de livro do
   // formulário de sermão (diferente de availableBooks acima, que só serve
@@ -477,11 +491,16 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const colorTypeFiltered = colorFilter
     ? typeFiltered.filter(n => n.color === colorFilter)
     : typeFiltered
+  // Filtro por preletor — mesmo espírito do filtro por cor, só se aplica
+  // dentro da aba "Sermão".
+  const preacherTypeFiltered = preacherFilter
+    ? colorTypeFiltered.filter(n => n.preacher === preacherFilter)
+    : colorTypeFiltered
   // Filtro por livro — independente do filtro por origem, combina com ele
   // (ex: "Leitura" + "Gênesis" só mostra notas de leitura de Gênesis).
   const bookFiltered = bookFilter
-    ? colorTypeFiltered.filter(n => n.book === bookFilter)
-    : colorTypeFiltered
+    ? preacherTypeFiltered.filter(n => n.book === bookFilter)
+    : preacherTypeFiltered
   // Filtro por data — compara só a parte YYYY-MM-DD de updatedAt (ISO),
   // então funciona igual pra qualquer fuso sem precisar converter de
   // verdade; suficiente pra um filtro de UI, não pra algo exato ao segundo.
@@ -511,12 +530,13 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       : dateFiltered
 
   const activeFilterCount =
-    (filter !== 'all' ? 1 : 0) + (bookFilter ? 1 : 0) + (colorFilter ? 1 : 0) + (dateFilterKey !== 'all' ? 1 : 0)
+    (filter !== 'all' ? 1 : 0) + (bookFilter ? 1 : 0) + (colorFilter ? 1 : 0) + (preacherFilter ? 1 : 0) + (dateFilterKey !== 'all' ? 1 : 0)
 
   function clearFilters() {
     setFilter('all')
     setBookFilter(null)
     setColorFilter(null)
+    setPreacherFilter(null)
     setDateFilterKey('all')
     setCustomFrom('')
     setCustomTo('')
@@ -525,6 +545,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   function chooseFilter(key) {
     setFilter(key)
     setColorFilter(null)
+    setPreacherFilter(null)
   }
 
   return (
@@ -745,6 +766,21 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                       />
                     ))}
                   </div>
+                )}
+
+                {/* Preletor — só dentro da aba "Sermão". */}
+                {filter === 'sermon' && availablePreachers.length > 0 && (
+                  <select
+                    style={styles.bookSelect}
+                    value={preacherFilter ?? ''}
+                    onChange={e => setPreacherFilter(e.target.value || null)}
+                    aria-label={t('notes.filterPreacherAll', undefined, lang)}
+                  >
+                    <option value="">{t('notes.filterPreacherAll', undefined, lang)}</option>
+                    {availablePreachers.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
                 )}
 
                 {/* Data de quando foi adicionada. */}
