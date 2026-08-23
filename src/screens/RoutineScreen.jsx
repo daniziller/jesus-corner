@@ -484,7 +484,7 @@ export default function RoutineScreen({
                           key={s.id}
                           icon={s.icon}
                           iconColor={ROUTINE_STEP_COLORS.study}
-                          iconBg="#DBEAFE"
+                          iconBg="#F2E6D2"
                           title={lang === 'en' ? s.titleEn : s.title}
                           sub={`${s.sessions.length} ${lang === 'en' ? 'sessions' : 'sessões'}`}
                           isActive={activeStudyId === s.id}
@@ -1021,7 +1021,7 @@ const styles = {
   activeCardBtn:   { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,.18)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
 
   activeStudyCard: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 12, padding: '8px 8px 8px 9px' },
-  activeStudyIcon: { width: 26, height: 26, borderRadius: 8, background: '#DBEAFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  activeStudyIcon: { width: 26, height: 26, borderRadius: 8, background: '#F2E6D2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   activePlanSummaryLabel:{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   activePlanSummarySub:  { display: 'block', fontSize: 9.5, fontWeight: 600, color: 'var(--g5)' },
 

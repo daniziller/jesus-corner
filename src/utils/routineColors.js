@@ -4,6 +4,6 @@
 export const ROUTINE_STEP_COLORS = {
   prayer:     '#71717A', // cinza
   reading:    '#9D4300', // marrom-queimado da logo (= --or)
-  study:      '#2563EB', // azul — distinto do roxo já usado pros planos por tema (IA)
+  study:      '#C99A4A', // dourado/âmbar (= --gold) — parte da paleta da marca, mais claro que reading, ainda assim distinto do roxo dos planos por tema (IA)
   reflection: '#18181B', // preto
 }
