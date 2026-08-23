@@ -18,6 +18,7 @@ import ChronologicalPlanScreen from './screens/ChronologicalPlanScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
+import InductiveMethodScreen from './screens/InductiveMethodScreen'
 import ProgressScreen from './screens/ProgressScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
@@ -1092,6 +1093,7 @@ export default function App() {
     routine: <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActiveStudy={selectActiveStudy} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
+    inductiveMethod: <InductiveMethodScreen session={session} />,
     themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,

@@ -9,9 +9,10 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
 // Uma sessão nova de estudo indutivo começa sem nenhum campo preenchido —
-// só a passagem escolhida (ver blankInductiveSession/StudyDetail abaixo).
-function blankPassageForm() {
-  return { book: '', chapter: '', verseStart: '', verseEnd: '' }
+// só o capítulo/versículo escolhido (o livro já vem fixo do estudo, ver
+// study.book/StudyDetail abaixo).
+function blankChapterForm() {
+  return { chapter: '', verseStart: '', verseEnd: '' }
 }
 
 export default function StudiesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy }) {
@@ -34,7 +35,13 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
   // combinada de allStudies abaixo, distinguidos por `kind: 'inductive'`.
   const [inductiveStudies, setInductiveStudies] = useState([])
   const [creatingInductive, setCreatingInductive] = useState(false)
-  const [inductiveTitle, setInductiveTitle] = useState('')
+  const [inductiveBook, setInductiveBook] = useState('')
+
+  // Duas abas lado a lado dentro de Estudos — indutivo (a pessoa escreve)
+  // e guiado (conteúdo pronto, estático ou por IA). Só decide o que
+  // aparece na LISTA (o estudo já aberto continua achável em allStudies,
+  // não importa a aba ativa).
+  const [studiesTab, setStudiesTab] = useState('inductive')
 
   useEffect(() => {
     if (!authUser) return
@@ -85,18 +92,21 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
     }
   }
 
-  // Cria um estudo indutivo novo, ainda sem nenhuma sessão/passagem — a
-  // pessoa adiciona a primeira dentro de StudyDetail (ver
-  // onAddInductiveSession abaixo). Sem geração por IA nem conteúdo
-  // pré-escrito: o método é preenchido pela própria pessoa.
+  // Cria um estudo indutivo novo, pra um livro inteiro — ainda sem nenhum
+  // capítulo/sessão (a pessoa adiciona o primeiro dentro de StudyDetail,
+  // ver onAddInductiveSession abaixo). Sem geração por IA nem conteúdo
+  // pré-escrito: o método é preenchido pela própria pessoa; o livro fica
+  // fixo no estudo (`book`), então adicionar capítulos depois não precisa
+  // escolher o livro de novo.
   async function handleCreateInductive() {
-    if (!inductiveTitle.trim() || !authUser) return
+    if (!inductiveBook || !authUser) return
     const study = {
       id: `ind-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       kind: 'inductive',
       icon: 'Search',
-      title: inductiveTitle.trim(),
-      titleEn: inductiveTitle.trim(),
+      book: inductiveBook,
+      title: inductiveBook,
+      titleEn: bookNameEn[inductiveBook] ?? inductiveBook,
       createdAt: new Date().toISOString(),
       sessions: [],
     }
@@ -104,24 +114,25 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
       const updated = await saveInductiveStudy(authUser.email, study)
       setInductiveStudies(updated)
       setCreatingInductive(false)
-      setInductiveTitle('')
+      setInductiveBook('')
       setOpenStudyId(study.id)
     } catch (err) {
       console.error('Failed to create inductive study', err)
     }
   }
 
-  // Adiciona uma nova sessão (passagem) a um estudo indutivo já existente —
-  // salva o estudo INTEIRO de volta (mesmo padrão de
+  // Adiciona uma nova sessão (capítulo/faixa de versículos) a um estudo
+  // indutivo já existente — o livro vem sempre de study.book (fixo desde a
+  // criação); salva o estudo INTEIRO de volta (mesmo padrão de
   // inductiveStudiesStore.js: cada save substitui o registro por completo).
-  async function onAddInductiveSession(study, passage) {
+  async function onAddInductiveSession(study, chapterForm) {
     if (!authUser) return
     const newSession = {
       id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      book: passage.book,
-      chapter: Number(passage.chapter),
-      verseStart: passage.verseStart ? Number(passage.verseStart) : null,
-      verseEnd: passage.verseEnd ? Number(passage.verseEnd) : null,
+      book: study.book,
+      chapter: Number(chapterForm.chapter),
+      verseStart: chapterForm.verseStart ? Number(chapterForm.verseStart) : null,
+      verseEnd: chapterForm.verseEnd ? Number(chapterForm.verseEnd) : null,
       observation: '', interpretation: '', timelessTruth: '', application: '',
       updatedAt: new Date().toISOString(),
     }
@@ -233,90 +244,136 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
           onGoReflection={() => onNavigate?.('reflection')}
         />
 
+        {/* Duas abas lado a lado — Estudo Indutivo (a pessoa escreve, ver
+            src/studies/inductiveStudiesStore.js) e Estudos Guiados
+            (conteúdo pronto, estático ou por IA). */}
+        <div style={{ padding: '4px 14px 0' }}>
+          <div style={styles.tabRow}>
+            <button
+              style={{ ...styles.tabBtn, ...(studiesTab === 'inductive' ? styles.tabBtnActive : {}) }}
+              onClick={() => setStudiesTab('inductive')}
+            >
+              {t('studies.tabInductive', undefined, lang)}
+            </button>
+            <button
+              style={{ ...styles.tabBtn, ...(studiesTab === 'guided' ? styles.tabBtnActive : {}) }}
+              onClick={() => setStudiesTab('guided')}
+            >
+              {t('studies.tabGuided', undefined, lang)}
+            </button>
+          </div>
+        </div>
+
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {creating ? (
-            <div style={styles.createCard}>
-              <p style={styles.createLabel}>{t('studies.createByThemeTitleLabel', undefined, lang)}</p>
-              <input
-                type="text"
-                style={styles.themeInput}
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder={t('studies.createByThemeTitlePlaceholder', undefined, lang)}
-                maxLength={60}
-                autoFocus
-              />
-              <p style={{ ...styles.createLabel, marginTop: 14 }}>{t('studies.createByThemeScopeLabel', undefined, lang)}</p>
-              <textarea
-                style={styles.scopeInput}
-                value={scope}
-                onChange={e => setScope(e.target.value)}
-                placeholder={t('studies.createByThemeScopePlaceholder', undefined, lang)}
-                maxLength={200}
-                rows={3}
-              />
-              {genError && <p style={styles.errorText}>{genError}</p>}
-              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                <button style={styles.generateBtn} onClick={handleGenerate} disabled={generating || !title.trim() || !scope.trim()}>
-                  {generating ? t('studies.createByThemeGenerating', undefined, lang) : t('studies.createByThemeGenerateBtn', undefined, lang)}
+          {studiesTab === 'guided' && (
+            <>
+              {creating ? (
+                <div style={styles.createCard}>
+                  <p style={styles.createLabel}>{t('studies.createByThemeTitleLabel', undefined, lang)}</p>
+                  <input
+                    type="text"
+                    style={styles.themeInput}
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    placeholder={t('studies.createByThemeTitlePlaceholder', undefined, lang)}
+                    maxLength={60}
+                    autoFocus
+                  />
+                  <p style={{ ...styles.createLabel, marginTop: 14 }}>{t('studies.createByThemeScopeLabel', undefined, lang)}</p>
+                  <textarea
+                    style={styles.scopeInput}
+                    value={scope}
+                    onChange={e => setScope(e.target.value)}
+                    placeholder={t('studies.createByThemeScopePlaceholder', undefined, lang)}
+                    maxLength={200}
+                    rows={3}
+                  />
+                  {genError && <p style={styles.errorText}>{genError}</p>}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                    <button style={styles.generateBtn} onClick={handleGenerate} disabled={generating || !title.trim() || !scope.trim()}>
+                      {generating ? t('studies.createByThemeGenerating', undefined, lang) : t('studies.createByThemeGenerateBtn', undefined, lang)}
+                    </button>
+                    <button style={styles.cancelBtn} onClick={() => { setCreating(false); setGenError('') }} disabled={generating}>
+                      {t('studies.createByThemeCancel', undefined, lang)}
+                    </button>
+                  </div>
+                  {generating && <p style={styles.generatingHint}>{t('studies.createByThemeGeneratingHint', undefined, lang)}</p>}
+                </div>
+              ) : (
+                <button style={styles.newStudyBtn} onClick={() => setCreating(true)}>
+                  <AppIcon name="Sparkles" size={16} color="white" />
+                  {t('studies.createByThemeBtn', undefined, lang)}
                 </button>
-                <button style={styles.cancelBtn} onClick={() => { setCreating(false); setGenError('') }} disabled={generating}>
-                  {t('studies.createByThemeCancel', undefined, lang)}
-                </button>
-              </div>
-              {generating && <p style={styles.generatingHint}>{t('studies.createByThemeGeneratingHint', undefined, lang)}</p>}
-            </div>
-          ) : (
-            <button style={styles.newStudyBtn} onClick={() => setCreating(true)}>
-              <AppIcon name="Sparkles" size={16} color="white" />
-              {t('studies.createByThemeBtn', undefined, lang)}
-            </button>
+              )}
+
+              {[...STUDIES, ...aiStudies].map(study => (
+                <StudyCard
+                  key={study.id}
+                  study={study}
+                  lang={lang}
+                  completedSet={completedSet}
+                  onOpen={() => setOpenStudyId(study.id)}
+                  onDelete={aiStudies.some(s => s.id === study.id) ? () => handleDeleteStudy(study) : null}
+                />
+              ))}
+            </>
           )}
 
-          {/* Estudo indutivo — método Observação/Interpretação/Verdade
-              Atemporal/Aplicação (ver src/studies/inductiveStudiesStore.js).
-              Sem geração nenhuma: só pede um título (o livro/tema que a
-              pessoa vai estudar) — as passagens/sessões são adicionadas
-              depois, uma de cada vez, dentro do estudo. */}
-          {creatingInductive ? (
-            <div style={styles.createCard}>
-              <p style={styles.inductiveIntro}>{t('studies.inductiveIntro', undefined, lang)}</p>
-              <p style={{ ...styles.createLabel, marginTop: 12 }}>{t('studies.inductiveTitleLabel', undefined, lang)}</p>
-              <input
-                type="text"
-                style={styles.themeInput}
-                value={inductiveTitle}
-                onChange={e => setInductiveTitle(e.target.value)}
-                placeholder={t('studies.inductiveTitlePlaceholder', undefined, lang)}
-                maxLength={60}
-                autoFocus
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                <button style={styles.inductiveCreateBtn} onClick={handleCreateInductive} disabled={!inductiveTitle.trim()}>
-                  {t('studies.inductiveCreateBtn', undefined, lang)}
-                </button>
-                <button style={styles.cancelBtn} onClick={() => { setCreatingInductive(false); setInductiveTitle('') }}>
-                  {t('studies.createByThemeCancel', undefined, lang)}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button style={styles.inductiveNewBtn} onClick={() => setCreatingInductive(true)}>
-              <AppIcon name="Search" size={16} color="white" />
-              {t('studies.inductiveNewBtn', undefined, lang)}
-            </button>
-          )}
+          {studiesTab === 'inductive' && (
+            <>
+              {/* Link fixo pra explicação do método — sempre visível
+                  enquanto a pessoa estiver no contexto do estudo indutivo
+                  (ver também dentro de StudyDetail/InductiveSessionView). */}
+              <button style={styles.methodLinkBtn} onClick={() => onNavigate?.('inductiveMethod')}>
+                <AppIcon name="HelpCircle" size={14} color="#7C3AED" /> {t('studies.inductiveMethodLinkBtn', undefined, lang)}
+              </button>
 
-          {allStudies.map(study => (
-            <StudyCard
-              key={study.id}
-              study={study}
-              lang={lang}
-              completedSet={completedSet}
-              onOpen={() => setOpenStudyId(study.id)}
-              onDelete={(study.kind === 'inductive' || aiStudies.some(s => s.id === study.id)) ? () => handleDeleteStudy(study) : null}
-            />
-          ))}
+              {/* Estudo indutivo — método Observação/Interpretação/Verdade
+                  Atemporal/Aplicação (ver src/studies/inductiveStudiesStore.js).
+                  Sem geração nenhuma: a pessoa escolhe o LIVRO inteiro que
+                  vai estudar — os capítulos/sessões são adicionados depois,
+                  um de cada vez, dentro do próprio estudo. */}
+              {creatingInductive ? (
+                <div style={styles.createCard}>
+                  <p style={styles.inductiveIntro}>{t('studies.inductiveIntro', undefined, lang)}</p>
+                  <p style={{ ...styles.createLabel, marginTop: 12 }}>{t('studies.inductiveTitleLabel', undefined, lang)}</p>
+                  <select
+                    style={styles.themeInput}
+                    value={inductiveBook}
+                    onChange={e => setInductiveBook(e.target.value)}
+                    autoFocus
+                  >
+                    <option value="">{t('notes.sermonPassageBookPlaceholder', undefined, lang)}</option>
+                    {allBooksOrdered.map(b => <option key={b} value={b}>{bookLabel(b)}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                    <button style={styles.inductiveCreateBtn} onClick={handleCreateInductive} disabled={!inductiveBook}>
+                      {t('studies.inductiveCreateBtn', undefined, lang)}
+                    </button>
+                    <button style={styles.cancelBtn} onClick={() => { setCreatingInductive(false); setInductiveBook('') }}>
+                      {t('studies.createByThemeCancel', undefined, lang)}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button style={styles.inductiveNewBtn} onClick={() => setCreatingInductive(true)}>
+                  <AppIcon name="Search" size={16} color="white" />
+                  {t('studies.inductiveNewBtn', undefined, lang)}
+                </button>
+              )}
+
+              {inductiveStudies.map(study => (
+                <StudyCard
+                  key={study.id}
+                  study={study}
+                  lang={lang}
+                  completedSet={completedSet}
+                  onOpen={() => setOpenStudyId(study.id)}
+                  onDelete={() => handleDeleteStudy(study)}
+                />
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -333,6 +390,7 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
               onSave={fields => onSaveInductiveSession(openStudy, openSession.id, fields)}
               onDelete={() => onDeleteInductiveSession(openStudy, openSession.id)}
               onOpenBiblePassage={onOpenBiblePassage}
+              onNavigate={onNavigate}
               onBack={() => setOpenSessionId(null)}
             />
           ) : (
@@ -352,10 +410,10 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
             lang={lang}
             completedSet={completedSet}
             bookLabel={bookLabel}
-            allBooksOrdered={allBooksOrdered}
             bookChapterCounts={bookChapterCounts}
             onOpenSession={id => setOpenSessionId(id)}
-            onAddSession={passage => onAddInductiveSession(openStudy, passage)}
+            onAddSession={chapterForm => onAddInductiveSession(openStudy, chapterForm)}
+            onNavigate={onNavigate}
             onBack={() => setOpenStudyId(null)}
           />
         )}
@@ -444,16 +502,16 @@ function inductivePassageLabel(s, bookLabel) {
   return `${bookLabel(s.book)} ${s.chapter}${range}`
 }
 
-function StudyDetail({ study, lang, completedSet, bookLabel, allBooksOrdered, bookChapterCounts, onOpenSession, onAddSession, onBack }) {
+function StudyDetail({ study, lang, completedSet, bookLabel, bookChapterCounts, onOpenSession, onAddSession, onNavigate, onBack }) {
   const title = lang === 'en' ? study.titleEn : study.title
   const isInductive = study.kind === 'inductive'
   const [addingPassage, setAddingPassage] = useState(false)
-  const [passage, setPassage] = useState(blankPassageForm())
+  const [chapterForm, setChapterForm] = useState(blankChapterForm())
 
   function submitPassage() {
-    if (!passage.book || !passage.chapter) return
-    onAddSession(passage)
-    setPassage(blankPassageForm())
+    if (!chapterForm.chapter) return
+    onAddSession(chapterForm)
+    setChapterForm(blankChapterForm())
     setAddingPassage(false)
   }
 
@@ -468,43 +526,42 @@ function StudyDetail({ study, lang, completedSet, bookLabel, allBooksOrdered, bo
 
       <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
         {isInductive && (
+          <button style={styles.methodLinkBtn} onClick={() => onNavigate?.('inductiveMethod')}>
+            <AppIcon name="HelpCircle" size={14} color="#7C3AED" /> {t('studies.inductiveMethodLinkBtn', undefined, lang)}
+          </button>
+        )}
+
+        {isInductive && (
           addingPassage ? (
             <div style={styles.createCard}>
               <p style={styles.createLabel}>{t('studies.inductiveAddPassageLabel', undefined, lang)}</p>
               <div style={styles.passageRow}>
                 <select
-                  style={styles.passageBookSelect} value={passage.book}
-                  onChange={e => setPassage(p => ({ ...p, book: e.target.value, chapter: '' }))}
-                >
-                  <option value="">{t('notes.sermonPassageBookPlaceholder', undefined, lang)}</option>
-                  {allBooksOrdered.map(b => <option key={b} value={b}>{bookLabel(b)}</option>)}
-                </select>
-                <select
-                  style={styles.passageChapterSelect} value={passage.chapter} disabled={!passage.book}
-                  onChange={e => setPassage(p => ({ ...p, chapter: e.target.value }))}
+                  style={styles.passageChapterSelect} value={chapterForm.chapter}
+                  onChange={e => setChapterForm(p => ({ ...p, chapter: e.target.value }))}
                 >
                   <option value="">{t('notes.sermonPassageChapterPlaceholder', undefined, lang)}</option>
-                  {Array.from({ length: bookChapterCounts[passage.book] ?? 0 }, (_, idx) => idx + 1).map(n => (
+                  {Array.from({ length: bookChapterCounts[study.book] ?? 0 }, (_, idx) => idx + 1).map(n => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
                 <input
                   type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
-                  placeholder={t('notes.sermonVerseFrom', undefined, lang)} value={passage.verseStart}
-                  onChange={e => setPassage(p => ({ ...p, verseStart: e.target.value }))}
+                  placeholder={t('notes.sermonVerseFrom', undefined, lang)} value={chapterForm.verseStart}
+                  onChange={e => setChapterForm(p => ({ ...p, verseStart: e.target.value }))}
                 />
                 <span style={styles.passageVerseSep}>–</span>
                 <input
                   type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
-                  placeholder={t('notes.sermonVerseTo', undefined, lang)} value={passage.verseEnd}
-                  onChange={e => setPassage(p => ({ ...p, verseEnd: e.target.value }))}
+                  placeholder={t('notes.sermonVerseTo', undefined, lang)} value={chapterForm.verseEnd}
+                  onChange={e => setChapterForm(p => ({ ...p, verseEnd: e.target.value }))}
                 />
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <button style={styles.inductiveCreateBtn} onClick={submitPassage} disabled={!passage.book || !passage.chapter}>
+                <button style={styles.inductiveCreateBtn} onClick={submitPassage} disabled={!chapterForm.chapter}>
                   {t('studies.inductiveAddPassageConfirm', undefined, lang)}
                 </button>
-                <button style={styles.cancelBtn} onClick={() => { setAddingPassage(false); setPassage(blankPassageForm()) }}>
+                <button style={styles.cancelBtn} onClick={() => { setAddingPassage(false); setChapterForm(blankChapterForm()) }}>
                   {t('studies.createByThemeCancel', undefined, lang)}
                 </button>
               </div>
@@ -613,7 +670,7 @@ function SessionView({ study, studySession, lang, isDone, onToggleDone, onBack }
 // leitura/tradução já existente na aba Bíblia) — em vez disso, um link
 // abre a passagem exata na aba Bíblia pra consulta, mesmo padrão já usado
 // nas anotações de sermão (ver NotesScreen.jsx/onOpenBiblePassage).
-function InductiveSessionView({ study, studySession, lang, bookLabel, isDone, onToggleDone, onSave, onDelete, onOpenBiblePassage, onBack }) {
+function InductiveSessionView({ study, studySession, lang, bookLabel, isDone, onToggleDone, onSave, onDelete, onOpenBiblePassage, onNavigate, onBack }) {
   const passageTitle = inductivePassageLabel(studySession, bookLabel)
   const [observation, setObservation] = useState(studySession.observation ?? '')
   const [interpretation, setInterpretation] = useState(studySession.interpretation ?? '')
@@ -653,12 +710,15 @@ function InductiveSessionView({ study, studySession, lang, bookLabel, isDone, on
         </button>
       </div>
 
-      <div style={{ padding: '4px 14px 4px' }}>
+      <div style={{ padding: '4px 14px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button
           style={styles.readPassageBtn}
           onClick={() => onOpenBiblePassage?.(studySession.book, studySession.chapter)}
         >
           <AppIcon name="BookOpen" size={14} color="var(--or)" /> {t('studies.inductiveReadPassage', undefined, lang)}
+        </button>
+        <button style={styles.methodLinkBtn} onClick={() => onNavigate?.('inductiveMethod')}>
+          <AppIcon name="HelpCircle" size={14} color="#7C3AED" /> {t('studies.inductiveMethodLinkBtn', undefined, lang)}
         </button>
       </div>
 
@@ -768,8 +828,7 @@ const styles = {
   addPassageBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: '0.5px dashed var(--g3)', background: 'none', borderRadius: 13, padding: '11px 10px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
   emptyHint:      { fontSize: 12, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '18px 8px' },
   passageRow:     { display: 'flex', alignItems: 'center', gap: 5 },
-  passageBookSelect:   { flex: '1.3 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 6px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
-  passageChapterSelect:{ flex: '0.8 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  passageChapterSelect:{ flex: '1.2 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
   passageVerseInput:   { flex: '0.7 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
   passageVerseSep:     { fontSize: 11, fontWeight: 700, color: 'var(--g4)', flexShrink: 0 },
   readPassageBtn: { display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--olt)', borderRadius: 13, padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
@@ -777,4 +836,10 @@ const styles = {
   inductiveTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--white)' },
   inductiveSaveBtn: { width: '100%', background: '#7C3AED', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
   savedHint:      { fontSize: 11, fontWeight: 600, color: 'var(--gr)', textAlign: 'center', marginTop: 8 },
+  methodLinkBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: '0.5px solid rgba(124,58,237,.25)', background: 'rgba(124,58,237,.08)', borderRadius: 13, padding: '9px 12px', fontSize: 11.5, fontWeight: 700, color: '#7C3AED', cursor: 'pointer', fontFamily: 'var(--font)' },
+
+  // Abas Estudo Indutivo / Estudos Guiados
+  tabRow:     { display: 'flex', gap: 6 },
+  tabBtn:     { flex: 1, textAlign: 'center', padding: '10px 4px', fontSize: 12, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 12, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
+  tabBtnActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },
 }
