@@ -27,7 +27,7 @@ function flattenBooks(blocksSubset, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, onNavigate, onGoToReflectionFrom,
+  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onNavigate, onGoToReflectionFrom,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -118,6 +118,14 @@ export default function JourneyScreen({
     if (!block || !targetSession) return
     jumpToBook(block, targetSession.book, sessionId, true)
   }
+
+  // Link "ir pro texto" de uma anotação de sermão (ver App.jsx/
+  // openBiblePassage) — objeto novo a cada pedido, então todo pedido roda
+  // este efeito de novo mesmo pra pular pro MESMO capítulo de antes.
+  useEffect(() => {
+    if (browseJumpTarget) openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browseJumpTarget])
 
   function closeBlock() {
     // Guarda de qual bloco a pessoa estava saindo — usado só pra decidir

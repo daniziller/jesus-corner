@@ -10,10 +10,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
 import { searchNotesByTheme } from '../notes/notesSearchStore'
+import { getSermonNotes, saveSermonNote, deleteSermonNote } from '../notes/sermonNotesStore'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getHighlights, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { HIGHLIGHT_COLORS } from '../data/highlightColors'
 import { formatVerseRanges } from '../utils/verseRanges'
+import { computeBookChapterCounts } from '../utils/progress'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -24,13 +26,22 @@ import AppIcon from '../icons/AppIcon'
 // 'reading') pra dar espaço ao filtro por cor, só faz sentido pra
 // marcações. 'reflection' cobre a anotação geral E a frase de aplicação
 // da Reflexão diária — as duas vêm da mesma aba, só em campos separados
-// (ver ReflectionScreen.jsx).
+// (ver ReflectionScreen.jsx). 'sermon' é a anotação de sermão (ver
+// src/notes/sermonNotesStore.js) — registro à parte, sem ligação com uma
+// passagem/dia do plano de leitura.
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
   { key: 'reading', types: ['reading', 'book-reflection'], labelKey: 'notes.filterReading' },
   { key: 'highlight', types: ['highlight'], labelKey: 'notes.filterHighlights' },
   { key: 'reflection', types: ['daily-reflection', 'application-phrase'], labelKey: 'notes.filterReflection' },
+  { key: 'sermon', types: ['sermon'], labelKey: 'notes.filterSermon' },
 ]
+
+// Uma faixa nova de anotação de sermão, sem livro/capítulo/versículo
+// escolhidos ainda (ver addPassageRow).
+function blankPassage() {
+  return { book: '', chapter: '', verseStart: '', verseEnd: '' }
+}
 
 // Filtro por quando a anotação foi adicionada (updatedAt — só existe
 // createdAt separado pra marcações, ver highlightEntries abaixo, então
@@ -61,7 +72,7 @@ function dateFilterRangeFor(key, customFrom, customTo) {
   return { from: customFrom || null, to: customTo || null }
 }
 
-export default function NotesScreen({ session, authUser, blocks, sessionsByBlock }) {
+export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   // Painel de filtros (origem/livro/cor/data) minimizado por padrão — só
@@ -97,6 +108,20 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // só os botões DAQUELE card, não a tela inteira.
   const [busyKey, setBusyKey] = useState(null)
 
+  // Formulário de anotação de sermão — bem mais campos que uma nota comum
+  // (preletor/igreja/passagens/texto), então usa seu próprio formulário
+  // rico em vez do textarea genérico de edição. sermonEditing != null =
+  // editando uma existente (guarda o registro original, pra preservar
+  // id/data/createdAt ao salvar); null = criando uma nova.
+  const [creatingSermon, setCreatingSermon] = useState(false)
+  const [sermonEditing, setSermonEditing] = useState(null)
+  const [sermonPreacher, setSermonPreacher] = useState('')
+  const [sermonChurch, setSermonChurch] = useState('')
+  const [sermonPassages, setSermonPassages] = useState([])
+  const [sermonText, setSermonText] = useState('')
+  const [sermonBusy, setSermonBusy] = useState(false)
+  const [sermonError, setSermonError] = useState('')
+
   // Nome do livro (chave canônica, sempre em pt) -> nome em inglês, só pra
   // exibir certo com o app em EN — mesma fonte que o resto do app usa pra
   // nomes de livro (blocks.books/blocks.booksEn, arrays paralelos).
@@ -121,11 +146,20 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     return ordered
   }, [state.notes, blocks])
 
+  // TODOS os 66 livros, em ordem canônica — usado no seletor de livro do
+  // formulário de sermão (diferente de availableBooks acima, que só serve
+  // pro FILTRO e por isso só lista quem já tem anotação).
+  const allBooksOrdered = useMemo(() => blocks.flatMap(b => b.books), [blocks])
+  // Quantos capítulos cada livro tem — popula o seletor de capítulo do
+  // formulário de sermão (mesmo cálculo já usado em JourneyScreen.jsx pra
+  // saber o total de capítulos por livro).
+  const bookChapterCounts = useMemo(() => computeBookChapterCounts(sessionsByBlock), [sessionsByBlock])
+
   useEffect(() => {
     if (!authUser?.email) { setState({ status: 'ready', notes: [] }); return }
     let cancelled = false
-    Promise.all([getNotes(authUser.email), getHighlights(authUser.email)])
-      .then(([map, highlightList]) => {
+    Promise.all([getNotes(authUser.email), getHighlights(authUser.email), getSermonNotes(authUser.email)])
+      .then(([map, highlightList, sermonList]) => {
         if (cancelled) return
         const noteEntries = Object.entries(map)
           .map(([key, entry]) => ({
@@ -151,10 +185,17 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             key: h.id, id: h.id, text: h.text ?? '', updatedAt: h.createdAt ?? h.updatedAt,
             type: 'highlight', book: h.book, chapter: h.chapter, verses: h.verses, color: h.color,
           }))
+        // Anotações de sermão (ver src/notes/sermonNotesStore.js) — id
+        // próprio, sem livro/capítulo únicos (pode ter várias passagens ou
+        // nenhuma, ver passages).
+        const sermonEntries = sermonList.map(s => ({
+          key: s.id, id: s.id, text: s.text ?? '', updatedAt: s.updatedAt ?? s.createdAt, createdAt: s.createdAt,
+          type: 'sermon', date: s.date, preacher: s.preacher, church: s.church, passages: s.passages ?? [],
+        }))
         // Mais recentes primeiro; anotações salvas antes desta tela existir
         // não têm updatedAt (formato antigo, só texto) — ficam no fim, sem
         // embaralhar as que já têm data de verdade.
-        const notes = [...noteEntries, ...highlightEntries]
+        const notes = [...noteEntries, ...highlightEntries, ...sermonEntries]
           .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
         setState({ status: 'ready', notes })
       })
@@ -194,6 +235,11 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         ? `${dateStr} · ${t('notes.applicationPhraseTag', undefined, lang)}`
         : dateStr
     }
+    if (note.type === 'sermon') {
+      const d = new Date(`${note.date}T00:00:00`)
+      const dateStr = new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d)
+      return note.preacher ? `${dateStr} · ${note.preacher}` : dateStr
+    }
     const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
     if (note.type === 'book-reflection') {
       return `${bookLabel(note.book)} · ${t('notes.bookReflectionTag', undefined, lang)}`
@@ -214,16 +260,119 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (type === 'highlight') return 'Highlighter'
     if (type === 'reading') return 'BookOpen'
     if (type === 'application-phrase') return 'Sparkles'
+    if (type === 'sermon') return 'Landmark'
     return 'PenLine'
   }
 
+  // Rótulo de uma passagem de sermão pra exibir no chip/link (ver
+  // passages abaixo) — "Livro Cap" ou "Livro Cap:de-até" quando tem faixa
+  // de versículo.
+  function passageLabel(p) {
+    const range = p.verseStart ? `:${p.verseStart}${p.verseEnd && p.verseEnd !== p.verseStart ? `-${p.verseEnd}` : ''}` : ''
+    return `${bookLabel(p.book)} ${p.chapter}${range}`
+  }
+
   function startEdit(note) {
+    // Anotação de sermão tem campos demais (preletor/igreja/passagens) pro
+    // textarea genérico — abre o formulário rico lá em cima já preenchido,
+    // em vez de expandir inline neste card (ver startEditSermon abaixo).
+    if (note.type === 'sermon') { startEditSermon(note); return }
     setEditingKey(note.key)
     setEditText(note.text)
   }
   function cancelEdit() {
     setEditingKey(null)
     setEditText('')
+  }
+
+  function startCreateSermon() {
+    setSermonEditing(null)
+    setSermonPreacher('')
+    setSermonChurch('')
+    setSermonPassages([])
+    setSermonText('')
+    setSermonError('')
+    setCreatingSermon(true)
+  }
+
+  function startEditSermon(note) {
+    setSermonEditing(note)
+    setSermonPreacher(note.preacher ?? '')
+    setSermonChurch(note.church ?? '')
+    setSermonPassages((note.passages ?? []).map(p => ({
+      book: p.book ?? '', chapter: p.chapter ? String(p.chapter) : '',
+      verseStart: p.verseStart ? String(p.verseStart) : '', verseEnd: p.verseEnd ? String(p.verseEnd) : '',
+    })))
+    setSermonText(note.text ?? '')
+    setSermonError('')
+    setCreatingSermon(true)
+  }
+
+  function cancelSermonForm() {
+    setCreatingSermon(false)
+    setSermonEditing(null)
+    setSermonError('')
+  }
+
+  function addPassageRow() {
+    setSermonPassages(prev => [...prev, blankPassage()])
+  }
+  function updatePassageRow(index, field, value) {
+    setSermonPassages(prev => prev.map((p, i) => {
+      if (i !== index) return p
+      // Trocar de livro invalida o capítulo escolhido (contagem de
+      // capítulos é outra) — mesmo espírito de qualquer seletor
+      // dependente.
+      return field === 'book' ? { ...p, book: value, chapter: '' } : { ...p, [field]: value }
+    }))
+  }
+  function removePassageRow(index) {
+    setSermonPassages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function saveSermon() {
+    if (!sermonText.trim() || sermonBusy) return
+    setSermonBusy(true)
+    setSermonError('')
+    try {
+      const cleanPassages = sermonPassages
+        .filter(p => p.book && p.chapter)
+        .map(p => ({
+          book: p.book,
+          chapter: Number(p.chapter),
+          verseStart: p.verseStart ? Number(p.verseStart) : null,
+          verseEnd: p.verseEnd ? Number(p.verseEnd) : null,
+        }))
+      const nowIso = new Date().toISOString()
+      // Data/createdAt preservados ao editar (o dia do sermão é quando foi
+      // OUVIDO, não quando a anotação foi editada por último).
+      const finalNote = {
+        id: sermonEditing?.id ?? `sermon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        date: sermonEditing?.date ?? dateKey(),
+        createdAt: sermonEditing?.createdAt ?? nowIso,
+        updatedAt: nowIso,
+        preacher: sermonPreacher.trim(),
+        church: sermonChurch.trim(),
+        passages: cleanPassages,
+        text: sermonText.trim(),
+      }
+      await saveSermonNote(authUser.email, finalNote)
+      const entry = {
+        key: finalNote.id, id: finalNote.id, text: finalNote.text, updatedAt: finalNote.updatedAt, createdAt: finalNote.createdAt,
+        type: 'sermon', date: finalNote.date, preacher: finalNote.preacher, church: finalNote.church, passages: finalNote.passages,
+      }
+      setState(s => ({
+        ...s,
+        notes: [entry, ...s.notes.filter(n => n.key !== finalNote.id)]
+          .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')),
+      }))
+      cancelSermonForm()
+    } catch (err) {
+      console.error('Failed to save sermon note', err)
+      setSermonError(t('notes.sermonSaveError', undefined, lang))
+    } finally {
+      setSermonBusy(false)
+    }
   }
 
   // A frase fixada na Home (application:pinned) é uma cópia à parte,
@@ -272,9 +421,13 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     setBusyKey(note.key)
     try {
       if (note.type === 'highlight') await hideHighlight(authUser.email, note.id)
+      else if (note.type === 'sermon') await deleteSermonNote(authUser.email, note.id)
       else await saveNote(authUser.email, note.key, '')
       if (note.type === 'application-phrase') await syncPinnedIfMatches(note.text, '')
       setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
+      // Apagou a que estava sendo editada no formulário de sermão — fecha
+      // o formulário pra não deixar salvar uma anotação que não existe mais.
+      if (sermonEditing?.key === note.key) cancelSermonForm()
     } catch (err) {
       console.error('Failed to delete note', err)
     } finally {
@@ -381,6 +534,107 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           <h1 className="page-title">{t('notes.pageTitle', undefined, lang)}</h1>
           <p style={styles.heroSub}>{t('notes.heroSub', undefined, lang)}</p>
         </div>
+
+        {/* Anotação de sermão — registro de um sermão ouvido na igreja
+            (preletor, igreja, passagens bíblicas lidas, texto livre), à
+            parte das anotações de leitura/reflexão (ver
+            src/notes/sermonNotesStore.js). Botão "+" sempre visível no
+            topo — não é um filtro, é a ação principal desta aba. */}
+        {creatingSermon ? (
+          <div style={styles.sermonFormCard}>
+            <p style={styles.sermonFormTitle}>
+              {sermonEditing ? t('notes.sermonEditTitle', undefined, lang) : t('notes.sermonNewTitle', undefined, lang)}
+            </p>
+
+            <p style={styles.createLabel}>{t('notes.sermonPreacherLabel', undefined, lang)}</p>
+            <input
+              type="text" style={styles.sermonInput} value={sermonPreacher}
+              onChange={e => setSermonPreacher(e.target.value)}
+              placeholder={t('notes.sermonPreacherPlaceholder', undefined, lang)}
+              maxLength={80}
+            />
+
+            <p style={{ ...styles.createLabel, marginTop: 10 }}>{t('notes.sermonChurchLabel', undefined, lang)}</p>
+            <input
+              type="text" style={styles.sermonInput} value={sermonChurch}
+              onChange={e => setSermonChurch(e.target.value)}
+              placeholder={t('notes.sermonChurchPlaceholder', undefined, lang)}
+              maxLength={80}
+            />
+
+            <p style={{ ...styles.createLabel, marginTop: 10 }}>{t('notes.sermonPassagesLabel', undefined, lang)}</p>
+            {sermonPassages.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                {sermonPassages.map((p, i) => (
+                  <div key={i} style={styles.passageRow}>
+                    <select
+                      style={styles.passageBookSelect} value={p.book}
+                      onChange={e => updatePassageRow(i, 'book', e.target.value)}
+                    >
+                      <option value="">{t('notes.sermonPassageBookPlaceholder', undefined, lang)}</option>
+                      {allBooksOrdered.map(b => <option key={b} value={b}>{bookLabel(b)}</option>)}
+                    </select>
+                    <select
+                      style={styles.passageChapterSelect} value={p.chapter} disabled={!p.book}
+                      onChange={e => updatePassageRow(i, 'chapter', e.target.value)}
+                    >
+                      <option value="">{t('notes.sermonPassageChapterPlaceholder', undefined, lang)}</option>
+                      {Array.from({ length: bookChapterCounts[p.book] ?? 0 }, (_, idx) => idx + 1).map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
+                      placeholder={t('notes.sermonVerseFrom', undefined, lang)} value={p.verseStart}
+                      onChange={e => updatePassageRow(i, 'verseStart', e.target.value)}
+                    />
+                    <span style={styles.passageVerseSep}>–</span>
+                    <input
+                      type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
+                      placeholder={t('notes.sermonVerseTo', undefined, lang)} value={p.verseEnd}
+                      onChange={e => updatePassageRow(i, 'verseEnd', e.target.value)}
+                    />
+                    <button
+                      style={styles.passageRemoveBtn} onClick={() => removePassageRow(i)}
+                      aria-label={t('notes.sermonRemovePassage', undefined, lang)}
+                    >
+                      <AppIcon name="X" size={13} color="var(--g5)" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button style={styles.addPassageBtn} onClick={addPassageRow}>
+              <AppIcon name="Plus" size={13} color="var(--or)" /> {t('notes.sermonAddPassage', undefined, lang)}
+            </button>
+
+            <p style={{ ...styles.createLabel, marginTop: 12 }}>{t('notes.sermonTextLabel', undefined, lang)}</p>
+            <textarea
+              style={styles.sermonTextarea} value={sermonText}
+              onChange={e => setSermonText(e.target.value)}
+              placeholder={t('notes.sermonTextPlaceholder', undefined, lang)}
+              rows={5}
+            />
+
+            {sermonError && <p style={styles.aiErrorText}>{sermonError}</p>}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button
+                style={styles.editSaveBtn} onClick={saveSermon}
+                disabled={sermonBusy || !sermonText.trim()}
+              >
+                {sermonBusy ? t('notes.saving', undefined, lang) : t('notes.sermonSaveBtn', undefined, lang)}
+              </button>
+              <button style={styles.editCancelBtn} onClick={cancelSermonForm} disabled={sermonBusy}>
+                {t('notes.cancelEdit', undefined, lang)}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button style={styles.sermonNewBtn} onClick={startCreateSermon}>
+            <AppIcon name="Plus" size={16} color="white" /> {t('notes.sermonNewBtn', undefined, lang)}
+          </button>
+        )}
 
         {/* Busca por palavra (instantânea, casa substring no texto) +
             busca por tema com IA (botão à parte — só dispara ao tocar, não
@@ -579,6 +833,24 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                   )}
                 </div>
 
+                {note.type === 'sermon' && (note.preacher || note.church) && (
+                  <p style={styles.sermonMeta}>
+                    {[note.preacher, note.church].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                {note.type === 'sermon' && note.passages?.length > 0 && (
+                  <div style={styles.passageChipRow}>
+                    {note.passages.map((p, i) => (
+                      <button
+                        key={i} style={styles.passageChip}
+                        onClick={() => onOpenBiblePassage?.(p.book, p.chapter)}
+                      >
+                        <AppIcon name="BookOpen" size={11} color="var(--or)" /> {passageLabel(p)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {isEditing ? (
                   <>
                     <textarea
@@ -656,4 +928,21 @@ const styles = {
   editTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--g1)' },
   editSaveBtn:  { flex: 1, background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
   editCancelBtn:{ flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+
+  sermonNewBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  sermonFormCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
+  sermonFormTitle:{ fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 10 },
+  createLabel:    { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', marginBottom: 6 },
+  sermonInput:    { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  sermonTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--white)' },
+  passageRow:     { display: 'flex', alignItems: 'center', gap: 5 },
+  passageBookSelect:   { flex: '1.3 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 6px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  passageChapterSelect:{ flex: '0.8 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  passageVerseInput:   { flex: '0.7 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  passageVerseSep:     { fontSize: 11, fontWeight: 700, color: 'var(--g4)', flexShrink: 0 },
+  passageRemoveBtn:    { flexShrink: 0, width: 24, height: 24, border: 'none', background: 'var(--g1)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  addPassageBtn:  { display: 'flex', alignItems: 'center', gap: 5, border: '0.5px dashed var(--g3)', background: 'none', borderRadius: 9, padding: '7px 10px', fontSize: 11, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  sermonMeta:     { fontSize: 11.5, fontWeight: 600, color: 'var(--g5)', marginBottom: 6 },
+  passageChipRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  passageChip:    { display: 'flex', alignItems: 'center', gap: 4, border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--olt)', borderRadius: 20, padding: '5px 10px', fontSize: 11, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
 }

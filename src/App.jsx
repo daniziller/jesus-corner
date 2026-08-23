@@ -348,6 +348,12 @@ export default function App() {
   // Sessão específica a destacar quando entryMode é 'reading' — garante que a
   // Leitura abra featurando exatamente a mesma sessão que a Home mostrou.
   const [journeyResumeSessionId, setJourneyResumeSessionId] = useState(null)
+  // Pedido de pular direto pra um livro+capítulo específico em modo livre
+  // (browse) — usado pelos links de passagem bíblica das anotações de
+  // sermão (ver openBiblePassage abaixo). Objeto novo a cada pedido (nunca
+  // reaproveitado), pra JourneyScreen.jsx sempre detectar a mudança mesmo
+  // quando o alvo é o mesmo capítulo de antes.
+  const [browseJumpTarget, setBrowseJumpTarget] = useState(null)
   // Acessibilidade: "texto grande" — por dispositivo, ver src/utils/textScaleStore.js
   // e a regra html.large-text #root { zoom } em index.css.
   const [largeText, setLargeText] = useState(getLargeTextEnabled)
@@ -586,6 +592,23 @@ export default function App() {
     setActiveBlockId(blockId)
     setJourneyResumeSessionId(sessionId)
     setJourneyEntryMode('reading')
+    setActiveTab('journey')
+  }
+
+  // Link "ir pro texto" de uma passagem bíblica citada numa anotação de
+  // sermão (ver NotesScreen.jsx) — abre a aba Bíblia em modo livre (browse),
+  // já no capítulo certo, sem depender do plano de leitura ativo. Livro+
+  // capítulo (não uma sessão do plano) é a única coisa que a anotação de
+  // sermão guarda, então usa browseSessionsByBlock (1 sessão = 1 capítulo)
+  // em vez de sessionsByBlock.
+  function openBiblePassage(book, chapter) {
+    const block = blocks.find(b => b.books.includes(book))
+    if (!block) return
+    const targetSession = (browseSessionsByBlock[block.id] ?? []).find(
+      s => s.book === book && s.chStart <= chapter && s.chEnd >= chapter
+    )
+    if (!targetSession) return
+    setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id })
     setActiveTab('journey')
   }
 
@@ -1015,11 +1038,11 @@ export default function App() {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActiveStudy={selectActiveStudy} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
-    notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} />,
+    notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     studies: <StudiesScreen session={session} authUser={authUser} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
