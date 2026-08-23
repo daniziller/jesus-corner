@@ -248,7 +248,7 @@ function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
   lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight))
 }
 
-export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine }) {
+export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules = DEFAULT_ROUTINE_MODULES }) {
   await ensureFontsReady()
   const logo = await loadImage('/icons/icon-192.png').catch(() => null)
 
@@ -442,7 +442,7 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
 const INSTAGRAM_URL = 'https://www.instagram.com/jesuscorner.app/'
 
 export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules = DEFAULT_ROUTINE_MODULES }) {
-  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine })
+  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules })
   if (!blob) throw new Error('blob_failed')
   const file = new File([blob], 'jesus-corner-progresso.png', { type: 'image/png' })
 
