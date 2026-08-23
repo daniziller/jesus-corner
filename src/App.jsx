@@ -271,6 +271,15 @@ export default function App() {
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
+  // Pilha de abas visitadas — alimenta o botão "Voltar" global (header/
+  // sidebar, ver goBack abaixo), pra sempre devolver a pessoa pra página
+  // que ela estava antes, não importa por qual tela do app ela veio. Toda
+  // troca de aba de verdade empilha a aba que estava sendo deixada (ver
+  // goToTab); "Voltar" desempilha e volta pra ela, sem empilhar de novo (senão
+  // "Voltar" agindo pra frente e pra trás criaria um loop). Teto de 20
+  // entradas — suficiente pra qualquer sequência real de navegação, evita
+  // a pilha crescer sem limite numa sessão longa.
+  const [tabHistory, setTabHistory] = useState([])
   // Oração e Reflexão têm cronômetro rodando de verdade (setInterval, wake
   // lock) — se a tela desmontasse ao trocar de aba, como as outras, o
   // cronômetro perderia todo o progresso (useState/useRef voltam do zero ao
@@ -281,6 +290,12 @@ export default function App() {
   // render — não precisa disparar um re-render próprio pra isso.
   const prayerVisitedRef = useRef(false)
   const reflectionVisitedRef = useRef(false)
+  // Notas também fica sempre montada (mesma técnica) — o formulário de
+  // anotação de sermão tem campos demais pra perder se a pessoa sair pra
+  // conferir um versículo (ver link "ir pro texto" dentro do próprio
+  // formulário, em NotesScreen.jsx) e usar "Voltar" pra retornar; sem isso,
+  // trocar de aba e voltar remontaria a tela do zero e apagaria o rascunho.
+  const notesVisitedRef = useRef(false)
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [activeBlockId, setActiveBlockId] = useState(1)
@@ -521,7 +536,33 @@ export default function App() {
   function navigateTo(tab) {
     if (disabledTabs.includes(tab) && tab !== 'upgrade') return
     if (tab === 'journey') setJourneyEntryMode('overview')
+    goToTab(tab)
+  }
+
+  // Troca de aba "de baixo nível" — usada por navigateTo (clique explícito
+  // em aba/menu) e por toda função interna que pula direto pra uma tela
+  // específica (continueToday, openBiblePassage, goToReflectionFrom etc.),
+  // pra QUALQUER jeito de trocar de aba empilhar no histórico igual (ver
+  // tabHistory acima) — sem isso, "Voltar" só funcionaria depois de cliques
+  // no menu, não depois de atalhos como "Continuar sessão".
+  function goToTab(tab) {
+    if (tab !== activeTab) setTabHistory(prev => [...prev.slice(-19), activeTab])
     setActiveTab(tab)
+  }
+
+  // Botão "Voltar" global (AppHeader/Sidebar) — desempilha a última aba
+  // visitada e volta pra ela. 'journey' recebe o mesmo reset de entryMode
+  // que navigateTo daria (mostra o mapa de blocos, não uma leitura
+  // específica) — a única exceção é quando havia um browseJumpTarget
+  // pendente, que se sobrepõe sozinho depois de montar (ver JourneyScreen.jsx).
+  function goBack() {
+    setTabHistory(prev => {
+      if (prev.length === 0) return prev
+      const target = prev[prev.length - 1]
+      if (target === 'journey') setJourneyEntryMode('overview')
+      setActiveTab(target)
+      return prev.slice(0, -1)
+    })
   }
 
   // Depois de voltar do Stripe Checkout (success_url leva pra cá com
@@ -562,12 +603,12 @@ export default function App() {
         // checklist de textos (ver PlanScreen.jsx), em vez de abrir a
         // leitura direto (não saberia o que abrir).
         if (activePlanData.needsThemePick) {
-          setActiveTab('routine')
+          goToTab('routine')
           return
         }
         setThemeAutoOpenId(themePlan.id)
         setThemeAutoOpenKeys(todayThemePicks?.planId === themePlan.id ? todayThemePicks.keys : null)
-        setActiveTab('themePlan')
+        goToTab('themePlan')
         return
       }
     }
@@ -575,14 +616,14 @@ export default function App() {
       const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
       const { block } = findCurrentReadingSession(chrono.blocks, chrono.sessionsByBlock)
       setChronoAutoOpenMovementId(block.id)
-      setActiveTab('chronologicalPlan')
+      goToTab('chronologicalPlan')
       return
     }
     const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock)
     setActiveBlockId(block.id)
     setJourneyResumeSessionId(resumeSession.id)
     setJourneyEntryMode('reading')
-    setActiveTab('journey')
+    goToTab('journey')
   }
 
   // Tocar numa sessão específica na aba Plano (ver PlanScreen.jsx) — mesmo
@@ -592,7 +633,7 @@ export default function App() {
     setActiveBlockId(blockId)
     setJourneyResumeSessionId(sessionId)
     setJourneyEntryMode('reading')
-    setActiveTab('journey')
+    goToTab('journey')
   }
 
   // Link "ir pro texto" de uma passagem bíblica citada numa anotação de
@@ -600,7 +641,10 @@ export default function App() {
   // já no capítulo certo, sem depender do plano de leitura ativo. Livro+
   // capítulo (não uma sessão do plano) é a única coisa que a anotação de
   // sermão guarda, então usa browseSessionsByBlock (1 sessão = 1 capítulo)
-  // em vez de sessionsByBlock.
+  // em vez de sessionsByBlock. Passa por goToTab (não setActiveTab direto)
+  // pra "Voltar" (ver goBack) devolver a pessoa pra onde ela estava — a
+  // anotação de sermão que ainda estava escrevendo, por exemplo (ver
+  // NotesScreen.jsx, que agora fica sempre montada).
   function openBiblePassage(book, chapter) {
     const block = blocks.find(b => b.books.includes(book))
     if (!block) return
@@ -609,7 +653,7 @@ export default function App() {
     )
     if (!targetSession) return
     setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id })
-    setActiveTab('journey')
+    goToTab('journey')
   }
 
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
@@ -619,7 +663,7 @@ export default function App() {
   function openThemePlanFromList(planId) {
     setThemeAutoOpenId(planId)
     setThemeAutoOpenKeys(null)
-    setActiveTab('themePlan')
+    goToTab('themePlan')
   }
 
   // "Começar leitura de hoje" no card do plano por tema ativo (ver
@@ -629,7 +673,7 @@ export default function App() {
     chooseThemeTexts(planId, keys)
     setThemeAutoOpenId(planId)
     setThemeAutoOpenKeys(keys)
-    setActiveTab('themePlan')
+    goToTab('themePlan')
   }
 
   // "Adicionar sessões à rotina do dia" logo depois de gerar um plano por
@@ -640,7 +684,7 @@ export default function App() {
   function addThemePlanToRoutine(planId, keys) {
     selectActivePlan({ type: 'theme', planId })
     chooseThemeTexts(planId, keys)
-    setActiveTab('routine')
+    goToTab('routine')
   }
 
   // "Começar a leitura" no mesmo checklist (ThemeTextsChecklist, usado tanto
@@ -660,7 +704,7 @@ export default function App() {
   // mapa de blocos de sempre.
   function openChronoSession(movementId) {
     setChronoAutoOpenMovementId(movementId)
-    setActiveTab('chronologicalPlan')
+    goToTab('chronologicalPlan')
   }
 
   // "Ir para Reflexão" a partir de uma sessão de leitura recém-concluída
@@ -669,7 +713,7 @@ export default function App() {
   // pra essa sessão antes de trocar de aba (ver backToLastReadSession).
   function goToReflectionFrom(descriptor) {
     setLastReadSession(descriptor)
-    setActiveTab('reflection')
+    goToTab('reflection')
   }
 
   // Botão "Voltar à sessão de leitura" na Reflexão — reabre a sessão que
@@ -687,7 +731,7 @@ export default function App() {
     else if (d.tab === 'themePlan') {
       setThemeAutoOpenId(d.planId)
       setThemeAutoOpenKeys(d.keys)
-      setActiveTab('themePlan')
+      goToTab('themePlan')
     }
     else if (d.tab === 'chronologicalPlan') openChronoSession(d.movementId)
   }
@@ -771,6 +815,7 @@ export default function App() {
     setSubscription(null)
     setIsAdmin(false)
     setActiveTab('home')
+    setTabHistory([])
   }
 
   // Chamado pelo GroupsScreen depois de qualquer ação que possa mudar
@@ -854,6 +899,7 @@ export default function App() {
     // — com NT primeiro, reiniciar deve voltar pros Evangelhos.
     setActiveBlockId(defaultBlockIdFor(new Set(), planId, readingOrder))
     setActiveTab('home')
+    setTabHistory([])
     resetProgress(authUser.email).catch(err => console.error('Failed to reset progress', err))
   }
 
@@ -1033,12 +1079,12 @@ export default function App() {
   // atualizar). Ver declaração de prayerVisitedRef/reflectionVisitedRef.
   if (activeTab === 'prayer') prayerVisitedRef.current = true
   if (activeTab === 'reflection') reflectionVisitedRef.current = true
+  if (activeTab === 'notes') notesVisitedRef.current = true
 
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
     routine: <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActiveStudy={selectActiveStudy} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
-    notes:   <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
@@ -1056,21 +1102,22 @@ export default function App() {
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥768px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+      <Sidebar activeTab={activeTab} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <768px */}
-        <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+        <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
 
         {/* Conteúdo da tela ativa */}
         <div className="app-content">
           <div className="app-content-inner">
-            {activeTab !== 'prayer' && activeTab !== 'reflection' && screens[activeTab]}
+            {activeTab !== 'prayer' && activeTab !== 'reflection' && activeTab !== 'notes' && screens[activeTab]}
 
-            {/* Oração e Reflexão ficam sempre montadas depois da 1a visita
-                (ver prayerVisitedRef/reflectionVisitedRef) — display:'contents'
-                faz o wrapper "sumir" do layout quando oculto, sem atrapalhar
-                o height:100% que a tela em si já assume. */}
+            {/* Oração, Reflexão e Notas ficam sempre montadas depois da 1a
+                visita (ver prayerVisitedRef/reflectionVisitedRef/
+                notesVisitedRef) — display:'contents' faz o wrapper "sumir"
+                do layout quando oculto, sem atrapalhar o height:100% que a
+                tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
                 <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} />
@@ -1079,6 +1126,11 @@ export default function App() {
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
                 <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => markRoutineStep('reflection')} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} />
+              </div>
+            )}
+            {notesVisitedRef.current && (
+              <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
+                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} />
               </div>
             )}
           </div>

@@ -2,12 +2,22 @@ import NotificationBell from './NotificationBell'
 import AppIcon from '../icons/AppIcon'
 import { t } from '../i18n'
 
-export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onBack, canGoBack, pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <div className="app-header" style={styles.header}>
-      <div style={styles.brand} onClick={() => onNavigate?.('home')}>
-        <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-        <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+      <div style={styles.leftGroup}>
+        {canGoBack && (
+          <button
+            style={styles.backBtn} onClick={onBack}
+            aria-label={t('a11y.goBack', undefined, lang)} title={t('a11y.goBack', undefined, lang)}
+          >
+            <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />
+          </button>
+        )}
+        <div style={styles.brand} onClick={() => onNavigate?.('home')}>
+          <img src="/icons/icon-192.png" alt="" style={styles.logo} />
+          <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+        </div>
       </div>
       <div style={styles.actions}>
         <button
@@ -42,7 +52,9 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, pendi
 // cor de marca/ação (ver separação --grad-primary vs --grad-vivid).
 const styles = {
   header:     { alignItems: 'center', justifyContent: 'space-between', height: 64, padding: '0 20px', flexShrink: 0, background: 'var(--header-bg)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' },
-  brand:      { display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' },
+  leftGroup:  { display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 },
+  backBtn:    { width: 34, height: 34, marginLeft: -6, border: 'none', background: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, borderRadius: '50%' },
+  brand:      { display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', minWidth: 0 },
   logo:       { width: 32, height: 32, borderRadius: 8, flexShrink: 0 },
   brandName:  { fontSize: 18, fontWeight: 700, lineHeight: '28px', color: 'var(--bk)', letterSpacing: -0.45, whiteSpace: 'nowrap' },
   actions:    { display: 'flex', alignItems: 'center', gap: 8 },

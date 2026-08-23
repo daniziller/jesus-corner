@@ -615,40 +615,57 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             {sermonPassages.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
                 {sermonPassages.map((p, i) => (
-                  <div key={i} style={styles.passageRow}>
-                    <select
-                      style={styles.passageBookSelect} value={p.book}
-                      onChange={e => updatePassageRow(i, 'book', e.target.value)}
-                    >
-                      <option value="">{t('notes.sermonPassageBookPlaceholder', undefined, lang)}</option>
-                      {allBooksOrdered.map(b => <option key={b} value={b}>{bookLabel(b)}</option>)}
-                    </select>
-                    <select
-                      style={styles.passageChapterSelect} value={p.chapter} disabled={!p.book}
-                      onChange={e => updatePassageRow(i, 'chapter', e.target.value)}
-                    >
-                      <option value="">{t('notes.sermonPassageChapterPlaceholder', undefined, lang)}</option>
-                      {Array.from({ length: bookChapterCounts[p.book] ?? 0 }, (_, idx) => idx + 1).map(n => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
-                      placeholder={t('notes.sermonVerseFrom', undefined, lang)} value={p.verseStart}
-                      onChange={e => updatePassageRow(i, 'verseStart', e.target.value)}
-                    />
-                    <span style={styles.passageVerseSep}>–</span>
-                    <input
-                      type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
-                      placeholder={t('notes.sermonVerseTo', undefined, lang)} value={p.verseEnd}
-                      onChange={e => updatePassageRow(i, 'verseEnd', e.target.value)}
-                    />
-                    <button
-                      style={styles.passageRemoveBtn} onClick={() => removePassageRow(i)}
-                      aria-label={t('notes.sermonRemovePassage', undefined, lang)}
-                    >
-                      <AppIcon name="X" size={13} color="var(--g5)" />
-                    </button>
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={styles.passageRow}>
+                      <select
+                        style={styles.passageBookSelect} value={p.book}
+                        onChange={e => updatePassageRow(i, 'book', e.target.value)}
+                      >
+                        <option value="">{t('notes.sermonPassageBookPlaceholder', undefined, lang)}</option>
+                        {allBooksOrdered.map(b => <option key={b} value={b}>{bookLabel(b)}</option>)}
+                      </select>
+                      <select
+                        style={styles.passageChapterSelect} value={p.chapter} disabled={!p.book}
+                        onChange={e => updatePassageRow(i, 'chapter', e.target.value)}
+                      >
+                        <option value="">{t('notes.sermonPassageChapterPlaceholder', undefined, lang)}</option>
+                        {Array.from({ length: bookChapterCounts[p.book] ?? 0 }, (_, idx) => idx + 1).map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
+                        placeholder={t('notes.sermonVerseFrom', undefined, lang)} value={p.verseStart}
+                        onChange={e => updatePassageRow(i, 'verseStart', e.target.value)}
+                      />
+                      <span style={styles.passageVerseSep}>–</span>
+                      <input
+                        type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
+                        placeholder={t('notes.sermonVerseTo', undefined, lang)} value={p.verseEnd}
+                        onChange={e => updatePassageRow(i, 'verseEnd', e.target.value)}
+                      />
+                      <button
+                        style={styles.passageRemoveBtn} onClick={() => removePassageRow(i)}
+                        aria-label={t('notes.sermonRemovePassage', undefined, lang)}
+                      >
+                        <AppIcon name="X" size={13} color="var(--g5)" />
+                      </button>
+                    </div>
+                    {/* Link "ir pro texto" já ativo assim que livro+capítulo
+                        são escolhidos — não precisa salvar a anotação
+                        primeiro (ver onOpenBiblePassage). A tela de Notas
+                        fica montada mesmo trocando de aba (ver App.jsx/
+                        notesVisitedRef), então o rascunho do formulário
+                        continua aqui quando a pessoa usa "Voltar" pra
+                        retornar. */}
+                    {p.book && p.chapter && (
+                      <button
+                        style={{ ...styles.passageChip, alignSelf: 'flex-start' }}
+                        onClick={() => onOpenBiblePassage?.(p.book, Number(p.chapter))}
+                      >
+                        <AppIcon name="BookOpen" size={11} color="var(--or)" /> {passageLabel(p)}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

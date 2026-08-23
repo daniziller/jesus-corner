@@ -9,6 +9,7 @@ export const STRINGS = {
     },
     a11y: {
       largeTextToggle: 'Texto grande',
+      goBack: 'Voltar',
     },
     auth: {
       tagline: 'Seu tempo. Seu plano. Sua conexão com Deus.',
@@ -989,6 +990,7 @@ export const STRINGS = {
     },
     a11y: {
       largeTextToggle: 'Large text',
+      goBack: 'Back',
     },
     auth: {
       tagline: 'Your time. Your plan. Your connection with God.',

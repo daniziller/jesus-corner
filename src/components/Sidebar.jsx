@@ -25,7 +25,7 @@ const sidebarFeaturedIconWrap = { position: 'relative', display: 'inline-flex', 
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações
 // no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).
-export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
@@ -46,6 +46,19 @@ export default function Sidebar({ activeTab, onNavigate, avatarInitials, avatarU
           <NotificationBell pendingCount={pendingCount} onNavigate={onNavigate} lang={lang} variant="sidebar" />
         </div>
       </div>
+
+      {/* Botão "Voltar" global — mesma pilha de navegação do AppHeader
+          (celular), só que sempre visível como item de lista aqui, já que
+          não tem espaço apertado de header pra disputar (ver App.jsx,
+          tabHistory/goBack). Só aparece quando há pra onde voltar. */}
+      {canGoBack && (
+        <button className="sidebar-item" onClick={onBack} style={{ marginBottom: 2 }}>
+          <span style={{ position: 'relative', display: 'inline-flex' }}>
+            <AppIcon name="ArrowLeft" size={18} color="var(--g4)" />
+          </span>
+          <span>{t('a11y.goBack', undefined, lang)}</span>
+        </button>
+      )}
 
       <div className="sidebar-nav">
         {TAB_IDS.map(id => {
