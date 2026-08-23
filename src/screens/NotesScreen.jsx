@@ -37,6 +37,30 @@ const FILTERS = [
   { key: 'sermon', types: ['sermon'], labelKey: 'notes.filterSermon' },
 ]
 
+// Cor própria por tipo de anotação — mesma cor usada na faixa de tipos
+// (sempre visível, ver abaixo) e no ícone/rótulo de cada card, pra dar pra
+// reconhecer o tipo de longe, sem precisar abrir o painel de filtros.
+// 'highlight' aqui é só a cor do ÍCONE da aba/card genérico — uma marcação
+// específica usa a cor de verdade que a pessoa escolheu (ver HIGHLIGHT_COLORS
+// / hc mais abaixo, que sobrescreve isso).
+const TYPE_STYLES = {
+  all:        { color: 'var(--bk)', bg: 'var(--g2)' },
+  reading:    { color: '#2563EB', bg: 'rgba(37,99,235,.12)' },
+  highlight:  { color: '#CA8A04', bg: 'rgba(202,138,4,.12)' },
+  reflection: { color: '#7C3AED', bg: 'rgba(124,58,237,.12)' },
+  sermon:     { color: '#B45309', bg: 'rgba(180,83,9,.12)' },
+}
+
+// A que grupo de cor/ícone uma anotação pertence — mesmas 4 categorias da
+// faixa de tipos acima ('reading' cobre tanto nota de capítulo quanto
+// reflexão de fechamento de livro, ver FILTERS).
+function typeGroupFor(note) {
+  if (note.type === 'highlight') return 'highlight'
+  if (note.type === 'sermon') return 'sermon'
+  if (note.type === 'daily-reflection' || note.type === 'application-phrase') return 'reflection'
+  return 'reading'
+}
+
 // Uma faixa nova de anotação de sermão, sem livro/capítulo/versículo
 // escolhidos ainda (ver addPassageRow).
 function blankPassage() {
@@ -529,8 +553,12 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       ? dateFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
       : dateFiltered
 
+  // Tipo não entra nesta contagem — a faixa de tipos fica sempre visível
+  // (fora do painel), então já mostra sozinha se está filtrando por tipo;
+  // a bolinha do botão "Filtros" só conta os refinamentos escondidos dentro
+  // do painel (livro/cor/preletor/data).
   const activeFilterCount =
-    (filter !== 'all' ? 1 : 0) + (bookFilter ? 1 : 0) + (colorFilter ? 1 : 0) + (preacherFilter ? 1 : 0) + (dateFilterKey !== 'all' ? 1 : 0)
+    (bookFilter ? 1 : 0) + (colorFilter ? 1 : 0) + (preacherFilter ? 1 : 0) + (dateFilterKey !== 'all' ? 1 : 0)
 
   function clearFilters() {
     setFilter('all')
@@ -697,7 +725,34 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           </>
         )}
 
-        {/* Painel de filtros (origem/livro/cor/data) minimizado por
+        {/* Tipo de anotação — SEMPRE visível (não fica escondido atrás do
+            painel de filtros) e cada tipo tem sua própria cor, tanto aqui
+            quanto no ícone/rótulo de cada card abaixo, pra dar pra
+            reconhecer o tipo de longe. Some junto do resto na busca por
+            tema (IA), que ignora filtros de propósito. */}
+        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
+          <div style={styles.filterRow}>
+            {FILTERS.map(f => {
+              const ts = TYPE_STYLES[f.key]
+              const active = filter === f.key
+              return (
+                <button
+                  key={f.key}
+                  style={{
+                    ...styles.filterBtn,
+                    background: active ? ts.color : ts.bg,
+                    color: active ? 'white' : ts.color,
+                  }}
+                  onClick={() => chooseFilter(f.key)}
+                >
+                  {t(f.labelKey, undefined, lang)}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Painel de filtros (livro/cor/preletor/data) minimizado por
             padrão — só o botão "Filtros" aparece, com uma bolinha
             mostrando quantos estão ativos; tocar abre o painel. A busca
             por tema (IA) ignora todos de propósito, então o botão some
@@ -716,20 +771,6 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
 
             {filtersOpen && (
               <>
-                {/* Origem — leitura (capítulo + reflexão de fechamento de
-                    livro), marcação, ou a Reflexão diária. */}
-                <div style={styles.filterRow}>
-                  {FILTERS.map(f => (
-                    <button
-                      key={f.key}
-                      style={{ ...styles.filterBtn, ...(filter === f.key ? styles.filterBtnActive : {}) }}
-                      onClick={() => chooseFilter(f.key)}
-                    >
-                      {t(f.labelKey, undefined, lang)}
-                    </button>
-                  ))}
-                </div>
-
                 {/* Livro — só notas de leitura/marcação têm um; lista só
                     os que já têm alguma anotação, em ordem canônica. */}
                 {availableBooks.length > 0 && (
@@ -838,19 +879,22 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           {filteredNotes.map(note => {
             const isEditing = editingKey === note.key
             const isBusy = busyKey === note.key
-            // Marcação usa a própria cor escolhida em vez do laranja padrão
-            // — é a informação principal que diferencia uma marcação da
-            // outra numa lista (ver HIGHLIGHT_COLORS).
+            // Marcação usa a própria cor escolhida em vez da cor fixa do
+            // tipo "Marcações" — é a informação principal que diferencia
+            // uma marcação da outra numa lista (ver HIGHLIGHT_COLORS). Os
+            // outros tipos usam a cor fixa do grupo (ver TYPE_STYLES), pra
+            // reconhecer o tipo de longe mesmo sem abrir filtro nenhum.
             const hc = note.type === 'highlight'
               ? (HIGHLIGHT_COLORS.find(c => c.id === note.color) ?? HIGHLIGHT_COLORS[0])
               : null
+            const typeStyle = hc ? { color: hc.swatch, bg: hc.bg } : TYPE_STYLES[typeGroupFor(note)]
             return (
               <div key={note.key} style={styles.card}>
                 <div style={styles.cardHeader}>
-                  <span style={{ ...styles.cardIcon, ...(hc ? { background: hc.bg } : {}) }}>
-                    <AppIcon name={iconFor(note.type)} size={13} color={hc ? hc.swatch : 'var(--or)'} />
+                  <span style={{ ...styles.cardIcon, background: typeStyle.bg }}>
+                    <AppIcon name={iconFor(note.type)} size={13} color={typeStyle.color} />
                   </span>
-                  <span style={styles.cardLabel}>{labelFor(note)}</span>
+                  <span style={{ ...styles.cardLabel, color: typeStyle.color }}>{labelFor(note)}</span>
                   {!isEditing && (
                     <span style={styles.cardActions}>
                       <button
@@ -939,8 +983,7 @@ const styles = {
   filtersClearBtn:   { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 700, color: 'var(--or)', padding: '2px 4px' },
   bookSelect:        { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600, color: 'var(--bk)', background: 'var(--card-bg)' },
   filterRow:  { display: 'flex', gap: 6 },
-  filterBtn:  { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  filterBtnActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },
+  filterBtn:  { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', borderRadius: 9, border: 'none', fontFamily: 'var(--font)', transition: 'background .15s, color .15s' },
   colorFilterRow:      { display: 'flex', alignItems: 'center', gap: 8, margin: '-2px 2px 0' },
   colorFilterAllBtn:   { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   colorFilterAllBtnActive: { background: 'var(--bk)', color: 'white', border: '0.5px solid transparent' },
