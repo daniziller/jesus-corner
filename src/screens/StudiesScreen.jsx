@@ -1,12 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, setStudySessionDone, isStudySessionDone } from '../studies/studiesProgressStore'
 import { generateStudy, getAiStudies, saveAiStudy, deleteAiStudy } from '../studies/aiStudiesStore'
+import { getInductiveStudies, saveInductiveStudy, deleteInductiveStudy } from '../studies/inductiveStudiesStore'
+import { computeBookChapterCounts } from '../utils/progress'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function StudiesScreen({ session, authUser, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy }) {
+// Uma sessão nova de estudo indutivo começa sem nenhum campo preenchido —
+// só a passagem escolhida (ver blankInductiveSession/StudyDetail abaixo).
+function blankPassageForm() {
+  return { book: '', chapter: '', verseStart: '', verseEnd: '' }
+}
+
+export default function StudiesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy }) {
   const { lang } = session
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [openStudyId, setOpenStudyId] = useState(null)
@@ -21,13 +29,37 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
 
+  // Estudos indutivos (método Observação/Interpretação/Verdade Atemporal/
+  // Aplicação — ver src/studies/inductiveStudiesStore.js) — mesma lista
+  // combinada de allStudies abaixo, distinguidos por `kind: 'inductive'`.
+  const [inductiveStudies, setInductiveStudies] = useState([])
+  const [creatingInductive, setCreatingInductive] = useState(false)
+  const [inductiveTitle, setInductiveTitle] = useState('')
+
   useEffect(() => {
     if (!authUser) return
     getCompletedStudySessions(authUser.email).then(setCompletedSet)
     getAiStudies(authUser.email).then(setAiStudies)
+    getInductiveStudies(authUser.email).then(setInductiveStudies)
   }, [authUser?.email])
 
-  const allStudies = [...STUDIES, ...aiStudies]
+  const allStudies = [...STUDIES, ...aiStudies, ...inductiveStudies]
+
+  // Nome do livro (chave canônica, sempre em pt) -> nome em inglês + lista
+  // ordenada de todos os livros + contagem de capítulos por livro — mesma
+  // fonte/lógica já usada no seletor de passagem da anotação de sermão
+  // (ver NotesScreen.jsx), reaproveitada aqui pro seletor de passagem do
+  // estudo indutivo.
+  const bookNameEn = useMemo(() => {
+    const map = {}
+    for (const b of blocks) b.books.forEach((name, i) => { map[name] = b.booksEn[i] })
+    return map
+  }, [blocks])
+  const allBooksOrdered = useMemo(() => blocks.flatMap(b => b.books), [blocks])
+  const bookChapterCounts = useMemo(() => computeBookChapterCounts(sessionsByBlock), [sessionsByBlock])
+  function bookLabel(book) {
+    return lang === 'en' ? (bookNameEn[book] ?? book) : book
+  }
 
   async function handleGenerate() {
     if (!title.trim() || !scope.trim() || generating) return
@@ -53,18 +85,103 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
     }
   }
 
-  // Só estudos criados por IA podem ser apagados (os estáticos de STUDIES
-  // não têm essa opção). Se o estudo apagado era o aberto/ativo, limpa
+  // Cria um estudo indutivo novo, ainda sem nenhuma sessão/passagem — a
+  // pessoa adiciona a primeira dentro de StudyDetail (ver
+  // onAddInductiveSession abaixo). Sem geração por IA nem conteúdo
+  // pré-escrito: o método é preenchido pela própria pessoa.
+  async function handleCreateInductive() {
+    if (!inductiveTitle.trim() || !authUser) return
+    const study = {
+      id: `ind-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kind: 'inductive',
+      icon: 'Search',
+      title: inductiveTitle.trim(),
+      titleEn: inductiveTitle.trim(),
+      createdAt: new Date().toISOString(),
+      sessions: [],
+    }
+    try {
+      const updated = await saveInductiveStudy(authUser.email, study)
+      setInductiveStudies(updated)
+      setCreatingInductive(false)
+      setInductiveTitle('')
+      setOpenStudyId(study.id)
+    } catch (err) {
+      console.error('Failed to create inductive study', err)
+    }
+  }
+
+  // Adiciona uma nova sessão (passagem) a um estudo indutivo já existente —
+  // salva o estudo INTEIRO de volta (mesmo padrão de
+  // inductiveStudiesStore.js: cada save substitui o registro por completo).
+  async function onAddInductiveSession(study, passage) {
+    if (!authUser) return
+    const newSession = {
+      id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      book: passage.book,
+      chapter: Number(passage.chapter),
+      verseStart: passage.verseStart ? Number(passage.verseStart) : null,
+      verseEnd: passage.verseEnd ? Number(passage.verseEnd) : null,
+      observation: '', interpretation: '', timelessTruth: '', application: '',
+      updatedAt: new Date().toISOString(),
+    }
+    const updatedStudy = { ...study, sessions: [...study.sessions, newSession] }
+    try {
+      const updated = await saveInductiveStudy(authUser.email, updatedStudy)
+      setInductiveStudies(updated)
+      setOpenSessionId(newSession.id)
+    } catch (err) {
+      console.error('Failed to add inductive study session', err)
+    }
+  }
+
+  // Salva o texto de uma sessão de estudo indutivo (Observação/
+  // Interpretação/Verdade Atemporal/Aplicação) — chamado pelo botão Salvar
+  // dentro de SessionView.
+  async function onSaveInductiveSession(study, sessionId, fields) {
+    if (!authUser) return
+    const nowIso = new Date().toISOString()
+    const updatedStudy = {
+      ...study,
+      sessions: study.sessions.map(s => s.id === sessionId ? { ...s, ...fields, updatedAt: nowIso } : s),
+    }
+    try {
+      const updated = await saveInductiveStudy(authUser.email, updatedStudy)
+      setInductiveStudies(updated)
+    } catch (err) {
+      console.error('Failed to save inductive study session', err)
+    }
+  }
+
+  async function onDeleteInductiveSession(study, sessionId) {
+    if (!authUser) return
+    const updatedStudy = { ...study, sessions: study.sessions.filter(s => s.id !== sessionId) }
+    try {
+      const updated = await saveInductiveStudy(authUser.email, updatedStudy)
+      setInductiveStudies(updated)
+      setOpenSessionId(null)
+    } catch (err) {
+      console.error('Failed to delete inductive study session', err)
+    }
+  }
+
+  // Só estudos criados por IA ou indutivos (não os estáticos de STUDIES)
+  // podem ser apagados. Se o estudo apagado era o aberto/ativo, limpa
   // ambos pra não deixar ponteiro pra um estudo que não existe mais.
   async function handleDeleteStudy(study) {
-    if (!window.confirm(t('studies.deleteConfirm', undefined, lang))) return
+    const isInductive = study.kind === 'inductive'
+    const confirmMsg = isInductive ? t('studies.inductiveDeleteConfirm', undefined, lang) : t('studies.deleteConfirm', undefined, lang)
+    if (!window.confirm(confirmMsg)) return
     try {
-      const updated = await deleteAiStudy(authUser.email, study.id)
-      setAiStudies(updated)
+      const updated = isInductive
+        ? await deleteInductiveStudy(authUser.email, study.id)
+        : await deleteAiStudy(authUser.email, study.id)
+      if (isInductive) setInductiveStudies(updated)
+      else setAiStudies(updated)
       if (openStudyId === study.id) { setOpenStudyId(null); setOpenSessionId(null) }
       if (session.activeStudyId === study.id) onSelectActiveStudy?.(null)
     } catch (err) {
-      console.error('Failed to delete AI study', err)
+      console.error('Failed to delete study', err)
     }
   }
 
@@ -72,7 +189,9 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
   // seguir dia após dia — ver session.activeStudyId) também marca o passo
   // "Estudo guiado" de hoje na rotina, mesmo padrão de onPrayerCompleted/
   // onReflectionCompleted. Sessões de OUTROS estudos (não o ativo) não
-  // contam — só progresso salvo, sem refletir na rotina do dia.
+  // contam — só progresso salvo, sem refletir na rotina do dia. Funciona
+  // igual pra estudos indutivos — mesma chave studyId:sessionId, mesmo
+  // armazenamento (studiesProgressStore.js não precisa saber a origem).
   function toggleSessionDone(studyId, sessionId, done) {
     if (!authUser) return
     const key = `${studyId}:${sessionId}`
@@ -154,6 +273,40 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
             </button>
           )}
 
+          {/* Estudo indutivo — método Observação/Interpretação/Verdade
+              Atemporal/Aplicação (ver src/studies/inductiveStudiesStore.js).
+              Sem geração nenhuma: só pede um título (o livro/tema que a
+              pessoa vai estudar) — as passagens/sessões são adicionadas
+              depois, uma de cada vez, dentro do estudo. */}
+          {creatingInductive ? (
+            <div style={styles.createCard}>
+              <p style={styles.inductiveIntro}>{t('studies.inductiveIntro', undefined, lang)}</p>
+              <p style={{ ...styles.createLabel, marginTop: 12 }}>{t('studies.inductiveTitleLabel', undefined, lang)}</p>
+              <input
+                type="text"
+                style={styles.themeInput}
+                value={inductiveTitle}
+                onChange={e => setInductiveTitle(e.target.value)}
+                placeholder={t('studies.inductiveTitlePlaceholder', undefined, lang)}
+                maxLength={60}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <button style={styles.inductiveCreateBtn} onClick={handleCreateInductive} disabled={!inductiveTitle.trim()}>
+                  {t('studies.inductiveCreateBtn', undefined, lang)}
+                </button>
+                <button style={styles.cancelBtn} onClick={() => { setCreatingInductive(false); setInductiveTitle('') }}>
+                  {t('studies.createByThemeCancel', undefined, lang)}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button style={styles.inductiveNewBtn} onClick={() => setCreatingInductive(true)}>
+              <AppIcon name="Search" size={16} color="white" />
+              {t('studies.inductiveNewBtn', undefined, lang)}
+            </button>
+          )}
+
           {allStudies.map(study => (
             <StudyCard
               key={study.id}
@@ -161,7 +314,7 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
               lang={lang}
               completedSet={completedSet}
               onOpen={() => setOpenStudyId(study.id)}
-              onDelete={aiStudies.some(s => s.id === study.id) ? () => handleDeleteStudy(study) : null}
+              onDelete={(study.kind === 'inductive' || aiStudies.some(s => s.id === study.id)) ? () => handleDeleteStudy(study) : null}
             />
           ))}
         </div>
@@ -169,21 +322,40 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
 
       <div className={`detail-pane${!openStudy ? ' hide-on-mobile' : ''}`}>
         {openStudy && openSession && (
-          <SessionView
-            study={openStudy}
-            studySession={openSession}
-            lang={lang}
-            isDone={isStudySessionDone(completedSet, openStudy.id, openSession.id)}
-            onToggleDone={done => toggleSessionDone(openStudy.id, openSession.id, done)}
-            onBack={() => setOpenSessionId(null)}
-          />
+          openStudy.kind === 'inductive' ? (
+            <InductiveSessionView
+              study={openStudy}
+              studySession={openSession}
+              lang={lang}
+              bookLabel={bookLabel}
+              isDone={isStudySessionDone(completedSet, openStudy.id, openSession.id)}
+              onToggleDone={done => toggleSessionDone(openStudy.id, openSession.id, done)}
+              onSave={fields => onSaveInductiveSession(openStudy, openSession.id, fields)}
+              onDelete={() => onDeleteInductiveSession(openStudy, openSession.id)}
+              onOpenBiblePassage={onOpenBiblePassage}
+              onBack={() => setOpenSessionId(null)}
+            />
+          ) : (
+            <SessionView
+              study={openStudy}
+              studySession={openSession}
+              lang={lang}
+              isDone={isStudySessionDone(completedSet, openStudy.id, openSession.id)}
+              onToggleDone={done => toggleSessionDone(openStudy.id, openSession.id, done)}
+              onBack={() => setOpenSessionId(null)}
+            />
+          )
         )}
         {openStudy && !openSession && (
           <StudyDetail
             study={openStudy}
             lang={lang}
             completedSet={completedSet}
+            bookLabel={bookLabel}
+            allBooksOrdered={allBooksOrdered}
+            bookChapterCounts={bookChapterCounts}
             onOpenSession={id => setOpenSessionId(id)}
+            onAddSession={passage => onAddInductiveSession(openStudy, passage)}
             onBack={() => setOpenStudyId(null)}
           />
         )}
@@ -207,13 +379,17 @@ function StudiesEmptyState({ lang }) {
 }
 
 function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
+  const isInductive = study.kind === 'inductive'
   const title = lang === 'en' ? study.titleEn : study.title
-  const subtitle = lang === 'en' ? study.subtitleEn : study.subtitle
+  const subtitle = isInductive
+    ? t('studies.inductiveCardSubtitle', { n: study.sessions.length }, lang)
+    : (lang === 'en' ? study.subtitleEn : study.subtitle)
   const doneCount = study.sessions.filter(s => isStudySessionDone(completedSet, study.id, s.id)).length
   const total = study.sessions.length
   const percent = total ? Math.round((doneCount / total) * 100) : 0
   const label =
-    doneCount === 0 ? t('studies.startStudy', undefined, lang)
+    total === 0 ? t('studies.inductiveAddFirstPassage', undefined, lang)
+    : doneCount === 0 ? t('studies.startStudy', undefined, lang)
     : doneCount === total ? t('studies.reviewStudy', undefined, lang)
     : t('studies.continueStudy', undefined, lang)
 
@@ -224,7 +400,10 @@ function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
           <AppIcon name={study.icon} size={22} color="var(--or)" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={styles.studyTitle}>{title}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <h3 style={styles.studyTitle}>{title}</h3>
+            {isInductive && <span style={styles.inductiveBadge}>{t('studies.inductiveBadge', undefined, lang)}</span>}
+          </div>
           <p style={styles.studySubtitle}>{subtitle}</p>
         </div>
         {onDelete && (
@@ -237,19 +416,46 @@ function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
           </button>
         )}
       </div>
-      <div style={{ height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', margin: '12px 0 8px' }}>
-        <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${percent}%` }} />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={styles.studyMeta}>{t('studies.sessionsDoneCount', { done: doneCount, total }, lang)}</span>
-        <span style={styles.studyCta}>{label}</span>
-      </div>
+      {total > 0 && (
+        <>
+          <div style={{ height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', margin: '12px 0 8px' }}>
+            <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${percent}%` }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={styles.studyMeta}>{t('studies.sessionsDoneCount', { done: doneCount, total }, lang)}</span>
+            <span style={styles.studyCta}>{label}</span>
+          </div>
+        </>
+      )}
+      {total === 0 && (
+        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={styles.studyCta}>{label}</span>
+        </div>
+      )}
     </div>
   )
 }
 
-function StudyDetail({ study, lang, completedSet, onOpenSession, onBack }) {
+// Rótulo "Livro Capítulo" ou "Livro Capítulo:de-até" de uma sessão de
+// estudo indutivo — mesma ideia de passageLabel em NotesScreen.jsx (a
+// anotação de sermão usa o mesmo formato pra suas passagens).
+function inductivePassageLabel(s, bookLabel) {
+  const range = s.verseStart ? `:${s.verseStart}${s.verseEnd && s.verseEnd !== s.verseStart ? `-${s.verseEnd}` : ''}` : ''
+  return `${bookLabel(s.book)} ${s.chapter}${range}`
+}
+
+function StudyDetail({ study, lang, completedSet, bookLabel, allBooksOrdered, bookChapterCounts, onOpenSession, onAddSession, onBack }) {
   const title = lang === 'en' ? study.titleEn : study.title
+  const isInductive = study.kind === 'inductive'
+  const [addingPassage, setAddingPassage] = useState(false)
+  const [passage, setPassage] = useState(blankPassageForm())
+
+  function submitPassage() {
+    if (!passage.book || !passage.chapter) return
+    onAddSession(passage)
+    setPassage(blankPassageForm())
+    setAddingPassage(false)
+  }
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
@@ -261,20 +467,75 @@ function StudyDetail({ study, lang, completedSet, onOpenSession, onBack }) {
       </div>
 
       <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+        {isInductive && (
+          addingPassage ? (
+            <div style={styles.createCard}>
+              <p style={styles.createLabel}>{t('studies.inductiveAddPassageLabel', undefined, lang)}</p>
+              <div style={styles.passageRow}>
+                <select
+                  style={styles.passageBookSelect} value={passage.book}
+                  onChange={e => setPassage(p => ({ ...p, book: e.target.value, chapter: '' }))}
+                >
+                  <option value="">{t('notes.sermonPassageBookPlaceholder', undefined, lang)}</option>
+                  {allBooksOrdered.map(b => <option key={b} value={b}>{bookLabel(b)}</option>)}
+                </select>
+                <select
+                  style={styles.passageChapterSelect} value={passage.chapter} disabled={!passage.book}
+                  onChange={e => setPassage(p => ({ ...p, chapter: e.target.value }))}
+                >
+                  <option value="">{t('notes.sermonPassageChapterPlaceholder', undefined, lang)}</option>
+                  {Array.from({ length: bookChapterCounts[passage.book] ?? 0 }, (_, idx) => idx + 1).map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                <input
+                  type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
+                  placeholder={t('notes.sermonVerseFrom', undefined, lang)} value={passage.verseStart}
+                  onChange={e => setPassage(p => ({ ...p, verseStart: e.target.value }))}
+                />
+                <span style={styles.passageVerseSep}>–</span>
+                <input
+                  type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
+                  placeholder={t('notes.sermonVerseTo', undefined, lang)} value={passage.verseEnd}
+                  onChange={e => setPassage(p => ({ ...p, verseEnd: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button style={styles.inductiveCreateBtn} onClick={submitPassage} disabled={!passage.book || !passage.chapter}>
+                  {t('studies.inductiveAddPassageConfirm', undefined, lang)}
+                </button>
+                <button style={styles.cancelBtn} onClick={() => { setAddingPassage(false); setPassage(blankPassageForm()) }}>
+                  {t('studies.createByThemeCancel', undefined, lang)}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button style={styles.addPassageBtn} onClick={() => setAddingPassage(true)}>
+              <AppIcon name="Plus" size={14} color="var(--or)" /> {t('studies.inductiveAddPassageBtn', undefined, lang)}
+            </button>
+          )
+        )}
+
+        {isInductive && study.sessions.length === 0 && !addingPassage && (
+          <p style={styles.emptyHint}>{t('studies.inductiveEmptyState', undefined, lang)}</p>
+        )}
+
         {study.sessions.map(s => {
           const done = isStudySessionDone(completedSet, study.id, s.id)
-          const sTitle = lang === 'en' ? s.titleEn : s.title
-          const passage = lang === 'en' ? s.passageEn : s.passage
+          const sTitle = isInductive ? inductivePassageLabel(s, bookLabel) : (lang === 'en' ? s.titleEn : s.title)
+          const passageSub = isInductive
+            ? (s.observation || s.interpretation || s.timelessTruth || s.application ? t('studies.inductiveHasNotesHint', undefined, lang) : t('studies.inductiveNoNotesHint', undefined, lang))
+            : (lang === 'en' ? s.passageEn : s.passage)
           return (
             <div key={s.id} style={styles.sessionRow} onClick={() => onOpenSession(s.id)}>
               <div style={{ ...styles.sessionIcon, background: done ? 'var(--grad-vivid)' : 'var(--g1)' }}>
                 {done
                   ? <AppIcon name="Check" size={15} color="white" />
-                  : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--g5)' }}>{s.id}</span>}
+                  : (isInductive ? <AppIcon name="Search" size={14} color="var(--g5)" /> : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--g5)' }}>{s.id}</span>)}
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={styles.sessionTitle}>{sTitle}</p>
-                <p style={styles.sessionSub}>{passage}</p>
+                <p style={styles.sessionSub}>{passageSub}</p>
               </div>
               {done && <span style={styles.doneBadge}>{t('studies.sessionDoneBadge', undefined, lang)}</span>}
             </div>
@@ -344,6 +605,126 @@ function SessionView({ study, studySession, lang, isDone, onToggleDone, onBack }
   )
 }
 
+// Sessão de estudo indutivo — em vez de conteúdo pronto pra ler (ver
+// SessionView acima), mostra 4 campos guiados que a PRÓPRIA pessoa
+// preenche, na ordem do método (Observação → Interpretação → Verdade
+// Atemporal → Aplicação — ver YWAM School of Biblical Studies). O texto
+// bíblico em si não é reproduzido aqui dentro (evita duplicar toda a
+// leitura/tradução já existente na aba Bíblia) — em vez disso, um link
+// abre a passagem exata na aba Bíblia pra consulta, mesmo padrão já usado
+// nas anotações de sermão (ver NotesScreen.jsx/onOpenBiblePassage).
+function InductiveSessionView({ study, studySession, lang, bookLabel, isDone, onToggleDone, onSave, onDelete, onOpenBiblePassage, onBack }) {
+  const passageTitle = inductivePassageLabel(studySession, bookLabel)
+  const [observation, setObservation] = useState(studySession.observation ?? '')
+  const [interpretation, setInterpretation] = useState(studySession.interpretation ?? '')
+  const [timelessTruth, setTimelessTruth] = useState(studySession.timelessTruth ?? '')
+  const [application, setApplication] = useState(studySession.application ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const dirty = observation !== (studySession.observation ?? '') || interpretation !== (studySession.interpretation ?? '')
+    || timelessTruth !== (studySession.timelessTruth ?? '') || application !== (studySession.application ?? '')
+
+  async function handleSave() {
+    if (saving) return
+    setSaving(true)
+    setSaved(false)
+    try {
+      await onSave({ observation, interpretation, timelessTruth, application })
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleDelete() {
+    if (window.confirm(t('studies.inductiveDeleteSessionConfirm', undefined, lang))) onDelete()
+  }
+
+  return (
+    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button onClick={onBack} style={styles.backBtn} aria-label="back">
+          <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />
+        </button>
+        <h1 className="page-title">{passageTitle}</h1>
+        <button style={styles.sessionDeleteBtn} onClick={handleDelete} aria-label={t('studies.inductiveDeleteSessionAction', undefined, lang)}>
+          <AppIcon name="Trash2" size={15} color="var(--re)" />
+        </button>
+      </div>
+
+      <div style={{ padding: '4px 14px 4px' }}>
+        <button
+          style={styles.readPassageBtn}
+          onClick={() => onOpenBiblePassage?.(studySession.book, studySession.chapter)}
+        >
+          <AppIcon name="BookOpen" size={14} color="var(--or)" /> {t('studies.inductiveReadPassage', undefined, lang)}
+        </button>
+      </div>
+
+      <div style={{ padding: '10px 14px 4px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <InductiveField
+          label={t('studies.inductiveObservationLabel', undefined, lang)}
+          hint={t('studies.inductiveObservationHint', undefined, lang)}
+          placeholder={t('studies.inductiveObservationPlaceholder', undefined, lang)}
+          value={observation} onChange={setObservation}
+        />
+        <InductiveField
+          label={t('studies.inductiveInterpretationLabel', undefined, lang)}
+          hint={t('studies.inductiveInterpretationHint', undefined, lang)}
+          placeholder={t('studies.inductiveInterpretationPlaceholder', undefined, lang)}
+          value={interpretation} onChange={setInterpretation}
+        />
+        <InductiveField
+          label={t('studies.inductiveTimelessTruthLabel', undefined, lang)}
+          hint={t('studies.inductiveTimelessTruthHint', undefined, lang)}
+          placeholder={t('studies.inductiveTimelessTruthPlaceholder', undefined, lang)}
+          value={timelessTruth} onChange={setTimelessTruth}
+          rows={2}
+        />
+        <InductiveField
+          label={t('studies.inductiveApplicationLabel', undefined, lang)}
+          hint={t('studies.inductiveApplicationHint', undefined, lang)}
+          placeholder={t('studies.inductiveApplicationPlaceholder', undefined, lang)}
+          value={application} onChange={setApplication}
+        />
+      </div>
+
+      <div style={{ padding: '10px 14px 4px' }}>
+        <button style={styles.inductiveSaveBtn} onClick={handleSave} disabled={saving || !dirty}>
+          {saving ? t('notes.saving', undefined, lang) : t('studies.inductiveSaveBtn', undefined, lang)}
+        </button>
+        {saved && !dirty && <p style={styles.savedHint}>{t('studies.inductiveSavedHint', undefined, lang)}</p>}
+      </div>
+
+      <div style={{ padding: '10px 14px 14px' }}>
+        <button
+          style={{ ...styles.completeBtn, ...(isDone ? styles.completeBtnDone : {}) }}
+          onClick={() => onToggleDone(!isDone)}
+        >
+          {isDone ? t('reading.markUndone', undefined, lang) : t('reading.markDone', undefined, lang)}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function InductiveField({ label, hint, placeholder, value, onChange, rows = 4 }) {
+  return (
+    <div style={styles.panel}>
+      <p style={styles.panelLabel}>{label}</p>
+      <p style={styles.inductiveFieldHint}>{hint}</p>
+      <textarea
+        style={styles.inductiveTextarea}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+      />
+    </div>
+  )
+}
+
 const styles = {
   pageSubtitle: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', padding: '14px 14px 0', marginBottom: 8 },
   backBtn:      { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
@@ -354,10 +735,12 @@ const styles = {
   studyMeta:    { fontSize: 10.5, fontWeight: 600, color: 'var(--g5)' },
   studyCta:     { fontSize: 11, fontWeight: 700, color: 'var(--or)' },
   studyDeleteBtn:{ width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  inductiveBadge: { fontSize: 9, fontWeight: 800, color: '#7C3AED', background: 'rgba(124,58,237,.12)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
   sessionRow:   { display: 'flex', alignItems: 'center', gap: 11, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 19, padding: 12, cursor: 'pointer', boxShadow: 'var(--shadow-card)' },
   sessionIcon:  { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sessionTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
   sessionSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
+  sessionDeleteBtn: { width: 32, height: 32, borderRadius: 10, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   doneBadge:    { fontSize: 9, fontWeight: 700, color: 'var(--gr)', whiteSpace: 'nowrap' },
   hero:         { background: 'var(--grad-vivid)', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-glow)' },
   heroPassage:  { fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'white', letterSpacing: '-0.2px' },
@@ -377,4 +760,21 @@ const styles = {
   generateBtn:   { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
   cancelBtn:     { border: '0.5px solid var(--g2)', borderRadius: 11, padding: '11px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'var(--g5)', cursor: 'pointer', background: 'var(--g1)' },
   generatingHint:{ fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
+
+  // Estudo indutivo
+  inductiveNewBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: '#7C3AED', boxShadow: '0 10px 24px rgba(124,58,237,.3)' },
+  inductiveIntro:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
+  inductiveCreateBtn: { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: '#7C3AED' },
+  addPassageBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: '0.5px dashed var(--g3)', background: 'none', borderRadius: 13, padding: '11px 10px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  emptyHint:      { fontSize: 12, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '18px 8px' },
+  passageRow:     { display: 'flex', alignItems: 'center', gap: 5 },
+  passageBookSelect:   { flex: '1.3 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 6px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  passageChapterSelect:{ flex: '0.8 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  passageVerseInput:   { flex: '0.7 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
+  passageVerseSep:     { fontSize: 11, fontWeight: 700, color: 'var(--g4)', flexShrink: 0 },
+  readPassageBtn: { display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--olt)', borderRadius: 13, padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  inductiveFieldHint: { fontSize: 11, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginBottom: 8 },
+  inductiveTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--white)' },
+  inductiveSaveBtn: { width: '100%', background: '#7C3AED', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
+  savedHint:      { fontSize: 11, fontWeight: 600, color: 'var(--gr)', textAlign: 'center', marginTop: 8 },
 }

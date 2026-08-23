@@ -296,6 +296,11 @@ export default function App() {
   // formulário, em NotesScreen.jsx) e usar "Voltar" pra retornar; sem isso,
   // trocar de aba e voltar remontaria a tela do zero e apagaria o rascunho.
   const notesVisitedRef = useRef(false)
+  // Estudos também — mesmo motivo: o formulário do estudo indutivo
+  // (Observação/Interpretação/Verdade Atemporal/Aplicação, ver
+  // StudiesScreen.jsx) tem um botão "Ler o texto na Bíblia" que pula pra
+  // outra aba antes de a pessoa necessariamente ter salvo o que escreveu.
+  const studiesVisitedRef = useRef(false)
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [activeBlockId, setActiveBlockId] = useState(1)
@@ -1080,6 +1085,7 @@ export default function App() {
   if (activeTab === 'prayer') prayerVisitedRef.current = true
   if (activeTab === 'reflection') reflectionVisitedRef.current = true
   if (activeTab === 'notes') notesVisitedRef.current = true
+  if (activeTab === 'studies') studiesVisitedRef.current = true
 
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
@@ -1090,7 +1096,6 @@ export default function App() {
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
-    studies: <StudiesScreen session={session} authUser={authUser} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onProfileUpdated={handleProfileUpdated} />,
@@ -1111,13 +1116,13 @@ export default function App() {
         {/* Conteúdo da tela ativa */}
         <div className="app-content">
           <div className="app-content-inner">
-            {activeTab !== 'prayer' && activeTab !== 'reflection' && activeTab !== 'notes' && screens[activeTab]}
+            {activeTab !== 'prayer' && activeTab !== 'reflection' && activeTab !== 'notes' && activeTab !== 'studies' && screens[activeTab]}
 
-            {/* Oração, Reflexão e Notas ficam sempre montadas depois da 1a
-                visita (ver prayerVisitedRef/reflectionVisitedRef/
-                notesVisitedRef) — display:'contents' faz o wrapper "sumir"
-                do layout quando oculto, sem atrapalhar o height:100% que a
-                tela em si já assume. */}
+            {/* Oração, Reflexão, Notas e Estudos ficam sempre montadas
+                depois da 1a visita (ver prayerVisitedRef/reflectionVisitedRef/
+                notesVisitedRef/studiesVisitedRef) — display:'contents' faz o
+                wrapper "sumir" do layout quando oculto, sem atrapalhar o
+                height:100% que a tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
                 <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} />
@@ -1131,6 +1136,11 @@ export default function App() {
             {notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
                 <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} />
+              </div>
+            )}
+            {studiesVisitedRef.current && (
+              <div style={{ display: activeTab === 'studies' ? 'contents' : 'none' }}>
+                <StudiesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} />
               </div>
             )}
           </div>
