@@ -98,25 +98,61 @@ function drawStatChip(ctx, { x, y, w, h, emoji, value, label }) {
   ctx.fillText(label, cx, y + h - 18)
 }
 
-// Rotina da semana (segunda a domingo) — mesma lógica de cores do
-// calendário de histórico (RoutineCalendar.jsx, "mesma lógica de cores do
-// calendário", ver conversa): círculo com gradiente dourado→marrom só nos
-// dias com os 3 passos completos (a letra do dia dentro, branca), 3
-// pontinhos ROUTINE_STEP_COLORS embaixo. Pensado pra fundo claro — por
-// isso mora na zona clara do cartão, não sobre o gradiente.
+// Anel dividido em fatias iguais — uma por passo LIGADO na rotina, cada
+// fatia colorida (ROUTINE_STEP_COLORS) só quando aquele passo foi feito
+// naquele dia. Mesmo desenho de RoutineDayRing.jsx (usado na Home/
+// calendário), reimplementado em canvas em vez de SVG — geometria idêntica
+// (fatias na mesma ordem/tamanho, mesmo vão entre elas), pra imagem nunca
+// divergir do que a pessoa já vê dentro do app.
+function drawDayRing(ctx, { cx, cy, r, strokeWidth, modules, done }) {
+  const n = modules.length || 1
+  const c = 2 * Math.PI * r
+  const gapPx = n > 1 ? Math.min(3, c / n / 4) : 0
+  const gapAngle = gapPx / r
+  const slotAngle = (Math.PI * 2) / n
+
+  ctx.save()
+  ctx.lineCap = 'butt'
+  ctx.lineWidth = strokeWidth
+
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.strokeStyle = '#E5E5E5' // var(--g2) — trilho vazio
+  ctx.stroke()
+
+  modules.forEach((key, i) => {
+    if (!done?.[key]) return
+    const start = -Math.PI / 2 + i * slotAngle
+    const end = start + slotAngle - gapAngle
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, start, end)
+    ctx.strokeStyle = ROUTINE_STEP_COLORS[key]
+    ctx.stroke()
+  })
+  ctx.restore()
+}
+
+// Rotina da semana (segunda a domingo) — círculo com gradiente
+// dourado→marrom só nos dias com todos os passos completos (a letra do dia
+// dentro, branca), anel fatiado (drawDayRing acima) mostrando quais passos
+// foram feitos naquele dia. Pensado pra fundo claro — por isso mora na
+// zona clara do cartão, não sobre o gradiente.
 function drawWeekRoutineRow(ctx, { days, lang, left, width, y, modules = DEFAULT_ROUTINE_MODULES }) {
   const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
   const colW = width / days.length
   const circleR = 26
-  const dotR = 5
-  const dotGap = 8
-  // Ligar/desligar um passo não deve reescrever retroativamente se um dia
-  // já passado foi "completo" (mesmo critério de routineStreak.js).
+  const ringR = circleR + 6
+  // Ligar/desligar um passo em "Meu Plano" só vale a partir de hoje — dias
+  // já passados continuam com o trio original (mesmo critério de
+  // WeekRoutineRow em HomeScreen.jsx/routineStreak.js).
   const todayKeyStr = days.find(d => d.isToday)?.key ?? days[0]?.key
 
   days.forEach((day, i) => {
     const cx = left + colW * i + colW / 2
-    const complete = !day.isFuture && isDayComplete(day, modulesForDay(day.key, modules, todayKeyStr))
+    const dayModules = modulesForDay(day.key, modules, todayKeyStr)
+    const complete = !day.isFuture && isDayComplete(day, dayModules)
+
+    if (!day.isFuture) drawDayRing(ctx, { cx, cy: y, r: ringR, strokeWidth: 3.5, modules: dayModules, done: day })
 
     ctx.beginPath()
     ctx.arc(cx, y, circleR, 0, Math.PI * 2)
@@ -136,32 +172,23 @@ function drawWeekRoutineRow(ctx, { days, lang, left, width, y, modules = DEFAULT
     ctx.font = '700 24px "Be Vietnam Pro"'
     ctx.fillStyle = complete ? '#FFFFFF' : (day.isToday ? BROWN : '#737373')
     ctx.fillText(letters[i], cx, y + 2)
-
-    const dotsW = dotR * 2 * 3 + dotGap * 2
-    let dx = cx - dotsW / 2 + dotR
-    const dotY = y + circleR + 18;
-    [
-      !day.isFuture && day.prayer ? ROUTINE_STEP_COLORS.prayer : '#E5E5E5',
-      !day.isFuture && day.reading ? ROUTINE_STEP_COLORS.reading : '#E5E5E5',
-      !day.isFuture && day.reflection ? ROUTINE_STEP_COLORS.reflection : '#E5E5E5',
-    ].forEach(color => {
-      ctx.beginPath()
-      ctx.arc(dx, dotY, dotR, 0, Math.PI * 2)
-      ctx.fillStyle = color
-      ctx.fill()
-      dx += dotR * 2 + dotGap
-    })
   })
 }
 
-// Legenda de qual cor é qual passo — sem ela, os 3 pontinhos não dizem
-// sozinhos o que cada um representa. Mesmas cores/rótulos do calendário.
-function drawCalendarLegend(ctx, { cx, y, lang }) {
-  const items = [
-    { color: ROUTINE_STEP_COLORS.prayer, label: t('home.routinePrayer', undefined, lang) },
-    { color: ROUTINE_STEP_COLORS.reading, label: t('home.routineReading', undefined, lang) },
-    { color: ROUTINE_STEP_COLORS.reflection, label: t('home.routineReflection', undefined, lang) },
+// Legenda de qual cor é qual passo — sem ela, as fatias do anel não dizem
+// sozinhas o que cada uma representa. Mesmas cores/rótulos/ordem do
+// calendário — só os passos LIGADOS na rotina aparecem (mesmo filtro do
+// legendário em HomeScreen.jsx).
+function drawCalendarLegend(ctx, { cx, y, lang, modules = DEFAULT_ROUTINE_MODULES }) {
+  const ALL = [
+    { key: 'prayer', labelKey: 'home.routinePrayer' },
+    { key: 'reading', labelKey: 'home.routineReading' },
+    { key: 'study', labelKey: 'home.routineStudy' },
+    { key: 'reflection', labelKey: 'home.routineReflection' },
   ]
+  const items = ALL
+    .filter(item => modules.includes(item.key))
+    .map(item => ({ color: ROUTINE_STEP_COLORS[item.key], label: t(item.labelKey, undefined, lang) }))
   const dotR = 6
   const gapAfterDot = 10
   const gapBetween = 26
@@ -248,7 +275,7 @@ function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
   lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight))
 }
 
-export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules = DEFAULT_ROUTINE_MODULES }) {
+export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, readingWeekStreak, achievements, lang, dailyRoutine, routineModules = DEFAULT_ROUTINE_MODULES }) {
   await ensureFontsReady()
   const logo = await loadImage('/icons/icon-192.png').catch(() => null)
 
@@ -328,23 +355,29 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   ctx.fillStyle = 'rgba(255,255,255,.85)'
   ctx.fillText(t('home.bibleReadLabel', undefined, lang).toUpperCase(), cx, cy + r + 58)
 
-  // Streak + constância — dois chips lado a lado. Constância é a mesma
-  // métrica da aba Rotina (averageFullRoutineDays: média de dias/semana
-  // com os 3 passos completos nas últimas 4 semanas), não só o streak
-  // (que zera fácil e não conta o padrão de uso ao longo do tempo).
+  // Streak + constância + semanas seguidas lendo — três chips lado a lado
+  // (mesmo trio do card de % na Home). Constância é a mesma métrica da aba
+  // Rotina (averageFullRoutineDays: média de dias/semana com todos os
+  // passos completos nas últimas 4 semanas); semanas lendo é uma métrica
+  // separada, só sobre leitura (perdoa dias sem ler contanto que outro dia
+  // da mesma semana tenha, ver computeReadingWeekStreak).
   const weeks = computeWeeklyRoutineStats(dailyRoutine ?? {}, routineModules, 4)
   const avgFullDays = averageFullRoutineDays(weeks)
   const avgLabel = avgFullDays.toFixed(1).replace(/\.0$/, '')
 
-  const statsGap = 26
-  const statsChipW = (CARD_W - 180 - statsGap) / 2
+  const statsGap = 20
+  const statsChipW = (CARD_W - 180 - statsGap * 2) / 3
   drawStatChip(ctx, {
     x: 90, y: statsTop, w: statsChipW, h: statsH,
     emoji: '🔥', value: `${streak}`, label: t('home.streakLabel', undefined, lang),
   })
   drawStatChip(ctx, {
-    x: 90 + statsChipW + statsGap, y: statsTop, w: statsChipW, h: statsH,
+    x: 90 + (statsChipW + statsGap), y: statsTop, w: statsChipW, h: statsH,
     emoji: '📊', value: avgLabel, label: t('home.shareCardConsistencyLabel', undefined, lang),
+  })
+  drawStatChip(ctx, {
+    x: 90 + (statsChipW + statsGap) * 2, y: statsTop, w: statsChipW, h: statsH,
+    emoji: '📅', value: `${readingWeekStreak ?? 0}`, label: t('home.readingWeekStreakLabel', undefined, lang),
   })
 
   // Barras AT/NT — ainda na zona escura, mesmo lugar de dentro do card de
@@ -366,10 +399,10 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
   const dayCellsY = routineLabelY + 54
   drawWeekRoutineRow(ctx, { days: weekDays, lang, left: 90, width: CARD_W - 180, y: dayCellsY, modules: routineModules })
 
-  // Pontinhos ficam em `dayCellsY + circleR(26) + 18` (ver
-  // drawWeekRoutineRow) — legenda com folga clara abaixo disso.
-  const legendY = dayCellsY + 26 + 18 + 5 + 36
-  drawCalendarLegend(ctx, { cx, y: legendY, lang })
+  // Anel de cada dia (ver drawDayRing) tem raio circleR(26)+6=32 — legenda
+  // com folga clara abaixo da borda dele.
+  const legendY = dayCellsY + 32 + 46
+  drawCalendarLegend(ctx, { cx, y: legendY, lang, modules: routineModules })
 
   // Melhor conquista desbloqueada — mesmo tratamento visual dos cards de
   // destaque em fundo claro (--card-highlight-bg/border), não mais o card
@@ -441,8 +474,8 @@ export async function buildProgressCardBlob({ biblePercent, atPercent, ntPercent
 // nada; só existe pra facilitar teste/depuração).
 const INSTAGRAM_URL = 'https://www.instagram.com/jesuscorner.app/'
 
-export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules = DEFAULT_ROUTINE_MODULES }) {
-  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules })
+export async function shareProgressCard({ biblePercent, atPercent, ntPercent, streak, readingWeekStreak, achievements, lang, dailyRoutine, routineModules = DEFAULT_ROUTINE_MODULES }) {
+  const blob = await buildProgressCardBlob({ biblePercent, atPercent, ntPercent, streak, readingWeekStreak, achievements, lang, dailyRoutine, routineModules })
   if (!blob) throw new Error('blob_failed')
   const file = new File([blob], 'jesus-corner-progresso.png', { type: 'image/png' })
 

@@ -14,7 +14,7 @@ import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore
 import { getPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { shareProgressCard } from '../share/shareProgressCard'
-import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
+import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, computeReadingWeekStreak, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
 
@@ -32,7 +32,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   async function handleShareCard() {
     setShareState('generating')
     try {
-      await shareProgressCard({ biblePercent, atPercent, ntPercent, streak, achievements, lang, dailyRoutine, routineModules })
+      await shareProgressCard({ biblePercent, atPercent, ntPercent, streak, readingWeekStreak, achievements, lang, dailyRoutine, routineModules })
       setShareState('idle')
     } catch (err) {
       // AbortError = a pessoa fechou a folha de compartilhamento nativa sem
@@ -68,6 +68,11 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   // com a rotina completa nas últimas 4 semanas), agora também na Home.
   const weeklyStats = computeWeeklyRoutineStats(dailyRoutine ?? {}, routineModules, 4)
   const consistencyValue = averageFullRoutineDays(weeklyStats).toFixed(1).replace(/\.0$/, '')
+
+  // Semanas seguidas com pelo menos 1 dia de leitura — métrica separada do
+  // streak diário (que é sobre a rotina inteira), pedida especificamente
+  // pra aparecer junto no card e na imagem de compartilhar.
+  const readingWeekStreak = computeReadingWeekStreak(dailyRoutine ?? {})
 
   // Semana atual (segunda a domingo) pros anéis de constância no card de %
   // — mesma função usada na imagem compartilhável, pra nunca divergir.
@@ -189,6 +194,10 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                   <div style={styles.pctStatChip}>
                     <span style={styles.pctStatValue}>{consistencyValue}</span>
                     <span style={styles.pctStatLabel}>{translate('home.shareCardConsistencyLabel', undefined, lang)}</span>
+                  </div>
+                  <div style={styles.pctStatChip}>
+                    <span style={styles.pctStatValue}><AppIcon name="Calendar" size={15} /> {readingWeekStreak}</span>
+                    <span style={styles.pctStatLabel}>{translate('home.readingWeekStreakLabel', undefined, lang)}</span>
                   </div>
                 </div>
               </div>

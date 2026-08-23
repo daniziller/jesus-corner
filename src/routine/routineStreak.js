@@ -53,6 +53,38 @@ export function computeRoutineStreak(dailyRoutine, modules = DEFAULT_ROUTINE_MOD
   return streak
 }
 
+// Quantas semanas SEGUIDAS (segunda a domingo) a pessoa leu pelo menos 1
+// capítulo em pelo menos 1 dia, terminando na semana atual — métrica
+// separada do streak diário acima (esse é sobre a rotina INTEIRA, dia a
+// dia; este é só sobre leitura, semana a semana, então perdoa um dia sem
+// ler contanto que outro dia da mesma semana tenha). Mesmo espírito
+// "perdoador" do streak diário: se a semana atual ainda não teve nenhuma
+// leitura, isso não zera a sequência na hora — a semana ainda não acabou,
+// então começa a contar da semana passada em vez de considerar a atual
+// como uma quebra.
+export function computeReadingWeekStreak(dailyRoutine, today = new Date()) {
+  const todayKeyStr = dateKey(today)
+  function weekHasReading(weekStart) {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)
+      const dayKeyStr = dateKey(d)
+      if (dayKeyStr > todayKeyStr) break // não olha pra dias futuros da semana atual
+      if (dailyRoutine[dayKeyStr]?.reading) return true
+    }
+    return false
+  }
+  let cursor = mondayOf(today)
+  if (!weekHasReading(cursor)) {
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 7)
+  }
+  let weekStreak = 0
+  while (weekHasReading(cursor)) {
+    weekStreak++
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 7)
+  }
+  return weekStreak
+}
+
 // Segunda-feira da semana em que "d" cai (getDay(): 0=domingo..6=sábado) —
 // semana sempre começa na segunda, terminando no domingo.
 function mondayOf(d) {
