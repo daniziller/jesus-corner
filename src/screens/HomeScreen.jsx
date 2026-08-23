@@ -13,7 +13,6 @@ import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { getPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
-import { STAT_THEMES } from '../utils/statThemes'
 import { shareProgressCard } from '../share/shareProgressCard'
 import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
@@ -108,9 +107,6 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
       {/* ── Corpo (sheet flutuante sobre o hero) ── */}
       <div style={styles.body}>
-
-        {/* Tutorial do método (recolhido por padrão) — logo no topo, igual ao design original */}
-        <TutorialCard lang={lang} />
 
         {/* "Widget" da frase de aplicação — o mais perto que dá de um
             widget de tela inicial de verdade (isso exigiria código nativo
@@ -360,74 +356,6 @@ function GoalTeaserCard({ goals, lang, onNavigate }) {
   )
 }
 
-function TutorialCard({ lang }) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <div style={styles.tutorialCard}>
-      <button style={styles.tutorialToggle} onClick={() => setOpen(v => !v)}>
-        <span style={styles.tutorialEmoji}><AppIcon name="Lightbulb" size={20} color="var(--or)" /></span>
-        <div style={{ flex: 1, textAlign: 'left' }}>
-          <p style={styles.tutorialToggleTitle}>{translate('home.tutorialToggleTitle', undefined, lang)}</p>
-          <p style={styles.tutorialToggleSub}>{translate('home.tutorialToggleSub', undefined, lang)}</p>
-        </div>
-        <span style={{ fontSize: 14, color: 'var(--g4)', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>⌄</span>
-      </button>
-
-      {open && (
-        <div style={styles.tutorialBody}>
-          <p style={styles.tutorialIntro}>
-            {translate('home.tutorialIntro', undefined, lang)}
-          </p>
-
-          <TutorialStep
-            icon="HandHeart" time={translate('home.stepPrayerTime', undefined, lang)} title={translate('home.stepPrayerTitle', undefined, lang)} theme="orange"
-            desc={translate('home.stepPrayerDesc', undefined, lang)}
-          />
-          <TutorialStep
-            icon="BookOpen" time={translate('home.stepReadingTime', undefined, lang)} title={translate('home.stepReadingTitle', undefined, lang)} theme="purple"
-            desc={translate('home.stepReadingDesc', undefined, lang)}
-          />
-          <TutorialStep
-            icon="PenLine" time={translate('home.stepReflectionTime', undefined, lang)} title={translate('home.stepReflectionTitle', undefined, lang)} theme="green"
-            desc={translate('home.stepReflectionDesc', undefined, lang)}
-          />
-
-          <div style={styles.tutorialTip}>
-            {translate('home.tutorialTip', undefined, lang)}
-          </div>
-
-          <div style={styles.tutorialTipBlue}>
-            {translate('home.tutorialTipRoutine', undefined, lang)}
-          </div>
-
-          <div style={styles.tutorialTipPurple}>
-            {translate('home.tutorialTipBonus', undefined, lang)}
-          </div>
-
-          <p style={styles.tutorialOutro}>{translate('home.tutorialOutro', undefined, lang)}</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TutorialStep({ icon, time, title, desc, theme }) {
-  const t = STAT_THEMES[theme]
-  return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-      <div style={{ ...styles.tutorialStepIcon, background: t.bg }}><AppIcon name={icon} size={16} color={t.color} /></div>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-          <span style={styles.tutorialStepTitle}>{title}</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: t.color }}>{time}</span>
-        </div>
-        <p style={styles.tutorialStepDesc}>{desc}</p>
-      </div>
-    </div>
-  )
-}
-
 /* ── "Sua rotina com Deus" — passos diários clicáveis + calendário de
    histórico. A linha inteira de Oração/Leitura/Estudo navega pra onde o
    passo é feito de verdade; todos (menos Reflexão) também têm um
@@ -634,20 +562,6 @@ const styles = {
   applicationIcon:  { width: 32, height: 32, borderRadius: 10, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   applicationLabel: { display: 'block', fontSize: 9, fontWeight: 700, color: '#A21CAF', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2 },
   applicationText:  { display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.35 },
-  tutorialCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
-  tutorialToggle:{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 14, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)' },
-  tutorialEmoji: { fontSize: 22, flexShrink: 0 },
-  tutorialToggleTitle: { fontSize: 13, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
-  tutorialToggleSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
-  tutorialBody:  { padding: '2px 14px 16px', display: 'flex', flexDirection: 'column', gap: 12, borderTop: '0.5px solid var(--g1)', paddingTop: 13 },
-  tutorialIntro: { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.55 },
-  tutorialStepIcon: { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 },
-  tutorialStepTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  tutorialStepDesc:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginTop: 2 },
-  tutorialTip:   { background: 'var(--olt)', border: '0.5px dashed rgba(157,67,0,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5 },
-  tutorialTipPurple: { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
-  tutorialTipBlue:   { background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '0.5px dashed rgba(59,130,246,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#1D4ED8', lineHeight: 1.5 },
-  tutorialOutro: { fontSize: 12.5, fontWeight: 700, color: 'var(--or)', textAlign: 'center' },
   hero:          { minHeight: 150, background: 'var(--bk-hero)', position: 'relative', overflow: 'hidden', flexShrink: 0 },
   heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.55, top: -80, right: -60 },
   heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.35, bottom: -70, left: -50 },

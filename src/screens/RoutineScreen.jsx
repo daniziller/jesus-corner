@@ -21,6 +21,7 @@ import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { computeWeeklyRoutineStats, averageFullRoutineDays } from '../routine/routineStreak'
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { STAT_THEMES } from '../utils/statThemes'
 import RoutineCalendar from '../components/RoutineCalendar'
 import RoutineDayRing from '../components/RoutineDayRing'
 import { t } from '../i18n'
@@ -154,6 +155,11 @@ export default function RoutineScreen({
           <h1 className="page-title">{t('routine.pageTitle', undefined, lang)}</h1>
           <p style={styles.heroSub}>{t('routine.heroSub', undefined, lang)}</p>
         </div>
+
+        {/* Tutorial do método (recolhido por padrão) — morava na Home,
+            mudou pra cá (mesmo espírito de "como funciona" mas junto de
+            onde a pessoa de fato configura a rotina). */}
+        <TutorialCard lang={lang} />
 
         {/* Total do dia — vem primeiro agora (resumo antes do detalhe). */}
         <div style={styles.hero}>
@@ -534,6 +540,77 @@ export default function RoutineScreen({
   )
 }
 
+// Explica os 3 passos do método (Oração/Leitura/Reflexão) — morava na Home,
+// mudou pra cá por pedido explícito (fica junto de onde a pessoa realmente
+// configura a rotina, não na tela de resumo do dia).
+function TutorialCard({ lang }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div style={styles.tutorialCard}>
+      <button style={styles.tutorialToggle} onClick={() => setOpen(v => !v)}>
+        <span style={styles.tutorialEmoji}><AppIcon name="Lightbulb" size={20} color="var(--or)" /></span>
+        <div style={{ flex: 1, textAlign: 'left' }}>
+          <p style={styles.tutorialToggleTitle}>{t('home.tutorialToggleTitle', undefined, lang)}</p>
+          <p style={styles.tutorialToggleSub}>{t('home.tutorialToggleSub', undefined, lang)}</p>
+        </div>
+        <span style={{ fontSize: 14, color: 'var(--g4)', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>⌄</span>
+      </button>
+
+      {open && (
+        <div style={styles.tutorialBody}>
+          <p style={styles.tutorialIntro}>
+            {t('home.tutorialIntro', undefined, lang)}
+          </p>
+
+          <TutorialStep
+            icon="HandHeart" time={t('home.stepPrayerTime', undefined, lang)} title={t('home.stepPrayerTitle', undefined, lang)} theme="orange"
+            desc={t('home.stepPrayerDesc', undefined, lang)}
+          />
+          <TutorialStep
+            icon="BookOpen" time={t('home.stepReadingTime', undefined, lang)} title={t('home.stepReadingTitle', undefined, lang)} theme="purple"
+            desc={t('home.stepReadingDesc', undefined, lang)}
+          />
+          <TutorialStep
+            icon="PenLine" time={t('home.stepReflectionTime', undefined, lang)} title={t('home.stepReflectionTitle', undefined, lang)} theme="green"
+            desc={t('home.stepReflectionDesc', undefined, lang)}
+          />
+
+          <div style={styles.tutorialTip}>
+            {t('home.tutorialTip', undefined, lang)}
+          </div>
+
+          <div style={styles.tutorialTipBlue}>
+            {t('home.tutorialTipRoutine', undefined, lang)}
+          </div>
+
+          <div style={styles.tutorialTipPurple}>
+            {t('home.tutorialTipBonus', undefined, lang)}
+          </div>
+
+          <p style={styles.tutorialOutro}>{t('home.tutorialOutro', undefined, lang)}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TutorialStep({ icon, time, title, desc, theme }) {
+  const themeColors = STAT_THEMES[theme]
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{ ...styles.tutorialStepIcon, background: themeColors.bg }}><AppIcon name={icon} size={16} color={themeColors.color} /></div>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+          <span style={styles.tutorialStepTitle}>{title}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: themeColors.color }}>{time}</span>
+        </div>
+        <p style={styles.tutorialStepDesc}>{desc}</p>
+      </div>
+    </div>
+  )
+}
+
 function ActivePlanCard({ activePlan, todaySession, lang, onContinue }) {
   const ctaLabel = activePlan.needsThemePick
     ? t('themePlan.chooseTodayCta', undefined, lang)
@@ -837,6 +914,21 @@ function UsageLegendDot({ color, label }) {
 const styles = {
   body:        { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
   heroSub:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
+
+  tutorialCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, overflow: 'hidden', boxShadow: 'var(--shadow-card)' },
+  tutorialToggle:{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 14, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)' },
+  tutorialEmoji: { fontSize: 22, flexShrink: 0 },
+  tutorialToggleTitle: { fontSize: 13, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
+  tutorialToggleSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 1 },
+  tutorialBody:  { padding: '2px 14px 16px', display: 'flex', flexDirection: 'column', gap: 12, borderTop: '0.5px solid var(--g1)', paddingTop: 13 },
+  tutorialIntro: { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.55 },
+  tutorialStepIcon: { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 },
+  tutorialStepTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  tutorialStepDesc:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginTop: 2 },
+  tutorialTip:   { background: 'var(--olt)', border: '0.5px dashed rgba(157,67,0,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5 },
+  tutorialTipPurple: { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
+  tutorialTipBlue:   { background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', border: '0.5px dashed rgba(59,130,246,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#1D4ED8', lineHeight: 1.5 },
+  tutorialOutro: { fontSize: 12.5, fontWeight: 700, color: 'var(--or)', textAlign: 'center' },
 
   moduleToggleCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 2 },
   moduleToggleTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
