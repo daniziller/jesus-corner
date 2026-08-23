@@ -89,7 +89,7 @@ export const BOOK_INFO = {
     ],
     reflectionQuestions: [
       'O que as leis de sacrifício revelam sobre a seriedade do pecado e o custo do perdão?',
-      'Como o chamado "sejam santos, porque eu sou santo" desafia sua rotina diária?',
+      'Como o chamado "sejam santos, porque eu sou santo" desafia seu plano diário?',
       'Por que você acha que Deus deu tantos detalhes sobre pureza e sacrifício a um povo recém-liberto?',
       'De que forma o Dia da Expiação aponta para algo maior que se cumpriria depois, em Jesus?',
     ],
@@ -520,7 +520,7 @@ export const BOOK_INFO = {
     reflectionQuestions: [
       'O que "tudo é passageiro" (vaidade) revela sobre onde você tem buscado sentido para sua vida?',
       'Como a conclusão do livro — temer a Deus e guardar Seus mandamentos — responde à busca do autor por propósito?',
-      'O que mudaria na sua rotina se você levasse a sério que o tempo é limitado?',
+      'O que mudaria no seu plano se você levasse a sério que o tempo é limitado?',
       'Onde você tem buscado satisfação em coisas que, segundo o livro, não vão durar?',
     ],
   },

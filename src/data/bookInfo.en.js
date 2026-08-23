@@ -90,7 +90,7 @@ export const BOOK_INFO_EN = {
     ],
     reflectionQuestions: [
       'What do the sacrifice laws reveal about the seriousness of sin and the cost of forgiveness?',
-      'How does the call "be holy, because I am holy" challenge your daily routine?',
+      'How does the call "be holy, because I am holy" challenge your daily plan?',
       'Why do you think God gave so much detail about purity and sacrifice to a newly freed people?',
       'How does the Day of Atonement point to something greater that would later be fulfilled in Jesus?',
     ],
@@ -519,7 +519,7 @@ export const BOOK_INFO_EN = {
     reflectionQuestions: [
       'What does "everything is fleeting" (vanity) reveal about where you\'ve been seeking meaning for your life?',
       'How does the book\'s conclusion — fear God and keep His commandments — answer the author\'s search for purpose?',
-      'What would change in your routine if you took seriously that time is limited?',
+      'What would change in your plan if you took seriously that time is limited?',
       'Where have you been seeking satisfaction in things that, according to the book, won\'t last?',
     ],
   },

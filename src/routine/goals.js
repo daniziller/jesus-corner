@@ -23,7 +23,7 @@ export const GOALS = [
     xp: 50,
     icon: 'Flame',
     title: { pt: 'Uma semana seguida', en: 'A week in a row' },
-    desc: { pt: 'Rotina completa por 7 dias seguidos', en: 'Complete routine, 7 days in a row' },
+    desc: { pt: 'Plano completo por 7 dias seguidos', en: 'Complete plan, 7 days in a row' },
   },
   {
     id: 'streak-14',
@@ -32,7 +32,7 @@ export const GOALS = [
     xp: 100,
     icon: 'Zap',
     title: { pt: 'Duas semanas seguidas', en: 'Two weeks in a row' },
-    desc: { pt: 'Rotina completa por 14 dias seguidos', en: 'Complete routine, 14 days in a row' },
+    desc: { pt: 'Plano completo por 14 dias seguidos', en: 'Complete plan, 14 days in a row' },
   },
   {
     id: 'window-20-30',
@@ -42,7 +42,7 @@ export const GOALS = [
     xp: 150,
     icon: 'Calendar',
     title: { pt: 'Um mês com folga', en: 'A flexible month' },
-    desc: { pt: 'Rotina completa em 20 dos últimos 30 dias', en: 'Complete routine on 20 of the last 30 days' },
+    desc: { pt: 'Plano completo em 20 dos últimos 30 dias', en: 'Complete plan on 20 of the last 30 days' },
   },
   {
     id: 'streak-30',
@@ -51,7 +51,7 @@ export const GOALS = [
     xp: 200,
     icon: 'Award',
     title: { pt: 'Um mês sem falhar', en: 'A month without missing a day' },
-    desc: { pt: 'Rotina completa por 30 dias seguidos', en: 'Complete routine, 30 days in a row' },
+    desc: { pt: 'Plano completo por 30 dias seguidos', en: 'Complete plan, 30 days in a row' },
   },
   {
     id: 'window-300-365',
@@ -61,7 +61,7 @@ export const GOALS = [
     xp: 300,
     icon: 'Crown',
     title: { pt: 'Quase um ano inteiro', en: 'Almost a whole year' },
-    desc: { pt: 'Rotina completa em 300 dos últimos 365 dias', en: 'Complete routine on 300 of the last 365 days' },
+    desc: { pt: 'Plano completo em 300 dos últimos 365 dias', en: 'Complete plan on 300 of the last 365 days' },
   },
 ]
 
