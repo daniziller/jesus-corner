@@ -222,19 +222,11 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               <p style={styles.shareCardErrorText}>{translate('home.shareCardError', undefined, lang)}</p>
             )}
 
-            {/* Nível e XP */}
-            <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} xp={xp} lang={lang} />
-
-            {/* Resumo da meta mais próxima de bater (ver src/routine/
-                goals.js) — não confundir com "Desafios", já usado pros
-                desafios de leitura em grupo, na aba Comunidade. Lista
-                completa mora na aba Progresso; aqui só a mais próxima, pra
-                não sobrecarregar a Home. */}
-            <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
-
-            {/* Tracker dos 3 passos diários — clicável, navega pra onde cada
+            {/* Tracker dos 4 passos diários — clicável, navega pra onde cada
                 passo é feito de verdade (oração/leitura), com um calendário
-                de histórico embutido. */}
+                de histórico embutido. Vem antes dos cards de gamificação
+                (nível/meta) de propósito — o plano do dia é a ação
+                principal da Home, gamificação é reforço, não o destaque. */}
             <DailyRoutineCard
               dailyRoutine={dailyRoutine}
               todayRoutine={todayRoutine}
@@ -247,6 +239,16 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               onContinueSession={onContinueSession}
               onMarkRoutineStep={onMarkRoutineStep}
             />
+
+            {/* Nível e XP */}
+            <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} xp={xp} lang={lang} />
+
+            {/* Resumo da meta mais próxima de bater (ver src/routine/
+                goals.js) — não confundir com "Desafios", já usado pros
+                desafios de leitura em grupo, na aba Comunidade. Lista
+                completa mora na aba Progresso; aqui só a mais próxima, pra
+                não sobrecarregar a Home. */}
+            <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
           </div>
 
           {/* Coluna secundária: card de leitura do dia + atividade dos
