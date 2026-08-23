@@ -64,12 +64,20 @@ function dateFilterRangeFor(key, customFrom, customTo) {
 export default function NotesScreen({ session, authUser, blocks, sessionsByBlock }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
+  // Painel de filtros (origem/livro/cor/data) minimizado por padrão — só
+  // abre se a pessoa tocar em "Filtros". Os 4 filtros combinam entre si
+  // (ver filteredNotes abaixo) — dá pra ver, por exemplo, só marcações
+  // amarelas de Gênesis feitas essa semana, tudo ao mesmo tempo.
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [filter, setFilter] = useState('all')
+  // Filtro por livro — só existe em notas de leitura/marcação (reflexão
+  // geral e frase de aplicação não têm livro); null = todos os livros.
+  const [bookFilter, setBookFilter] = useState(null)
   // Filtro por cor — só faz sentido dentro da aba "Marcações" (ver
   // FILTERS acima); null = todas as cores.
   const [colorFilter, setColorFilter] = useState(null)
-  // Filtro por data de quando a anotação foi adicionada — independente do
-  // filtro por origem/cor, combina com os dois (ver DATE_FILTERS acima).
+  // Filtro por data de quando a anotação foi adicionada — independente dos
+  // outros três, combina com eles (ver DATE_FILTERS acima).
   const [dateFilterKey, setDateFilterKey] = useState('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -97,6 +105,21 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     for (const b of blocks) b.books.forEach((name, i) => { map[name] = b.booksEn[i] })
     return map
   }, [blocks])
+
+  // Só livros que têm pelo menos uma nota/marcação — evita um seletor com
+  // os 66 livros da Bíblia quando a pessoa só anotou em 3. Ordem canônica
+  // (Gênesis primeiro), não alfabética — vem de `blocks`, a mesma fonte de
+  // ordem que o resto do app usa.
+  const availableBooks = useMemo(() => {
+    const present = new Set(state.notes.filter(n => n.book).map(n => n.book))
+    const ordered = []
+    for (const block of blocks) {
+      for (const b of block.books) {
+        if (present.has(b) && !ordered.includes(b)) ordered.push(b)
+      }
+    }
+    return ordered
+  }, [state.notes, blocks])
 
   useEffect(() => {
     if (!authUser?.email) { setState({ status: 'ready', notes: [] }); return }
@@ -301,23 +324,28 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const colorTypeFiltered = colorFilter
     ? typeFiltered.filter(n => n.color === colorFilter)
     : typeFiltered
+  // Filtro por livro — independente do filtro por origem, combina com ele
+  // (ex: "Leitura" + "Gênesis" só mostra notas de leitura de Gênesis).
+  const bookFiltered = bookFilter
+    ? colorTypeFiltered.filter(n => n.book === bookFilter)
+    : colorTypeFiltered
   // Filtro por data — compara só a parte YYYY-MM-DD de updatedAt (ISO),
   // então funciona igual pra qualquer fuso sem precisar converter de
   // verdade; suficiente pra um filtro de UI, não pra algo exato ao segundo.
   const dateRange = dateFilterRangeFor(dateFilterKey, customFrom, customTo)
   const dateFiltered = dateRange
-    ? colorTypeFiltered.filter(n => {
+    ? bookFiltered.filter(n => {
         const nk = n.updatedAt ? n.updatedAt.slice(0, 10) : null
         if (!nk) return false
         if (dateRange.from && nk < dateRange.from) return false
         if (dateRange.to && nk > dateRange.to) return false
         return true
       })
-    : colorTypeFiltered
+    : bookFiltered
   const trimmedQuery = searchQuery.trim().toLowerCase()
-  // Modo IA ativo (aiMatchKeys != null) ignora o filtro por origem/cor/data
-  // de propósito — buscar por tema deve olhar TODAS as anotações, não só
-  // as que passam pelos outros filtros; a ordem devolvida (mais relevante
+  // Modo IA ativo (aiMatchKeys != null) ignora origem/livro/cor/data de
+  // propósito — buscar por tema deve olhar TODAS as anotações, não só as
+  // que passam pelos outros filtros; a ordem devolvida (mais relevante
   // primeiro) também é preservada, ao contrário da lista normal (mais
   // recente primeiro).
   // Busca por palavra casa tanto o corpo da anotação quanto o rótulo
@@ -328,6 +356,18 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     : trimmedQuery
       ? dateFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
       : dateFiltered
+
+  const activeFilterCount =
+    (filter !== 'all' ? 1 : 0) + (bookFilter ? 1 : 0) + (colorFilter ? 1 : 0) + (dateFilterKey !== 'all' ? 1 : 0)
+
+  function clearFilters() {
+    setFilter('all')
+    setBookFilter(null)
+    setColorFilter(null)
+    setDateFilterKey('all')
+    setCustomFrom('')
+    setCustomTo('')
+  }
 
   function chooseFilter(key) {
     setFilter(key)
@@ -382,77 +422,111 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           </>
         )}
 
-        {/* Filtro por origem — leitura (capítulo + reflexão de fechamento
-            de livro) vs a Reflexão diária, as duas fontes de anotação que
-            existem hoje. A busca por palavra respeita o filtro ativo (dá
-            pra combinar as duas); a busca por tema (IA) ignora de
-            propósito — por isso o filtro some só no modo IA, ver
-            comentário em filteredNotes acima. */}
-        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
-          <div style={styles.filterRow}>
-            {FILTERS.map(f => (
-              <button
-                key={f.key}
-                style={{ ...styles.filterBtn, ...(filter === f.key ? styles.filterBtnActive : {}) }}
-                onClick={() => chooseFilter(f.key)}
-              >
-                {t(f.labelKey, undefined, lang)}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Filtro por cor — só dentro da aba "Marcações", pra achar um
-            versículo pela cor usada em vez de vasculhar a lista inteira. */}
-        {state.status === 'ready' && aiMatchKeys === null && filter === 'highlight' && (
-          <div style={styles.colorFilterRow}>
-            <button
-              style={{ ...styles.colorFilterAllBtn, ...(colorFilter === null ? styles.colorFilterAllBtnActive : {}) }}
-              onClick={() => setColorFilter(null)}
-            >
-              {t('notes.filterColorAll', undefined, lang)}
-            </button>
-            {HIGHLIGHT_COLORS.map(c => (
-              <button
-                key={c.id}
-                style={{ ...styles.colorSwatchBtn, background: c.swatch, ...(colorFilter === c.id ? styles.colorSwatchBtnActive : {}) }}
-                onClick={() => setColorFilter(v => (v === c.id ? null : c.id))}
-                aria-label={t(c.labelKey, undefined, lang)}
-                aria-pressed={colorFilter === c.id}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Filtro por data — independente do filtro por origem/cor,
-            combina com os dois (ver dateFiltered acima). */}
+        {/* Painel de filtros (origem/livro/cor/data) minimizado por
+            padrão — só o botão "Filtros" aparece, com uma bolinha
+            mostrando quantos estão ativos; tocar abre o painel. A busca
+            por tema (IA) ignora todos de propósito, então o botão some
+            nesse modo (ver comentário em filteredNotes acima). */}
         {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
           <>
-            <div style={styles.dateFilterRow}>
-              {DATE_FILTERS.map(d => (
-                <button
-                  key={d.key}
-                  style={{ ...styles.dateFilterChip, ...(dateFilterKey === d.key ? styles.dateFilterChipActive : {}) }}
-                  onClick={() => setDateFilterKey(d.key)}
-                >
-                  {t(d.labelKey, undefined, lang)}
-                </button>
-              ))}
-            </div>
-            {dateFilterKey === 'custom' && (
-              <div style={styles.dateRangeRow}>
-                <input
-                  type="date" style={styles.dateInput} value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  aria-label={t('notes.dateFilterFrom', undefined, lang)}
-                />
-                <span style={styles.dateRangeSep}>–</span>
-                <input
-                  type="date" style={styles.dateInput} value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  aria-label={t('notes.dateFilterTo', undefined, lang)}
-                />
-              </div>
+            <button style={styles.filtersToggleBtn} onClick={() => setFiltersOpen(v => !v)}>
+              <AppIcon name="SlidersHorizontal" size={14} color="var(--g5)" />
+              <span style={styles.filtersToggleLabel}>{t('notes.filtersToggle', undefined, lang)}</span>
+              {activeFilterCount > 0 && <span style={styles.filtersBadge}>{activeFilterCount}</span>}
+              <AppIcon
+                name="ChevronDown" size={14} color="var(--g4)"
+                style={{ marginLeft: 'auto', transform: filtersOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
+              />
+            </button>
+
+            {filtersOpen && (
+              <>
+                {/* Origem — leitura (capítulo + reflexão de fechamento de
+                    livro), marcação, ou a Reflexão diária. */}
+                <div style={styles.filterRow}>
+                  {FILTERS.map(f => (
+                    <button
+                      key={f.key}
+                      style={{ ...styles.filterBtn, ...(filter === f.key ? styles.filterBtnActive : {}) }}
+                      onClick={() => chooseFilter(f.key)}
+                    >
+                      {t(f.labelKey, undefined, lang)}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Livro — só notas de leitura/marcação têm um; lista só
+                    os que já têm alguma anotação, em ordem canônica. */}
+                {availableBooks.length > 0 && (
+                  <select
+                    style={styles.bookSelect}
+                    value={bookFilter ?? ''}
+                    onChange={e => setBookFilter(e.target.value || null)}
+                    aria-label={t('notes.filterBookAll', undefined, lang)}
+                  >
+                    <option value="">{t('notes.filterBookAll', undefined, lang)}</option>
+                    {availableBooks.map(b => (
+                      <option key={b} value={b}>{bookLabel(b)}</option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Cor — só dentro da aba "Marcações", pra achar um
+                    versículo pela cor usada. */}
+                {filter === 'highlight' && (
+                  <div style={styles.colorFilterRow}>
+                    <button
+                      style={{ ...styles.colorFilterAllBtn, ...(colorFilter === null ? styles.colorFilterAllBtnActive : {}) }}
+                      onClick={() => setColorFilter(null)}
+                    >
+                      {t('notes.filterColorAll', undefined, lang)}
+                    </button>
+                    {HIGHLIGHT_COLORS.map(c => (
+                      <button
+                        key={c.id}
+                        style={{ ...styles.colorSwatchBtn, background: c.swatch, ...(colorFilter === c.id ? styles.colorSwatchBtnActive : {}) }}
+                        onClick={() => setColorFilter(v => (v === c.id ? null : c.id))}
+                        aria-label={t(c.labelKey, undefined, lang)}
+                        aria-pressed={colorFilter === c.id}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Data de quando foi adicionada. */}
+                <div style={styles.dateFilterRow}>
+                  {DATE_FILTERS.map(d => (
+                    <button
+                      key={d.key}
+                      style={{ ...styles.dateFilterChip, ...(dateFilterKey === d.key ? styles.dateFilterChipActive : {}) }}
+                      onClick={() => setDateFilterKey(d.key)}
+                    >
+                      {t(d.labelKey, undefined, lang)}
+                    </button>
+                  ))}
+                </div>
+                {dateFilterKey === 'custom' && (
+                  <div style={styles.dateRangeRow}>
+                    <input
+                      type="date" style={styles.dateInput} value={customFrom}
+                      onChange={e => setCustomFrom(e.target.value)}
+                      aria-label={t('notes.dateFilterFrom', undefined, lang)}
+                    />
+                    <span style={styles.dateRangeSep}>–</span>
+                    <input
+                      type="date" style={styles.dateInput} value={customTo}
+                      onChange={e => setCustomTo(e.target.value)}
+                      aria-label={t('notes.dateFilterTo', undefined, lang)}
+                    />
+                  </div>
+                )}
+
+                {activeFilterCount > 0 && (
+                  <button style={styles.filtersClearBtn} onClick={clearFilters}>
+                    {t('notes.filtersClear', undefined, lang)}
+                  </button>
+                )}
+              </>
             )}
           </>
         )}
@@ -551,6 +625,11 @@ const styles = {
   aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, color: '#A21CAF' },
   aiClearBtn:     { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', padding: '2px 4px' },
   aiErrorText:    { fontSize: 11.5, fontWeight: 600, color: 'var(--re, #DC2626)', margin: '-4px 2px 0' },
+  filtersToggleBtn:  { display: 'flex', alignItems: 'center', gap: 7, border: '0.5px solid var(--g2)', background: 'var(--card-bg)', borderRadius: 13, padding: '10px 12px', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, color: 'var(--g6)' },
+  filtersToggleLabel:{ flexShrink: 0 },
+  filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--grad-primary)', color: 'white', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
+  filtersClearBtn:   { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 700, color: 'var(--or)', padding: '2px 4px' },
+  bookSelect:        { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600, color: 'var(--bk)', background: 'var(--card-bg)' },
   filterRow:  { display: 'flex', gap: 6 },
   filterBtn:  { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
   filterBtnActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },
