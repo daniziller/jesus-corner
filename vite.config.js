@@ -43,6 +43,11 @@ export default defineConfig({
       // pro modo generateSW).
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Limite padrão é 2 MiB — o bundle principal (index-*.js) passou
+        // disso conforme o app cresceu; sem isso o build da injectManifest
+        // falha (não é sobre performance real, só sobre o que entra no
+        // precache de instalação do service worker).
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       }
     })
   ]

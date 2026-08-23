@@ -14,6 +14,7 @@ import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../refle
 import { getHighlights, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { HIGHLIGHT_COLORS } from '../data/highlightColors'
 import { formatVerseRanges } from '../utils/verseRanges'
+import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -31,6 +32,35 @@ const FILTERS = [
   { key: 'reflection', types: ['daily-reflection', 'application-phrase'], labelKey: 'notes.filterReflection' },
 ]
 
+// Filtro por quando a anotação foi adicionada (updatedAt — só existe
+// createdAt separado pra marcações, ver highlightEntries abaixo, então
+// usa sempre updatedAt como "data" pra tratar tudo do mesmo jeito).
+// 'custom' revela dois campos de data (de/até, ver dateFilterRangeFor).
+const DATE_FILTERS = [
+  { key: 'all', labelKey: 'notes.dateFilterAll' },
+  { key: 'today', labelKey: 'notes.dateFilterToday' },
+  { key: 'week', labelKey: 'notes.dateFilterWeek' },
+  { key: 'month', labelKey: 'notes.dateFilterMonth' },
+  { key: 'custom', labelKey: 'notes.dateFilterCustom' },
+]
+
+function dateFilterRangeFor(key, customFrom, customTo) {
+  if (key === 'all') return null
+  const today = new Date()
+  if (key === 'today') { const k = dateKey(today); return { from: k, to: k } }
+  if (key === 'week') {
+    const dow = today.getDay()
+    const diff = (dow === 0 ? -6 : 1) - dow
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diff)
+    return { from: dateKey(monday), to: dateKey(today) }
+  }
+  if (key === 'month') {
+    const first = new Date(today.getFullYear(), today.getMonth(), 1)
+    return { from: dateKey(first), to: dateKey(today) }
+  }
+  return { from: customFrom || null, to: customTo || null }
+}
+
 export default function NotesScreen({ session, authUser, blocks, sessionsByBlock }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
@@ -38,6 +68,11 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // Filtro por cor — só faz sentido dentro da aba "Marcações" (ver
   // FILTERS acima); null = todas as cores.
   const [colorFilter, setColorFilter] = useState(null)
+  // Filtro por data de quando a anotação foi adicionada — independente do
+  // filtro por origem/cor, combina com os dois (ver DATE_FILTERS acima).
+  const [dateFilterKey, setDateFilterKey] = useState('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   // Busca por palavra — casa substring no texto, ao vivo, sem custo. Busca
   // por tema (IA) é uma AÇÃO à parte (botão), não roda a cada tecla —
   // manda o texto atual da caixa como o "tema" pra api/search-notes.js e
@@ -266,19 +301,33 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const colorTypeFiltered = colorFilter
     ? typeFiltered.filter(n => n.color === colorFilter)
     : typeFiltered
+  // Filtro por data — compara só a parte YYYY-MM-DD de updatedAt (ISO),
+  // então funciona igual pra qualquer fuso sem precisar converter de
+  // verdade; suficiente pra um filtro de UI, não pra algo exato ao segundo.
+  const dateRange = dateFilterRangeFor(dateFilterKey, customFrom, customTo)
+  const dateFiltered = dateRange
+    ? colorTypeFiltered.filter(n => {
+        const nk = n.updatedAt ? n.updatedAt.slice(0, 10) : null
+        if (!nk) return false
+        if (dateRange.from && nk < dateRange.from) return false
+        if (dateRange.to && nk > dateRange.to) return false
+        return true
+      })
+    : colorTypeFiltered
   const trimmedQuery = searchQuery.trim().toLowerCase()
-  // Modo IA ativo (aiMatchKeys != null) ignora o filtro por origem de
-  // propósito — buscar por tema deve olhar TODAS as anotações, não só a
-  // aba selecionada; a ordem devolvida (mais relevante primeiro) também é
-  // preservada, ao contrário da lista normal (mais recente primeiro).
+  // Modo IA ativo (aiMatchKeys != null) ignora o filtro por origem/cor/data
+  // de propósito — buscar por tema deve olhar TODAS as anotações, não só
+  // as que passam pelos outros filtros; a ordem devolvida (mais relevante
+  // primeiro) também é preservada, ao contrário da lista normal (mais
+  // recente primeiro).
   // Busca por palavra casa tanto o corpo da anotação quanto o rótulo
   // (nome do livro, data) — "genesis" deve achar as anotações de Gênesis
   // mesmo que a palavra em si nunca apareça no texto escrito.
   const filteredNotes = aiMatchKeys !== null
     ? aiMatchKeys.map(k => state.notes.find(n => n.key === k)).filter(Boolean)
     : trimmedQuery
-      ? colorTypeFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
-      : colorTypeFiltered
+      ? dateFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
+      : dateFiltered
 
   function chooseFilter(key) {
     setFilter(key)
@@ -373,6 +422,39 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
               />
             ))}
           </div>
+        )}
+
+        {/* Filtro por data — independente do filtro por origem/cor,
+            combina com os dois (ver dateFiltered acima). */}
+        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
+          <>
+            <div style={styles.dateFilterRow}>
+              {DATE_FILTERS.map(d => (
+                <button
+                  key={d.key}
+                  style={{ ...styles.dateFilterChip, ...(dateFilterKey === d.key ? styles.dateFilterChipActive : {}) }}
+                  onClick={() => setDateFilterKey(d.key)}
+                >
+                  {t(d.labelKey, undefined, lang)}
+                </button>
+              ))}
+            </div>
+            {dateFilterKey === 'custom' && (
+              <div style={styles.dateRangeRow}>
+                <input
+                  type="date" style={styles.dateInput} value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  aria-label={t('notes.dateFilterFrom', undefined, lang)}
+                />
+                <span style={styles.dateRangeSep}>–</span>
+                <input
+                  type="date" style={styles.dateInput} value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  aria-label={t('notes.dateFilterTo', undefined, lang)}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {state.status === 'loading' && <p style={styles.emptyHint}>{t('notes.loading', undefined, lang)}</p>}
@@ -477,6 +559,12 @@ const styles = {
   colorFilterAllBtnActive: { background: 'var(--bk)', color: 'white', border: '0.5px solid transparent' },
   colorSwatchBtn:      { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', boxShadow: '0 0 0 1px var(--g2)' },
   colorSwatchBtnActive:{ border: '2px solid white', boxShadow: '0 0 0 2px var(--bk)' },
+  dateFilterRow:   { display: 'flex', gap: 6, flexWrap: 'wrap', margin: '-2px 2px 0' },
+  dateFilterChip:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  dateFilterChipActive: { background: 'var(--bk)', color: 'white', border: '0.5px solid transparent' },
+  dateRangeRow:    { display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px' },
+  dateRangeSep:    { fontSize: 12, fontWeight: 700, color: 'var(--g4)' },
+  dateInput:       { flex: 1, minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 11, padding: '9px 10px', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 600, color: 'var(--bk)', background: 'var(--card-bg)' },
   emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
   card:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 13, boxShadow: 'var(--shadow-card)' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
