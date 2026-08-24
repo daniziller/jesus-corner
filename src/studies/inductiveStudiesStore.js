@@ -1,6 +1,6 @@
 // Estudos indutivos — método Observação/Interpretação/Verdade Atemporal/
-// Aplicação (ver YWAM School of Biblical Studies), guardado no backend
-// (tabela user_data, coluna inductive_studies, um array). Diferente de
+// Aplicação, guardado no backend (tabela user_data, coluna
+// inductive_studies, um array). Diferente de
 // aiStudiesStore.js: aqui o CONTEÚDO de cada sessão é escrito pela própria
 // pessoa (não gerado por IA nem pré-escrito), e as sessões (passagens) vão
 // sendo adicionadas aos poucos, uma de cada vez, em vez de vir todo o

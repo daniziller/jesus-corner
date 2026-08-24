@@ -1,12 +1,11 @@
 // InductiveMethodScreen.jsx
 // Explicação detalhada do método de Estudo Bíblico Indutivo (Observação →
-// Interpretação → Verdade Atemporal → Aplicação), o mesmo ensinado pela
-// School of Biblical Studies (SBS) da YWAM — conteúdo de referência, não
-// "chrome" de UI curto, por isso vive aqui como dado local bilíngue (mesmo
-// espírito de src/data/studies.js) em vez de translations.js. Acessível a
-// partir de qualquer lugar dos estudos indutivos (ver o link fixo em
-// StudiesScreen.jsx) — tela só de leitura, sem estado próprio, então não
-// precisa do tratamento "sempre montada" que Notas/Estudos têm.
+// Interpretação → Verdade Atemporal → Aplicação) — conteúdo de referência,
+// não "chrome" de UI curto, por isso vive aqui como dado local bilíngue
+// (mesmo espírito de src/data/studies.js) em vez de translations.js.
+// Acessível a partir de qualquer lugar dos estudos indutivos (ver o link
+// fixo em StudiesScreen.jsx) — tela só de leitura, sem estado próprio,
+// então não precisa do tratamento "sempre montada" que Notas/Estudos têm.
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
@@ -107,12 +106,6 @@ export default function InductiveMethodScreen({ session }) {
             ? 'In the inductive approach, the reader sets preconceived ideas aside, slows down, and pays close attention to what the text actually says, before interpreting or applying anything. The goal is to let the Bible speak for itself, seeking to understand what the original author meant to communicate to their original audience — only then asking what that means for us today.'
             : 'Na abordagem indutiva, o leitor deixa de lado suas ideias pré-concebidas, desacelera e observa com atenção o que o texto realmente diz, antes de interpretar ou aplicar qualquer coisa. A meta é deixar que a Bíblia fale por si mesma, buscando entender o que o autor original quis comunicar ao seu público original — para só depois perguntar o que isso significa hoje, para nós.'}
         </p>
-        <p style={styles.paragraph}>
-          {lang === 'en'
-            ? 'This is the central method taught at the School of Biblical Studies (SBS), a nine-month YWAM (Youth With A Mission) school where students study all 66 books of the Bible using this methodology.'
-            : 'Esse é o método central ensinado na School of Biblical Studies (SBS) da YWAM (Jovens Com Uma Missão), uma escola de nove meses em que os alunos estudam os 66 livros da Bíblia usando essa metodologia.'}
-        </p>
-
         <p style={styles.sectionTitle}>
           {lang === 'en' ? 'The four fundamental steps' : 'As quatro etapas fundamentais'}
         </p>
@@ -161,12 +154,6 @@ export default function InductiveMethodScreen({ session }) {
               : 'Nunca praticou o método antes? Sugerimos começar pela carta aos Filipenses — curta (só 4 capítulos), prática e cheia de aplicação direta pro dia a dia. Recomendamos também usar uma Bíblia de papel, não digital: sublinhar, circular e marcar o texto fica bem mais natural no papel do que numa tela.'}
           </p>
         </div>
-
-        <p style={styles.sourceHint}>
-          {lang === 'en'
-            ? 'Based on the method taught at the School of Biblical Studies (SBS), YWAM.'
-            : 'Baseado no método ensinado na School of Biblical Studies (SBS), YWAM.'}
-        </p>
       </div>
     </div>
   )
@@ -186,7 +173,6 @@ const styles = {
   panel:        { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   panelText:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.6 },
   qNumber:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--or)', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  sourceHint:   { fontSize: 10.5, fontWeight: 500, color: 'var(--g4)', textAlign: 'center', margin: '4px 0 0' },
   tipCard:      { display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--olt)', border: '0.5px solid rgba(157,67,0,.2)', borderRadius: 16, padding: 14 },
   tipText:      { fontSize: 12, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.55 },
 }

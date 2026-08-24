@@ -669,7 +669,7 @@ function SessionView({ study, studySession, lang, isDone, onToggleDone, onBack }
 // Sessão de estudo indutivo — em vez de conteúdo pronto pra ler (ver
 // SessionView acima), mostra 4 campos guiados que a PRÓPRIA pessoa
 // preenche, na ordem do método (Observação → Interpretação → Verdade
-// Atemporal → Aplicação — ver YWAM School of Biblical Studies). O texto
+// Atemporal → Aplicação). O texto
 // bíblico em si não é reproduzido aqui dentro (evita duplicar toda a
 // leitura/tradução já existente na aba Bíblia) — em vez disso, um link
 // abre a passagem exata na aba Bíblia pra consulta, mesmo padrão já usado
