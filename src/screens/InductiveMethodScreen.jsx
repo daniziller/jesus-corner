@@ -48,6 +48,50 @@ const STEPS = [
   },
 ]
 
+// Exemplo prático, passo a passo, aplicado a um capítulo real — pedido
+// explícito: as 4 etapas acima ficam abstratas até a pessoa ver como cada
+// uma delas soa na prática. Filipenses 1 (mesma carta já sugerida como
+// ponto de partida, ver tipCard abaixo) tem material rico e fácil de
+// observar sem precisar de contexto histórico pesado: palavra repetida
+// ("alegria"), um contraste forte (prisão x alegria) e uma virada clara
+// (v. 18). Referências por número de versículo, não texto citado — evita
+// depender de uma tradução específica (a Bíblia lida no app pode variar
+// por plano/idioma).
+const EXAMPLE_PHIL1 = [
+  {
+    key: 'observation',
+    label: 'Observação',
+    labelEn: 'Observation',
+    icon: 'Search',
+    body: 'A palavra "alegria"/"alegrar" aparece várias vezes (v. 4, 18, 25) — mesmo Paulo escrevendo de dentro da prisão (v. 7, 13-14, 17). Ele repete "todos vocês" (v. 4, 7, 8), mostrando que a carta é pra igreja inteira. E há uma virada no v. 18: não importa o motivo de cada um pregar, o que importa é que Cristo está sendo anunciado — e é por isso que Paulo se alegra.',
+    bodyEn: 'The word "joy"/"rejoice" shows up several times (v. 4, 18, 25) — even with Paul writing from inside prison (v. 7, 13-14, 17). He repeats "all of you" (v. 4, 7, 8), showing the letter is for the whole church. And there\'s a turning point in v. 18: whatever the motive behind each person\'s preaching, what matters is that Christ is being proclaimed — that\'s what makes Paul rejoice.',
+  },
+  {
+    key: 'interpretation',
+    label: 'Interpretação',
+    labelEn: 'Interpretation',
+    icon: 'BookOpen',
+    body: 'Os filipenses sabiam que Paulo estava preso e provavelmente temiam que isso tivesse travado o avanço do evangelho. Ao ler que a prisão de Paulo na verdade encorajou outros a pregar com mais coragem (v. 12-14), a igreja recebia uma notícia inesperada: o que parecia um obstáculo virou um meio de avanço. Isso também os preparava pra própria situação — eles mesmos enfrentavam oposição (v. 27-30), então ver Paulo sofrendo e ainda assim alegre dava um exemplo prático de como reagir.',
+    bodyEn: 'The Philippians knew Paul was imprisoned and likely feared this had stalled the gospel\'s progress. Reading that Paul\'s imprisonment actually encouraged others to preach more boldly (v. 12-14), the church received unexpected news: what looked like an obstacle had become a means of advance. This also prepared them for their own situation — they themselves faced opposition (v. 27-30), so seeing Paul suffering and still rejoicing gave them a practical example of how to respond.',
+  },
+  {
+    key: 'timelessTruth',
+    label: 'Verdade Atemporal',
+    labelEn: 'Timeless Truth',
+    icon: 'Sparkles',
+    body: 'Deus pode usar até limitações e dificuldades pra avançar o seu propósito — a alegria cristã não depende das circunstâncias estarem bem, mas de saber que o evangelho está avançando.',
+    bodyEn: 'God can use even limitations and hardship to advance his purpose — Christian joy doesn\'t depend on circumstances being good, but on knowing the gospel is moving forward.',
+  },
+  {
+    key: 'application',
+    label: 'Aplicação',
+    labelEn: 'Application',
+    icon: 'PenLine',
+    body: 'Essa semana, escolha uma dificuldade real que você está enfrentando e escreva uma frase sobre como Deus pode estar usando ela pra algo maior — mesmo que você ainda não veja o resultado.',
+    bodyEn: 'This week, pick a real difficulty you\'re facing and write one sentence about how God might be using it for something bigger — even if you can\'t see the outcome yet.',
+  },
+]
+
 const PRACTICE_STEPS = [
   {
     body: 'Escolha uma passagem ou livro. Pode ser um capítulo, uma carta curta ou uma seção de um livro maior.',
@@ -83,7 +127,7 @@ const PRACTICE_STEPS = [
   },
 ]
 
-export default function InductiveMethodScreen({ session }) {
+export default function InductiveMethodScreen({ session, onOpenBiblePassage }) {
   const { lang } = session
 
   return (
@@ -120,6 +164,27 @@ export default function InductiveMethodScreen({ session }) {
                 </div>
               </div>
               <p style={styles.paragraph}>{lang === 'en' ? step.bodyEn : step.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <p style={styles.sectionTitle}>
+          {lang === 'en' ? 'Worked example: Philippians 1' : 'Exemplo prático: Filipenses 1'}
+        </p>
+        <button style={styles.readPassageBtn} onClick={() => onOpenBiblePassage?.('Filipenses', 1)}>
+          <AppIcon name="BookOpen" size={14} color="var(--or)" />
+          {lang === 'en' ? 'Open Philippians 1 in the Bible' : 'Abrir Filipenses 1 na Bíblia'}
+        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {EXAMPLE_PHIL1.map(item => (
+            <div key={item.key} style={styles.exampleCard}>
+              <div style={styles.stepHeader}>
+                <span style={styles.exampleIcon}><AppIcon name={item.icon} size={16} color="#7C3AED" /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={styles.exampleTitle}>{lang === 'en' ? item.labelEn : item.label}</p>
+                </div>
+              </div>
+              <p style={styles.paragraph}>{lang === 'en' ? item.bodyEn : item.body}</p>
             </div>
           ))}
         </div>
@@ -175,4 +240,8 @@ const styles = {
   qNumber:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--or)', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   tipCard:      { display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--olt)', border: '0.5px solid rgba(157,67,0,.2)', borderRadius: 16, padding: 14 },
   tipText:      { fontSize: 12, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.55 },
+  readPassageBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'flex-start', border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--olt)', borderRadius: 13, padding: '9px 14px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)', margin: '-2px 0 2px' },
+  exampleCard:  { background: 'rgba(124,58,237,.05)', border: '0.5px solid rgba(124,58,237,.2)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 },
+  exampleIcon:  { width: 30, height: 30, borderRadius: 10, background: 'rgba(124,58,237,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  exampleTitle: { fontSize: 13.5, fontWeight: 800, color: '#7C3AED', letterSpacing: '-0.2px' },
 }
