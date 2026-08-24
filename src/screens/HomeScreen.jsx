@@ -60,8 +60,8 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
       .catch(err => console.error('Failed to load pinned application phrase', err))
   }, [authUser?.email])
 
-  // Calcula o offset do anel SVG (circunferência = 2π×38 ≈ 238.76)
-  const CIRCUMFERENCE = 238.76
+  // Calcula o offset do anel SVG (circunferência = 2π×43 ≈ 270.18)
+  const CIRCUMFERENCE = 270.18
   const offset = CIRCUMFERENCE - (biblePercent / 100) * CIRCUMFERENCE
 
   // Constância — mesma métrica de RoutineScreen.jsx (média de dias/semana
@@ -166,9 +166,9 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, position: 'relative' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                   <div style={styles.ringWrap}>
-                    <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
-                      <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
-                      <circle cx="44" cy="44" r="38" fill="none" stroke="white" strokeWidth="7"
+                    <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                      <circle cx="50" cy="50" r="43" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="7" />
+                      <circle cx="50" cy="50" r="43" fill="none" stroke="white" strokeWidth="7"
                         strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} strokeLinecap="round" />
                     </svg>
                     <div style={styles.ringText}>
@@ -186,17 +186,17 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
                 {/* Streak + constância — a mesma métrica de constância que só
                     existia na aba Rotina, agora também aqui. */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 140 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
                   <div style={styles.pctStatChip}>
-                    <span style={styles.pctStatValue}><AppIcon name="Flame" size={16} /> {streak}</span>
+                    <span style={styles.pctStatValue}><AppIcon name="Flame" size={13} /> {streak}</span>
                     <span style={styles.pctStatLabel}>{translate('home.streakLabel', undefined, lang)}</span>
                   </div>
                   <div style={styles.pctStatChip}>
-                    <span style={styles.pctStatValue}>{consistencyValue}</span>
+                    <span style={styles.pctStatValue}><AppIcon name="Repeat" size={13} /> {consistencyValue}</span>
                     <span style={styles.pctStatLabel}>{translate('home.shareCardConsistencyLabel', undefined, lang)}</span>
                   </div>
                   <div style={styles.pctStatChip}>
-                    <span style={styles.pctStatValue}><AppIcon name="Calendar" size={15} /> {readingWeekStreak}</span>
+                    <span style={styles.pctStatValue}><AppIcon name="Calendar" size={13} /> {readingWeekStreak}</span>
                     <span style={styles.pctStatLabel}>{translate('home.readingWeekStreakLabel', undefined, lang)}</span>
                   </div>
                 </div>
@@ -587,9 +587,9 @@ const styles = {
   // justify-content:space-between — numa coluna estreita (2 colunas no
   // tablet/desktop, ver .dashboard-grid em index.css) não sobra largura
   // pro rótulo ("day streak"/"days/week") ao lado do valor sem cortar.
-  pctStatChip:   { background: 'rgba(255,255,255,.14)', borderRadius: 14, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 2 },
-  pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', lineHeight: 1 },
-  pctStatLabel:  { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
+  pctStatChip:   { background: 'rgba(255,255,255,.14)', borderRadius: 12, padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 1 },
+  pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'white', lineHeight: 1 },
+  pctStatLabel:  { fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
   // Rotina da semana — sheet clara logo abaixo do card de %, sem gap (a
   // sombra "puxa pra cima" o mesmo jeito que .body faz com o hero escuro
@@ -605,11 +605,11 @@ const styles = {
   calendarLegendRow: { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
   shareCardBtn:  { position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
   shareCardErrorText: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', margin: '-4px 0 0' },
-  ringWrap:      { position: 'relative', width: 88, height: 88, flexShrink: 0 },
+  ringWrap:      { position: 'relative', width: 100, height: 100, flexShrink: 0 },
   ringText:      { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   ringValue:     { display: 'flex', alignItems: 'baseline', gap: 1 },
-  ringNum:       { fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1, letterSpacing: '-0.8px' },
-  ringPct:       { fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, color: 'white', lineHeight: 1 },
+  ringNum:       { fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 800, color: 'white', lineHeight: 1, letterSpacing: '-0.8px' },
+  ringPct:       { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 700, color: 'white', lineHeight: 1 },
   pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
   pctSub:        { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.7)' },
   todayCard:     { position: 'relative', background: 'var(--white)', border: '0.5px solid var(--gold-soft)', borderRadius: 20, padding: '16px 16px 16px 21px', overflow: 'hidden', boxShadow: 'var(--shadow-premium)' },
