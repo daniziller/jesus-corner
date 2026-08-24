@@ -550,10 +550,16 @@ html.large-text .app-content-inner {
 /* display fica só aqui (não no style inline do componente) pra que a
    media query abaixo consiga escondê-lo no desktop — um display inline
    sempre venceria uma regra de classe, mesmo dentro de @media. */
-.app-header { display: flex; }
+/* position+z-index aqui (não só no painel do sino) porque nenhum dos dois
+   cria contexto de empilhamento próprio por padrão — sem isso, qualquer
+   card de tela com position:relative+z-index (ex: o card do versículo na
+   Home) pinta por cima do dropdown de notificações, mesmo ele tendo
+   z-index maior, porque esse z-index só vale dentro do contexto do
+   cabeçalho/sidebar. */
+.app-header { display: flex; position: relative; z-index: 40; }
 
 /* ── Sidebar (navegação lateral desktop) ── */
-.sidebar { display: none; }
+.sidebar { display: none; position: relative; z-index: 40; }
 .sidebar-brand {
   display: flex;
   align-items: center;
