@@ -149,13 +149,16 @@ export default function InductiveMethodScreen({ session }) {
             passo "escolha uma passagem ou livro" fica abstrato demais pra
             quem nunca praticou o método. Filipenses é curta (4 capítulos),
             prática (bastante aplicação direta) e não exige contexto
-            histórico pesado pra começar a observar. */}
+            histórico pesado pra começar a observar. Bíblia de papel (não
+            digital) porque o método pede sublinhar/circular/marcar o
+            texto (ver "Como praticar o método" acima) — mais natural no
+            papel do que numa tela. */}
         <div style={styles.tipCard}>
           <AppIcon name="Sparkles" size={16} color="var(--or)" />
           <p style={styles.tipText}>
             {lang === 'en'
-              ? "Never practiced the method before? We suggest starting with the letter to the Philippians — short (just 4 chapters), practical, and full of direct, everyday application."
-              : 'Nunca praticou o método antes? Sugerimos começar pela carta aos Filipenses — curta (só 4 capítulos), prática e cheia de aplicação direta pro dia a dia.'}
+              ? "Never practiced the method before? We suggest starting with the letter to the Philippians — short (just 4 chapters), practical, and full of direct, everyday application. We also recommend using a paper Bible instead of a digital one: underlining, circling, and marking up the text is a lot more natural on paper."
+              : 'Nunca praticou o método antes? Sugerimos começar pela carta aos Filipenses — curta (só 4 capítulos), prática e cheia de aplicação direta pro dia a dia. Recomendamos também usar uma Bíblia de papel, não digital: sublinhar, circular e marcar o texto fica bem mais natural no papel do que numa tela.'}
           </p>
         </div>
 
