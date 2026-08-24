@@ -169,6 +169,20 @@ export default function InductiveMethodScreen({ session, onOpenBiblePassage }) {
         </div>
 
         <p style={styles.sectionTitle}>
+          {lang === 'en' ? 'How to practice the method, step by step' : 'Como praticar o método, passo a passo'}
+        </p>
+        <div style={styles.panel}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {PRACTICE_STEPS.map((step, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={styles.qNumber}>{i + 1}</span>
+                <p style={styles.panelText}>{lang === 'en' ? step.bodyEn : step.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p style={styles.sectionTitle}>
           {lang === 'en' ? 'Worked example: Philippians 1' : 'Exemplo prático: Filipenses 1'}
         </p>
         <button style={styles.readPassageBtn} onClick={() => onOpenBiblePassage?.('Filipenses', 1)}>
@@ -187,20 +201,6 @@ export default function InductiveMethodScreen({ session, onOpenBiblePassage }) {
               <p style={styles.paragraph}>{lang === 'en' ? item.bodyEn : item.body}</p>
             </div>
           ))}
-        </div>
-
-        <p style={styles.sectionTitle}>
-          {lang === 'en' ? 'How to practice the method, step by step' : 'Como praticar o método, passo a passo'}
-        </p>
-        <div style={styles.panel}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {PRACTICE_STEPS.map((step, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={styles.qNumber}>{i + 1}</span>
-                <p style={styles.panelText}>{lang === 'en' ? step.bodyEn : step.body}</p>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Sugestão de por onde começar — pedido explícito: sem isso, o
