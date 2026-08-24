@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react'
 import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
+import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { resolveActivePlanSessions, themePlanTitle, themePlanProgress } from '../plan/resolveActivePlan'
@@ -53,13 +54,18 @@ export default function RoutineScreen({
   const { lang, plan, activePlan, todayRoutine, todaySession, routineModules, activeStudyId } = session
   // Estudos criados por IA somam à lista estática pro seletor de "estudo
   // ativo" abaixo — mesmo formato de item, sem precisar de UI própria aqui
-  // (a criação em si mora em StudiesScreen.jsx).
+  // (a criação em si mora em StudiesScreen.jsx). Estudos indutivos formam
+  // um segundo grupo à parte no seletor (ver JSX abaixo) — a pessoa
+  // escolhe OU um estudo guiado OU um estudo indutivo como "o" estudo
+  // ativo do dia, nunca os dois.
   const [aiStudies, setAiStudies] = useState([])
+  const [inductiveStudies, setInductiveStudies] = useState([])
   useEffect(() => {
     if (!authUser) return
     getAiStudies(authUser.email).then(setAiStudies)
+    getInductiveStudies(authUser.email).then(setInductiveStudies)
   }, [authUser?.email])
-  const allStudies = [...STUDIES, ...aiStudies]
+  const guidedStudies = [...STUDIES, ...aiStudies]
   const isOn = key => routineModules.includes(key)
   // Qual passo está expandido no card "Adicionar à minha rotina" — só um
   // por vez (accordion), começa tudo fechado.
@@ -111,11 +117,17 @@ export default function RoutineScreen({
     : todaySession.progress > 0   ? t('home.continueSession', undefined, lang)
     : t('home.startSession', undefined, lang)
 
-  // ── Estudo guiado: só escolhe QUAL estudo fica em destaque — a
-  // progressão sessão a sessão de verdade (qual é "a sessão de hoje",
-  // marcar concluída) mora em StudiesScreen.jsx, que já sabe calcular isso
-  // a partir de studies_completed. Aqui só uma lista pra trocar/escolher. ──
-  const activeStudy = allStudies.find(s => s.id === activeStudyId) ?? null
+  // ── Estudo: só escolhe QUAL estudo fica em destaque — a progressão
+  // sessão a sessão de verdade (qual é "a sessão de hoje", marcar
+  // concluída) mora em StudiesScreen.jsx, que já sabe calcular isso a
+  // partir de studies_completed. Aqui só uma lista pra trocar/escolher.
+  // Estudo indutivo entra na mesma busca (é só mais um "estudo", ver
+  // kind==='inductive') mas não tem tempo estimado — não tem como saber
+  // quanto tempo a pessoa vai levar escrevendo Observação/Interpretação/
+  // Verdade Atemporal/Aplicação, então conta como "livre", igual à
+  // Leitura sem meta de tempo (ver activePlan.readingMinutes == null). ──
+  const activeStudy = [...guidedStudies, ...inductiveStudies].find(s => s.id === activeStudyId) ?? null
+  const isInductiveActive = activeStudy?.kind === 'inductive'
 
   // ── Oração/Reflexão: duração escolhida, mesmo padrão de sempre. ──
   const [prayerMinutes, setPrayerMinutesState] = useState(() => getSavedPrayerMinutes() ?? plan.prayerMinutes)
@@ -131,11 +143,15 @@ export default function RoutineScreen({
 
   // Total do dia — só soma os passos LIGADOS agora (antes somava os 3 de
   // sempre, sem essa checagem, já que não dava pra desligar nenhum).
+  // Estudo indutivo não entra na soma — sem tempo estimado, ver
+  // isInductiveActive acima.
   const totalMinutes =
     (isOn('prayer') ? prayerMinutes : 0) +
     (isOn('reflection') ? reflectionMinutes : 0) +
-    (isOn('study') ? STUDY_SESSION_MINUTES : 0) +
+    (isOn('study') && !isInductiveActive ? STUDY_SESSION_MINUTES : 0) +
     (isOn('reading') ? (activePlan.readingMinutes ?? 0) : 0)
+  const readingIsFree = isOn('reading') && activePlan.readingMinutes == null
+  const studyIsFree = isOn('study') && isInductiveActive
 
   // Linha do tempo de hoje — mesmo stepper de sempre, agora iterando só os
   // módulos ligados (routineModules), com Estudo guiado incluído.
@@ -168,8 +184,9 @@ export default function RoutineScreen({
             {totalMinutes}<span style={styles.heroTotalUnit}> min</span>
           </span>
           <span style={{ position: 'relative', ...styles.heroTotalLabel }}>
-            {isOn('reading') && activePlan.readingMinutes == null
-              ? `${totalMinutes} ${t('routine.totalLabelFree', undefined, lang)}`
+            {readingIsFree && studyIsFree ? `${totalMinutes} ${t('routine.totalLabelFreeBoth', undefined, lang)}`
+              : studyIsFree ? `${totalMinutes} ${t('routine.totalLabelFreeStudy', undefined, lang)}`
+              : readingIsFree ? `${totalMinutes} ${t('routine.totalLabelFree', undefined, lang)}`
               : t('routine.totalLabel', undefined, lang)}
           </span>
 
@@ -182,7 +199,7 @@ export default function RoutineScreen({
                     {step.key === 'reading'
                       ? (activePlan.readingMinutes != null ? <>{activePlan.readingMinutes}<span style={styles.heroBreakdownUnit}> min</span></> : activePlan.label)
                       : step.key === 'study'
-                        ? <>{STUDY_SESSION_MINUTES}<span style={styles.heroBreakdownUnit}> min</span></>
+                        ? (isInductiveActive ? t('routine.studyInductiveFreeLabel', undefined, lang) : <>{STUDY_SESSION_MINUTES}<span style={styles.heroBreakdownUnit}> min</span></>)
                         : <>{step.key === 'prayer' ? prayerMinutes : reflectionMinutes}<span style={styles.heroBreakdownUnit}> min</span></>}
                   </span>
                   <span style={styles.heroBreakdownL}>{step.title}</span>
@@ -462,24 +479,33 @@ export default function RoutineScreen({
                   </div>
                 )}
 
-                {/* Estudo guiado — escolhe UM estudo ativo (dos prontos
-                    hoje; os criados por IA entram na mesma lista); a sessão
-                    de hoje e marcar concluído moram em StudiesScreen.jsx,
-                    que já sabe calcular isso a partir do progresso salvo. */}
+                {/* Estudo — escolhe UM estudo ativo, guiado (estático ou
+                    por IA) OU indutivo; a sessão de hoje e marcar concluído
+                    moram em StudiesScreen.jsx, que já sabe calcular isso a
+                    partir do progresso salvo. Dois grupos separados (não
+                    uma lista só) porque são duas abordagens diferentes —
+                    ver studyRecommendHint. */}
                 {expanded && key === 'study' && (
                   <div style={styles.moduleAccordionBody}>
                     <p style={styles.moduleAccordionSub}>{t('routine.sectionStudySub', undefined, lang)}</p>
+                    <p style={styles.studyRecommendHint}>{t('routine.studyRecommendHint', undefined, lang)}</p>
                     {activeStudy && (
                       <div style={styles.activeStudyCard}>
                         <span style={styles.activeStudyIcon}><AppIcon name={activeStudy.icon} size={16} color={ROUTINE_STEP_COLORS.study} /></span>
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span style={styles.activePlanSummaryLabel}>{lang === 'en' ? activeStudy.titleEn : activeStudy.title}</span>
-                          <span style={styles.activePlanSummarySub}>{t('themePlan.sessionsCount', { done: 0, total: activeStudy.sessions.length }, lang)}</span>
+                          <span style={styles.activePlanSummarySub}>
+                            {isInductiveActive
+                              ? t('routine.studyInductiveSub', undefined, lang)
+                              : t('themePlan.sessionsCount', { done: 0, total: activeStudy.sessions.length }, lang)}
+                          </span>
                         </span>
                       </div>
                     )}
+
+                    <p style={styles.studyGroupLabel}>{t('routine.studyGroupGuided', undefined, lang)}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {allStudies.map(s => (
+                      {guidedStudies.map(s => (
                         <PlanRow
                           key={s.id}
                           icon={s.icon}
@@ -493,6 +519,28 @@ export default function RoutineScreen({
                         />
                       ))}
                     </div>
+
+                    {inductiveStudies.length > 0 && (
+                      <>
+                        <p style={styles.studyGroupLabel}>{t('routine.studyGroupInductive', undefined, lang)}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {inductiveStudies.map(s => (
+                            <PlanRow
+                              key={s.id}
+                              icon={s.icon}
+                              iconColor="#7C3AED"
+                              iconBg="rgba(124,58,237,.12)"
+                              title={lang === 'en' ? s.titleEn : s.title}
+                              sub={t('routine.studyInductiveSub', undefined, lang)}
+                              isActive={activeStudyId === s.id}
+                              lang={lang}
+                              onChoose={() => onSelectActiveStudy?.(s.id)}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+
                     <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.study }} onClick={() => onNavigate?.('studies')}>
                       {t('routine.goToStudy', undefined, lang)} <AppIcon name="ChevronRight" size={14} />
                     </button>
@@ -939,6 +987,8 @@ const styles = {
   moduleAccordionDivider: { borderTop: '0.5px solid var(--g1)', marginTop: 2, paddingTop: 2 },
   moduleAccordionBody: { padding: '2px 2px 16px', display: 'flex', flexDirection: 'column', gap: 12 },
   moduleAccordionSub:  { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', margin: '-4px 2px 0' },
+  studyRecommendHint:  { fontSize: 11, fontWeight: 600, color: 'var(--or)', lineHeight: 1.5, margin: '-4px 2px 0' },
+  studyGroupLabel:     { fontSize: 10, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.5, textTransform: 'uppercase', margin: '4px 2px -4px' },
 
   hero:        { position: 'relative', overflow: 'hidden', borderRadius: 24, padding: '20px 20px 18px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },
