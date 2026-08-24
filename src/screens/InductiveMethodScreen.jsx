@@ -145,6 +145,20 @@ export default function InductiveMethodScreen({ session }) {
           </div>
         </div>
 
+        {/* Sugestão de por onde começar — pedido explícito: sem isso, o
+            passo "escolha uma passagem ou livro" fica abstrato demais pra
+            quem nunca praticou o método. Filipenses é curta (4 capítulos),
+            prática (bastante aplicação direta) e não exige contexto
+            histórico pesado pra começar a observar. */}
+        <div style={styles.tipCard}>
+          <AppIcon name="Sparkles" size={16} color="var(--or)" />
+          <p style={styles.tipText}>
+            {lang === 'en'
+              ? "Never practiced the method before? We suggest starting with the letter to the Philippians — short (just 4 chapters), practical, and full of direct, everyday application."
+              : 'Nunca praticou o método antes? Sugerimos começar pela carta aos Filipenses — curta (só 4 capítulos), prática e cheia de aplicação direta pro dia a dia.'}
+          </p>
+        </div>
+
         <p style={styles.sourceHint}>
           {lang === 'en'
             ? 'Based on the method taught at the School of Biblical Studies (SBS), YWAM.'
@@ -170,4 +184,6 @@ const styles = {
   panelText:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.6 },
   qNumber:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--or)', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   sourceHint:   { fontSize: 10.5, fontWeight: 500, color: 'var(--g4)', textAlign: 'center', margin: '4px 0 0' },
+  tipCard:      { display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--olt)', border: '0.5px solid rgba(157,67,0,.2)', borderRadius: 16, padding: 14 },
+  tipText:      { fontSize: 12, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.55 },
 }

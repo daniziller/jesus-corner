@@ -336,6 +336,10 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
               {creatingInductive ? (
                 <div style={styles.createCard}>
                   <p style={styles.inductiveIntro}>{t('studies.inductiveIntro', undefined, lang)}</p>
+                  <p style={styles.inductiveSuggestHint}>
+                    <AppIcon name="Sparkles" size={12} color="var(--or)" style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                    {t('studies.inductiveSuggestPhilippians', undefined, lang)}
+                  </p>
                   <p style={{ ...styles.createLabel, marginTop: 12 }}>{t('studies.inductiveTitleLabel', undefined, lang)}</p>
                   <select
                     style={styles.themeInput}
@@ -824,6 +828,7 @@ const styles = {
   // Estudo indutivo
   inductiveNewBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: '#7C3AED', boxShadow: '0 10px 24px rgba(124,58,237,.3)' },
   inductiveIntro:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
+  inductiveSuggestHint: { fontSize: 11, fontWeight: 600, color: 'var(--or)', lineHeight: 1.5, marginTop: 8 },
   inductiveCreateBtn: { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: '#7C3AED' },
   addPassageBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: '0.5px dashed var(--g3)', background: 'none', borderRadius: 13, padding: '11px 10px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
   emptyHint:      { fontSize: 12, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '18px 8px' },
