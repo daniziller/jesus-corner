@@ -147,23 +147,15 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             <div className="home-pct-hero" style={styles.pctHero}>
               <div style={styles.pctHeroGlow} />
 
-              {/* Compartilhar em rede social — gera uma imagem própria
-                  (não é print da tela), ver src/share/shareProgressCard.js. */}
-              <button
-                onClick={handleShareCard}
-                disabled={shareState === 'generating'}
-                aria-label={translate('home.shareCardBtn', undefined, lang)}
-                title={translate('home.shareCardBtn', undefined, lang)}
-                style={styles.shareCardBtn}
-              >
-                <AppIcon name={shareState === 'generating' ? 'RefreshCw' : 'Share2'} size={15} color="white" className={shareState === 'generating' ? 'icon-spin' : undefined} />
-              </button>
-
               {/* Anel (com % só UMA vez, dentro dele) + texto "Bíblia lida"
-                  embaixo, e os dois retângulos de stat (streak/constância)
-                  empilhados ao lado — tudo numa linha só, mais compacto que
-                  antes (3 blocos empilhados viraram 1 linha + as barras). */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, position: 'relative' }}>
+                  embaixo, os retângulos de stat (streak/constância/semanas)
+                  sempre ao lado dele (nunca quebra pra baixo — texto do
+                  rótulo abaixo do anel ganhou largura máxima só pra isso,
+                  ver pctLabelWrap), e o botão de compartilhar como último
+                  item da própria linha (antes ficava sobreposto por cima
+                  dos retângulos, position:absolute — ver
+                  src/share/shareProgressCard.js pro que ele gera). */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                   <div style={styles.ringWrap}>
                     <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
@@ -178,7 +170,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                       </span>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
+                  <div style={styles.pctLabelWrap}>
                     <p style={styles.pctLabel}>{translate('home.bibleReadLabel', undefined, lang)}</p>
                     <p style={styles.pctSub}>{translate('home.chaptersRead', { n: chaptersRead }, lang)}</p>
                   </div>
@@ -186,7 +178,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
                 {/* Streak + constância — a mesma métrica de constância que só
                     existia na aba Rotina, agora também aqui. */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={styles.pctStatChip}>
                     <span style={styles.pctStatValue}><AppIcon name="Flame" size={13} /> {streak}</span>
                     <span style={styles.pctStatLabel}>{translate('home.streakLabel', undefined, lang)}</span>
@@ -200,6 +192,18 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                     <span style={styles.pctStatLabel}>{translate('home.readingWeekStreakLabel', undefined, lang)}</span>
                   </div>
                 </div>
+
+                {/* Compartilhar em rede social — gera uma imagem própria
+                    (não é print da tela), ver src/share/shareProgressCard.js. */}
+                <button
+                  onClick={handleShareCard}
+                  disabled={shareState === 'generating'}
+                  aria-label={translate('home.shareCardBtn', undefined, lang)}
+                  title={translate('home.shareCardBtn', undefined, lang)}
+                  style={styles.shareCardBtn}
+                >
+                  <AppIcon name={shareState === 'generating' ? 'RefreshCw' : 'Share2'} size={15} color="white" className={shareState === 'generating' ? 'icon-spin' : undefined} />
+                </button>
               </div>
 
               {/* Barras AT/NT */}
@@ -603,13 +607,17 @@ const styles = {
   calendarDayNum:    { position: 'relative', fontSize: 11, fontWeight: 700, color: 'var(--g5)', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   calendarDayNumComplete: { background: 'linear-gradient(135deg, var(--gold), var(--or))', color: 'white' },
   calendarLegendRow: { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
-  shareCardBtn:  { position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
+  shareCardBtn:  { flexShrink: 0, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   shareCardErrorText: { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', textAlign: 'center', margin: '-4px 0 0' },
   ringWrap:      { position: 'relative', width: 100, height: 100, flexShrink: 0 },
   ringText:      { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   ringValue:     { display: 'flex', alignItems: 'baseline', gap: 1 },
   ringNum:       { fontFamily: 'var(--font-display)', fontSize: 21, fontWeight: 800, color: 'white', lineHeight: 1, letterSpacing: '-0.8px' },
   ringPct:       { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 700, color: 'white', lineHeight: 1 },
+  // Largura máxima = a do próprio anel — sem isso, "338 capítulos lidos"
+  // não quebra linha e força essa coluna bem mais larga que o anel,
+  // empurrando os retângulos de stat pra baixo dele em telas estreitas.
+  pctLabelWrap:  { width: 100, textAlign: 'center' },
   pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
   pctSub:        { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.7)' },
   todayCard:     { position: 'relative', background: 'var(--white)', border: '0.5px solid var(--gold-soft)', borderRadius: 20, padding: '16px 16px 16px 21px', overflow: 'hidden', boxShadow: 'var(--shadow-premium)' },
