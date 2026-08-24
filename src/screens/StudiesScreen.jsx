@@ -8,13 +8,6 @@ import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-// Uma sessão nova de estudo indutivo começa sem nenhum campo preenchido —
-// só o capítulo/versículo escolhido (o livro já vem fixo do estudo, ver
-// study.book/StudyDetail abaixo).
-function blankChapterForm() {
-  return { chapter: '', verseStart: '', verseEnd: '' }
-}
-
 export default function StudiesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy }) {
   const { lang } = session
   const [completedSet, setCompletedSet] = useState(() => new Set())
@@ -92,14 +85,25 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
     }
   }
 
-  // Cria um estudo indutivo novo, pra um livro inteiro — ainda sem nenhum
-  // capítulo/sessão (a pessoa adiciona o primeiro dentro de StudyDetail,
-  // ver onAddInductiveSession abaixo). Sem geração por IA nem conteúdo
-  // pré-escrito: o método é preenchido pela própria pessoa; o livro fica
-  // fixo no estudo (`book`), então adicionar capítulos depois não precisa
-  // escolher o livro de novo.
+  // Cria um estudo indutivo novo pra um livro inteiro — já com UMA sessão
+  // por capítulo do livro (pedido explícito: a pessoa só escolhe o livro,
+  // o resto é automático). Sem geração por IA nem conteúdo pré-escrito: só
+  // a passagem de cada sessão vem pronta, o método em si (Observação/
+  // Interpretação/Verdade Atemporal/Aplicação) é preenchido pela própria
+  // pessoa, capítulo a capítulo.
   async function handleCreateInductive() {
     if (!inductiveBook || !authUser) return
+    const chapterCount = bookChapterCounts[inductiveBook] ?? 0
+    const nowIso = new Date().toISOString()
+    const sessions = Array.from({ length: chapterCount }, (_, i) => ({
+      id: `s-${Date.now()}-${i}`,
+      book: inductiveBook,
+      chapter: i + 1,
+      verseStart: null,
+      verseEnd: null,
+      observation: '', interpretation: '', timelessTruth: '', application: '',
+      updatedAt: nowIso,
+    }))
     const study = {
       id: `ind-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       kind: 'inductive',
@@ -107,8 +111,8 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
       book: inductiveBook,
       title: inductiveBook,
       titleEn: bookNameEn[inductiveBook] ?? inductiveBook,
-      createdAt: new Date().toISOString(),
-      sessions: [],
+      createdAt: nowIso,
+      sessions,
     }
     try {
       const updated = await saveInductiveStudy(authUser.email, study)
@@ -118,31 +122,6 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
       setOpenStudyId(study.id)
     } catch (err) {
       console.error('Failed to create inductive study', err)
-    }
-  }
-
-  // Adiciona uma nova sessão (capítulo/faixa de versículos) a um estudo
-  // indutivo já existente — o livro vem sempre de study.book (fixo desde a
-  // criação); salva o estudo INTEIRO de volta (mesmo padrão de
-  // inductiveStudiesStore.js: cada save substitui o registro por completo).
-  async function onAddInductiveSession(study, chapterForm) {
-    if (!authUser) return
-    const newSession = {
-      id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      book: study.book,
-      chapter: Number(chapterForm.chapter),
-      verseStart: chapterForm.verseStart ? Number(chapterForm.verseStart) : null,
-      verseEnd: chapterForm.verseEnd ? Number(chapterForm.verseEnd) : null,
-      observation: '', interpretation: '', timelessTruth: '', application: '',
-      updatedAt: new Date().toISOString(),
-    }
-    const updatedStudy = { ...study, sessions: [...study.sessions, newSession] }
-    try {
-      const updated = await saveInductiveStudy(authUser.email, updatedStudy)
-      setInductiveStudies(updated)
-      setOpenSessionId(newSession.id)
-    } catch (err) {
-      console.error('Failed to add inductive study session', err)
     }
   }
 
@@ -414,9 +393,7 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
             lang={lang}
             completedSet={completedSet}
             bookLabel={bookLabel}
-            bookChapterCounts={bookChapterCounts}
             onOpenSession={id => setOpenSessionId(id)}
-            onAddSession={chapterForm => onAddInductiveSession(openStudy, chapterForm)}
             onNavigate={onNavigate}
             onBack={() => setOpenStudyId(null)}
           />
@@ -450,8 +427,7 @@ function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
   const total = study.sessions.length
   const percent = total ? Math.round((doneCount / total) * 100) : 0
   const label =
-    total === 0 ? t('studies.inductiveAddFirstPassage', undefined, lang)
-    : doneCount === 0 ? t('studies.startStudy', undefined, lang)
+    doneCount === 0 ? t('studies.startStudy', undefined, lang)
     : doneCount === total ? t('studies.reviewStudy', undefined, lang)
     : t('studies.continueStudy', undefined, lang)
 
@@ -478,22 +454,13 @@ function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
           </button>
         )}
       </div>
-      {total > 0 && (
-        <>
-          <div style={{ height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', margin: '12px 0 8px' }}>
-            <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${percent}%` }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={styles.studyMeta}>{t('studies.sessionsDoneCount', { done: doneCount, total }, lang)}</span>
-            <span style={styles.studyCta}>{label}</span>
-          </div>
-        </>
-      )}
-      {total === 0 && (
-        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={styles.studyCta}>{label}</span>
-        </div>
-      )}
+      <div style={{ height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', margin: '12px 0 8px' }}>
+        <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${percent}%` }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={styles.studyMeta}>{t('studies.sessionsDoneCount', { done: doneCount, total }, lang)}</span>
+        <span style={styles.studyCta}>{label}</span>
+      </div>
     </div>
   )
 }
@@ -506,18 +473,9 @@ function inductivePassageLabel(s, bookLabel) {
   return `${bookLabel(s.book)} ${s.chapter}${range}`
 }
 
-function StudyDetail({ study, lang, completedSet, bookLabel, bookChapterCounts, onOpenSession, onAddSession, onNavigate, onBack }) {
+function StudyDetail({ study, lang, completedSet, bookLabel, onOpenSession, onNavigate, onBack }) {
   const title = lang === 'en' ? study.titleEn : study.title
   const isInductive = study.kind === 'inductive'
-  const [addingPassage, setAddingPassage] = useState(false)
-  const [chapterForm, setChapterForm] = useState(blankChapterForm())
-
-  function submitPassage() {
-    if (!chapterForm.chapter) return
-    onAddSession(chapterForm)
-    setChapterForm(blankChapterForm())
-    setAddingPassage(false)
-  }
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
@@ -533,52 +491,6 @@ function StudyDetail({ study, lang, completedSet, bookLabel, bookChapterCounts, 
           <button style={styles.methodLinkBtn} onClick={() => onNavigate?.('inductiveMethod')}>
             <AppIcon name="HelpCircle" size={14} color="#7C3AED" /> {t('studies.inductiveMethodLinkBtn', undefined, lang)}
           </button>
-        )}
-
-        {isInductive && (
-          addingPassage ? (
-            <div style={styles.createCard}>
-              <p style={styles.createLabel}>{t('studies.inductiveAddPassageLabel', undefined, lang)}</p>
-              <div style={styles.passageRow}>
-                <select
-                  style={styles.passageChapterSelect} value={chapterForm.chapter}
-                  onChange={e => setChapterForm(p => ({ ...p, chapter: e.target.value }))}
-                >
-                  <option value="">{t('notes.sermonPassageChapterPlaceholder', undefined, lang)}</option>
-                  {Array.from({ length: bookChapterCounts[study.book] ?? 0 }, (_, idx) => idx + 1).map(n => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <input
-                  type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
-                  placeholder={t('notes.sermonVerseFrom', undefined, lang)} value={chapterForm.verseStart}
-                  onChange={e => setChapterForm(p => ({ ...p, verseStart: e.target.value }))}
-                />
-                <span style={styles.passageVerseSep}>–</span>
-                <input
-                  type="number" min="1" inputMode="numeric" style={styles.passageVerseInput}
-                  placeholder={t('notes.sermonVerseTo', undefined, lang)} value={chapterForm.verseEnd}
-                  onChange={e => setChapterForm(p => ({ ...p, verseEnd: e.target.value }))}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <button style={styles.inductiveCreateBtn} onClick={submitPassage} disabled={!chapterForm.chapter}>
-                  {t('studies.inductiveAddPassageConfirm', undefined, lang)}
-                </button>
-                <button style={styles.cancelBtn} onClick={() => { setAddingPassage(false); setChapterForm(blankChapterForm()) }}>
-                  {t('studies.createByThemeCancel', undefined, lang)}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button style={styles.addPassageBtn} onClick={() => setAddingPassage(true)}>
-              <AppIcon name="Plus" size={14} color="var(--or)" /> {t('studies.inductiveAddPassageBtn', undefined, lang)}
-            </button>
-          )
-        )}
-
-        {isInductive && study.sessions.length === 0 && !addingPassage && (
-          <p style={styles.emptyHint}>{t('studies.inductiveEmptyState', undefined, lang)}</p>
         )}
 
         {study.sessions.map(s => {
@@ -830,12 +742,6 @@ const styles = {
   inductiveIntro:   { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   inductiveSuggestHint: { fontSize: 11, fontWeight: 600, color: 'var(--or)', lineHeight: 1.5, marginTop: 8 },
   inductiveCreateBtn: { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: '#7C3AED' },
-  addPassageBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: '0.5px dashed var(--g3)', background: 'none', borderRadius: 13, padding: '11px 10px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  emptyHint:      { fontSize: 12, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '18px 8px' },
-  passageRow:     { display: 'flex', alignItems: 'center', gap: 5 },
-  passageChapterSelect:{ flex: '1.2 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
-  passageVerseInput:   { flex: '0.7 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
-  passageVerseSep:     { fontSize: 11, fontWeight: 700, color: 'var(--g4)', flexShrink: 0 },
   readPassageBtn: { display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--olt)', borderRadius: 13, padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
   inductiveFieldHint: { fontSize: 11, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, marginBottom: 8 },
   inductiveTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--white)' },
