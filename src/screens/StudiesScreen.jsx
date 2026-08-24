@@ -443,11 +443,13 @@ function StudyCard({ study, lang, completedSet, isActiveStudy, onOpen, onDelete,
           <AppIcon name={study.icon} size={22} color="var(--or)" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <h3 style={styles.studyTitle}>{title}</h3>
-            {isInductive && <span style={styles.inductiveBadge}>{t('studies.inductiveBadge', undefined, lang)}</span>}
-            {isActiveStudy && <span style={styles.currentStudyBadge}>{t('studies.currentStudyBadge', undefined, lang)}</span>}
-          </div>
+          <h3 style={styles.studyTitle}>{title}</h3>
+          {(isInductive || isActiveStudy) && (
+            <div style={styles.studyBadgeRow}>
+              {isInductive && <span style={styles.inductiveBadge}>{t('studies.inductiveBadge', undefined, lang)}</span>}
+              {isActiveStudy && <span style={styles.currentStudyBadge}>{t('studies.currentStudyBadge', undefined, lang)}</span>}
+            </div>
+          )}
           <p style={styles.studySubtitle}>{subtitle}</p>
         </div>
         <button
@@ -727,6 +729,7 @@ const styles = {
   studyCta:     { fontSize: 11, fontWeight: 700, color: 'var(--or)' },
   studyStarBtn: { width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   studyDeleteBtn:{ width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  studyBadgeRow: { display: 'flex', gap: 6, flexWrap: 'wrap', margin: '-1px 0 4px' },
   inductiveBadge: { fontSize: 9, fontWeight: 800, color: '#7C3AED', background: 'rgba(124,58,237,.12)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
   currentStudyBadge: { fontSize: 9, fontWeight: 800, color: 'var(--gold-deep, #9D7A1F)', background: 'rgba(201,154,74,.15)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
   recommendHint: { fontSize: 11, fontWeight: 600, color: 'var(--or)', lineHeight: 1.5, margin: '8px 2px 0' },
