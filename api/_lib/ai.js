@@ -262,6 +262,47 @@ ${buildReplyLangInstruction(lang)}`,
   return output
 }
 
+// Boletim semanal (aba Notificações + email, ver api/send-weekly-digest.js)
+// — resume a semana de quem usa o app. Métricas (nível, XP, streak, % da
+// Bíblia) e frases de aplicação NÃO vêm da IA — são dado real, montados por
+// quem chama esta função. Só "summary"/"themes"/"encouragement" pedem
+// geração: o texto livre das anotações da semana (reflexões, notas de
+// leitura) não tem estrutura pra virar métrica, mas dá pra resumir e
+// extrair tema. `notesText` já vem formatado (uma linha por anotação) por
+// quem chama.
+function buildDigestLangInstruction(lang) {
+  return lang === 'en'
+    ? 'Write all text fields (summary, themes, encouragement) in English.'
+    : 'Escreva todos os campos de texto (summary, themes, encouragement) em português.'
+}
+
+const WeeklyDigestSchema = z.object({
+  summary: z.string().describe('Um resumo caloroso e específico (2-4 frases) do que essa pessoa leu e refletiu essa semana, baseado nas anotações fornecidas — mencione livros/passagens reais quando souber. Se as anotações forem poucas ou genéricas, foque na constância (dias de oração/leitura/reflexão) em vez de inventar detalhes de conteúdo que não estão nas anotações.'),
+  themes: z.array(z.string()).max(5).describe('De 1 a 5 temas espirituais recorrentes que aparecem nas anotações da semana (ex: "Confiança em meio à incerteza", "Perdão"), cada um como uma frase curta (2-5 palavras). Só inclua um tema se ele realmente aparecer em mais de uma anotação ou for central a alguma delas — não force temas genéricos pra preencher a lista. Lista vazia se não der pra identificar nenhum tema real com as anotações fornecidas.'),
+  encouragement: z.string().describe('Uma frase curta de encorajamento (1-2 frases) pra motivar a pessoa na próxima semana, coerente com o que ela viveu essa semana (constância, temas, ou retomada caso a semana tenha sido fraca) — tom pastoral, caloroso, nunca genérico ou robótico.'),
+})
+
+// notesText — já formatado por quem chama (uma linha por anotação relevante
+// da semana, com livro/data quando aplicável). activityLine — resumo em
+// texto dos dias de oração/leitura/reflexão/estudo da semana, pra IA usar
+// como contexto mesmo quando não há anotação nenhuma (só constância).
+export async function generateWeeklyDigest({ lang, notesText, activityLine }) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: WeeklyDigestSchema }),
+    prompt: `Você está escrevendo o boletim semanal de um app de leitura devocional da Bíblia, resumindo a semana de uma pessoa específica pra ela mesma. O tom é pastoral e pessoal, nunca corporativo ou genérico — como um mentor espiritual que acompanhou a semana dela de perto.
+
+Constância da semana: ${activityLine}
+
+Anotações que essa pessoa escreveu essa semana (leitura, reflexões diárias, aplicação pessoal):
+${notesText || '(nenhuma anotação escrita essa semana)'}
+
+Com base SÓ no que está acima (não invente conteúdo bíblico específico que não esteja nas anotações), escreva o resumo, os temas recorrentes e a frase de encorajamento.
+${buildDigestLangInstruction(lang)}`,
+  })
+  return output
+}
+
 // Busca por tema nas anotações pessoais (aba Notas — ver
 // api/search-notes.js/src/notes/notesSearchStore.js) — complementa a busca
 // por palavra (client-side, instantânea, sem custo) pra quando a pessoa

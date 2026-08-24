@@ -12,8 +12,8 @@
 // se a pessoa quebrar a sequência. `computeGoalsStatus` combina os dois:
 // progresso ao vivo (current/target) + o que já foi persistido como
 // concluído (completedGoals, vindo do backend).
-import { computeRoutineStreak, isDayComplete, modulesForDay, DEFAULT_ROUTINE_MODULES } from './routineStreak'
-import { dateKey } from '../utils/dateKey'
+import { computeRoutineStreak, isDayComplete, modulesForDay, DEFAULT_ROUTINE_MODULES } from './routineStreak.js'
+import { dateKey } from '../utils/dateKey.js'
 
 export const GOALS = [
   {

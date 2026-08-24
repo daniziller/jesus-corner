@@ -44,6 +44,7 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
     markNotificationRead(notif.id)
     setOpen(false)
     if (notif.type === 'contribution_reminder') onNavigate?.('upgrade')
+    if (notif.type === 'weekly_digest') onNavigate?.('routine')
   }
 
   useEffect(() => {
@@ -93,7 +94,7 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
               {notifications.map(n => (
                 <button key={n.id} style={styles.item} onClick={() => handleNotificationClick(n)}>
                   <div style={{ ...styles.itemIcon, background: 'var(--olt)' }}>
-                    <AppIcon name={n.type === 'admin_broadcast' ? 'Megaphone' : 'HandHeart'} size={14} color="var(--or)" />
+                    <AppIcon name={n.type === 'admin_broadcast' ? 'Megaphone' : n.type === 'weekly_digest' ? 'Sparkles' : 'HandHeart'} size={14} color="var(--or)" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={styles.itemText}>
