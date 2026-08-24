@@ -47,7 +47,7 @@ const MODULE_ORDER = ['prayer', 'reading', 'study', 'reflection']
 
 export default function RoutineScreen({
   session, authUser, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan, todayThemePicks,
-  onNavigate, onContinueSession, onMarkRoutineStep, onToggleRoutineModule, onSelectActiveStudy,
+  onNavigate, onContinueSession, onMarkRoutineStep, onToggleRoutineModule,
   onSelectActivePlan, onOpenThemePlan, onAddSessionsToRoutine, onStartThemeReading,
   onToggleSession, onOpenSession, onOpenChronoSession,
 }) {
@@ -479,17 +479,16 @@ export default function RoutineScreen({
                   </div>
                 )}
 
-                {/* Estudo — escolhe UM estudo ativo, guiado (estático ou
-                    por IA) OU indutivo; a sessão de hoje e marcar concluído
-                    moram em StudiesScreen.jsx, que já sabe calcular isso a
-                    partir do progresso salvo. Dois grupos separados (não
-                    uma lista só) porque são duas abordagens diferentes —
-                    ver studyRecommendHint. */}
+                {/* Estudo — só MOSTRA qual estudo está em andamento (guiado
+                    ou indutivo); a escolha de QUAL estudo seguir mora na
+                    aba Estudos agora (ver StudiesScreen.jsx/onSelectActiveStudy),
+                    não aqui. Sessão de hoje e marcar concluído também
+                    moram lá, que já sabe calcular isso a partir do
+                    progresso salvo. */}
                 {expanded && key === 'study' && (
                   <div style={styles.moduleAccordionBody}>
                     <p style={styles.moduleAccordionSub}>{t('routine.sectionStudySub', undefined, lang)}</p>
-                    <p style={styles.studyRecommendHint}>{t('routine.studyRecommendHint', undefined, lang)}</p>
-                    {activeStudy && (
+                    {activeStudy ? (
                       <div style={styles.activeStudyCard}>
                         <span style={styles.activeStudyIcon}><AppIcon name={activeStudy.icon} size={16} color={ROUTINE_STEP_COLORS.study} /></span>
                         <span style={{ flex: 1, minWidth: 0 }}>
@@ -501,44 +500,8 @@ export default function RoutineScreen({
                           </span>
                         </span>
                       </div>
-                    )}
-
-                    <p style={styles.studyGroupLabel}>{t('routine.studyGroupGuided', undefined, lang)}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {guidedStudies.map(s => (
-                        <PlanRow
-                          key={s.id}
-                          icon={s.icon}
-                          iconColor={ROUTINE_STEP_COLORS.study}
-                          iconBg="#F2E6D2"
-                          title={lang === 'en' ? s.titleEn : s.title}
-                          sub={`${s.sessions.length} ${lang === 'en' ? 'sessions' : 'sessões'}`}
-                          isActive={activeStudyId === s.id}
-                          lang={lang}
-                          onChoose={() => onSelectActiveStudy?.(s.id)}
-                        />
-                      ))}
-                    </div>
-
-                    {inductiveStudies.length > 0 && (
-                      <>
-                        <p style={styles.studyGroupLabel}>{t('routine.studyGroupInductive', undefined, lang)}</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {inductiveStudies.map(s => (
-                            <PlanRow
-                              key={s.id}
-                              icon={s.icon}
-                              iconColor="#7C3AED"
-                              iconBg="rgba(124,58,237,.12)"
-                              title={lang === 'en' ? s.titleEn : s.title}
-                              sub={t('routine.studyInductiveSub', undefined, lang)}
-                              isActive={activeStudyId === s.id}
-                              lang={lang}
-                              onChoose={() => onSelectActiveStudy?.(s.id)}
-                            />
-                          ))}
-                        </div>
-                      </>
+                    ) : (
+                      <p style={styles.moduleAccordionSub}>{t('routine.noActiveStudy', undefined, lang)}</p>
                     )}
 
                     <button style={{ ...styles.sectionGoBtn, background: ROUTINE_STEP_COLORS.study }} onClick={() => onNavigate?.('studies')}>
@@ -987,8 +950,6 @@ const styles = {
   moduleAccordionDivider: { borderTop: '0.5px solid var(--g1)', marginTop: 2, paddingTop: 2 },
   moduleAccordionBody: { padding: '2px 2px 16px', display: 'flex', flexDirection: 'column', gap: 12 },
   moduleAccordionSub:  { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', margin: '-4px 2px 0' },
-  studyRecommendHint:  { fontSize: 11, fontWeight: 600, color: 'var(--or)', lineHeight: 1.5, margin: '-4px 2px 0' },
-  studyGroupLabel:     { fontSize: 10, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.5, textTransform: 'uppercase', margin: '4px 2px -4px' },
 
   hero:        { position: 'relative', overflow: 'hidden', borderRadius: 24, padding: '20px 20px 18px', background: 'var(--grad-vivid)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 'var(--shadow-glow)' },
   heroOrb:     { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -50 },

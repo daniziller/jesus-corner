@@ -9,7 +9,7 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
 export default function StudiesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy }) {
-  const { lang } = session
+  const { lang, activeStudyId } = session
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [openStudyId, setOpenStudyId] = useState(null)
   const [openSessionId, setOpenSessionId] = useState(null)
@@ -241,6 +241,7 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
               {t('studies.tabGuided', undefined, lang)}
             </button>
           </div>
+          <p style={styles.recommendHint}>{t('studies.recommendHint', undefined, lang)}</p>
         </div>
 
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -291,8 +292,10 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
                   study={study}
                   lang={lang}
                   completedSet={completedSet}
+                  isActiveStudy={activeStudyId === study.id}
                   onOpen={() => setOpenStudyId(study.id)}
                   onDelete={aiStudies.some(s => s.id === study.id) ? () => handleDeleteStudy(study) : null}
+                  onSetActive={() => onSelectActiveStudy?.(activeStudyId === study.id ? null : study.id)}
                 />
               ))}
             </>
@@ -351,8 +354,10 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
                   study={study}
                   lang={lang}
                   completedSet={completedSet}
+                  isActiveStudy={activeStudyId === study.id}
                   onOpen={() => setOpenStudyId(study.id)}
                   onDelete={() => handleDeleteStudy(study)}
+                  onSetActive={() => onSelectActiveStudy?.(activeStudyId === study.id ? null : study.id)}
                 />
               ))}
             </>
@@ -417,7 +422,7 @@ function StudiesEmptyState({ lang }) {
   )
 }
 
-function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
+function StudyCard({ study, lang, completedSet, isActiveStudy, onOpen, onDelete, onSetActive }) {
   const isInductive = study.kind === 'inductive'
   const title = lang === 'en' ? study.titleEn : study.title
   const subtitle = isInductive
@@ -432,7 +437,7 @@ function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
     : t('studies.continueStudy', undefined, lang)
 
   return (
-    <div style={styles.studyCard} onClick={onOpen}>
+    <div style={{ ...styles.studyCard, ...(isActiveStudy ? styles.studyCardActive : {}) }} onClick={onOpen}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <div style={styles.studyIcon}>
           <AppIcon name={study.icon} size={22} color="var(--or)" />
@@ -441,9 +446,18 @@ function StudyCard({ study, lang, completedSet, onOpen, onDelete }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <h3 style={styles.studyTitle}>{title}</h3>
             {isInductive && <span style={styles.inductiveBadge}>{t('studies.inductiveBadge', undefined, lang)}</span>}
+            {isActiveStudy && <span style={styles.currentStudyBadge}>{t('studies.currentStudyBadge', undefined, lang)}</span>}
           </div>
           <p style={styles.studySubtitle}>{subtitle}</p>
         </div>
+        <button
+          style={styles.studyStarBtn}
+          onClick={e => { e.stopPropagation(); onSetActive?.() }}
+          aria-label={t(isActiveStudy ? 'studies.unsetCurrentAction' : 'studies.setCurrentAction', undefined, lang)}
+          title={t(isActiveStudy ? 'studies.unsetCurrentAction' : 'studies.setCurrentAction', undefined, lang)}
+        >
+          <AppIcon name="Star" size={16} color={isActiveStudy ? 'var(--gold)' : 'var(--g3)'} fill={isActiveStudy ? 'var(--gold)' : 'none'} />
+        </button>
         {onDelete && (
           <button
             style={styles.studyDeleteBtn}
@@ -705,13 +719,17 @@ const styles = {
   pageSubtitle: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', padding: '14px 14px 0', marginBottom: 8 },
   backBtn:      { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   studyCard:    { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 14, boxShadow: 'var(--shadow-card)', cursor: 'pointer' },
+  studyCardActive: { border: '0.5px solid var(--gold-soft)' },
   studyIcon:    { width: 44, height: 44, borderRadius: 13, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   studyTitle:   { fontSize: 14.5, fontWeight: 800, color: 'var(--bk)', marginBottom: 3, letterSpacing: '-0.2px' },
   studySubtitle:{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
   studyMeta:    { fontSize: 10.5, fontWeight: 600, color: 'var(--g5)' },
   studyCta:     { fontSize: 11, fontWeight: 700, color: 'var(--or)' },
+  studyStarBtn: { width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   studyDeleteBtn:{ width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   inductiveBadge: { fontSize: 9, fontWeight: 800, color: '#7C3AED', background: 'rgba(124,58,237,.12)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
+  currentStudyBadge: { fontSize: 9, fontWeight: 800, color: 'var(--gold-deep, #9D7A1F)', background: 'rgba(201,154,74,.15)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
+  recommendHint: { fontSize: 11, fontWeight: 600, color: 'var(--or)', lineHeight: 1.5, margin: '8px 2px 0' },
   sessionRow:   { display: 'flex', alignItems: 'center', gap: 11, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 19, padding: 12, cursor: 'pointer', boxShadow: 'var(--shadow-card)' },
   sessionIcon:  { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sessionTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
