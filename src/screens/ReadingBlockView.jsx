@@ -14,27 +14,17 @@ import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
+import { useIsDesktop } from '../utils/useIsDesktop'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RecentChaptersRow from '../components/RecentChaptersRow'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 
-// Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
-// .rb-detail, min-width: 768px) — usado só em modo 'browse' pra decidir
-// ONDE o texto do capítulo aparece (ver comentário perto de onde é usado).
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches)
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)')
-    const handler = e => setIsDesktop(e.matches)
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
-  return isDesktop
-}
-
 export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, embedded = false }) {
   const { lang } = session
+  // Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
+  // .rb-detail, min-width: 768px) — usado só em modo 'browse' pra decidir
+  // ONDE o texto do capítulo aparece (ver comentário perto de onde é usado).
   const isDesktop = useIsDesktop()
   // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
   // capítulo só) ou navegação livre pela aba Bíblia (mode 'browse' —
@@ -1652,8 +1642,15 @@ function NotesPanel({ value, onSave, lang }) {
 
 function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop, hasNoteFor, highlights, highlightSelection, onHighlightVerseClick, onHighlightTextRange }) {
   const [open, setOpen] = useState(isCurrentBook)
-  const total = group.sessions.length
-  const doneCount = group.sessions.filter(s => s.status === 'done').length
+  // No plano livre, o rótulo diz "capítulos" — a sessão de reflexão de
+  // fechamento do livro (session.type === 'reflection') não é um capítulo
+  // de verdade, então não deve entrar nessa contagem (senão um livro de 5
+  // capítulos com reflexão mostrava "0/6 capítulos"). No modo com sessões
+  // (não-livre), o rótulo diz "sessões" e a reflexão É uma sessão de
+  // verdade, então continua contando normalmente.
+  const countableSessions = isFreePlan ? group.sessions.filter(s => s.type !== 'reflection') : group.sessions
+  const total = countableSessions.length
+  const doneCount = countableSessions.filter(s => s.status === 'done').length
   const allDone = doneCount === total
   const displayName = lang === 'en' ? group.sessions[0]?.bookEn : group.book
 

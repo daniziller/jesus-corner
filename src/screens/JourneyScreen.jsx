@@ -27,7 +27,7 @@ function flattenBooks(blocksSubset, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onNavigate, onGoToReflectionFrom,
+  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onGoToReflectionFrom,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -121,9 +121,16 @@ export default function JourneyScreen({
 
   // Link "ir pro texto" de uma anotação de sermão (ver App.jsx/
   // openBiblePassage) — objeto novo a cada pedido, então todo pedido roda
-  // este efeito de novo mesmo pra pular pro MESMO capítulo de antes.
+  // este efeito de novo mesmo pra pular pro MESMO capítulo de antes. Avisa
+  // App.jsx que já consumiu (onBrowseJumpConsumed limpa o state lá) — sem
+  // isso, o pedido ficava "pendente" pra sempre e essa tela pulava pro
+  // mesmo capítulo de novo em TODA montagem futura (qualquer visita à aba
+  // Bíblia depois de usar o link uma vez, não só via botão Voltar).
   useEffect(() => {
-    if (browseJumpTarget) openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+    if (browseJumpTarget) {
+      openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+      onBrowseJumpConsumed?.()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [browseJumpTarget])
 

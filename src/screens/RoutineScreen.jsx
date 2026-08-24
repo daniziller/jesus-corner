@@ -13,6 +13,7 @@ import { PLANS, GRADIENT_MAP } from '../data/bibleBlocks'
 import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
+import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { resolveActivePlanSessions, themePlanTitle, themePlanProgress } from '../plan/resolveActivePlan'
@@ -60,10 +61,15 @@ export default function RoutineScreen({
   // ativo do dia, nunca os dois.
   const [aiStudies, setAiStudies] = useState([])
   const [inductiveStudies, setInductiveStudies] = useState([])
+  // Progresso real dos Estudos (studies_completed) — usado só pra mostrar
+  // quantas sessões do estudo ativo já foram concluídas no resumo abaixo
+  // (antes vinha cravado em 0, sem bater com o progresso de verdade).
+  const [studiesCompletedSet, setStudiesCompletedSet] = useState(() => new Set())
   useEffect(() => {
     if (!authUser) return
     getAiStudies(authUser.email).then(setAiStudies)
     getInductiveStudies(authUser.email).then(setInductiveStudies)
+    getCompletedStudySessions(authUser.email).then(setStudiesCompletedSet)
   }, [authUser?.email])
   const guidedStudies = [...STUDIES, ...aiStudies]
   const isOn = key => routineModules.includes(key)
@@ -108,7 +114,6 @@ export default function RoutineScreen({
     if (!targetPlanId) return
     onSelectActivePlan?.({ type: 'theme', planId: targetPlanId })
   }
-  const isAiPlan = activePlan.kind === 'theme'
   const doneSessions = blocks.reduce((s, b) => s + b.sessionsDone, 0)
   const totalSessions = computeTotalSessions(blocks)
   const readingCtaLabel = todaySession.needsThemePick
@@ -496,7 +501,7 @@ export default function RoutineScreen({
                           <span style={styles.activePlanSummarySub}>
                             {isInductiveActive
                               ? t('routine.studyInductiveSub', undefined, lang)
-                              : t('themePlan.sessionsCount', { done: 0, total: activeStudy.sessions.length }, lang)}
+                              : t('themePlan.sessionsCount', { done: activeStudy.sessions.filter(s => isStudySessionDone(studiesCompletedSet, activeStudy.id, s.id)).length, total: activeStudy.sessions.length }, lang)}
                           </span>
                         </span>
                       </div>

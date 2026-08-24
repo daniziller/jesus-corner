@@ -888,7 +888,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
         ))}
       </div>
 
-      <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
+      <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder={t('auth.emailPlaceholder')} />
       <Field label={t('auth.ageLabel')} type="number" value={age} onChange={setAge} placeholder="18" />
       <PasswordField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
       <PasswordField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
@@ -1042,7 +1042,7 @@ function LoginView({ onAuthenticated, onGoSignup, onGoForgot }) {
       <h1 style={styles.title}>{t('auth.loginTitle')}</h1>
       <p style={styles.subtitle}>{t('auth.loginSubtitle')}</p>
 
-      <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" autoFocus />
+      <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder={t('auth.emailPlaceholder')} autoFocus />
       <PasswordField label={t('auth.passwordLabel')} value={password} onChange={setPassword} autoComplete="current-password" />
 
       {error && <p style={styles.error}>{error}</p>}
@@ -1341,7 +1341,7 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
         <h1 style={styles.title}>{t('auth.forgotTitle')}</h1>
         <p style={styles.subtitle}>{t('auth.forgotSubtitle')}</p>
 
-        <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder="seu@email.com" autoFocus />
+        <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder={t('auth.emailPlaceholder')} autoFocus />
 
         {error && <p style={styles.error}>{error}</p>}
 

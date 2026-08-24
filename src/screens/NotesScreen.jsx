@@ -525,13 +525,16 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   const bookFiltered = bookFilter
     ? preacherTypeFiltered.filter(n => n.book === bookFilter)
     : preacherTypeFiltered
-  // Filtro por data — compara só a parte YYYY-MM-DD de updatedAt (ISO),
-  // então funciona igual pra qualquer fuso sem precisar converter de
-  // verdade; suficiente pra um filtro de UI, não pra algo exato ao segundo.
+  // Filtro por data — compara a data LOCAL de updatedAt (não a fatia bruta
+  // do ISO, que é UTC) contra os limites do filtro (também locais, ver
+  // dateFilterRangeFor/dateKey). Comparar UTC com local fazia uma nota
+  // criada "agora à noite" sumir do filtro "Hoje" por várias horas em
+  // fusos atrás de UTC (Brasil incluso), porque a data UTC já tinha virado
+  // enquanto a local ainda não.
   const dateRange = dateFilterRangeFor(dateFilterKey, customFrom, customTo)
   const dateFiltered = dateRange
     ? bookFiltered.filter(n => {
-        const nk = n.updatedAt ? n.updatedAt.slice(0, 10) : null
+        const nk = n.updatedAt ? dateKey(new Date(n.updatedAt)) : null
         if (!nk) return false
         if (dateRange.from && nk < dateRange.from) return false
         if (dateRange.to && nk > dateRange.to) return false

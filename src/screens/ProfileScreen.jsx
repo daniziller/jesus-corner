@@ -125,9 +125,9 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
   function reminderDaysLabel() {
     const isWeekdays = reminderDays.length === 5 && ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].every(d => reminderDays.includes(d))
-    if (reminderDays.length === 7) return t('profile.reminderEveryDay')
-    if (isWeekdays) return t('profile.reminderWeekdays')
-    return REMINDER_DAY_KEYS.filter(d => reminderDays.includes(d)).map(d => t(`profile.reminderDay${d}`)).join(', ')
+    if (reminderDays.length === 7) return t('profile.reminderEveryDay', undefined, session.lang)
+    if (isWeekdays) return t('profile.reminderWeekdays', undefined, session.lang)
+    return REMINDER_DAY_KEYS.filter(d => reminderDays.includes(d)).map(d => t(`profile.reminderDay${d}`, undefined, session.lang)).join(', ')
   }
 
   function reminderHourLabel() {
@@ -156,10 +156,10 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   }
 
   async function saveEdit() {
-    if (!editName.trim()) { setSaveError(t('profile.nameRequiredError')); return }
+    if (!editName.trim()) { setSaveError(t('profile.nameRequiredError', undefined, session.lang)); return }
     const ageNum = Number(editAge)
     if (!editAge || !Number.isFinite(ageNum) || ageNum <= 0 || ageNum > 120) {
-      setSaveError(t('profile.ageInvalidError'))
+      setSaveError(t('profile.ageInvalidError', undefined, session.lang))
       return
     }
     setSaving(true)
@@ -181,7 +181,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   }
 
   function handleResetClick() {
-    if (window.confirm(t('profile.resetConfirm'))) {
+    if (window.confirm(t('profile.resetConfirm', undefined, session.lang))) {
       onResetProgress?.()
     }
   }
@@ -225,14 +225,14 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             outras telas (Rotina/Início/Progresso/Estudos/Comunidade/Admin)
             em vez de uma referência direta. */}
         <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: -4 }}>
-          <h1 className="page-title">{t('profile.pageTitle')}</h1>
+          <h1 className="page-title">{t('profile.pageTitle', undefined, session.lang)}</h1>
         </div>
 
         <div className="dashboard-grid">
           {/* Card do usuário */}
           <div className="dashboard-col" style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 24, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: 'var(--shadow-card)', position: 'relative' }}>
             {!editMode && (
-              <button style={styles.editBtn} onClick={startEdit} aria-label={t('profile.editProfile')}>
+              <button style={styles.editBtn} onClick={startEdit} aria-label={t('profile.editProfile', undefined, session.lang)}>
                 <AppIcon name="PenLine" size={14} color="var(--g5)" />
               </button>
             )}
@@ -247,23 +247,23 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
             {editMode ? (
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <EditField label={t('profile.nameLabel')} value={editName} onChange={setEditName} />
-                <EditField label={t('profile.ageLabel')} type="number" value={editAge} onChange={setEditAge} />
+                <EditField label={t('profile.nameLabel', undefined, session.lang)} value={editName} onChange={setEditName} />
+                <EditField label={t('profile.ageLabel', undefined, session.lang)} type="number" value={editAge} onChange={setEditAge} />
                 <label style={styles.editFieldWrap}>
-                  <span style={styles.editFieldLabel}>{t('profile.bioLabel')}</span>
+                  <span style={styles.editFieldLabel}>{t('profile.bioLabel', undefined, session.lang)}</span>
                   <textarea
                     style={styles.bioInput}
                     value={editBio}
                     onChange={e => setEditBio(e.target.value.slice(0, MAX_BIO_LENGTH))}
-                    placeholder={t('profile.bioPlaceholder')}
+                    placeholder={t('profile.bioPlaceholder', undefined, session.lang)}
                     rows={3}
                   />
                   <span style={styles.bioCounter}>{editBio.length}/{MAX_BIO_LENGTH}</span>
                 </label>
                 <div style={styles.publicToggleRow}>
                   <div style={{ flex: 1, textAlign: 'left' }}>
-                    <p style={styles.publicToggleLabel}>{t('profile.publicProfileLabel')}</p>
-                    <p style={styles.publicToggleSub}>{t('profile.publicProfileSub')}</p>
+                    <p style={styles.publicToggleLabel}>{t('profile.publicProfileLabel', undefined, session.lang)}</p>
+                    <p style={styles.publicToggleSub}>{t('profile.publicProfileSub', undefined, session.lang)}</p>
                   </div>
                   <div className={`toggle ${editIsPublic ? '' : 'off'}`} onClick={() => setEditIsPublic(v => !v)} role="switch" aria-checked={editIsPublic}>
                     <div className="toggle-thumb" />
@@ -274,9 +274,9 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn-primary" style={{ width: 'auto', flex: 1, padding: '10px 16px' }} onClick={saveEdit} disabled={saving}>
-                    {saving ? t('profile.saving') : t('profile.save')}
+                    {saving ? t('profile.saving', undefined, session.lang) : t('profile.save', undefined, session.lang)}
                   </button>
-                  <button className="btn-secondary" style={{ width: 'auto', flex: 1 }} onClick={cancelEdit} disabled={saving}>{t('profile.cancel')}</button>
+                  <button className="btn-secondary" style={{ width: 'auto', flex: 1 }} onClick={cancelEdit} disabled={saving}>{t('profile.cancel', undefined, session.lang)}</button>
                 </div>
               </div>
             ) : (
@@ -287,10 +287,10 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                   {profile?.bio && <p style={styles.bioDisplay}>{profile.bio}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-                  <StatItem value={session.streak}       label={t('profile.sequenceLabel')} />
-                  <StatItem value={`${session.biblePercent}%`} label={t('profile.bibleLabel')} />
+                  <StatItem value={session.streak}       label={t('profile.sequenceLabel', undefined, session.lang)} />
+                  <StatItem value={`${session.biblePercent}%`} label={t('profile.bibleLabel', undefined, session.lang)} />
                   <StatItem value={<><AppIcon name={session.level.icon} size={14} style={{ verticalAlign: 'middle', marginRight: 3 }} />{session.level.level}</>} label={session.level.title} />
-                  <StatItem value={friendsCount} label={t('profile.friendsLabel')} />
+                  <StatItem value={friendsCount} label={t('profile.friendsLabel', undefined, session.lang)} />
                 </div>
               </>
             )}
@@ -299,11 +299,11 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           {/* Reconfigurar planejador */}
           <button
             style={{ ...styles.plannerCard, flex: 1, alignSelf: 'stretch' }}
-            onClick={() => alert(t('profile.plannerComingSoon'))}
+            onClick={() => alert(t('profile.plannerComingSoon', undefined, session.lang))}
           >
-            <p style={styles.plannerLabel}>{t('profile.currentPlanLabel', { plan: session.plan.label.toUpperCase(), n: session.plan.avgChapters })}</p>
-            <p style={styles.plannerTitle}>{t('profile.reconfigurePlanner')}</p>
-            <p style={styles.plannerSub}>{t('profile.plannerAutoRecalc')}</p>
+            <p style={styles.plannerLabel}>{t('profile.currentPlanLabel', { plan: session.plan.label.toUpperCase(), n: session.plan.avgChapters }, session.lang)}</p>
+            <p style={styles.plannerTitle}>{t('profile.reconfigurePlanner', undefined, session.lang)}</p>
+            <p style={styles.plannerSub}>{t('profile.plannerAutoRecalc', undefined, session.lang)}</p>
           </button>
         </div>
 
@@ -318,14 +318,14 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           />
           <SettingsToggle
             icon="Bell" iconBg="var(--olt)"
-            label={t('profile.remindersLabel')} sub={`${reminderHourLabel()} · ${reminderDaysLabel()}`}
+            label={t('profile.remindersLabel', undefined, session.lang)} sub={`${reminderHourLabel()} · ${reminderDaysLabel()}`}
             value={notifications} onChange={handleToggleReminders} disabled={remindersBusy}
             onLabelClick={() => setRemindersConfigOpen(v => !v)}
           />
           {remindersConfigOpen && (
             <div style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 12, borderTop: '0.5px solid var(--g1)' }}>
               <div>
-                <span style={styles.editFieldLabel}>{t('profile.reminderHourLabel')}</span>
+                <span style={styles.editFieldLabel}>{t('profile.reminderHourLabel', undefined, session.lang)}</span>
                 <div style={{ position: 'relative', marginTop: 6 }}>
                   <div style={styles.wheelHighlight} />
                   <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
@@ -348,7 +348,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                 </div>
               </div>
               <div>
-                <span style={styles.editFieldLabel}>{t('profile.reminderDaysLabel')}</span>
+                <span style={styles.editFieldLabel}>{t('profile.reminderDaysLabel', undefined, session.lang)}</span>
                 <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
                   {REMINDER_DAY_KEYS.map(day => (
                     <button
@@ -358,7 +358,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                       onClick={() => toggleReminderDay(day)}
                       style={{ ...styles.langBtn, flex: 1, padding: '9px 4px', ...(reminderDays.includes(day) ? styles.langBtnActive : {}) }}
                     >
-                      {t(`profile.reminderDay${day}`)}
+                      {t(`profile.reminderDay${day}`, undefined, session.lang)}
                     </button>
                   ))}
                 </div>
@@ -367,7 +367,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           )}
           <SettingsLink
             icon="Globe" iconBg="var(--olt)"
-            label={t('profile.languageLabel')} sub={`${currentLang.flag} ${currentLang.label}`}
+            label={t('profile.languageLabel', undefined, session.lang)} sub={`${currentLang.flag} ${currentLang.label}`}
             onPress={() => setLangPickerOpen(v => !v)}
           />
           {langPickerOpen && (
@@ -385,13 +385,13 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           )}
           <SettingsLink
             icon="BookOpen" iconBg="var(--olt)"
-            label={t('profile.readingPlanLabel')} sub={t('profile.readingPlanSub', { plan: session.plan.label, n: session.plan.avgChapters })}
+            label={t('profile.readingPlanLabel', undefined, session.lang)} sub={t('profile.readingPlanSub', { plan: session.plan.label, n: session.plan.avgChapters }, session.lang)}
             onPress={() => onNavigate('journey')}
           />
           <SettingsLink
             icon="ArrowUp" iconBg="var(--olt)"
-            label={t('profile.readingOrderLabel')}
-            sub={t(session.readingOrder === 'nt_first' ? 'profile.readingOrderSubNt' : 'profile.readingOrderSubOt')}
+            label={t('profile.readingOrderLabel', undefined, session.lang)}
+            sub={t(session.readingOrder === 'nt_first' ? 'profile.readingOrderSubNt' : 'profile.readingOrderSubOt', undefined, session.lang)}
             onPress={() => setReadingOrderPickerOpen(v => !v)}
           />
           {readingOrderPickerOpen && (
@@ -400,29 +400,29 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                 onClick={() => { onChangeReadingOrder?.('ot_first'); setReadingOrderPickerOpen(false) }}
                 style={{ ...styles.langBtn, flex: 'unset', width: '100%', ...(session.readingOrder !== 'nt_first' ? styles.langBtnActive : {}) }}
               >
-                {t('profile.readingOrderOtFirstBtn')}
+                {t('profile.readingOrderOtFirstBtn', undefined, session.lang)}
               </button>
               <button
                 onClick={() => { onChangeReadingOrder?.('nt_first'); setReadingOrderPickerOpen(false) }}
                 style={{ ...styles.langBtn, flex: 'unset', width: '100%', ...(session.readingOrder === 'nt_first' ? styles.langBtnActive : {}) }}
               >
-                {t('profile.readingOrderNtFirstBtn')}
+                {t('profile.readingOrderNtFirstBtn', undefined, session.lang)}
               </button>
             </div>
           )}
           <SettingsLink
             icon="RefreshCw" iconBg="var(--olt)"
-            label={t('profile.resetReadingLabel')} sub={t('profile.resetReadingSub', { block: session.firstBlockName })}
+            label={t('profile.resetReadingLabel', undefined, session.lang)} sub={t('profile.resetReadingSub', { block: session.firstBlockName }, session.lang)}
             onPress={handleResetClick}
           />
           <SettingsLink
             icon="Sparkles" iconBg="var(--olt)"
-            label={t('profile.applicationPhrasesLabel')} sub={t('profile.applicationPhrasesSub')}
+            label={t('profile.applicationPhrasesLabel', undefined, session.lang)} sub={t('profile.applicationPhrasesSub', undefined, session.lang)}
             onPress={() => onNavigate('applicationPhrases')}
           />
           <SettingsToggle
             icon="Sparkles" iconBg="var(--olt)"
-            label={t('profile.applicationCardLabel')} sub={t('profile.applicationCardSub')}
+            label={t('profile.applicationCardLabel', undefined, session.lang)} sub={t('profile.applicationCardSub', undefined, session.lang)}
             value={showApplicationCard}
             onChange={() => {
               const next = !showApplicationCard
@@ -432,41 +432,41 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           />
           <SettingsLink
             icon="Mail" iconBg="var(--olt)"
-            label={t('profile.contactLabel')} sub={t('profile.contactSub')}
+            label={t('profile.contactLabel', undefined, session.lang)} sub={t('profile.contactSub', undefined, session.lang)}
             onPress={() => onNavigate('contact')}
           />
           {isAdmin && (
             <SettingsLink
               icon="Wrench" iconBg="var(--olt)"
-              label={t('profile.adminLabel')} sub={t('profile.adminSub')}
+              label={t('profile.adminLabel', undefined, session.lang)} sub={t('profile.adminSub', undefined, session.lang)}
               onPress={() => onNavigate('admin')}
             />
           )}
           <SettingsLink
             icon="Instagram" iconBg="var(--olt)"
-            label={t('profile.instagramLabel')} sub={t('profile.instagramSub')}
+            label={t('profile.instagramLabel', undefined, session.lang)} sub={t('profile.instagramSub', undefined, session.lang)}
             onPress={() => window.open('https://www.instagram.com/jesuscorner.app/', '_blank', 'noopener,noreferrer')}
           />
           <SettingsLink
             icon="Download" iconBg="var(--olt)"
-            label={t('profile.exportDataLabel')} sub={t('profile.exportDataSub')}
+            label={t('profile.exportDataLabel', undefined, session.lang)} sub={t('profile.exportDataSub', undefined, session.lang)}
             onPress={handleExport}
           />
           <SettingsLink
             icon="LogOut" iconBg="var(--rel)" iconColor="var(--re)"
-            label={t('profile.logoutLabel')} sub={t('profile.logoutSub')}
+            label={t('profile.logoutLabel', undefined, session.lang)} sub={t('profile.logoutSub', undefined, session.lang)}
             onPress={onLogout}
           />
           <SettingsLink
             icon="Trash2" iconBg="var(--rel)" iconColor="var(--re)"
-            label={t('profile.deleteAccountLabel')} sub={t('profile.deleteAccountSub')}
+            label={t('profile.deleteAccountLabel', undefined, session.lang)} sub={t('profile.deleteAccountSub', undefined, session.lang)}
             onPress={() => setDeleteOpen(true)}
           />
 
         </div>
 
-        {exportState === 'loading' && <p style={styles.privacyHint}>{t('profile.exportDataLoading')}</p>}
-        {exportState === 'error' && <p style={styles.privacyError}>{t('profile.exportDataError')}</p>}
+        {exportState === 'loading' && <p style={styles.privacyHint}>{t('profile.exportDataLoading', undefined, session.lang)}</p>}
+        {exportState === 'error' && <p style={styles.privacyError}>{t('profile.exportDataError', undefined, session.lang)}</p>}
         {remindersError && <p style={styles.privacyError}>{remindersError}</p>}
 
         {deleteOpen && (
@@ -480,26 +480,26 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
 
         {/* Sobre o nome */}
         <div style={styles.aboutNameCard}>
-          <p style={styles.aboutNameTitle}>{t('profile.aboutNameTitle')}</p>
-          <p style={styles.aboutNameVerse}>"{t('profile.aboutNameVerseText')}"</p>
-          <p style={styles.aboutNameVerseRef}>{t('profile.aboutNameVerseRef')}</p>
-          <p style={styles.aboutNameBody}>{t('profile.aboutNameBody')}</p>
+          <p style={styles.aboutNameTitle}>{t('profile.aboutNameTitle', undefined, session.lang)}</p>
+          <p style={styles.aboutNameVerse}>"{t('profile.aboutNameVerseText', undefined, session.lang)}"</p>
+          <p style={styles.aboutNameVerseRef}>{t('profile.aboutNameVerseRef', undefined, session.lang)}</p>
+          <p style={styles.aboutNameBody}>{t('profile.aboutNameBody', undefined, session.lang)}</p>
         </div>
 
         {/* Links legais */}
         <p style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--g5)' }}>
           <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={() => window.open(privacyUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}>
-            {t('profile.privacyLabel')}
+            {t('profile.privacyLabel', undefined, session.lang)}
           </span>
           {'   ·   '}
           <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={() => window.open(termsUrl(authUser.language ?? 'pt'), '_blank', 'noopener,noreferrer')}>
-            {t('profile.termsLabel')}
+            {t('profile.termsLabel', undefined, session.lang)}
           </span>
         </p>
 
         {/* Versão */}
         <p style={{ textAlign: 'center', fontSize: 10, fontWeight: 500, color: 'var(--g4)' }}>
-          {t('profile.versionLabel')}
+          {t('profile.versionLabel', undefined, session.lang)}
         </p>
 
       </div>
@@ -573,7 +573,7 @@ function DeleteAccountDialog({ email, hasStoreSubscription, onCancel, onDeleted 
       onDeleted?.()
     } catch (err) {
       console.error('Falha ao excluir conta', err)
-      setError(t('profile.deleteAccountError'))
+      setError(t('profile.deleteAccountError', undefined, session.lang))
       setBusy(false)
     }
   }
@@ -586,20 +586,20 @@ function DeleteAccountDialog({ email, hasStoreSubscription, onCancel, onDeleted 
   return createPortal(
     <div style={styles.deleteBackdrop} role="dialog" aria-modal="true">
       <div style={styles.deleteCard}>
-        <p style={styles.deleteTitle}>{t('profile.deleteAccountTitle')}</p>
-        <p style={styles.deleteBody}>{t('profile.deleteAccountBody')}</p>
+        <p style={styles.deleteTitle}>{t('profile.deleteAccountTitle', undefined, session.lang)}</p>
+        <p style={styles.deleteBody}>{t('profile.deleteAccountBody', undefined, session.lang)}</p>
 
         <ul style={styles.deleteList}>
-          <li>{t('profile.deleteAccountItemErased')}</li>
-          <li>{t('profile.deleteAccountItemAnonymized')}</li>
-          <li>{t('profile.deleteAccountItemIrreversible')}</li>
+          <li>{t('profile.deleteAccountItemErased', undefined, session.lang)}</li>
+          <li>{t('profile.deleteAccountItemAnonymized', undefined, session.lang)}</li>
+          <li>{t('profile.deleteAccountItemIrreversible', undefined, session.lang)}</li>
         </ul>
 
         {hasStoreSubscription && (
-          <p style={styles.deleteWarn}>{t('profile.deleteAccountStoreWarning')}</p>
+          <p style={styles.deleteWarn}>{t('profile.deleteAccountStoreWarning', undefined, session.lang)}</p>
         )}
 
-        <label style={styles.deleteLabel}>{t('profile.deleteAccountConfirmLabel', { email })}</label>
+        <label style={styles.deleteLabel}>{t('profile.deleteAccountConfirmLabel', { email }, session.lang)}</label>
         <input
           type="email" value={typed} onChange={e => setTyped(e.target.value)}
           style={styles.deleteInput} autoComplete="off" placeholder={email}
@@ -609,13 +609,13 @@ function DeleteAccountDialog({ email, hasStoreSubscription, onCancel, onDeleted 
 
         <div style={styles.deleteActions}>
           <button type="button" style={styles.deleteCancel} onClick={onCancel} disabled={busy}>
-            {t('profile.deleteAccountCancel')}
+            {t('profile.deleteAccountCancel', undefined, session.lang)}
           </button>
           <button
             type="button" style={{ ...styles.deleteConfirm, opacity: matches && !busy ? 1 : 0.45 }}
             onClick={confirm} disabled={!matches || busy}
           >
-            {busy ? t('profile.deleteAccountDeleting') : t('profile.deleteAccountConfirm')}
+            {busy ? t('profile.deleteAccountDeleting', undefined, session.lang) : t('profile.deleteAccountConfirm', undefined, session.lang)}
           </button>
         </div>
       </div>

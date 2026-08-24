@@ -837,7 +837,7 @@ function ChallengeCard({ challenge, leaderboard, lang, ended, isModerator, onCom
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
         {ranked.map((p, i) => {
-          const pct = totalChapters ? Math.round((p.completedKeys.length / totalChapters) * 100) : 0
+          const pct = totalChapters ? Math.min(100, Math.round((p.completedKeys.length / totalChapters) * 100)) : 0
           return (
             <div key={p.userId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={styles.rankNumber}>{i + 1}</span>

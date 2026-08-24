@@ -4,6 +4,7 @@ import AppHeader from './components/AppHeader'
 import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
+import { useIsDesktop } from './utils/useIsDesktop'
 import AuthScreen from './screens/AuthScreen'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import HomeScreen from './screens/HomeScreen'
@@ -245,6 +246,12 @@ async function getPendingSocialCount() {
 }
 
 export default function App() {
+  // Sidebar (nav lateral) só é visível em telas ≥768px (ver index.css) —
+  // antes ficava sempre montada, só escondida por CSS no mobile, o que
+  // disparava os efeitos de montagem dela (busca de notificações etc.) à
+  // toa em todo carregamento no celular. Agora só monta quando realmente
+  // aparece.
+  const isDesktop = useIsDesktop()
   // Fica true assim que a sessão do Supabase (logado ou não) e, se logado, o
   // progresso salvo, terminam de carregar — antes disso mostramos uma tela
   // de carregamento em vez de renderizar com dados parciais/errados.
@@ -557,15 +564,16 @@ export default function App() {
   }
 
   // Botão "Voltar" global (AppHeader/Sidebar) — desempilha a última aba
-  // visitada e volta pra ela. 'journey' recebe o mesmo reset de entryMode
-  // que navigateTo daria (mostra o mapa de blocos, não uma leitura
-  // específica) — a única exceção é quando havia um browseJumpTarget
-  // pendente, que se sobrepõe sozinho depois de montar (ver JourneyScreen.jsx).
+  // visitada e volta pra ela, SEM resetar entryMode/auto-open — mesmo
+  // tratamento que themePlan/chronologicalPlan já tinham (voltam pra
+  // sessão exata que a pessoa estava, não pro início). Journey tinha um
+  // reset forçado pro mapa de blocos aqui antes, que descartava a posição
+  // de leitura (ex: "Continuar sessão" → trocar de aba → Voltar caía no
+  // mapa geral, não no capítulo que estava lendo) — removido de propósito.
   function goBack() {
     setTabHistory(prev => {
       if (prev.length === 0) return prev
       const target = prev[prev.length - 1]
-      if (target === 'journey') setJourneyEntryMode('overview')
       setActiveTab(target)
       return prev.slice(0, -1)
     })
@@ -816,7 +824,7 @@ export default function App() {
     setActiveStudyIdState(null)
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
-    setPendingSocialCount(false)
+    setPendingSocialCount(0)
     setMyAvatarUrl(null)
     setSubscription(null)
     setIsAdmin(false)
@@ -1096,7 +1104,7 @@ export default function App() {
     inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
     themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
@@ -1109,7 +1117,9 @@ export default function App() {
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥768px (ver index.css) */}
-      <Sidebar activeTab={activeTab} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+      {isDesktop && (
+        <Sidebar activeTab={activeTab} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+      )}
 
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em telas <768px */}

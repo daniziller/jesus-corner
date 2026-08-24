@@ -17,10 +17,14 @@ export default function RoutineCalendar({ dailyRoutine, lang, wrapStyle, modules
   const month = monthCursor.getMonth()
   const firstOfMonth = new Date(year, month, 1)
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const startWeekday = firstOfMonth.getDay() // 0 = domingo
+  // Semana começando na segunda — mesma convenção da fileira "Sua semana"
+  // da Home (ver src/routine/weekRings.js), que já começava segunda; este
+  // calendário começava domingo, uma inconsistência entre os dois
+  // widgets de calendário na mesma tela.
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7 // 0 = segunda
 
   const weekdayLabels = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(2024, 0, 7 + i) // uma semana qualquer começando num domingo
+    const d = new Date(2024, 0, 1 + i) // uma semana qualquer começando numa segunda (1/jan/2024 foi segunda)
     return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'narrow' }).format(d)
   })
   const monthLabel = new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'long', year: 'numeric' }).format(monthCursor)
