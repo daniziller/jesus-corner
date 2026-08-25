@@ -273,7 +273,9 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             <div>
               <div className="section-header">
                 <h3 className="section-title">
-                  {translate('home.todayReadingHeader', undefined, lang)}
+                  {todaySession.needsThemePick
+                    ? translate('home.chooseReadingHeader', undefined, lang)
+                    : translate('home.todayReadingHeader', undefined, lang)}
                 </h3>
               </div>
               <div style={styles.todayCard}>
