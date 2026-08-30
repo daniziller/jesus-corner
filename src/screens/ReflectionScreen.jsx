@@ -52,6 +52,10 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   // curta pra lembrar disso ao longo do dia"). Mesmo esquema de chave por
   // dia da anotação geral, só com prefixo diferente.
   const [applicationPhrase, setApplicationPhrase] = useState('')
+  // Frase nova ≠ da fixada na Home — em vez de um window.confirm bloqueante
+  // (feio no PWA instalado), guarda o texto aqui e mostra uma confirmação
+  // inline logo abaixo do campo (ver confirmPinUpdate / pinConfirmCard).
+  const [pendingPin, setPendingPin] = useState(null)
   // Reflexão não tem "sessão" própria como a leitura (Sessão 1, 2...) — é
   // uma prática diária, então a chave da anotação é o dia (dateKey, local,
   // não UTC — ver utils/dateKey.js), uma por dia.
@@ -219,11 +223,24 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
       const currentPinned = await getPinnedApplicationPhrase(authUser?.email)
       if (!currentPinned) {
         await setPinnedApplicationPhrase(authUser?.email, text)
-      } else if (currentPinned !== text && window.confirm(t('reflection.updateHomeCardConfirm', undefined, lang))) {
-        await setPinnedApplicationPhrase(authUser?.email, text)
+      } else if (currentPinned !== text) {
+        // Pede confirmação inline (ver pendingPin / confirmPinUpdate) em
+        // vez de trocar o card da Home sem avisar.
+        setPendingPin(text)
       }
     } catch (err) {
       console.error('Failed to persist application phrase', err)
+    }
+  }
+
+  async function confirmPinUpdate(accept) {
+    const text = pendingPin
+    setPendingPin(null)
+    if (!accept || !text) return
+    try {
+      await setPinnedApplicationPhrase(authUser?.email, text)
+    } catch (err) {
+      console.error('Failed to pin application phrase', err)
     }
   }
 
@@ -398,7 +415,22 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
                   "Aplicar" (id 'A') — é ali que o roteiro pede uma frase
                   curta pra lembrar a aplicação do dia. */}
               {data.id === 'A' && (
-                <ApplicationPhraseField lang={lang} value={applicationPhrase} onSave={handleSaveApplicationPhrase} />
+                <>
+                  <ApplicationPhraseField lang={lang} value={applicationPhrase} onSave={handleSaveApplicationPhrase} />
+                  {pendingPin && (
+                    <div style={styles.pinConfirmCard}>
+                      <p style={styles.pinConfirmText}>{t('reflection.updateHomeCardConfirm', undefined, lang)}</p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button style={styles.pinConfirmYes} onClick={() => confirmPinUpdate(true)}>
+                          {t('reflection.updateHomeCardYes', undefined, lang)}
+                        </button>
+                        <button style={styles.pinConfirmNo} onClick={() => confirmPinUpdate(false)}>
+                          {t('reflection.updateHomeCardNo', undefined, lang)}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </Fragment>
           ))}
@@ -409,7 +441,11 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
             em Notas ou na própria leitura. */}
         {todayHighlights.length > 0 && (
           <div style={styles.notesPanel}>
-            <p style={styles.notesLabel}>{t('reflection.markedTextsLabel', undefined, lang)}</p>
+            <p style={styles.notesLabel}>
+              <AppIcon name="Highlighter" size={12} color="var(--gold)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              {t('reflection.markedTextsLabel', undefined, lang)}
+            </p>
+            <p style={styles.fieldHint}>{t('reflection.markedTextsHint', undefined, lang)}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {todayHighlights.map(h => (
                 <div key={h.id} style={styles.markedTextItem}>
@@ -462,7 +498,11 @@ function ApplicationPhraseField({ value, onSave, lang }) {
 
   return (
     <div style={styles.phraseCard}>
-      <p style={styles.phraseLabel}>{t('reflection.applicationPhraseLabel', undefined, lang)}</p>
+      <p style={styles.phraseLabel}>
+        <AppIcon name="Sparkles" size={12} color="#A21CAF" style={{ verticalAlign: 'middle', marginRight: 5 }} />
+        {t('reflection.applicationPhraseLabel', undefined, lang)}
+      </p>
+      <p style={styles.fieldHint}>{t('reflection.applicationPhraseHint', undefined, lang)}</p>
       <input
         type="text"
         style={styles.phraseInput}
@@ -503,9 +543,11 @@ function NotesPanel({ value, hasSavedNote, onSave, lang }) {
           1.15 sempre ligado no app, ver .app-content-inner no index.css).
           Bolinha de "salvo" como inline-block resolve sem esse problema. */}
       <p style={styles.notesLabel}>
+        <AppIcon name="PenLine" size={12} color="var(--or)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
         {t('reflection.notesLabel', undefined, lang)}
         {hasSavedNote && <span style={styles.notesSavedDot} />}
       </p>
+      <p style={styles.fieldHint}>{t('reflection.notesHint', undefined, lang)}</p>
       <textarea
         style={styles.notesTextarea}
         value={text}
@@ -526,30 +568,35 @@ const styles = {
   heroOrbPurple: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
   heroOrbFuchsia: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },
   heroTitle:   { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 2, letterSpacing: '-0.3px' },
-  heroSub:     { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.6)', textAlign: 'center', lineHeight: 1.5, marginTop: 3 },
+  heroSub:     { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.72)', textAlign: 'center', lineHeight: 1.5, marginTop: 3 },
   body:        { padding: '0 16px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
   timer:       { background: 'var(--bk-hero)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  timerLabel:  { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 2, textTransform: 'uppercase' },
+  timerLabel:  { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.6)', letterSpacing: 1.8, textTransform: 'uppercase' },
   timerDisplay:{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
   currentPhaseBadge: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', border: '1px solid', borderRadius: 24, padding: '6px 14px 6px 6px' },
   currentPhaseDot:   { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 },
   // minWidth:0 — mesmo ajuste de PrayerScreen.jsx (ver comentário lá):
   // sem isso, o texto desse item flex recusa quebrar linha e vaza pra
   // fora do card em telas estreitas.
-  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.6)', minWidth: 0 },
-  phaseRemaining:    { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.55)', fontVariantNumeric: 'tabular-nums', paddingLeft: 8, marginLeft: 2, borderLeft: '1px solid rgba(255,255,255,.15)', flexShrink: 0 },
-  timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
-  wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
-  durationLabel: { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.35)', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 2 },
+  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.8)', minWidth: 0 },
+  phaseRemaining:    { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.72)', fontVariantNumeric: 'tabular-nums', paddingLeft: 8, marginLeft: 2, borderLeft: '1px solid rgba(255,255,255,.15)', flexShrink: 0 },
+  timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
+  wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.62)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
+  durationLabel: { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.6)', letterSpacing: 1.3, textTransform: 'uppercase', marginTop: 2 },
   durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
   durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.35)' },
   phraseCard:  { background: 'linear-gradient(135deg,#FDF4FF,#FAE8FF)', border: '0.5px dashed rgba(192,38,211,.4)', borderRadius: 16, padding: 13 },
-  phraseLabel: { fontSize: 9.5, fontWeight: 700, color: '#A21CAF', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  phraseLabel: { fontSize: 10, fontWeight: 700, color: '#A21CAF', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
   phraseInput: { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', marginBottom: 10, background: 'white' },
   phraseSaveBtn:{ width: '100%', background: '#A21CAF', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
+  pinConfirmCard: { background: 'white', border: '0.5px solid rgba(192,38,211,.4)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 10 },
+  pinConfirmText: { fontSize: 12, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4 },
+  pinConfirmYes: { flex: 1, background: '#A21CAF', border: 'none', borderRadius: 10, padding: '9px 12px', fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
+  pinConfirmNo: { flex: 1, background: 'var(--g1)', border: 'none', borderRadius: 10, padding: '9px 12px', fontSize: 11.5, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
   notesPanel:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  notesLabel:  { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  notesLabel:  { fontSize: 10, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
+  fieldHint:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginBottom: 9, lineHeight: 1.4 },
   notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 6, verticalAlign: 'middle' },
   markedTextItem: { background: 'var(--olt)', border: '0.5px solid var(--gold-soft)', borderRadius: 13, padding: 11 },
   markedTextRef:  { fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', marginBottom: 3 },

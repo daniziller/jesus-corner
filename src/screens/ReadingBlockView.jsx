@@ -175,7 +175,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     { key: 'mapa',         icon: 'Map',        label: t('reading.tagMap', undefined, lang) },
     { key: 'notas',        icon: 'StickyNote', label: t('reading.tagNotes', undefined, lang) },
     { key: 'curiosidades', icon: 'Lightbulb',  label: t('reading.tagTrivia', undefined, lang) },
-    { key: 'ia',           icon: 'Bot',        label: t('reading.tagAskAi', undefined, lang) },
+    { key: 'ia',           icon: 'HelpCircle', label: t('reading.tagAskAi', undefined, lang) },
   ]
 
   const [openPanel, setOpenPanel] = useState(null)
@@ -698,7 +698,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           <AppIcon name="Pencil" size={19} color="white" />
         </button>
         <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
-          <AppIcon name="Bot" size={22} color="white" />
+          <AppIcon name="HelpCircle" size={22} color="white" />
         </button>
       </div>,
       document.body
@@ -714,7 +714,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
           <div style={styles.aiChatOverlayHeader}>
             <span style={styles.aiChatOverlayTitle}>
-              <span style={styles.aiChatOverlayIcon}><AppIcon name="Bot" size={15} color="#A21CAF" /></span>
+              <span style={styles.aiChatOverlayIcon}><AppIcon name="HelpCircle" size={15} color="#A21CAF" /></span>
               {t('reading.tagAskAi', undefined, lang)}
             </span>
             <button type="button" style={styles.aiChatOverlayClose} onClick={() => setAiChatOpen(false)} aria-label={t('aiChat.close', undefined, lang)}>

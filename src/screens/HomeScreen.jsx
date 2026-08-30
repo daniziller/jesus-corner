@@ -130,19 +130,71 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
         <div className="dashboard-grid">
 
-          {/* Coluna primária: métricas + rotina — vem primeiro no DOM (logo
-              primeiro no mobile) porque agora é isso que ganha destaque,
-              à frente do card de leitura do dia. */}
+          {/* Coluna primária — "o que fazer hoje": o próximo passo da
+              rotina e a leitura do dia, com 1 CTA claro. Vem primeiro no
+              DOM (logo primeiro no mobile) — é a ação principal da Home.
+              Métricas e gamificação (% da Bíblia, nível, meta) desceram
+              pra coluna secundária: são reforço, não o destaque. */}
+          <div className="dashboard-col">
+
+            {/* Card de hoje — sessão de leitura (movido pra cá do fim da
+                tela: é a ação principal, tem que estar no topo). */}
+            <div>
+              <div className="section-header">
+                <h3 className="section-title">
+                  {todaySession.needsThemePick
+                    ? translate('home.chooseReadingHeader', undefined, lang)
+                    : translate('home.todayReadingHeader', undefined, lang)}
+                </h3>
+              </div>
+              <div style={styles.todayCard}>
+                <div style={styles.todayAccent} />
+                <div style={styles.todayBadge}>
+                  <span style={styles.todayDot} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)' }}>{todaySession.block}</span>
+                </div>
+                <h3 style={styles.todayTitle}>{todaySession.title}</h3>
+                <p style={styles.todaySub}>{todaySession.subtitle}</p>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{translate('home.todayProgress', undefined, lang)}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--or)' }}>{todaySession.progress}%</span>
+                </div>
+                <div style={styles.progressBar}>
+                  <div style={{ ...styles.progressFill, width: `${todaySession.progress}%` }} />
+                </div>
+                <button style={styles.continueBtn} onClick={onContinueSession}>
+                  {ctaLabel}
+                </button>
+              </div>
+            </div>
+
+            {/* Tracker dos 4 passos diários — clicável, navega pra onde cada
+                passo é feito de verdade (oração/leitura), com um calendário
+                de histórico embutido. */}
+            <DailyRoutineCard
+              dailyRoutine={dailyRoutine}
+              todayRoutine={todayRoutine}
+              plan={plan}
+              activePlan={activePlan}
+              routineModules={routineModules}
+              activeStudyId={activeStudyId}
+              lang={lang}
+              onNavigate={onNavigate}
+              onContinueSession={onContinueSession}
+              onMarkRoutineStep={onMarkRoutineStep}
+            />
+          </div>
+
+          {/* Coluna secundária — "como vou indo": progresso da Bíblia,
+              rotina da semana, nível/XP, meta mais próxima e a atividade
+              dos amigos. No mobile empilha logo abaixo da coluna de ação. */}
           <div className="dashboard-col">
 
             {/* Destaque % da Bíblia — anel com gradiente, mesmo tratamento
-                do Progresso. Volta a aparecer também no desktop (pedido
-                explícito: mesmo card do início do mobile em vez do card
-                "chapado" que existia antes só ali). Envolvido junto com o
-                card de rotina da semana logo abaixo (mesmo wrapper, sem
-                gap) pra parecer um card só que muda de cor na metade —
-                mesmo efeito já usado no hero escuro → sheet clara desta
-                própria tela. */}
+                do Progresso. Envolvido junto com o card de rotina da
+                semana logo abaixo (mesmo wrapper, sem gap) pra parecer um
+                card só que muda de cor na metade. */}
             <div style={styles.pctHeroWrap}>
             <div className="home-pct-hero" style={styles.pctHero}>
               <div style={styles.pctHeroGlow} />
@@ -235,24 +287,6 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               <p style={styles.shareCardErrorText}>{translate('home.shareCardError', undefined, lang)}</p>
             )}
 
-            {/* Tracker dos 4 passos diários — clicável, navega pra onde cada
-                passo é feito de verdade (oração/leitura), com um calendário
-                de histórico embutido. Vem antes dos cards de gamificação
-                (nível/meta) de propósito — o plano do dia é a ação
-                principal da Home, gamificação é reforço, não o destaque. */}
-            <DailyRoutineCard
-              dailyRoutine={dailyRoutine}
-              todayRoutine={todayRoutine}
-              plan={plan}
-              activePlan={activePlan}
-              routineModules={routineModules}
-              activeStudyId={activeStudyId}
-              lang={lang}
-              onNavigate={onNavigate}
-              onContinueSession={onContinueSession}
-              onMarkRoutineStep={onMarkRoutineStep}
-            />
-
             {/* Nível e XP */}
             <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} xp={xp} lang={lang} />
 
@@ -262,43 +296,6 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 completa mora na aba Progresso; aqui só a mais próxima, pra
                 não sobrecarregar a Home. */}
             <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
-          </div>
-
-          {/* Coluna secundária: card de leitura do dia + atividade dos
-              amigos — continua tudo aqui, só com menos peso visual que a
-              coluna de métricas/rotina agora. */}
-          <div className="dashboard-col">
-
-            {/* Card de hoje — sessão de leitura */}
-            <div>
-              <div className="section-header">
-                <h3 className="section-title">
-                  {todaySession.needsThemePick
-                    ? translate('home.chooseReadingHeader', undefined, lang)
-                    : translate('home.todayReadingHeader', undefined, lang)}
-                </h3>
-              </div>
-              <div style={styles.todayCard}>
-                <div style={styles.todayAccent} />
-                <div style={styles.todayBadge}>
-                  <span style={styles.todayDot} />
-                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)' }}>{todaySession.block}</span>
-                </div>
-                <h3 style={styles.todayTitle}>{todaySession.title}</h3>
-                <p style={styles.todaySub}>{todaySession.subtitle}</p>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{translate('home.todayProgress', undefined, lang)}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--or)' }}>{todaySession.progress}%</span>
-                </div>
-                <div style={styles.progressBar}>
-                  <div style={{ ...styles.progressFill, width: `${todaySession.progress}%` }} />
-                </div>
-                <button style={styles.continueBtn} onClick={onContinueSession}>
-                  {ctaLabel}
-                </button>
-              </div>
-            </div>
 
             {/* Atividade dos amigos (versão compacta — a completa mora na aba Comunidade) */}
             {friendActivity.length > 0 && (
@@ -583,7 +580,7 @@ const styles = {
   heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.55, top: -80, right: -60 },
   heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.35, bottom: -70, left: -50 },
   heroContent:   { position: 'relative', zIndex: 2, padding: '18px 20px 30px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' },
-  greeting:      { fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 3 },
+  greeting:      { fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.68)', marginBottom: 3 },
   sessionTitle:  { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.3, letterSpacing: '-0.2px' },
   heroVerseRef:  { fontSize: 11, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.4, marginTop: 6 },
   body:          { flex: 1, background: 'var(--white)', borderRadius: '26px 26px 0 0', marginTop: -22, position: 'relative', zIndex: 3, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 },
@@ -593,15 +590,15 @@ const styles = {
   // justify-content:space-between — numa coluna estreita (2 colunas no
   // tablet/desktop, ver .dashboard-grid em index.css) não sobra largura
   // pro rótulo ("day streak"/"days/week") ao lado do valor sem cortar.
-  pctStatChip:   { background: 'rgba(255,255,255,.14)', borderRadius: 12, padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 1 },
+  pctStatChip:   { background: 'rgba(255,255,255,.16)', borderRadius: 12, padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 1 },
   pctStatValue:  { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'white', lineHeight: 1 },
-  pctStatLabel:  { fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.75)' },
+  pctStatLabel:  { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.9)' },
   pctHeroGlow:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,.18)', filter: 'blur(50px)', top: -70, right: -40 },
   // Rotina da semana — sheet clara logo abaixo do card de %, sem gap (a
   // sombra "puxa pra cima" o mesmo jeito que .body faz com o hero escuro
   // no topo da tela), pra ler como um card só mudando de cor na metade.
   weekRoutineCard:   { background: 'var(--card-bg)', borderRadius: '0 0 22px 22px', padding: '16px 18px 14px', boxShadow: '0 10px 24px rgba(0,0,0,.06)' },
-  weekRoutineTitle:  { fontSize: 9.5, fontWeight: 700, color: 'var(--g5)', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px' },
+  weekRoutineTitle:  { fontSize: 10, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.8, textTransform: 'uppercase', margin: '0 0 10px' },
   weekRoutineGrid:   { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' },
   weekRoutineTodayNum: { background: 'var(--olt)', color: 'var(--or)', fontWeight: 800 },
   calendarDayCell:   { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2px 0' },
@@ -620,8 +617,8 @@ const styles = {
   // não quebra linha e força essa coluna bem mais larga que o anel,
   // empurrando os retângulos de stat pra baixo dele em telas estreitas.
   pctLabelWrap:  { width: 100, textAlign: 'center' },
-  pctLabel:      { fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.75)', letterSpacing: 1.5, textTransform: 'uppercase' },
-  pctSub:        { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.7)' },
+  pctLabel:      { fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.88)', letterSpacing: 1.2, textTransform: 'uppercase' },
+  pctSub:        { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.82)' },
   todayCard:     { position: 'relative', background: 'var(--white)', border: '0.5px solid var(--gold-soft)', borderRadius: 20, padding: '16px 16px 16px 21px', overflow: 'hidden', boxShadow: 'var(--shadow-premium)' },
   todayAccent:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg, var(--gold), var(--or))' },
   todayBadge:    { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(157,67,0,.12)', border: '0.5px solid rgba(157,67,0,.25)', borderRadius: 20, padding: '3px 9px', marginBottom: 10 },

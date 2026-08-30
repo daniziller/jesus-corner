@@ -37,18 +37,16 @@ const STANDARD_PLAN = PLANS.find(p => p.id === 'standard')
 // nova — mesma ideia visual (cores reais do recurso), sem depender de
 // asset externo.
 const FEATURE_STEP_PREFIX = 'features_'
+// Onboarding encurtado: das 11 páginas de recurso (uma por recurso) pra 4,
+// cobrindo o ciclo diário — Oração → Leitura → Reflexão + a rotina que
+// amarra os três. Os demais diferenciais (plano por tema/IA, cronológico,
+// grifos, Notas, Progresso, Estudos, Comunidade) a pessoa descobre dentro
+// do app. Cada página de recurso segue puláveis (botão "pular tour").
 const FEATURE_CARDS = [
-  { key: 'routine',       icon: 'ClipboardList', iconColor: 'var(--or)',   visual: 'image' },
-  { key: 'reading',       icon: 'BookOpen',       iconColor: 'var(--or)',   visual: 'image' },
-  { key: 'chronological', icon: 'Hourglass',      iconColor: 'var(--or)',   visual: 'mockChronological' },
-  { key: 'themeAi',       icon: 'Sparkles',       iconColor: '#A21CAF',     visual: 'mockThemeAi' },
-  { key: 'prayer',        icon: 'HandHeart',      iconColor: 'var(--or)',   visual: 'image' },
-  { key: 'reflection',    icon: 'PenLine',        iconColor: 'var(--or)',   visual: 'image' },
-  { key: 'highlights',    icon: 'Highlighter',    iconColor: 'var(--gold)', visual: 'mockHighlights' },
-  { key: 'notesScreen',   icon: 'StickyNote',     iconColor: 'var(--or)',   visual: 'mockNotesScreen' },
-  { key: 'progress',      icon: 'BarChart3',      iconColor: 'var(--or)',   visual: 'image' },
-  { key: 'studies',       icon: 'GraduationCap',  iconColor: 'var(--or)',   visual: 'image' },
-  { key: 'community',     icon: 'Users',          iconColor: 'var(--or)',   visual: 'image' },
+  { key: 'routine',    icon: 'ClipboardList', iconColor: 'var(--or)', visual: 'image' },
+  { key: 'prayer',     icon: 'HandHeart',     iconColor: 'var(--or)', visual: 'image' },
+  { key: 'reading',    icon: 'BookOpen',      iconColor: 'var(--or)', visual: 'image' },
+  { key: 'reflection', icon: 'PenLine',       iconColor: 'var(--or)', visual: 'image' },
 ]
 const FEATURE_STEPS = FEATURE_CARDS.map(c => `${FEATURE_STEP_PREFIX}${c.key}`)
 
@@ -304,13 +302,15 @@ function NameStep({ name, setName, onNext, onGoLogin }) {
    propósito: no funil do admin conta como um passo só, e o "voltar" anda
    fase a fase antes de sair pro passo do nome. ── */
 const VALUE_INTRO_COLOR = '#9D4300' // = var(--or); hex literal pra permitir suffixar alpha (`${VALUE_INTRO_COLOR}1A`) abaixo
-const OBSTACLE_KEYS = ['rush', 'phone', 'start', 'consistency']
 
 function ValueIntroStep({ stepNum, total, name, onBackToName, onNext }) {
-  const [phase, setPhase] = useState('hook') // 'hook' | 'q1' | 'q2' | 'method'
-  const [obstacle, setObstacle] = useState('rush')
+  const [phase, setPhase] = useState('hook') // 'hook' | 'method'
+  // As 2 perguntas de reflexão (q1/q2) foram removidas pra encurtar o
+  // onboarding — a mensagem de empatia (method.empathy.*) usa 'rush' como
+  // padrão, o obstáculo mais comum.
+  const obstacle = 'rush'
 
-  const PHASES = ['hook', 'q1', 'q2', 'method']
+  const PHASES = ['hook', 'method']
   function back() {
     const i = PHASES.indexOf(phase)
     if (i === 0) onBackToName()
@@ -329,38 +329,7 @@ function ValueIntroStep({ stepNum, total, name, onBackToName, onNext }) {
         <h1 style={{ ...styles.title, fontSize: 24 }}>{t('onboarding.valueIntro.hook.title')}</h1>
         <p style={styles.subtitle}>{t('onboarding.valueIntro.hook.body')}</p>
         <div style={{ marginTop: 4 }}>
-          <button type="button" className="btn-primary" onClick={() => setPhase('q1')}>{t('onboarding.valueIntro.hook.btn')}</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (phase === 'q1' || phase === 'q2') {
-    const q = phase
-    const options = q === 'q1' ? ['almostNone', 'under10', 'upTo30', 'over30'] : OBSTACLE_KEYS
-    return (
-      <div style={styles.form}>
-        {header}
-        <div style={{ ...styles.tutorialIconWrap, background: `${VALUE_INTRO_COLOR}1A` }}>
-          <AppIcon name={q === 'q1' ? 'Hourglass' : 'Zap'} size={22} color={VALUE_INTRO_COLOR} />
-        </div>
-        <h1 style={{ ...styles.title, fontSize: 24 }}>{t(`onboarding.valueIntro.${q}.title`)}</h1>
-        <p style={styles.subtitle}>{t(`onboarding.valueIntro.${q}.subtitle`)}</p>
-
-        <div style={styles.choiceCol}>
-          {options.map(key => (
-            <button
-              key={key}
-              type="button"
-              style={styles.planBtnFree}
-              onClick={() => {
-                if (q === 'q2') setObstacle(key)
-                setPhase(q === 'q1' ? 'q2' : 'method')
-              }}
-            >
-              {t(`onboarding.valueIntro.${q}.${key}`)}
-            </button>
-          ))}
+          <button type="button" className="btn-primary" onClick={() => setPhase('method')}>{t('onboarding.valueIntro.hook.btn')}</button>
         </div>
       </div>
     )
@@ -412,83 +381,11 @@ const FEATURE_IMAGE_SLUG = {
 }
 
 function FeatureVisual({ card, lang }) {
-  if (card.visual === 'image') {
-    const suffix = lang === 'en' ? '-en' : ''
-    const slug = FEATURE_IMAGE_SLUG[card.key]
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <img src={`/onboarding/${slug}${suffix}.png`} alt="" style={styles.featureCardImg} />
-      </div>
-    )
-  }
-
-  if (card.visual === 'mockChronological') {
-    const rows = [1, 2, 3].map(n => t(`onboarding.features.chronological.mockRow${n}`))
-    return (
-      <div style={styles.previewCard}>
-        {rows.map((label, i) => (
-          <div key={label} style={{ ...styles.previewRow, ...(i === rows.length - 1 ? { borderBottom: 'none' } : {}) }}>
-            <div style={{ ...styles.previewIcon, background: 'var(--olt)' }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--or)' }}>{i + 1}</span>
-            </div>
-            <span style={styles.previewLabel}>{label}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  if (card.visual === 'mockThemeAi') {
-    const rows = [1, 2].map(n => t(`onboarding.features.themeAi.mockRow${n}`))
-    return (
-      <div style={styles.previewCard}>
-        <div style={styles.aiChip}>
-          <AppIcon name="Sparkles" size={12} color="#A21CAF" /> {t('onboarding.features.themeAi.mockTopic')}
-        </div>
-        {rows.map((label, i) => (
-          <div key={label} style={{ ...styles.previewRow, ...(i === rows.length - 1 ? { borderBottom: 'none' } : {}) }}>
-            <div style={{ ...styles.previewIcon, background: '#FAE8FF' }}>
-              <AppIcon name="BookOpen" size={14} color="#A21CAF" />
-            </div>
-            <span style={styles.previewLabel}>{label}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  if (card.visual === 'mockHighlights') {
-    return (
-      <div style={styles.previewCard}>
-        <p style={styles.mockHighlightText}>
-          {t('onboarding.features.highlights.mockTextBefore')}
-          <span style={styles.mockHighlightSpan}>{t('onboarding.features.highlights.mockTextHighlighted')}</span>
-          {t('onboarding.features.highlights.mockTextAfter')}
-        </p>
-        <div style={styles.mockNoteBubble}>
-          <AppIcon name="Highlighter" size={12} color="var(--gold)" style={{ verticalAlign: 'middle', marginRight: 4 }} />
-          {t('onboarding.features.highlights.mockNote')}
-        </div>
-      </div>
-    )
-  }
-
-  // mockNotesScreen
-  const rows = [
-    { icon: 'BookOpen', label: t('onboarding.features.notesScreen.mockRow1') },
-    { icon: 'Highlighter', label: t('onboarding.features.notesScreen.mockRow2') },
-    { icon: 'PenLine', label: t('onboarding.features.notesScreen.mockRow3') },
-  ]
+  const suffix = lang === 'en' ? '-en' : ''
+  const slug = FEATURE_IMAGE_SLUG[card.key]
   return (
-    <div style={styles.previewCard}>
-      {rows.map((r, i) => (
-        <div key={r.icon} style={{ ...styles.previewRow, ...(i === rows.length - 1 ? { borderBottom: 'none' } : {}) }}>
-          <div style={{ ...styles.previewIcon, background: 'var(--olt)' }}>
-            <AppIcon name={r.icon} size={14} color="var(--or)" />
-          </div>
-          <span style={styles.previewLabel}>{r.label}</span>
-        </div>
-      ))}
+    <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <img src={`/onboarding/${slug}${suffix}.png`} alt="" style={styles.featureCardImg} />
     </div>
   )
 }
@@ -511,13 +408,15 @@ function FeatureStep({ header, card, isLast, onNext, onSkip }) {
 
       <FeatureVisual card={card} lang={lang} />
 
-      <div style={{ marginTop: 4 }}>
+      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button type="button" className="btn-primary" onClick={onNext}>
           {isLast ? t('onboarding.features.continueBtn') : t('onboarding.continueBtn')}
         </button>
-      </div>
-      <div style={{ ...styles.linksRow, justifyContent: 'center' }}>
-        <span style={styles.link} onClick={onSkip}>{t('onboarding.features.skip')}</span>
+        {!isLast && (
+          <button type="button" style={styles.resendBtn} onClick={onSkip}>
+            {t('onboarding.features.skip')}
+          </button>
+        )}
       </div>
     </div>
   )
