@@ -540,6 +540,23 @@ export default function RoutineScreen({
           })}
         </div>
 
+        {/* Estudos — antes uma aba própria, agora um atalho aqui (a escolha
+            de qual estudo seguir e o progresso das sessões moram lá). Fica
+            sempre visível, mesmo com o passo "Estudo guiado" desligado da
+            rotina. */}
+        <button style={styles.studiesEntryBtn} onClick={() => onNavigate?.('studies')}>
+          <span style={styles.studiesEntryIcon}><AppIcon name="GraduationCap" size={16} color={ROUTINE_STEP_COLORS.study} /></span>
+          <span style={{ flex: 1, textAlign: 'left' }}>
+            <span style={styles.studiesEntryTitle}>{t('nav.studies', undefined, lang)}</span>
+            <span style={styles.studiesEntrySub}>
+              {activeStudy
+                ? (lang === 'en' ? activeStudy.titleEn : activeStudy.title)
+                : t('routine.noActiveStudy', undefined, lang)}
+            </span>
+          </span>
+          <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
+        </button>
+
         {/* Calendário mensal — visão completa de quais dias tiveram cada
             passo concluído. */}
         <div style={styles.calendarCard}>
@@ -1082,6 +1099,11 @@ const styles = {
   sessionInfo:  { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', padding: 0 },
   sessionTitle: { fontSize: 11.5, fontWeight: 700, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   sessionPassage: { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)' },
+
+  studiesEntryBtn:   { display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 12, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-card)' },
+  studiesEntryIcon:  { width: 32, height: 32, borderRadius: 9, background: `${ROUTINE_STEP_COLORS.study}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  studiesEntryTitle: { display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
+  studiesEntrySub:   { display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 
   calendarCard:      { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' },
   calendarCardTitle: { fontSize: 13, fontWeight: 700, color: 'var(--bk)' },

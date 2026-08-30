@@ -5,15 +5,12 @@ import NotificationBell from './NotificationBell'
 // Navegação lateral exibida só em telas ≥768px (ver index.css) — substitui
 // o AppHeader + BottomNav do layout de celular por uma coluna fixa com logo,
 // abas e o usuário logado, no formato comum de dashboards desktop.
-// Oração não tem aba própria — mora só dentro de "Meu Plano" (rótulo de
-// nav.routine, ver RoutineScreen.jsx), que já é o passo 1 do dia. Plano de
-// leitura (antes PlanScreen.jsx, aba à parte) também foi absorvido pela
-// mesma tela. Notas (antes só um link em Perfil, ver NotesScreen.jsx)
-// agora também é aba própria, logo do lado direito da Bíblia — as
-// marcações/anotações de leitura moram lá dentro, então fica perto de
-// onde são criadas.
-const TAB_IDS = ['home', 'routine', 'stats', 'journey', 'notes', 'studies', 'groups']
-const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', studies: 'GraduationCap', stats: 'BarChart3', notes: 'StickyNote' }
+// 5 abas, iguais às do BottomNav mobile (ver comentário lá). Oração,
+// Notas e Estudos não têm slot fixo: Oração e Estudos vivem dentro de
+// "Meu Plano", Notas no topo da aba Bíblia, e as três também aparecem
+// como itens em Perfil. Todas continuam navegáveis por navigateTo().
+const TAB_IDS = ['home', 'routine', 'journey', 'stats', 'groups']
+const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', stats: 'BarChart3' }
 
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-primary)', border: 'none', boxShadow: 'var(--shadow-premium)' }

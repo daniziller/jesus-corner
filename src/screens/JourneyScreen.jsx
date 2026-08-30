@@ -304,6 +304,14 @@ export default function JourneyScreen({
             )}
           </div>
 
+          {/* Notas + marcações — antes uma aba própria, agora um atalho aqui,
+              perto de onde as anotações e grifos de leitura são criados. */}
+          <button style={styles.notesEntryBtn} onClick={() => onNavigate?.('notes')}>
+            <span style={styles.notesEntryIcon}><AppIcon name="StickyNote" size={14} color="var(--or)" /></span>
+            <span style={{ flex: 1, textAlign: 'left' }}>{t('nav.notes', undefined, lang)}</span>
+            <AppIcon name="ChevronRight" size={15} color="var(--g4)" />
+          </button>
+
           {/* "Continuar leitura" — só some quando tem busca ativa (que já
               tem sua própria lista de resultados) ou quando nunca abriu
               nada ainda por aqui (lastOpenedSession null). */}
@@ -518,6 +526,8 @@ function BookRow({ entry, bookChapterCounts, completedSet, onOpen, embedCtx }) {
 
 const styles = {
   searchWrap:        { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '10px 13px', marginBottom: 4 },
+  notesEntryBtn:     { display: 'flex', alignItems: 'center', gap: 9, width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 13, padding: '9px 12px', margin: '8px 0 2px', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, color: 'var(--bk)', boxShadow: 'var(--shadow-card)' },
+  notesEntryIcon:    { width: 26, height: 26, borderRadius: 8, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   searchInput:       { flex: 1, border: 'none', background: 'none', outline: 'none', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)' },
   continueReadingBtn:  { width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 15, padding: '10px 12px', margin: '10px 0 12px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left', boxShadow: 'var(--shadow-card)' },
   continueReadingIcon: { width: 32, height: 32, borderRadius: 10, background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -539,10 +549,10 @@ const styles = {
   heroOrbPink:     { position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -60, left: -40 },
   heroVerse:       { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600, fontStyle: 'italic', color: 'white', lineHeight: 1.35, marginBottom: 5, letterSpacing: '-0.1px' },
   heroVerseRef:    { position: 'relative', fontSize: 10.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.5, marginBottom: 12 },
-  heroDesc:        { position: 'relative', fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginBottom: 13 },
+  heroDesc:        { position: 'relative', fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.68)', marginBottom: 13 },
   heroProgressBar: { position: 'relative', height: 6, background: 'rgba(255,255,255,.15)', borderRadius: 99, overflow: 'hidden', marginBottom: 5 },
   heroProgressFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99 },
-  heroProgressLabel:{ position: 'relative', display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'rgba(255,255,255,.55)' },
+  heroProgressLabel:{ position: 'relative', display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'rgba(255,255,255,.72)' },
   sheet:           { background: 'var(--white)', borderRadius: '24px 24px 0 0', marginTop: -18, position: 'relative', zIndex: 2, boxShadow: '0 -12px 30px rgba(0,0,0,.05)', flex: 1 },
   testamentSection:{},
   testamentHeader: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 13px', cursor: 'pointer', fontFamily: 'var(--font)' },

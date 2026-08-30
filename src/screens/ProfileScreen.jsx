@@ -384,6 +384,16 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             </div>
           )}
           <SettingsLink
+            icon="StickyNote" iconBg="var(--olt)"
+            label={t('nav.notes', undefined, session.lang)} sub={t('profile.notesLinkSub', undefined, session.lang)}
+            onPress={() => onNavigate('notes')}
+          />
+          <SettingsLink
+            icon="GraduationCap" iconBg="var(--olt)"
+            label={t('nav.studies', undefined, session.lang)} sub={t('profile.studiesLinkSub', undefined, session.lang)}
+            onPress={() => onNavigate('studies')}
+          />
+          <SettingsLink
             icon="BookOpen" iconBg="var(--olt)"
             label={t('profile.readingPlanLabel', undefined, session.lang)} sub={t('profile.readingPlanSub', { plan: session.plan.label, n: session.plan.avgChapters }, session.lang)}
             onPress={() => onNavigate('journey')}
