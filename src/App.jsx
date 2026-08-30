@@ -44,6 +44,7 @@ import { resolveActivePlanSessions } from './plan/resolveActivePlan'
 import { getThemePlans } from './themePlans/themePlansStore'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
+import { getLastReadPosition, setLastReadPosition } from './reading/lastReadPositionStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
 import { getLargeTextEnabled, setLargeTextEnabled } from './utils/textScaleStore'
@@ -64,26 +65,38 @@ function defaultBlockIdFor(completedSet, planId, readingOrder) {
   return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder).blocks).id
 }
 
-// Sessão (e respectivo bloco) "de hoje": sempre a PRÓXIMA sessão pendente na
-// ordem do plano (blocks já vem ordenado conforme reading_order — ver
-// src/utils/progress.js — então percorrer na ordem dada já é a ordem certa
-// de percurso, AT ou NT primeiro conforme a preferência da pessoa).
-// Antes essa função tentava adivinhar "onde a pessoa parou" a partir do
-// ÚLTIMO capítulo marcado como lido (Sets em JS preservam ordem de
-// inserção) — mas completedSet é global, sem distinguir capítulo marcado
-// pelo fluxo guiado de capítulo marcado navegando livre pela aba Bíblia; um
-// capítulo lido fora de ordem por lá (ex: adiantar ou reler algo) fazia
-// "leitura de hoje" pular pra um lugar que não tinha nada a ver com o
-// próximo texto do plano. Sempre pegar a primeira sessão pendente, na ordem
-// do plano, corrige isso: "leitura de hoje" e o botão "Continuar sessão"
-// (ver continueToday) sempre concordam com o próximo texto de verdade.
-function findCurrentReadingSession(blocks, sessionsByBlock) {
+// Sessão (e respectivo bloco) que o card "Continue sua leitura" da Home (e
+// o botão "Continuar sessão") reabre.
+//
+// Prioridade 1: o ÚLTIMO texto que a pessoa leu, em qualquer lugar do app
+// — a sessão que contém esse capítulo (lastRead = { book, chapter }, ver
+// lastReadPositionStore.js, gravado tanto na leitura guiada quanto na
+// navegação livre pela aba Bíblia). Se ela releu Gênesis 1 estando em
+// Levítico, o card volta pra Gênesis 1 — de propósito: "continuar" é
+// sempre "de onde eu parei", não "a próxima da fila".
+//
+// Prioridade 2 (nada lido ainda, ou o capítulo lido não existe no plano
+// ativo — ex: plano por tema): a primeira sessão pendente na ordem do
+// plano (blocks já vem ordenado conforme reading_order).
+//
+// Prioridade 3 (plano inteiro concluído): a última sessão do último bloco,
+// mostrada como "Revisar sessão" (ver ctaLabel em HomeScreen.jsx).
+function findCurrentReadingSession(blocks, sessionsByBlock, lastRead = null) {
+  if (lastRead?.book && lastRead?.chapter) {
+    for (const block of blocks) {
+      const session = sessionsByBlock[block.id].find(
+        s => s.type !== 'reflection'
+          && s.book === lastRead.book
+          && s.chStart <= lastRead.chapter
+          && s.chEnd >= lastRead.chapter
+      )
+      if (session) return { session, block }
+    }
+  }
   for (const block of blocks) {
     const session = sessionsByBlock[block.id].find(s => s.status !== 'done')
     if (session) return { session, block }
   }
-  // Plano inteiro concluído — não há próxima sessão; mostra a última do
-  // último bloco, como "Revisar sessão" (ver ctaLabel em HomeScreen.jsx).
   const lastBlock = blocks[blocks.length - 1]
   const lastSessions = sessionsByBlock[lastBlock.id]
   return { session: lastSessions[lastSessions.length - 1], block: lastBlock }
@@ -96,7 +109,7 @@ function findCurrentReadingSession(blocks, sessionsByBlock) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals, routineModules, activeStudyId) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals, routineModules, activeStudyId, lastReadPosition) {
   const lang = authUser.language ?? 'pt'
   const streak = computeRoutineStreak(dailyRoutine, routineModules)
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
@@ -115,7 +128,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // Continua olhando pra TODOS os textos do plano (não só os de hoje) —
   // sessionsByBlock nunca fica vazio, então nunca quebra; a escolha do dia
   // só afeta o que é mostrado como "sessão de hoje" logo abaixo.
-  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock)
+  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock, lastReadPosition)
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
   const plan = { ...planRaw, label: lang === 'en' ? planRaw.labelEn : planRaw.label }
@@ -312,6 +325,13 @@ export default function App() {
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [activeBlockId, setActiveBlockId] = useState(1)
+  // "Último texto lido" ({ book, chapter }, por dispositivo — ver
+  // lastReadPositionStore.js). Alimenta o card "Continue sua leitura" da
+  // Home e o botão "Continuar sessão", que reabrem exatamente esse
+  // capítulo (ver findCurrentReadingSession). Relido do localStorage a
+  // cada troca de aba e a cada capítulo marcado — é onde ele muda (dentro
+  // de ReadingBlockView e em toggleChapter/toggleSession abaixo).
+  const [lastReadPosition, setLastReadPositionState] = useState(getLastReadPosition)
   // Plano ativo "alternativo" (por tema ou cronológico) em destaque na aba
   // Plano — null significa "sem alternativo", plano ativo é o fixo de
   // sempre (planId acima). Ver resolveActivePlanSessions/buildSession.
@@ -538,6 +558,15 @@ export default function App() {
     })
   }, [authUser?.email, activeTab])
 
+  // Relê o "último texto lido" do localStorage — ReadingBlockView grava lá
+  // enquanto a pessoa lê (localStorage não dispara re-render do App
+  // sozinho). Ao voltar pra Home (ou qualquer troca de aba) o card
+  // "Continue sua leitura" já reflete onde ela parou. completedSet cobre o
+  // caso de marcar um capítulo sem sair da leitura.
+  useEffect(() => {
+    setLastReadPositionState(getLastReadPosition())
+  }, [activeTab, completedSet])
+
   // Navegação genérica entre abas — ao ir pra Jornada por essa via (menu
   // inferior, header, etc.) sempre reseta pro mapa de blocos (visão geral).
   // Rotina e Comunidade são restritas a assinantes (Comunidade também a
@@ -601,12 +630,11 @@ export default function App() {
     return () => { cancelled = true }
   }, [authUser])
 
-  // Botão "Continuar sessão" da Home/Rotina: pula direto pra leitura de onde
-  // a pessoa parou — no plano fixo (mapa de blocos) ou no plano alternativo
-  // (tema/cronológico) que estiver em destaque no momento (ver
-  // resolveActivePlanSessions/selectActivePlan). ReadingBlockView já
-  // auto-destaca a sessão "current" sozinho (ver ReadingBlockView.jsx), não
-  // precisa apontar pra uma sessão específica — só abrir o plano certo.
+  // Botão "Continue sua leitura" da Home/Rotina: reabre exatamente o
+  // último capítulo que a pessoa estava lendo (lastReadPosition, ver
+  // findCurrentReadingSession) — no plano fixo. Nos planos alternativos
+  // (tema/cronológico) ainda abre pelo plano em destaque, sem o "último
+  // lido" (as sessões deles não mapeiam 1:1 com livro:capítulo).
   function continueToday() {
     if (activeAltPlan?.type === 'theme') {
       const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
@@ -633,7 +661,7 @@ export default function App() {
       goToTab('chronologicalPlan')
       return
     }
-    const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock)
+    const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock, lastReadPosition)
     setActiveBlockId(block.id)
     setJourneyResumeSessionId(resumeSession.id)
     setJourneyEntryMode('reading')
@@ -1022,7 +1050,16 @@ export default function App() {
     const persist = done ? markKeysDone(authUser.email, keys) : markKeysUndone(authUser.email, keys)
     persist.catch(err => console.error('Failed to persist session progress', err))
     recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
-    if (done) markRoutineStep('reading')
+    if (done) {
+      markRoutineStep('reading')
+      // Marcar uma sessão como lida também conta como "último texto lido"
+      // — o card "Continue sua leitura" volta pra ela (ver
+      // findCurrentReadingSession).
+      if (session.type !== 'reflection') {
+        setLastReadPosition(session.book, session.chEnd)
+        setLastReadPositionState({ book: session.book, chapter: session.chEnd })
+      }
+    }
   }
 
   // Marca (ou desmarca) um único capítulo dentro de uma sessão — permite
@@ -1040,7 +1077,11 @@ export default function App() {
     const persist = done ? markKeysDone(authUser.email, [key]) : markKeysUndone(authUser.email, [key])
     persist.catch(err => console.error('Failed to persist chapter progress', err))
     recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
-    if (done) markRoutineStep('reading')
+    if (done) {
+      markRoutineStep('reading')
+      setLastReadPosition(session.book, chapter)
+      setLastReadPositionState({ book: session.book, chapter })
+    }
   }
 
   if (!bootstrapped) {
@@ -1071,7 +1112,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals, routineModules, activeStudyId)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals, routineModules, activeStudyId, lastReadPosition)
 
   // O app inteiro agora exige assinatura ativa — não existe mais versão
   // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de
