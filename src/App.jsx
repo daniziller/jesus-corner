@@ -24,6 +24,7 @@ import ProgressScreen from './screens/ProgressScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
+import HandsFreeScreen from './screens/HandsFreeScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks } from './utils/progress'
@@ -236,12 +237,22 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
       : {
         number: currentSession.id,
         title: displayTitle,
+        titleEn: currentSession.titleEn,
         subtitle: currentSession.type === 'reflection'
           ? displayPassage
           : `${displayPassage} · ${chapterSpan} ${chapterWord}`,
         block: blockLine,
         progress: sessionProgress,
         needsThemePick: false,
+        // Cru da sessão de leitura de hoje — o modo mãos-livres
+        // (HandsFreeScreen.jsx) precisa disso pra buscar e ler o texto em
+        // voz alta. `type` distingue sessão de leitura de sessão de
+        // reflexão de fechamento de livro (essa não tem texto pra ler).
+        book: currentSession.book,
+        bookEn: currentSession.bookEn,
+        chStart: currentSession.chStart ?? null,
+        chEnd: currentSession.chEnd ?? null,
+        type: currentSession.type,
       },
   }
 }
@@ -1073,6 +1084,13 @@ export default function App() {
     }
   }
 
+  // Modo mãos-livres terminou de ler a leitura do dia em voz alta — marca
+  // essa sessão como concluída, igual a marcar pelo fluxo guiado normal.
+  function finishReadingFromHandsFree() {
+    const { session: s } = findCurrentReadingSession(blocks, sessionsByBlock, lastReadPosition)
+    if (s && s.type !== 'reflection') toggleSession(s, true)
+  }
+
   // Marca (ou desmarca) um único capítulo dentro de uma sessão — permite
   // acompanhar a leitura capítulo por capítulo, sem precisar concluir a
   // sessão inteira de uma vez.
@@ -1159,6 +1177,7 @@ export default function App() {
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
+    handsFree: <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onProfileUpdated={handleProfileUpdated} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as

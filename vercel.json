@@ -35,6 +35,9 @@
     },
     "api/chat-about-text.js": {
       "maxDuration": 60
+    },
+    "api/tts.js": {
+      "maxDuration": 60
     }
   }
 }

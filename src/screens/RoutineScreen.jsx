@@ -220,6 +220,19 @@ export default function RoutineScreen({
           )}
         </div>
 
+        {/* Modo mãos-livres ("on the go") — conduz a rotina inteira por
+            áudio (ver HandsFreeScreen.jsx). */}
+        {steps.some(s => ['prayer', 'reading', 'reflection'].includes(s.key)) && (
+          <button style={styles.handsFreeBtn} onClick={() => onNavigate?.('handsFree')}>
+            <span style={styles.handsFreeIcon}><AppIcon name="HandHeart" size={16} color="white" /></span>
+            <span style={{ flex: 1, textAlign: 'left' }}>
+              <span style={styles.handsFreeTitle}>{t('routine.handsFreeTitle', undefined, lang)}</span>
+              <span style={styles.handsFreeSub}>{t('routine.handsFreeSub', undefined, lang)}</span>
+            </span>
+            <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
+          </button>
+        )}
+
         {/* Linha do tempo dos passos de hoje */}
         {steps.length > 0 && (
           <div style={styles.stepper}>
@@ -984,6 +997,10 @@ const styles = {
   heroBreakdownUnit: { fontSize: 8.5, fontWeight: 600 },
   heroBreakdownL:    { fontSize: 8, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
   heroStartBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, border: 'none', borderRadius: 24, padding: '11px 26px', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font)', color: 'var(--or)', cursor: 'pointer', background: 'white', boxShadow: '0 8px 20px rgba(0,0,0,.15)' },
+  handsFreeBtn:   { display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'var(--bk-hero)', border: 'none', borderRadius: 16, padding: 13, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
+  handsFreeIcon:  { width: 32, height: 32, borderRadius: 10, background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  handsFreeTitle: { display: 'block', fontSize: 12.5, fontWeight: 700, color: 'white' },
+  handsFreeSub:   { display: 'block', fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.6)', marginTop: 1 },
 
   stepper:     { display: 'flex', alignItems: 'flex-start', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: '18px 10px 14px', boxShadow: 'var(--shadow-card)' },
   stepNodeWrap:{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, width: 66 },
