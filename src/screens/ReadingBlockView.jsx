@@ -11,6 +11,7 @@ import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
+import { setLastReadPosition } from '../reading/lastReadPositionStore'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
@@ -179,6 +180,26 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   ]
 
   const [openPanel, setOpenPanel] = useState(null)
+
+  // "Último texto lido" — grava o capítulo que a pessoa está lendo agora,
+  // em QUALQUER modo, pro card "Continue sua leitura" da Home reabrir
+  // exatamente ele (ver findCurrentReadingSession em App.jsx). Navegação
+  // livre: o capítulo com o texto aberto na lista (expandedChapterId).
+  // Fluxo guiado: o 1º capítulo da sessão em destaque, mas só quando o
+  // painel "Texto" está aberto (só navegar pela lista de sessões não
+  // conta como "ler").
+  useEffect(() => {
+    if (heroSession?.type === 'reflection') return
+    if (mode === 'browse') {
+      if (expandedChapterId == null) return
+      const s = sessions.find(x => x.id === expandedChapterId)
+      if (s) setLastReadPosition(s.book, s.chStart)
+    } else if (openPanel === 'texto' && heroSession) {
+      setLastReadPosition(heroSession.book, heroSession.chStart)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, expandedChapterId, openPanel, heroSession?.id])
+
   // Chat de IA e janela de grifo flutuam por CIMA da leitura (portal pro
   // <body>, ver mais abaixo) — de propósito em estados PRÓPRIOS, separados
   // de openPanel: abrir um dos dois não pode fechar/trocar o que já estava
