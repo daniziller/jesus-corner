@@ -24,7 +24,8 @@ import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import {
   isSpeechSupported, speakSequence, say, stopSpeaking, primeSpeech, splitIntoChunks,
-} from '../audio/speech'
+  pauseSpeech, resumeSpeech,
+} from '../audio/premiumSpeech'
 
 const STEP_ORDER = ['prayer', 'reading', 'reflection']
 const STEP_ICON = { prayer: 'HandHeart', reading: 'BookOpen', reflection: 'PenLine' }
@@ -270,12 +271,12 @@ export default function HandsFreeScreen({ session, onExit, onMarkRoutineStep, on
         // pausar
         accumRef.current = Math.min(accumRef.current + (Date.now() - (startedAtRef.current ?? Date.now())) / 1000, totalSecs || Infinity)
         startedAtRef.current = null
-        try { window.speechSynthesis.pause() } catch { /* noop */ }
+        pauseSpeech()
         releaseWakeLock()
       } else {
         // retomar
         startedAtRef.current = Date.now()
-        try { window.speechSynthesis.resume() } catch { /* noop */ }
+        resumeSpeech()
         requestWakeLock()
       }
       return next
