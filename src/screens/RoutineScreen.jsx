@@ -50,7 +50,7 @@ export default function RoutineScreen({
   session, authUser, blocks, sessionsByBlock, completedSet, themePlans, activeAltPlan, todayThemePicks,
   onNavigate, onContinueSession, onMarkRoutineStep, onToggleRoutineModule,
   onSelectActivePlan, onOpenThemePlan, onAddSessionsToRoutine, onStartThemeReading,
-  onToggleSession, onOpenSession, onOpenChronoSession,
+  onToggleSession, onOpenSession, onOpenChronoSession, onStartGuided,
 }) {
   const { lang, plan, activePlan, todayRoutine, todaySession, routineModules, activeStudyId } = session
   // Estudos criados por IA somam à lista estática pro seletor de "estudo
@@ -167,6 +167,9 @@ export default function RoutineScreen({
     reflection: { key: 'reflection', icon: 'PenLine', color: ROUTINE_STEP_COLORS.reflection, title: t('home.routineReflection', undefined, lang), done: !!todayRoutine.reflection, onClick: () => onNavigate?.('reflection'), onToggleCheck: () => onMarkRoutineStep?.('reflection', !todayRoutine.reflection) },
   }
   const steps = MODULE_ORDER.filter(k => isOn(k)).map(k => allSteps[k])
+  // A rotina guiada (auto-avanço passo a passo) só faz sentido se pelo
+  // menos um dos passos encadeáveis (Oração/Leitura/Reflexão) está ligado.
+  const hasGuidedSteps = ['prayer', 'reading', 'reflection'].some(k => isOn(k))
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
@@ -214,7 +217,10 @@ export default function RoutineScreen({
           )}
 
           {steps[0] && (
-            <button style={{ position: 'relative', ...styles.heroStartBtn }} onClick={steps[0].onClick}>
+            <button
+              style={{ position: 'relative', ...styles.heroStartBtn }}
+              onClick={() => (hasGuidedSteps && onStartGuided ? onStartGuided() : steps[0].onClick())}
+            >
               {t('routine.start', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
             </button>
           )}

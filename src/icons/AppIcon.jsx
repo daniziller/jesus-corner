@@ -22,6 +22,7 @@ import {
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
   X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus,
+  Play, Pause,
 } from 'lucide-react'
 
 // A versão de lucide-react instalada (1.23.0) não inclui o ícone do
@@ -59,6 +60,7 @@ const REGISTRY = {
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
   X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus,
+  Play, Pause,
   Instagram,
 }
 

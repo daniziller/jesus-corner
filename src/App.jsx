@@ -313,6 +313,23 @@ export default function App() {
   // entradas — suficiente pra qualquer sequência real de navegação, evita
   // a pilha crescer sem limite numa sessão longa.
   const [tabHistory, setTabHistory] = useState([])
+  // "Rotina guiada" — quando a pessoa toca em Iniciar em Meu Plano, o app
+  // encadeia os passos (Oração → Leitura → Reflexão): cada passo, ao ser
+  // concluído, abre o próximo sozinho, sem voltar pro menu. null = fora do
+  // modo guiado. { steps: [...], idx } — steps é só prayer/reading/reflection
+  // que estão ligados, na ordem; idx é o passo atual. Ver advanceGuided,
+  // startGuidedRoutine e GuidedFlowBanner.
+  const [guidedFlow, setGuidedFlow] = useState(null)
+  const guidedFlowRef = useRef(null)
+  guidedFlowRef.current = guidedFlow
+  // Trava enquanto a transição de um passo pro próximo está agendada (ver
+  // advanceGuided) — evita agendar duas vezes se markRoutineStep disparar
+  // mais de uma vez pro mesmo passo.
+  const guidedAdvancingRef = useRef(false)
+  // Espelho do `session` do render atual — funções de callback (toggleSession,
+  // advanceGuided) precisam ler a sessão de hoje sem depender da ordem em
+  // que são declaradas (session só é montada bem mais abaixo, no render).
+  const sessionRef = useRef(null)
   // Oração e Reflexão têm cronômetro rodando de verdade (setInterval, wake
   // lock) — se a tela desmontasse ao trocar de aba, como as outras, o
   // cronômetro perderia todo o progresso (useState/useRef voltam do zero ao
@@ -599,6 +616,11 @@ export default function App() {
   // justamente pra resolver o bloqueio.
   function navigateTo(tab) {
     if (disabledTabs.includes(tab) && tab !== 'upgrade') return
+    // Sair do modo guiado se a pessoa navegar explicitamente pra fora do
+    // fluxo (Oração/Leitura/Reflexão) — ex: tocar em Início ou Comunidade.
+    if (guidedFlowRef.current && !['prayer', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
+      setGuidedFlow(null)
+    }
     if (tab === 'journey') setJourneyEntryMode('overview')
     goToTab(tab)
   }
@@ -628,6 +650,79 @@ export default function App() {
       setActiveTab(target)
       return prev.slice(0, -1)
     })
+  }
+
+  // ── Rotina guiada ─────────────────────────────────────────────────────
+  // Passos possíveis, na ordem em que a rotina guiada os encadeia. Estudo
+  // guiado fica de fora de propósito (não tem cronômetro/sinal de conclusão
+  // e o pedido era "terminando na reflexão"), igual ao modo mãos-livres.
+  const GUIDED_STEPS = ['prayer', 'reading', 'reflection']
+  // Quanto tempo o passo recém-concluído fica na tela ("concluído!") antes
+  // de o app abrir o próximo — respiro pra pessoa perceber a transição.
+  const GUIDED_ADVANCE_MS = 2600
+
+  function guidedTabFor(step) {
+    return step === 'prayer' ? 'prayer' : step === 'reflection' ? 'reflection' : null
+  }
+
+  // Iniciar em Meu Plano — encadeia os passos ligados. Com 0 ou 1 passo não
+  // há o que encadear: só abre aquele passo (ou nada), sem o "modo guiado".
+  function startGuidedRoutine() {
+    const steps = GUIDED_STEPS.filter(s => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s))
+    if (steps.length === 0) return
+    if (steps.length === 1) {
+      if (steps[0] === 'reading') continueToday()
+      else goToTab(steps[0])
+      return
+    }
+    setGuidedFlow({ steps, idx: 0 })
+    if (steps[0] === 'reading') continueToday()
+    else goToTab(steps[0])
+  }
+
+  function exitGuidedRoutine() {
+    guidedAdvancingRef.current = false
+    setGuidedFlow(null)
+  }
+
+  // Um passo da rotina guiada foi concluído — agenda (com um respiro de
+  // GUIDED_ADVANCE_MS, pra pessoa ver o "concluído") a abertura do próximo
+  // passo, ou o fim da rotina. Ignora se o modo guiado não está ativo, se
+  // já há uma transição agendada, ou se o passo que terminou não é o passo
+  // atual (marcar um capítulo de outro dia também dispara
+  // markRoutineStep('reading')). A troca de `idx` só acontece na hora de
+  // navegar — assim o banner/aviso de "indo para X" continua visível na
+  // tela do passo que acabou durante a espera.
+  function advanceGuided(fromStep) {
+    const gf = guidedFlowRef.current
+    if (!gf || guidedAdvancingRef.current || gf.steps[gf.idx] !== fromStep) return
+    guidedAdvancingRef.current = true
+    const nextIdx = gf.idx + 1
+    setTimeout(() => {
+      guidedAdvancingRef.current = false
+      if (guidedFlowRef.current !== gf) return // pessoa saiu do modo guiado nesse meio-tempo
+      if (nextIdx >= gf.steps.length) {
+        setGuidedFlow(null)
+        goToTab('home')
+        return
+      }
+      setGuidedFlow({ steps: gf.steps, idx: nextIdx })
+      const nextStep = gf.steps[nextIdx]
+      if (nextStep === 'reading') continueToday()
+      else goToTab(guidedTabFor(nextStep))
+    }, GUIDED_ADVANCE_MS)
+  }
+
+  // Todos os capítulos da leitura de hoje já concluídos? (usado pra saber
+  // se o passo "Leitura" da rotina guiada pode avançar — marcar 1 de 3
+  // capítulos não conta.)
+  function guidedReadingComplete(set) {
+    const ts = sessionRef.current?.todaySession
+    if (!ts || ts.needsThemePick || ts.chStart == null || ts.type === 'reflection') return true
+    for (let ch = ts.chStart; ch <= ts.chEnd; ch++) {
+      if (!set.has(`${ts.book}:${ch}`)) return false
+    }
+    return true
   }
 
   // Depois de voltar do Stripe Checkout (success_url leva pra cá com
@@ -1081,6 +1176,7 @@ export default function App() {
         setLastReadPosition(session.book, session.chEnd)
         setLastReadPositionState({ book: session.book, chapter: session.chEnd })
       }
+      if (guidedReadingComplete(nextSet)) advanceGuided('reading')
     }
   }
 
@@ -1110,6 +1206,7 @@ export default function App() {
       markRoutineStep('reading')
       setLastReadPosition(session.book, chapter)
       setLastReadPositionState({ book: session.book, chapter })
+      if (guidedReadingComplete(nextSet)) advanceGuided('reading')
     }
   }
 
@@ -1142,6 +1239,12 @@ export default function App() {
   }
 
   const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, completedGoals, routineModules, activeStudyId, lastReadPosition)
+  // Modo guiado disponível pros componentes (banner + auto-avanço). idx/step
+  // derivados aqui pra não repetir a conta em cada tela.
+  session.guided = guidedFlow
+    ? { steps: guidedFlow.steps, idx: guidedFlow.idx, total: guidedFlow.steps.length, step: guidedFlow.steps[guidedFlow.idx] }
+    : null
+  sessionRef.current = session
 
   // O app inteiro agora exige assinatura ativa — não existe mais versão
   // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de
@@ -1168,13 +1271,13 @@ export default function App() {
 
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
-    routine: <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} />,
+    routine: <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onStartGuided={startGuidedRoutine} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
     themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
     handsFree: <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />,
@@ -1208,12 +1311,12 @@ export default function App() {
                 height:100% que a tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => markRoutineStep('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} />
+                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => { markRoutineStep('prayer'); advanceGuided('prayer') }} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} />
               </div>
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => markRoutineStep('reflection')} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} />
+                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} />
               </div>
             )}
             {notesVisitedRef.current && (

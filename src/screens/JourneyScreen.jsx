@@ -27,7 +27,7 @@ function flattenBooks(blocksSubset, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onGoToReflectionFrom,
+  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onGoToReflectionFrom, onExitGuided,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -192,6 +192,7 @@ export default function JourneyScreen({
         onBack={closeBlock}
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id })}
         onJumpToChapter={openRecentChapter}
+        onExitGuided={onExitGuided}
       />
     )
   }
