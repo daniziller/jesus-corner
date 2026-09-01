@@ -59,6 +59,7 @@ import { checkIsAdmin } from './admin/adminStore'
 import { applyPendingInvite, redeemPendingInviteCode } from './invites/inviteStore'
 import { applyPendingOnboardingChoices } from './onboarding/pendingOnboardingChoices'
 import { logActivity } from './activity/activityStore'
+import { syncPushTimezone } from './notifications/pushStore'
 import { avatarInitialsOf } from './utils/avatarInitials'
 
 function defaultBlockIdFor(completedSet, planId, readingOrder) {
@@ -512,6 +513,16 @@ export default function App() {
     bootstrap()
     return () => { cancelled = true }
   }, [])
+
+  // Mantém o fuso horário guardado da inscrição de push em dia com o do
+  // aparelho — assim o lembrete de leitura continua tocando na hora local
+  // escolhida (ex: 7h) mesmo depois de a pessoa mudar de fuso, sem precisar
+  // reconfigurar. Fire-and-forget, só grava se o fuso mudou (ver
+  // syncPushTimezone em src/notifications/pushStore.js).
+  useEffect(() => {
+    if (!authUser) return
+    syncPushTimezone().catch(err => console.error('Failed to sync push timezone', err))
+  }, [authUser?.email])
 
   // Detecta metas de constância recém-batidas (ver src/routine/goals.js)
   // sempre que dailyRoutine mudar — cobre tanto marcar um passo da rotina
