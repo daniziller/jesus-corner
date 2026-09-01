@@ -113,88 +113,18 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
       {/* ── Corpo (sheet flutuante sobre o hero) ── */}
       <div style={styles.body}>
 
-        {/* "Widget" da frase de aplicação — o mais perto que dá de um
-            widget de tela inicial de verdade (isso exigiria código nativo
-            fora do alcance de um PWA); aqui pelo menos é a 1a coisa visível
-            ao abrir o app. Só existe depois da 1a frase salva na Reflexão,
-            e só se a pessoa não desligou em Perfil. */}
-        {applicationPhrase && (
-          <button style={styles.applicationCard} onClick={() => onNavigate?.('reflection')}>
-            <span style={styles.applicationIcon}><AppIcon name="Sparkles" size={16} color="#A21CAF" /></span>
-            <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-              <span style={styles.applicationLabel}>{translate('home.applicationCardLabel', undefined, lang)}</span>
-              <span style={styles.applicationText}>{applicationPhrase}</span>
-            </span>
-          </button>
-        )}
-
         <div className="dashboard-grid">
 
-          {/* Coluna primária — "o que fazer hoje": o próximo passo da
-              rotina e a leitura do dia, com 1 CTA claro. Vem primeiro no
-              DOM (logo primeiro no mobile) — é a ação principal da Home.
-              Métricas e gamificação (% da Bíblia, nível, meta) desceram
-              pra coluna secundária: são reforço, não o destaque. */}
+          {/* Coluna primária — ordem pedida explicitamente:
+              1) card de métrica  2) frase de aplicação  3) seu plano
+              (tracker da rotina)  4) leitura do dia.
+              No mobile empilha nessa ordem; os cards de nível/meta
+              ("desafios") ficam na coluna secundária, sempre por último. */}
           <div className="dashboard-col">
 
-            {/* Card de hoje — sessão de leitura (movido pra cá do fim da
-                tela: é a ação principal, tem que estar no topo). */}
-            <div>
-              <div className="section-header">
-                <h3 className="section-title">
-                  {todaySession.needsThemePick
-                    ? translate('home.chooseReadingHeader', undefined, lang)
-                    : translate('home.todayReadingHeader', undefined, lang)}
-                </h3>
-              </div>
-              <div style={styles.todayCard}>
-                <div style={styles.todayAccent} />
-                <div style={styles.todayBadge}>
-                  <span style={styles.todayDot} />
-                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)' }}>{todaySession.block}</span>
-                </div>
-                <h3 style={styles.todayTitle}>{todaySession.title}</h3>
-                <p style={styles.todaySub}>{todaySession.subtitle}</p>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{translate('home.todayProgress', undefined, lang)}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--or)' }}>{todaySession.progress}%</span>
-                </div>
-                <div style={styles.progressBar}>
-                  <div style={{ ...styles.progressFill, width: `${todaySession.progress}%` }} />
-                </div>
-                <button style={styles.continueBtn} onClick={onContinueSession}>
-                  {ctaLabel}
-                </button>
-              </div>
-            </div>
-
-            {/* Tracker dos 4 passos diários — clicável, navega pra onde cada
-                passo é feito de verdade (oração/leitura), com um calendário
-                de histórico embutido. */}
-            <DailyRoutineCard
-              dailyRoutine={dailyRoutine}
-              todayRoutine={todayRoutine}
-              plan={plan}
-              activePlan={activePlan}
-              routineModules={routineModules}
-              activeStudyId={activeStudyId}
-              lang={lang}
-              onNavigate={onNavigate}
-              onContinueSession={onContinueSession}
-              onMarkRoutineStep={onMarkRoutineStep}
-            />
-          </div>
-
-          {/* Coluna secundária — "como vou indo": progresso da Bíblia,
-              rotina da semana, nível/XP, meta mais próxima e a atividade
-              dos amigos. No mobile empilha logo abaixo da coluna de ação. */}
-          <div className="dashboard-col">
-
-            {/* Destaque % da Bíblia — anel com gradiente, mesmo tratamento
-                do Progresso. Envolvido junto com o card de rotina da
-                semana logo abaixo (mesmo wrapper, sem gap) pra parecer um
-                card só que muda de cor na metade. */}
+            {/* 1. Card de métrica — % da Bíblia (anel) + rotina da semana,
+                no mesmo wrapper sem gap (parece um card só que muda de cor
+                na metade). */}
             <div style={styles.pctHeroWrap}>
             <div className="home-pct-hero" style={styles.pctHero}>
               <div style={styles.pctHeroGlow} />
@@ -287,14 +217,76 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               <p style={styles.shareCardErrorText}>{translate('home.shareCardError', undefined, lang)}</p>
             )}
 
-            {/* Nível e XP */}
+            {/* 2. Frase de aplicação — só existe depois da 1a frase salva
+                na Reflexão, e só se a pessoa não desligou o card em Perfil. */}
+            {applicationPhrase && (
+              <button style={styles.applicationCard} onClick={() => onNavigate?.('reflection')}>
+                <span style={styles.applicationIcon}><AppIcon name="Sparkles" size={16} color="#A21CAF" /></span>
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <span style={styles.applicationLabel}>{translate('home.applicationCardLabel', undefined, lang)}</span>
+                  <span style={styles.applicationText}>{applicationPhrase}</span>
+                </span>
+              </button>
+            )}
+
+            {/* 3. Seu plano — tracker dos 4 passos diários, clicável, com
+                calendário de histórico embutido. */}
+            <DailyRoutineCard
+              dailyRoutine={dailyRoutine}
+              todayRoutine={todayRoutine}
+              plan={plan}
+              activePlan={activePlan}
+              routineModules={routineModules}
+              activeStudyId={activeStudyId}
+              lang={lang}
+              onNavigate={onNavigate}
+              onContinueSession={onContinueSession}
+              onMarkRoutineStep={onMarkRoutineStep}
+            />
+
+            {/* 4. Leitura do dia */}
+            <div>
+              <div className="section-header">
+                <h3 className="section-title">
+                  {todaySession.needsThemePick
+                    ? translate('home.chooseReadingHeader', undefined, lang)
+                    : translate('home.todayReadingHeader', undefined, lang)}
+                </h3>
+              </div>
+              <div style={styles.todayCard}>
+                <div style={styles.todayAccent} />
+                <div style={styles.todayBadge}>
+                  <span style={styles.todayDot} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--or)' }}>{todaySession.block}</span>
+                </div>
+                <h3 style={styles.todayTitle}>{todaySession.title}</h3>
+                <p style={styles.todaySub}>{todaySession.subtitle}</p>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{translate('home.todayProgress', undefined, lang)}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--or)' }}>{todaySession.progress}%</span>
+                </div>
+                <div style={styles.progressBar}>
+                  <div style={{ ...styles.progressFill, width: `${todaySession.progress}%` }} />
+                </div>
+                <button style={styles.continueBtn} onClick={onContinueSession}>
+                  {ctaLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Coluna secundária — os "desafios" (nível/XP e meta mais
+              próxima) sempre por último, mais a atividade dos amigos. No
+              mobile empilha logo depois da coluna primária. */}
+          <div className="dashboard-col">
+
+            {/* 5. Nível e XP */}
             <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} xp={xp} lang={lang} />
 
-            {/* Resumo da meta mais próxima de bater (ver src/routine/
-                goals.js) — não confundir com "Desafios", já usado pros
-                desafios de leitura em grupo, na aba Comunidade. Lista
-                completa mora na aba Progresso; aqui só a mais próxima, pra
-                não sobrecarregar a Home. */}
+            {/* 6. Meta mais próxima de bater (ver src/routine/goals.js) — não
+                confundir com "Desafios" de leitura em grupo (Comunidade). A
+                lista completa mora na aba Progresso. */}
             <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
 
             {/* Atividade dos amigos (versão compacta — a completa mora na aba Comunidade) */}
