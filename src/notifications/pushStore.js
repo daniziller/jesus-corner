@@ -102,6 +102,36 @@ export async function subscribeToPush({
   if (error) throw new Error(error.message)
 }
 
+// Mantém o fuso guardado pra ESTE dispositivo igual ao fuso atual do
+// aparelho. O cron (api/send-reading-reminders.js) calcula "que horas são
+// pra essa pessoa" a partir do `timezone` da linha — que só era gravado no
+// momento da inscrição / ao trocar o horário. Sem isso, quem configurou o
+// lembrete pras 7h e depois mudou de fuso (viajou, mudou de país, o
+// aparelho trocou de fuso sozinho) continuava recebendo às 7h do fuso
+// ANTIGO. Chamado no bootstrap do app (fire-and-forget) — só grava se
+// realmente mudou, não pede permissão nem recria a inscrição.
+export async function syncPushTimezone() {
+  if (!isPushSupported()) return
+  const registration = await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.getSubscription()
+  if (!subscription) return
+
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  if (!timezone) return
+
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('timezone')
+    .eq('endpoint', subscription.endpoint)
+    .maybeSingle()
+  if (error || !data || data.timezone === timezone) return
+
+  await supabase
+    .from('push_subscriptions')
+    .update({ timezone })
+    .eq('endpoint', subscription.endpoint)
+}
+
 export async function unsubscribeFromPush() {
   if (!isPushSupported()) return
   const registration = await navigator.serviceWorker.ready
