@@ -19,10 +19,13 @@ import { useIsDesktop } from '../utils/useIsDesktop'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RecentChaptersRow from '../components/RecentChaptersRow'
+import BibleAudioPlayer from '../components/BibleAudioPlayer'
+import GuidedFlowBanner from '../components/GuidedFlowBanner'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, embedded = false }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, embedded = false }) {
   const { lang } = session
+  const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
   // Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
   // .rb-detail, min-width: 768px) — usado só em modo 'browse' pra decidir
   // ONDE o texto do capítulo aparece (ver comentário perto de onde é usado).
@@ -494,6 +497,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // JSX teria que ser escrito duas vezes.
   const headerAndPanels = (
     <>
+      {guidedReading && !embedded && (
+        <GuidedFlowBanner guided={guidedReading} lang={lang} onExit={onExitGuided} />
+      )}
       <div style={styles.browseHeader}>
         {!embedded && (
           <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
@@ -531,6 +537,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           ))}
         </div>
       </div>
+      {/* Ouvir a Bíblia — player de áudio da navegação livre (fora de
+          plano). Fica montado aqui no topo (não por capítulo) pra que o
+          modo "contínuo" atravesse a troca de capítulo sem cortar o som. */}
+      {!embedded && mode === 'browse' && expandedChapterId != null && heroSession.type !== 'reflection' && (
+        <div style={{ padding: '4px 8px 0' }}>
+          <BibleAudioPlayer
+            session={heroSession}
+            lang={lang}
+            hasNext={!!getNextSessionFor(heroSession)}
+            onAdvance={() => goToNextInline(heroSession)}
+          />
+        </div>
+      )}
       {/* Cards de "lidos recentemente" — só na navegação livre de tela
           cheia, nunca embutido (não faz sentido por livro). No desktop
           moram aqui dentro de .rb-detail, que já é sticky por conta

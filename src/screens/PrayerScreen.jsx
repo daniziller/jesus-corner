@@ -6,6 +6,7 @@ import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDu
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
+import GuidedFlowBanner from '../components/GuidedFlowBanner'
 
 const DURATION_OPTIONS = [5, 10, 15, 20, 30]
 
@@ -32,8 +33,9 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function PrayerScreen({ session, authUser, onPrayerCompleted, onContinueSession, onNavigate }) {
+export default function PrayerScreen({ session, authUser, onPrayerCompleted, onContinueSession, onNavigate, onExitGuided }) {
   const { lang } = session
+  const guided = session.guided?.step === 'prayer' ? session.guided : null
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
@@ -238,7 +240,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
 
-      {/* Header */}
+      <GuidedFlowBanner guided={guided} lang={lang} onExit={onExitGuided} />
 
       {/* Hero */}
       <div style={styles.hero}>
@@ -311,6 +313,11 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
                   {t('prayer.goToReading', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
                 </button>
               )}
+              {remaining === 0 && guided && (
+                <p style={styles.guidedAutoHint}>
+                  {t('guided.nextAuto', { step: t(`guided.step_${guided.steps[guided.idx + 1]}`, undefined, lang) }, lang)}
+                </p>
+              )}
             </div>
 
             <RoutineStepSwitcher
@@ -372,4 +379,5 @@ const styles = {
   durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
   durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.35)' },
   nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', marginTop: 2, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
+  guidedAutoHint: { fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.7)', textAlign: 'center', marginTop: 2 },
 }

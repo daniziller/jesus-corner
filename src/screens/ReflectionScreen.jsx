@@ -10,6 +10,7 @@ import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
+import GuidedFlowBanner from '../components/GuidedFlowBanner'
 
 // Inclui 8 porque é o padrão do plano Leve (session.plan.reflectionMinutes)
 // — sem ele, quem estivesse no Leve abriria a tela sem nenhum botão aceso.
@@ -40,8 +41,9 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading, onNavigate, onContinueSession }) {
+export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading, onNavigate, onContinueSession, onExitGuided }) {
   const { lang } = session
+  const guided = session.guided?.step === 'reflection' ? session.guided : null
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
@@ -318,7 +320,7 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
 
-      {/* Header */}
+      <GuidedFlowBanner guided={guided} lang={lang} onExit={onExitGuided} />
 
       {/* Hero */}
       <div style={styles.hero}>
@@ -470,6 +472,7 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
         {allStepsDone && (
           <div style={styles.routineCompleteCard}>
             <p style={styles.routineCompleteTitle}>{t('reflection.routineCompleteTitle', undefined, lang)}</p>
+            {guided && <p style={styles.guidedAutoHint}>{t('guided.finishingAuto', undefined, lang)}</p>}
             <button style={styles.nextStepBtn} onClick={() => onNavigate?.('stats')}>
               {t('reflection.goToProgress', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
             </button>
@@ -606,5 +609,6 @@ const styles = {
 
   routineCompleteCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 14, textAlign: 'center', boxShadow: 'var(--shadow-card)' },
   routineCompleteTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
+  guidedAutoHint: { fontSize: 11, fontWeight: 600, color: 'var(--g5)', marginBottom: 10 },
   nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
 }
