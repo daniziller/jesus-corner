@@ -11,7 +11,10 @@ import { supabase } from '../lib/supabaseClient'
 // Suba esta versão sempre que o texto da política mudar de forma relevante.
 // Ela é gravada junto de cada consentimento, para saber exatamente com o que
 // a pessoa concordou naquele dia.
-export const POLICY_VERSION = '2026-08-10'
+// 2026-09-02: Política de Privacidade §3 passou a divulgar a OpenAI como
+// sub-processador (conversão de texto bíblico em voz, sem dado pessoal),
+// além da identificação da Encarregada e do direito de reclamar à ANPD.
+export const POLICY_VERSION = '2026-09-02'
 
 export const PURPOSES = {
   // Obrigatórios: sem eles não há como operar o serviço contratado.
