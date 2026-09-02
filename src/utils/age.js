@@ -1,6 +1,6 @@
 // Calcula idade a partir da data de nascimento (string 'YYYY-MM-DD', formato
 // nativo do <input type="date">) — usado pra liberar recursos com restrição
-// de idade (ex: aba Grupos, 16+).
+// de idade (ex: aba Grupos, 18+).
 export function calculateAge(birthdate) {
   if (!birthdate) return null
   const birth = new Date(birthdate)
@@ -28,9 +28,9 @@ export function isAtLeast(birthdate, minAge) {
 // espera uma data. Convertemos pra uma data sintética (1º de janeiro do ano
 // correspondente) só pra guardar/recalcular a idade depois; não é a data de
 // nascimento real de ninguém. A margem de erro (até ~1 ano) é aceitável: o
-// gate de 12+ no cadastro valida a idade informada diretamente (sem passar
-// por aqui), e o de 16+ da Comunidade é um recurso, não uma exigência legal
-// exata.
+// gate de 18+ no cadastro valida a idade informada diretamente (sem passar
+// por aqui), e o de 18+ da Comunidade é uma segunda linha de defesa pras
+// contas antigas, não uma verificação legal exata.
 export function ageToApproxBirthdate(age) {
   const year = new Date().getFullYear() - Math.trunc(age)
   return `${year}-01-01`

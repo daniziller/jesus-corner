@@ -309,10 +309,12 @@ export default function App() {
   // hasAI nas telas + PremiumRequired/PremiumLockCard).
   const entitlement = resolveEntitlement(subscription)
   const hasPremium = entitlement.hasPremium
-  // Restrição de idade (16+) da Comunidade é independente da assinatura —
+  // Restrição de idade (18+) da Comunidade é independente da assinatura —
   // contas sem data de nascimento (criadas antes desse campo existir) não
-  // são restringidas por idade (ver isAtLeast).
-  const meetsMinAge = isAtLeast(authUser?.birthdate, 16)
+  // são restringidas por idade (ver isAtLeast). O cadastro novo já exige
+  // 18+ (ver src/privacy/minAge.js); este gate cobre as contas 12–17 que
+  // podem existir de antes desse corte.
+  const meetsMinAge = isAtLeast(authUser?.birthdate, 18)
   // disabledTabs — a aba nem existe (idade). lockedTabs — existe mas pede
   // Premium: aparece com cadeado e o clique leva pra tela de assinar.
   const disabledTabs = meetsMinAge ? [] : ['groups']
@@ -630,7 +632,7 @@ export default function App() {
   // Navegação genérica entre abas — ao ir pra Jornada por essa via (menu
   // inferior, header, etc.) sempre reseta pro mapa de blocos (visão geral).
   // Rotina e Comunidade são restritas a assinantes (Comunidade também a
-  // maiores de 16) — a Sidebar/BottomNav já escondem o clique, mas essa
+  // maiores de 18) — a Sidebar/BottomNav já escondem o clique, mas essa
   // checagem aqui é a segunda linha de defesa (mesmo espírito de "UI
   // esconde, a fonte da verdade decide" já usado nas policies RLS de
   // group_comments). 'upgrade' nunca é bloqueada — é pra onde a pessoa vai
@@ -1395,7 +1397,7 @@ export default function App() {
   )
 }
 
-// Mostrada no lugar da aba Grupos pra contas de menores de 16 anos — segunda
+// Mostrada no lugar da aba Grupos pra contas de menores de 18 anos — segunda
 // linha de defesa (a Sidebar/BottomNav já impedem o clique), pro caso de
 // activeTab ficar em 'groups' por algum outro caminho (ex: sessão antiga).
 function MinAgeRestricted({ lang }) {
