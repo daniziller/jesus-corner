@@ -29,7 +29,9 @@ export default function RoutineStepSwitcher({ session, activeStep, onGoPrayer, o
   if (steps.length < 2) return null
 
   return (
-    <div style={styles.row}>
+    <div style={styles.wrap}>
+      <p style={styles.caption}>{t('routineSwitcher.jumpLabel', undefined, lang)}</p>
+      <div style={styles.row}>
       {steps.map(key => {
         const meta = STEP_META[key]
         const color = ROUTINE_STEP_COLORS[key]
@@ -54,11 +56,14 @@ export default function RoutineStepSwitcher({ session, activeStep, onGoPrayer, o
           </button>
         )
       })}
+      </div>
     </div>
   )
 }
 
 const styles = {
-  row: { display: 'flex', justifyContent: 'center', gap: 16, padding: '14px 0' },
+  wrap: { padding: '10px 0 6px', textAlign: 'center' },
+  caption: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 },
+  row: { display: 'flex', justifyContent: 'center', gap: 16 },
   dot: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 }
