@@ -539,17 +539,26 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       </div>
       {/* Ouvir a Bíblia — player de áudio da navegação livre (fora de
           plano). Fica montado aqui no topo (não por capítulo) pra que o
-          modo "contínuo" atravesse a troca de capítulo sem cortar o som. */}
-      {!embedded && mode === 'browse' && expandedChapterId != null && heroSession.type !== 'reflection' && (
-        <div style={{ padding: '4px 8px 0' }}>
-          <BibleAudioPlayer
-            session={heroSession}
-            lang={lang}
-            hasNext={!!getNextSessionFor(heroSession)}
-            onAdvance={() => goToNextInline(heroSession)}
-          />
-        </div>
-      )}
+          modo "contínuo" atravesse a troca de capítulo sem cortar o som.
+          O contínuo vai até o fim do livro aberto (getNextSessionFor pode
+          apontar pra outro livro/bloco, que não está renderizado nesta
+          lista embutida — então limita ao mesmo livro). */}
+      {mode === 'browse' && expandedChapterId != null && heroSession.type !== 'reflection' && (() => {
+        const nextInBook = (() => {
+          const n = getNextSessionFor(heroSession)
+          return n && n.book === heroSession.book ? n : null
+        })()
+        return (
+          <div style={{ padding: '4px 8px 0' }}>
+            <BibleAudioPlayer
+              session={heroSession}
+              lang={lang}
+              hasNext={!!nextInBook}
+              onAdvance={() => goToNextInline(heroSession)}
+            />
+          </div>
+        )
+      })()}
       {/* Cards de "lidos recentemente" — só na navegação livre de tela
           cheia, nunca embutido (não faz sentido por livro). No desktop
           moram aqui dentro de .rb-detail, que já é sticky por conta
@@ -727,7 +736,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         árvore, o mesmo truque de centralização de .bottom-nav
         (left:50%+translateX(-50%) dentro de max-width:var(--max-width))
         funciona igual. */}
-    {heroSession.type !== 'reflection' && createPortal(
+    {heroSession.type !== 'reflection' && (mode !== 'browse' || expandedChapterId != null) && createPortal(
       <div style={styles.aiFabWrap}>
         {/* Lápis em cima do robô da IA — mesmo FAB flutuante, mesma coluna,
             só empilhado (ver styles.highlightFab: mesmo `right`, `bottom`
