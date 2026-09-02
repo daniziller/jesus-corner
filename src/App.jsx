@@ -6,6 +6,8 @@ import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
 import { useIsDesktop } from './utils/useIsDesktop'
 import AuthScreen from './screens/AuthScreen'
+import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
+import { needsConsentRefresh } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
@@ -284,6 +286,12 @@ export default function App() {
   // de carregamento em vez de renderizar com dados parciais/errados.
   const [bootstrapped, setBootstrapped] = useState(false)
   const [authUser, setAuthUser] = useState(null)
+  // Sessão ativa cujo consentimento obrigatório está faltando ou é de uma
+  // versão anterior da política (ver POLICY_VERSION em src/privacy/consent.js).
+  // Bloqueia o app até a pessoa reconsentir ou sair — o AuthScreen já cobre
+  // o caso de quem chega pelo login; isto cobre quem já estava com sessão
+  // aberta quando a política mudou.
+  const [consentRefreshNeeded, setConsentRefreshNeeded] = useState(false)
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
@@ -538,6 +546,11 @@ export default function App() {
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
       setSubscription(finalSubscription)
       setIsAdmin(adminStatus)
+      // Consentimento em dia? Se a política mudou de versão desde o último
+      // "aceito", reapresenta antes de liberar o app (LGPD — não basta
+      // pegar quem passa pelo login). Falha silenciosa: erro de rede aqui
+      // não pode travar quem já consentiu.
+      setConsentRefreshNeeded(await needsConsentRefresh().catch(() => false))
       setBootstrapped(true)
     }
     bootstrap()
@@ -932,6 +945,10 @@ export default function App() {
     ])
     const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
     const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
+    // O AuthScreen só chama onAuthenticated depois de resolver o próprio
+    // gate de consentimento, então aqui já está em dia (limpa um eventual
+    // true herdado de antes do logout).
+    setConsentRefreshNeeded(false)
     setAuthUser(user)
     setCompletedSet(set)
     setPlanId(userPlanId)
@@ -1235,6 +1252,20 @@ export default function App() {
     return (
       <>
         <AuthScreen onAuthenticated={handleAuthenticated} />
+        <Analytics />
+      </>
+    )
+  }
+
+  // Sessão ativa mas consentimento desatualizado (a política mudou de
+  // versão desde o último "aceito") — bloqueia tudo até reconsentir ou sair.
+  if (consentRefreshNeeded) {
+    return (
+      <>
+        <ConsentRefreshScreen
+          onAccepted={() => setConsentRefreshNeeded(false)}
+          onDeclined={handleLogout}
+        />
         <Analytics />
       </>
     )

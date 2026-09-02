@@ -17,6 +17,7 @@ import { startCheckout } from '../billing/subscriptionStore'
 import { redeemInviteCode, savePendingInviteCode, validateInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consent'
+import ConsentRefreshScreen from './ConsentRefreshScreen'
 import { MIN_AGE } from '../privacy/minAge'
 import { ageToApproxBirthdate } from '../utils/age'
 
@@ -109,9 +110,10 @@ export default function AuthScreen({ onAuthenticated }) {
           <ForceChangePasswordStep onDone={() => handleAuthenticated(pendingUser)} />
         )}
         {mode === 'consentRefresh' && (
-          <ConsentRefreshStep
-            onDone={() => onAuthenticated(pendingUser)}
-            onDecline={() => { setPendingUser(null); setMode('login') }}
+          <ConsentRefreshScreen
+            embedded
+            onAccepted={() => onAuthenticated(pendingUser)}
+            onDeclined={() => { setPendingUser(null); setMode('login') }}
           />
         )}
       </div>
@@ -956,108 +958,10 @@ function LoginView({ onAuthenticated, onGoSignup, onGoForgot }) {
   )
 }
 
-// Reapresentado a quem já tem conta e loga com o consentimento obrigatório
-// faltando ou desatualizado — ver needsConsentRefresh em
-// src/privacy/consent.js. A sessão no Supabase já existe nesse ponto (o
-// login/signup já aconteceu); esta tela só decide se o app "libera" o
-// acesso (onDone) ou desfaz a sessão (onDecline), porque consentimento
-// não pode ser condição imposta sem alternativa real de recusa.
-function ConsentRefreshStep({ onDone, onDecline }) {
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
-  const [agreedToSensitive, setAgreedToSensitive] = useState(false)
-  const [agreedToMarketing, setAgreedToMarketing] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [declining, setDeclining] = useState(false)
-  const [error, setError] = useState('')
-  const lang = getAppLanguage()
-
-  async function confirm() {
-    if (!agreedToTerms || !agreedToSensitive) { setError(t('auth.mustAgreeToTerms')); return }
-    setLoading(true)
-    setError('')
-    try {
-      await recordConsents([
-        { purpose: PURPOSES.TERMS, granted: true },
-        { purpose: PURPOSES.SENSITIVE_DATA, granted: true },
-        { purpose: PURPOSES.MARKETING_EMAIL, granted: agreedToMarketing },
-      ], { silent: false })
-      onDone()
-    } catch (err) {
-      console.error('Falha ao registrar consentimento', err)
-      setError(t('auth.consentRefreshError'))
-      setLoading(false)
-    }
-  }
-
-  async function decline() {
-    setDeclining(true)
-    await logout().catch(() => {})
-    onDecline()
-  }
-
-  return (
-    <div style={styles.form}>
-      <h1 style={styles.title}>{t('auth.consentRefreshTitle')}</h1>
-      <p style={styles.subtitle}>{t('auth.consentRefreshBody')}</p>
-
-      <div style={styles.agreeRow}>
-        <input
-          type="checkbox"
-          style={styles.agreeCheckbox}
-          checked={agreedToTerms}
-          onChange={e => setAgreedToTerms(e.target.checked)}
-        />
-        <span style={styles.agreeText}>
-          {t('auth.agreeToTermsPrefix')}
-          <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.termsLabel')}</a>
-          {t('auth.agreeToTermsMiddle')}
-          <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.privacyLabel')}</a>
-          {t('auth.agreeToTermsSuffix')}
-        </span>
-      </div>
-
-      <div style={styles.agreeRow}>
-        <input
-          type="checkbox"
-          style={styles.agreeCheckbox}
-          checked={agreedToSensitive}
-          onChange={e => setAgreedToSensitive(e.target.checked)}
-        />
-        <span style={styles.agreeText}>{t('auth.agreeToSensitiveData')}</span>
-      </div>
-
-      <div style={styles.agreeRow}>
-        <input
-          type="checkbox"
-          style={styles.agreeCheckbox}
-          checked={agreedToMarketing}
-          onChange={e => setAgreedToMarketing(e.target.checked)}
-        />
-        <span style={styles.agreeText}>{t('auth.agreeToMarketing')}</span>
-      </div>
-
-      {error && <p style={styles.error}>{error}</p>}
-
-      <button
-        type="button" className="btn-primary" style={{ marginTop: 6 }}
-        onClick={confirm} disabled={loading || declining || !agreedToTerms || !agreedToSensitive}
-      >
-        {loading ? t('auth.loading') : t('onboarding.continueBtn')}
-      </button>
-
-      <div style={styles.linksRow}>
-        <span style={styles.link} onClick={decline}>
-          {declining ? t('auth.loading') : t('auth.consentRefreshDecline')}
-        </span>
-      </div>
-    </div>
-  )
-}
-
 // Forçado no login de quem já tinha conta quando a senha deixou de ser um
 // PIN de 6 dígitos — ver needsPasswordChange/changePassword em
 // src/auth/authStore.js e a migration 0026. Sem opção de recusar (like
-// ConsentRefreshStep tem): isso não é uma escolha de consentimento, é
+// ConsentRefreshScreen tem): isso não é uma escolha de consentimento, é
 // segurança da própria conta — mas ainda oferece "Sair" pra quem não quiser
 // trocar agora, em vez de prender a pessoa na tela sem saída nenhuma.
 function ForceChangePasswordStep({ onDone }) {
