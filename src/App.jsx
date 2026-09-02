@@ -313,7 +313,6 @@ export default function App() {
   // contas sem data de nascimento (criadas antes desse campo existir) não
   // são restringidas por idade (ver isAtLeast).
   const meetsMinAge = isAtLeast(authUser?.birthdate, 16)
-  const canAccessGroups = meetsMinAge && hasPremium
   // disabledTabs — a aba nem existe (idade). lockedTabs — existe mas pede
   // Premium: aparece com cadeado e o clique leva pra tela de assinar.
   const disabledTabs = meetsMinAge ? [] : ['groups']
@@ -1320,7 +1319,7 @@ export default function App() {
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: !hasPremium
-      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
@@ -1338,8 +1337,8 @@ export default function App() {
     // Notas e Estudos são Premium — pra assinante ficam montadas persistentes
     // (display:contents, mais abaixo); pra grátis caem aqui.
     ...(hasPremium ? {} : {
-      notes:   <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
-      studies: <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+      notes:   <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />,
+      studies: <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />,
     }),
   }
 

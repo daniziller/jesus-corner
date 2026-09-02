@@ -410,13 +410,15 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
               onPress={() => onNavigate('studies')}
             />
           )}
+          {/* Grátis configura o ritmo aqui (não tem a aba "Meu Plano");
+              assinante ajusta lá dentro, então aqui só abre a Bíblia. */}
           <SettingsLink
             icon="BookOpen" iconBg="var(--olt)"
             label={t('profile.readingPlanLabel', undefined, session.lang)}
             sub={t('profile.readingPlanSub', { plan: session.lang === 'en' ? session.plan.labelEn : session.plan.label, n: session.plan.avgChapters }, session.lang)}
-            onPress={() => setPacePickerOpen(v => !v)}
+            onPress={() => session.hasPremium ? onNavigate('journey') : setPacePickerOpen(v => !v)}
           />
-          {pacePickerOpen && (
+          {!session.hasPremium && pacePickerOpen && (
             <div style={{ padding: '8px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid var(--g1)' }}>
               {PLANS.map(p => (
                 <button
