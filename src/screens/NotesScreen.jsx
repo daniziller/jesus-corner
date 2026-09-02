@@ -722,15 +722,18 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                   placeholder={t('notes.searchPlaceholder', undefined, lang)}
                 />
               </div>
-              <button
-                style={{ ...styles.searchAiBtn, opacity: (!searchQuery.trim() || aiSearching) ? 0.5 : 1, cursor: (!searchQuery.trim() || aiSearching) ? 'default' : 'pointer' }}
-                onClick={runAiSearch}
-                disabled={!searchQuery.trim() || aiSearching}
-                aria-label={t('notes.searchAiBtn', undefined, lang)}
-                title={t('notes.searchAiBtn', undefined, lang)}
-              >
-                <AppIcon name={aiSearching ? 'RefreshCw' : 'Sparkles'} size={15} color="white" className={aiSearching ? 'icon-spin' : undefined} />
-              </button>
+              {/* Busca por tema usa IA — só no tier Premium + IA. */}
+              {session.hasAI && (
+                <button
+                  style={{ ...styles.searchAiBtn, opacity: (!searchQuery.trim() || aiSearching) ? 0.5 : 1, cursor: (!searchQuery.trim() || aiSearching) ? 'default' : 'pointer' }}
+                  onClick={runAiSearch}
+                  disabled={!searchQuery.trim() || aiSearching}
+                  aria-label={t('notes.searchAiBtn', undefined, lang)}
+                  title={t('notes.searchAiBtn', undefined, lang)}
+                >
+                  <AppIcon name={aiSearching ? 'RefreshCw' : 'Sparkles'} size={15} color="white" className={aiSearching ? 'icon-spin' : undefined} />
+                </button>
+              )}
             </div>
 
             {aiMatchKeys !== null && (

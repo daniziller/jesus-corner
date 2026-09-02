@@ -44,8 +44,8 @@ async function authorizedPost(path, body) {
 // quebra a cobrança na moeda errada). O preço em si é sempre fixo,
 // calculado no servidor (ver FIXED_PRICES_CENTS em
 // api/create-checkout-session.js) — nunca mandado daqui.
-export async function startCheckout({ interval, currency }) {
-  const { url } = await authorizedPost('/api/create-checkout-session', { interval, currency })
+export async function startCheckout({ interval, currency, tier }) {
+  const { url } = await authorizedPost('/api/create-checkout-session', { interval, currency, tier })
   return url
 }
 
@@ -70,10 +70,11 @@ export function getDigitalGoodsService() {
   return _digitalGoodsPromise
 }
 
-// Preço localizado de verdade (o que o Play vai cobrar) pros SKUs pedidos —
-// usar isso pra exibir valor, nunca o `value` estático de storeTiers.js,
-// que é só o rótulo/nome do tier, não necessariamente o preço exibido em
-// todo país.
+// Preço localizado de verdade (o que o Play vai cobrar). Passa o productId
+// único da assinatura (GOOGLE_PLAY_SUBSCRIPTION_ID) — o Digital Goods API
+// devolve um item por base plan/offer dentro dela. Chaveado por
+// itemId/basePlanId. Usar isso pra exibir valor, nunca o valor estático de
+// storeTiers.js (que é só fallback pré-loja).
 export async function getPlaySkuDetails(skus) {
   const service = await getDigitalGoodsService()
   if (!service) return {}
@@ -86,8 +87,9 @@ export async function getPlaySkuDetails(skus) {
 // página. obfuscatedAccountId vincula a compra ao usuário logado, pro
 // backend confirmar depois (ver api/verify-google-play-purchase.js) que o
 // token pertence mesmo a quem está chamando — nunca confiamos no
-// purchaseToken sozinho.
-export async function startPlayBillingPurchase({ sku, mode }) {
+// purchaseToken sozinho. `sku` é o productId da assinatura;
+// `basePlanId` diz qual dos 4 planos (premium/premium_ai × mês/ano).
+export async function startPlayBillingPurchase({ sku, basePlanId }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('not_authenticated')
 
@@ -106,7 +108,7 @@ export async function startPlayBillingPurchase({ sku, mode }) {
   }
   const { purchaseToken } = response.details
   await response.complete('success')
-  return authorizedPost('/api/verify-google-play-purchase', { purchaseToken, sku, mode })
+  return authorizedPost('/api/verify-google-play-purchase', { purchaseToken, basePlanId })
 }
 
 // ─── Apple StoreKit (app iOS via Capacitor) ────────────────────────────────

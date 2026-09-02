@@ -11,9 +11,6 @@ import { setReadingOrder } from '../reading/readingOrderStore'
 import { setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { savePendingOnboardingChoices } from '../onboarding/pendingOnboardingChoices'
-import { STORE_TIERS } from '../billing/storeTiers'
-import { formatAmount } from '../billing/formatAmount'
-import { startCheckout } from '../billing/subscriptionStore'
 import { redeemInviteCode, savePendingInviteCode, validateInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consent'
@@ -626,13 +623,6 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [agreedToSensitive, setAgreedToSensitive] = useState(false)
   const [agreedToMarketing, setAgreedToMarketing] = useState(false)
-  const [currency, setCurrency]   = useState('brl')
-  // true assim que a pessoa toca em "R$"/"US$" — trava a detecção por IP
-  // pra não sobrescrever a escolha manual se /api/geo responder depois do
-  // clique (a chamada é assíncrona e pode demorar mais que uma decisão
-  // rápida da pessoa).
-  const currencyTouchedRef = useRef(false)
-  const [billingMode, setBillingMode] = useState('monthly')
   const [inviteCode, setInviteCode] = useState('')
   // null = ainda não verificado; 'checking' = chamada em andamento; depois
   // vira o resultado de validateInviteCode ({ valid, kind, ... }). Reseta
@@ -643,17 +633,6 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
   const [loading, setLoading]     = useState(false)
   const lang = getAppLanguage() ?? 'pt'
   const [confirmationEmail, setConfirmationEmail] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/geo').then(res => res.json()).then(({ country }) => {
-      if (!cancelled && !currencyTouchedRef.current && country && country !== 'BR') setCurrency('usd')
-    }).catch(() => {})
-    return () => { cancelled = true }
-  }, [])
-
-  const tier = STORE_TIERS[billingMode]
-  const amountCents = Math.round(tier[currency] * 100)
 
   // Só confere o código e mostra o benefício — não resgata nada ainda (não
   // existe sessão nesse ponto, o código só é resgatado de verdade dentro de
@@ -735,32 +714,20 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       setReadingOrder(user.email, readingOrder).catch(() => {})
       trackOnboardingEvent('signup_completed', { userId: user.id })
 
-      // Entra no app na hora — se o checkout abaixo falhar por qualquer
-      // motivo, a pessoa já está logada e cai no PaywallGate normal, onde
-      // consegue escolher o plano de novo (ver App.jsx).
-      onAuthenticated(user)
-
+      // Cadastro entra direto no app — no tier grátis (leitura da Bíblia,
+      // oração/reflexão, progresso básico). O upgrade pra Premium / Premium
+      // + IA fica disponível a qualquer momento na tela de assinatura.
       if (trimmedCode) {
         try {
           const { applied } = await redeemInviteCode(trimmedCode)
-          if (applied === 'free') {
-            trackOnboardingEvent('subscribed', { userId: user.id })
-            return
-          }
+          if (applied === 'free') trackOnboardingEvent('subscribed', { userId: user.id })
         } catch {
-          // Código inválido não deve travar o cadastro — segue pro checkout
-          // normal. Mas isso NÃO pode ficar em silêncio: sem aviso nenhum,
-          // a pessoa via o código "sumir" e cair direto na tela de
-          // pagamento, sem entender que o código não funcionou (parecia
-          // que o app simplesmente ignorou o que ela digitou). alert()
-          // porque a essa altura já saímos do formulário (onAuthenticated
-          // já rodou) — não tem mais um campo de erro na tela pra usar.
+          // Código inválido não deve travar o cadastro. Mas não pode ficar
+          // em silêncio — a pessoa digitou algo esperando um benefício.
           window.alert(t('auth.inviteCodeFailedNote'))
         }
       }
-      trackOnboardingEvent('checkout_started', { userId: user.id })
-      const url = await startCheckout({ interval: billingMode === 'annual' ? 'year' : 'month', currency })
-      window.location.href = url
+      onAuthenticated(user)
     } catch (err) {
       setError(err.message === 'rate_limited' ? t('auth.signupRateLimited') : err.message)
       setLoading(false)
@@ -810,19 +777,8 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       </div>
 
       <div style={styles.planPickerCard}>
-        <p style={styles.publicToggleLabel}>{t('onboarding.plan.label')}</p>
-        <div style={styles.currencyToggle}>
-          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'brl' ? styles.currencyBtnActive : {}) }} onClick={() => { currencyTouchedRef.current = true; setCurrency('brl') }}>R$</button>
-          <button type="button" style={{ ...styles.currencyBtn, ...(currency === 'usd' ? styles.currencyBtnActive : {}) }} onClick={() => { currencyTouchedRef.current = true; setCurrency('usd') }}>US$</button>
-        </div>
-        <div style={styles.modeToggle}>
-          <button type="button" style={{ ...styles.modeBtn, ...(billingMode === 'monthly' ? styles.modeBtnActive : {}) }} onClick={() => setBillingMode('monthly')}>{t('billing.modeMonthly')}</button>
-          <button type="button" style={{ ...styles.modeBtn, ...(billingMode === 'annual' ? styles.modeBtnActive : {}) }} onClick={() => setBillingMode('annual')}>{t('billing.modeAnnual')}</button>
-        </div>
-        <p style={styles.fixedPrice}>
-          {formatAmount(amountCents, currency)}
-          <span style={styles.fixedPriceUnit}>{t(billingMode === 'annual' ? 'billing.perYear' : 'billing.perMonth')}</span>
-        </p>
+        <p style={styles.publicToggleLabel}>{t('onboarding.plan.freeLabel')}</p>
+        <p style={styles.publicToggleSub}>{t('onboarding.plan.freeSub')}</p>
       </div>
 
       <label style={styles.fieldWrap}>
@@ -906,7 +862,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
         type="submit" className="btn-primary" style={{ marginTop: 6 }}
         disabled={loading || !agreedToTerms || !agreedToSensitive}
       >
-        {loading ? t('auth.loading') : t('onboarding.signupBtn', { amount: formatAmount(amountCents, currency) })}
+        {loading ? t('auth.loading') : t('onboarding.signupBtnFree')}
       </button>
 
       <div style={styles.linksRow}>
@@ -1344,13 +1300,5 @@ const styles = {
   checklistCard: { display: 'flex', flexDirection: 'column', gap: 9, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '13px 14px' },
   checklistRow:  { display: 'flex', alignItems: 'center', gap: 9 },
   checklistText: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--bk)' },
-  planPickerCard: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '14px' },
-  currencyToggle: { display: 'flex', gap: 6, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 10, padding: 3 },
-  currencyBtn:   { padding: '6px 14px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 7, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
-  currencyBtnActive: { color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
-  modeToggle:    { display: 'flex', gap: 6, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 4, width: '100%' },
-  modeBtn:       { flex: 1, textAlign: 'center', padding: '9px 8px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent', fontFamily: 'var(--font)' },
-  modeBtnActive: { color: 'white', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
-  fixedPrice:    { fontSize: 26, fontWeight: 900, color: 'var(--bk)', letterSpacing: '-0.4px', display: 'flex', alignItems: 'baseline', gap: 4, margin: 0 },
-  fixedPriceUnit: { fontSize: 13, fontWeight: 700, color: 'var(--g5)' },
+  planPickerCard: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '14px', textAlign: 'center' },
 }

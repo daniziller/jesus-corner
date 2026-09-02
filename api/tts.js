@@ -11,6 +11,7 @@
 // Um teto diário por usuário pode entrar depois se o uso pedir.
 import { createClient } from '@supabase/supabase-js'
 import { generateSpeech } from 'ai'
+import { fetchEntitlement } from './_lib/entitlement.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -41,18 +42,10 @@ export default async function handler(req, res) {
   const userId = userData.user.id
 
   // Reconfere assinatura no servidor — custo real por chamada (mesmo
-  // espírito de chat-about-text.js / generate-theme-plan.js).
-  const { data: sub } = await supabase
-    .from('subscriptions')
-    .select('status, access_type')
-    .eq('user_id', userId)
-    .maybeSingle()
-  const isPremium = sub && (
-    (sub.access_type === 'free' || sub.access_type === 'lifetime')
-      ? sub.status === 'active'
-      : sub.status === 'active' || sub.status === 'trialing'
-  )
-  if (!isPremium) return res.status(403).json({ error: 'subscription_required' })
+  // espírito de chat-about-text.js / generate-theme-plan.js). Voz natural é
+  // recurso do tier Premium (não exige o tier de IA).
+  const ent = await fetchEntitlement(supabase, userId)
+  if (!ent.hasPremium) return res.status(403).json({ error: 'premium_required' })
 
   const { text, lang } = req.body || {}
   if (typeof text !== 'string' || !text.trim()) {

@@ -19,7 +19,10 @@ const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList',
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações
 // no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).
-export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang }) {
+// disabledTabs — a aba nem funciona (idade); fica esmaecida e sem clique.
+// lockedTabs — a aba existe mas exige Premium: mostra um cadeadinho e o
+// clique é encaminhado normalmente (App.navigateTo leva pra 'upgrade').
+export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lockedTabs = [], lang }) {
   return (
     <nav className="bottom-nav">
       {TAB_IDS.map(id => {
@@ -31,6 +34,7 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, dis
         const label = t(`nav.${id}`, undefined, lang)
         const active = activeTab === id
         const disabled = disabledTabs.includes(id)
+        const locked = !disabled && lockedTabs.includes(id)
         const featured = id === 'journey'
         return (
           <button
@@ -43,7 +47,12 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, dis
           >
             <span className={`nav-icon ${featured ? 'nav-icon-featured' : ''}`} style={{ position: 'relative' }}>
               <AppIcon name={TAB_ICONS[id]} size={featured ? 22 : 20} color={featured ? 'white' : active ? 'var(--or)' : 'var(--g4)'} />
-              {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
+              {id === 'groups' && groupsHasPending && !disabled && !locked && <span className="nav-pending-dot" />}
+              {locked && (
+                <span style={{ position: 'absolute', top: -3, right: -6, width: 13, height: 13, borderRadius: 99, background: 'var(--or)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AppIcon name="Lock" size={8} color="white" />
+                </span>
+              )}
             </span>
             <span className={`nav-label ${featured ? 'nav-label-featured' : ''}`}>{label}</span>
           </button>

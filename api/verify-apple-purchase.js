@@ -11,19 +11,12 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { getSubscriptionStatuses, decodeSignedTransaction, mapAppleSubscriptionState } from './_lib/apple.js'
-import { STORE_TIERS } from '../src/billing/storeTiers.js'
+import { findTierByAppleProductId } from '../src/billing/storeTiers.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-
-function findTierByProductId(productId) {
-  for (const mode of Object.keys(STORE_TIERS)) {
-    if (STORE_TIERS[mode].appleProductId === productId) return { ...STORE_TIERS[mode], mode }
-  }
-  return null
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -49,7 +42,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'missing_fields' })
   }
 
-  const tier = findTierByProductId(productId)
+  const tier = findTierByAppleProductId(productId)
   if (!tier) {
     return res.status(400).json({ error: 'unknown_product' })
   }
@@ -107,7 +100,8 @@ export default async function handler(req, res) {
     apple_original_transaction_id: originalTransactionId,
     apple_product_id: productId,
     access_type: 'recurring',
-    plan: tier.mode === 'annual' ? 'annual' : 'monthly',
+    plan: tier.interval === 'year' ? 'annual' : 'monthly',
+    tier: tier.tier,
     status,
     amount_cents: Math.round((tier[currency] ?? tier.usd) * 100),
     currency,

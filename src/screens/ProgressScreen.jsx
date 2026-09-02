@@ -2,9 +2,10 @@ import { ACCENT_MAP } from '../utils/blockColors'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import AchievementBadge from '../components/AchievementBadge'
+import PremiumLockCard from '../components/PremiumLockCard'
 
 export default function ProgressScreen({ session, blocks, onNavigate }) {
-  const { lang } = session
+  const { lang, hasPremium } = session
   const CIRC = 408.41  // 2π×65
   const offset = CIRC - (session.biblePercent / 100) * CIRC
 
@@ -121,7 +122,8 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
             </div>
 
             {/* Nível e XP — pontuação total e quanto falta pro próximo nível
-                em destaque (ver também LevelCard na Home). */}
+                em destaque (ver também LevelCard na Home). Premium. */}
+            {hasPremium && (
             <div style={styles.levelCard}>
               <div style={styles.levelEmoji}><AppIcon name={session.level.icon} size={24} color="var(--or)" /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -139,6 +141,7 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                 </p>
               </div>
             </div>
+            )}
 
             {/* Metas — desafios pessoais de constância da rotina completa
                 (ver src/routine/goals.js). Diferente de Conquistas, cada
@@ -146,7 +149,8 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                 travado/destravado — o valor central aqui é "quanto falta",
                 não só "já bati ou não". Não confundir com "Desafios", que
                 já é o nome usado pros desafios de leitura em GRUPO, na aba
-                Comunidade. */}
+                Comunidade. Premium. */}
+            {hasPremium && (
             <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' }}>
               <p style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>
                 {translate('goals.sectionTitle', undefined, lang)} · {session.goals.filter(g => g.completed).length}/{session.goals.length}
@@ -165,12 +169,14 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                 })()}
               </div>
             </div>
+            )}
           </div>
 
           {/* Coluna direita: conquistas + sessões restantes */}
           <div className="dashboard-col">
 
-            {/* Conquistas */}
+            {/* Conquistas — Premium. No grátis, um convite pro Premium. */}
+            {hasPremium ? (
             <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 15, boxShadow: 'var(--shadow-card)' }}>
               <p style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 12 }}>
                 {translate('progress.achievements', undefined, lang)} · {session.achievements.filter(a => a.unlocked).length}/{session.achievements.length}
@@ -186,6 +192,9 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                 ))}
               </div>
             </div>
+            ) : (
+              <PremiumLockCard lang={lang} onNavigate={onNavigate} variant="premium" />
+            )}
 
             {/* Sessões restantes — versão compacta no mobile (só o número,
                 não tinha frame do Figma pra essa tela) e versão completa
@@ -201,9 +210,11 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
               <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginBottom: 14 }}>
                 {translate('progress.sessionsLeftDesc', undefined, lang)}
               </p>
-              <button className="btn-primary" style={{ width: 'auto', padding: '10px 18px' }} onClick={() => onNavigate?.('routine')}>
-                {translate('progress.viewActivePlan', undefined, lang)}
-              </button>
+              {hasPremium && (
+                <button className="btn-primary" style={{ width: 'auto', padding: '10px 18px' }} onClick={() => onNavigate?.('routine')}>
+                  {translate('progress.viewActivePlan', undefined, lang)}
+                </button>
+              )}
             </div>
           </div>
 

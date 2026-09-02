@@ -8,22 +8,12 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { getSubscriptionPurchase, mapPlaySubscriptionState } from './_lib/googlePlay.js'
-import { STORE_TIERS } from '../src/billing/storeTiers.js'
+import { findTierByGooglePlayBasePlan } from '../src/billing/storeTiers.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-
-// Nunca confiar em valor/moeda vindos do cliente — só no sku, validado
-// contra este registro (a mesma fonte usada pra montar a tela de
-// assinatura, ver src/billing/storeTiers.js).
-function findTierBySku(sku) {
-  for (const mode of Object.keys(STORE_TIERS)) {
-    if (STORE_TIERS[mode].googlePlaySku === sku) return { ...STORE_TIERS[mode], mode }
-  }
-  return null
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -44,14 +34,9 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  const { purchaseToken, sku } = req.body ?? {}
-  if (!purchaseToken || !sku) {
+  const { purchaseToken, basePlanId: clientBasePlanId } = req.body ?? {}
+  if (!purchaseToken) {
     return res.status(400).json({ error: 'missing_fields' })
-  }
-
-  const tier = findTierBySku(sku)
-  if (!tier) {
-    return res.status(400).json({ error: 'unknown_sku' })
   }
 
   let purchase
@@ -60,6 +45,15 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('Failed to verify Google Play purchase:', err.message)
     return res.status(400).json({ error: 'verification_failed' })
+  }
+
+  // Nunca confiar em valor/moeda/plano vindos do cliente — o base plan
+  // autoritativo vem da própria resposta da Play Developer API; o valor
+  // enviado pelo cliente é só um fallback. Ver src/billing/storeTiers.js.
+  const basePlanId = purchase.lineItems?.[0]?.offerDetails?.basePlanId ?? clientBasePlanId
+  const tier = findTierByGooglePlayBasePlan(basePlanId)
+  if (!tier) {
+    return res.status(400).json({ error: 'unknown_base_plan' })
   }
 
   // A compra precisa ter sido feita por quem está chamando — obfuscatedAccountId
@@ -98,10 +92,11 @@ export default async function handler(req, res) {
     user_id: caller.id,
     billing_provider: 'google_play',
     google_play_purchase_token: purchaseToken,
-    google_play_product_id: sku,
+    google_play_product_id: basePlanId,
     google_play_order_id: purchase.latestOrderId ?? null,
     access_type: 'recurring',
-    plan: tier.mode === 'annual' ? 'annual' : 'monthly',
+    plan: tier.interval === 'year' ? 'annual' : 'monthly',
+    tier: tier.tier,
     status,
     amount_cents: Math.round(tier[currency] * 100),
     currency,

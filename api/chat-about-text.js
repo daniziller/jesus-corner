@@ -7,6 +7,7 @@
 // estruturados em vez de confiar só no texto livre gerado).
 import { createClient } from '@supabase/supabase-js'
 import { answerTextQuestion } from './_lib/ai.js'
+import { fetchEntitlement } from './_lib/entitlement.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
 
@@ -63,22 +64,10 @@ async function authenticateAndCheckPremium(req, res) {
   if (userErr || !userData?.user) { res.status(401).json({ error: 'unauthorized' }); return null }
   const caller = userData.user
 
-  // Reconfere assinatura no servidor — mesmo espírito de
-  // generate-theme-plan.js: primeiro endpoint de IA da sessão, custo real
-  // por chamada, não confia só na trava do client (nem só no PaywallGate,
-  // que barra o app inteiro mas não é o lugar certo pra essa checagem
-  // específica de novo aqui).
-  const { data: sub } = await supabase
-    .from('subscriptions')
-    .select('status, access_type')
-    .eq('user_id', caller.id)
-    .maybeSingle()
-  const isPremium = sub && (
-    (sub.access_type === 'free' || sub.access_type === 'lifetime')
-      ? sub.status === 'active'
-      : sub.status === 'active' || sub.status === 'trialing'
-  )
-  if (!isPremium) { res.status(403).json({ error: 'subscription_required' }); return null }
+  // Reconfere no servidor — recurso de IA, custo real por chamada, não
+  // confia só na trava do client. Exige o tier Premium + IA.
+  const ent = await fetchEntitlement(supabase, caller.id)
+  if (!ent.hasAI) { res.status(403).json({ error: 'subscription_required' }); return null }
 
   return { supabase, caller }
 }

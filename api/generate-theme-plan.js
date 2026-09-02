@@ -14,6 +14,7 @@
 // — este endpoint não persiste nada, só gera.
 import { createClient } from '@supabase/supabase-js'
 import { findThemePassages } from './_lib/ai.js'
+import { fetchEntitlement } from './_lib/entitlement.js'
 import { isAdminEmail } from './_lib/adminAuth.js'
 import { BIBLE_BLOCKS, WORDS_PER_MINUTE, PLANS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -109,17 +110,10 @@ export default async function handler(req, res) {
   // assinatura no servidor (mesma lógica de isPremiumActive, ver
   // src/billing/subscriptionStore.js) em vez de confiar só na trava
   // client-side, que qualquer um consegue contornar chamando a API direto.
-  const { data: sub } = await supabase
-    .from('subscriptions')
-    .select('status, access_type')
-    .eq('user_id', caller.id)
-    .maybeSingle()
-  const isPremium = sub && (
-    (sub.access_type === 'free' || sub.access_type === 'lifetime')
-      ? sub.status === 'active'
-      : sub.status === 'active' || sub.status === 'trialing'
-  )
-  if (!isPremium) return res.status(403).json({ error: 'subscription_required' })
+  // Recurso de IA — reconfere no servidor (não confia só na trava do
+  // client) e exige o tier Premium + IA.
+  const ent = await fetchEntitlement(supabase, caller.id)
+  if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
 
   // Limite de 4 planos por tema a cada 30 dias (não confia só na trava do
   // client — reconfere aqui, mesmo espírito da checagem de assinatura

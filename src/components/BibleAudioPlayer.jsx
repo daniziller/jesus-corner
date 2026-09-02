@@ -19,7 +19,7 @@ import {
   pauseSpeech, resumeSpeech,
 } from '../audio/premiumSpeech'
 
-export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance }) {
+export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, allowPremiumVoice = true }) {
   const L = (k, vars) => t(`bibleAudio.${k}`, vars, lang)
 
   // idle | loading | playing | paused | done | error
@@ -81,6 +81,7 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance }) 
     setStatus('playing')
     const ctl = speakSequence(chunks, {
       lang,
+      deviceOnly: !allowPremiumVoice,
       onChunk: i => setProgress((i + 1) / total),
       onDone: () => {
         if (statusRef.current !== 'playing') return
@@ -96,7 +97,7 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance }) 
     })
     ctlRef.current = ctl
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.id, lang, bookName])
+  }, [session.id, lang, bookName, allowPremiumVoice])
 
   // Modo contínuo: quando o capítulo muda (onAdvance), emenda no novo sem
   // parar. Só age se já estava tocando — não dispara no primeiro render.

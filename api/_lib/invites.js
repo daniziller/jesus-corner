@@ -28,6 +28,7 @@ export async function grantFreeAccessFromInvite(invite, userId) {
   const { error: upsertErr } = await supabaseAdmin.from('subscriptions').upsert({
     user_id: userId,
     access_type: 'lifetime',
+    tier: 'premium_ai',
     status: 'active',
     updated_at: new Date().toISOString(),
   })

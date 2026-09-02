@@ -403,6 +403,9 @@ export default function RoutineScreen({
                       </div>
                     )}
 
+                    {/* Plano por tema é gerado por IA — só no tier Premium + IA. */}
+                    {session.hasAI && (
+                    <>
                     <div style={styles.sectionHeaderRow}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ ...styles.sectionLabel, margin: 0 }}>
@@ -469,6 +472,8 @@ export default function RoutineScreen({
                         {t('plan.createThemePlanLink', undefined, lang)}
                       </button>
                     </div>
+                    </>
+                    )}
 
                     {activePlanData.kind !== 'theme' && (
                       <>

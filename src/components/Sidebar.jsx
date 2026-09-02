@@ -22,7 +22,7 @@ const sidebarFeaturedIconWrap = { position: 'relative', display: 'inline-flex', 
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações
 // no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).
-export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], lockedTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
@@ -65,11 +65,13 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
           const label = t(`nav.${id}`, undefined, lang)
           const active = activeTab === id
           const disabled = disabledTabs.includes(id)
+          // disabledTabs = 'groups' por idade. lockedTabs = exige Premium
+          // (Meu Plano, Comunidade) — clicável, o clique vai pra 'upgrade'
+          // (ver App.navigateTo).
+          const locked = !disabled && lockedTabs.includes(id)
           const featured = id === 'journey'
-          // Hoje a única aba que pode estar em disabledTabs é 'groups', e
-          // só por idade (assinatura virou granular por recurso, não trava
-          // mais aba inteira nenhuma — ver App.jsx).
-          const tooltip = t('groups.minAgeRestricted', undefined, lang)
+          const tooltip = disabled ? t('groups.minAgeRestricted', undefined, lang)
+            : locked ? t('billing.premiumRequired.cta', undefined, lang) : undefined
           return (
             <button
               key={id}
@@ -77,11 +79,16 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
               onClick={() => !disabled && onNavigate(id)}
               disabled={disabled}
               style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
-              title={disabled ? tooltip : undefined}
+              title={tooltip}
             >
               <span style={featured ? sidebarFeaturedIconWrap : { position: 'relative', display: 'inline-flex' }}>
                 <AppIcon name={TAB_ICONS[id]} size={featured ? 17 : 18} color={featured ? 'white' : active ? 'var(--or)' : 'var(--g4)'} />
-                {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
+                {id === 'groups' && groupsHasPending && !disabled && !locked && <span className="nav-pending-dot" />}
+                {locked && (
+                  <span style={{ position: 'absolute', top: -4, right: -7, width: 13, height: 13, borderRadius: 99, background: 'var(--or)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <AppIcon name="Lock" size={8} color="white" />
+                  </span>
+                )}
               </span>
               <span style={featured ? { fontWeight: 700 } : undefined}>{label}</span>
             </button>
