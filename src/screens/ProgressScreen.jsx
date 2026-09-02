@@ -120,20 +120,21 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
               <StatBox icon="Library" iconBg="rgba(181,0,93,.08)" iconColor="#B5005D" value={`${session.booksCompleted}/${session.totalBooks}`} label={translate('progress.booksCompleted', undefined, lang)} />
             </div>
 
-            {/* Nível e XP */}
+            {/* Nível e XP — pontuação total e quanto falta pro próximo nível
+                em destaque (ver também LevelCard na Home). */}
             <div style={styles.levelCard}>
               <div style={styles.levelEmoji}><AppIcon name={session.level.icon} size={24} color="var(--or)" /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                   <span style={styles.levelTitle}>{lang === 'en' ? 'Level' : 'Nível'} {session.level.level} · {session.level.title}</span>
-                  <span style={{ ...styles.levelXp, fontFamily: 'var(--font-display)' }}>{session.xp} XP</span>
+                  <span style={styles.levelXpBig}>{session.xp.toLocaleString(lang === 'en' ? 'en' : 'pt-BR')} <span style={styles.levelXpUnit}>XP</span></span>
                 </div>
                 <div style={styles.levelBar}>
                   <div style={{ ...styles.levelBarFill, width: `${session.levelPercent}%` }} />
                 </div>
                 <p style={styles.levelSub}>
                   {session.nextLevel
-                    ? <>{translate('progress.xpToNext', { n: session.xpForNext, title: session.nextLevel.title }, lang)} <AppIcon name={session.nextLevel.icon} size={11} style={{ verticalAlign: 'middle' }} /></>
+                    ? <>{translate('progress.xpToNextEmph', { n: session.xpForNext.toLocaleString(lang === 'en' ? 'en' : 'pt-BR'), level: session.nextLevel.level }, lang)} <AppIcon name={session.nextLevel.icon} size={11} color="var(--or)" style={{ verticalAlign: 'middle' }} /></>
                     : translate('progress.maxLevel', undefined, lang)}
                 </p>
               </div>
@@ -180,6 +181,7 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
                     <AchievementBadge icon={a.icon} tone={a.tone} unlocked={a.unlocked} size={46} />
                     <p style={{ ...styles.achievementTitle, opacity: a.unlocked ? 1 : 0.5 }}>{a.title}</p>
                     <p style={{ ...styles.achievementDesc, opacity: a.unlocked ? 1 : 0.45 }}>{a.desc}</p>
+                    <span style={{ ...styles.achievementXp, ...(a.unlocked ? {} : styles.achievementXpLocked) }}>+{a.xp} XP</span>
                   </div>
                 ))}
               </div>
@@ -296,16 +298,19 @@ const styles = {
   heroIconCircle: { width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   levelCard:   { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:  { fontSize: 26, flexShrink: 0 },
-  levelTitle:  { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
-  levelXp:     { fontSize: 10.5, fontWeight: 700, color: 'var(--or)' },
+  levelTitle:  { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px', minWidth: 0 },
+  levelXpBig:  { flexShrink: 0, fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.4px', fontVariantNumeric: 'tabular-nums' },
+  levelXpUnit: { fontSize: 10.5, fontWeight: 700 },
   levelBar:    { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
   levelBarFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
-  levelSub:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
+  levelSub:    { fontSize: 11.5, fontWeight: 700, color: 'var(--or)', marginTop: 5 },
   achievementsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
   achievementCard:  { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '13px 8px 11px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 0 },
   achievementCardUnlocked: { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)' },
   achievementTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.25 },
   achievementDesc:  { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },
+  achievementXp:    { marginTop: 'auto', fontSize: 9, fontWeight: 800, color: 'var(--or)', background: 'rgba(157,67,0,.1)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.2 },
+  achievementXpLocked: { color: 'var(--g4)', background: 'var(--g2)' },
 
   goalCard:      { display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: 11 },
   goalCardCompleted: { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)' },
