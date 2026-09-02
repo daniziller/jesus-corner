@@ -27,8 +27,8 @@ export function ageFromBirthdate(birthdate) {
 // True só quando dá para afirmar que a pessoa é menor de 18. Data ausente
 // ou malformada devolve false: a validação de formato é responsabilidade do
 // campo, e não queremos bloquear cadastro por erro de digitação. Contas
-// criadas antes deste corte não são revalidadas no login (ver
-// AskUserQuestion no histórico) — só o cadastro novo é barrado.
+// criadas antes deste corte não são revalidadas no login — só o cadastro
+// novo é barrado.
 export function isUnderMinAge(birthdate) {
   const age = ageFromBirthdate(birthdate)
   return age !== null && age < MIN_AGE
