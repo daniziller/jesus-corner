@@ -1,13 +1,13 @@
-// Idade mínima — art. 14 da LGPD.
+// Idade mínima — o Jesus' Corner é um produto para maiores de 18 anos.
 //
-// A lei trata como CRIANÇA quem tem menos de 12 anos, e exige, para tratar
-// dados dessa faixa, consentimento específico e em destaque de pelo menos um
-// dos pais ou responsável legal. Não há como verificar isso de forma
-// confiável num cadastro por email, então a porta fica fechada.
-//
-// Acima de 12 (adolescente) o critério legal é o melhor interesse, sem
-// exigência de consentimento parental — por isso o corte é em 12 e não em 18.
-export const MIN_AGE = 12
+// Decisão de produto, não só de conformidade: mantendo a porta fechada para
+// menores de idade, o app não trata NENHUM dado de criança ou adolescente,
+// e fica de fora das regras específicas para esse público (art. 14 da LGPD,
+// política de Famílias da Google Play, seção de dados de menores na Data
+// Safety, etc.). O cadastro pede a idade e a tela de criação de conta,
+// além do servidor (ver src/auth/authStore.js), barram quem declara menos
+// de 18.
+export const MIN_AGE = 18
 
 // Idade em anos completos na data de hoje. Retorna null se a data for vazia
 // ou inválida — quem chama decide o que fazer com isso.
@@ -24,9 +24,11 @@ export function ageFromBirthdate(birthdate) {
   return age
 }
 
-// True só quando dá para afirmar que a pessoa é menor de 12. Data ausente ou
-// malformada devolve false: a validação de formato é responsabilidade do
-// campo, e não queremos bloquear cadastro por erro de digitação.
+// True só quando dá para afirmar que a pessoa é menor de 18. Data ausente
+// ou malformada devolve false: a validação de formato é responsabilidade do
+// campo, e não queremos bloquear cadastro por erro de digitação. Contas
+// criadas antes deste corte não são revalidadas no login — só o cadastro
+// novo é barrado.
 export function isUnderMinAge(birthdate) {
   const age = ageFromBirthdate(birthdate)
   return age !== null && age < MIN_AGE

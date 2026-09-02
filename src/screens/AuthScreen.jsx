@@ -657,14 +657,13 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
     if (!agreedToTerms || !agreedToSensitive) { setError(t('auth.mustAgreeToTerms')); return }
     const ageNum = Number(age)
     if (!age || !Number.isFinite(ageNum) || ageNum <= 0 || ageNum > 120) { setError(t('auth.ageInvalidError')); return }
-    // Art. 14 da LGPD: menor de 12 é criança, e o tratamento exige
-    // consentimento específico de um dos pais, que não temos como verificar.
+    // O Jesus' Corner é para maiores de 18 (ver src/privacy/minAge.js).
     // A checagem se repete no servidor (ver src/auth/authStore.js).
     if (ageNum < MIN_AGE) { setError(t('auth.minAgeError')); return }
     setLoading(true)
     try {
       // A tela só pede idade — convertemos pra uma data sintética antes de
-      // guardar, já que o resto do app (gate de 16+ da Comunidade etc.)
+      // guardar, já que o resto do app (gate de idade da Comunidade etc.)
       // trabalha com data de nascimento (ver ageToApproxBirthdate).
       const birthdate = ageToApproxBirthdate(ageNum)
       const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
@@ -757,7 +756,7 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       </div>
 
       <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder={t('auth.emailPlaceholder')} />
-      <Field label={t('auth.ageLabel')} type="number" value={age} onChange={setAge} placeholder="18" />
+      <Field label={t('auth.ageLabel')} type="number" value={age} onChange={setAge} placeholder="18" hint={t('auth.ageHint')} />
       <PasswordField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
       <PasswordField label={t('auth.confirmPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
 
@@ -1137,7 +1136,7 @@ function ForgotView({ onAuthenticated, onGoLogin }) {
 }
 
 /* ── Campos reutilizáveis ── */
-function Field({ label, value, onChange, type = 'text', placeholder, autoFocus, max }) {
+function Field({ label, value, onChange, type = 'text', placeholder, autoFocus, max, hint }) {
   return (
     <label style={styles.fieldWrap}>
       <span style={styles.fieldLabel}>{label}</span>
@@ -1150,6 +1149,7 @@ function Field({ label, value, onChange, type = 'text', placeholder, autoFocus, 
         max={max}
         onChange={e => onChange(e.target.value)}
       />
+      {hint && <span style={styles.fieldHint}>{hint}</span>}
     </label>
   )
 }
@@ -1238,6 +1238,7 @@ const styles = {
   subtitle:      { fontSize: 15.5, fontWeight: 500, color: 'var(--g5)', marginTop: -6, marginBottom: 4, lineHeight: 1.5 },
   fieldWrap:     { display: 'flex', flexDirection: 'column', gap: 5 },
   fieldLabel:    { fontSize: 12, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
+  fieldHint:     { fontSize: 11, fontWeight: 500, color: 'var(--g4)' },
   input:         { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '12px 13px', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
   pinInput:      { letterSpacing: 6, fontSize: 19, textAlign: 'center' },
   checkCodeBtn:  { flexShrink: 0, border: 'none', borderRadius: 10, padding: '0 16px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', background: 'var(--grad-primary)' },
