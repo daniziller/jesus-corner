@@ -289,7 +289,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                 <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
                   <StatItem value={session.streak}       label={t('profile.sequenceLabel', undefined, session.lang)} />
                   <StatItem value={`${session.biblePercent}%`} label={t('profile.bibleLabel', undefined, session.lang)} />
-                  <StatItem value={<><AppIcon name={session.level.icon} size={14} style={{ verticalAlign: 'middle', marginRight: 3 }} />{session.level.level}</>} label={session.level.title} />
+                  <StatItem value={session.level.level} label={t('profile.levelLabel', undefined, session.lang)} />
                   <StatItem value={friendsCount} label={t('profile.friendsLabel', undefined, session.lang)} />
                 </div>
               </>
