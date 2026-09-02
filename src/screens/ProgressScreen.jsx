@@ -1,6 +1,7 @@
 import { ACCENT_MAP } from '../utils/blockColors'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import AchievementBadge from '../components/AchievementBadge'
 
 export default function ProgressScreen({ session, blocks, onNavigate }) {
   const { lang } = session
@@ -176,9 +177,9 @@ export default function ProgressScreen({ session, blocks, onNavigate }) {
               <div style={styles.achievementsGrid}>
                 {session.achievements.map(a => (
                   <div key={a.id} style={{ ...styles.achievementCard, ...(a.unlocked ? styles.achievementCardUnlocked : {}) }}>
-                    <AppIcon name={a.icon} size={22} color={a.unlocked ? 'var(--or)' : 'var(--g4)'} style={{ opacity: a.unlocked ? 1 : 0.4 }} />
-                    <p style={{ ...styles.achievementTitle, opacity: a.unlocked ? 1 : 0.45 }}>{a.title}</p>
-                    <p style={{ ...styles.achievementDesc, opacity: a.unlocked ? 1 : 0.4 }}>{a.desc}</p>
+                    <AchievementBadge icon={a.icon} tone={a.tone} unlocked={a.unlocked} size={46} />
+                    <p style={{ ...styles.achievementTitle, opacity: a.unlocked ? 1 : 0.5 }}>{a.title}</p>
+                    <p style={{ ...styles.achievementDesc, opacity: a.unlocked ? 1 : 0.45 }}>{a.desc}</p>
                   </div>
                 ))}
               </div>
@@ -301,7 +302,7 @@ const styles = {
   levelBarFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
   levelSub:    { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
   achievementsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 },
-  achievementCard:  { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '11px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0 },
+  achievementCard:  { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 13, padding: '13px 8px 11px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 0 },
   achievementCardUnlocked: { background: 'var(--card-highlight-bg)', border: 'var(--card-highlight-border)' },
   achievementTitle: { fontSize: 9.5, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.25 },
   achievementDesc:  { fontSize: 9.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.3 },
