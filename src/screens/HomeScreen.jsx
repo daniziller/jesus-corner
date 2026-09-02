@@ -18,13 +18,14 @@ import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, compu
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
 import AchievementBadge from '../components/AchievementBadge'
+import PremiumLockCard from '../components/PremiumLockCard'
 import { getSeenAchievements, markAchievementsSeen } from '../achievements/seenAchievementsStore'
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
-    level, nextLevel, levelPercent, xpForNext, xp, lang,
+    level, nextLevel, levelPercent, xpForNext, xp, lang, hasPremium,
     dailyRoutine, todayRoutine, plan, activePlan, achievements, achievementsXp, goals, routineModules, activeStudyId,
   } = session
 
@@ -150,7 +151,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 no mesmo wrapper sem gap (parece um card só que muda de cor
                 na metade). */}
             <div style={styles.pctHeroWrap}>
-            <div className="home-pct-hero" style={styles.pctHero}>
+            <div className="home-pct-hero" style={{ ...styles.pctHero, ...(hasPremium ? {} : { borderRadius: 22 }) }}>
               <div style={styles.pctHeroGlow} />
 
               {/* Anel (com % só UMA vez, dentro dele) + texto "Bíblia lida"
@@ -183,20 +184,31 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 </div>
 
                 {/* Streak + constância — a mesma métrica de constância que só
-                    existia na aba Rotina, agora também aqui. */}
+                    existia na aba Rotina, agora também aqui. Constância e
+                    "semanas de leitura" são métricas da rotina (Premium); no
+                    grátis fica só a sequência de dias + capítulos lidos. */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={styles.pctStatChip}>
                     <span style={styles.pctStatValue}><AppIcon name="Flame" size={13} /> {streak}</span>
                     <span style={styles.pctStatLabel}>{translate('home.streakLabel', undefined, lang)}</span>
                   </div>
-                  <div style={styles.pctStatChip}>
-                    <span style={styles.pctStatValue}><AppIcon name="Repeat" size={13} /> {consistencyValue}</span>
-                    <span style={styles.pctStatLabel}>{translate('home.shareCardConsistencyLabel', undefined, lang)}</span>
-                  </div>
-                  <div style={styles.pctStatChip}>
-                    <span style={styles.pctStatValue}><AppIcon name="Calendar" size={13} /> {readingWeekStreak}</span>
-                    <span style={styles.pctStatLabel}>{translate('home.readingWeekStreakLabel', undefined, lang)}</span>
-                  </div>
+                  {hasPremium ? (
+                    <>
+                      <div style={styles.pctStatChip}>
+                        <span style={styles.pctStatValue}><AppIcon name="Repeat" size={13} /> {consistencyValue}</span>
+                        <span style={styles.pctStatLabel}>{translate('home.shareCardConsistencyLabel', undefined, lang)}</span>
+                      </div>
+                      <div style={styles.pctStatChip}>
+                        <span style={styles.pctStatValue}><AppIcon name="Calendar" size={13} /> {readingWeekStreak}</span>
+                        <span style={styles.pctStatLabel}>{translate('home.readingWeekStreakLabel', undefined, lang)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={styles.pctStatChip}>
+                      <span style={styles.pctStatValue}><AppIcon name="BookOpen" size={13} /> {chaptersRead}</span>
+                      <span style={styles.pctStatLabel}>{translate('home.chaptersLabel', undefined, lang)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Compartilhar em rede social — gera uma imagem própria
@@ -219,23 +231,22 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               </div>
             </div>
 
-            {/* Rotina da semana (segunda a domingo) — mesma lógica de
-                cores do calendário de histórico (RoutineCalendar.jsx):
-                círculo com gradiente dourado→marrom só quando os 3 passos
-                do dia foram concluídos, 3 pontinhos coloridos por
-                ROUTINE_STEP_COLORS embaixo. Cores pensadas pra fundo claro
-                — por isso mora numa seção clara própria, não dentro do
-                card com gradiente escuro (onde --or e preto quase somem). */}
-            <div style={styles.weekRoutineCard}>
-              <p style={styles.weekRoutineTitle}>{translate('home.weekRingsTitle', undefined, lang)}</p>
-              <WeekRoutineRow days={weekDays} lang={lang} modules={routineModules} />
-              <div style={styles.calendarLegendRow}>
-                {routineModules.includes('prayer') && <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />}
-                {routineModules.includes('reading') && <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />}
-                {routineModules.includes('study') && <LegendDot color={ROUTINE_STEP_COLORS.study} label={translate('home.routineStudy', undefined, lang)} />}
-                {routineModules.includes('reflection') && <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />}
+            {/* Rotina da semana (segunda a domingo) — recurso da rotina
+                guiada (Premium). Cores pensadas pra fundo claro — por isso
+                mora numa seção clara própria, não dentro do card com
+                gradiente escuro. */}
+            {hasPremium && (
+              <div style={styles.weekRoutineCard}>
+                <p style={styles.weekRoutineTitle}>{translate('home.weekRingsTitle', undefined, lang)}</p>
+                <WeekRoutineRow days={weekDays} lang={lang} modules={routineModules} />
+                <div style={styles.calendarLegendRow}>
+                  {routineModules.includes('prayer') && <LegendDot color={ROUTINE_STEP_COLORS.prayer} label={translate('home.routinePrayer', undefined, lang)} />}
+                  {routineModules.includes('reading') && <LegendDot color={ROUTINE_STEP_COLORS.reading} label={translate('home.routineReading', undefined, lang)} />}
+                  {routineModules.includes('study') && <LegendDot color={ROUTINE_STEP_COLORS.study} label={translate('home.routineStudy', undefined, lang)} />}
+                  {routineModules.includes('reflection') && <LegendDot color={ROUTINE_STEP_COLORS.reflection} label={translate('home.routineReflection', undefined, lang)} />}
+                </div>
               </div>
-            </div>
+            )}
             </div>
             {shareState === 'error' && (
               <p style={styles.shareCardErrorText}>{translate('home.shareCardError', undefined, lang)}</p>
@@ -253,20 +264,22 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
               </button>
             )}
 
-            {/* 3. Seu plano — tracker dos 4 passos diários, clicável, com
-                calendário de histórico embutido. */}
-            <DailyRoutineCard
-              dailyRoutine={dailyRoutine}
-              todayRoutine={todayRoutine}
-              plan={plan}
-              activePlan={activePlan}
-              routineModules={routineModules}
-              activeStudyId={activeStudyId}
-              lang={lang}
-              onNavigate={onNavigate}
-              onContinueSession={onContinueSession}
-              onMarkRoutineStep={onMarkRoutineStep}
-            />
+            {/* 3. Seu plano — tracker dos 4 passos diários (rotina guiada,
+                Premium). */}
+            {hasPremium && (
+              <DailyRoutineCard
+                dailyRoutine={dailyRoutine}
+                todayRoutine={todayRoutine}
+                plan={plan}
+                activePlan={activePlan}
+                routineModules={routineModules}
+                activeStudyId={activeStudyId}
+                lang={lang}
+                onNavigate={onNavigate}
+                onContinueSession={onContinueSession}
+                onMarkRoutineStep={onMarkRoutineStep}
+              />
+            )}
 
             {/* 4. Leitura do dia */}
             <div>
@@ -298,24 +311,34 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 </button>
               </div>
             </div>
+
+            {/* Grátis — convite pro Premium no lugar de rotina/conquistas/nível. */}
+            {!hasPremium && (
+              <PremiumLockCard lang={lang} onNavigate={onNavigate} variant="premium" />
+            )}
           </div>
 
           {/* Coluna secundária — os "desafios" (nível/XP e meta mais
               próxima) sempre por último, mais a atividade dos amigos. No
-              mobile empilha logo depois da coluna primária. */}
+              mobile empilha logo depois da coluna primária. Tudo aqui é
+              Premium (XP/níveis, metas, conquistas, atividade de amigos). */}
           <div className="dashboard-col">
 
             {/* 5. Nível e XP */}
-            <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} xp={xp} lang={lang} />
+            {hasPremium && (
+              <LevelCard level={level} nextLevel={nextLevel} percent={levelPercent} xpForNext={xpForNext} xp={xp} lang={lang} />
+            )}
 
             {/* 6. Meta mais próxima de bater (ver src/routine/goals.js) — não
                 confundir com "Desafios" de leitura em grupo (Comunidade). A
                 lista completa mora na aba Progresso. */}
-            <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
+            {hasPremium && (
+              <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
+            )}
 
             {/* Conquistas já desbloqueadas — os selos (a grade completa,
                 com as bloqueadas, mora na aba Progresso). */}
-            {unlockedAchievements.length > 0 && (
+            {hasPremium && unlockedAchievements.length > 0 && (
               <div style={styles.achievementsCard}>
                 <button style={styles.achievementsHeader} onClick={() => onNavigate?.('stats')}>
                   <span style={{ minWidth: 0 }}>
@@ -365,7 +388,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             )}
 
             {/* Atividade dos amigos (versão compacta — a completa mora na aba Comunidade) */}
-            {friendActivity.length > 0 && (
+            {hasPremium && friendActivity.length > 0 && (
               <div>
                 <div className="section-header">
                   <h3 className="section-title">{translate('activity.homeTitle', undefined, lang)}</h3>

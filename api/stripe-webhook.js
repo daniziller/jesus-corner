@@ -38,6 +38,10 @@ async function upsertFromSubscription(subscription) {
   }
   const item = subscription.items?.data?.[0]
   const plan = subscription.metadata?.plan ?? planFromInterval(item?.price?.recurring?.interval)
+  // Tier vem do metadata gravado em api/create-checkout-session.js. Sem ele
+  // (assinaturas antigas, criadas quando havia plano único), assume o
+  // pacote completo — era o que aquele plano dava.
+  const tier = subscription.metadata?.tier === 'premium' ? 'premium' : 'premium_ai'
   // Nas versões atuais da API do Stripe, current_period_end mora no item da
   // assinatura, não mais na Subscription — mas mantém o fallback pro campo
   // antigo pra não quebrar se a conta usar uma apiVersion mais velha.
@@ -49,6 +53,7 @@ async function upsertFromSubscription(subscription) {
     stripe_subscription_id: subscription.id,
     status: subscription.status,
     plan,
+    tier,
     access_type: 'recurring',
     amount_cents: item?.price?.unit_amount ?? null,
     currency: item?.price?.currency ?? null,
@@ -74,6 +79,7 @@ async function upsertFromOneTimeSession(session) {
     stripe_subscription_id: null,
     status: 'active',
     plan: 'lifetime',
+    tier: 'premium_ai',
     access_type: 'lifetime',
     amount_cents: session.amount_total,
     currency: session.currency,

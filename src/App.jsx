@@ -58,6 +58,7 @@ import { getPendingGroupInvitesCount } from './groups/groupsStore'
 import { getPendingFriendRequestsCount } from './friends/friendsStore'
 import { getMyProfile } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
+import { resolveEntitlement } from './billing/entitlement'
 import { checkIsAdmin } from './admin/adminStore'
 import { applyPendingInvite, redeemPendingInviteCode } from './invites/inviteStore'
 import { applyPendingOnboardingChoices } from './onboarding/pendingOnboardingChoices'
@@ -299,18 +300,24 @@ export default function App() {
   // ver api/_lib/adminAuth.js) — controla só se a aba Admin aparece; a
   // segurança de verdade é sempre re-checada em cada api/admin/*.js.
   const [isAdmin, setIsAdmin] = useState(false)
-  // Toda conta precisa de um access_type ativo pra usar o app — free (R$0),
-  // lifetime ou recurring, todos concedem acesso completo (ver
-  // isPremiumActive). Sem isso, PaywallGate (mais abaixo) substitui o app
-  // inteiro por uma tela única de contribuição, antes de qualquer outra
-  // rota ser montada.
-  const isPremium = isPremiumActive(subscription)
+  // Três tiers (ver src/billing/entitlement.js): 'free' (leitura + oração/
+  // reflexão avulsas + progresso básico), 'premium' (+ voz natural, mãos-
+  // livres, rotina guiada, XP/níveis/conquistas, cronológico, notas,
+  // comunidade) e 'premium_ai' (+ recursos de IA). Não há mais paywall
+  // rígido — o tier grátis usa o app, só com menos recursos; cada recurso
+  // pago gatea a si mesmo onde é usado (lockedTabs abaixo + session.hasPremium/
+  // hasAI nas telas + PremiumRequired/PremiumLockCard).
+  const entitlement = resolveEntitlement(subscription)
+  const hasPremium = entitlement.hasPremium
   // Restrição de idade (16+) da Comunidade é independente da assinatura —
   // contas sem data de nascimento (criadas antes desse campo existir) não
   // são restringidas por idade (ver isAtLeast).
   const meetsMinAge = isAtLeast(authUser?.birthdate, 16)
-  const canAccessGroups = meetsMinAge
+  const canAccessGroups = meetsMinAge && hasPremium
+  // disabledTabs — a aba nem existe (idade). lockedTabs — existe mas pede
+  // Premium: aparece com cadeado e o clique leva pra tela de assinar.
   const disabledTabs = meetsMinAge ? [] : ['groups']
+  const lockedTabs = hasPremium ? [] : ['routine', 'groups']
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
@@ -525,7 +532,7 @@ export default function App() {
 
       // Se um convite de acesso grátis acabou de ser aplicado, a assinatura
       // buscada acima (em paralelo) já está desatualizada — busca de novo
-      // pra o PaywallGate liberar sozinho, sem precisar de F5.
+      // pra os recursos Premium liberarem sozinhos, sem precisar de F5.
       const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
       if (cancelled) return
 
@@ -631,6 +638,9 @@ export default function App() {
   // justamente pra resolver o bloqueio.
   function navigateTo(tab) {
     if (disabledTabs.includes(tab) && tab !== 'upgrade') return
+    // Aba que existe mas exige Premium (Meu Plano, Comunidade pra quem não
+    // assina) — o clique leva pra tela de assinar em vez de abrir.
+    if (lockedTabs.includes(tab)) { goToTab('upgrade'); return }
     // Sair do modo guiado se a pessoa navegar explicitamente pra fora do
     // fluxo (Oração/Leitura/Reflexão) — ex: tocar em Início ou Comunidade.
     if (guidedFlowRef.current && !['prayer', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
@@ -683,6 +693,10 @@ export default function App() {
   // Iniciar em Meu Plano — encadeia os passos ligados. Com 0 ou 1 passo não
   // há o que encadear: só abre aquele passo (ou nada), sem o "modo guiado".
   function startGuidedRoutine() {
+    // Rotina guiada é recurso Premium — sem assinatura, o botão leva pra
+    // tela de assinar (a aba Meu Plano já é travada, mas a Home também tem
+    // um atalho de "Iniciar").
+    if (!hasPremium) { goToTab('upgrade'); return }
     const steps = GUIDED_STEPS.filter(s => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s))
     if (steps.length === 0) return
     if (steps.length === 1) {
@@ -911,8 +925,8 @@ export default function App() {
   }
 
   // Rebusca a assinatura e atualiza o estado — usado depois de resgatar um
-  // convite de acesso grátis (ver UpgradeScreen.jsx), pra liberar o
-  // PaywallGate sozinho, sem precisar de F5.
+  // convite de acesso grátis ou fechar uma compra (ver UpgradeScreen.jsx),
+  // pra liberar os recursos Premium sozinho, sem precisar de F5.
   async function refreshSubscription() {
     const sub = await getMySubscription()
     setSubscription(sub)
@@ -1181,7 +1195,7 @@ export default function App() {
     const newlyDoneKeys = done ? keys.filter(k => !completedSet.has(k)) : []
     const nextSet = new Set(completedSet)
     keys.forEach(k => done ? nextSet.add(k) : nextSet.delete(k))
-    if (done) detectAndLogMilestones(completedSet, nextSet)
+    if (done && hasPremium) detectAndLogMilestones(completedSet, nextSet)
     setCompletedSet(nextSet)
     const persist = done ? markKeysDone(authUser.email, keys) : markKeysUndone(authUser.email, keys)
     persist.catch(err => console.error('Failed to persist session progress', err))
@@ -1216,7 +1230,7 @@ export default function App() {
     const nextSet = new Set(completedSet)
     if (done) nextSet.add(key)
     else nextSet.delete(key)
-    if (done) detectAndLogMilestones(completedSet, nextSet)
+    if (done && hasPremium) detectAndLogMilestones(completedSet, nextSet)
     setCompletedSet(nextSet)
     const persist = done ? markKeysDone(authUser.email, [key]) : markKeysUndone(authUser.email, [key])
     persist.catch(err => console.error('Failed to persist chapter progress', err))
@@ -1277,21 +1291,13 @@ export default function App() {
   session.guided = guidedFlow
     ? { steps: guidedFlow.steps, idx: guidedFlow.idx, total: guidedFlow.steps.length, step: guidedFlow.steps[guidedFlow.idx] }
     : null
+  // Tier de acesso disponível pra toda tela (ver src/billing/entitlement.js).
+  // hasPremium: rotina guiada, voz natural, mãos-livres, XP/conquistas,
+  // cronológico, notas, comunidade. hasAI: recursos de IA.
+  session.tier = entitlement.tier
+  session.hasPremium = entitlement.hasPremium
+  session.hasAI = entitlement.hasAI
   sessionRef.current = session
-
-  // O app inteiro agora exige assinatura ativa — não existe mais versão
-  // grátis. Quem não é assinante só vê essa tela (com botão de assinar e de
-  // sair); nenhuma outra rota é montada, então não precisa de gate
-  // individual em cada tela/recurso (isPremium abaixo é sempre true depois
-  // daqui, mantido só porque telas internas ainda recebem a prop).
-  if (!isPremium) {
-    return (
-      <>
-        <PaywallGate session={session} subscription={subscription} onLogout={handleLogout} onSubscriptionRefreshed={refreshSubscription} />
-        <Analytics />
-      </>
-    )
-  }
 
   // Trava o ref de visita assim que a aba vira ativa — feito aqui (não num
   // useEffect) pra já valer NESTE mesmo render, sem esperar o próximo ciclo
@@ -1304,28 +1310,44 @@ export default function App() {
 
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
-    routine: <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onStartGuided={startGuidedRoutine} />,
+    routine: hasPremium
+      ? <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onStartGuided={startGuidedRoutine} />
+      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
-    themePlan: <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
-    chronologicalPlan: <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
+    themePlan: !session.hasAI
+      ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
+      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
+    chronologicalPlan: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} />,
-    groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} /> : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
+    groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
+      : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
+      : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
-    handsFree: <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />,
+    handsFree: hasPremium
+      ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
+      : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
-    profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onProfileUpdated={handleProfileUpdated} />,
+    profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onSelectPace={selectPlan} onProfileUpdated={handleProfileUpdated} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
     ...(isAdmin ? { admin: <AdminScreen session={session} /> } : {}),
+    // Notas e Estudos são Premium — pra assinante ficam montadas persistentes
+    // (display:contents, mais abaixo); pra grátis caem aqui.
+    ...(hasPremium ? {} : {
+      notes:   <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+      studies: <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    }),
   }
 
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥768px (ver index.css) */}
       {isDesktop && (
-        <Sidebar activeTab={activeTab} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+        <Sidebar activeTab={activeTab} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lockedTabs={lockedTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
       )}
 
       <div className="app-main">
@@ -1335,7 +1357,7 @@ export default function App() {
         {/* Conteúdo da tela ativa */}
         <div className="app-content">
           <div className="app-content-inner">
-            {activeTab !== 'prayer' && activeTab !== 'reflection' && activeTab !== 'notes' && activeTab !== 'studies' && screens[activeTab]}
+            {activeTab !== 'prayer' && activeTab !== 'reflection' && !(hasPremium && (activeTab === 'notes' || activeTab === 'studies')) && screens[activeTab]}
 
             {/* Oração, Reflexão, Notas e Estudos ficam sempre montadas
                 depois da 1a visita (ver prayerVisitedRef/reflectionVisitedRef/
@@ -1352,12 +1374,12 @@ export default function App() {
                 <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} />
               </div>
             )}
-            {notesVisitedRef.current && (
+            {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
                 <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} />
               </div>
             )}
-            {studiesVisitedRef.current && (
+            {hasPremium && studiesVisitedRef.current && (
               <div style={{ display: activeTab === 'studies' ? 'contents' : 'none' }}>
                 <StudiesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} />
               </div>
@@ -1366,7 +1388,7 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <768px */}
-        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
+        <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lockedTabs={lockedTabs} lang={session.lang} />
       </div>
 
       <Analytics />
@@ -1387,45 +1409,27 @@ function MinAgeRestricted({ lang }) {
   )
 }
 
-// Mostrada no lugar de Rotina/Comunidade pra quem ainda não é assinante —
-// segunda linha de defesa (mesmo espírito de MinAgeRestricted acima), pro
-// caso de activeTab ficar numa dessas abas por algum outro caminho.
-// Tela única mostrada pra quem ainda não tem assinatura ativa — substitui
-// o app-shell inteiro (sem Sidebar/BottomNav, já que não há mais nenhuma
-// outra rota acessível sem assinar). Cabeçalho sempre visível (não usa a
-// classe .app-header, que soma display:none no breakpoint desktop em favor
-// da Sidebar — aqui não existe Sidebar) com logo e um jeito de sair, e o
-// corpo é a própria UpgradeScreen, reaproveitando .app-content/.app-content-inner
-// pro mesmo max-width responsivo já usado no resto do app.
-function PaywallGate({ session, subscription, onLogout, onSubscriptionRefreshed }) {
+// Mostrada no lugar de uma aba inteira que exige Premium (Meu Plano,
+// Comunidade, mãos-livres) — segunda linha de defesa (mesmo espírito de
+// MinAgeRestricted acima): a Sidebar/BottomNav já levam o clique pra
+// 'upgrade', isto cobre o caso de activeTab cair aqui por outro caminho.
+// `feature` escolhe o texto ('routine' | 'groups' | 'handsFree'), com
+// fallback genérico.
+function PremiumRequired({ feature, lang, onNavigate }) {
+  const key = ['routine', 'groups', 'handsFree', 'ai'].includes(feature) ? feature : 'generic'
   return (
-    <div className="app-shell">
-      <div className="app-main" style={{ width: '100%' }}>
-        <div style={paywallStyles.header}>
-          <div style={paywallStyles.brand}>
-            <img src="/icons/icon-192.png" alt="" style={paywallStyles.logo} />
-            <span style={paywallStyles.brandName}>JESUS' CORNER</span>
-          </div>
-          <button onClick={onLogout} style={paywallStyles.logoutBtn}>
-            {t('profile.logoutLabel', undefined, session.lang)}
-          </button>
-        </div>
-        <div className="app-content">
-          <div className="app-content-inner">
-            <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={onSubscriptionRefreshed} />
-          </div>
-        </div>
-      </div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
+      <AppIcon name={key === 'ai' ? 'Sparkles' : 'Crown'} size={30} color="var(--or)" />
+      <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--bk)' }}>{t(`billing.premiumRequired.${key}.title`, undefined, lang)}</p>
+      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', maxWidth: 280, lineHeight: 1.5 }}>{t(`billing.premiumRequired.${key}.sub`, undefined, lang)}</p>
+      <button
+        onClick={() => onNavigate?.('upgrade')}
+        style={{ marginTop: 4, border: 'none', background: 'var(--grad-vivid)', color: 'white', borderRadius: 12, padding: '10px 20px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' }}
+      >
+        {t('billing.premiumRequired.cta', undefined, lang)}
+      </button>
     </div>
   )
-}
-
-const paywallStyles = {
-  header:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64, padding: '0 20px', flexShrink: 0, background: 'var(--header-bg)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' },
-  brand:      { display: 'flex', alignItems: 'center', gap: 12 },
-  logo:       { width: 32, height: 32, borderRadius: 8, flexShrink: 0 },
-  brandName:  { fontSize: 18, fontWeight: 700, lineHeight: '28px', color: 'var(--brand-deep)', letterSpacing: -0.45, whiteSpace: 'nowrap' },
-  logoutBtn:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 10, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
 }
 
 // Exibida enquanto verificamos se já existe uma sessão do Supabase e, se

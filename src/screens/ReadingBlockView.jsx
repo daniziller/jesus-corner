@@ -24,7 +24,7 @@ import GuidedFlowBanner from '../components/GuidedFlowBanner'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 
 export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, embedded = false }) {
-  const { lang } = session
+  const { lang, hasPremium, hasAI } = session
   const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
   // Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
   // .rb-detail, min-width: 768px) — usado só em modo 'browse' pra decidir
@@ -342,6 +342,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // "editar esse grifo" em vez de somar à seleção. Sempre abre o popup
   // ancorado perto do toque; fecha sozinho se a seleção esvaziar.
   function handleHighlightVerseClick(ch, v, rect) {
+    if (!hasPremium) return // grifar/anotar é recurso Premium
     const existing = highlights?.find(h => !h.hidden && h.book === heroSession.book && h.chapter === ch && h.verses.includes(v))
     if (existing) {
       setHighlightEditingId(existing.id)
@@ -373,6 +374,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // data-verse). Sempre substitui a seleção em andamento (não soma a um
   // grifo já aberto pra edição), mesmo espírito de handleHighlightVerseClick.
   function handleHighlightTextRange(ch, verses, rect) {
+    if (!hasPremium) return // grifar/anotar é recurso Premium
     setHighlightEditingId(null)
     setHighlightSelection({ chapter: ch, verses })
     setWantsToAnnotate(false)
@@ -525,8 +527,8 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <div style={styles.browseTagsRow}>
           {/* IA nunca entra aqui — tem seu próprio botão flutuante (FAB),
               em qualquer um dos dois modos; repetir na lista de abas
-              seria a mesma coisa duas vezes. */}
-          {TAGS.filter(tag => tag.key !== 'ia').map(tag => (
+              seria a mesma coisa duas vezes. Notas exige Premium. */}
+          {TAGS.filter(tag => tag.key !== 'ia' && (tag.key !== 'notas' || hasPremium)).map(tag => (
             <span
               key={tag.key}
               style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
@@ -555,6 +557,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               lang={lang}
               hasNext={!!nextInBook}
               onAdvance={() => goToNextInline(heroSession)}
+              allowPremiumVoice={hasPremium}
             />
           </div>
         )
@@ -736,19 +739,22 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         árvore, o mesmo truque de centralização de .bottom-nav
         (left:50%+translateX(-50%) dentro de max-width:var(--max-width))
         funciona igual. */}
-    {heroSession.type !== 'reflection' && (mode !== 'browse' || expandedChapterId != null) && createPortal(
+    {heroSession.type !== 'reflection' && (mode !== 'browse' || expandedChapterId != null) && (hasPremium || hasAI) && createPortal(
       <div style={styles.aiFabWrap}>
         {/* Lápis em cima do robô da IA — mesmo FAB flutuante, mesma coluna,
             só empilhado (ver styles.highlightFab: mesmo `right`, `bottom`
-            maior). Abre a mesma janela flutuante do grifo (ver embaixo);
-            com uma seleção em andamento ela já mostra o compositor, sem
-            seleção mostra os grifos já feitos neste trecho. */}
-        <button type="button" style={styles.highlightFab} onClick={openHighlightList} aria-label={t('reading.tagHighlight', undefined, lang)}>
-          <AppIcon name="Pencil" size={19} color="white" />
-        </button>
-        <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
-          <AppIcon name="HelpCircle" size={22} color="white" />
-        </button>
+            maior). Grifar/anotar exige Premium; perguntar à IA exige
+            Premium + IA. */}
+        {hasPremium && (
+          <button type="button" style={{ ...styles.highlightFab, ...(hasAI ? {} : { bottom: 'calc(var(--nav-height) + 16px)' }) }} onClick={openHighlightList} aria-label={t('reading.tagHighlight', undefined, lang)}>
+            <AppIcon name="Pencil" size={19} color="white" />
+          </button>
+        )}
+        {hasAI && (
+          <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
+            <AppIcon name="HelpCircle" size={22} color="white" />
+          </button>
+        )}
       </div>,
       document.body
     )}

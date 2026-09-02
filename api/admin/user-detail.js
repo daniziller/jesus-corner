@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
   const [authUserRes, subRes, userDataRes, profileRes] = await Promise.all([
     supabaseAdmin.auth.admin.getUserById(userId),
-    supabaseAdmin.from('subscriptions').select('status, plan, currency, amount_cents, access_type, current_period_end, created_at').eq('user_id', userId).maybeSingle(),
+    supabaseAdmin.from('subscriptions').select('status, plan, tier, currency, amount_cents, access_type, current_period_end, created_at').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.from('user_data').select('completed_keys, plan_id, daily_routine').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.from('profiles').select('bio, is_public').eq('user_id', userId).maybeSingle(),
   ])
@@ -76,6 +76,7 @@ export default async function handler(req, res) {
     subscription: sub ? {
       status: sub.status,
       plan: sub.plan,
+      tier: sub.tier,
       accessType: sub.access_type,
       currency: sub.currency,
       amountCents: sub.amount_cents,

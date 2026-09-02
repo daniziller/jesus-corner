@@ -28,11 +28,19 @@ const APP_URL = 'https://app.jesuscorner.app'
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 // Fonte única dos preços fixos cobrados via Stripe/web — mesmos valores
-// exibidos em src/screens/UpgradeScreen.jsx e no site (jesus-corner-site).
-// R$16,90/mês · R$169,90/ano · US$6,90/mês · US$69,90/ano.
+// exibidos em src/screens/UpgradeScreen.jsx, em src/billing/storeTiers.js
+// (lojas) e no site. Dois tiers × dois intervalos:
+//   premium     — R$12,90/mês · R$119,90/ano · US$3,99/mês · US$34,99/ano
+//   premium_ai  — R$21,90/mês · R$199,90/ano · US$7,99/mês · US$74,99/ano
 const FIXED_PRICES_CENTS = {
-  brl: { month: 1690, year: 16990 },
-  usd: { month: 690, year: 6990 },
+  premium: {
+    brl: { month: 1290, year: 11990 },
+    usd: { month: 399, year: 3499 },
+  },
+  premium_ai: {
+    brl: { month: 2190, year: 19990 },
+    usd: { month: 799, year: 7499 },
+  },
 }
 
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
@@ -78,9 +86,12 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  const { interval: requestedInterval, currency: requestedCurrency } = req.body ?? {}
+  const { interval: requestedInterval, currency: requestedCurrency, tier: requestedTier } = req.body ?? {}
   // Mensal ou anual, default 'month' se vier algo inválido/ausente.
   const interval = requestedInterval === 'year' ? 'year' : 'month'
+  // Tier — 'premium' ou 'premium_ai', default 'premium_ai' (o pacote
+  // completo) se vier algo inválido/ausente.
+  const tier = requestedTier === 'premium' ? 'premium' : 'premium_ai'
 
   // Confia na escolha explícita da pessoa; só cai pro IP se o corpo não
   // mandar nada (cliente antigo em cache, por exemplo).
@@ -89,7 +100,7 @@ export default async function handler(req, res) {
     : (req.headers['x-vercel-ip-country'] === 'BR' ? 'brl' : 'usd')
 
   // Preço fixo — nunca vem do cliente, sempre desta tabela.
-  const amountCents = FIXED_PRICES_CENTS[currency][interval]
+  const amountCents = FIXED_PRICES_CENTS[tier][currency][interval]
 
   // Convite de desconto pendente pro e-mail de quem está comprando (ver
   // api/admin/create-invite.js) — aplica o Coupon direto na sessão, sem
@@ -150,6 +161,7 @@ export default async function handler(req, res) {
       metadata: {
         supabase_user_id: caller.id,
         access_type: 'recurring',
+        tier,
         ...(previousSubscriptionId ? { previous_subscription_id: previousSubscriptionId } : {}),
       },
       line_items: [{
@@ -161,7 +173,7 @@ export default async function handler(req, res) {
         },
         quantity: 1,
       }],
-      subscription_data: { metadata: { supabase_user_id: caller.id, access_type: 'recurring' } },
+      subscription_data: { metadata: { supabase_user_id: caller.id, access_type: 'recurring', tier } },
       // discounts e allow_promotion_codes são mutuamente exclusivos na API
       // do Stripe — com convite pendente, aplica o coupon automaticamente
       // (sem precisar digitar nada); sem convite, mantém o campo nativo de

@@ -247,7 +247,8 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
         <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {studiesTab === 'guided' && (
             <>
-              {creating ? (
+              {/* Criar estudo por tema é gerado por IA — só no tier Premium + IA. */}
+              {session.hasAI && (creating ? (
                 <div style={styles.createCard}>
                   <p style={styles.createLabel}>{t('studies.createByThemeTitleLabel', undefined, lang)}</p>
                   <input
@@ -284,7 +285,7 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
                   <AppIcon name="Sparkles" size={16} color="white" />
                   {t('studies.createByThemeBtn', undefined, lang)}
                 </button>
-              )}
+              ))}
 
               {[...STUDIES, ...aiStudies].map(study => (
                 <StudyCard

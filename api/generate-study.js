@@ -17,6 +17,7 @@
 // "overview" só, sem tradução).
 import { createClient } from '@supabase/supabase-js'
 import { generateStudy } from './_lib/ai.js'
+import { fetchEntitlement } from './_lib/entitlement.js'
 import { isAdminEmail } from './_lib/adminAuth.js'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -67,17 +68,10 @@ export default async function handler(req, res) {
   if (userErr || !userData?.user) return res.status(401).json({ error: 'unauthorized' })
   const caller = userData.user
 
-  const { data: sub } = await supabase
-    .from('subscriptions')
-    .select('status, access_type')
-    .eq('user_id', caller.id)
-    .maybeSingle()
-  const isPremium = sub && (
-    (sub.access_type === 'free' || sub.access_type === 'lifetime')
-      ? sub.status === 'active'
-      : sub.status === 'active' || sub.status === 'trialing'
-  )
-  if (!isPremium) return res.status(403).json({ error: 'subscription_required' })
+  // Recurso de IA — reconfere no servidor (não confia só na trava do
+  // client) e exige o tier Premium + IA.
+  const ent = await fetchEntitlement(supabase, caller.id)
+  if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
 
   if (!isAdminEmail(caller.email)) {
     const { data: userRow } = await supabase

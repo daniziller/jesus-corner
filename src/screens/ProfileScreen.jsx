@@ -10,6 +10,7 @@ import { formatAmount } from '../billing/formatAmount'
 import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
 import { getShowApplicationCard, setShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
+import { PLANS } from '../data/bibleBlocks'
 import {
   isSubscribedToPush, subscribeToPush, unsubscribeFromPush, getMyReminderSchedule,
   DEFAULT_REMINDER_HOUR, DEFAULT_REMINDER_MINUTE, DEFAULT_REMINDER_DAYS,
@@ -23,7 +24,7 @@ const HOURS = Array.from({ length: 24 }, (_, h) => h)
 // pra um lembrete de leitura.
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5)
 
-export default function ProfileScreen({ session, authUser, subscription, isAdmin, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onProfileUpdated }) {
+export default function ProfileScreen({ session, authUser, subscription, isAdmin, onNavigate, onLogout, onResetProgress, onChangeLanguage, onChangeReadingOrder, onSelectPace, onProfileUpdated }) {
   const [notifications, setNotifications] = useState(false)
   const [remindersBusy, setRemindersBusy] = useState(false)
   const [remindersError, setRemindersError] = useState('')
@@ -33,6 +34,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [reminderDays, setReminderDays] = useState(DEFAULT_REMINDER_DAYS)
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
+  const [pacePickerOpen, setPacePickerOpen] = useState(false)
   // Card da frase de aplicação na Home (ver HomeScreen.jsx) — preferência
   // só de UI, por dispositivo (localStorage, não backend).
   const [showApplicationCard, setShowApplicationCardState] = useState(getShowApplicationCard)
@@ -205,11 +207,16 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   function subscriptionSub() {
     if (subscription?.access_type === 'free') return t('billing.subscriptionFreeSub', undefined, session.lang)
     if (subscription?.access_type === 'lifetime') return t('billing.subscriptionLifetimeSub', undefined, session.lang)
-    if (subscription?.access_type === 'recurring' && subscription.amount_cents != null && subscription.currency) {
-      const key = subscription.plan === 'annual' ? 'billing.subscriptionRecurringAnnualSub' : 'billing.subscriptionRecurringSub'
-      return t(key, { amount: formatAmount(subscription.amount_cents, subscription.currency) }, session.lang)
+    if (session.hasPremium) {
+      const tierName = t(session.tier === 'premium' ? 'billing.tiers.premium' : 'billing.tiers.premiumAi', undefined, session.lang)
+      if (subscription?.access_type === 'recurring' && subscription.amount_cents != null && subscription.currency) {
+        const key = subscription.plan === 'annual' ? 'billing.subscriptionRecurringAnnualSub' : 'billing.subscriptionRecurringSub'
+        return `${tierName} · ${t(key, { amount: formatAmount(subscription.amount_cents, subscription.currency) }, session.lang)}`
+      }
+      return `${tierName} · ${t('billing.subscriptionActiveSub', undefined, session.lang)}`
     }
-    return t('billing.subscriptionActiveSub', undefined, session.lang)
+    // Tier grátis — sem assinatura ativa.
+    return t('billing.subscriptionUpgradeSub', undefined, session.lang)
   }
 
   const currentLang = LANGUAGES.find(l => l.id === (authUser.language ?? 'pt')) ?? LANGUAGES[0]
@@ -289,8 +296,14 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                 <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
                   <StatItem value={session.streak}       label={t('profile.sequenceLabel', undefined, session.lang)} />
                   <StatItem value={`${session.biblePercent}%`} label={t('profile.bibleLabel', undefined, session.lang)} />
-                  <StatItem value={session.level.level} label={t('profile.levelLabel', undefined, session.lang)} />
-                  <StatItem value={friendsCount} label={t('profile.friendsLabel', undefined, session.lang)} />
+                  {session.hasPremium ? (
+                    <>
+                      <StatItem value={session.level.level} label={t('profile.levelLabel', undefined, session.lang)} />
+                      <StatItem value={friendsCount} label={t('profile.friendsLabel', undefined, session.lang)} />
+                    </>
+                  ) : (
+                    <StatItem value={session.chaptersRead} label={t('home.chaptersLabel', undefined, session.lang)} />
+                  )}
                 </div>
               </>
             )}
@@ -383,21 +396,40 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
               ))}
             </div>
           )}
-          <SettingsLink
-            icon="StickyNote" iconBg="var(--olt)"
-            label={t('nav.notes', undefined, session.lang)} sub={t('profile.notesLinkSub', undefined, session.lang)}
-            onPress={() => onNavigate('notes')}
-          />
-          <SettingsLink
-            icon="GraduationCap" iconBg="var(--olt)"
-            label={t('nav.studies', undefined, session.lang)} sub={t('profile.studiesLinkSub', undefined, session.lang)}
-            onPress={() => onNavigate('studies')}
-          />
+          {session.hasPremium && (
+            <SettingsLink
+              icon="StickyNote" iconBg="var(--olt)"
+              label={t('nav.notes', undefined, session.lang)} sub={t('profile.notesLinkSub', undefined, session.lang)}
+              onPress={() => onNavigate('notes')}
+            />
+          )}
+          {session.hasPremium && (
+            <SettingsLink
+              icon="GraduationCap" iconBg="var(--olt)"
+              label={t('nav.studies', undefined, session.lang)} sub={t('profile.studiesLinkSub', undefined, session.lang)}
+              onPress={() => onNavigate('studies')}
+            />
+          )}
           <SettingsLink
             icon="BookOpen" iconBg="var(--olt)"
-            label={t('profile.readingPlanLabel', undefined, session.lang)} sub={t('profile.readingPlanSub', { plan: session.plan.label, n: session.plan.avgChapters }, session.lang)}
-            onPress={() => onNavigate('journey')}
+            label={t('profile.readingPlanLabel', undefined, session.lang)}
+            sub={t('profile.readingPlanSub', { plan: session.lang === 'en' ? session.plan.labelEn : session.plan.label, n: session.plan.avgChapters }, session.lang)}
+            onPress={() => setPacePickerOpen(v => !v)}
           />
+          {pacePickerOpen && (
+            <div style={{ padding: '8px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid var(--g1)' }}>
+              {PLANS.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => { onSelectPace?.(p.id); setPacePickerOpen(false) }}
+                  style={{ ...styles.langBtn, flex: 'unset', width: '100%', textAlign: 'left', ...(session.plan.id === p.id ? styles.langBtnActive : {}) }}
+                >
+                  {(session.lang === 'en' ? p.labelEn : p.label)}
+                  {p.avgChapters ? ` · ${t('profile.readingPlanChapters', { n: p.avgChapters }, session.lang)}` : ''}
+                </button>
+              ))}
+            </div>
+          )}
           <SettingsLink
             icon="ArrowUp" iconBg="var(--olt)"
             label={t('profile.readingOrderLabel', undefined, session.lang)}
