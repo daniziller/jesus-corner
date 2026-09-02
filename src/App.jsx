@@ -164,9 +164,6 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const goals = computeGoalsStatus(dailyRoutine, completedGoals, routineModules, lang)
   const goalsXpBonus = goals.reduce((sum, g) => sum + (g.completed ? g.xp : 0), 0)
   const routineXpBonus = computeRoutineXpBonus(dailyRoutine, routineModules)
-  const xp = gami.xp + goalsXpBonus + routineXpBonus
-  const level = levelFor(xp, lang)
-  const progressToNext = levelProgress(xp, lang)
   const achievements = computeUnlockedAchievements({
     ...gami,
     ...prayerStats,
@@ -174,6 +171,10 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     biblePercent: overall.biblePercent,
     blockDone: id => blocks.find(b => b.id === id)?.status === 'done',
   }, lang)
+  const achievementsXpBonus = achievements.reduce((sum, a) => sum + (a.unlocked ? (a.xp ?? 0) : 0), 0)
+  const xp = gami.xp + goalsXpBonus + routineXpBonus + achievementsXpBonus
+  const level = levelFor(xp, lang)
+  const progressToNext = levelProgress(xp, lang)
 
   const displayTitle = lang === 'en' ? currentSession.titleEn : currentSession.title
   const displayPassage = lang === 'en' ? currentSession.passageEn : currentSession.passage
@@ -205,6 +206,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     levelPercent: progressToNext.percent,
     xpForNext: progressToNext.xpForNext,
     achievements,
+    achievementsXp: achievementsXpBonus,
     goals,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     plan,

@@ -25,7 +25,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
     userName, biblePercent, atPercent, ntPercent,
     streak, todaySession, chaptersRead,
     level, nextLevel, levelPercent, xpForNext, xp, lang,
-    dailyRoutine, todayRoutine, plan, activePlan, achievements, goals, routineModules, activeStudyId,
+    dailyRoutine, todayRoutine, plan, activePlan, achievements, achievementsXp, goals, routineModules, activeStudyId,
   } = session
 
   // Cartão de progresso pra compartilhar em rede social (ver
@@ -318,7 +318,12 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             {unlockedAchievements.length > 0 && (
               <div style={styles.achievementsCard}>
                 <button style={styles.achievementsHeader} onClick={() => onNavigate?.('stats')}>
-                  <span style={styles.achievementsTitle}>{translate('home.achievementsTitle', undefined, lang)}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={styles.achievementsTitle}>{translate('home.achievementsTitle', undefined, lang)}</span>
+                    {achievementsXp > 0 && (
+                      <span style={styles.achievementsXpTotal}>+{achievementsXp.toLocaleString(lang === 'en' ? 'en' : 'pt-BR')} XP</span>
+                    )}
+                  </span>
                   <span style={styles.achievementsCount}>
                     {unlockedAchievements.length}/{achievements.length}
                     <AppIcon name="ChevronRight" size={13} color="var(--g4)" />
@@ -349,7 +354,9 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                   <div style={styles.achievementsDetail}>
                     <AchievementBadge icon={openBadge.icon} tone={openBadge.tone} unlocked size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={styles.achievementsDetailTitle}>{openBadge.title}</p>
+                      <p style={styles.achievementsDetailTitle}>
+                        {openBadge.title} <span style={styles.achievementsDetailXp}>+{openBadge.xp} XP</span>
+                      </p>
                       <p style={styles.achievementsDetailDesc}>{openBadge.desc}</p>
                     </div>
                   </div>
@@ -386,17 +393,17 @@ function LevelCard({ level, nextLevel, percent, xpForNext, xp, lang }) {
   return (
     <div style={styles.levelCard}>
       <div style={styles.levelEmoji}><AppIcon name={level.icon} size={24} color="var(--or)" /></div>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
           <span style={styles.levelTitle}>{lang === 'en' ? 'Level' : 'Nível'} {level.level} · {level.title}</span>
-          <span style={{ ...styles.levelXp, fontFamily: 'var(--font-display)' }}>{xp} XP</span>
+          <span style={styles.levelXpBig}>{xp.toLocaleString(lang === 'en' ? 'en' : 'pt-BR')} <span style={styles.levelXpUnit}>XP</span></span>
         </div>
         <div style={styles.levelBar}>
           <div style={{ ...styles.levelBarFill, width: `${percent}%` }} />
         </div>
         <p style={styles.levelSub}>
           {nextLevel
-            ? <>{translate('home.xpToNext', { n: xpForNext, title: nextLevel.title }, lang)} <AppIcon name={nextLevel.icon} size={11} style={{ verticalAlign: 'middle' }} /></>
+            ? <>{translate('home.xpToNextEmph', { n: xpForNext.toLocaleString(lang === 'en' ? 'en' : 'pt-BR'), level: nextLevel.level }, lang)} <AppIcon name={nextLevel.icon} size={11} color="var(--or)" style={{ verticalAlign: 'middle' }} /></>
             : translate('home.maxLevel', undefined, lang)}
         </p>
       </div>
@@ -418,7 +425,9 @@ function GoalTeaserCard({ goals, lang, onNavigate }) {
       <span style={styles.goalTeaserIcon}><AppIcon name={goal.icon} size={18} color="var(--or)" /></span>
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-          <span style={styles.goalTeaserTitle}>{goal.title}</span>
+          <span style={styles.goalTeaserTitle}>
+            {goal.title} <span style={styles.goalTeaserXp}>+{goal.xp} XP</span>
+          </span>
           <span style={styles.goalTeaserLink}>{translate('goals.viewAllLink', undefined, lang)}</span>
         </div>
         <div style={styles.goalTeaserBar}>
@@ -692,6 +701,8 @@ const styles = {
   achievementsCard:   { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   achievementsHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left' },
   achievementsTitle:  { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
+  achievementsXpTotal: { marginLeft: 6, fontSize: 10, fontWeight: 800, color: 'var(--or)', background: 'rgba(157,67,0,.1)', borderRadius: 5, padding: '1px 5px', whiteSpace: 'nowrap' },
+  achievementsDetailXp: { fontSize: 9.5, fontWeight: 800, color: 'var(--or)', background: 'rgba(157,67,0,.1)', borderRadius: 5, padding: '1px 5px', whiteSpace: 'nowrap' },
   achievementsCount:  { display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)' },
   achievementsRow:    { display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
   achievementsBadgeWrap: { position: 'relative', display: 'inline-flex', border: 'none', background: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%' },
@@ -703,15 +714,17 @@ const styles = {
   achievementsDetailDesc:  { fontSize: 11, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.35, marginTop: 1 },
   levelCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:    { fontSize: 26, flexShrink: 0 },
-  levelTitle:    { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
-  levelXp:       { fontSize: 10.5, fontWeight: 700, color: 'var(--or)' },
+  levelTitle:    { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px', minWidth: 0 },
+  levelXpBig:    { flexShrink: 0, fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--or)', letterSpacing: '-0.4px', fontVariantNumeric: 'tabular-nums' },
+  levelXpUnit:   { fontSize: 10.5, fontWeight: 700 },
   levelBar:      { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
   levelBarFill:  { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
-  levelSub:      { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', marginTop: 5 },
+  levelSub:      { fontSize: 11.5, fontWeight: 700, color: 'var(--or)', marginTop: 5 },
 
   goalTeaserCard:     { display: 'flex', gap: 11, alignItems: 'center', width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 12, boxShadow: 'var(--shadow-card)', cursor: 'pointer', fontFamily: 'var(--font)' },
   goalTeaserIcon:     { width: 34, height: 34, borderRadius: 10, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   goalTeaserTitle:    { fontSize: 12, fontWeight: 700, color: 'var(--bk)' },
+  goalTeaserXp:       { fontSize: 9.5, fontWeight: 800, color: 'var(--or)', background: 'rgba(157,67,0,.1)', borderRadius: 5, padding: '1px 5px', whiteSpace: 'nowrap' },
   goalTeaserLink:     { fontSize: 10, fontWeight: 700, color: 'var(--or)', flexShrink: 0 },
   goalTeaserBar:      { height: 5, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' },
   goalTeaserBarFill:  { height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, transition: 'width 0.6s ease' },
