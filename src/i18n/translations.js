@@ -87,6 +87,8 @@ export const STRINGS = {
     },
     home: {
       greeting: 'Olá, {name} 👋',
+      achievementsTitle: 'Conquistas',
+      achievementsNew: 'Nova',
       applicationCardLabel: 'Sua frase de aplicação',
       bibleReadLabel: 'Bíblia lida',
       chaptersRead: '{n} capítulos lidos',
@@ -1177,6 +1179,8 @@ export const STRINGS = {
     },
     home: {
       greeting: 'Hi, {name} 👋',
+      achievementsTitle: 'Achievements',
+      achievementsNew: 'New',
       applicationCardLabel: 'Your application phrase',
       bibleReadLabel: 'Bible read',
       chaptersRead: '{n} chapters read',

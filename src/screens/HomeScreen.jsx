@@ -17,6 +17,8 @@ import { shareProgressCard } from '../share/shareProgressCard'
 import { computeWeeklyRoutineStats, averageFullRoutineDays, isDayComplete, computeReadingWeekStreak, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
 import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
+import AchievementBadge from '../components/AchievementBadge'
+import { getSeenAchievements, markAchievementsSeen } from '../achievements/seenAchievementsStore'
 
 export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onMarkRoutineStep }) {
   const {
@@ -47,6 +49,25 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   useEffect(() => {
     getFriendsActivity(3).then(setFriendActivity).catch(err => console.error('Failed to load friend activity', err))
   }, [])
+
+  // Conquistas já desbloqueadas — mostradas na Home como selos (ver
+  // AchievementBadge). As recém-conquistadas (ainda não "vistas" neste
+  // dispositivo) sobem pro início da lista com um destaque "Nova!", e são
+  // marcadas como vistas ao abrir a Home. `seenSnapshot` é congelado no
+  // mount pra o destaque não sumir na hora.
+  const unlockedAchievements = (achievements ?? []).filter(a => a.unlocked)
+  const [seenSnapshot] = useState(getSeenAchievements)
+  useEffect(() => {
+    const ids = unlockedAchievements.map(a => a.id)
+    markAchievementsSeen(ids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlockedAchievements.length])
+  const sortedAchievements = [
+    ...unlockedAchievements.filter(a => !seenSnapshot.has(a.id)),
+    ...unlockedAchievements.filter(a => seenSnapshot.has(a.id)),
+  ]
+  const ACHIEVEMENTS_SHOWN = 12
+  const hiddenAchievementCount = Math.max(0, sortedAchievements.length - ACHIEVEMENTS_SHOWN)
 
   // Card da frase de aplicação (ver ReflectionScreen.jsx/
   // applicationPhraseStore.js) — só busca se a pessoa não desligou o card
@@ -288,6 +309,34 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
                 confundir com "Desafios" de leitura em grupo (Comunidade). A
                 lista completa mora na aba Progresso. */}
             <GoalTeaserCard goals={goals} lang={lang} onNavigate={onNavigate} />
+
+            {/* Conquistas já desbloqueadas — os selos (a grade completa,
+                com as bloqueadas, mora na aba Progresso). */}
+            {unlockedAchievements.length > 0 && (
+              <button style={styles.achievementsCard} onClick={() => onNavigate?.('stats')}>
+                <div style={styles.achievementsHeader}>
+                  <span style={styles.achievementsTitle}>{translate('home.achievementsTitle', undefined, lang)}</span>
+                  <span style={styles.achievementsCount}>
+                    {unlockedAchievements.length}/{achievements.length}
+                    <AppIcon name="ChevronRight" size={13} color="var(--g4)" />
+                  </span>
+                </div>
+                <div style={styles.achievementsRow}>
+                  {sortedAchievements.slice(0, ACHIEVEMENTS_SHOWN).map(a => {
+                    const isNew = !seenSnapshot.has(a.id)
+                    return (
+                      <span key={a.id} style={styles.achievementsBadgeWrap} title={a.title}>
+                        <AchievementBadge icon={a.icon} tone={a.tone} unlocked size={40} />
+                        {isNew && <span style={styles.achievementsNewDot}>{translate('home.achievementsNew', undefined, lang)}</span>}
+                      </span>
+                    )
+                  })}
+                  {hiddenAchievementCount > 0 && (
+                    <span style={styles.achievementsMore}>+{hiddenAchievementCount}</span>
+                  )}
+                </div>
+              </button>
+            )}
 
             {/* Atividade dos amigos (versão compacta — a completa mora na aba Comunidade) */}
             {friendActivity.length > 0 && (
@@ -621,6 +670,14 @@ const styles = {
   progressFill:  { height: '100%', background: 'var(--grad-premium)', borderRadius: 99, transition: 'width 0.6s ease' },
   continueBtn:   { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   activityCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, boxShadow: 'var(--shadow-card)' },
+  achievementsCard:   { display: 'block', width: '100%', textAlign: 'left', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  achievementsHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  achievementsTitle:  { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
+  achievementsCount:  { display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)' },
+  achievementsRow:    { display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
+  achievementsBadgeWrap: { position: 'relative', display: 'inline-flex' },
+  achievementsNewDot: { position: 'absolute', top: -5, right: -8, background: 'var(--grad-vivid)', color: 'white', fontSize: 7.5, fontWeight: 800, letterSpacing: 0.3, textTransform: 'uppercase', padding: '2px 4px', borderRadius: 6, lineHeight: 1, boxShadow: '0 2px 5px rgba(0,0,0,.2)' },
+  achievementsMore:   { fontSize: 12, fontWeight: 700, color: 'var(--g5)', paddingLeft: 2 },
   levelCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 13, display: 'flex', gap: 12, alignItems: 'center', boxShadow: 'var(--shadow-card)' },
   levelEmoji:    { fontSize: 26, flexShrink: 0 },
   levelTitle:    { fontFamily: 'var(--font-display)', fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
