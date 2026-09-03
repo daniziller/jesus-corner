@@ -98,6 +98,32 @@
   --nav-height: 83px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --max-width: 430px;
+
+  /* ── Identidade "Bento" (redesign, design_handoff_jesus_corner/
+     ADENDO-identidade-e-IA.md) — mais nova que a paleta acima e prevalece
+     sobre ela em qualquer valor visual, mas só nas telas migradas até agora
+     (leitura imersiva). Os tokens antigos continuam valendo em todo o
+     resto do app até a migração de cada tela avançar; nomes com prefixo
+     `--bento-` pra não colidir/confundir com os tokens de cima. Tipografia
+     única (Manrope), sem gradiente — ação primária é laranja sólido com
+     texto ESCURO (não branco). */
+  --bento-bg: #EDE8E2;
+  --bento-card: #FFFFFF;
+  --bento-ink: #1A1714;
+  --bento-accent: #F0662B;
+  --bento-sand: #E6DACB;
+  --bento-sand-ink: #5A4327;
+  --bento-sand-label: #9C8B76;
+  --bento-t2: #6E655C;
+  --bento-t3: #8B8279;
+  --bento-t4: #A29A91;
+  --bento-t5: #BDB5AC;
+  --bento-line: #F2EEE9;
+  --bento-toggle-off: #E6E1DA;
+  --bento-mark: #FFE3C9;
+  --bento-select: #C9DCEF;
+  --bento-select-border: #7EA6CE;
+  --font-bento: 'Manrope', sans-serif;
 }
 
 html, body, #root {

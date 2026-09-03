@@ -529,21 +529,32 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <GuidedFlowBanner guided={guidedReading} lang={lang} onExit={onExitGuided} />
       )}
       {immersive ? (
-        // Cabeçalho compacto (48px) — some ao rolar pra baixo, volta ao
-        // rolar pra cima (readerHeaderHidden). Fica fixo no topo.
+        // Cabeçalho (identidade Bento, tela 4a) — some ao rolar pra baixo,
+        // volta ao rolar pra cima (readerHeaderHidden). Fica fixo no topo.
         <div style={{ ...styles.readerHeader, transform: readerHeaderHidden ? 'translateY(-100%)' : 'none' }}>
-          <button onClick={onBack} style={styles.readerBackBtn} aria-label={t('a11y.goBack', undefined, lang)}>
-            <AppIcon name="ArrowLeft" size={18} color="var(--bk)" />
-          </button>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <p style={styles.readerHeaderTitle}>{heroTitle}</p>
-            <p style={styles.readerHeaderSub}>
-              {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
-            </p>
+          <div style={styles.readerHeaderLeft}>
+            <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
+              <AppIcon name="ArrowLeft" size={16} color="var(--bento-ink)" />
+            </button>
+            <div style={{ minWidth: 0 }}>
+              <p style={styles.readerHeaderTitle}>{heroTitle}</p>
+              <p style={styles.readerHeaderSub}>
+                {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
+              </p>
+            </div>
           </div>
-          <button onClick={() => setToolsOpen(true)} style={styles.readerMenuBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
-            <AppIcon name="SlidersHorizontal" size={19} color="var(--g6)" />
-          </button>
+          {/* Dois ícones por fidelidade visual à 4a (ondas + menu) — os dois
+              abrem Ferramentas, a mesma única ação que o cabeçalho já tinha;
+              não inventamos uma 2ª funcionalidade nova (decisão tomada com
+              a autora antes de implementar esta tela). */}
+          <div style={styles.readerHeaderRight}>
+            <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
+              <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
+            </button>
+            <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
+              <AppIcon name="MoreVertical" size={16} color="var(--bento-ink)" />
+            </button>
+          </div>
         </div>
       ) : (
         <div style={styles.browseHeader}>
@@ -678,21 +689,27 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         const browseTextInHero = !embedded && mode === 'browse' && isDesktop && expandedChapterId != null
         const nextForHero = browseTextInHero ? getNextSessionFor(heroSession) : null
         return (mode !== 'browse' && openPanel === 'texto') || browseTextInHero ? (
-          // Leitura imersiva (1b): sem card, 26px de respiro lateral pro
-          // texto (19px/1.72). Nos outros casos, margem lateral bem menor
-          // que os painéis de lista pra dar coluna de leitura mais larga.
-          <div style={{ padding: immersive ? '4px 22px 4px' : '0 6px 4px' }}>
-            <BibleTextPanel
-              session={heroSession}
-              lang={lang}
-              immersive={immersive}
-              completedSet={completedSet}
-              onToggleChapter={onToggleChapter}
-              highlights={highlights}
-              highlightSelection={highlightSelection}
-              onVerseNumberClick={handleHighlightVerseClick}
-              onTextSelectionRange={handleHighlightTextRange}
-            />
+          // Leitura imersiva (reskin Bento, tela 4a): bloco branco próprio
+          // (raio 28, padding 26/24) sobre o fundo creme da tela, só com
+          // respiro lateral de 20px. Nos outros casos, margem lateral bem
+          // menor que os painéis de lista pra dar coluna de leitura mais larga.
+          <div style={immersive ? styles.readerTextCardWrap : { padding: '0 6px 4px' }}>
+            {(() => {
+              const panel = (
+                <BibleTextPanel
+                  session={heroSession}
+                  lang={lang}
+                  immersive={immersive}
+                  completedSet={completedSet}
+                  onToggleChapter={onToggleChapter}
+                  highlights={highlights}
+                  highlightSelection={highlightSelection}
+                  onVerseNumberClick={handleHighlightVerseClick}
+                  onTextSelectionRange={handleHighlightTextRange}
+                />
+              )
+              return immersive ? <div style={styles.readerTextCard}>{panel}</div> : panel
+            })()}
             {nextForHero && (
               <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
                 {t('reading.nextChapter', { title: lang === 'en' ? nextForHero.titleEn : nextForHero.title }, lang)}
@@ -907,10 +924,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         </div>
       </>
     ) : immersive ? (
-      // Leitura imersiva (redesign 1b) — só o texto rolável + cabeçalho
-      // compacto sticky + rodapé fixo. Sem lista de livros, sem cards de
-      // "lidos recentemente".
-      <div style={{ height: '100%', background: 'var(--olt)' }}>
+      // Leitura imersiva (redesign 1b, reskin Bento — tela 4a) — só o texto
+      // rolável + cabeçalho sticky + rodapé fixo. Sem lista de livros, sem
+      // cards de "lidos recentemente".
+      <div style={{ height: '100%', background: 'var(--bento-bg)' }}>
         <div ref={scrollRef} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 148, height: '100%' }}>
           {headerAndPanels}
         </div>
@@ -924,7 +941,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             )}
             <div style={styles.readerFooterRow}>
               <button style={styles.readerToolsBtn} onClick={() => setToolsOpen(true)}>
-                <AppIcon name="Wrench" size={15} color="var(--g6)" />
+                <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
                 {t('reading.toolsBtn', undefined, lang)}
               </button>
               <button
@@ -935,6 +952,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                   else onNavigate?.('reflection')
                 }}
               >
+                <AppIcon name="Check" size={16} color="var(--bento-ink)" />
                 {t('reading.finishReading', undefined, lang)}
               </button>
             </div>
@@ -1217,13 +1235,17 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
 
   const chapterNumbers = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapterNumbers.push(ch)
-  const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
+  // Imersivo (reskin Bento, 4a) usa a palavra inteira ("CAPÍTULO 41", vira
+  // maiúscula por CSS) — fora dele continua abreviado ("Cap. 41"), como
+  // sempre foi.
+  const chLabel = immersive ? (lang === 'en' ? 'Chapter' : 'Capítulo') : (lang === 'en' ? 'Ch.' : 'Cap.')
 
   return (
-    // Imersivo (1b): sem card, o respiro lateral vem do wrapper de fora
-    // (22px). Nos outros casos, card de painel com padding lateral menor —
-    // texto corrido ganha mais com coluna larga que com respiro generoso.
-    <div style={immersive ? { padding: '2px 0 8px' } : { ...styles.panel, padding: '14px 8px' }} ref={textRef}>
+    // Imersivo (1b): sem card de painel (o card branco próprio já vem do
+    // wrapper de fora, ver readerTextCard). Nos outros casos, card de painel
+    // com padding lateral menor — texto corrido ganha mais com coluna larga
+    // que com respiro generoso.
+    <div style={immersive ? undefined : { ...styles.panel, padding: '14px 8px' }} ref={textRef}>
       {availableVersions.length > 1 ? (
         <div style={styles.bibleTextVersionRow}>
           {availableVersions.map(v => (
@@ -1236,9 +1258,12 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
             </button>
           ))}
         </div>
-      ) : (
+      ) : !immersive ? (
+        // A 4a não mostra esse selo de versão quando só há uma (o rodapé já
+        // traz a atribuição completa) — decorativo demais pra tela mais
+        // silenciosa do app.
         <p style={styles.panelBookLabel}>{version.label}</p>
-      )}
+      ) : null}
 
       {state.status === 'loading' && <p style={styles.panelText}>{t('reading.textLoading', undefined, lang)}</p>}
       {state.status === 'error' && <p style={styles.panelText}>{t('reading.textError', undefined, lang)}</p>}
@@ -1249,9 +1274,9 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         const chDone = completedSet?.has(`${session.book}:${ch}`)
         return (
           <div key={ch} data-chapter={ch} style={styles.bibleTextChapter}>
-            <p style={styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
+            <p style={immersive ? styles.bibleTextChapterLabelBento : styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
             {paragraphs.map((verseNums, pIdx) => (
-              <p key={pIdx} style={styles.bibleTextBody}>
+              <p key={pIdx} style={immersive ? styles.bibleTextBodyBento : styles.bibleTextBody}>
                 {verseNums.map((v, vIdx) => {
                   // Toca no versículo inteiro (número OU texto corrido) pra
                   // marcar — usa as coordenadas do toque (não o retângulo do
@@ -1291,7 +1316,10 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                       onClick={handleVerseTap}
                     >
                       {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
-                      <sup style={styles.bibleTextVerseNum}>{v}</sup>
+                      <sup style={immersive
+                        ? { ...styles.bibleTextVerseNumBento, margin: vIdx === 0 ? '0 4px 0 0' : '0 4px 0 6px' }
+                        : styles.bibleTextVerseNum}
+                      >{v}</sup>
                       {chapter.verses[String(v)].split('\n').map((line, lIdx, arr) => (
                         <span key={lIdx}>
                           {line}
@@ -2009,35 +2037,40 @@ const styles = {
   browseTag:       { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'var(--g5)', cursor: 'pointer' },
   browseTagActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.3)' },
 
-  // ── Leitura imersiva (redesign 1b) ──
+  // ── Leitura imersiva (redesign 1b, reskin Bento — tela 4a) ──
   readerHeader: {
     position: 'sticky', top: 0, zIndex: 20,
-    height: 48, display: 'flex', alignItems: 'center', gap: 12, padding: '0 18px',
-    background: 'rgba(245,233,222,.86)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '20px 20px 14px', background: 'var(--bento-bg)',
     transition: 'transform .2s ease-out',
   },
-  readerBackBtn: { border: 'none', background: 'none', padding: 4, margin: '0 -4px', cursor: 'pointer', display: 'flex', flexShrink: 0 },
-  readerHeaderTitle: { fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  readerHeaderSub: { fontSize: 10.5, fontWeight: 400, color: 'var(--g5)', lineHeight: 1.2, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  readerMenuBtn: { border: 'none', background: 'none', padding: 4, cursor: 'pointer', display: 'flex', flexShrink: 0 },
+  readerHeaderLeft: { display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 },
+  readerHeaderRight: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
+  readerIconBtn: {
+    width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+  },
+  readerHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-0.4px', color: 'var(--bento-ink)', lineHeight: 1.1, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  readerHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.2, margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  readerTextCardWrap: { padding: '0 20px 4px' },
+  readerTextCard: { background: 'var(--bento-card)', borderRadius: 28, padding: '26px 24px' },
   readerFooter: {
     position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
     width: '100%', maxWidth: 'min(var(--max-width), 560px)', zIndex: 90,
     padding: '0 20px calc(12px + var(--safe-bottom))',
-    background: 'linear-gradient(to top, var(--olt) 72%, rgba(245,233,222,0))',
+    background: 'linear-gradient(to top, var(--bento-bg) 72%, rgba(237,232,226,0))',
     display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12,
   },
-  readerFooterRow: { display: 'flex', gap: 8 },
+  readerFooterRow: { display: 'flex', gap: 10 },
   readerToolsBtn: {
-    flex: 1, height: 46, borderRadius: 14, border: '1px solid rgba(18,18,18,.07)', background: 'var(--white)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-    fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--g6)', cursor: 'pointer',
+    flex: 1, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-card)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer',
   },
   readerDoneBtn: {
-    flex: 1, height: 46, borderRadius: 14, border: 'none', background: 'var(--grad-primary)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer',
-    boxShadow: 'var(--shadow-glow)',
+    flex: 1.35, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer',
   },
   toolsExtraBtn: {
     display: 'flex', alignItems: 'center', gap: 8, width: '100%',
@@ -2075,6 +2108,12 @@ const styles = {
   bibleTextBody:        { fontSize: 19, fontWeight: 400, color: 'var(--bk)', lineHeight: 1.72, marginBottom: 18, textWrap: 'pretty' },
   bibleTextVerseNum:    { fontSize: 11, fontWeight: 700, color: 'var(--or)', verticalAlign: 'super', marginRight: 2 },
   bibleTextAttribution: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--g1)', fontStyle: 'italic' },
+  // ── Variantes Bento (reskin, tela 4a) dos 4 estilos acima — só a leitura
+  // imersiva usa; a aba Bíblia (5f, ainda não migrada) continua com os de
+  // cima. Valores extraídos do bloco id="4a" do HTML do handoff.
+  bibleTextChapterLabelBento: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 18px' },
+  bibleTextBodyBento:   { fontFamily: 'var(--font-bento)', fontSize: 18.5, fontWeight: 500, color: 'var(--bento-ink)', lineHeight: 1.72, margin: '0 0 18px', textWrap: 'pretty' },
+  bibleTextVerseNumBento: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)', verticalAlign: 'super' },
   nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
   chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 10, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--g1)' },
   chapterDoneBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },

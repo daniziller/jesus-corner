@@ -20,6 +20,9 @@ const OUT_DIR = join(process.cwd(), 'public', 'fonts')
 const FAMILIES = [
   'Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600',
   'Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400',
+  // Identidade "Bento" (redesign, adendo identidade-e-IA) — substitui as
+  // duas fontes acima nas telas migradas pra essa identidade.
+  'Manrope:wght@400;500;600;700;800',
 ]
 
 // User-Agent moderno faz o Google devolver woff2, que é o formato menor e
