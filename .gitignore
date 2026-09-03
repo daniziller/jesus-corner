@@ -42,3 +42,4 @@ android-twa/*.idsig
 # Estado local do CLI da Supabase (link do projeto) — específico desta
 # máquina, regenerado a qualquer momento com `supabase link`.
 supabase/.temp/
+design_handoff_jesus_corner/
