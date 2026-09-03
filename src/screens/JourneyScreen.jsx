@@ -210,7 +210,7 @@ export default function JourneyScreen({
         initialSessionId={initialSessionId}
         initialTextOpen={initialTextOpen}
         onBack={closeBlock}
-        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id })}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, type: heroSession.type })}
         onJumpToChapter={openRecentChapter}
         onExitGuided={onExitGuided}
       />
@@ -470,7 +470,7 @@ function BookRow({ entry, bookChapterCounts, completedSet, onOpen, embedCtx }) {
             onToggleChapter={embedCtx.onToggleChapter}
             initialSessionId={embedCtx.expandedInitialSessionId}
             initialTextOpen={embedCtx.expandedInitialTextOpen}
-            onGoToReflection={heroSession => embedCtx.onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id })}
+            onGoToReflection={heroSession => embedCtx.onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, type: heroSession.type })}
           />
         </div>
       )}

@@ -1506,6 +1506,22 @@ export default function App() {
   if (activeTab === 'notes') notesVisitedRef.current = true
   if (activeTab === 'studies') studiesVisitedRef.current = true
 
+  // Livro/capítulo real que a Reflexão com perguntas geradas (10d, reskin
+  // Bento) precisa pra ancorar as perguntas — diferente de
+  // session.todaySession, que já pode ter avançado pro PRÓXIMO capítulo
+  // assim que este foi marcado como lido (ver findCurrentReadingSession).
+  // Vem direto no descriptor (ver onGoToReflectionFrom em JourneyScreen.jsx)
+  // em vez de resolvido aqui por blockId+sessionId — sessionId sozinho é
+  // AMBÍGUO (sessionsByBlock do plano fixo e browseSessionsByBlock da
+  // navegação livre numeram sessões independentemente dentro do mesmo
+  // bloco, então o mesmo id pode existir com book/chapter diferentes nos
+  // dois; só quem monta o descriptor sabe de qual dos dois veio). Só
+  // existe pra 'journey' — plano por tema/cronológico caem no fluxo antigo
+  // da Reflexão, sem perguntas geradas (ver ReflectionScreen.jsx).
+  const lastReadChapterInfo = (lastReadSession?.tab === 'journey' && lastReadSession.type !== 'reflection' && lastReadSession.book)
+    ? { book: lastReadSession.book, bookEn: lastReadSession.bookEn, chStart: lastReadSession.chStart, chEnd: lastReadSession.chEnd }
+    : null
+
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />,
     routine: hasPremium
@@ -1580,7 +1596,7 @@ export default function App() {
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} />
+                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} lastReadChapterInfo={lastReadChapterInfo} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (

@@ -7,6 +7,9 @@ import { getNotes, saveNote, noteTextOf } from '../notes/notesStore'
 import { getHighlights } from '../highlights/highlightsStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { dateKey } from '../utils/dateKey'
+import {
+  getReflectionQuestionsEnabled, fetchReflectionQuestions, composeReflectionDraft, saveApprovedReflection,
+} from '../aiChat/reflectionQuestionsStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
@@ -41,9 +44,38 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, onBackToReading, onNavigate, onContinueSession, onExitGuided }) {
+export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, lastReadChapterInfo, onBackToReading, onNavigate, onContinueSession, onExitGuided }) {
   const { lang } = session
   const guided = session.guided?.step === 'reflection' ? session.guided : null
+
+  // Reflexão com perguntas geradas (10d, reskin Bento) — substitui o fluxo
+  // inteiro de fases com cronômetro abaixo quando elegível: precisa de IA
+  // (session.hasAI), do interruptor ligado (10f, ainda não implementado —
+  // desligado por padrão, ver reflectionQuestionsStore.js) e de um
+  // capítulo real pra ancorar as perguntas (lastReadChapterInfo, resolvido
+  // em App.jsx — session.todaySession já pode ter avançado pro PRÓXIMO
+  // capítulo a essa altura). Decidido uma vez na montagem; se a busca das
+  // perguntas falhar depois (rede, offline, capítulo sem texto), cai pro
+  // fluxo antigo sozinho — nunca uma parede (mesmo espírito de 10c em
+  // ReadingBlockView.jsx).
+  const aiEligible = session.hasAI && getReflectionQuestionsEnabled() && !!lastReadChapterInfo
+    && (typeof navigator === 'undefined' || navigator.onLine)
+  const [aiPhase, setAiPhase] = useState(aiEligible ? 'active' : 'fallback')
+  const [aiQuestions, setAiQuestions] = useState(null)
+
+  useEffect(() => {
+    if (aiPhase !== 'active' || aiQuestions || !lastReadChapterInfo) return
+    let cancelled = false
+    fetchReflectionQuestions({
+      book: lastReadChapterInfo.book, bookEn: lastReadChapterInfo.bookEn,
+      chStart: lastReadChapterInfo.chStart, chEnd: lastReadChapterInfo.chEnd, lang,
+    })
+      .then(qs => { if (!cancelled) setAiQuestions(qs) })
+      .catch(() => { if (!cancelled) setAiPhase('fallback') })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPhase])
+
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
@@ -317,6 +349,25 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   // depois, já com os três feitos.
   const allStepsDone = session.routineModules.every(m => session.todayRoutine?.[m])
 
+  // Tela própria (10d), inteira — não um card dentro do hero/cronômetro de
+  // baixo (ver decisão registrada no topo do arquivo). Só chega aqui
+  // depois de TODOS os hooks já terem rodado.
+  if (aiPhase === 'active') {
+    return (
+      <AiReflectionFlow
+        lang={lang}
+        chapterInfo={lastReadChapterInfo}
+        questions={aiQuestions}
+        onPeekReading={hasPreviousReadingSession ? onBackToReading : null}
+        onApprove={async (qa, paragraph) => {
+          await saveNote(authUser?.email, noteKey, paragraph)
+          saveApprovedReflection({ book: lastReadChapterInfo.book, chapter: lastReadChapterInfo.chStart, qa, paragraph })
+          onReflectionCompleted?.()
+        }}
+      />
+    )
+  }
+
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
 
@@ -481,6 +532,200 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
       </div>
     </div>
   )
+}
+
+// Reflexão com perguntas geradas (10d, reskin Bento) — tela própria,
+// substitui o cronômetro em fases inteiro (ver decisão no topo do
+// arquivo). Três fases internas: 'answering' (uma pergunta de cada vez),
+// 'composing' (aguardando a IA juntar as respostas) e 'review' (parágrafo
+// pronto, editável, a pessoa aprova antes de salvar).
+function AiReflectionFlow({ lang, chapterInfo, questions, onPeekReading, onApprove }) {
+  const L = (k, vars) => t(`reflectAi.${k}`, vars, lang)
+  const [index, setIndex] = useState(0)
+  const [answers, setAnswers] = useState(['', '', ''])
+  const [phase, setPhase] = useState('answering') // 'answering' | 'composing' | 'review' | 'error'
+  const [paragraph, setParagraph] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const loading = !questions
+  const currentQuestion = questions?.[index]
+  const bookLabel = chapterInfo ? (lang === 'en' ? chapterInfo.bookEn : chapterInfo.book) : ''
+  const chapterLabel = chapterInfo?.chStart
+
+  function setAnswer(text) {
+    setAnswers(prev => prev.map((a, i) => (i === index ? text : a)))
+  }
+
+  function fillDontKnow() {
+    if (answers[index].trim()) return
+    setAnswer(t('reflectAi.dontKnowFilled', undefined, lang))
+  }
+
+  // "Outra pergunta" (mockup 10d) — pula esta pergunta sem exigir resposta,
+  // mesmo destino de terminar as 3 normalmente. Não gera uma pergunta NOVA
+  // (as perguntas são cacheadas/compartilhadas — ver
+  // generate-reflection-questions.js), é um "pula esta" simplificado.
+  async function goNext() {
+    if (index < 2) { setIndex(i => i + 1); return }
+    // Última pergunta — compõe o parágrafo com as respostas que existem
+    // (pergunta pulada = string vazia, não entra na composição).
+    const qa = questions
+      .map((q, i) => ({ question: q, answer: answers[i].trim() }))
+      .filter(pair => pair.answer)
+    if (qa.length === 0) { setErrorMsg(L('errorGeneric')); return }
+    setPhase('composing')
+    setErrorMsg('')
+    try {
+      const draft = await composeReflectionDraft({ book: chapterInfo.book, chapter: chapterInfo.chStart, lang, qa })
+      setParagraph(draft)
+      setPhase('review')
+    } catch (err) {
+      setPhase('answering')
+      setErrorMsg(
+        err.message === 'subscription_required' ? L('errorSubscription')
+        : err.message === 'daily_limit_reached' ? L('errorLimit')
+        : L('errorGeneric')
+      )
+    }
+  }
+
+  async function approve() {
+    if (saving) return
+    setSaving(true)
+    try {
+      const qa = questions
+        .map((q, i) => ({ question: q, answer: answers[i].trim() }))
+        .filter(pair => pair.answer)
+      await onApprove(qa, paragraph)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (phase === 'review') {
+    return (
+      <div style={rStyles.screen}>
+        <div style={rStyles.header}>
+          <span style={rStyles.headerIcon}><AppIcon name="Check" size={16} color="var(--bento-ink)" /></span>
+          <div>
+            <p style={rStyles.headerTitle}>{L('reviewTitle')}</p>
+            <p style={rStyles.headerSub}>{L('reviewHint')}</p>
+          </div>
+        </div>
+        <div style={rStyles.body}>
+          <div style={rStyles.reviewCard}>
+            <textarea
+              style={rStyles.reviewTextarea}
+              value={paragraph}
+              onChange={e => setParagraph(e.target.value)}
+              rows={7}
+            />
+          </div>
+        </div>
+        <div style={rStyles.footer}>
+          <button style={rStyles.primaryBtn} onClick={approve} disabled={saving || !paragraph.trim()}>
+            {saving ? t('notes.saving', undefined, lang) : L('approveAndSave')}
+          </button>
+          <button style={rStyles.textBtn} onClick={() => setPhase('answering')}>{L('backToQuestions')}</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={rStyles.screen}>
+      <div style={rStyles.header}>
+        <span style={rStyles.headerIcon}><AppIcon name="Check" size={16} color="var(--bento-ink)" /></span>
+        <div>
+          <p style={rStyles.headerTitle}>{bookLabel} {chapterLabel} {L('chapterDoneSuffix')}</p>
+          <p style={rStyles.headerSub}>{L('remainingLabel')}</p>
+        </div>
+      </div>
+
+      <div style={rStyles.body}>
+        <div style={rStyles.darkCard}>
+          <div style={rStyles.aiLabelRow}>
+            <span style={rStyles.aiDiamond} />
+            <p style={rStyles.aiLabel}>{L('questionOf', { n: index + 1, total: 3 })}</p>
+          </div>
+          {loading || phase === 'composing'
+            ? <p style={rStyles.questionText}>{phase === 'composing' ? L('composing') : ''}</p>
+            : <p style={rStyles.questionText}>{currentQuestion}</p>}
+          <p style={rStyles.privacyLine}>{L('privacyLine')}</p>
+        </div>
+
+        <div style={rStyles.answerCard}>
+          <textarea
+            style={rStyles.answerTextarea}
+            value={answers[index]}
+            onChange={e => setAnswer(e.target.value)}
+            placeholder={L('inputPlaceholder')}
+            rows={4}
+            disabled={loading || phase === 'composing'}
+          />
+          <div style={rStyles.chipRow}>
+            <button style={rStyles.chip} onClick={fillDontKnow} disabled={loading || phase === 'composing'}>
+              {L('dontKnowChip')}
+            </button>
+            <button style={rStyles.chip} onClick={goNext} disabled={loading || phase === 'composing'}>
+              {L('anotherQuestionChip')}
+            </button>
+          </div>
+        </div>
+
+        <div style={rStyles.hintCard}>
+          <span style={rStyles.hintDiamond} />
+          <p style={rStyles.hintText}>{L('composeHint')}</p>
+        </div>
+
+        {errorMsg && <p style={rStyles.errorText}>{errorMsg}</p>}
+      </div>
+
+      <div style={rStyles.footer}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {onPeekReading && (
+            <button style={rStyles.peekBtn} onClick={onPeekReading} aria-label={t('reflection.backToReading', undefined, lang)}>
+              <AppIcon name="AlignLeft" size={16} color="var(--bento-ink)" />
+            </button>
+          )}
+          <button style={{ ...rStyles.primaryBtn, flex: 1 }} onClick={goNext} disabled={loading || phase === 'composing'}>
+            <span>{L('nextQuestion')}</span>
+            <AppIcon name="ChevronRight" size={16} color="var(--bento-accent)" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const rStyles = {
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
+  headerIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+  headerSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  darkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22 },
+  aiLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
+  aiDiamond: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  aiLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
+  questionText: { fontFamily: 'var(--font-bento)', fontSize: 24, fontWeight: 800, lineHeight: 1.25, letterSpacing: '-.8px', color: '#fff', textWrap: 'pretty', margin: '0 0 12px', minHeight: '1.25em' },
+  privacyLine: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.45)', margin: 0 },
+  answerCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20, display: 'flex', flexDirection: 'column' },
+  answerTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'var(--bento-ink)' },
+  chipRow: { marginTop: 12, paddingTop: 4, display: 'flex', flexWrap: 'wrap', gap: 7 },
+  chip: { border: 'none', background: 'var(--bento-line)', borderRadius: 99, padding: '9px 12px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)', cursor: 'pointer' },
+  hintCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '15px 18px', display: 'flex', alignItems: 'center', gap: 12 },
+  hintDiamond: { width: 9, height: 9, background: 'var(--bento-sand-icon)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  hintText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-sand-ink)', margin: 0 },
+  errorText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--re, #DC2626)', margin: 0, textAlign: 'center' },
+  footer: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10 },
+  peekBtn: { flexShrink: 0, width: 52, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  primaryBtn: { height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: '#fff', cursor: 'pointer' },
+  textBtn: { border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
+  reviewCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
+  reviewTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-ink)' },
 }
 
 // Campo de UMA linha (não textarea) — é uma frase curta, não um texto
