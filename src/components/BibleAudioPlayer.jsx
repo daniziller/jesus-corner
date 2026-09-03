@@ -139,7 +139,7 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
     return (
       <div style={styles.compactWrap}>
         <button style={styles.compactPlayBtn} onClick={handlePlayPause} aria-label={L('play')}>
-          <AppIcon name={playIcon} size={15} color="white" />
+          <AppIcon name={playIcon} size={15} color="var(--bento-ink)" />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={styles.compactTitle}>{titleText}</p>
@@ -209,10 +209,15 @@ const styles = {
   track: { width: '100%', height: 4, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden' },
   fill: { height: '100%', background: 'var(--grad-primary)', borderRadius: 99, transition: 'width .4s ease' },
 
-  compactWrap: { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bk)', borderRadius: 18, padding: '12px 14px', boxShadow: 'var(--shadow-premium)' },
-  compactPlayBtn: { width: 40, height: 40, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  compactTitle: { fontSize: 12.5, fontWeight: 600, color: 'white', margin: '0 0 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  compactTrack: { height: 3, borderRadius: 99, background: 'rgba(255,255,255,.22)', overflow: 'hidden' },
-  compactFill: { height: '100%', borderRadius: 99, background: '#E08A3C', transition: 'width .4s ease' },
+  // Bloco de áudio da leitura imersiva (reskin Bento, tela 4a) — só usado
+  // ali (ver ReadingBlockView.jsx), então reskinado direto sem variante à
+  // parte. Botão de play em ink sobre laranja sólido (não branco sobre
+  // gradiente); sem gradiente em lugar nenhum, como pede o adendo de
+  // identidade.
+  compactWrap: { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bento-ink)', borderRadius: 22, padding: '14px 16px' },
+  compactPlayBtn: { width: 38, height: 38, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  compactTitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'white', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  compactTrack: { height: 4, borderRadius: 99, background: 'rgba(255,255,255,.2)', overflow: 'hidden' },
+  compactFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)', transition: 'width .4s ease' },
   compactStopBtn: { width: 26, height: 26, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 }
