@@ -1,20 +1,31 @@
-// ProgressScreen.jsx — "Sua caminhada" (redesign 1f)
+// ProgressScreen.jsx — "Sua caminhada" (redesign 1f, reskin Bento — tela 5b)
 //
 // Dois placares, não sete: constância (semanal) e caminhada pela Bíblia
 // (bloco/livro atual). Nível e XP viram consequência silenciosa, revelada
 // discretamente no fim da tela — Conquistas saem da grade permanente e
 // passam a aparecer só no instante em que são ganhas (ver
-// AchievementCelebration.jsx, disparada pelo App.jsx). Testamentos, stats
-// secundárias (livros concluídos) e "Sessões restantes" saíram daqui —
-// nenhuma outra tela depende desses números além desta.
+// AchievementCelebration.jsx, disparada pelo App.jsx). Entra por "Sua
+// caminhada" na Home, não por aba própria (ver comentário no HTML do
+// handoff) — a barra continua com Biblioteca no lugar de Progresso.
 import { t as translate } from '../i18n'
 import PremiumLockCard from '../components/PremiumLockCard'
 import { pickActiveBlock, computeBookChapterCounts } from '../utils/progress'
 import { computeRecentWeeksStatus } from '../routine/routineStreak'
 
 export default function ProgressScreen({ session, blocks, sessionsByBlock, onNavigate }) {
-  const { lang, hasPremium, weeklyGoalDays, weekGoalDaysMet, weeksInGoal, dailyRoutine } = session
+  const { lang, hasPremium, weeklyGoalDays, weeksInGoal, dailyRoutine } = session
   const L = (k, vars) => translate(`progress.${k}`, vars, lang)
+
+  // "Desde {mês}" — dado real (o dia mais antigo com algo registrado na
+  // rotina), não um valor ilustrativo inventado; sem nenhum dia registrado
+  // ainda, a linha simplesmente não aparece.
+  const earliestKey = Object.keys(dailyRoutine ?? {}).sort()[0]
+  const sinceLabel = (() => {
+    if (!earliestKey) return null
+    const [y, m] = earliestKey.split('-').map(Number)
+    const monthName = new Date(y, m - 1, 1).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'long' })
+    return L('sinceMonth', { month: monthName.charAt(0).toUpperCase() + monthName.slice(1) })
+  })()
 
   // ── Caminhada pela Bíblia: bloco/livro em foco ──
   // Sempre a partir da leitura canônica (mesmos `blocks`/`sessionsByBlock`
@@ -39,150 +50,144 @@ export default function ProgressScreen({ session, blocks, sessionsByBlock, onNav
 
   return (
     <div style={styles.screen}>
-      <p style={styles.title}>{L('title')}</p>
-
-      {/* Cartão de constância — fundo escuro, o placar "de esforço". */}
-      <div style={styles.consistencyCard}>
-        <p style={styles.consistencyLabel}>{L('consistencyLabel')}</p>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '2px 0 16px' }}>
-          <span style={styles.consistencyNumber}>{weeksInGoal}</span>
-          <span style={styles.consistencySub}>{L('weeksInGoal')}</span>
-        </div>
-
-        <div style={styles.weekChart}>
-          {weeks.map((w, i) => {
-            const pct = Math.max(14, Math.min(100, Math.round((w.daysMet / weeklyGoalDays) * 100)))
-            const color = w.isCurrent
-              ? 'rgba(245,233,222,.22)'
-              : w.met ? '#E08A3C' : 'rgba(224,138,60,.5)'
-            return (
-              <span key={i} style={styles.weekBarTrack}>
-                <span style={{ ...styles.weekBarFill, height: `${pct}%`, background: color }} />
-              </span>
-            )
-          })}
-        </div>
-        <p style={styles.consistencyLegend}>{L('recentWeeksNote')}</p>
+      <div style={styles.header}>
+        <p style={styles.title}>{L('title')}</p>
+        {sinceLabel && <p style={styles.subtitle}>{sinceLabel}</p>}
       </div>
 
-      {/* Cartão de posição na Bíblia — o placar "de trajeto". */}
-      <div style={styles.bibleCard}>
-        <p style={styles.bibleLabel}>{L('whereYouAre')}</p>
-        <p style={styles.biblePosition}>{positionLine}</p>
-        <p style={styles.bibleBlockLine}>{L('blockOfTotal', { block: activeBlockName, i: activeIdx + 1, total: blocks.length })}</p>
-
-        <div style={styles.bibleProgressTrack}>
-          <div style={{ ...styles.bibleProgressFill, width: `${activeBlock.percent}%` }} />
-        </div>
-
-        <div style={styles.blockList}>
-          {blocks.map(block => {
-            const todo = block.status === 'todo'
-            const name = lang === 'en' ? block.nameEn : block.name
-            return (
-              <div key={block.id} style={styles.blockRow}>
-                <span style={{ ...styles.blockRowName, ...(todo ? styles.blockRowNameTodo : {}) }}>{name}</span>
-                <span style={{ ...styles.blockRowTrack, ...(todo ? styles.blockRowTrackTodo : {}) }}>
-                  {!todo && <span style={{ ...styles.blockRowFill, width: `${block.percent}%` }} />}
-                </span>
-                <span style={{ ...styles.blockRowPct, ...(todo ? styles.blockRowPctTodo : {}) }}>
-                  {todo ? '—' : `${block.percent}%`}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-
-        <p style={styles.bibleFooter}>
-          {L('wholeBibleFooter', { pct: session.biblePercent, done: session.chaptersRead, total: session.totalChapters })}
-        </p>
-      </div>
-
-      {/* Nível — consequência silenciosa, só pra quem já desbloqueou XP/
-          conquistas (Premium). Sem grade de conquistas: elas agora só
-          aparecem no instante em que são ganhas (ver App.jsx). */}
-      {hasPremium ? (
-        <div style={styles.levelCard}>
-          <span style={styles.levelCircle}>{session.level.level}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={styles.levelTitle}>{session.level.title}</p>
-            <p style={styles.levelSub}>
-              {session.nextLevel
-                ? L('xpToNextEmph', { n: session.xpForNext.toLocaleString(lang === 'en' ? 'en' : 'pt-BR'), level: session.nextLevel.level })
-                : L('maxLevel')}
-            </p>
+      <div style={styles.body}>
+        {/* Cartão de constância — fundo escuro, o placar "de esforço". */}
+        <div style={styles.consistencyCard}>
+          <p style={styles.consistencyLabel}>{L('consistencyLabel')}</p>
+          <div style={styles.consistencyRow}>
+            <span style={styles.consistencyNumber}>{weeksInGoal}</span>
+            <span style={styles.consistencySub}>{L('weeksInGoal')}</span>
           </div>
+
+          <div style={styles.weekChart}>
+            {weeks.map((w, i) => {
+              const pct = Math.max(14, Math.min(100, Math.round((w.daysMet / weeklyGoalDays) * 100)))
+              const color = w.isCurrent
+                ? 'rgba(255,255,255,.14)'
+                : w.met ? 'var(--bento-accent)' : 'rgba(240,102,43,.4)'
+              return (
+                <span key={i} style={styles.weekBarTrack}>
+                  <span style={{ ...styles.weekBarFill, height: `${pct}%`, background: color }} />
+                </span>
+              )
+            })}
+          </div>
+          <p style={styles.consistencyLegend}>{L('recentWeeksNote')}</p>
         </div>
-      ) : (
-        <div style={{ marginTop: 20 }}>
+
+        {/* Cartão de posição na Bíblia — o placar "de trajeto". */}
+        <div style={styles.bibleCard}>
+          <p style={styles.bibleLabel}>{L('whereYouAre')}</p>
+          <p style={styles.biblePosition}>{positionLine}</p>
+          <p style={styles.bibleBlockLine}>{L('blockOfTotal', { block: activeBlockName, i: activeIdx + 1, total: blocks.length })}</p>
+
+          <div style={styles.bibleProgressTrack}>
+            <div style={{ ...styles.bibleProgressFill, width: `${activeBlock.percent}%` }} />
+          </div>
+
+          <div style={styles.blockList}>
+            {blocks.map(block => {
+              const todo = block.status === 'todo'
+              const name = lang === 'en' ? block.nameEn : block.name
+              return (
+                <div key={block.id} style={styles.blockRow}>
+                  <span style={{ ...styles.blockRowName, ...(todo ? styles.blockRowNameTodo : {}) }}>{name}</span>
+                  <span style={{ ...styles.blockRowTrack, ...(todo ? styles.blockRowTrackTodo : {}) }}>
+                    {!todo && <span style={{ ...styles.blockRowFill, width: `${block.percent}%` }} />}
+                  </span>
+                  <span style={{ ...styles.blockRowPct, ...(todo ? styles.blockRowPctTodo : {}) }}>
+                    {todo ? '—' : `${block.percent}%`}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          <p style={styles.bibleFooter}>
+            {L('wholeBibleFooter', { pct: session.biblePercent, done: session.chaptersRead, total: session.totalChapters })}
+          </p>
+        </div>
+
+        {/* Nível — consequência silenciosa, só pra quem já desbloqueou XP/
+            conquistas (Premium). Sem grade de conquistas: elas agora só
+            aparecem no instante em que são ganhas (ver App.jsx). */}
+        {hasPremium ? (
+          <div style={styles.levelCard}>
+            <span style={styles.levelBadge}>{session.level.level}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={styles.levelTitle}>{session.level.title}</p>
+              <p style={styles.levelSub}>
+                {session.nextLevel
+                  ? L('xpToNextEmph', { n: session.xpForNext.toLocaleString(lang === 'en' ? 'en' : 'pt-BR'), level: session.nextLevel.level })
+                  : L('maxLevel')}
+              </p>
+            </div>
+          </div>
+        ) : (
           <PremiumLockCard lang={lang} onNavigate={onNavigate} variant="premium" />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
 
 const styles = {
-  screen: {
-    background: 'var(--olt)',
-    height: '100%',
-    overflowY: 'auto',
-    WebkitOverflowScrolling: 'touch',
-    padding: '8px 22px calc(var(--nav-height) + 24px)',
-  },
-  title: {
-    fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800,
-    letterSpacing: '-0.6px', color: 'var(--bk)', margin: '8px 0 18px',
-  },
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flexShrink: 0, padding: '22px 20px 0' },
+  title: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
+  subtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '4px 0 0' },
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '18px 20px calc(var(--nav-height) + 20px)', display: 'flex', flexDirection: 'column', gap: 12 },
 
-  consistencyCard: { background: 'var(--bk)', borderRadius: 20, padding: 22 },
+  consistencyCard: { background: 'var(--bento-ink)', borderRadius: 28, padding: 24, color: 'white' },
   consistencyLabel: {
-    fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase',
-    color: 'rgba(245,233,222,.6)', margin: 0,
+    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase',
+    color: 'rgba(255,255,255,.45)', margin: 0,
   },
-  consistencyNumber: {
-    fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 800, color: 'white',
-    letterSpacing: '-1.6px', lineHeight: 1,
-  },
-  consistencySub: { fontSize: 14, fontWeight: 500, color: 'rgba(245,233,222,.7)' },
-  weekChart: { display: 'flex', alignItems: 'flex-end', gap: 4, height: 52 },
+  consistencyRow: { display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 0 18px' },
+  consistencyNumber: { fontFamily: 'var(--font-bento)', fontSize: 44, fontWeight: 800, letterSpacing: '-2px', lineHeight: 1 },
+  consistencySub: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
+  weekChart: { display: 'flex', alignItems: 'flex-end', gap: 5, height: 42 },
   weekBarTrack: { flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end' },
-  weekBarFill: { width: '100%', borderRadius: 4, transition: 'height 0.4s ease' },
-  consistencyLegend: { fontSize: 12.5, fontWeight: 400, lineHeight: 1.5, color: 'rgba(245,233,222,.6)', margin: '12px 0 0' },
+  weekBarFill: { width: '100%', borderRadius: 6, transition: 'height 0.4s ease' },
+  consistencyLegend: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.45)', margin: '14px 0 0' },
 
-  bibleCard: { background: 'var(--white)', borderRadius: 20, padding: 22, marginTop: 14 },
+  bibleCard: { background: 'var(--bento-card)', borderRadius: 24, padding: 22 },
   bibleLabel: {
-    fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase',
-    color: 'var(--or)', margin: '0 0 8px',
+    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase',
+    color: 'var(--bento-t4)', margin: '0 0 14px',
   },
-  biblePosition: {
-    fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800,
-    letterSpacing: '-0.5px', color: 'var(--bk)', margin: '0 0 3px',
-  },
-  bibleBlockLine: { fontSize: 13, fontWeight: 500, color: 'var(--g5)', margin: '0 0 16px' },
-  bibleProgressTrack: { height: 10, borderRadius: 99, background: 'var(--g1)', overflow: 'hidden', marginBottom: 18 },
-  bibleProgressFill: { height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#B5651D,#9D4300)' },
+  biblePosition: { fontFamily: 'var(--font-bento)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.8px', lineHeight: 1.15, color: 'var(--bento-ink)', margin: '0 0 4px' },
+  bibleBlockLine: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 18px' },
+  bibleProgressTrack: { height: 12, borderRadius: 99, background: 'var(--bento-line)', overflow: 'hidden', marginBottom: 22 },
+  bibleProgressFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
 
-  blockList: { display: 'flex', flexDirection: 'column', gap: 12 },
-  blockRow: { display: 'flex', alignItems: 'center', gap: 10 },
-  blockRowName: { flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  blockRowNameTodo: { color: 'var(--g4)', fontWeight: 500 },
-  blockRowTrack: { width: 110, height: 6, borderRadius: 99, background: 'var(--g1)', overflow: 'hidden', flexShrink: 0 },
-  blockRowTrackTodo: { background: '#F0EAE4' },
-  blockRowFill: { display: 'block', height: '100%', borderRadius: 99, background: 'var(--or)' },
-  blockRowPct: { width: 38, flexShrink: 0, textAlign: 'right', fontSize: 12, fontWeight: 700, color: 'var(--g5)' },
-  blockRowPctTodo: { color: '#C6BFB8', fontWeight: 500 },
-  bibleFooter: { fontSize: 12, fontWeight: 500, color: 'var(--g4)', margin: '18px 0 0' },
+  blockList: { display: 'flex', flexDirection: 'column', gap: 13 },
+  blockRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  blockRowName: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  blockRowNameTodo: { color: 'var(--bento-t5)', fontWeight: 600 },
+  blockRowTrack: { width: 104, height: 7, borderRadius: 99, background: 'var(--bento-line)', overflow: 'hidden', flexShrink: 0 },
+  blockRowTrackTodo: {},
+  blockRowFill: { display: 'block', height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
+  blockRowPct: { width: 36, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)' },
+  // #D6CFC7 do mock não tem token exato — --bento-t5 é a aproximação mais
+  // próxima (diferença imperceptível num "—" discreto).
+  blockRowPctTodo: { color: 'var(--bento-t5)', fontWeight: 600 },
+  bibleFooter: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t5)', margin: '18px 0 0' },
 
   levelCard: {
-    marginTop: 14, background: 'rgba(255,255,255,.55)', borderRadius: 16, padding: '13px 16px',
-    display: 'flex', alignItems: 'center', gap: 12,
+    background: 'var(--bento-sand)', borderRadius: 24, padding: '18px 20px',
+    display: 'flex', alignItems: 'center', gap: 14,
   },
-  levelCircle: {
-    width: 34, height: 34, flexShrink: 0, borderRadius: '50%', background: 'var(--g1)',
+  levelBadge: {
+    width: 36, height: 36, flexShrink: 0, borderRadius: 12, background: 'var(--bento-sand-icon)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--or)',
+    fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-sand)',
   },
-  levelTitle: { fontSize: 13.5, fontWeight: 600, color: 'var(--bk)', margin: '0 0 1px' },
-  levelSub: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', margin: 0 },
+  levelTitle: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, color: 'var(--bento-sand-ink-strong)', margin: '0 0 3px' },
+  levelSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-sand-label)', margin: 0 },
 }
