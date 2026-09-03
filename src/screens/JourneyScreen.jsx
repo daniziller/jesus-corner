@@ -27,7 +27,7 @@ function flattenBooks(blocksSubset, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onGoToReflectionFrom, onExitGuided,
+  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onGoToReflectionFrom, onExitGuided, onExitReading,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -135,6 +135,13 @@ export default function JourneyScreen({
   }, [browseJumpTarget])
 
   function closeBlock() {
+    // Leitura imersiva (redesign 1b): a seta ← do cabeçalho não volta pro
+    // mapa de blocos (a barra de navegação está escondida — a pessoa
+    // ficaria presa) — sai da leitura de volta pra onde veio (Home/Oração).
+    if (entryMode === 'reading' && onExitReading) {
+      onExitReading()
+      return
+    }
     // Guarda de qual bloco a pessoa estava saindo — usado só pra decidir
     // qual seção de testamento (Antigo/Novo) volta já aberta no mapa (ver
     // lastViewedBlockId/TestamentSection abaixo). Sem isso, a seção sempre

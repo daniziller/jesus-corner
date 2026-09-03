@@ -22,10 +22,16 @@ import RecentChaptersRow from '../components/RecentChaptersRow'
 import BibleAudioPlayer from '../components/BibleAudioPlayer'
 import GuidedFlowBanner from '../components/GuidedFlowBanner'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
+import ToolsSheet from '../components/ToolsSheet'
 
 export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, embedded = false }) {
   const { lang, hasPremium, hasAI } = session
   const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
+  // Leitura imersiva (redesign 1b) — leitura guiada de tela cheia: cabeçalho
+  // compacto que some ao rolar, texto no topo sem card, rodapé fixo com
+  // player + Ferramentas + Concluir, sem barra de navegação. A aba Bíblia
+  // (mode 'browse', embutida) não muda.
+  const immersive = mode !== 'browse' && !embedded
   // Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
   // .rb-detail, min-width: 768px) — usado só em modo 'browse' pra decidir
   // ONDE o texto do capítulo aparece (ver comentário perto de onde é usado).
@@ -182,7 +188,27 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     { key: 'ia',           icon: 'HelpCircle', label: t('reading.tagAskAi', undefined, lang) },
   ]
 
-  const [openPanel, setOpenPanel] = useState(null)
+  // Na leitura guiada o texto está sempre aberto (redesign 1b) — Contexto/
+  // Mapa/Notas/Curiosidades saíram do openPanel e vivem na folha Ferramentas.
+  const [openPanel, setOpenPanel] = useState(mode !== 'browse' ? 'texto' : null)
+  const [toolsOpen, setToolsOpen] = useState(false)
+  // Cabeçalho da leitura imersiva some ao rolar pra baixo, volta ao rolar
+  // pra cima (redesign 1b). scrollRef é o container que rola (ver JSX).
+  const [readerHeaderHidden, setReaderHeaderHidden] = useState(false)
+  const lastReaderScrollY = useRef(0)
+  useEffect(() => {
+    if (!immersive) return
+    const el = scrollRef.current
+    if (!el) return
+    function onScroll() {
+      const y = el.scrollTop
+      if (y > lastReaderScrollY.current + 8 && y > 56) setReaderHeaderHidden(true)
+      else if (y < lastReaderScrollY.current - 8 || y < 24) setReaderHeaderHidden(false)
+      lastReaderScrollY.current = y
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [immersive, heroSession?.id])
 
   // "Último texto lido" — grava o capítulo que a pessoa está lendo agora,
   // em QUALQUER modo, pro card "Continue sua leitura" da Home reabrir
@@ -228,7 +254,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     // lendo vários capítulos seguidos sem precisar tocar em "Texto" nem
     // vez. Qualquer outro painel (Contexto/Mapa/Notas/Curiosidades) sempre
     // fecha ao trocar, e em modo 'session' o comportamento é o de sempre.
-    setOpenPanel(p => (mode === 'browse' && p === 'texto') ? 'texto' : null)
+    setOpenPanel(p => (mode !== 'browse' || p === 'texto') ? 'texto' : null)
     if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); setNotesMap({}); return }
     getNotes(authUser.email).then(map => {
       setNotesMap(map)
@@ -499,46 +525,65 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // JSX teria que ser escrito duas vezes.
   const headerAndPanels = (
     <>
-      {guidedReading && !embedded && (
+      {guidedReading && !embedded && !immersive && (
         <GuidedFlowBanner guided={guidedReading} lang={lang} onExit={onExitGuided} />
       )}
-      <div style={styles.browseHeader}>
-        {!embedded && (
-          <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
-            <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
+      {immersive ? (
+        // Cabeçalho compacto (48px) — some ao rolar pra baixo, volta ao
+        // rolar pra cima (readerHeaderHidden). Fica fixo no topo.
+        <div style={{ ...styles.readerHeader, transform: readerHeaderHidden ? 'translateY(-100%)' : 'none' }}>
+          <button onClick={onBack} style={styles.readerBackBtn} aria-label={t('a11y.goBack', undefined, lang)}>
+            <AppIcon name="ArrowLeft" size={18} color="var(--bk)" />
           </button>
-        )}
-        {mode !== 'browse' && (
-          <p style={styles.browseHeaderCycle}>
-            {isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}
-          </p>
-        )}
-        {/* Embutido: o nome do livro já mora na linha da lista, fora deste
-            componente (ver BookRow em JourneyScreen.jsx) — repetir aqui
-            seria redundante. */}
-        {!embedded && (
-          <span style={styles.browseHeaderTitle}>{mode === 'browse' ? heroBookDisplayName : heroTitle}</span>
-        )}
-        {mode !== 'browse' && (
-          <p style={styles.browseHeaderSub}>
-            {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
-          </p>
-        )}
-        <div style={styles.browseTagsRow}>
-          {/* IA nunca entra aqui — tem seu próprio botão flutuante (FAB),
-              em qualquer um dos dois modos; repetir na lista de abas
-              seria a mesma coisa duas vezes. Notas exige Premium. */}
-          {TAGS.filter(tag => tag.key !== 'ia' && (tag.key !== 'notas' || hasPremium)).map(tag => (
-            <span
-              key={tag.key}
-              style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
-              onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
-            >
-              <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
-            </span>
-          ))}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={styles.readerHeaderTitle}>{heroTitle}</p>
+            <p style={styles.readerHeaderSub}>
+              {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
+            </p>
+          </div>
+          <button onClick={() => setToolsOpen(true)} style={styles.readerMenuBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
+            <AppIcon name="SlidersHorizontal" size={19} color="var(--g6)" />
+          </button>
         </div>
-      </div>
+      ) : (
+        <div style={styles.browseHeader}>
+          {!embedded && (
+            <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
+              <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
+            </button>
+          )}
+          {mode !== 'browse' && (
+            <p style={styles.browseHeaderCycle}>
+              {isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}
+            </p>
+          )}
+          {/* Embutido: o nome do livro já mora na linha da lista, fora deste
+              componente (ver BookRow em JourneyScreen.jsx) — repetir aqui
+              seria redundante. */}
+          {!embedded && (
+            <span style={styles.browseHeaderTitle}>{mode === 'browse' ? heroBookDisplayName : heroTitle}</span>
+          )}
+          {mode !== 'browse' && (
+            <p style={styles.browseHeaderSub}>
+              {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
+            </p>
+          )}
+          <div style={styles.browseTagsRow}>
+            {/* IA nunca entra aqui — tem seu próprio botão flutuante (FAB),
+                em qualquer um dos dois modos; repetir na lista de abas
+                seria a mesma coisa duas vezes. Notas exige Premium. */}
+            {TAGS.filter(tag => tag.key !== 'ia' && (tag.key !== 'notas' || hasPremium)).map(tag => (
+              <span
+                key={tag.key}
+                style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
+                onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
+              >
+                <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Ouvir a Bíblia — player de áudio da navegação livre (fora de
           plano). Fica montado aqui no topo (não por capítulo) pra que o
           modo "contínuo" atravesse a troca de capítulo sem cortar o som.
@@ -571,11 +616,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       {!embedded && mode === 'browse' && isDesktop && (
         <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
       )}
-      {mode !== 'browse' && (
+      {mode !== 'browse' && !immersive && (
         <>
           {/* Marcação capítulo a capítulo da sessão em destaque — só no
-              fluxo guiado (mode 'session'); a navegação livre pula essa
-              linha (ver acima). */}
+              fluxo guiado antigo; a leitura imersiva (1b) marca o capítulo
+              no fim do texto e conclui a sessão pelo rodapé. */}
           {heroSession.type !== 'reflection' && (
             <div style={{ padding: '0 14px 4px' }}>
               <ChapterChecklist
@@ -597,7 +642,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           "o passo de hoje" de coisa nenhuma, e embutido na aba Bíblia não
           tem esse contexto de rotina). Logo acima do texto de propósito —
           depois da lista de capítulos da sessão, não colado no cabeçalho. */}
-      {!embedded && mode !== 'browse' && heroSession.type !== 'reflection' && (
+      {!embedded && mode !== 'browse' && !immersive && heroSession.type !== 'reflection' && (
         <RoutineStepSwitcher
           session={session}
           activeStep="reading"
@@ -608,8 +653,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       )}
 
       {/* Painel de texto / contexto / mapa / notas / curiosidades da
-          sessão atual. */}
-      {openPanel === 'notas' && (
+          sessão atual. Na leitura imersiva, Contexto/Mapa/Notas/Curiosidades
+          vivem na folha Ferramentas (ToolsSheet, mais abaixo) — aqui fica só
+          o texto. */}
+      {openPanel === 'notas' && !immersive && (
         <div style={{ padding: '0 14px 4px' }}>
           <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
         </div>
@@ -631,15 +678,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         const browseTextInHero = !embedded && mode === 'browse' && isDesktop && expandedChapterId != null
         const nextForHero = browseTextInHero ? getNextSessionFor(heroSession) : null
         return (mode !== 'browse' && openPanel === 'texto') || browseTextInHero ? (
-          // Margem lateral bem menor que os outros painéis (Contexto/Mapa/
-          // Notas usam 14px) — é texto corrido pra ler, não uma lista de
-          // botões/cards, então vale abrir mão de respiro lateral em troca
-          // de uma coluna de leitura mais larga (ver também styles.panel
-          // sobrescrito dentro de BibleTextPanel).
-          <div style={{ padding: '0 6px 4px' }}>
+          // Leitura imersiva (1b): sem card, 26px de respiro lateral pro
+          // texto (19px/1.72). Nos outros casos, margem lateral bem menor
+          // que os painéis de lista pra dar coluna de leitura mais larga.
+          <div style={{ padding: immersive ? '4px 22px 4px' : '0 6px 4px' }}>
             <BibleTextPanel
               session={heroSession}
               lang={lang}
+              immersive={immersive}
               completedSet={completedSet}
               onToggleChapter={onToggleChapter}
               highlights={highlights}
@@ -669,10 +715,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         </div>
       )}
 
-      {/* Marcar/desmarcar a sessão em destaque — só no fluxo guiado; na
-          navegação livre, cada capítulo já se marca sozinho na lista
-          abaixo (BookGroup), sem precisar desse botão redundante. */}
-      {mode !== 'browse' && (
+      {/* Marcar/desmarcar a sessão em destaque — fluxo guiado antigo. Na
+          leitura imersiva (1b) isso é o botão "Concluir leitura" do rodapé
+          fixo (ver readerFooter, mais abaixo). */}
+      {mode !== 'browse' && !immersive && (
         <div style={{ padding: '0 14px 4px' }}>
           <button
             style={{ ...styles.completeBtn, ...(heroSession.status === 'done' ? styles.completeBtnDone : {}) }}
@@ -683,11 +729,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         </div>
       )}
 
-      {/* Sessão concluída no fluxo guiado (mode 'session', não a
-          navegação livre da aba Bíblia) — próximo passo da rotina é a
-          Reflexão, mesmo padrão do "Ir para a Leitura" que aparece no
-          fim do cronômetro de Oração (PrayerScreen.jsx). */}
-      {mode !== 'browse' && heroSession.status === 'done' && (
+      {mode !== 'browse' && !immersive && heroSession.status === 'done' && (
         <div style={{ padding: '0 14px 4px' }}>
           <button style={styles.nextStepBtn} onClick={() => (onGoToReflection ? onGoToReflection(heroSession) : onNavigate?.('reflection'))}>
             {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
@@ -739,7 +781,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         árvore, o mesmo truque de centralização de .bottom-nav
         (left:50%+translateX(-50%) dentro de max-width:var(--max-width))
         funciona igual. */}
-    {heroSession.type !== 'reflection' && (mode !== 'browse' || expandedChapterId != null) && (hasPremium || hasAI) && createPortal(
+    {/* FAB de grifo/IA — na leitura imersiva (1b) some: o grifo continua no
+        toque do versículo e a IA vira um item da folha Ferramentas, pra não
+        brigar com o rodapé fixo. */}
+    {!immersive && heroSession.type !== 'reflection' && (mode !== 'browse' || expandedChapterId != null) && (hasPremium || hasAI) && createPortal(
       <div style={styles.aiFabWrap}>
         {/* Lápis em cima do robô da IA — mesmo FAB flutuante, mesma coluna,
             só empilhado (ver styles.highlightFab: mesmo `right`, `bottom`
@@ -861,9 +906,69 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           {bookListItems}
         </div>
       </>
+    ) : immersive ? (
+      // Leitura imersiva (redesign 1b) — só o texto rolável + cabeçalho
+      // compacto sticky + rodapé fixo. Sem lista de livros, sem cards de
+      // "lidos recentemente".
+      <div style={{ height: '100%', background: 'var(--olt)' }}>
+        <div ref={scrollRef} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 148, height: '100%' }}>
+          {headerAndPanels}
+        </div>
+        {/* Rodapé portalado pro <body> — position:fixed dentro de
+            .app-content-inner (zoom:1.15) calcularia a posição errada, mesmo
+            problema/solução dos FABs mais abaixo e da .bottom-nav. */}
+        {createPortal(
+          <div style={styles.readerFooter}>
+            {heroSession.type !== 'reflection' && (
+              <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact />
+            )}
+            <div style={styles.readerFooterRow}>
+              <button style={styles.readerToolsBtn} onClick={() => setToolsOpen(true)}>
+                <AppIcon name="Wrench" size={15} color="var(--g6)" />
+                {t('reading.toolsBtn', undefined, lang)}
+              </button>
+              <button
+                style={styles.readerDoneBtn}
+                onClick={() => {
+                  if (heroSession.status !== 'done') onToggleSession(heroSession, true)
+                  if (onGoToReflection) onGoToReflection(heroSession)
+                  else onNavigate?.('reflection')
+                }}
+              >
+                {t('reading.finishReading', undefined, lang)}
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+        <ToolsSheet
+          open={toolsOpen}
+          onClose={() => setToolsOpen(false)}
+          lang={lang}
+          title={t('reading.toolsBtn', undefined, lang)}
+          items={[
+            ...(heroBooks.length > 0 ? [
+              { key: 'contexto', icon: 'BookOpen', label: t('reading.tagContext', undefined, lang), node: <InfoPanel type="contexto" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
+              { key: 'mapa', icon: 'Map', label: t('reading.tagMap', undefined, lang), node: <InfoPanel type="mapa" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
+            ] : []),
+            ...(hasPremium ? [{ key: 'notas', icon: 'StickyNote', label: t('reading.tagNotes', undefined, lang), node: <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} /> }] : []),
+            ...(heroBooks.length > 0 ? [
+              { key: 'curiosidades', icon: 'Lightbulb', label: t('reading.tagTrivia', undefined, lang), node: <InfoPanel type="curiosidades" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
+            ] : []),
+          ]}
+          extra={hasAI ? (
+            <button
+              style={styles.toolsExtraBtn}
+              onClick={() => { setToolsOpen(false); openAiChat() }}
+            >
+              <AppIcon name="HelpCircle" size={16} color="var(--or)" />
+              {t('reading.tagAskAi', undefined, lang)}
+            </button>
+          ) : null}
+        />
+      </div>
     ) : (
-      // Tela cheia (fluxo guiado, mode 'session' — ou navegação livre
-      // antiga, mantida só pro caso de algum caller ainda não migrado).
+      // Tela cheia antiga (fluxo guiado não-migrado / navegação livre antiga).
       // rb-enter (transição de entrada) mora neste wrapper de FORA, nunca
       // no próprio elemento que rola (scrollRef, overflow-y:auto logo
       // abaixo) — animar transform num elemento com scroll pode travar o
@@ -872,27 +977,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       <div className={mode === 'browse' ? 'rb-enter' : undefined} style={{ height: '100%' }}>
         <div ref={scrollRef} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
           <div className="rb-body">
-            {/* Detalhe: sessão em destaque + marcação + painéis — vem
-                primeiro no DOM (ordem certa no celular); no desktop o CSS
-                reordena pra direita e mantém fixo (sticky) enquanto a
-                lista de livros rola. */}
             <div className="rb-detail">
               {headerAndPanels}
             </div>
-
-            {/* Versão celular dos cards de "lidos recentemente" — de
-                propósito FORA de .rb-detail (ver comentário dentro de
-                headerAndPanels): como filha direta de .rb-body (que cobre
-                TODA a altura, cabeçalho + lista), sticky consegue ficar
-                colada no topo por toda a rolagem da lista de capítulos
-                abaixo, não só enquanto .rb-detail (curto) durar. */}
             {mode === 'browse' && !isDesktop && (
               <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
             )}
-
-            {/* Lista de livros do bloco (agrupados; só o livro em leitura
-                já vem expandido) — no desktop vira o painel "mestre" à
-                esquerda. */}
             <div className="rb-master" style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
               {bookListItems}
             </div>
@@ -1053,7 +1143,7 @@ function groupIntoParagraphs(chapter) {
   return paragraphs
 }
 
-function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, onVerseNumberClick, onTextSelectionRange }) {
+function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, onVerseNumberClick, onTextSelectionRange, immersive = false }) {
   const bookKey = lang === 'en' ? session.bookEn : session.book
   const availableVersions = BIBLE_VERSIONS[lang] ?? []
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
@@ -1130,11 +1220,10 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
   const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
 
   return (
-    // Padding horizontal bem menor que o dos outros painéis (styles.panel
-    // sozinho usa 14px) — texto corrido de leitura ganha mais com uma
-    // coluna larga do que com respiro lateral generoso (ver também os dois
-    // wrappers que chamam este componente, ambos com o mesmo ajuste).
-    <div style={{ ...styles.panel, padding: '14px 8px' }} ref={textRef}>
+    // Imersivo (1b): sem card, o respiro lateral vem do wrapper de fora
+    // (22px). Nos outros casos, card de painel com padding lateral menor —
+    // texto corrido ganha mais com coluna larga que com respiro generoso.
+    <div style={immersive ? { padding: '2px 0 8px' } : { ...styles.panel, padding: '14px 8px' }} ref={textRef}>
       {availableVersions.length > 1 ? (
         <div style={styles.bibleTextVersionRow}>
           {availableVersions.map(v => (
@@ -1919,6 +2008,43 @@ const styles = {
   browseTagsRow:   { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 6 },
   browseTag:       { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'var(--g5)', cursor: 'pointer' },
   browseTagActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.3)' },
+
+  // ── Leitura imersiva (redesign 1b) ──
+  readerHeader: {
+    position: 'sticky', top: 0, zIndex: 20,
+    height: 48, display: 'flex', alignItems: 'center', gap: 12, padding: '0 18px',
+    background: 'rgba(245,233,222,.86)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+    transition: 'transform .2s ease-out',
+  },
+  readerBackBtn: { border: 'none', background: 'none', padding: 4, margin: '0 -4px', cursor: 'pointer', display: 'flex', flexShrink: 0 },
+  readerHeaderTitle: { fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  readerHeaderSub: { fontSize: 10.5, fontWeight: 400, color: 'var(--g5)', lineHeight: 1.2, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  readerMenuBtn: { border: 'none', background: 'none', padding: 4, cursor: 'pointer', display: 'flex', flexShrink: 0 },
+  readerFooter: {
+    position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+    width: '100%', maxWidth: 'min(var(--max-width), 560px)', zIndex: 90,
+    padding: '0 20px calc(12px + var(--safe-bottom))',
+    background: 'linear-gradient(to top, var(--olt) 72%, rgba(245,233,222,0))',
+    display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12,
+  },
+  readerFooterRow: { display: 'flex', gap: 8 },
+  readerToolsBtn: {
+    flex: 1, height: 46, borderRadius: 14, border: '1px solid rgba(18,18,18,.07)', background: 'var(--white)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+    fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--g6)', cursor: 'pointer',
+  },
+  readerDoneBtn: {
+    flex: 1, height: 46, borderRadius: 14, border: 'none', background: 'var(--grad-primary)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer',
+    boxShadow: 'var(--shadow-glow)',
+  },
+  toolsExtraBtn: {
+    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+    border: '1px solid rgba(18,18,18,.07)', borderRadius: 12, background: 'var(--white)',
+    padding: '11px 14px', cursor: 'pointer', fontFamily: 'var(--font)',
+    fontSize: 13.5, fontWeight: 600, color: 'var(--g6)',
+  },
   completeBtn: { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   completeBtnDone:{ background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
   nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--bk)', boxShadow: 'var(--shadow-premium)' },
@@ -1942,9 +2068,12 @@ const styles = {
   bibleTextVersionBtn:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '5px 11px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   bibleTextVersionBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
   bibleTextChapter:     { marginBottom: 16, paddingTop: 12, borderTop: '0.5px solid var(--g1)' },
-  bibleTextChapterLabel:{ fontSize: 12.5, fontWeight: 800, color: 'var(--bk)', marginBottom: 6 },
-  bibleTextBody:        { fontSize: 14, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.75, marginBottom: 16 },
-  bibleTextVerseNum:    { fontSize: 9.5, fontWeight: 700, color: 'var(--or)', marginRight: 2 },
+  // "CAPÍTULO 41" — rótulo de seção do redesign (11px/700 tracking .1em --or).
+  bibleTextChapterLabel:{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--or)', marginBottom: 12 },
+  // Texto bíblico — 19px/1.72 (redesign): a tela mais usada deve ser a mais
+  // silenciosa. Vale pra leitura guiada E pra aba Bíblia.
+  bibleTextBody:        { fontSize: 19, fontWeight: 400, color: 'var(--bk)', lineHeight: 1.72, marginBottom: 18, textWrap: 'pretty' },
+  bibleTextVerseNum:    { fontSize: 11, fontWeight: 700, color: 'var(--or)', verticalAlign: 'super', marginRight: 2 },
   bibleTextAttribution: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--g1)', fontStyle: 'italic' },
   nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
   chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 10, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--g1)' },
