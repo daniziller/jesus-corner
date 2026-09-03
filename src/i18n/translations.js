@@ -5,7 +5,7 @@
 export const STRINGS = {
   pt: {
     nav: {
-      home: 'Início', prayer: 'Oração', journey: 'Bíblia', routine: 'Meu Plano', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil', admin: 'Admin', notes: 'Notas',
+      home: 'Hoje', prayer: 'Oração', journey: 'Bíblia', routine: 'Meu Plano', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil', admin: 'Admin', notes: 'Biblioteca',
     },
     a11y: {
       largeTextToggle: 'Texto grande',
@@ -95,6 +95,8 @@ export const STRINGS = {
       aboutMin: 'cerca de {n} min',
       // Reskin Bento (3c) — saudação por horário do dia + CTA específico de
       // leitura no cartão de ação (quando o passo atual é a Leitura).
+      // Rótulo do 1º cartão de número da Home (quadro 3c: "Sequência").
+      sequenceLabel: 'Sequência',
       greetingMorning: 'Bom dia, {name}',
       greetingAfternoon: 'Boa tarde, {name}',
       greetingEvening: 'Boa noite, {name}',
@@ -1367,7 +1369,7 @@ export const STRINGS = {
   },
   en: {
     nav: {
-      home: 'Home', prayer: 'Prayer', journey: 'Bible', routine: 'My Plan', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile', admin: 'Admin', notes: 'Notes',
+      home: 'Today', prayer: 'Prayer', journey: 'Bible', routine: 'My Plan', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile', admin: 'Admin', notes: 'Library',
     },
     a11y: {
       largeTextToggle: 'Large text',
@@ -1449,6 +1451,7 @@ export const STRINGS = {
       beginRoutine: 'Start',
       resumeRoutine: 'Continue',
       aboutMin: 'about {n} min',
+      sequenceLabel: 'Streak',
       greetingMorning: 'Good morning, {name}',
       greetingAfternoon: 'Good afternoon, {name}',
       greetingEvening: 'Good evening, {name}',

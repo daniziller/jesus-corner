@@ -1568,6 +1568,14 @@ export default function App() {
   // inteira, sem barra de navegação nem sidebar: só a Palavra e os
   // controles de leitura. Sai pela seta do próprio cabeçalho da tela.
   const immersiveReading = activeTab === 'journey' && journeyEntryMode === 'reading'
+  // Telas já na identidade Bento (design_handoff_jesus_corner/Jesus Corner
+  // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f): nenhum quadro tem o
+  // cabeçalho com logotipo/sino/avatar — o título de cada tela é a saudação
+  // ou o nome dela (ADENDO: "os cabeçalhos usam saudação"). O AppHeader
+  // fica só nas telas que ainda não foram desenhadas (Perfil, Oração,
+  // Comunidade, Estudos…), e é lá que continuam o sino e o ajuste de
+  // tamanho de texto. Perfil é alcançado pelo avatar da Home.
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings'].includes(activeTab)
 
   return (
     <div className="app-shell">
@@ -1579,7 +1587,7 @@ export default function App() {
       <div className="app-main">
         {/* Header fixo (logo + avatar), presente em todas as abas — só em
             telas <768px; a leitura imersiva usa o próprio cabeçalho compacto. */}
-        {!immersiveReading && (
+        {!immersiveReading && !bentoScreen && (
           <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
         )}
 
