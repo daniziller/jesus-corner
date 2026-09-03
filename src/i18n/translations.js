@@ -191,6 +191,17 @@ export const STRINGS = {
       readingMinLabel: '~{n} min de leitura',
       goToToday: 'Ir para a leitura de hoje',
       continueReading: 'Continuar leitura',
+      // Reskin Bento (5f) — cabeçalho enxuto (sem o hero de progresso
+      // geral, que já mora em Início/Progresso) e os dois cartões novos:
+      // retomar a última leitura livre, e voltar pra sessão estruturada
+      // do dia a partir da navegação livre.
+      freeReadingSubtitle: 'Leia à vontade — isto não mexe no seu plano.',
+      lastFreeReadingLabel: 'Última leitura livre',
+      openBtn: 'Abrir',
+      todaySessionCta: 'Ler pela sessão de hoje',
+      countsInPlan: 'conta no plano',
+      newTestamentShort: 'Novo →',
+      oldTestamentShort: '← Antigo',
     },
     reading: {
       tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto Bíblico', tagAskAi: 'Perguntar à IA', tagHighlight: 'Grifar e anotar',
@@ -1476,6 +1487,13 @@ export const STRINGS = {
       readingMinLabel: '~{n} min reading',
       goToToday: "Go to today's reading",
       continueReading: 'Continue reading',
+      freeReadingSubtitle: "Read freely — this doesn't affect your plan.",
+      lastFreeReadingLabel: 'Last free reading',
+      openBtn: 'Open',
+      todaySessionCta: "Read today's session",
+      countsInPlan: 'counts toward your plan',
+      newTestamentShort: 'New →',
+      oldTestamentShort: '← Old',
     },
     reading: {
       tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Bible Text', tagAskAi: 'Ask AI', tagHighlight: 'Highlight & note',
