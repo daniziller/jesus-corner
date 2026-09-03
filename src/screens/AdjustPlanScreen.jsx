@@ -5,8 +5,6 @@
 // (não creme) pra sinalizar "tela de ajuste". A execução do dia mora em
 // RoutineScreen (1c).
 //
-// A seção "Ritmo da semana" (weekly_goal_days) do handoff entra na etapa 4
-// (constância semanal), junto da mudança de lógica que ela exige.
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
@@ -17,9 +15,10 @@ import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore
 // linha usa a cor a 10% e o interruptor ligado usa a cor cheia.
 const STEP_COLOR = { prayer: '#B5005D', reading: 'var(--or)', reflection: 'var(--bk)', study: 'var(--g4)' }
 const STEP_ORDER = ['prayer', 'reading', 'reflection', 'study']
+const WEEKLY_GOAL_OPTIONS = [3, 4, 5, 6, 7]
 
-export default function AdjustPlanScreen({ session, activeAltPlan, onSelectPace, onSelectActivePlan, onToggleRoutineModule, onNavigate, onBack }) {
-  const { lang, plan, activePlan, routineModules } = session
+export default function AdjustPlanScreen({ session, activeAltPlan, onSelectPace, onSelectActivePlan, onToggleRoutineModule, onSelectWeeklyGoal, onNavigate, onBack }) {
+  const { lang, plan, activePlan, routineModules, weeklyGoalDays } = session
   const L = (k, vars) => t(`routine.${k}`, vars, lang)
 
   const isChrono = activeAltPlan?.type === 'chrono'
@@ -119,6 +118,26 @@ export default function AdjustPlanScreen({ session, activeAltPlan, onSelectPace,
           })}
         </div>
 
+        {/* Ritmo da semana — meta de dias/semana (constância semanal,
+            etapa 4). Um dia perdido não zera nada; isso só decide o que
+            conta como "meta batida" na Home/Progresso. */}
+        <p style={styles.sectionLabel}>{L('weeklyGoalLabel')}</p>
+        <p style={styles.sectionHint}>{L('weeklyGoalHint')}</p>
+        <div style={styles.weeklyGoalRow}>
+          {WEEKLY_GOAL_OPTIONS.map(n => {
+            const on = weeklyGoalDays === n
+            return (
+              <button
+                key={n}
+                style={{ ...styles.weeklyGoalBtn, ...(on ? styles.weeklyGoalBtnOn : {}) }}
+                onClick={() => onSelectWeeklyGoal?.(n)}
+              >
+                {n}
+              </button>
+            )
+          })}
+        </div>
+
         {/* Planos por tema (IA) e Estudos — acessos que ficavam em Meu Plano.
             Consolidam na Biblioteca (etapa 6). */}
         {(session.hasAI || session.hasPremium) && (
@@ -188,6 +207,12 @@ const styles = {
     display: 'flex', alignItems: 'center', transition: 'background .15s',
   },
   switchThumb: { width: 20, height: 20, borderRadius: '50%', background: 'white' },
+  weeklyGoalRow: { display: 'flex', gap: 6 },
+  weeklyGoalBtn: {
+    flex: 1, height: 44, borderRadius: 12, border: '1px solid var(--g2)', background: 'none',
+    fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--g6)', cursor: 'pointer',
+  },
+  weeklyGoalBtnOn: { background: 'var(--or)', border: '1px solid var(--or)', color: 'white', fontWeight: 700 },
   extraLinks: { marginTop: 28, display: 'flex', flexDirection: 'column', gap: 8 },
   extraLink: {
     display: 'flex', alignItems: 'center', gap: 12, width: '100%',

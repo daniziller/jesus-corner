@@ -654,6 +654,8 @@ export const STRINGS = {
       orderHint: 'Ordem tradicional dos livros, ou pela linha do tempo dos acontecimentos.',
       stepsLabel: 'Passos do dia',
       stepsHint: 'Leitura é obrigatória; o resto é seu.',
+      weeklyGoalLabel: 'Ritmo da semana',
+      weeklyGoalHint: 'Quantos dias você quer se comprometer? Os outros são descanso, sem culpa.',
       savePlan: 'Salvar plano',
     },
     plan: {
@@ -1844,6 +1846,8 @@ export const STRINGS = {
       orderHint: 'Traditional book order, or by the timeline of events.',
       stepsLabel: "Today's steps",
       stepsHint: 'Reading is required; the rest is yours.',
+      weeklyGoalLabel: 'Weekly rhythm',
+      weeklyGoalHint: 'How many days a week do you want to commit to? The rest are rest days, no guilt.',
       savePlan: 'Save plan',
     },
     plan: {

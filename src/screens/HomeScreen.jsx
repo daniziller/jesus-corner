@@ -11,15 +11,13 @@ import AppIcon from '../icons/AppIcon'
 import PremiumLockCard from '../components/PremiumLockCard'
 import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
 import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
-import { isDayComplete, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
+import { isDayGoalMet, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 
 // Passos que o "cartão da ação" resume (Estudo fica de fora, igual ao fluxo
 // guiado — ver GUIDED_STEPS em App.jsx).
 const CARD_STEPS = ['prayer', 'reading', 'reflection']
-// Etapa 4 do redesign troca isto por weekly_goal_days (3–7). Fixo por ora.
-const WEEKLY_GOAL_DAYS = 5
 
 // "Terça, 2 de setembro" / "Tuesday, September 2" — dia de semana curto,
 // primeira letra maiúscula.
@@ -35,6 +33,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
   const {
     lang, hasPremium, todaySession, currentBlock,
     dailyRoutine, todayRoutine, routineModules, plan, activePlan,
+    weeklyGoalDays, weekGoalDaysMet,
   } = session
   const L = (k, vars) => translate(`home.${k}`, vars, lang)
 
@@ -72,11 +71,14 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
     else onContinueSession?.()
   }
 
-  // ── Sua semana ──
+  // ── Sua semana (constância semanal, etapa 4) ──
+  // O dia conta pra meta quando a LEITURA foi concluída — Oração e
+  // Reflexão somam qualidade, não obrigação (ver isDayGoalMet). Um dia
+  // perdido não zera nada: é sempre "X de 7 dias esta semana", nunca uma
+  // sequência que quebra.
   const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
   const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
-  const modules = routineModules ?? DEFAULT_ROUTINE_MODULES
-  const daysDone = weekDays.filter(d => !d.isFuture && isDayComplete(d, d.isToday || d.isFuture ? modules : DEFAULT_ROUTINE_MODULES)).length
+  const daysDone = weekGoalDaysMet ?? 0
 
   return (
     <div style={styles.screen}>
@@ -126,8 +128,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
       </div>
       <div style={styles.weekRow}>
         {weekDays.map((d, i) => {
-          const dayModules = d.isToday || d.isFuture ? modules : DEFAULT_ROUTINE_MODULES
-          const done = !d.isFuture && isDayComplete(d, dayModules)
+          const done = !d.isFuture && isDayGoalMet(d)
           const state = done ? 'done' : d.isToday ? 'today' : d.isFuture ? 'future' : 'missed'
           return (
             <span key={d.key} style={{ ...styles.weekCell, ...styles.weekCell_[state] }}>
@@ -136,7 +137,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
           )
         })}
       </div>
-      <p style={styles.weekNote}>{L('weekGoalNote', { n: WEEKLY_GOAL_DAYS })}</p>
+      <p style={styles.weekNote}>{L('weekGoalNote', { n: weeklyGoalDays })}</p>
 
       {/* Bloco atual da Bíblia — toque leva a Progresso. */}
       <button style={styles.blockCard} onClick={() => onNavigate?.('stats')}>

@@ -36,7 +36,8 @@ import { isAtLeast } from './utils/age'
 import { computeUnlockedAchievements } from './utils/achievements'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
-import { computeRoutineStreak, computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES } from './routine/routineStreak'
+import { computeRoutineStreak, computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, DEFAULT_WEEKLY_GOAL_DAYS } from './routine/routineStreak'
+import { getWeeklyGoalDays, setWeeklyGoalDays as persistWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
 import { computeGoalsStatus } from './routine/goals'
@@ -390,6 +391,7 @@ export default function App() {
   const studiesVisitedRef = useRef(false)
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
+  const [weeklyGoalDays, setWeeklyGoalDaysState] = useState(DEFAULT_WEEKLY_GOAL_DAYS)
   const [activeBlockId, setActiveBlockId] = useState(1)
   // "Último texto lido" ({ book, chapter }, por dispositivo — ver
   // lastReadPositionStore.js). Alimenta o card "Continue sua leitura" da
@@ -524,10 +526,11 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, userCompletedGoals, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, userCompletedGoals, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
+        getWeeklyGoalDays(user.email),
         getActiveAltPlan(user.email),
         getThemePlans(user.email),
         getDailyRoutine(),
@@ -560,6 +563,7 @@ export default function App() {
       setCompletedSet(set)
       setPlanId(userPlanId)
       setReadingOrderState(userReadingOrder)
+      setWeeklyGoalDaysState(userWeeklyGoalDays)
       setActiveAltPlanState(userActiveAltPlan)
       setThemePlans(userThemePlans)
       setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
@@ -963,10 +967,11 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
+      getWeeklyGoalDays(user.email),
       getActiveAltPlan(user.email),
       getThemePlans(user.email),
       getPrayerStats(user.email),
@@ -991,6 +996,7 @@ export default function App() {
     setCompletedSet(set)
     setPlanId(userPlanId)
     setReadingOrderState(userReadingOrder)
+    setWeeklyGoalDaysState(userWeeklyGoalDays)
     setActiveAltPlanState(userActiveAltPlan)
     setThemePlans(userThemePlans)
     setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
@@ -1020,6 +1026,7 @@ export default function App() {
     setCompletedSet(new Set())
     setPlanId('standard')
     setReadingOrderState('ot_first')
+    setWeeklyGoalDaysState(DEFAULT_WEEKLY_GOAL_DAYS)
     setActiveAltPlanState(null)
     setThemePlans([])
     setRoutineModulesState(DEFAULT_ROUTINE_MODULES)
@@ -1096,6 +1103,15 @@ export default function App() {
     setReadingOrderState(order)
     if (authUser) {
       persistReadingOrder(authUser.email, order).catch(err => console.error('Failed to persist reading order', err))
+    }
+  }
+
+  // "Ritmo da semana" em Ajustar meu plano (1d) — quantos dias por semana a
+  // pessoa quer se comprometer (3–7). Ver src/routine/weeklyGoalStore.js.
+  function selectWeeklyGoalDays(days) {
+    setWeeklyGoalDaysState(days)
+    if (authUser) {
+      persistWeeklyGoalDays(authUser.email, days).catch(err => console.error('Failed to persist weekly goal days', err))
     }
   }
 
@@ -1321,6 +1337,12 @@ export default function App() {
   session.tier = entitlement.tier
   session.hasPremium = entitlement.hasPremium
   session.hasAI = entitlement.hasAI
+  // Constância semanal (redesign, etapa 4) — ver src/routine/routineStreak.js.
+  // weekGoalDaysMet: dias já lidos esta semana. weeksInGoal: contador
+  // histórico de semanas que bateram a meta (nunca reseta).
+  session.weeklyGoalDays = weeklyGoalDays
+  session.weekGoalDaysMet = computeWeekGoalProgress(dailyRoutine)
+  session.weeksInGoal = computeWeeksInGoal(dailyRoutine, weeklyGoalDays)
   sessionRef.current = session
 
   // Trava o ref de visita assim que a aba vira ativa — feito aqui (não num
@@ -1338,7 +1360,7 @@ export default function App() {
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     adjustPlan: hasPremium
-      ? <AdjustPlanScreen session={session} activeAltPlan={activeAltPlan} onSelectPace={selectPlan} onSelectActivePlan={selectActivePlan} onToggleRoutineModule={toggleRoutineModule} onNavigate={navigateTo} onBack={goBack} />
+      ? <AdjustPlanScreen session={session} activeAltPlan={activeAltPlan} onSelectPace={selectPlan} onSelectActivePlan={selectActivePlan} onToggleRoutineModule={toggleRoutineModule} onSelectWeeklyGoal={selectWeeklyGoalDays} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
