@@ -7,6 +7,7 @@
 // (api/ask-about-passage.js), que decide a resposta e confere a citação —
 // aqui só guarda o resultado depois de já verificado.
 import { supabase } from '../lib/supabaseClient'
+import { getResponseTone } from './aiPreferencesStore'
 
 const KEY = 'jc_passage_questions'
 
@@ -76,7 +77,8 @@ export async function askAboutPassage({ book, bookEn, chapter, verseStart, verse
   const res = await fetch('/api/ask-about-passage', {
     method: 'POST',
     headers: { Authorization: `Bearer ${authSession.access_token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ book, bookEn, chapter, verseStart, verseEnd, question, lang }),
+    // tone — Ajustes do assistente (10f, ver aiPreferencesStore.js).
+    body: JSON.stringify({ book, bookEn, chapter, verseStart, verseEnd, question, lang, tone: getResponseTone() }),
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) {

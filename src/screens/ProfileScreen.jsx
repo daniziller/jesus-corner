@@ -410,6 +410,15 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
               onPress={() => onNavigate('studies')}
             />
           )}
+          {/* Ajustes do assistente de IA (10f) — só quem tem Premium + IA
+              vê; sem isso não há nada pra ajustar. */}
+          {session.hasAI && (
+            <SettingsLink
+              icon="Sparkles" iconBg="var(--olt)"
+              label={t('profile.aiSettingsLabel', undefined, session.lang)} sub={t('profile.aiSettingsSub', undefined, session.lang)}
+              onPress={() => onNavigate('aiSettings')}
+            />
+          )}
           {/* Grátis configura o ritmo aqui (não tem a aba "Meu Plano");
               assinante ajusta lá dentro, então aqui só abre a Bíblia. */}
           <SettingsLink
