@@ -137,7 +137,8 @@ export default async function handler(req, res) {
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
 
-  const { book, bookEn, chapter, verseStart, verseEnd, question, lang } = req.body ?? {}
+  const { book, bookEn, chapter, verseStart, verseEnd, question, lang, tone } = req.body ?? {}
+  const cleanTone = ['direct', 'explained', 'study'].includes(tone) ? tone : 'explained'
   const cleanQuestion = (question ?? '').trim()
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   // book (chave canônica em pt, mesma de session.book em todo o app) serve
@@ -180,7 +181,7 @@ export default async function handler(req, res) {
 
   let answer
   try {
-    answer = await answerAboutPassage({ book, chapter, verseStart, verseEnd, passageText, bookInfo, question: cleanQuestion, lang: cleanLang })
+    answer = await answerAboutPassage({ book, chapter, verseStart, verseEnd, passageText, bookInfo, question: cleanQuestion, lang: cleanLang, tone: cleanTone })
   } catch (err) {
     console.error('[ask-about-passage] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

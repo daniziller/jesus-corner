@@ -47,6 +47,13 @@ export function getAllReflections() {
   return readAll()
 }
 
+// "Apagar todas as perguntas" (10f) — mesmo botão que limpa
+// passageQuestionStore.js também chama isto (é "minhas perguntas" junto,
+// uma coisa só na cabeça da pessoa — ver AiSettingsScreen.jsx).
+export function clearAllReflections() {
+  try { localStorage.removeItem(STORE_KEY) } catch { /* ignora */ }
+}
+
 // Chamada depois que a pessoa aprova o parágrafo (ver ReflectionScreen.jsx)
 // — só guarda se "Guardar minhas perguntas" estiver ligado.
 function saveLocally(entry) {

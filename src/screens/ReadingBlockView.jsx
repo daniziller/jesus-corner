@@ -9,6 +9,7 @@ import { getMessages, sendMessage, getDailyLimitStatus } from '../aiChat/aiChatS
 import { formatVerseRanges } from '../utils/verseRanges'
 import { askAboutPassage } from '../aiChat/passageQuestionStore'
 import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen, fetchChapterContext } from '../aiChat/chapterContextStore'
+import { getAskEnabled } from '../aiChat/aiPreferencesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
@@ -1061,7 +1062,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       <SelectionAiMenu
         anchorRect={highlightAnchorRect}
         lang={lang}
-        hasAI={hasAI}
+        hasAI={hasAI && getAskEnabled()}
         onClose={() => { setSelectionMenuOpen(false); setHighlightSelection(null); setHighlightAnchorRect(null) }}
         onAsk={askAboutSelection}
         onMark={openMarkFromSelectionMenu}

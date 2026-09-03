@@ -307,13 +307,25 @@ const PassageAnswerSchema = z.object({
     .nullable().describe('Obrigatório quando outcome="doctrine_divergent": o outro lado. null nos demais casos.'),
 })
 
+// Tom de resposta (10f, reskin Bento) — só afeta tamanho/tom de `reply`
+// quando outcome="answer"; os outros 3 outcomes já têm formato fixo
+// (1-2 frases) e não mudam com o tom. 'explained' é o comportamento
+// ORIGINAL (até 2 parágrafos, com contexto) — ver getResponseTone em
+// src/aiChat/aiPreferencesStore.js pro porquê desse ser o padrão, não
+// 'direct' (que é o valor ilustrado no mockup).
+function buildToneInstruction(tone) {
+  if (tone === 'direct') return 'Tom "Direto": responda em NO MÁXIMO 2 frases curtas, direto ao ponto, sem rodeios nem contexto extra.'
+  if (tone === 'study') return 'Tom "Estudo": pode usar até 3 parágrafos curtos, incluindo referências cruzadas adicionais dentro do próprio texto de "reply" (além das citações estruturadas support/expansion) quando relevante.'
+  return 'Tom "Explicado": até 2 parágrafos curtos, com contexto suficiente pra entender o "porquê", sem se alongar.'
+}
+
 // bookInfo/lang — mesmo padrão de answerTextQuestion. book/chapter/
 // verseStart/verseEnd — o trecho selecionado de verdade (não a sessão
 // inteira); passageText — o texto real desses versículos, na versão que a
 // pessoa está lendo, dado como contexto primário pra ancorar a resposta
 // (e permitir checar a citação depois, ver verifyCitation em
-// api/ask-about-passage.js).
-export async function answerAboutPassage({ book, chapter, verseStart, verseEnd, passageText, bookInfo, question, lang }) {
+// api/ask-about-passage.js). tone — ver buildToneInstruction acima.
+export async function answerAboutPassage({ book, chapter, verseStart, verseEnd, passageText, bookInfo, question, lang, tone }) {
   const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
   const sections = formatContextSections(bookInfo?.contextSections ?? [], chapter, chapter)
   const verseRange = verseStart === verseEnd ? `${verseStart}` : `${verseStart}-${verseEnd}`
@@ -332,6 +344,8 @@ ${sections || '(sem seções específicas cadastradas para este capítulo)'}
 Pergunta da pessoa sobre ESSE TRECHO: "${question}"
 
 Regra inegociável: se outcome="answer", supportCitation.quote precisa ser um versículo de verdade, citado com fidelidade — nunca invente ou aproxime uma referência. Prefira citar dentro do próprio capítulo ${chapter} quando possível; expansionCitation deve ser de FORA do capítulo atual.
+
+Se outcome="answer": ${buildToneInstruction(tone)} O tom nunca muda o CONTEÚDO/veredito da resposta, só tamanho e nível de detalhe.
 
 ${buildReplyLangInstruction(lang)}`,
   })

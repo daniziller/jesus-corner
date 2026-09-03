@@ -18,6 +18,7 @@ import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
 import AdjustPlanScreen from './screens/AdjustPlanScreen'
+import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
@@ -1530,6 +1531,9 @@ export default function App() {
     adjustPlan: hasPremium
       ? <AdjustPlanScreen session={session} activeAltPlan={activeAltPlan} onSelectPace={selectPlan} onSelectActivePlan={selectActivePlan} onToggleRoutineModule={toggleRoutineModule} onSelectWeeklyGoal={selectWeeklyGoalDays} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    aiSettings: !session.hasAI
+      ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
+      : <AiSettingsScreen session={session} onBack={goBack} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
     inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
