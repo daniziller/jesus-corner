@@ -19,7 +19,7 @@ import {
   pauseSpeech, resumeSpeech,
 } from '../audio/premiumSpeech'
 
-export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, allowPremiumVoice = true }) {
+export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, allowPremiumVoice = true, compact = false }) {
   const L = (k, vars) => t(`bibleAudio.${k}`, vars, lang)
 
   // idle | loading | playing | paused | done | error
@@ -127,6 +127,35 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
   const isBusy = status === 'playing' || status === 'paused' || status === 'loading'
   const playIcon = status === 'playing' ? 'Pause' : status === 'loading' ? 'Hourglass' : 'Play'
 
+  const titleText = status === 'error' ? L('error')
+    : status === 'loading' ? L('loading')
+    : status === 'done' ? L('done')
+    : isBusy ? L('nowPlaying', { ref: chapterRef })
+    : L('listen', { ref: chapterRef })
+
+  // Compacto (leitura imersiva 1b) — barra escura fina, um clique só, sem
+  // seletor de modo (fica sempre "só este capítulo").
+  if (compact) {
+    return (
+      <div style={styles.compactWrap}>
+        <button style={styles.compactPlayBtn} onClick={handlePlayPause} aria-label={L('play')}>
+          <AppIcon name={playIcon} size={15} color="white" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={styles.compactTitle}>{titleText}</p>
+          <div style={styles.compactTrack}>
+            <div style={{ ...styles.compactFill, width: `${Math.round(progress * 100)}%` }} />
+          </div>
+        </div>
+        {isBusy && (
+          <button style={styles.compactStopBtn} onClick={stopPlayback} aria-label={L('stop')}>
+            <AppIcon name="X" size={13} color="rgba(255,255,255,.7)" />
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={styles.wrap}>
       <div style={styles.row}>
@@ -135,13 +164,7 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
         </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={styles.title}>
-            {status === 'error' ? L('error')
-              : status === 'loading' ? L('loading')
-              : status === 'done' ? L('done')
-              : isBusy ? L('nowPlaying', { ref: chapterRef })
-              : L('listen', { ref: chapterRef })}
-          </p>
+          <p style={styles.title}>{titleText}</p>
           <div style={styles.modeSel}>
             <button
               style={{ ...styles.modeBtn, ...(continuous ? {} : styles.modeBtnActive) }}
@@ -185,4 +208,11 @@ const styles = {
   stopBtn: { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   track: { width: '100%', height: 4, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden' },
   fill: { height: '100%', background: 'var(--grad-primary)', borderRadius: 99, transition: 'width .4s ease' },
+
+  compactWrap: { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bk)', borderRadius: 18, padding: '12px 14px', boxShadow: 'var(--shadow-premium)' },
+  compactPlayBtn: { width: 40, height: 40, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  compactTitle: { fontSize: 12.5, fontWeight: 600, color: 'white', margin: '0 0 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  compactTrack: { height: 3, borderRadius: 99, background: 'rgba(255,255,255,.22)', overflow: 'hidden' },
+  compactFill: { height: '100%', borderRadius: 99, background: '#E08A3C', transition: 'width .4s ease' },
+  compactStopBtn: { width: 26, height: 26, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 }
