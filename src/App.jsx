@@ -13,6 +13,7 @@ import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
+import AdjustPlanScreen from './screens/AdjustPlanScreen'
 import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
@@ -714,18 +715,22 @@ export default function App() {
   function startGuidedRoutine() {
     // Rotina guiada é recurso Premium — sem assinatura, o botão leva pra
     // tela de assinar (a aba Meu Plano já é travada, mas a Home também tem
-    // um atalho de "Iniciar").
+    // um atalho de "Começar").
     if (!hasPremium) { goToTab('upgrade'); return }
     const steps = GUIDED_STEPS.filter(s => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s))
     if (steps.length === 0) return
-    if (steps.length === 1) {
-      if (steps[0] === 'reading') continueToday()
-      else goToTab(steps[0])
-      return
-    }
-    setGuidedFlow({ steps, idx: 0 })
-    if (steps[0] === 'reading') continueToday()
-    else goToTab(steps[0])
+    // Começa no passo ATUAL — o primeiro ainda não feito hoje (redesign 1c:
+    // "vai para o passo atual da rotina, não para o início dela"). Se todos
+    // já foram feitos, reabre o último.
+    const today = dailyRoutine[dateKey()] ?? {}
+    let startIdx = steps.findIndex(s => !today[s])
+    if (startIdx < 0) startIdx = steps.length - 1
+    const openStep = step => step === 'reading' ? continueToday() : goToTab(step)
+    // Sem passos pra encadear a partir daqui (só sobrou 1) — abre direto,
+    // sem o "modo guiado".
+    if (steps.length - startIdx <= 1) { openStep(steps[startIdx]); return }
+    setGuidedFlow({ steps, idx: startIdx })
+    openStep(steps[startIdx])
   }
 
   function exitGuidedRoutine() {
@@ -1330,7 +1335,10 @@ export default function App() {
   const screens = {
     home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />,
     routine: hasPremium
-      ? <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onStartGuided={startGuidedRoutine} />
+      ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
+      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    adjustPlan: hasPremium
+      ? <AdjustPlanScreen session={session} activeAltPlan={activeAltPlan} onSelectPace={selectPlan} onSelectActivePlan={selectActivePlan} onToggleRoutineModule={toggleRoutineModule} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     contact: <ContactScreen session={session} authUser={authUser} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
