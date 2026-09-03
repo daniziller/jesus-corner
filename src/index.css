@@ -123,6 +123,14 @@
   --bento-mark: #FFE3C9;
   --bento-select: #C9DCEF;
   --bento-select-border: #7EA6CE;
+  /* Vistos no HTML das telas 4b/4c/5b mas fora da tabela do ADENDO —
+     adicionados aqui em vez de espalhar hex literal pelos componentes
+     (regra do prompt: "se um valor não existir como token, ADICIONE o
+     token"). Papel: acento/ícone marrom-escuro sobre --bento-sand (mais
+     escuro que --bento-sand-ink, usado em título/texto corrido). */
+  --bento-sand-icon: #7A4A1E;
+  --bento-sand-ink-strong: #3A2A18;
+  --bento-pending-border: #CFC6BC;
   --font-bento: 'Manrope', sans-serif;
 }
 
