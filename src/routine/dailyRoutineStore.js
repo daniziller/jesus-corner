@@ -23,8 +23,11 @@ export function setStepDone(step, done = true, planId) {
     const current = row?.daily_routine ?? {}
     const key = dateKey()
     const today = { ...current[key], planId }
-    if (done) today[step] = true
-    else delete today[step]
+    // `${step}At` — hora em que o passo foi concluído (ISO). Só pra exibir
+    // "10 min · às 6:42" no cartão de passo feito (quadro 4b); nenhuma
+    // conta de constância/streak lê essa chave (todas olham só `day[step]`).
+    if (done) { today[step] = true; today[`${step}At`] = new Date().toISOString() }
+    else { delete today[step]; delete today[`${step}At`] }
     const next = { ...current, [key]: today }
     const updated = await updateRow({ daily_routine: next })
     return updated?.daily_routine ?? next

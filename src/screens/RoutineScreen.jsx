@@ -1,9 +1,10 @@
 // RoutineScreen.jsx — "Meu Plano" (redesign 1c, reskin Bento — tela 4b)
 //
-// Só a rotina de HOJE: três cartões de passo (concluído / atual / pendente),
-// "Esta semana" (constância, mesma fonte de dado do card da Home), o modo
-// mãos-livres, e o link pra Ajustar meu plano. Toda a configuração (tempo
-// por dia, quais passos, ordem) mora em AdjustPlanScreen.jsx.
+// Só a rotina de HOJE, na ordem do quadro 4b: três cartões de passo
+// (concluído / atual / pendente), o modo mãos-livres e "Esta semana"
+// (constância, mesma fonte de dado do card da Home). Toda a configuração
+// (tempo por dia, quais passos, ordem) mora em AdjustPlanScreen.jsx, pelo
+// botão "Ajustar" do cabeçalho — o quadro não tem outro atalho pra lá.
 //
 // O que saiu daqui (desde antes do reskin): o acordeão "Como funciona o
 // método", os interruptores de módulo, o seletor de duração, a seção de
@@ -42,6 +43,23 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
 
   const stepTitle = k => t(`home.routine${k[0].toUpperCase()}${k.slice(1)}`, undefined, lang)
 
+  // "10 min · às 6:42" — hora em que o passo foi concluído (gravada em
+  // `${step}At`, ver dailyRoutineStore.js). Dias registrados antes desse
+  // carimbo existir caem no texto sem hora.
+  function doneSubFor(k) {
+    const at = todayRoutine[`${k}At`]
+    const d = at ? new Date(at) : null
+    if (!d || Number.isNaN(d.getTime())) return L('doneSub', { n: stepMin[k] })
+    const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+    return L('doneSubAt', { n: stepMin[k], time })
+  }
+  // "8 min · depois da leitura" — o passo ligado imediatamente anterior.
+  function pendingSubFor(k) {
+    const prev = enabled[enabled.indexOf(k) - 1]
+    const after = prev ? L(`after${prev[0].toUpperCase()}${prev.slice(1)}`) : null
+    return after ? L('pendingSub', { n: stepMin[k], after }) : L('minShort', { n: stepMin[k] })
+  }
+
   function startStep(k) {
     // Encadeia a partir do passo atual (ver startGuidedRoutine em App.jsx).
     if (onStartGuided) { onStartGuided(); return }
@@ -79,7 +97,7 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={styles.doneTitle}>{stepTitle(k)}</p>
-                  <p style={styles.doneSub}>{L('doneSub', { n: stepMin[k] })}</p>
+                  <p style={styles.doneSub}>{doneSubFor(k)}</p>
                 </div>
               </button>
             )
@@ -109,15 +127,11 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
               <span style={styles.pendingDot} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={styles.pendingTitle}>{stepTitle(k)}</p>
-                <p style={styles.pendingSub}>{L('minShort', { n: stepMin[k] })}</p>
+                <p style={styles.pendingSub}>{pendingSubFor(k)}</p>
               </div>
             </div>
           )
         })}
-
-        {doneCount === enabled.length && enabled.length > 0 && (
-          <p style={styles.allDone}>{t('home.routineAllDoneMsg', undefined, lang)}</p>
-        )}
 
         <button style={styles.handsFreeCard} onClick={() => onNavigate?.('handsFree')}>
           <span style={styles.handsFreeIcon}><AppIcon name="AudioLines" size={16} color="var(--bento-accent)" /></span>
@@ -144,11 +158,6 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
             })}
           </div>
         </div>
-
-        <p style={styles.escapeLink}>
-          {L('escapePrefix')}{' '}
-          <span style={styles.escapeLinkAction} onClick={() => onNavigate?.('adjustPlan')}>{L('escapeAction')}</span>
-        </p>
       </div>
     </div>
   )
@@ -157,11 +166,11 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
 const styles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 20px 0' },
-  title: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
-  subtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '4px 0 0' },
+  title: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
+  subtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
   adjustBtn: {
     height: 34, flexShrink: 0, padding: '0 14px', borderRadius: 12, border: 'none', background: 'var(--bento-card)',
-    fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer',
   },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '20px 20px calc(var(--nav-height) + 20px)', display: 'flex', flexDirection: 'column', gap: 12 },
 
@@ -172,34 +181,29 @@ const styles = {
 
   currentCard: { background: 'var(--bento-ink)', borderRadius: 28, padding: 24, color: 'white' },
   currentHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 16px' },
-  currentLabel: { fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
-  currentTime: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
+  currentLabel: { fontSize: 11, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
+  currentTime: { fontSize: 11.5, fontWeight: 600, lineHeight: 1, color: 'rgba(255,255,255,.5)' },
   currentTitle: { fontSize: 27, fontWeight: 800, letterSpacing: '-1px', lineHeight: 1.1, margin: '0 0 6px' },
   currentSubtitle: { fontSize: 13.5, fontWeight: 500, lineHeight: 1.4, color: 'rgba(255,255,255,.55)', margin: '0 0 20px' },
   currentBtn: { height: 52, width: '100%', borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  currentBtnText: { fontSize: 15.5, fontWeight: 800, color: 'var(--bento-ink)' },
+  currentBtnText: { fontSize: 15.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   currentBtnArrow: { fontSize: 15, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
 
   pendingCard: { display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,.6)', borderRadius: 24, padding: '18px 20px' },
   pendingDot: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: '2px dashed var(--bento-pending-border)', boxSizing: 'border-box' },
-  // #8B8279/#B0A79E do mock não têm token exato no adendo — --bento-t3
-  // bate em cheio no título; --bento-t4 é a aproximação mais próxima pro
-  // subtítulo (diferença visualmente imperceptível).
   pendingTitle: { fontSize: 15.5, fontWeight: 800, color: 'var(--bento-t3)', lineHeight: 1.2, margin: '0 0 3px' },
-  pendingSub: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t4)', lineHeight: 1.2, margin: 0 },
-
-  allDone: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-accent)', textAlign: 'center', margin: 0 },
+  pendingSub: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t4-soft)', lineHeight: 1.2, margin: 0 },
 
   handsFreeCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: 'var(--bento-card)', borderRadius: 24, padding: '18px 20px', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   handsFreeIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  handsFreeTitle: { display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 3 },
-  handsFreeSub: { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)' },
-  handsFreeChevron: { fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
+  handsFreeTitle: { display: 'block', fontSize: 14, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', marginBottom: 3 },
+  handsFreeSub: { display: 'block', fontSize: 12, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)' },
+  handsFreeChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)', flexShrink: 0 },
 
   weekCard: { background: 'var(--bento-card)', borderRadius: 24, padding: '18px 20px' },
   weekHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 14px' },
-  weekLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
-  weekCount: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t3)', margin: 0 },
+  weekLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  weekCount: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t3)', margin: 0 },
   weekCountStrong: { fontWeight: 800, color: 'var(--bento-ink)' },
   weekBarRow: { display: 'flex', gap: 6 },
   weekBarSeg: { flex: 1, height: 12, borderRadius: 99, boxSizing: 'border-box' },
@@ -207,6 +211,4 @@ const styles = {
   weekBarToday: { border: '2px dashed var(--bento-accent)' },
   weekBarOther: { background: 'var(--bento-line)' },
 
-  escapeLink: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t3)', textAlign: 'center', margin: '4px 0 0' },
-  escapeLinkAction: { color: 'var(--bento-accent)', fontWeight: 700, cursor: 'pointer' },
 }

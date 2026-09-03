@@ -1302,8 +1302,10 @@ export default function App() {
     const key = dateKey()
     setDailyRoutine(prev => {
       const today = { ...prev[key], planId }
-      if (done) today[step] = true
-      else delete today[step]
+      // Mesma gravação de src/routine/dailyRoutineStore.js (inclusive a hora
+      // de conclusão em `${step}At`, usada só pelo cartão de passo feito).
+      if (done) { today[step] = true; today[`${step}At`] = new Date().toISOString() }
+      else { delete today[step]; delete today[`${step}At`] }
       return { ...prev, [key]: today }
     })
     setStepDone(step, done, planId).catch(err => console.error('Failed to persist routine step', err))
