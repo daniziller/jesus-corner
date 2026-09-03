@@ -19,12 +19,63 @@ async function getUserId() {
   return data?.user?.id ?? null
 }
 
-// Busca a linha inteira do usuário autenticado. Retorna null se ninguém
-// estiver logado (ex: chamada durante logout) ou se a linha ainda não tiver
-// sido criada pelo trigger (corrida rara logo após o signup).
+// Convidado (redesign 1g/etapa 7) — "deixar a pessoa ler antes de
+// cadastrar". Sem sessão nenhuma, fetchRow/updateRow abaixo passam a
+// operar sobre uma linha guardada no localStorage em vez da tabela
+// user_data — MESMO FORMATO de linha (completed_keys, plan_id,
+// daily_routine, notes, etc.), então as 18 stores que já são wrappers finos
+// em cima dessas duas funções (progressStore, planStore, dailyRoutineStore,
+// notesStore, highlightsStore, prayerStore...) funcionam pra convidado sem
+// precisar de NENHUMA mudança nelas — só estas duas funções precisam saber
+// que existe um "modo sem conta". No cadastro, migrateGuestRow() copia essa
+// linha local pra dentro da conta recém-criada e apaga o local (ver
+// App.jsx/AuthScreen.jsx).
+const GUEST_KEY = 'jc_guest_data'
+
+function getGuestRow() {
+  try {
+    const raw = localStorage.getItem(GUEST_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function setGuestRow(row) {
+  try { localStorage.setItem(GUEST_KEY, JSON.stringify(row)) } catch { /* privado/cota cheia — segue sem persistir */ }
+  return row
+}
+
+// Exportado só pro bootstrap do App.jsx saber, de forma síncrona, se este
+// dispositivo já tem progresso de convidado (decide se mostra a pergunta de
+// ritmo — GuestPaceScreen — ou já retoma direto no meio do app).
+export function hasGuestRow() {
+  return getGuestRow() !== null
+}
+
+// Copia a linha local do convidado pra dentro da conta que acabou de ser
+// criada/logada, e apaga o local — chamado depois de QUALQUER autenticação
+// real bem-sucedida (login ou cadastro, ver App.jsx/AuthScreen.jsx). Só
+// migra de verdade quando já existe uma sessão real (getUserId() != null);
+// chamado sem sessão (ex: o próprio boot do modo convidado) não faz nada,
+// então é seguro chamar sem se preocupar em distinguir os dois casos.
+export async function migrateGuestRow() {
+  const guest = getGuestRow()
+  if (!guest) return
+  const userId = await getUserId()
+  if (!userId) return
+  const { updated_at, ...patch } = guest
+  if (Object.keys(patch).length > 0) await updateRow(patch)
+  try { localStorage.removeItem(GUEST_KEY) } catch { /* ignora */ }
+}
+
+// Busca a linha inteira do usuário autenticado — ou, sem sessão, a linha
+// local de convidado (ver acima). null só quando realmente não há nada (nem
+// conta, nem progresso de convidado ainda) ou a linha real ainda não foi
+// criada pelo trigger (corrida rara logo após o signup).
 export async function fetchRow() {
   const userId = await getUserId()
-  if (!userId) return null
+  if (!userId) return getGuestRow()
   const { data, error } = await supabase
     .from('user_data')
     .select('*')
@@ -54,10 +105,14 @@ export function withRowLock(operation) {
 }
 
 // Atualiza só os campos passados em `patch`, devolvendo a linha inteira já
-// atualizada (ou null se a escrita falhar/ninguém estiver logado).
+// atualizada — ou, sem sessão, faz o mesmo merge incremental na linha local
+// de convidado (ver fetchRow acima).
 export async function updateRow(patch) {
   const userId = await getUserId()
-  if (!userId) return null
+  if (!userId) {
+    const current = getGuestRow() ?? {}
+    return setGuestRow({ ...current, ...patch, updated_at: new Date().toISOString() })
+  }
   const { data, error } = await supabase
     .from('user_data')
     .update({ ...patch, updated_at: new Date().toISOString() })

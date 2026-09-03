@@ -17,11 +17,16 @@ import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consen
 import ConsentRefreshScreen from './ConsentRefreshScreen'
 import { MIN_AGE } from '../privacy/minAge'
 import { ageToApproxBirthdate } from '../utils/age'
+import { migrateGuestRow } from '../backend/userDataStore'
+import { clearGuestInviteState } from '../onboarding/guestInviteStore'
 
 // Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
 // o app veria o onboarding (pensado pra converter visitante novo) toda vez
-// que a sessão expirasse, em vez de cair direto no login.
-const HAS_AUTH_KEY = 'jc_has_authenticated'
+// que a sessão expirasse, em vez de cair direto no login. Exportado porque
+// App.jsx usa a MESMA chave pra decidir, no bootstrap, se mostra o login
+// direto (quem já tem conta neste dispositivo) ou a pergunta de ritmo do
+// convidado (redesign 1g/etapa 7 — ver GuestPaceScreen.jsx).
+export const HAS_AUTH_KEY = 'jc_has_authenticated'
 
 const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
@@ -48,12 +53,14 @@ const FEATURE_CARDS = [
 ]
 const FEATURE_STEPS = FEATURE_CARDS.map(c => `${FEATURE_STEP_PREFIX}${c.key}`)
 
-export default function AuthScreen({ onAuthenticated }) {
+export default function AuthScreen({ onAuthenticated, initialMode }) {
   // Quem nunca autenticou nesse navegador vê o onboarding primeiro (pensado
   // pra converter visitante novo); quem já tem o flag cai direto no login,
-  // como antes.
+  // como antes. `initialMode` força um modo específico — usado pelo link
+  // "Já tenho conta" do GuestPaceScreen (redesign 1g/etapa 7), que quer
+  // login direto mesmo em um dispositivo que nunca autenticou aqui.
   const [mode, setMode] = useState(() => (
-    typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'onboarding'
+    initialMode ?? (typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'onboarding')
   )) // 'onboarding' | 'login' | 'forgot' | 'forcePasswordChange' | 'consentRefresh'
   // Guardado durante 'forcePasswordChange'/'consentRefresh': a pessoa já
   // está autenticada no Supabase nesse ponto, só falta o app "liberar" a
@@ -611,7 +618,14 @@ const CHECKLIST_ITEMS = [
 ]
 
 /* ── 8. Cadastro: checklist de recursos + conta + plano + código de convite ── */
-function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, readingOrder, onAuthenticated, onGoLogin }) {
+// Exportado — reaproveitado direto (sem passar pelo resto do assistente de
+// onboarding) por GuestSaveInviteScreen.jsx: quem já leu como convidado
+// (redesign 1g/etapa 7) já escolheu o ritmo (planId) na pergunta única de
+// entrada, então só falta mesmo os dados de conta. `name` vem vazio nesse
+// caminho (o convite não pede nome antes) — o campo de nome abaixo só
+// aparece quando isso acontece.
+export function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, readingOrder, onAuthenticated, onGoLogin }) {
+  const [guestName, setGuestName] = useState('')
   const [email, setEmail]         = useState('')
   const [age, setAge]             = useState('')
   const [password, setPassword]   = useState('')
@@ -666,8 +680,24 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
       // guardar, já que o resto do app (gate de idade da Comunidade etc.)
       // trabalha com data de nascimento (ver ageToApproxBirthdate).
       const birthdate = ageToApproxBirthdate(ageNum)
-      const user = await signup({ name, email, password, birthdate, isPublic, language: lang })
+      const user = await signup({ name: (name || guestName).trim(), email, password, birthdate, isPublic, language: lang })
       setError('')
+
+      // Migra o progresso de convidado (redesign 1g/etapa 7) — se `name`
+      // veio vazio (caminho do convite, ver comentário acima do
+      // componente), esta conta pode ter uma linha de convidado esperando
+      // em localStorage (leitura/plano já feitos antes de existir conta).
+      // Sem sessão nenhuma (ex: assinatura normal do wizard, sem convidado
+      // por trás), migrateGuestRow() não faz nada. Falha aqui não pode
+      // travar o cadastro — o pior caso é a pessoa reler o que já tinha lido.
+      await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
+      clearGuestInviteState()
+      // Normalmente gravado pelo wrapper handleAuthenticated de AuthScreen
+      // (ver mais abaixo) — mas o caminho do convite (redesign 1g/etapa 7,
+      // ver GuestSaveInviteScreen.jsx) usa este componente diretamente, sem
+      // passar por aquele wrapper, então precisa gravar aqui também (idem-
+      // potente: gravar de novo no caminho normal não muda nada).
+      if (typeof localStorage !== 'undefined') localStorage.setItem(HAS_AUTH_KEY, '1')
 
       // Registra o consentimento assim que existe sessão. Espera terminar
       // (silent:true por padrão, então uma falha não derruba o cadastro) —
@@ -755,6 +785,9 @@ function SignupStep({ header, name, prayerMinutes, planId, reflectionMinutes, re
         ))}
       </div>
 
+      {!name && (
+        <Field label={t('auth.nameLabel')} value={guestName} onChange={setGuestName} placeholder={t('auth.namePlaceholder')} autoFocus />
+      )}
       <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder={t('auth.emailPlaceholder')} />
       <Field label={t('auth.ageLabel')} type="number" value={age} onChange={setAge} placeholder="18" hint={t('auth.ageHint')} />
       <PasswordField label={t('auth.createPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
