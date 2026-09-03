@@ -337,10 +337,18 @@ export default function App() {
   // 18+ (ver src/privacy/minAge.js); este gate cobre as contas 12–17 que
   // podem existir de antes desse corte.
   const meetsMinAge = isAtLeast(authUser?.birthdate, 18)
-  // disabledTabs — a aba nem existe (idade). lockedTabs — existe mas pede
-  // Premium: aparece com cadeado e o clique leva pra tela de assinar.
+  // disabledTabs — a aba nem existe (idade), fica esmaecida na barra.
+  // lockedTabs — a aba existe e aparece normal na barra (redesign 1e —
+  // "tirar os cadeados da barra", etapa 6), mas pede Premium: o clique é
+  // encaminhado pra tela de assinar (ver navigateTo) em vez de abrir a
+  // aba; a tela em si mostra o cadeado (PremiumRequired/PremiumLockCard).
   const disabledTabs = meetsMinAge ? [] : ['groups']
-  const lockedTabs = hasPremium ? [] : ['routine', 'groups']
+  // 'notes' (Biblioteca) sempre foi Premium (decisão da restrição do tier
+  // grátis, antes desta leva) — agora que ocupa slot fixo na barra
+  // (redesign 1e/etapa 6, no lugar de Progresso), precisa estar aqui pro
+  // clique ser encaminhado pra 'upgrade' em vez de abrir uma tela em
+  // branco (NotesScreen só monta pra hasPremium, ver mais abaixo).
+  const lockedTabs = hasPremium ? [] : ['routine', 'groups', 'notes']
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
@@ -449,6 +457,12 @@ export default function App() {
   // inteiro (ex: abrindo pela lista completa em PlanScreen.jsx). Só vale
   // enquanto themeAutoOpenId aponta pro MESMO plano (ver ThemePlanScreen.jsx).
   const [themeAutoOpenKeys, setThemeAutoOpenKeys] = useState(null)
+  // Estudo pra abrir automaticamente ao entrar na aba Estudos vindo de um
+  // card de Estudo na Biblioteca (ver NotesScreen.jsx/onOpenStudy) — mesmo
+  // padrão de themeAutoOpenId acima. Consumido (limpo) pelo próprio
+  // StudiesScreen assim que abre o estudo, senão voltar depois pra Estudos
+  // pela barra reabriria o mesmo estudo sem a pessoa ter pedido.
+  const [libraryOpenStudyId, setLibraryOpenStudyId] = useState(null)
   const [chronoAutoOpenMovementId, setChronoAutoOpenMovementId] = useState(null)
   // Rotina diária (Oração/Leitura/Reflexão) — o streak exibido é derivado
   // dela (ver computeRoutineStreak), não mais de um login diário.
@@ -1432,7 +1446,7 @@ export default function App() {
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥768px (ver index.css) */}
       {isDesktop && !immersiveReading && (
-        <Sidebar activeTab={activeTab} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lockedTabs={lockedTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+        <Sidebar activeTab={activeTab} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} userName={session.userName} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
       )}
 
       <div className="app-main">
@@ -1464,12 +1478,12 @@ export default function App() {
             )}
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
-                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} />
+                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} />
               </div>
             )}
             {hasPremium && studiesVisitedRef.current && (
               <div style={{ display: activeTab === 'studies' ? 'contents' : 'none' }}>
-                <StudiesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} />
+                <StudiesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} autoOpenStudyId={libraryOpenStudyId} onAutoOpenStudyConsumed={() => setLibraryOpenStudyId(null)} />
               </div>
             )}
           </div>
@@ -1477,7 +1491,7 @@ export default function App() {
 
         {/* Navegação inferior — só em telas <768px; some na leitura imersiva */}
         {!immersiveReading && (
-          <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lockedTabs={lockedTabs} lang={session.lang} />
+          <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
         )}
       </div>
 

@@ -8,7 +8,7 @@ import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function StudiesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy }) {
+export default function StudiesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy, autoOpenStudyId, onAutoOpenStudyConsumed }) {
   const { lang, activeStudyId } = session
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [openStudyId, setOpenStudyId] = useState(null)
@@ -44,6 +44,21 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
   }, [authUser?.email])
 
   const allStudies = [...STUDIES, ...aiStudies, ...inductiveStudies]
+
+  // Abrir automaticamente vindo de um card de Estudo na Biblioteca (ver
+  // NotesScreen.jsx/App.jsx) — espera o estudo aparecer em allStudies (na
+  // 1ª visita, aiStudies/inductiveStudies ainda podem estar carregando) e
+  // troca pra aba certa antes de abrir. Consome (limpa no App.jsx) assim
+  // que abre, senão voltar depois pra esta aba pela barra reabriria o
+  // mesmo estudo de novo.
+  useEffect(() => {
+    if (!autoOpenStudyId) return
+    const target = allStudies.find(s => s.id === autoOpenStudyId)
+    if (!target) return
+    setStudiesTab(target.kind === 'inductive' ? 'inductive' : 'guided')
+    setOpenStudyId(target.id)
+    onAutoOpenStudyConsumed?.()
+  })
 
   // Nome do livro (chave canônica, sempre em pt) -> nome em inglês + lista
   // ordenada de todos os livros + contagem de capítulos por livro — mesma

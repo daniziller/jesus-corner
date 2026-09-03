@@ -1,13 +1,15 @@
-// NotesScreen.jsx
-// Histórico de todas as anotações da pessoa (leitura + Reflexão diária)
-// num lugar só — hoje cada uma só era visível "no contexto" onde foi
-// escrita (a passagem exata, ou só no dia em que a Reflexão foi feita).
-// Aba própria na navegação (ver BottomNav.jsx/Sidebar.jsx) — antes só um
-// link em Perfil. Duas formas de achar uma anotação: busca por palavra
-// (instantânea, client-side, casa substring no texto) e busca por tema
-// com IA (api/search-notes.js) — pra quando a pessoa lembra do ASSUNTO
-// mas não da palavra exata que usou.
+// NotesScreen.jsx — "Biblioteca" (redesign 1e/etapa 6)
+// Endereço único para tudo que a pessoa produziu: notas de leitura,
+// Reflexão diária, marcações de trecho, anotações de sermão e estudos —
+// hoje cada uma só era visível "no contexto" onde foi escrita/criada.
+// Entrou na barra de navegação no lugar de Progresso (ver BottomNav.jsx/
+// Sidebar.jsx) — antes já tinha aba própria como "Notas" (sem Estudos).
+// Duas formas de achar uma anotação: busca por palavra (instantânea,
+// client-side, casa substring no texto) e busca por tema com IA
+// (api/search-notes.js) — pra quando a pessoa lembra do ASSUNTO mas não da
+// palavra exata que usou.
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
 import { searchNotesByTheme } from '../notes/notesSearchStore'
 import { getSermonNotes, saveSermonNote, deleteSermonNote } from '../notes/sermonNotesStore'
@@ -17,48 +19,56 @@ import { HIGHLIGHT_COLORS } from '../data/highlightColors'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { computeBookChapterCounts } from '../utils/progress'
 import { dateKey } from '../utils/dateKey'
+import { STUDIES } from '../data/studies'
+import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
+import { getAiStudies } from '../studies/aiStudiesStore'
+import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-// 'reading' cobre nota de capítulo e reflexão de fechamento de livro;
-// 'highlight' é a marcação de trecho específico (ver src/highlights/
-// highlightsStore.js) — ganhou aba própria (antes vinha junto de
-// 'reading') pra dar espaço ao filtro por cor, só faz sentido pra
-// marcações. 'reflection' cobre a anotação geral E a frase de aplicação
-// da Reflexão diária — as duas vêm da mesma aba, só em campos separados
-// (ver ReflectionScreen.jsx). 'sermon' é a anotação de sermão (ver
+// Redesign 1e — 5 chips fixos: Todas · Notas · Marcações · Estudos ·
+// Sermões. "Notas" agora reúne nota de capítulo, reflexão de fechamento de
+// livro E a Reflexão diária/frase de aplicação — antes eram duas abas
+// separadas ('reading'/'reflection'); a Biblioteca trata as duas como a
+// mesma coisa (texto que a pessoa escreveu refletindo sobre a Palavra),
+// diferente de uma marcação (trecho específico) ou um estudo (estrutura
+// própria, ver studyEntries). 'sermon' é a anotação de sermão (ver
 // src/notes/sermonNotesStore.js) — registro à parte, sem ligação com uma
-// passagem/dia do plano de leitura.
+// passagem/dia do plano de leitura. 'study' é sintético, montado a partir
+// de STUDIES + IA + indutivo (ver studyEntries no useEffect abaixo), não
+// tem uma "note" de verdade por trás.
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
-  { key: 'reading', types: ['reading', 'book-reflection'], labelKey: 'notes.filterReading' },
+  { key: 'notes', types: ['reading', 'book-reflection', 'daily-reflection', 'application-phrase'], labelKey: 'notes.filterNotes' },
   { key: 'highlight', types: ['highlight'], labelKey: 'notes.filterHighlights' },
-  { key: 'reflection', types: ['daily-reflection', 'application-phrase'], labelKey: 'notes.filterReflection' },
+  { key: 'study', types: ['study'], labelKey: 'notes.filterStudy' },
   { key: 'sermon', types: ['sermon'], labelKey: 'notes.filterSermon' },
 ]
 
-// Cor própria por tipo de anotação — mesma cor usada na faixa de tipos
-// (sempre visível, ver abaixo) e no ícone/rótulo de cada card, pra dar pra
-// reconhecer o tipo de longe, sem precisar abrir o painel de filtros.
-// 'highlight' aqui é só a cor do ÍCONE da aba/card genérico — uma marcação
-// específica usa a cor de verdade que a pessoa escolheu (ver HIGHLIGHT_COLORS
-// / hc mais abaixo, que sobrescreve isso).
+// Cor própria por tipo — mesma cor usada no ícone/rótulo de cada card, pra
+// dar pra reconhecer o tipo de longe. Segue a paleta do handoff (Reflexão
+// --or, Marcação #B8860B, Sermão #B5005D, Estudo sem cor própria — neutro).
+// A faixa de FILTROS em si não usa mais essas cores (virou monocromática,
+// ver styles.filterBtn) — só os cards da lista. 'highlight' aqui é só a
+// cor do ÍCONE genérico; uma marcação específica usa a cor de verdade que
+// a pessoa escolheu (ver HIGHLIGHT_COLORS/hc mais abaixo, que sobrescreve
+// isso).
 const TYPE_STYLES = {
-  all:        { color: 'var(--bk)', bg: 'var(--g2)' },
-  reading:    { color: '#2563EB', bg: 'rgba(37,99,235,.12)' },
-  highlight:  { color: '#CA8A04', bg: 'rgba(202,138,4,.12)' },
-  reflection: { color: '#7C3AED', bg: 'rgba(124,58,237,.12)' },
-  sermon:     { color: '#B45309', bg: 'rgba(180,83,9,.12)' },
+  all:       { color: 'var(--bk)', bg: 'var(--g2)' },
+  notes:     { color: 'var(--or)', bg: 'rgba(157,67,0,.1)' },
+  highlight: { color: '#B8860B', bg: 'rgba(184,134,11,.12)' },
+  study:     { color: 'var(--g6)', bg: 'var(--g1)' },
+  sermon:    { color: '#B5005D', bg: 'rgba(181,0,93,.1)' },
 }
 
 // A que grupo de cor/ícone uma anotação pertence — mesmas 4 categorias da
-// faixa de tipos acima ('reading' cobre tanto nota de capítulo quanto
-// reflexão de fechamento de livro, ver FILTERS).
+// faixa de filtros acima ('notes' cobre nota de capítulo, reflexão de
+// fechamento de livro, Reflexão diária e frase de aplicação).
 function typeGroupFor(note) {
   if (note.type === 'highlight') return 'highlight'
   if (note.type === 'sermon') return 'sermon'
-  if (note.type === 'daily-reflection' || note.type === 'application-phrase') return 'reflection'
-  return 'reading'
+  if (note.type === 'study') return 'study'
+  return 'notes'
 }
 
 // Uma faixa nova de anotação de sermão, sem livro/capítulo/versículo
@@ -96,7 +106,7 @@ function dateFilterRangeFor(key, customFrom, customTo) {
   return { from: customFrom || null, to: customTo || null }
 }
 
-export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage }) {
+export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onOpenStudy }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   // Painel de filtros (origem/livro/cor/data) minimizado por padrão — só
@@ -196,8 +206,11 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   useEffect(() => {
     if (!authUser?.email) { setState({ status: 'ready', notes: [] }); return }
     let cancelled = false
-    Promise.all([getNotes(authUser.email), getHighlights(authUser.email), getSermonNotes(authUser.email)])
-      .then(([map, highlightList, sermonList]) => {
+    Promise.all([
+      getNotes(authUser.email), getHighlights(authUser.email), getSermonNotes(authUser.email),
+      getCompletedStudySessions(authUser.email), getAiStudies(authUser.email), getInductiveStudies(authUser.email),
+    ])
+      .then(([map, highlightList, sermonList, completedStudySet, aiStudies, inductiveStudies]) => {
         if (cancelled) return
         const noteEntries = Object.entries(map)
           .map(([key, entry]) => ({
@@ -230,10 +243,49 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           key: s.id, id: s.id, text: s.text ?? '', updatedAt: s.updatedAt ?? s.createdAt, createdAt: s.createdAt,
           type: 'sermon', date: s.date, preacher: s.preacher, church: s.church, passages: s.passages ?? [],
         }))
+        // Estudos (ver StudiesScreen.jsx) — três origens (catálogo pronto,
+        // gerado por IA, indutivo pessoal) resumidas aqui num card só de
+        // progresso ("Passo 2 de 6 · retomar"), sem o conteúdo do estudo em
+        // si (isso continua só em StudiesScreen; tocar no card leva pra
+        // lá). Só entram estudos que a pessoa já "produziu" de alguma
+        // forma: o catálogo pronto só aparece se já começou (começar a ler
+        // não é produzir nada); IA e indutivo sempre aparecem, já que
+        // gerar/criar um já é um ato de produção, mesmo com 0 sessões
+        // feitas ainda. `text: ''` (sem corpo de texto) pra não quebrar a
+        // busca por palavra, que espera n.text existir.
+        const studyEntries = [...STUDIES, ...aiStudies, ...inductiveStudies]
+          .map(study => {
+            const total = study.sessions.length
+            const doneCount = study.sessions.filter(s => isStudySessionDone(completedStudySet, study.id, s.id)).length
+            return { study, doneCount, total }
+          })
+          .filter(({ study, doneCount }) => study.kind === 'inductive' || aiStudies.includes(study) || doneCount > 0)
+          .map(({ study, doneCount, total }) => {
+            // "Última atividade" pro Estudo — indutivo usa a sessão
+            // (capítulo) mexida mais recentemente; catálogo pronto não
+            // grava NENHUM carimbo de data por sessão (studies_completed é
+            // só um Set de ids, ver studiesProgressStore.js), então fica
+            // sem updatedAt e naturalmente afunda pro fim da lista "Todas"
+            // (mesmo tratamento que qualquer nota sem data, ver comentário
+            // do sort logo abaixo) — não é um bug, é a informação real que
+            // existe.
+            const lastSessionUpdate = study.sessions.reduce((max, s) => (s.updatedAt && s.updatedAt > (max ?? '') ? s.updatedAt : max), null)
+            return {
+              key: `study:${study.id}`, id: study.id, type: 'study', text: '',
+              updatedAt: study.kind === 'inductive' ? (lastSessionUpdate ?? study.createdAt) : (study.createdAt ?? null),
+              // Cru nos dois idiomas (não já resolvido) — mesmo motivo de
+              // `book` nas outras entradas: labelFor()/render leem o
+              // idioma ATUAL da sessão, não o de quando a lista carregou.
+              titlePt: study.title, titleEn: study.titleEn,
+              icon: study.icon ?? 'GraduationCap',
+              book: study.kind === 'inductive' ? study.book : null,
+              doneCount, total,
+            }
+          })
         // Mais recentes primeiro; anotações salvas antes desta tela existir
         // não têm updatedAt (formato antigo, só texto) — ficam no fim, sem
         // embaralhar as que já têm data de verdade.
-        const notes = [...noteEntries, ...highlightEntries, ...sermonEntries]
+        const notes = [...noteEntries, ...highlightEntries, ...sermonEntries, ...studyEntries]
           .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
         setState({ status: 'ready', notes })
       })
@@ -291,7 +343,15 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (note.type === 'highlight') {
       return `${bookLabel(note.book)} ${note.chapter}:${formatVerseRanges(note.verses)}`
     }
+    if (note.type === 'study') return studyTitleFor(note)
     return note.key
+  }
+
+  // Título de um card de Estudo no idioma atual — lido de titlePt/titleEn
+  // crus (ver studyEntries no useEffect acima), não de um valor já
+  // resolvido, pra não ficar preso no idioma de quando a lista carregou.
+  function studyTitleFor(note) {
+    return lang === 'en' ? note.titleEn : note.titlePt
   }
 
   function iconFor(type) {
@@ -580,20 +640,22 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   }
 
   return (
-    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
+    <div style={{ position: 'relative', height: '100%' }}>
+    <div style={styles.screen}>
       <div style={styles.body}>
-        <div className="page-header" style={{ padding: 0, marginBottom: 4 }}>
-          <h1 className="page-title">{t('notes.pageTitle', undefined, lang)}</h1>
-          <p style={styles.heroSub}>{t('notes.heroSub', undefined, lang)}</p>
-        </div>
+        <p style={styles.title}>{t('notes.pageTitle', undefined, lang)}</p>
 
         {/* Anotação de sermão — registro de um sermão ouvido na igreja
             (preletor, igreja, passagens bíblicas lidas, texto livre), à
             parte das anotações de leitura/reflexão (ver
-            src/notes/sermonNotesStore.js). Botão "+" sempre visível no
-            topo — não é um filtro, é a ação principal desta aba. */}
-        {creatingSermon ? (
-          <div style={styles.sermonFormCard}>
+            src/notes/sermonNotesStore.js). Redesign 1e: deixou de ser
+            conteúdo fixo no topo da tela — agora é o FAB (ver fora deste
+            bloco condicional) que abre o formulário numa folha inferior. */}
+        {creatingSermon && createPortal(
+          <div style={styles.sheetBackdrop} onClick={cancelSermonForm}>
+            <div style={styles.sheetCard} onClick={e => e.stopPropagation()}>
+              <div style={styles.sheetHandleWrap} onClick={cancelSermonForm}><div style={styles.sheetHandle} /></div>
+              <div style={styles.sermonFormCard}>
             <p style={styles.sermonFormTitle}>
               {sermonEditing ? t('notes.sermonEditTitle', undefined, lang) : t('notes.sermonNewTitle', undefined, lang)}
             </p>
@@ -698,11 +760,10 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                 {t('notes.cancelEdit', undefined, lang)}
               </button>
             </div>
-          </div>
-        ) : (
-          <button style={styles.sermonNewBtn} onClick={startCreateSermon}>
-            <AppIcon name="Plus" size={16} color="white" /> {t('notes.sermonNewBtn', undefined, lang)}
-          </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
         )}
 
         {/* Busca por palavra (instantânea, casa substring no texto) +
@@ -749,23 +810,21 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         )}
 
         {/* Tipo de anotação — SEMPRE visível (não fica escondido atrás do
-            painel de filtros) e cada tipo tem sua própria cor, tanto aqui
-            quanto no ícone/rótulo de cada card abaixo, pra dar pra
-            reconhecer o tipo de longe. Some junto do resto na busca por
-            tema (IA), que ignora filtros de propósito. */}
+            painel de filtros). Chip monocromático (ativo --bk/branco,
+            inativo branco/--g6, ver handoff) — a cor por tipo mora só no
+            ícone/rótulo de cada card abaixo, não mais aqui. Fileira rola
+            horizontalmente com máscara de esmaecimento na borda (mesma
+            correção que o handoff pede em qualquer fileira rolável do
+            app). Some junto do resto na busca por tema (IA), que ignora
+            filtros de propósito. */}
         {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
           <div style={styles.filterRow}>
             {FILTERS.map(f => {
-              const ts = TYPE_STYLES[f.key]
               const active = filter === f.key
               return (
                 <button
                   key={f.key}
-                  style={{
-                    ...styles.filterBtn,
-                    background: active ? ts.color : ts.bg,
-                    color: active ? 'white' : ts.color,
-                  }}
+                  style={{ ...styles.filterBtn, ...(active ? styles.filterBtnActive : {}) }}
                   onClick={() => chooseFilter(f.key)}
                 >
                   {t(f.labelKey, undefined, lang)}
@@ -900,6 +959,29 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredNotes.map(note => {
+            // Estudo — card à parte (ícone + título + progresso + seta),
+            // sem editar/deletar por aqui (isso é papel de StudiesScreen).
+            // Toque leva pra lá já aberto no estudo certo (ver onOpenStudy,
+            // App.jsx).
+            if (note.type === 'study') {
+              const label = note.doneCount === 0
+                ? t('notes.studyStart', undefined, lang)
+                : note.doneCount === note.total
+                  ? t('notes.studyReview', undefined, lang)
+                  : t('notes.studyResume', { step: Math.min(note.doneCount + 1, note.total), total: note.total }, lang)
+              return (
+                <button key={note.key} style={styles.studyRow} onClick={() => onOpenStudy?.(note.id)}>
+                  <span style={styles.studyRowIcon}>
+                    <AppIcon name={note.icon} size={18} color="var(--or)" />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={styles.studyRowTitle}>{studyTitleFor(note)}</span>
+                    <span style={styles.studyRowProgress}>{label}</span>
+                  </span>
+                  <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
+                </button>
+              )
+            }
             const isEditing = editingKey === note.key
             const isBusy = busyKey === note.key
             // Marcação usa a própria cor escolhida em vez da cor fixa do
@@ -986,14 +1068,25 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         </div>
       </div>
     </div>
+
+      {/* FAB — só ação desta tela que "cria" algo (as demais nascem em
+          contexto: leitura, Reflexão, Estudos). position:absolute (não
+          fixed) relativo ao wrapper logo acima, não ao viewport — evita o
+          bug de position:fixed dentro do zoom:1.15 de .app-content-inner
+          (ver comentário em ReadingBlockView.jsx) sem precisar de portal. */}
+      <button style={styles.fab} onClick={startCreateSermon} aria-label={t('notes.sermonNewBtn', undefined, lang)} title={t('notes.sermonNewBtn', undefined, lang)}>
+        <AppIcon name="Plus" size={22} color="white" />
+      </button>
+    </div>
   )
 }
 
 const styles = {
-  body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
-  heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
+  screen:     { background: 'var(--olt)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
+  body:       { padding: '10px 16px calc(var(--nav-height) + 90px)', display: 'flex', flexDirection: 'column', gap: 12 },
+  title:      { fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, letterSpacing: '-0.7px', color: 'var(--bk)', margin: '8px 2px 2px' },
   searchRow:      { display: 'flex', gap: 8 },
-  searchInputWrap:{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, border: '0.5px solid var(--g2)', borderRadius: 13, padding: '0 12px', background: 'var(--card-bg)' },
+  searchInputWrap:{ flex: 1, minWidth: 0, height: 44, display: 'flex', alignItems: 'center', gap: 8, border: '0.5px solid var(--g2)', borderRadius: 14, padding: '0 12px', background: 'var(--white)' },
   searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)' },
   searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 6px 16px rgba(162,28,175,.3)' },
   aiActiveRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-4px 2px 0' },
@@ -1005,8 +1098,17 @@ const styles = {
   filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--grad-primary)', color: 'white', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
   filtersClearBtn:   { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 700, color: 'var(--or)', padding: '2px 4px' },
   bookSelect:        { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600, color: 'var(--bk)', background: 'var(--card-bg)' },
-  filterRow:  { display: 'flex', gap: 6 },
-  filterBtn:  { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', borderRadius: 9, border: 'none', fontFamily: 'var(--font)', transition: 'background .15s, color .15s' },
+  filterRow:  {
+    display: 'flex', gap: 7, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2,
+    maskImage: 'linear-gradient(to right, #000 88%, transparent)',
+    WebkitMaskImage: 'linear-gradient(to right, #000 88%, transparent)',
+  },
+  filterBtn:  {
+    flexShrink: 0, height: 32, padding: '0 14px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
+    fontSize: 12, fontWeight: 600, cursor: 'pointer', borderRadius: 99, border: 'none', fontFamily: 'var(--font)',
+    background: 'var(--white)', color: 'var(--g6)', transition: 'background .15s, color .15s',
+  },
+  filterBtnActive: { background: 'var(--bk)', color: 'white' },
   colorFilterRow:      { display: 'flex', alignItems: 'center', gap: 8, margin: '-2px 2px 0' },
   colorFilterAllBtn:   { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
   colorFilterAllBtnActive: { background: 'var(--bk)', color: 'white', border: '0.5px solid transparent' },
@@ -1019,7 +1121,7 @@ const styles = {
   dateRangeSep:    { fontSize: 12, fontWeight: 700, color: 'var(--g4)' },
   dateInput:       { flex: 1, minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 11, padding: '9px 10px', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 600, color: 'var(--bk)', background: 'var(--card-bg)' },
   emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
-  card:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 13, boxShadow: 'var(--shadow-card)' },
+  card:       { background: 'var(--white)', border: '1px solid rgba(18,18,18,.07)', borderRadius: 16, padding: '16px 18px' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
   cardIcon:   { width: 22, height: 22, borderRadius: 7, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   cardLabel:  { flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
@@ -1031,7 +1133,34 @@ const styles = {
   editSaveBtn:  { flex: 1, background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
   editCancelBtn:{ flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
 
-  sermonNewBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)' },
+  fab: {
+    position: 'absolute', right: 22, bottom: 96, width: 56, height: 56, borderRadius: '50%',
+    border: 'none', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+  },
+  sheetBackdrop: {
+    position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(18,18,18,.4)',
+    display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+  },
+  sheetCard: {
+    width: '100%', maxWidth: 'var(--max-width)', background: 'var(--white)',
+    borderRadius: '22px 22px 0 0', maxHeight: '86vh', overflowY: 'auto',
+    padding: '0 14px calc(20px + var(--safe-bottom))',
+    animation: 'bookOpenIn .26s cubic-bezier(.32,.72,0,1)',
+  },
+  sheetHandleWrap: { display: 'flex', justifyContent: 'center', padding: '10px 0 6px', cursor: 'pointer' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 99, background: 'var(--g3)' },
+  studyRow: {
+    display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+    background: 'rgba(255,255,255,.55)', border: 'none', borderRadius: 16, padding: '13px 14px',
+    fontFamily: 'var(--font)', cursor: 'pointer',
+  },
+  studyRowIcon: {
+    width: 34, height: 34, flexShrink: 0, borderRadius: 10, background: 'var(--olt)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  studyRowTitle: { display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
+  studyRowProgress: { display: 'block', fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
   sermonFormCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
   sermonFormTitle:{ fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 10 },
   createLabel:    { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', marginBottom: 6 },

@@ -5,12 +5,12 @@ import NotificationBell from './NotificationBell'
 // Navegação lateral exibida só em telas ≥768px (ver index.css) — substitui
 // o AppHeader + BottomNav do layout de celular por uma coluna fixa com logo,
 // abas e o usuário logado, no formato comum de dashboards desktop.
-// 5 abas, iguais às do BottomNav mobile (ver comentário lá). Oração,
-// Notas e Estudos não têm slot fixo: Oração e Estudos vivem dentro de
-// "Meu Plano", Notas no topo da aba Bíblia, e as três também aparecem
-// como itens em Perfil. Todas continuam navegáveis por navigateTo().
-const TAB_IDS = ['home', 'routine', 'journey', 'stats', 'groups']
-const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', stats: 'BarChart3' }
+// 5 abas, iguais às do BottomNav mobile (ver comentário lá, inclusive a
+// troca de Progresso por Biblioteca na etapa 6 do redesign). Oração e
+// Estudos não têm slot fixo: vivem dentro de "Meu Plano" (Oração e um card
+// de Estudos) e também aparecem como itens em Perfil.
+const TAB_IDS = ['home', 'routine', 'journey', 'notes', 'groups']
+const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', notes: 'Library' }
 
 const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
 const a11yBtnActiveStyle = { background: 'var(--grad-primary)', border: 'none', boxShadow: 'var(--shadow-premium)' }
@@ -22,7 +22,7 @@ const sidebarFeaturedIconWrap = { position: 'relative', display: 'inline-flex', 
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações
 // no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).
-export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], lockedTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avatarInitials, avatarUrl, userName, groupsHasPending, disabledTabs = [], pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
@@ -65,13 +65,8 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
           const label = t(`nav.${id}`, undefined, lang)
           const active = activeTab === id
           const disabled = disabledTabs.includes(id)
-          // disabledTabs = 'groups' por idade. lockedTabs = exige Premium
-          // (Meu Plano, Comunidade) — clicável, o clique vai pra 'upgrade'
-          // (ver App.navigateTo).
-          const locked = !disabled && lockedTabs.includes(id)
           const featured = id === 'journey'
-          const tooltip = disabled ? t('groups.minAgeRestricted', undefined, lang)
-            : locked ? t('billing.premiumRequired.cta', undefined, lang) : undefined
+          const tooltip = disabled ? t('groups.minAgeRestricted', undefined, lang) : undefined
           return (
             <button
               key={id}
@@ -83,12 +78,7 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
             >
               <span style={featured ? sidebarFeaturedIconWrap : { position: 'relative', display: 'inline-flex' }}>
                 <AppIcon name={TAB_ICONS[id]} size={featured ? 17 : 18} color={featured ? 'white' : active ? 'var(--or)' : 'var(--g4)'} />
-                {id === 'groups' && groupsHasPending && !disabled && !locked && <span className="nav-pending-dot" />}
-                {locked && (
-                  <span style={{ position: 'absolute', top: -4, right: -7, width: 13, height: 13, borderRadius: 99, background: 'var(--or)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <AppIcon name="Lock" size={8} color="white" />
-                  </span>
-                )}
+                {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
               </span>
               <span style={featured ? { fontWeight: 700 } : undefined}>{label}</span>
             </button>
