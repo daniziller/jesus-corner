@@ -138,6 +138,28 @@ export function computeWeeksInGoal(dailyRoutine, weeklyGoalDays = DEFAULT_WEEKLY
   return weeks
 }
 
+// Últimas `weeksBack` semanas (mais antiga primeiro) com o status de cada
+// uma em relação à meta — alimenta o gráfico de barras do cartão de
+// constância na aba Progresso ("Sua caminhada", redesign 1f/etapa 5). Mesmo
+// espírito de computeWeeklyRoutineStats, mas sobre a meta (isDayGoalMet),
+// não sobre a rotina inteira — e devolve `met` já pronto (daysMet >=
+// weeklyGoalDays), pra quem desenha a barra não precisar repetir a conta.
+export function computeRecentWeeksStatus(dailyRoutine, weeklyGoalDays = DEFAULT_WEEKLY_GOAL_DAYS, weeksBack = 9, today = new Date()) {
+  const currentWeekStart = mondayOf(today)
+  const weeks = []
+  for (let i = weeksBack - 1; i >= 0; i--) {
+    const start = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() - i * 7)
+    const isCurrent = i === 0
+    const lastDay = isCurrent ? today : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
+    let daysMet = 0
+    for (const d = new Date(start); d <= lastDay; d.setDate(d.getDate() + 1)) {
+      if (isDayGoalMet(dailyRoutine?.[dateKey(d)])) daysMet++
+    }
+    weeks.push({ start, daysMet, met: daysMet >= weeklyGoalDays, isCurrent })
+  }
+  return weeks
+}
+
 // Segunda-feira da semana em que "d" cai (getDay(): 0=domingo..6=sábado) —
 // semana sempre começa na segunda, terminando no domingo.
 function mondayOf(d) {

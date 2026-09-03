@@ -34,6 +34,8 @@ import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificati
 import { levelFor, levelProgress } from './utils/levels'
 import { isAtLeast } from './utils/age'
 import { computeUnlockedAchievements } from './utils/achievements'
+import { getSeenAchievements, markAchievementsSeen, ensureSeeded } from './achievements/seenAchievementsStore'
+import AchievementCelebration from './components/AchievementCelebration'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
 import { computeRoutineStreak, computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, DEFAULT_WEEKLY_GOAL_DAYS } from './routine/routineStreak'
@@ -368,6 +370,35 @@ export default function App() {
   // advanceGuided) precisam ler a sessão de hoje sem depender da ordem em
   // que são declaradas (session só é montada bem mais abaixo, no render).
   const sessionRef = useRef(null)
+  // Folha de celebração de conquista recém-desbloqueada (redesign 1f/etapa 5,
+  // ver AchievementCelebration.jsx) — Progresso não mostra mais uma grade
+  // permanente, então isto é a única forma de saber que ganhou uma. Lida de
+  // `sessionRef` (não de `session`, que só existe mais abaixo, depois dos
+  // retornos antecipados de bootstrap/login/consentimento) e roda a cada
+  // render; internamente é barato (1 leitura de localStorage) depois da
+  // primeira vez. `celebratingIdRef` evita reabrir a mesma folha enquanto ela
+  // já está na tela, mesmo com `session.achievements` sendo um array novo a
+  // cada render.
+  const [celebratingAchievement, setCelebratingAchievement] = useState(null)
+  const celebratingIdRef = useRef(null)
+  useEffect(() => {
+    const s = sessionRef.current
+    if (!s || !s.hasPremium) return
+    const unlockedIds = s.achievements.filter(a => a.unlocked).map(a => a.id)
+    ensureSeeded(unlockedIds)
+    if (celebratingIdRef.current) return
+    const seen = getSeenAchievements()
+    const nextId = unlockedIds.find(id => !seen.has(id))
+    if (nextId) {
+      celebratingIdRef.current = nextId
+      setCelebratingAchievement(s.achievements.find(a => a.id === nextId))
+    }
+  })
+  function dismissAchievementCelebration() {
+    if (celebratingIdRef.current) markAchievementsSeen([celebratingIdRef.current])
+    celebratingIdRef.current = null
+    setCelebratingAchievement(null)
+  }
   // Oração e Reflexão têm cronômetro rodando de verdade (setInterval, wake
   // lock) — se a tela desmontasse ao trocar de aba, como as outras, o
   // cronômetro perderia todo o progresso (useState/useRef voltam do zero ao
@@ -1375,7 +1406,7 @@ export default function App() {
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
-    stats:   <ProgressScreen session={session} blocks={blocks} onNavigate={navigateTo} />,
+    stats:   <ProgressScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} onNavigate={navigateTo} />,
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
@@ -1450,6 +1481,7 @@ export default function App() {
         )}
       </div>
 
+      <AchievementCelebration achievement={celebratingAchievement} lang={session.lang} onClose={dismissAchievementCelebration} />
       <Analytics />
     </div>
   )
