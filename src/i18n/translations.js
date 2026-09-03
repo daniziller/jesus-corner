@@ -413,6 +413,18 @@ export const STRINGS = {
       routineAvgLabel: 'Média de dias/semana com o plano completo',
       routineCalendarTitle: 'Calendário do plano',
       routineCalendarSub: 'Veja o histórico completo, mês a mês',
+      // Redesign 1f/etapa 5 — "Sua caminhada": dois placares (constância +
+      // posição na Bíblia) em vez da grade antiga de stats/conquistas/metas.
+      title: 'Sua caminhada',
+      consistencyLabel: 'Constância',
+      weeksInGoal: 'semanas na meta',
+      recentWeeksNote: 'Últimas 9 semanas. Uma semana abaixo da meta não apaga as anteriores.',
+      whereYouAre: 'Onde você está na Bíblia',
+      blockOfTotal: '{block} · {i}º de {total} blocos',
+      wholeBibleFooter: '{pct}% da Bíblia inteira · {done} de {total} capítulos',
+      bibleFinished: 'Você concluiu a Bíblia inteira! 🎉',
+      achievementUnlocked: 'Nova conquista!',
+      achievementContinue: 'Continuar',
     },
     profile: {
       pageTitle: 'Perfil',
@@ -1607,6 +1619,18 @@ export const STRINGS = {
       routineAvgLabel: 'Avg. days/week with the full plan',
       routineCalendarTitle: 'Plan calendar',
       routineCalendarSub: 'See the full history, month by month',
+      // Redesign 1f/step 5 — "Your walk": two scoreboards (consistency +
+      // Bible position) instead of the old stats/achievements/goals grid.
+      title: 'Your walk',
+      consistencyLabel: 'Consistency',
+      weeksInGoal: 'weeks on goal',
+      recentWeeksNote: "Last 9 weeks. A week below goal doesn't erase the ones before it.",
+      whereYouAre: 'Where you are in the Bible',
+      blockOfTotal: '{block} · Block {i} of {total}',
+      wholeBibleFooter: '{pct}% of the whole Bible · {done} of {total} chapters',
+      bibleFinished: "You've finished the whole Bible! 🎉",
+      achievementUnlocked: 'New achievement!',
+      achievementContinue: 'Continue',
     },
     profile: {
       pageTitle: 'Profile',
