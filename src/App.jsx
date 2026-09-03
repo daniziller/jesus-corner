@@ -5,10 +5,14 @@ import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
 import { useIsDesktop } from './utils/useIsDesktop'
-import AuthScreen from './screens/AuthScreen'
+import AuthScreen, { HAS_AUTH_KEY } from './screens/AuthScreen'
+import GuestPaceScreen from './screens/GuestPaceScreen'
+import GuestSaveInviteScreen from './screens/GuestSaveInviteScreen'
 import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
 import { needsConsentRefresh } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
+import { hasGuestRow, migrateGuestRow } from './backend/userDataStore'
+import { getGuestInviteThreshold, dismissGuestInvite, clearGuestInviteState } from './onboarding/guestInviteStore'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
@@ -315,6 +319,11 @@ export default function App() {
   // o caso de quem chega pelo login; isto cobre quem já estava com sessão
   // aberta quando a política mudou.
   const [consentRefreshNeeded, setConsentRefreshNeeded] = useState(false)
+  // Link "Já tenho conta" do GuestPaceScreen/GuestSaveInviteScreen
+  // (redesign 1g/etapa 7) — força AuthScreen em modo login mesmo num
+  // dispositivo que nunca autenticou aqui (sem isso, cairia sempre na
+  // pergunta de ritmo do convidado, mesmo pra quem já tem conta).
+  const [authScreenForced, setAuthScreenForced] = useState(false)
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
@@ -545,7 +554,7 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     async function bootstrap() {
-      const user = await getCurrentUser()
+      let user = await getCurrentUser()
       if (cancelled) return
       if (!user) {
         // Ninguém logado ainda — se o dispositivo também não tem idioma
@@ -559,8 +568,24 @@ export default function App() {
             setAppLanguageState(detected)
           }
         }
-        if (!cancelled) setBootstrapped(true)
-        return
+        // Sem sessão real, mas este dispositivo já tem progresso de
+        // convidado (redesign 1g/etapa 7 — ver userDataStore.js) — retoma
+        // direto no meio do app em vez de mostrar a pergunta de ritmo de
+        // novo. Sem progresso nenhum ainda, o render mais abaixo mostra
+        // GuestPaceScreen (a única pergunta, antes de ler).
+        if (!hasGuestRow()) {
+          if (!cancelled) setBootstrapped(true)
+          return
+        }
+        user = buildGuestUser()
+      } else {
+        // Sessão real encontrada com progresso de convidado ainda por
+        // migrar (ex: voltando do redirect de confirmação de email depois
+        // de ler como convidado e só então cadastrar) — mesma função que
+        // SignupStep chama no caminho comum; aqui cobre o caminho que passa
+        // por fora dele. Sem progresso de convidado, não faz nada.
+        await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
+        clearGuestInviteState()
       }
 
       // Aplica plano/ordem de leitura pendentes (salvos no onboarding se a
@@ -625,8 +650,13 @@ export default function App() {
       // Consentimento em dia? Se a política mudou de versão desde o último
       // "aceito", reapresenta antes de liberar o app (LGPD — não basta
       // pegar quem passa pelo login). Falha silenciosa: erro de rede aqui
-      // não pode travar quem já consentiu.
-      setConsentRefreshNeeded(await needsConsentRefresh().catch(() => false))
+      // não pode travar quem já consentiu. Convidado (redesign 1g/etapa 7)
+      // nunca passa por aqui — sem sessão real, needsConsentRefresh() só
+      // enxergaria uma tabela vazia (RLS) e diria "falta consentir",
+      // travando a leitura ANTES de existir conta — exatamente o que essa
+      // etapa existe pra evitar. Consentimento entra só no cadastro de
+      // verdade (ver SignupStep, que já grava tudo antes de liberar o app).
+      setConsentRefreshNeeded(user.isGuest ? false : await needsConsentRefresh().catch(() => false))
       setBootstrapped(true)
     }
     bootstrap()
@@ -1005,10 +1035,45 @@ export default function App() {
     setSubscription(sub)
   }
 
-  // Chamado depois de login/cadastro bem-sucedidos: busca todo o progresso
-  // salvo do usuário de uma vez só, e só então atualiza o estado (evita um
-  // frame renderizando o usuário novo com dados do usuário anterior/vazios).
+  // "Autenticado" sintético pro modo convidado (redesign 1g/etapa 7) — sem
+  // sessão real nenhuma no Supabase, então id/email ficam null (nenhuma
+  // store usa esses campos de verdade, ver comentário em
+  // src/backend/userDataStore.js). Idioma vem da preferência de dispositivo
+  // já resolvida no bootstrap (appLanguage), não do navigator.language
+  // direto — mesma fonte que a tela de login usaria de qualquer forma.
+  function buildGuestUser() {
+    const lang = getAppLanguage() ?? 'pt'
+    // Nome só de exibição (Sidebar/Perfil) — não é o que o formulário de
+    // cadastro usa (GuestSaveInviteScreen manda name="" pra SignupStep de
+    // propósito, pra mostrar o campo de nome de verdade nessa hora).
+    return { id: null, email: null, name: lang === 'en' ? 'Guest' : 'Convidado', language: lang, birthdate: null, isGuest: true }
+  }
+
+  // Chamado pelo botão "Começar a ler" do GuestPaceScreen — cria a linha
+  // local de convidado já com o ritmo escolhido (setSelectedPlanId grava
+  // nela em vez do backend real, ver userDataStore.js) e entra direto na
+  // leitura de hoje, que pra um convidado novo (completedSet vazio) é
+  // sempre Gênesis 1, não importa o ritmo — por isso é seguro chamar
+  // continueToday() logo em seguida, mesmo lendo `blocks`/`sessionsByBlock`
+  // de um render que ainda não viu o plano recém-escolhido.
+  async function startGuestReading(planId) {
+    await setSelectedPlanId(null, planId)
+    await handleAuthenticated(buildGuestUser())
+    continueToday()
+  }
+
+  // Chamado depois de login/cadastro bem-sucedidos (inclusive o "login"
+  // sintético do convidado acima): busca todo o progresso salvo do usuário
+  // de uma vez só, e só então atualiza o estado (evita um frame renderizando
+  // o usuário novo com dados do usuário anterior/vazios).
   async function handleAuthenticated(user) {
+    // migrateGuestRow() só migra de verdade quando há sessão real — no
+    // "login" sintético do convidado (sem sessão nenhuma) não faz nada, é
+    // seguro chamar sempre (ver src/backend/userDataStore.js). Cobre quem
+    // loga numa conta JÁ existente depois de ter lido um pouco como
+    // convidado no mesmo dispositivo.
+    await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
+    clearGuestInviteState()
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
@@ -1348,9 +1413,27 @@ export default function App() {
         </>
       )
     }
+    // Redesign 1g/etapa 7 — quem já autenticou neste dispositivo alguma vez
+    // (ou pediu "Já tenho conta" no meio do fluxo de convidado) vai direto
+    // pro login de sempre. Quem nunca autenticou aqui vê a pergunta única
+    // de ritmo (GuestPaceScreen) em vez do cadastro — só entra em contato
+    // com conta/senha/consentimento depois de já ter lido algo (ver
+    // GuestSaveInviteScreen mais abaixo, no gate pós-bootstrapped).
+    if (authScreenForced || (typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY))) {
+      // authScreenForced sempre quer dizer "já tenho conta" (veio de um
+      // link explícito no fluxo de convidado) — força login mesmo se este
+      // dispositivo específico nunca autenticou aqui (nesse caso, sem o
+      // initialMode, AuthScreen cairia no onboarding antigo por padrão).
+      return (
+        <>
+          <AuthScreen onAuthenticated={handleAuthenticated} initialMode={authScreenForced ? 'login' : undefined} />
+          <Analytics />
+        </>
+      )
+    }
     return (
       <>
-        <AuthScreen onAuthenticated={handleAuthenticated} />
+        <GuestPaceScreen onStart={startGuestReading} onGoLogin={() => setAuthScreenForced(true)} />
         <Analytics />
       </>
     )
@@ -1364,6 +1447,30 @@ export default function App() {
         <ConsentRefreshScreen
           onAccepted={() => setConsentRefreshNeeded(false)}
           onDeclined={handleLogout}
+        />
+        <Analytics />
+      </>
+    )
+  }
+
+  // Convite a salvar (redesign 1g/etapa 7) — aparece depois da 1ª leitura
+  // concluída em modo convidado, e de novo a cada duas leituras se a pessoa
+  // continuar sem conta (ver src/onboarding/guestInviteStore.js). Tela
+  // cheia (não um card dentro do app) — é a "tela 2" do fluxo de entrada, o
+  // mesmo peso visual da pergunta de ritmo que a trouxe até aqui.
+  if (authUser.isGuest && completedSet.size >= getGuestInviteThreshold()) {
+    const lastKey = [...completedSet].at(-1) ?? ''
+    const [lastBook, lastPart] = lastKey.split(':')
+    const lastReadLabel = lastPart === 'reflection' ? lastBook : `${lastBook} ${lastPart}`
+    return (
+      <>
+        <GuestSaveInviteScreen
+          lastReadLabel={lastReadLabel}
+          chaptersRead={completedSet.size}
+          planId={planId}
+          onAuthenticated={handleAuthenticated}
+          onDismiss={() => { dismissGuestInvite(completedSet.size); goToTab('home') }}
+          onGoLogin={() => { setAuthScreenForced(true); setAuthUser(null) }}
         />
         <Analytics />
       </>

@@ -980,6 +980,25 @@ export const STRINGS = {
         aiSub: 'Perguntas sobre o texto, planos e estudos gerados por IA e busca nas suas anotações.',
       },
     },
+    // Redesign 1g/etapa 7 — "Entrada": ler antes de cadastrar. Duas telas,
+    // ver GuestPaceScreen.jsx (a pergunta) e GuestSaveInviteScreen.jsx (o
+    // convite a salvar, depois da 1ª leitura).
+    guestEntry: {
+      stepLabel: 'Passo 1 de 1',
+      title: 'Quanto tempo você tem por dia?',
+      subtitle: 'É a única coisa que preciso saber pra montar sua leitura. Dá pra mudar depois.',
+      optionSub: '{label} · ~{n} capítulos por dia',
+      startBtn: 'Começar a ler →',
+      starting: 'Preparando sua leitura...',
+      footerNote: 'Sem cadastro agora. A conta entra quando você quiser salvar.',
+      goLoginLink: 'Já tenho conta',
+      inviteTitle: 'Você leu {passage}',
+      inviteBody: 'Quer guardar isso? Com uma conta, sua leitura, suas marcações e seu ritmo ficam salvos em qualquer aparelho.',
+      lossChapters: '{n} capítulo(s) lido(s) hoje',
+      lossPlan: 'Plano de {min} min montado pra você',
+      saveBtn: 'Salvar minha leitura',
+      continueWithoutAccount: 'Continuar sem conta',
+    },
     onboarding: {
       back: 'Voltar',
       stepCounter: 'Passo {step} de {total}',
@@ -2181,6 +2200,25 @@ export const STRINGS = {
         aiTitle: 'Premium + AI feature',
         aiSub: 'Questions about the text, AI-generated plans and studies, and search across your notes.',
       },
+    },
+    // Redesign 1g/step 7 — "Entry": read before you sign up. Two screens,
+    // see GuestPaceScreen.jsx (the question) and GuestSaveInviteScreen.jsx
+    // (the save invite, after the 1st reading).
+    guestEntry: {
+      stepLabel: 'Step 1 of 1',
+      title: 'How much time do you have per day?',
+      subtitle: "It's the only thing I need to know to put together your reading. You can change it later.",
+      optionSub: '{label} · ~{n} chapters a day',
+      startBtn: 'Start reading →',
+      starting: 'Getting your reading ready...',
+      footerNote: 'No sign-up needed yet. Create an account whenever you want to save your progress.',
+      goLoginLink: 'I already have an account',
+      inviteTitle: 'You read {passage}',
+      inviteBody: 'Want to keep this? With an account, your reading, highlights, and pace stay saved on any device.',
+      lossChapters: '{n} chapter(s) read today',
+      lossPlan: 'A {min}-min plan built just for you',
+      saveBtn: 'Save my reading',
+      continueWithoutAccount: 'Continue without an account',
     },
     onboarding: {
       back: 'Back',
