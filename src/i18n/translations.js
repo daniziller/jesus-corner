@@ -837,6 +837,13 @@ export const STRINGS = {
       dateFilterTo: 'Até',
       bookReflectionTag: 'Reflexão de fechamento',
       applicationPhraseTag: 'Frase de aplicação',
+      // Rótulo curto por tipo — reskin Bento (4c), substitui o quadradinho
+      // de ícone por um texto colorido só (Reflexão de fechamento e Frase
+      // de aplicação já tinham rótulo próprio, ver acima).
+      typeReading: 'Nota',
+      typeDailyReflection: 'Reflexão',
+      typeHighlight: 'Marcação',
+      typeSermon: 'Sermão',
       editAction: 'Editar anotação',
       deleteAction: 'Deletar anotação',
       deleteConfirm: 'Deletar essa anotação? Não dá pra desfazer.',
@@ -2104,6 +2111,10 @@ export const STRINGS = {
       dateFilterTo: 'To',
       bookReflectionTag: 'Closing reflection',
       applicationPhraseTag: 'Application phrase',
+      typeReading: 'Note',
+      typeDailyReflection: 'Reflection',
+      typeHighlight: 'Highlight',
+      typeSermon: 'Sermon',
       editAction: 'Edit note',
       deleteAction: 'Delete note',
       deleteConfirm: "Delete this note? Can't be undone.",
