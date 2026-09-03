@@ -85,6 +85,59 @@ export function computeReadingWeekStreak(dailyRoutine, today = new Date()) {
   return weekStreak
 }
 
+// ── Constância semanal (redesign, etapa 4) ──────────────────────────────
+//
+// Substitui a sequência de dias corridos por uma meta semanal: a pessoa
+// escolhe quantos dias por semana quer se comprometer (weekly_goal_days,
+// 3–7, padrão 5 — ver src/routine/weeklyGoalStore.js) e vê "X de 7 dias
+// esta semana" + "Y semanas na meta" (contador histórico que só CRESCE,
+// nunca reseta por um dia perdido — culpa é o principal motivo de alguém
+// desistir de um app devocional). O streak antigo (computeRoutineStreak,
+// acima) continua existindo só pelas conquistas/metas de "dias seguidos"
+// já publicadas (ver utils/achievements.js/routine/goals.js) — não é mais
+// o que a Home/Progresso mostram como "constância".
+export const DEFAULT_WEEKLY_GOAL_DAYS = 5
+
+// O dia conta pra meta semanal quando a LEITURA foi concluída — Oração e
+// Reflexão somam qualidade, não obrigação (antes exigia os 3 módulos, ver
+// isDayComplete). Não depende de routineModules: mesmo quem desligou
+// Oração/Reflexão da rotina só precisa ler pra fechar o dia.
+export function isDayGoalMet(day) {
+  return !!day?.reading
+}
+
+// Dias da semana ATUAL (segunda até hoje) que já bateram a meta.
+export function computeWeekGoalProgress(dailyRoutine, today = new Date()) {
+  const monday = mondayOf(today)
+  let daysMet = 0
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
+    if (d > today) break
+    if (isDayGoalMet(dailyRoutine?.[dateKey(d)])) daysMet++
+  }
+  return daysMet
+}
+
+// Quantas semanas, em TODO o histórico, bateram a própria meta semanal —
+// contador cumulativo (não uma sequência): uma semana ruim não apaga as
+// boas de antes, e a semana atual já soma assim que atinge a meta (dias
+// futuros da mesma semana não podem "desfazer" isso). Varre as chaves que
+// já existem em dailyRoutine em vez de percorrer calendário — o mapa só
+// tem entradas de dias em que algo foi de fato marcado.
+export function computeWeeksInGoal(dailyRoutine, weeklyGoalDays = DEFAULT_WEEKLY_GOAL_DAYS, today = new Date()) {
+  const todayKeyStr = dateKey(today)
+  const metByWeek = new Map() // chave da segunda-feira -> dias com meta batida
+  for (const key in dailyRoutine ?? {}) {
+    if (key > todayKeyStr || !isDayGoalMet(dailyRoutine[key])) continue
+    const [y, m, d] = key.split('-').map(Number)
+    const weekKey = dateKey(mondayOf(new Date(y, m - 1, d)))
+    metByWeek.set(weekKey, (metByWeek.get(weekKey) ?? 0) + 1)
+  }
+  let weeks = 0
+  for (const count of metByWeek.values()) if (count >= weeklyGoalDays) weeks++
+  return weeks
+}
+
 // Segunda-feira da semana em que "d" cai (getDay(): 0=domingo..6=sábado) —
 // semana sempre começa na segunda, terminando no domingo.
 function mondayOf(d) {
