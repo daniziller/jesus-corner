@@ -29,7 +29,7 @@ import AdminScreen from './screens/AdminScreen'
 import HandsFreeScreen from './screens/HandsFreeScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
-import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks } from './utils/progress'
+import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
 import { levelFor, levelProgress } from './utils/levels'
 import { isAtLeast } from './utils/age'
 import { computeUnlockedAchievements } from './utils/achievements'
@@ -182,6 +182,23 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const displayTitle = lang === 'en' ? currentSession.titleEn : currentSession.title
   const displayPassage = lang === 'en' ? currentSession.passageEn : currentSession.passage
   const blockName = lang === 'en' ? activeBlock.nameEn : activeBlock.name
+
+  // Bloco atual da Bíblia pra Home (redesign 1a) — nome do bloco em foco,
+  // ícone, percentual, e "Livro X de Y capítulos" quando a sessão de hoje é
+  // de leitura (reflexão de fim de livro não tem capítulo). O total de
+  // capítulos do livro sai da mesma fonte de Progresso/Notas.
+  const bookChapterCounts = computeBookChapterCounts(sessionsByBlock)
+  const currentBookDisplay = lang === 'en' ? (currentSession.bookEn || currentSession.book) : currentSession.book
+  const currentBlock = {
+    name: blockName,
+    icon: activeBlock.icon,
+    percent: activeBlock.percent ?? 0,
+    chapterLabel: (currentSession.type === 'reflection' || currentSession.chStart == null)
+      ? null
+      : (lang === 'en'
+        ? `${currentBookDisplay} ${currentSession.chStart} of ${bookChapterCounts[currentSession.book] ?? '?'} chapters`
+        : `${currentBookDisplay} ${currentSession.chStart} de ${bookChapterCounts[currentSession.book] ?? '?'} capítulos`),
+  }
   // Plano Livre não tem "Sessão N de X" — cada sessão já é 1 capítulo só.
   // Planos por tema/cronológico sempre têm (mesmo formato de sessão com id
   // sequencial + sessionsTotal do bloco/plano sintético).
@@ -226,6 +243,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     firstBlockName: lang === 'en' ? blocks[0].nameEn : blocks[0].name,
     dailyRoutine,
     todayRoutine,
+    currentBlock,
     // Plano por tema ativo sem escolha de hoje ainda (activePlan.needsThemePick)
     // — Home/Rotina mostram um convite pra escolher os textos em vez de uma
     // sessão normal (ver DailyRoutineCard/todaySessionCard), então título/
@@ -1310,7 +1328,7 @@ export default function App() {
   if (activeTab === 'studies') studiesVisitedRef.current = true
 
   const screens = {
-    home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} />,
+    home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />,
     routine: hasPremium
       ? <RoutineScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} completedSet={completedSet} themePlans={themePlans} activeAltPlan={activeAltPlan} todayThemePicks={dailyRoutine[dateKey()]?.themePicks} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onToggleRoutineModule={toggleRoutineModule} onSelectActivePlan={selectActivePlan} onOpenThemePlan={openThemePlanFromList} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onToggleSession={toggleSession} onOpenSession={openReadingSession} onOpenChronoSession={openChronoSession} onStartGuided={startGuidedRoutine} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
