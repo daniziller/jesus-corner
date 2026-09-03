@@ -1,4 +1,4 @@
-// NotesScreen.jsx — "Biblioteca" (redesign 1e/etapa 6)
+// NotesScreen.jsx — "Biblioteca" (redesign 1e/etapa 6, reskin Bento — tela 4c)
 // Endereço único para tudo que a pessoa produziu: notas de leitura,
 // Reflexão diária, marcações de trecho, anotações de sermão e estudos —
 // hoje cada uma só era visível "no contexto" onde foi escrita/criada.
@@ -8,6 +8,13 @@
 // client-side, casa substring no texto) e busca por tema com IA
 // (api/search-notes.js) — pra quando a pessoa lembra do ASSUNTO mas não da
 // palavra exata que usou.
+//
+// Reskin Bento: o mockup 4c só mostra 4 chips (Todas/Notas/Marcações/
+// Estudos) e um card por anotação sem ícone, sem painel de filtro por
+// livro/cor/preletor/data. Toda essa funcionalidade real ficou — o chip
+// "Sermões" continua (é um tipo de conteúdo de verdade, não dá pra sumir
+// com ele), e o painel de filtros vira uma extensão além do mockup, com o
+// mesmo tratamento visual das demais peças desta tela.
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
@@ -19,6 +26,7 @@ import { HIGHLIGHT_COLORS } from '../data/highlightColors'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { computeBookChapterCounts } from '../utils/progress'
 import { dateKey } from '../utils/dateKey'
+import { formatRelativeTime } from '../utils/time'
 import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { getAiStudies } from '../studies/aiStudiesStore'
@@ -45,20 +53,19 @@ const FILTERS = [
   { key: 'sermon', types: ['sermon'], labelKey: 'notes.filterSermon' },
 ]
 
-// Cor própria por tipo — mesma cor usada no ícone/rótulo de cada card, pra
-// dar pra reconhecer o tipo de longe. Segue a paleta do handoff (Reflexão
-// --or, Marcação #B8860B, Sermão #B5005D, Estudo sem cor própria — neutro).
-// A faixa de FILTROS em si não usa mais essas cores (virou monocromática,
-// ver styles.filterBtn) — só os cards da lista. 'highlight' aqui é só a
-// cor do ÍCONE genérico; uma marcação específica usa a cor de verdade que
-// a pessoa escolheu (ver HIGHLIGHT_COLORS/hc mais abaixo, que sobrescreve
-// isso).
-const TYPE_STYLES = {
-  all:       { color: 'var(--bk)', bg: 'var(--g2)' },
-  notes:     { color: 'var(--or)', bg: 'rgba(157,67,0,.1)' },
-  highlight: { color: '#B8860B', bg: 'rgba(184,134,11,.12)' },
-  study:     { color: 'var(--g6)', bg: 'var(--g1)' },
-  sermon:    { color: '#B5005D', bg: 'rgba(181,0,93,.1)' },
+// Cor própria por tipo — mesma cor usada no rótulo de cada card, pra dar
+// pra reconhecer o tipo de longe. Reskin Bento: o quadradinho de ícone
+// saiu (o mockup 4c não tem — só o texto colorido já basta) e Sermão
+// perdeu a cor de marca própria (#B5005D), virando neutro como no mockup.
+// 'highlight' aqui é só o fallback; uma marcação específica usa a cor de
+// verdade que a pessoa escolheu (ver HIGHLIGHT_COLORS/hc mais abaixo, que
+// sobrescreve isso).
+const TYPE_COLOR = {
+  all:       'var(--bento-ink)',
+  notes:     'var(--bento-accent)',
+  highlight: 'var(--bento-sand-icon)',
+  study:     'var(--bento-t3)',
+  sermon:    'var(--bento-t3)',
 }
 
 // A que grupo de cor/ícone uma anotação pertence — mesmas 4 categorias da
@@ -354,12 +361,25 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     return lang === 'en' ? note.titleEn : note.titlePt
   }
 
-  function iconFor(type) {
-    if (type === 'highlight') return 'Highlighter'
-    if (type === 'reading') return 'BookOpen'
-    if (type === 'application-phrase') return 'Sparkles'
-    if (type === 'sermon') return 'Landmark'
-    return 'PenLine'
+  // Rótulo curto por tipo (substitui o quadradinho de ícone no reskin
+  // Bento — ver TYPE_COLOR acima). 'book-reflection' e 'application-phrase'
+  // já tinham rótulo próprio (bookReflectionTag/applicationPhraseTag),
+  // usados também em labelFor.
+  function typeCapLabel(note) {
+    if (note.type === 'reading') return t('notes.typeReading', undefined, lang)
+    if (note.type === 'book-reflection') return t('notes.bookReflectionTag', undefined, lang)
+    if (note.type === 'daily-reflection') return t('notes.typeDailyReflection', undefined, lang)
+    if (note.type === 'application-phrase') return t('notes.applicationPhraseTag', undefined, lang)
+    if (note.type === 'highlight') return t('notes.typeHighlight', undefined, lang)
+    if (note.type === 'sermon') return t('notes.typeSermon', undefined, lang)
+    return ''
+  }
+
+  // labelFor() já embute a data por extenso pra esses 3 tipos — mostrar
+  // TAMBÉM o tempo relativo no canto (ver renderização do card) seria
+  // repetir a mesma informação duas vezes na mesma linha.
+  function labelHasOwnDate(note) {
+    return note.type === 'daily-reflection' || note.type === 'application-phrase' || note.type === 'sermon'
   }
 
   // Rótulo de uma passagem de sermão pra exibir no chip/link (ver
@@ -713,7 +733,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                         style={styles.passageRemoveBtn} onClick={() => removePassageRow(i)}
                         aria-label={t('notes.sermonRemovePassage', undefined, lang)}
                       >
-                        <AppIcon name="X" size={13} color="var(--g5)" />
+                        <AppIcon name="X" size={13} color="var(--bento-t3)" />
                       </button>
                     </div>
                     {/* Link "ir pro texto" já ativo assim que livro+capítulo
@@ -728,7 +748,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                         style={{ ...styles.passageChip, alignSelf: 'flex-start' }}
                         onClick={() => onOpenBiblePassage?.(p.book, Number(p.chapter))}
                       >
-                        <AppIcon name="BookOpen" size={11} color="var(--or)" /> {passageLabel(p)}
+                        <AppIcon name="BookOpen" size={11} color="var(--bento-accent)" /> {passageLabel(p)}
                       </button>
                     )}
                   </div>
@@ -736,7 +756,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
               </div>
             )}
             <button style={styles.addPassageBtn} onClick={addPassageRow}>
-              <AppIcon name="Plus" size={13} color="var(--or)" /> {t('notes.sermonAddPassage', undefined, lang)}
+              <AppIcon name="Plus" size={13} color="var(--bento-accent)" /> {t('notes.sermonAddPassage', undefined, lang)}
             </button>
 
             <p style={{ ...styles.createLabel, marginTop: 12 }}>{t('notes.sermonTextLabel', undefined, lang)}</p>
@@ -774,7 +794,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           <>
             <div style={styles.searchRow}>
               <div style={styles.searchInputWrap}>
-                <AppIcon name="Search" size={14} color="var(--g4)" />
+                <AppIcon name="Search" size={14} color="var(--bento-t5)" />
                 <input
                   type="text"
                   style={styles.searchInput}
@@ -842,11 +862,11 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
           <>
             <button style={styles.filtersToggleBtn} onClick={() => setFiltersOpen(v => !v)}>
-              <AppIcon name="SlidersHorizontal" size={14} color="var(--g5)" />
+              <AppIcon name="SlidersHorizontal" size={14} color="var(--bento-t3)" />
               <span style={styles.filtersToggleLabel}>{t('notes.filtersToggle', undefined, lang)}</span>
               {activeFilterCount > 0 && <span style={styles.filtersBadge}>{activeFilterCount}</span>}
               <AppIcon
-                name="ChevronDown" size={14} color="var(--g4)"
+                name="ChevronDown" size={14} color="var(--bento-t5)"
                 style={{ marginLeft: 'auto', transform: filtersOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
               />
             </button>
@@ -972,13 +992,13 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
               return (
                 <button key={note.key} style={styles.studyRow} onClick={() => onOpenStudy?.(note.id)}>
                   <span style={styles.studyRowIcon}>
-                    <AppIcon name={note.icon} size={18} color="var(--or)" />
+                    <AppIcon name={note.icon} size={18} color="var(--bento-accent)" />
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={styles.studyRowTitle}>{studyTitleFor(note)}</span>
                     <span style={styles.studyRowProgress}>{label}</span>
                   </span>
-                  <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
+                  <AppIcon name="ChevronRight" size={16} color="var(--bento-t5)" />
                 </button>
               )
             }
@@ -987,26 +1007,30 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             // Marcação usa a própria cor escolhida em vez da cor fixa do
             // tipo "Marcações" — é a informação principal que diferencia
             // uma marcação da outra numa lista (ver HIGHLIGHT_COLORS). Os
-            // outros tipos usam a cor fixa do grupo (ver TYPE_STYLES), pra
+            // outros tipos usam a cor fixa do grupo (ver TYPE_COLOR), pra
             // reconhecer o tipo de longe mesmo sem abrir filtro nenhum.
             const hc = note.type === 'highlight'
               ? (HIGHLIGHT_COLORS.find(c => c.id === note.color) ?? HIGHLIGHT_COLORS[0])
               : null
-            const typeStyle = hc ? { color: hc.swatch, bg: hc.bg } : TYPE_STYLES[typeGroupFor(note)]
+            const typeColor = hc ? hc.swatch : TYPE_COLOR[typeGroupFor(note)]
+            const isHighlightWithText = note.type === 'highlight' && !!note.text
             return (
-              <div key={note.key} style={styles.card}>
+              <div key={note.key} style={{ ...styles.card, ...(note.type === 'highlight' ? styles.cardHighlight : {}) }}>
                 <div style={styles.cardHeader}>
-                  <span style={{ ...styles.cardIcon, background: typeStyle.bg }}>
-                    <AppIcon name={iconFor(note.type)} size={13} color={typeStyle.color} />
+                  <span style={{ ...styles.cardTypeLabel, color: typeColor }}>{typeCapLabel(note)}</span>
+                  {/* Sempre ocupa o espaço flexível (mesmo vazio) pra
+                      empurrar as ações pra direita de forma consistente,
+                      com ou sem tempo relativo (ver labelHasOwnDate). */}
+                  <span style={styles.cardTime}>
+                    {!labelHasOwnDate(note) && note.updatedAt ? formatRelativeTime(note.updatedAt, lang) : ''}
                   </span>
-                  <span style={{ ...styles.cardLabel, color: typeStyle.color }}>{labelFor(note)}</span>
                   {!isEditing && (
                     <span style={styles.cardActions}>
                       <button
                         style={styles.cardActionBtn} onClick={() => startEdit(note)}
                         aria-label={t('notes.editAction', undefined, lang)} disabled={isBusy}
                       >
-                        <AppIcon name="PenLine" size={13} color="var(--g5)" />
+                        <AppIcon name="PenLine" size={13} color="var(--bento-t3)" />
                       </button>
                       <button
                         style={styles.cardActionBtn} onClick={() => deleteNote(note)}
@@ -1030,7 +1054,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                         key={i} style={styles.passageChip}
                         onClick={() => onOpenBiblePassage?.(p.book, p.chapter)}
                       >
-                        <AppIcon name="BookOpen" size={11} color="var(--or)" /> {passageLabel(p)}
+                        <AppIcon name="BookOpen" size={11} color="var(--bento-accent)" /> {passageLabel(p)}
                       </button>
                     ))}
                   </div>
@@ -1057,10 +1081,26 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                       </button>
                     </div>
                   </>
-                ) : note.text ? (
-                  <p style={styles.cardText}>{note.text}</p>
+                ) : isHighlightWithText ? (
+                  // Marcação com anotação: a citação vem primeiro (é o
+                  // conteúdo principal), a referência embaixo — mesma
+                  // inversão do mockup 4c.
+                  <>
+                    <p style={styles.highlightQuote}>“{note.text}”</p>
+                    <p style={{ ...styles.highlightRef, color: typeColor }}>{labelFor(note)}</p>
+                  </>
+                ) : note.type === 'highlight' ? (
+                  <>
+                    <p style={{ ...styles.highlightRef, color: typeColor, marginBottom: 4 }}>{labelFor(note)}</p>
+                    <p style={{ ...styles.cardText, ...styles.cardTextEmpty }}>{t('notes.noAnnotationText', undefined, lang)}</p>
+                  </>
                 ) : (
-                  <p style={{ ...styles.cardText, ...styles.cardTextEmpty }}>{t('notes.noAnnotationText', undefined, lang)}</p>
+                  <>
+                    <p style={styles.cardTitleLine}>{labelFor(note)}</p>
+                    {note.text
+                      ? <p style={styles.cardText}>{note.text}</p>
+                      : <p style={{ ...styles.cardText, ...styles.cardTextEmpty }}>{t('notes.noAnnotationText', undefined, lang)}</p>}
+                  </>
                 )}
               </div>
             )
@@ -1075,105 +1115,109 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           bug de position:fixed dentro do zoom:1.15 de .app-content-inner
           (ver comentário em ReadingBlockView.jsx) sem precisar de portal. */}
       <button style={styles.fab} onClick={startCreateSermon} aria-label={t('notes.sermonNewBtn', undefined, lang)} title={t('notes.sermonNewBtn', undefined, lang)}>
-        <AppIcon name="Plus" size={22} color="white" />
+        <AppIcon name="Plus" size={22} color="var(--bento-ink)" />
       </button>
     </div>
   )
 }
 
 const styles = {
-  screen:     { background: 'var(--olt)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
-  body:       { padding: '10px 16px calc(var(--nav-height) + 90px)', display: 'flex', flexDirection: 'column', gap: 12 },
-  title:      { fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, letterSpacing: '-0.7px', color: 'var(--bk)', margin: '8px 2px 2px' },
+  screen:     { background: 'var(--bento-bg)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
+  body:       { padding: '20px 20px calc(var(--nav-height) + 90px)', display: 'flex', flexDirection: 'column', gap: 12 },
+  title:      { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: '0 0 2px' },
   searchRow:      { display: 'flex', gap: 8 },
-  searchInputWrap:{ flex: 1, minWidth: 0, height: 44, display: 'flex', alignItems: 'center', gap: 8, border: '0.5px solid var(--g2)', borderRadius: 14, padding: '0 12px', background: 'var(--white)' },
-  searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)' },
+  searchInputWrap:{ flex: 1, minWidth: 0, height: 46, display: 'flex', alignItems: 'center', gap: 10, border: 'none', borderRadius: 16, padding: '0 16px', background: 'var(--bento-card)' },
+  searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-ink)' },
   searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 6px 16px rgba(162,28,175,.3)' },
   aiActiveRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-4px 2px 0' },
-  aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, color: '#A21CAF' },
-  aiClearBtn:     { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', padding: '2px 4px' },
-  aiErrorText:    { fontSize: 11.5, fontWeight: 600, color: 'var(--re, #DC2626)', margin: '-4px 2px 0' },
-  filtersToggleBtn:  { display: 'flex', alignItems: 'center', gap: 7, border: '0.5px solid var(--g2)', background: 'var(--card-bg)', borderRadius: 13, padding: '10px 12px', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, color: 'var(--g6)' },
+  aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: '#A21CAF' },
+  aiClearBtn:     { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', padding: '2px 4px' },
+  aiErrorText:    { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--re, #DC2626)', margin: '-4px 2px 0' },
+  filtersToggleBtn:  { display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: 'var(--bento-card)', borderRadius: 13, padding: '10px 12px', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t2)' },
   filtersToggleLabel:{ flexShrink: 0 },
-  filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--grad-primary)', color: 'white', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
-  filtersClearBtn:   { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 700, color: 'var(--or)', padding: '2px 4px' },
-  bookSelect:        { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600, color: 'var(--bk)', background: 'var(--card-bg)' },
+  filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
+  filtersClearBtn:   { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', padding: '2px 4px' },
+  bookSelect:        { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-ink)', background: 'var(--bento-card)' },
   filterRow:  {
-    display: 'flex', gap: 7, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2,
+    display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2,
     maskImage: 'linear-gradient(to right, #000 88%, transparent)',
     WebkitMaskImage: 'linear-gradient(to right, #000 88%, transparent)',
   },
   filterBtn:  {
-    flexShrink: 0, height: 32, padding: '0 14px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
-    fontSize: 12, fontWeight: 600, cursor: 'pointer', borderRadius: 99, border: 'none', fontFamily: 'var(--font)',
-    background: 'var(--white)', color: 'var(--g6)', transition: 'background .15s, color .15s',
+    flexShrink: 0, height: 34, padding: '0 15px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
+    fontSize: 12, fontWeight: 700, cursor: 'pointer', borderRadius: 12, border: 'none', fontFamily: 'var(--font-bento)',
+    background: 'var(--bento-card)', color: 'var(--bento-ink)', transition: 'background .15s, color .15s',
   },
-  filterBtnActive: { background: 'var(--bk)', color: 'white' },
+  filterBtnActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
   colorFilterRow:      { display: 'flex', alignItems: 'center', gap: 8, margin: '-2px 2px 0' },
-  colorFilterAllBtn:   { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  colorFilterAllBtnActive: { background: 'var(--bk)', color: 'white', border: '0.5px solid transparent' },
-  colorSwatchBtn:      { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', boxShadow: '0 0 0 1px var(--g2)' },
-  colorSwatchBtnActive:{ border: '2px solid white', boxShadow: '0 0 0 2px var(--bk)' },
+  colorFilterAllBtn:   { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  colorFilterAllBtnActive: { background: 'var(--bento-ink)', color: '#fff' },
+  colorSwatchBtn:      { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', boxShadow: '0 0 0 1px var(--bento-line)' },
+  colorSwatchBtnActive:{ border: '2px solid #fff', boxShadow: '0 0 0 2px var(--bento-ink)' },
   dateFilterRow:   { display: 'flex', gap: 6, flexWrap: 'wrap', margin: '-2px 2px 0' },
-  dateFilterChip:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  dateFilterChipActive: { background: 'var(--bk)', color: 'white', border: '0.5px solid transparent' },
+  dateFilterChip:  { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  dateFilterChipActive: { background: 'var(--bento-ink)', color: '#fff' },
   dateRangeRow:    { display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px' },
-  dateRangeSep:    { fontSize: 12, fontWeight: 700, color: 'var(--g4)' },
-  dateInput:       { flex: 1, minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 11, padding: '9px 10px', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 600, color: 'var(--bk)', background: 'var(--card-bg)' },
-  emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
-  card:       { background: 'var(--white)', border: '1px solid rgba(18,18,18,.07)', borderRadius: 16, padding: '16px 18px' },
-  cardHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
-  cardIcon:   { width: 22, height: 22, borderRadius: 7, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  cardLabel:  { flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.3, textTransform: 'uppercase' },
-  cardText:   { fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', lineHeight: 1.55, whiteSpace: 'pre-wrap' },
-  cardTextEmpty: { color: 'var(--g4)', fontStyle: 'italic' },
+  dateRangeSep:    { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t4)' },
+  dateInput:       { flex: 1, minWidth: 0, border: 'none', borderRadius: 11, padding: '9px 10px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-ink)', background: 'var(--bento-card)' },
+  emptyHint:  { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '24px 12px' },
+  card:       { background: 'var(--bento-card)', borderRadius: 24, padding: 20 },
+  cardHighlight: { background: 'var(--bento-sand)' },
+  cardHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
+  cardTypeLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase' },
+  cardTime:   { flex: 1, minWidth: 0, textAlign: 'right', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-t5)' },
+  cardTitleLine: { fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, lineHeight: 1.4, color: 'var(--bento-ink)', margin: '0 0 6px' },
+  cardText:   { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.55, whiteSpace: 'pre-wrap', margin: 0 },
+  cardTextEmpty: { color: 'var(--bento-t4)', fontStyle: 'italic' },
+  highlightQuote: { fontFamily: 'var(--font-bento)', fontStyle: 'italic', fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: 'var(--bento-sand-ink-strong)', margin: '0 0 8px' },
+  highlightRef:   { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, margin: 0 },
   cardActions:  { display: 'flex', gap: 2, flexShrink: 0 },
   cardActionBtn:{ width: 24, height: 24, border: 'none', background: 'none', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  editTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--g1)' },
-  editSaveBtn:  { flex: 1, background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
-  editCancelBtn:{ flex: 1, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  editTextarea: { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--bento-line)' },
+  editSaveBtn:  { flex: 1, background: 'var(--bento-accent)', border: 'none', borderRadius: 11, padding: 9, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  editCancelBtn:{ flex: 1, background: 'var(--bento-line)', border: 'none', borderRadius: 11, padding: 9, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
 
   fab: {
-    position: 'absolute', right: 22, bottom: 96, width: 56, height: 56, borderRadius: '50%',
-    border: 'none', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-glow)',
+    position: 'absolute', right: 20, bottom: 96, width: 56, height: 56, borderRadius: 20,
+    border: 'none', background: 'var(--bento-accent)', boxShadow: '0 10px 26px rgba(240,102,43,.4)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
   },
   sheetBackdrop: {
-    position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(18,18,18,.4)',
+    position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(26,23,20,.45)',
     display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
   },
   sheetCard: {
-    width: '100%', maxWidth: 'var(--max-width)', background: 'var(--white)',
+    width: '100%', maxWidth: 'var(--max-width)', background: 'var(--bento-bg)',
     borderRadius: '22px 22px 0 0', maxHeight: '86vh', overflowY: 'auto',
     padding: '0 14px calc(20px + var(--safe-bottom))',
     animation: 'bookOpenIn .26s cubic-bezier(.32,.72,0,1)',
   },
   sheetHandleWrap: { display: 'flex', justifyContent: 'center', padding: '10px 0 6px', cursor: 'pointer' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 99, background: 'var(--g3)' },
+  sheetHandle: { width: 36, height: 4, borderRadius: 99, background: 'var(--bento-t5)' },
   studyRow: {
     display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-    background: 'rgba(255,255,255,.55)', border: 'none', borderRadius: 16, padding: '13px 14px',
-    fontFamily: 'var(--font)', cursor: 'pointer',
+    background: 'rgba(255,255,255,.6)', border: 'none', borderRadius: 16, padding: '13px 14px',
+    fontFamily: 'var(--font-bento)', cursor: 'pointer',
   },
   studyRowIcon: {
-    width: 34, height: 34, flexShrink: 0, borderRadius: 10, background: 'var(--olt)',
+    width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  studyRowTitle: { display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
-  studyRowProgress: { display: 'block', fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
-  sermonFormCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  sermonFormTitle:{ fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 10 },
-  createLabel:    { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', marginBottom: 6 },
-  sermonInput:    { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
-  sermonTextarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--white)' },
+  studyRowTitle: { display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 3 },
+  studyRowProgress: { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)' },
+  sermonFormCard: { background: 'var(--bento-card)', borderRadius: 20, padding: 14 },
+  sermonFormTitle:{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 10 },
+  createLabel:    { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', marginBottom: 6 },
+  sermonInput:    { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: 'var(--bento-line)' },
+  sermonTextarea: { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--bento-line)' },
   passageRow:     { display: 'flex', alignItems: 'center', gap: 5 },
-  passageBookSelect:   { flex: '1.3 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 6px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
-  passageChapterSelect:{ flex: '0.8 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
-  passageVerseInput:   { flex: '0.7 1 0', minWidth: 0, border: '0.5px solid var(--g2)', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font)', color: 'var(--bk)', background: 'var(--white)' },
-  passageVerseSep:     { fontSize: 11, fontWeight: 700, color: 'var(--g4)', flexShrink: 0 },
-  passageRemoveBtn:    { flexShrink: 0, width: 24, height: 24, border: 'none', background: 'var(--g1)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  addPassageBtn:  { display: 'flex', alignItems: 'center', gap: 5, border: '0.5px dashed var(--g3)', background: 'none', borderRadius: 9, padding: '7px 10px', fontSize: 11, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  sermonMeta:     { fontSize: 11.5, fontWeight: 600, color: 'var(--g5)', marginBottom: 6 },
+  passageBookSelect:   { flex: '1.3 1 0', minWidth: 0, border: 'none', borderRadius: 9, padding: '8px 6px', fontSize: 11, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: 'var(--bento-line)' },
+  passageChapterSelect:{ flex: '0.8 1 0', minWidth: 0, border: 'none', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: 'var(--bento-line)' },
+  passageVerseInput:   { flex: '0.7 1 0', minWidth: 0, border: 'none', borderRadius: 9, padding: '8px 4px', fontSize: 11, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: 'var(--bento-line)' },
+  passageVerseSep:     { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t4)', flexShrink: 0 },
+  passageRemoveBtn:    { flexShrink: 0, width: 24, height: 24, border: 'none', background: 'var(--bento-line)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  addPassageBtn:  { display: 'flex', alignItems: 'center', gap: 5, border: '1px dashed var(--bento-pending-border)', background: 'none', borderRadius: 9, padding: '7px 10px', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer' },
+  sermonMeta:     { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)', marginBottom: 6 },
   passageChipRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  passageChip:    { display: 'flex', alignItems: 'center', gap: 4, border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--olt)', borderRadius: 20, padding: '5px 10px', fontSize: 11, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  passageChip:    { display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '5px 10px', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer' },
 }
