@@ -134,6 +134,9 @@
   --bento-pending-border: #CFC6BC;
   /* Entre --bento-t4 e --bento-t5: subtítulo de passo ainda não feito (4b). */
   --bento-t4-soft: #B0A79E;
+  /* Sobre --bento-sand, entre --bento-sand-ink e --bento-sand-label: hint e
+     números não selecionados do cartão "Ritmo da semana" (5a). */
+  --bento-sand-ink-mid: #7A6B58;
   --font-bento: 'Manrope', sans-serif;
 }
 

@@ -20,7 +20,7 @@ import {
   Smile, ClipboardList, Lock, TreePalm, Wrench, TriangleAlert, Siren,
   Sailboat, Amphora, PawPrint, MapPin, Circle,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
-  X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
+  X, ChevronRight, ChevronLeft, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus,
   Play, Pause, AudioLines, MoreVertical, Copy, AlignLeft,
 } from 'lucide-react'
@@ -58,7 +58,7 @@ const REGISTRY = {
   Smile, ClipboardList, Lock, TreePalm, Wrench, TriangleAlert, Siren,
   Sailboat, Amphora, PawPrint, MapPin,
   CheckCircle2, ArrowUp, ChevronDown, CloudRain, ArrowLeft,
-  X, ChevronRight, Pin, UserPlus, Calendar, Type, Gift,
+  X, ChevronRight, ChevronLeft, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus,
   Play, Pause, AudioLines, MoreVertical, Copy, AlignLeft,
   Instagram,

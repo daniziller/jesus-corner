@@ -1578,6 +1578,9 @@ export default function App() {
   // Comunidade, Estudos…), e é lá que continuam o sino e o ajuste de
   // tamanho de texto. Perfil é alcançado pelo avatar da Home.
   const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings'].includes(activeTab)
+  // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
+  // botão "Salvar plano"); saem pela própria seta de voltar.
+  const navHidden = immersiveReading || ['adjustPlan'].includes(activeTab)
 
   return (
     <div className="app-shell">
@@ -1627,7 +1630,7 @@ export default function App() {
         </div>
 
         {/* Navegação inferior — só em telas <768px; some na leitura imersiva */}
-        {!immersiveReading && (
+        {!navHidden && (
           <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
         )}
       </div>
