@@ -8,6 +8,7 @@ import { getHighlights, saveHighlight, updateHighlightText, hideHighlight } from
 import { getMessages, sendMessage, getDailyLimitStatus } from '../aiChat/aiChatStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { askAboutPassage } from '../aiChat/passageQuestionStore'
+import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen, fetchChapterContext } from '../aiChat/chapterContextStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
@@ -376,6 +377,37 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // verses) separada da resposta em si, pra "Perguntar outra coisa" poder
   // reusar o mesmo trecho sem precisar de uma seleção nova.
   const [passageAnswer, setPassageAnswer] = useState(null)
+
+  // Contexto antes do capítulo (10c, reskin Bento) — tela opcional e
+  // pulável mostrada ANTES do texto, só na leitura imersiva e só se este
+  // capítulo específico ainda não foi visto (ver chapterContextStore.js).
+  // Decidido uma vez só, na montagem (não muda de novo enquanto esta
+  // sessão de leitura estiver aberta, mesmo que o toggle mude no meio).
+  // Offline nem tenta (implicação técnica 5 do adendo — degradação
+  // explícita, sem tentativa de rede) — vai direto pro texto.
+  const [contextGate, setContextGate] = useState(() => (
+    immersive && heroSession.type !== 'reflection' && hasAI && getChapterContextEnabled()
+      && !isChapterContextSeen(heroSession.book, heroSession.chStart, lang)
+      && (typeof navigator === 'undefined' || navigator.onLine)
+  ))
+  const [contextData, setContextData] = useState(null) // null (carregando) | objeto pronto
+
+  useEffect(() => {
+    if (!contextGate) return
+    let cancelled = false
+    fetchChapterContext({ book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart, lang })
+      .then(data => { if (!cancelled) setContextData(data) })
+      // Falhou (rede, offline, geração) — nunca vira parede: pula direto
+      // pro texto, como se a pessoa tivesse tocado "Pular contexto".
+      .catch(() => { if (!cancelled) setContextGate(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextGate])
+
+  function dismissChapterContext() {
+    markChapterContextSeen(heroSession.book, heroSession.chStart, lang)
+    setContextGate(false)
+  }
 
   // Toque no NÚMERO de um versículo — alterna ele dentro/fora da seleção em
   // andamento (ou, se esse versículo já tem um grifo salvo, troca pro modo
@@ -880,6 +912,22 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       onHighlightTextRange={handleHighlightTextRange}
     />
   ))
+
+  // Contexto antes do capítulo (10c) — substitui a tela de leitura inteira
+  // até a pessoa começar a ler de verdade ou pular (ver dismissChapterContext
+  // acima). Só chega aqui depois de TODOS os hooks já terem rodado.
+  if (contextGate) {
+    return (
+      <ChapterContextScreen
+        lang={lang}
+        book={lang === 'en' ? heroSession.bookEn : heroSession.book}
+        chapter={heroSession.chStart}
+        data={contextData}
+        onBegin={dismissChapterContext}
+        onSkip={dismissChapterContext}
+      />
+    )
+  }
 
   return (
     <>
@@ -1471,6 +1519,79 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
       {state.status === 'ready' && (
         <p style={styles.bibleTextAttribution}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
       )}
+    </div>
+  )
+}
+
+// Contexto antes do capítulo (10c, reskin Bento) — tela cheia própria,
+// substitui a leitura inteira até a pessoa começar ou pular (ver
+// contextGate no componente principal). Enquanto `data` ainda é null
+// (carregando), mostra os mesmos blocos com um miolo em branco pulsando —
+// o botão "Pular contexto" já funciona nesse momento, nunca trava esperando
+// a IA responder.
+function ChapterContextScreen({ lang, book, chapter, data, onBegin, onSkip }) {
+  const L = (k, vars) => t(`context.${k}`, vars, lang)
+  const loading = !data
+
+  return (
+    <div style={styles.contextScreen}>
+      <div style={styles.contextHeader}>
+        <button style={styles.contextBackBtn} onClick={onSkip} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ArrowLeft" size={16} color="var(--bento-ink)" />
+        </button>
+        <div>
+          <p style={styles.contextHeaderTitle}>{book} {chapter}</p>
+          <p style={styles.contextHeaderSub}>{L('beforeStart')}</p>
+        </div>
+      </div>
+
+      <div style={styles.contextBody}>
+        <div style={styles.contextDarkCard}>
+          <div style={styles.contextAiLabelRow}>
+            <span style={styles.contextAiDiamond} />
+            <p style={styles.contextAiLabel}>{L('whereYouAre')}</p>
+          </div>
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '100%' }} />
+              <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '92%' }} />
+              <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '70%' }} />
+            </div>
+          ) : (
+            <p style={styles.contextRecap}>{data.recap}</p>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={styles.contextSubBlock}>
+              <p style={styles.contextSubBlockLabel}>{L('whoAppears')}</p>
+              <p style={styles.contextSubBlockValue}>{loading ? '' : data.whoAppears}</p>
+            </div>
+            <div style={styles.contextSubBlock}>
+              <p style={styles.contextSubBlockLabel}>{L('chapterThread')}</p>
+              <p style={styles.contextSubBlockValue}>{loading ? '' : data.chapterThread}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.contextWatchCard}>
+          <p style={styles.contextWatchLabel}>{L('watchForTitle')}</p>
+          <p style={styles.contextWatchHint}>{L('watchForHint')}</p>
+          {(loading ? [0, 1, 2] : data.watchFor).map((point, i) => (
+            <div key={i} style={{ ...styles.contextWatchRow, ...(i === 2 ? { borderBottom: 'none', paddingBottom: 0 } : {}) }}>
+              <span style={styles.contextWatchDot} />
+              {loading
+                ? <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '80%' }} />
+                : <p style={styles.contextWatchText}>{point}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={styles.contextFooter}>
+        <button style={styles.contextBeginBtn} onClick={onBegin}>
+          <span>{L('beginReading')}</span>
+        </button>
+        <button style={styles.contextSkipBtn} onClick={onSkip}>{L('skipContext')}</button>
+      </div>
     </div>
   )
 }
@@ -2450,6 +2571,32 @@ const styles = {
   browseTagsRow:   { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 6 },
   browseTag:       { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'var(--g5)', cursor: 'pointer' },
   browseTagActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.3)' },
+
+  // ── Contexto antes do capítulo (10c, reskin Bento) ──
+  contextScreen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  contextHeader: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
+  contextBackBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  contextHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+  contextHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
+  contextBody: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  contextDarkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22 },
+  contextAiLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 },
+  contextAiDiamond: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  contextAiLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
+  contextRecap: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'rgba(255,255,255,.9)', textWrap: 'pretty', margin: '0 0 18px' },
+  contextSkeletonLine: { display: 'block', height: 15, borderRadius: 6, background: 'rgba(255,255,255,.14)' },
+  contextSubBlock: { flex: 1, minWidth: 0, borderRadius: 16, background: 'rgba(255,255,255,.06)', padding: '13px 14px' },
+  contextSubBlockLabel: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.38)', margin: '0 0 6px' },
+  contextSubBlockValue: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1.35, color: '#fff', margin: 0, minHeight: '1.35em' },
+  contextWatchCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
+  contextWatchLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
+  contextWatchHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 14px' },
+  contextWatchRow: { display: 'flex', alignItems: 'flex-start', gap: 11, padding: '12px 0', borderBottom: '1px solid var(--bento-line)' },
+  contextWatchDot: { width: 7, height: 7, borderRadius: 99, background: 'var(--bento-accent)', marginTop: 5, flexShrink: 0 },
+  contextWatchText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-ink)', margin: 0 },
+  contextFooter: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))' },
+  contextBeginBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 15.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  contextSkipBtn: { width: '100%', border: 'none', background: 'none', marginTop: 12, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
 
   // ── Leitura imersiva (redesign 1b, reskin Bento — tela 4a) ──
   readerHeader: {

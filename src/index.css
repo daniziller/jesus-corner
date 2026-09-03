@@ -418,6 +418,20 @@ html.large-text .app-content-inner {
   animation: pulse 2s infinite;
 }
 
+/* Linha de esqueleto (ChapterContextScreen, ReadingBlockView.jsx, 10c) —
+   só opacidade, sem escala (ao contrário de @keyframes pulse acima, feito
+   pra uma bolinha, não uma barra larga). */
+@keyframes barPulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.9; }
+}
+.rb-context-skeleton {
+  animation: barPulse 1.3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rb-context-skeleton { animation: none; opacity: 0.6; }
+}
+
 /* ── Progress bar ── */
 .progress-bar {
   height: 3px;

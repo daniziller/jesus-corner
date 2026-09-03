@@ -44,9 +44,17 @@ function buildLangInstruction(lang) {
 // função à parte em vez de generalizar buildLangInstruction acima, que é
 // específica dos campos do plano por tema.
 function buildReplyLangInstruction(lang) {
+  return buildFieldsLangInstruction(lang, 'reply')
+}
+
+// Genérica por trás de buildReplyLangInstruction acima — usada direto por
+// funções com mais de um campo de texto (generateChapterContext,
+// generateReflectionQuestions, composeReflection), pra não fingir que
+// "reply" é o nome do campo quando não é.
+function buildFieldsLangInstruction(lang, fields) {
   return lang === 'en'
-    ? 'Write the "reply" field in English.'
-    : 'Escreva o campo "reply" em português.'
+    ? `Write the ${fields} field(s) in English.`
+    : `Escreva o(s) campo(s) ${fields} em português.`
 }
 
 // Mesma ideia, campos do StudySchema (ver generateStudy abaixo).
@@ -326,6 +334,102 @@ Pergunta da pessoa sobre ESSE TRECHO: "${question}"
 Regra inegociável: se outcome="answer", supportCitation.quote precisa ser um versículo de verdade, citado com fidelidade — nunca invente ou aproxime uma referência. Prefira citar dentro do próprio capítulo ${chapter} quando possível; expansionCitation deve ser de FORA do capítulo atual.
 
 ${buildReplyLangInstruction(lang)}`,
+  })
+  return output
+}
+
+// Contexto antes do capítulo (tela 10c do redesign Bento — ver
+// ADENDO-identidade-e-IA.md) — usado por api/generate-chapter-context.js.
+// Diferente de answerAboutPassage/answerTextQuestion: isto é IGUAL pra
+// todos os usuários que abrem o mesmo capítulo (cacheado por
+// book+chapter+lang no servidor, ver implicação técnica 6 do adendo), não
+// uma pergunta de uma pessoa específica — por isso não tem `outcome`/
+// citação verificável, é sempre gerado com sucesso ou a chamada falha
+// inteira (ver api/generate-chapter-context.js).
+const ChapterContextSchema = z.object({
+  recap: z.string().describe('3 a 4 frases (no idioma pedido) resumindo onde a história está ANTES deste capítulo começar — só o que já aconteceu nos capítulos ANTERIORES que a pessoa precisa lembrar pra entender o que vai ler agora. Nunca conte nada que acontece DENTRO deste capítulo — isso é o resumo de "até aqui", não do capítulo em si.'),
+  whoAppears: z.string().describe('Uma linha curta (nomes separados por vírgula) com os personagens principais que aparecem NESTE capítulo especificamente.'),
+  chapterThread: z.string().describe('Uma frase bem curta (4-8 palavras, no idioma pedido) resumindo o arco/tema deste capítulo, ex: "Da prisão ao governo do Egito" — não revele o desfecho, só o tipo de movimento da história.'),
+  watchFor: z.array(z.string()).length(3).describe('Exatamente 3 pontos curtos (uma frase cada, no idioma pedido) de coisas para prestar atenção DURANTE a leitura deste capítulo — detalhes, palavras ou padrões que voltam a importar mais adiante na história. Instrução de leitura, não resumo do que vai acontecer — nunca revele o final do capítulo.'),
+})
+
+// book/chapter — o capítulo que a pessoa está prestes a abrir. chapterText
+// — o texto real desse capítulo (fonte primária pro "quem aparece"/"fio do
+// capítulo"/"fique de olho em"). bookInfo/priorSections — a mesma fonte
+// curada que a aba "Contexto" já usa (ver answerTextQuestion acima),
+// filtrada só pelos capítulos ANTERIORES a este, pra ancorar o "recap" no
+// que já é conhecido do livro até aqui, sem misturar com o capítulo atual.
+export async function generateChapterContext({ book, chapter, chapterText, bookInfo, priorSectionsText, lang }) {
+  const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: ChapterContextSchema }),
+    prompt: `Você é um estudioso bíblico preparando uma pessoa pra ler ${book} ${chapter} num app de leitura devocional — uma tela opcional de "contexto em 30 segundos" antes do texto, não uma explicação depois.
+
+Visão geral do livro: ${overview}
+
+O que já é conhecido dos capítulos ANTERIORES deste livro:
+${priorSectionsText || '(sem notas específicas cadastradas — use a visão geral do livro acima)'}
+
+Texto completo do capítulo que a pessoa está prestes a ler (${book} ${chapter}):
+"${chapterText}"
+
+Gere o contexto de preparação. Regra inegociável: "recap" NUNCA pode contar nada que acontece dentro do capítulo ${chapter} em si — só o que vem antes dele. "watchFor" nunca revela o desfecho do capítulo.
+
+${buildFieldsLangInstruction(lang, 'recap, whoAppears, chapterThread, watchFor')}`,
+  })
+  return output
+}
+
+// Perguntas de reflexão geradas (tela 10d do redesign Bento) — usado por
+// api/generate-reflection-questions.js. Mesmo espírito de cache
+// compartilhado de generateChapterContext acima: as PERGUNTAS são iguais
+// pra todos que leram o mesmo capítulo (cacheadas por book+chStart+chEnd+
+// lang); só as RESPOSTAS de cada pessoa são individuais (ver
+// composeReflection abaixo, que é por usuário e não cacheado).
+const ReflectionQuestionsSchema = z.object({
+  questions: z.array(z.string()).length(3).describe('Exatamente 3 perguntas curtas (uma frase cada, no idioma pedido), ancoradas no capítulo lido, cada uma respondível em 1-2 frases. A PRIMEIRA liga um evento/tema específico do texto à vida da pessoa hoje (aplicação pessoal, não genérica — "o que você está esperando agora?" e não "o que Deus falou com você?"). As outras duas aprofundam a reflexão sobre o que o texto revela.'),
+})
+
+export async function generateReflectionQuestions({ book, chStart, chEnd, chapterText, bookInfo, lang }) {
+  const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
+  const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: ReflectionQuestionsSchema }),
+    prompt: `Você é um guia de reflexão devocional. Uma pessoa acabou de ler ${book} ${range} num app de leitura bíblica e vai refletir sobre o que leu.
+
+Visão geral do livro: ${overview}
+
+Texto que a pessoa acabou de ler:
+"${chapterText}"
+
+Gere as 3 perguntas de reflexão. Nunca peça uma resposta longa — são perguntas de diário, não um ensaio.
+
+${buildFieldsLangInstruction(lang, 'questions')}`,
+  })
+  return output
+}
+
+// Junta as 3 respostas da pessoa (tela 10d) num parágrafo de diário — ESTA
+// chamada é por usuário (não compartilhada/cacheada, ao contrário das duas
+// acima), porque depende do que a própria pessoa escreveu. O usuário
+// aprova o resultado antes de salvar (ver ReflectionScreen.jsx) — isto só
+// gera o rascunho.
+const ComposeReflectionSchema = z.object({
+  paragraph: z.string().describe('Um parágrafo (3-5 frases, no idioma pedido), em primeira pessoa, como se a PRÓPRIA pessoa tivesse escrito uma entrada de diário — junte as respostas dela num texto corrido e natural, preservando o sentido e o tom que ela usou. Não invente detalhes que ela não escreveu, e não adicione uma conclusão piedosa genérica que ela não sugeriu.'),
+})
+
+export async function composeReflection({ book, chapter, qa, lang }) {
+  const qaText = qa.map((pair, i) => `${i + 1}. Pergunta: ${pair.question}\n   Resposta: ${pair.answer}`).join('\n')
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: ComposeReflectionSchema }),
+    prompt: `Uma pessoa refletiu sobre ${book} ${chapter} respondendo 3 perguntas curtas. Junte as respostas dela num parágrafo de diário coeso, em primeira pessoa, como se ela mesma tivesse escrito direto:
+
+${qaText}
+
+${buildFieldsLangInstruction(lang, 'paragraph')}`,
   })
   return output
 }
