@@ -262,6 +262,74 @@ ${buildReplyLangInstruction(lang)}`,
   return output
 }
 
+// Pergunta sobre um TRECHO SELECIONADO (tela 10a/10b do redesign Bento —
+// ver ADENDO-identidade-e-IA.md) — usado por api/ask-about-passage.js.
+// Diferente de answerTextQuestion (chat livre sobre a sessão inteira,
+// histórico salvo no servidor): aqui a pergunta nasce de selecionar um
+// trecho específico, sem histórico de conversa, e a resposta SEMPRE sai
+// estruturada em UM dos 4 formatos abaixo (`outcome`) — nunca texto livre
+// solto. `outcome='answer'` exige as duas citações (support + expansion);
+// se o modelo não citar as duas, api/ask-about-passage.js descarta a
+// resposta inteira (ver verifyCitation lá) — a regra "quem não cita, não
+// responde" do prompt do handoff.
+const PassageAnswerSchema = z.object({
+  outcome: z.enum(['answer', 'doctrine_divergent', 'out_of_scope', 'risk']).describe(
+    "'answer': a pergunta pede contexto histórico/geográfico/cultural, esclarecimento do que o texto EM SI diz, ou correlação com outras passagens — sempre ancorável em Escritura real, sem opinião de denominação. " +
+    "'doctrine_divergent': a pergunta pede a posição 'certa' sobre um tema em que denominações/tradições cristãs divergem de boa-fé (ex: batismo infantil, dons espirituais hoje, predestinação) — você não decide qual lado está certo. " +
+    "'out_of_scope': a pergunta não tem relação com a Bíblia, ou pede aconselhamento pessoal/psicológico/espiritual sobre a vida de quem pergunta ('o que isso significa pra mim', 'devo terminar meu casamento') — você não inventa conselho. " +
+    "'risk': a pergunta expressa, em primeira pessoa, ideação suicida/autolesão da PRÓPRIA pessoa (não uma figura bíblica histórica — Saul, Elias 1Rs 19:4 e Jó continuam 'answer')."
+  ),
+  reply: z.string().describe(
+    "outcome='answer': a resposta em si, no máximo 2 parágrafos curtos, no mesmo idioma da pergunta. " +
+    "outcome='doctrine_divergent': 1-2 frases reconhecendo que cristãos sérios divergem nisso, sem tomar partido, sugerindo conversar com um pastor/líder da igreja da pessoa. " +
+    "outcome='out_of_scope': 1-2 frases dizendo que não sabe / não é o escopo deste assistente, sem tentar improvisar conselho. " +
+    "outcome='risk': 1-2 frases de acolhimento breve, SEM conselho e SEM qualquer versículo — a linha de apoio (CVV) é adicionada à parte pelo servidor, nunca pelo modelo."
+  ),
+  supportCitation: z.object({
+    reference: z.string().describe('Referência exata no formato "Livro capítulo:versículo" (ex: "Gênesis 41:26") — o versículo que sustenta a resposta diretamente.'),
+    quote: z.string().describe('O texto desse versículo, citado com fidelidade (não parafraseado) — será conferido contra o texto bíblico real antes de sair.'),
+  }).nullable().describe('Obrigatório quando outcome="answer" (a resposta não sai sem isso); null em todos os outros casos.'),
+  expansionCitation: z.object({
+    reference: z.string().describe('Referência de uma passagem RELACIONADA, fora do capítulo atual, que expande o tema.'),
+    note: z.string().describe('Uma frase curta de por que essa passagem se conecta.'),
+  }).nullable().describe('Obrigatório quando outcome="answer"; null em todos os outros casos.'),
+  doctrineSideA: z.object({ label: z.string(), reference: z.string(), quote: z.string() })
+    .nullable().describe('Obrigatório quando outcome="doctrine_divergent": um dos dois lados, com o texto que o sustenta. null nos demais casos.'),
+  doctrineSideB: z.object({ label: z.string(), reference: z.string(), quote: z.string() })
+    .nullable().describe('Obrigatório quando outcome="doctrine_divergent": o outro lado. null nos demais casos.'),
+})
+
+// bookInfo/lang — mesmo padrão de answerTextQuestion. book/chapter/
+// verseStart/verseEnd — o trecho selecionado de verdade (não a sessão
+// inteira); passageText — o texto real desses versículos, na versão que a
+// pessoa está lendo, dado como contexto primário pra ancorar a resposta
+// (e permitir checar a citação depois, ver verifyCitation em
+// api/ask-about-passage.js).
+export async function answerAboutPassage({ book, chapter, verseStart, verseEnd, passageText, bookInfo, question, lang }) {
+  const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
+  const sections = formatContextSections(bookInfo?.contextSections ?? [], chapter, chapter)
+  const verseRange = verseStart === verseEnd ? `${verseStart}` : `${verseStart}-${verseEnd}`
+
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: PassageAnswerSchema }),
+    prompt: `Você é um estudioso bíblico ajudando uma pessoa que acabou de SELECIONAR este trecho enquanto lia ${book} ${chapter}:${verseRange}, dentro de um app de leitura devocional, e tocou em "Perguntar":
+
+"${passageText}"
+
+Contexto histórico/geográfico já conhecido desse capítulo (fonte primária):
+Visão geral do livro: ${overview}
+${sections || '(sem seções específicas cadastradas para este capítulo)'}
+
+Pergunta da pessoa sobre ESSE TRECHO: "${question}"
+
+Regra inegociável: se outcome="answer", supportCitation.quote precisa ser um versículo de verdade, citado com fidelidade — nunca invente ou aproxime uma referência. Prefira citar dentro do próprio capítulo ${chapter} quando possível; expansionCitation deve ser de FORA do capítulo atual.
+
+${buildReplyLangInstruction(lang)}`,
+  })
+  return output
+}
+
 // Boletim semanal (aba Notificações + email, ver api/send-weekly-digest.js)
 // — resume a semana de quem usa o app. Métricas (nível, XP, streak, % da
 // Bíblia) e frases de aplicação NÃO vêm da IA — são dado real, montados por

@@ -7,6 +7,7 @@ import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
 import { getHighlights, saveHighlight, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { getMessages, sendMessage, getDailyLimitStatus } from '../aiChat/aiChatStore'
 import { formatVerseRanges } from '../utils/verseRanges'
+import { askAboutPassage } from '../aiChat/passageQuestionStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
@@ -362,6 +363,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // de lápis sem nada selecionado (sem um alvo específico na tela pra
   // ancorar) — nesse caso o painel some direto na folha de sempre.
   const [highlightAnchorRect, setHighlightAnchorRect] = useState(null)
+  // Menu de seleção da IA (10a, reskin Bento) — só na leitura imersiva.
+  // Selecionar um trecho aqui abre ESTE menu primeiro (Perguntar/Marcar/
+  // Nota/Copiar) em vez de já cair na etapa de escolher cor do grifo
+  // (highlightPanelOpen); "Marcar"/"Nota" dali em diante seguem pro MESMO
+  // fluxo de sempre (ver openMarkFromMenu/openNoteFromMenu abaixo). Fora do
+  // modo imersivo, nada muda — vai direto pro grifo, como sempre foi (essa
+  // tela ainda não migrou pro menu novo).
+  const [selectionMenuOpen, setSelectionMenuOpen] = useState(false)
+  // Resposta da IA sobre o trecho selecionado (10b) — null | {status:
+  // 'loading'|'ready'|'error', ...}. Guarda a referência (book/chapter/
+  // verses) separada da resposta em si, pra "Perguntar outra coisa" poder
+  // reusar o mesmo trecho sem precisar de uma seleção nova.
+  const [passageAnswer, setPassageAnswer] = useState(null)
 
   // Toque no NÚMERO de um versículo — alterna ele dentro/fora da seleção em
   // andamento (ou, se esse versículo já tem um grifo salvo, troca pro modo
@@ -391,7 +405,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     }
     setHighlightSelection(next)
     setHighlightAnchorRect(next ? (rect ?? null) : null)
-    setHighlightPanelOpen(Boolean(next))
+    // Imersivo (10a, reskin Bento): seleção nova abre o menu de ações
+    // primeiro, não já a etapa de cor — ver selectionMenuOpen acima.
+    if (immersive) setSelectionMenuOpen(Boolean(next))
+    else setHighlightPanelOpen(Boolean(next))
   }
 
   // Seleção de texto "de verdade" (arrastar o dedo/mouse como se fosse
@@ -405,7 +422,83 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setHighlightSelection({ chapter: ch, verses })
     setWantsToAnnotate(false)
     setHighlightAnchorRect(rect ?? null)
+    if (immersive) setSelectionMenuOpen(true)
+    else setHighlightPanelOpen(true)
+  }
+
+  // "Marcar"/"Nota" no menu de seleção (10a) — fecham o menu e caem no
+  // MESMO fluxo de grifo/anotação de sempre (highlightPanelOpen), só que
+  // como uma segunda etapa em vez da primeira. "Nota" já entra direto na
+  // etapa de escrever (wantsToAnnotate); "Marcar" para na etapa de cor.
+  function openMarkFromSelectionMenu() {
+    setSelectionMenuOpen(false)
+    setWantsToAnnotate(false)
     setHighlightPanelOpen(true)
+  }
+  function openNoteFromSelectionMenu() {
+    setSelectionMenuOpen(false)
+    setWantsToAnnotate(true)
+    setHighlightPanelOpen(true)
+  }
+
+  // "Copiar" no menu de seleção — busca o texto real dos versículos
+  // selecionados (mesma fonte que o texto na tela, ver fetchBookText) e
+  // copia formatado com a referência, tipo "Gênesis 41:2-3 (NVT) — ...".
+  async function copySelectionFromMenu() {
+    if (!highlightSelection) return
+    const versionId = getSelectedVersionId(lang)
+    const bookKey = lang === 'en' ? heroSession.bookEn : heroSession.book
+    try {
+      const chapters = await fetchBookText(versionId, bookKey)
+      const chapterData = chapters?.[String(highlightSelection.chapter)]
+      const sortedVerses = [...highlightSelection.verses].sort((a, b) => a - b)
+      const text = sortedVerses.map(v => chapterData?.verses?.[String(v)]).filter(Boolean).join(' ')
+      const ref = `${lang === 'en' ? heroSession.bookEn : heroSession.book} ${highlightSelection.chapter}:${formatVerseRanges(sortedVerses)}`
+      if (text) await navigator.clipboard?.writeText(`${text} (${ref})`)
+    } catch (err) {
+      console.error('Failed to copy selected passage', err)
+    } finally {
+      setSelectionMenuOpen(false)
+      setHighlightSelection(null)
+      setHighlightAnchorRect(null)
+    }
+  }
+
+  // "Perguntar" no menu de seleção (10a) — manda a pergunta pro servidor
+  // (api/ask-about-passage.js), que decide/verifica a resposta, e abre a
+  // folha de resposta (10b) já em estado de carregamento.
+  async function askAboutSelection(question) {
+    if (!highlightSelection) return
+    const sortedVerses = [...highlightSelection.verses].sort((a, b) => a - b)
+    const ref = { book: heroSession.book, bookEn: heroSession.bookEn, chapter: highlightSelection.chapter, verseStart: sortedVerses[0], verseEnd: sortedVerses[sortedVerses.length - 1] }
+    setSelectionMenuOpen(false)
+    setPassageAnswer({ status: 'loading', ref, question })
+    try {
+      const { answer } = await askAboutPassage({ ...ref, question, lang })
+      setPassageAnswer({ status: 'ready', ref, question, answer })
+    } catch (err) {
+      console.error('Failed to ask about passage', err)
+      setPassageAnswer({ status: 'error', ref, question, error: err.message })
+    }
+  }
+
+  // Fecha a folha de resposta (10b) — encerra a interação de seleção
+  // inteira (o trecho selecionado já cumpriu seu papel).
+  function closePassageAnswer() {
+    setPassageAnswer(null)
+    setHighlightSelection(null)
+    setHighlightAnchorRect(null)
+  }
+
+  // "Salvar na nota" (10b) — soma a resposta à anotação do CAPÍTULO (não
+  // substitui o que a pessoa já tinha escrito, como handleSaveNote faria
+  // sozinho). heroNoteKey aqui é sempre o da sessão em foco — correto
+  // porque a folha de resposta só existe enquanto essa mesma sessão está
+  // aberta (nunca sobrevive a uma troca de capítulo).
+  function saveAnswerToNote(question, replyText) {
+    const addition = `${question}\n${replyText}`
+    const combined = noteText.trim() ? `${noteText}\n\n${addition}` : addition
+    handleSaveNote(combined)
   }
 
   // Tocar direto numa cor, na etapa de escolha (sem escrever nada) — grifa
@@ -912,6 +1005,33 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         document.body
       )
     )}
+    {/* Menu de seleção da IA (10a, reskin Bento) — só imersivo, ver
+        selectionMenuOpen acima. Ancorado perto da seleção, mesmo espírito
+        de AnchoredHighlightPopup mas com posicionamento próprio (visual
+        bem diferente — menu escuro, não card branco de grifo). */}
+    {selectionMenuOpen && highlightAnchorRect && (
+      <SelectionAiMenu
+        anchorRect={highlightAnchorRect}
+        lang={lang}
+        hasAI={hasAI}
+        onClose={() => { setSelectionMenuOpen(false); setHighlightSelection(null); setHighlightAnchorRect(null) }}
+        onAsk={askAboutSelection}
+        onMark={openMarkFromSelectionMenu}
+        onNote={openNoteFromSelectionMenu}
+        onCopy={copySelectionFromMenu}
+      />
+    )}
+    {/* Resposta da IA sobre o trecho (10b, reskin Bento) — folha cobrindo
+        ~75% da tela, o versículo em questão continua visível acima dela. */}
+    {passageAnswer && (
+      <PassageAnswerSheet
+        state={passageAnswer}
+        lang={lang}
+        onClose={closePassageAnswer}
+        onAskAgain={askAboutSelection}
+        onSaveNote={saveAnswerToNote}
+      />
+    )}
     {embedded ? (
       // Embutido: sem wrapper de tela cheia nenhum — quem rola é a página
       // que contém isso (a lista da aba Bíblia), não este componente. Sem
@@ -1302,7 +1422,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                         // ganha, já que não há "anotação" nenhuma pra indicar.
                         ...(existingHighlight.text ? styles.verseAnnotatedUnderline : {}),
                       }
-                    : isSelected ? styles.verseSelected : undefined
+                    : isSelected ? (immersive ? styles.verseSelectedBento : styles.verseSelected) : undefined
                   const handleVerseTap = e => {
                     if (window.getSelection?.()?.toString()) return
                     const point = { top: e.clientY, bottom: e.clientY, left: e.clientX, right: e.clientX, width: 0, height: 0 }
@@ -1352,6 +1472,120 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         <p style={styles.bibleTextAttribution}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
       )}
     </div>
+  )
+}
+
+// Menu de seleção da IA (10a, reskin Bento) — mesma ideia de posicionamento
+// de AnchoredHighlightPopup logo abaixo (âncora perto da seleção, mede o
+// próprio tamanho, sem fundo escuro cobrindo a tela), mas com visual PRÓPRIO
+// (menu escuro + cartão branco de sugestões, nada a ver com o card branco de
+// grifo) — por isso um componente à parte em vez de reusar aquele, que
+// continua servindo só o fluxo de grifo/anotação de sempre. Duas etapas:
+// 'menu' (Perguntar/Marcar/Nota/Copiar) e 'question' (campo de texto), pra
+// quem quer perguntar algo que não está nas 3 sugestões prontas.
+function SelectionAiMenu({ anchorRect, lang, hasAI, onClose, onAsk, onMark, onNote, onCopy }) {
+  const [mode, setMode] = useState('menu')
+  const [question, setQuestion] = useState('')
+  const popupRef = useRef(null)
+  const [pos, setPos] = useState(null)
+
+  useLayoutEffect(() => {
+    const el = popupRef.current
+    if (!el || !anchorRect) return
+    function reposition() {
+      const vv = window.visualViewport
+      const vw = vv?.width ?? window.innerWidth
+      const vh = vv?.height ?? window.innerHeight
+      const vLeft = vv?.offsetLeft ?? 0
+      const vTop = vv?.offsetTop ?? 0
+      const rect = el.getBoundingClientRect()
+      const margin = 10
+      let left = anchorRect.left + (anchorRect.width - rect.width) / 2
+      left = Math.min(Math.max(left, vLeft + margin), vLeft + vw - rect.width - margin)
+      let top = anchorRect.bottom + 8
+      if (top + rect.height > vTop + vh - margin) top = anchorRect.top - rect.height - 8
+      top = Math.min(Math.max(top, vTop + margin), vTop + vh - rect.height - margin)
+      setPos({ top, left })
+    }
+    reposition()
+    window.visualViewport?.addEventListener('resize', reposition)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', reposition)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [anchorRect, mode])
+
+  useEffect(() => {
+    function handleOutsideClick(e) {
+      if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
+      if (e.target instanceof Element && e.target.closest('[data-verse]')) return
+      onClose()
+    }
+    document.addEventListener('click', handleOutsideClick, true)
+    return () => document.removeEventListener('click', handleOutsideClick, true)
+  }, [onClose])
+
+  const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
+
+  function submitQuestion() {
+    const clean = question.trim()
+    if (!clean) return
+    onAsk(clean)
+  }
+
+  return createPortal(
+    <div
+      ref={popupRef}
+      style={{ ...styles.selectionMenuWrap, ...(pos ? { top: pos.top, left: pos.left, visibility: 'visible' } : { top: -9999, left: -9999, visibility: 'hidden' }) }}
+      onClick={e => e.stopPropagation()}
+    >
+      {mode === 'menu' ? (
+        <div style={styles.selectionMenuBar}>
+          {hasAI && (
+            <button style={styles.selectionMenuBtn} onClick={() => setMode('question')}>
+              <span style={styles.selectionMenuDiamondWrap}><span style={styles.selectionMenuDiamond} /></span>
+              <span style={{ ...styles.selectionMenuBtnLabel, color: 'var(--bento-ink)' }}>{L('ask')}</span>
+            </button>
+          )}
+          <button style={styles.selectionMenuBtnGhost} onClick={onMark}>
+            <span style={styles.selectionMenuSwatch} />
+            <span style={styles.selectionMenuBtnLabel}>{L('mark')}</span>
+          </button>
+          <button style={styles.selectionMenuBtnGhost} onClick={onNote}>
+            <AppIcon name="StickyNote" size={15} color="rgba(255,255,255,.72)" />
+            <span style={styles.selectionMenuBtnLabel}>{L('note')}</span>
+          </button>
+          <button style={styles.selectionMenuBtnGhost} onClick={onCopy}>
+            <AppIcon name="Copy" size={15} color="rgba(255,255,255,.72)" />
+            <span style={styles.selectionMenuBtnLabel}>{L('copy')}</span>
+          </button>
+        </div>
+      ) : (
+        <div style={styles.selectionQuestionBar}>
+          <input
+            autoFocus type="text" style={styles.selectionQuestionInput} value={question}
+            onChange={e => setQuestion(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submitQuestion() }}
+            placeholder={L('questionPlaceholder')} maxLength={300}
+          />
+          <button style={styles.selectionQuestionSend} onClick={submitQuestion} disabled={!question.trim()} aria-label={L('ask')}>
+            <AppIcon name="ArrowUp" size={15} color="var(--bento-ink)" />
+          </button>
+        </div>
+      )}
+      {hasAI && (
+        <div style={styles.selectionSuggestCard}>
+          <p style={styles.selectionSuggestLabel}>{L('suggestLabel')}</p>
+          <div style={styles.selectionSuggestRow}>
+            {[L('suggestion1'), L('suggestion2'), L('suggestion3')].map((s, i) => (
+              <button key={i} style={styles.selectionSuggestChip} onClick={() => onAsk(s)}>{s}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>,
+    document.body,
   )
 }
 
@@ -1451,6 +1685,186 @@ function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
       </div>
     </>,
     document.body
+  )
+}
+
+// Folha de resposta da IA sobre o trecho (10b, reskin Bento) — cobre ~75%
+// da tela, raio superior 34px, fundo --bento-ink. O cartão branco no topo
+// (recorte do próprio trecho perguntado, com o texto selecionado destacado)
+// é auto-contido nesta folha — não depende de rolar a tela de trás pra
+// mostrar o versículo certo, funciona não importa onde a leitura estava
+// parada quando a pergunta foi feita.
+//
+// state: { status: 'loading'|'ready'|'error', ref, question, answer?, error? }
+// ref: { book, bookEn, chapter, verseStart, verseEnd }.
+function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
+  const { ref, question } = state
+  const [recapText, setRecapText] = useState('')
+  const [followUp, setFollowUp] = useState('')
+  const [savedNote, setSavedNote] = useState(false)
+  const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
+
+  useEffect(() => {
+    let cancelled = false
+    const versionId = getSelectedVersionId(lang)
+    const bookKey = lang === 'en' ? ref.bookEn : ref.book
+    fetchBookText(versionId, bookKey).then(chapters => {
+      if (cancelled) return
+      const chapterData = chapters?.[String(ref.chapter)]
+      const text = Array.from(
+        { length: ref.verseEnd - ref.verseStart + 1 },
+        (_, i) => chapterData?.verses?.[String(ref.verseStart + i)]
+      ).filter(Boolean).join(' ')
+      setRecapText(text)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [lang, ref.book, ref.bookEn, ref.chapter, ref.verseStart, ref.verseEnd])
+
+  // Reseta "salvo" e o campo de nova pergunta sempre que a resposta muda
+  // (ex: depois de "Perguntar outra coisa") — sem isso, o rótulo "Salvo!"
+  // de uma resposta anterior ficaria colado na próxima.
+  useEffect(() => { setSavedNote(false); setFollowUp('') }, [state])
+
+  const refLabel = ref.verseStart === ref.verseEnd
+    ? `${lang === 'en' ? ref.bookEn : ref.book} ${ref.chapter}:${ref.verseStart}`
+    : `${lang === 'en' ? ref.bookEn : ref.book} ${ref.chapter}:${ref.verseStart}-${ref.verseEnd}`
+
+  function submitFollowUp() {
+    const clean = followUp.trim()
+    if (!clean) return
+    onAskAgain(clean)
+  }
+
+  function handleSaveNote() {
+    if (state.status !== 'ready') return
+    onSaveNote(state.question, state.answer.reply)
+    setSavedNote(true)
+  }
+
+  return createPortal(
+    <div style={styles.aiChatOverlayBackdrop} onClick={onClose}>
+      <div style={styles.passageSheetOuter} onClick={e => e.stopPropagation()}>
+        {/* Recorte do trecho — auto-contido, não depende de rolagem. */}
+        <div style={styles.passageSheetRecapWrap}>
+          <div style={styles.passageSheetRecapCard}>
+            <p style={styles.passageSheetRecapLabel}>{L('chapterLabel', { n: ref.chapter })}</p>
+            <p style={styles.passageSheetRecapText}>
+              {recapText ? <span style={styles.passageSheetRecapHighlight}>{recapText}</span> : L('recapLoading')}
+            </p>
+          </div>
+        </div>
+
+        <div style={styles.passageSheetBody}>
+          <div style={styles.passageSheetHandle} />
+          <div style={styles.passageSheetHeader}>
+            <span style={styles.passageSheetDiamond} />
+            <p style={styles.passageSheetHeaderTitle}>{L('answerAbout', { ref: refLabel })}</p>
+            <button style={styles.passageSheetCloseText} onClick={onClose}>{L('close')}</button>
+          </div>
+
+          {state.status === 'loading' && (
+            <>
+              <div style={styles.passageSheetQuestionBubble}>
+                <p style={styles.passageSheetQuestionText}>{question}</p>
+              </div>
+              <p style={styles.passageSheetLoading}>{L('generating')}</p>
+            </>
+          )}
+
+          {state.status === 'error' && (
+            <>
+              <div style={styles.passageSheetQuestionBubble}>
+                <p style={styles.passageSheetQuestionText}>{question}</p>
+              </div>
+              <p style={styles.passageSheetErrorText}>
+                {state.error === 'subscription_required' ? L('errorSubscription')
+                  : state.error === 'daily_limit_reached' ? L('errorLimit')
+                  : state.error === 'citation_unverifiable' ? L('errorCitation')
+                  : L('errorGeneric')}
+              </p>
+            </>
+          )}
+
+          {state.status === 'ready' && (() => {
+            const { answer } = state
+            const isAnswer = answer.outcome === 'answer'
+            const isDoctrine = answer.outcome === 'doctrine_divergent'
+            const isRisk = answer.outcome === 'risk'
+            return (
+              <>
+                <div style={styles.passageSheetQuestionBubble}>
+                  <p style={styles.passageSheetQuestionText}>{question}</p>
+                </div>
+
+                {/* Risco interrompe ANTES de qualquer versículo — a linha de
+                    apoio vem primeiro, sempre, nunca depois de esperar. */}
+                {isRisk && (
+                  <a href={lang === 'en' ? undefined : 'tel:188'} style={styles.passageSheetRiskCard}>
+                    <AppIcon name="HandHeart" size={18} color="#F0662B" />
+                    <span style={styles.passageSheetRiskText}>{L('riskLine')}</span>
+                    {lang !== 'en' && <span style={styles.passageSheetRiskCta}>{L('riskCta')}</span>}
+                  </a>
+                )}
+
+                <p style={styles.passageSheetReply}>{answer.reply}</p>
+
+                {isAnswer && (
+                  <div style={styles.passageSheetCitations}>
+                    <div style={styles.passageSheetCiteSupport}>
+                      <p style={styles.passageSheetCiteSupportLabel}>{L('inText', { ref: answer.supportCitation.reference })}</p>
+                      <p style={styles.passageSheetCiteSupportQuote}>"{answer.supportCitation.quote}"</p>
+                    </div>
+                    <div style={styles.passageSheetCiteExpand}>
+                      <p style={styles.passageSheetCiteExpandLabel}>{L('readAlso', { ref: answer.expansionCitation.reference })}</p>
+                      <p style={styles.passageSheetCiteExpandNote}>{answer.expansionCitation.note}</p>
+                    </div>
+                  </div>
+                )}
+
+                {isDoctrine && (
+                  <div style={styles.passageSheetCitations}>
+                    <div style={styles.passageSheetCiteSupport}>
+                      <p style={styles.passageSheetCiteSupportLabel}>{answer.doctrineSideA.label} · {answer.doctrineSideA.reference}</p>
+                      <p style={styles.passageSheetCiteSupportQuote}>"{answer.doctrineSideA.quote}"</p>
+                    </div>
+                    <div style={styles.passageSheetCiteExpand}>
+                      <p style={styles.passageSheetCiteExpandLabel}>{answer.doctrineSideB.label} · {answer.doctrineSideB.reference}</p>
+                      <p style={styles.passageSheetCiteExpandNote}>"{answer.doctrineSideB.quote}"</p>
+                    </div>
+                  </div>
+                )}
+
+                {!isRisk && (
+                  <div style={styles.passageSheetFooter}>
+                    {(isAnswer || isDoctrine) && (
+                      <div style={styles.passageSheetFooterRow}>
+                        <button style={styles.passageSheetSaveBtn} onClick={handleSaveNote} disabled={savedNote}>
+                          <AppIcon name="StickyNote" size={14} color="rgba(255,255,255,.75)" />
+                          <span>{savedNote ? L('savedToNote') : L('saveToNote')}</span>
+                        </button>
+                      </div>
+                    )}
+                    <div style={styles.passageSheetFollowUpRow}>
+                      <input
+                        type="text" style={styles.passageSheetFollowUpInput} value={followUp}
+                        onChange={e => setFollowUp(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') submitFollowUp() }}
+                        placeholder={L('askSomethingElse')} maxLength={300}
+                      />
+                      <button style={styles.passageSheetFollowUpSend} onClick={submitFollowUp} disabled={!followUp.trim()} aria-label={L('ask')}>
+                        <AppIcon name="ArrowUp" size={15} color="var(--bento-ink)" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          })()}
+          <p style={styles.passageSheetAiFooter}>{L('aiWrittenNote')}</p>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -2125,6 +2539,10 @@ const styles = {
   chapterChipDot:  { position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: 'var(--gold)', border: '1.5px solid var(--card-bg)' },
   verseTapTarget:  { cursor: 'pointer' },
   verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
+  // Variante Bento (10a) — trecho selecionado enquanto o menu de seleção
+  // está aberto na leitura imersiva; visualmente distinto de um grifo já
+  // salvo (--bento-mark), que é permanente.
+  verseSelectedBento: { background: 'var(--bento-select)', borderRadius: 4, boxShadow: '0 0 0 1.5px var(--bento-select-border)' },
   verseAnnotatedUnderline: { textDecorationLine: 'underline', textDecorationColor: 'rgba(0,0,0,.38)', textDecorationThickness: 1.5, textUnderlineOffset: 3 },
   highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
   highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
@@ -2220,4 +2638,68 @@ const styles = {
   // visível, diferente de aiChatOverlayBackdrop).
   highlightPopup: { position: 'fixed', zIndex: 201, width: 252, maxWidth: 'calc(100vw - 20px)', maxHeight: '46vh', overflowY: 'auto', background: 'var(--white)', borderRadius: 16, boxShadow: '0 12px 32px rgba(0,0,0,.22), 0 0 0 0.5px rgba(0,0,0,.06)', padding: '14px 14px 12px' },
   highlightPopupClose: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+
+  // ── Menu de seleção da IA (10a, reskin Bento) ──
+  selectionMenuWrap: { position: 'fixed', zIndex: 201, width: 322, maxWidth: 'calc(100vw - 20px)', display: 'flex', flexDirection: 'column', gap: 8 },
+  selectionMenuBar: { display: 'flex', gap: 4, background: 'var(--bento-ink)', borderRadius: 20, padding: 8, boxShadow: '0 12px 30px rgba(0,0,0,.32)' },
+  selectionMenuBtn: { flex: 1, height: 56, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer' },
+  selectionMenuBtnGhost: { flex: 1, height: 56, borderRadius: 14, border: 'none', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' },
+  selectionMenuDiamondWrap: { display: 'flex' },
+  selectionMenuDiamond: { width: 11, height: 11, background: 'var(--bento-ink)', transform: 'rotate(45deg)', borderRadius: 2 },
+  selectionMenuSwatch: { width: 14, height: 9, borderRadius: 2, background: 'var(--bento-mark)' },
+  selectionMenuBtnLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-ink)' },
+  selectionQuestionBar: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-ink)', borderRadius: 18, padding: '6px 6px 6px 16px', boxShadow: '0 12px 30px rgba(0,0,0,.32)' },
+  selectionQuestionInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'white', padding: '10px 0' },
+  selectionQuestionSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  selectionSuggestCard: { background: 'var(--bento-card)', borderRadius: 22, padding: '16px 18px' },
+  selectionSuggestLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
+  selectionSuggestRow: { display: 'flex', flexWrap: 'wrap', gap: 7 },
+  selectionSuggestChip: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-ink)', background: 'var(--bento-line)', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
+
+  // ── Folha de resposta da IA (10b, reskin Bento) ──
+  passageSheetOuter: { width: '100%', maxWidth: 'var(--max-width)', height: '78vh', maxHeight: 680, display: 'flex', flexDirection: 'column' },
+  passageSheetRecapWrap: { flex: 'none', padding: '20px 20px 0' },
+  passageSheetRecapCard: { borderRadius: 28, background: 'var(--bento-card)', padding: '22px 24px 24px', filter: 'saturate(.9)' },
+  passageSheetRecapLabel: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 14px' },
+  passageSheetRecapText: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 500, lineHeight: 1.7, color: 'var(--bento-t3)', margin: 0, textWrap: 'pretty' },
+  passageSheetRecapHighlight: { background: 'var(--bento-select)', color: '#3A4A5C', borderRadius: 4, padding: '1px 3px' },
+  passageSheetBody: {
+    flex: 1, minHeight: 0, marginTop: -20, borderRadius: '34px 34px 0 0', background: 'var(--bento-ink)',
+    padding: '20px 20px 18px', display: 'flex', flexDirection: 'column', overflowY: 'auto',
+    boxShadow: '0 -18px 44px rgba(0,0,0,.3)',
+  },
+  passageSheetHandle: { width: 44, height: 5, borderRadius: 99, background: 'rgba(255,255,255,.22)', margin: '0 auto 20px', flexShrink: 0 },
+  passageSheetHeader: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 18px', flexShrink: 0 },
+  passageSheetDiamond: { width: 11, height: 11, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  passageSheetHeaderTitle: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
+  passageSheetCloseText: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.35)' },
+  passageSheetQuestionBubble: { borderRadius: 18, background: 'rgba(255,255,255,.06)', padding: '14px 16px', margin: '0 0 16px', flexShrink: 0 },
+  passageSheetQuestionText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, lineHeight: 1.45, color: 'white', margin: 0 },
+  passageSheetLoading: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'rgba(255,255,255,.5)' },
+  passageSheetErrorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: '#FCA5A5', lineHeight: 1.5 },
+  passageSheetReply: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'rgba(255,255,255,.9)', margin: '0 0 18px', textWrap: 'pretty' },
+  passageSheetRiskCard: {
+    display: 'flex', alignItems: 'center', gap: 10, borderRadius: 16, background: 'rgba(240,102,43,.14)',
+    padding: '14px 16px', margin: '0 0 16px', textDecoration: 'none',
+  },
+  passageSheetRiskText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: 'white' },
+  passageSheetRiskCta: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-accent)', flexShrink: 0 },
+  passageSheetCitations: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 'auto' },
+  passageSheetCiteSupport: { borderRadius: 16, background: 'rgba(240,102,43,.14)', padding: '14px 16px' },
+  passageSheetCiteSupportLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 7px' },
+  passageSheetCiteSupportQuote: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.5, color: 'rgba(255,255,255,.82)', margin: 0 },
+  passageSheetCiteExpand: { borderRadius: 16, background: 'rgba(255,255,255,.05)', padding: '14px 16px' },
+  passageSheetCiteExpandLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', margin: '0 0 7px' },
+  passageSheetCiteExpandNote: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.62)', margin: 0 },
+  passageSheetFooter: { flexShrink: 0, paddingTop: 16 },
+  passageSheetFooterRow: { display: 'flex', gap: 8, marginBottom: 12 },
+  passageSheetSaveBtn: {
+    flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'rgba(255,255,255,.75)',
+  },
+  passageSheetFollowUpRow: { height: 50, borderRadius: 16, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', padding: '0 6px 0 18px', gap: 10 },
+  passageSheetFollowUpInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'white' },
+  passageSheetFollowUpSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  passageSheetAiFooter: { flexShrink: 0, marginTop: 14, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.32)', textAlign: 'center' },
 }
