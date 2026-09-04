@@ -64,6 +64,12 @@ import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { getReadingSeconds } from './reading/readingTimeStore'
 import HomeDashboard, { shouldShowDashboard } from './screens/HomeDashboard'
+import ChapterRoomScreen from './screens/ChapterRoomScreen'
+import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
+import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRecapStore'
+import { renderRecapImage, shareRecapImage } from './recap/recapImage'
+import { getHighlights } from './highlights/highlightsStore'
+import { saveNote } from './notes/notesStore'
 import { getLastReadPosition, setLastReadPosition } from './reading/lastReadPositionStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
@@ -71,7 +77,7 @@ import { getLargeTextEnabled, setLargeTextEnabled } from './utils/textScaleStore
 import { detectLanguageFromIp } from './i18n/detectLanguage'
 import { t } from './i18n'
 import { getMyActiveChallenges, recordChallengeProgress } from './groups/challengesStore'
-import { getPendingGroupInvitesCount } from './groups/groupsStore'
+import { getPendingGroupInvitesCount, getMyGroups } from './groups/groupsStore'
 import { getPendingFriendRequestsCount } from './friends/friendsStore'
 import { getMyProfile } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
@@ -389,6 +395,12 @@ export default function App() {
   // 12a. Relido sempre que a Home volta a ficar ativa, porque quem soma é o
   // leitor (ver useReadingTimer em ReadingBlockView.jsx), em lotes.
   const [readingSeconds, setReadingSeconds] = useState(0)
+  // Leitura social (17a–17c): grupos da pessoa (o botão "Grupo" do leitor usa
+  // o primeiro), a sala de capítulo aberta e a retrospectiva do mês devida.
+  const [myGroups, setMyGroups] = useState([])
+  const [chapterRoom, setChapterRoom] = useState(null) // { group, book, bookEn, chapter }
+  const [monthRecap, setMonthRecap] = useState(null)
+  const recapCheckedFor = useRef(null)
   useEffect(() => {
     if (activeTab !== 'home' || !authUser) return
     getReadingSeconds().then(setReadingSeconds).catch(() => {})
@@ -574,6 +586,30 @@ export default function App() {
   }
 
   const { blocks, sessionsByBlock } = useMemo(() => deriveProgress(completedSet, planId, readingOrder), [completedSet, planId, readingOrder])
+
+  // ── Retrospectiva do mês (17b) ──
+  // Uma vez por sessão de usuário: garante o snapshot do mês e, se o mês
+  // anterior tem retrospectiva ainda não mostrada, abre a tela.
+  useEffect(() => {
+    if (!bootstrapped || !authUser || recapCheckedFor.current === (authUser.email ?? 'guest')) return
+    recapCheckedFor.current = authUser.email ?? 'guest'
+    let cancelled = false
+    ;(async () => {
+      const [seconds, hl] = await Promise.all([getReadingSeconds().catch(() => 0), getHighlights(authUser.email).catch(() => [])])
+      const recap = await ensureSnapshotAndGetDueRecap({
+        chaptersRead: [...completedSet].filter(k => !k.endsWith(':reflection')).length,
+        readingSeconds: seconds,
+        completedBooks: [...computeCompletedBooks(completedSet, sessionsByBlock)],
+        highlights: hl,
+        dailyRoutine,
+        weeklyGoalDays,
+      })
+      if (!cancelled && recap) { setMonthRecap(recap); goToTab('monthRecap') }
+    })().catch(err => console.error('Failed to compute month recap', err))
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrapped, authUser])
+
   // Sessões "1 capítulo = 1 sessão" (plano Livre), independentes do plano de
   // leitura ativo — usadas só quando a pessoa está navegando livremente
   // pela aba Bíblia (fora do fluxo guiado da Rotina), pra mostrar divisão
@@ -629,7 +665,7 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, userCompletedGoals, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, userCompletedGoals, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -652,6 +688,7 @@ export default function App() {
         // existe algo pra fazer aqui se a chave estiver salva; do
         // contrário devolve false na hora, sem custo.
         redeemPendingInviteCode(),
+      getMyGroups().catch(() => []),
       ])
       if (cancelled) return
       const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
@@ -678,6 +715,7 @@ export default function App() {
       setActiveChallenges(challenges)
       setPendingSocialCount(pendingSocial)
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
+    setMyGroups(groups ?? [])
       setSubscription(finalSubscription)
       setIsAdmin(adminStatus)
       // Consentimento em dia? Se a política mudou de versão desde o último
@@ -1139,7 +1177,7 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -1157,6 +1195,7 @@ export default function App() {
       checkIsAdmin(),
       applyPendingInvite(),
       redeemPendingInviteCode(),
+      getMyGroups().catch(() => []),
     ])
     const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
     const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
@@ -1179,6 +1218,7 @@ export default function App() {
     setActiveChallenges(challenges)
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
+    setMyGroups(groups ?? [])
     setSubscription(finalSubscription)
     setIsAdmin(adminStatus)
   }
@@ -1210,6 +1250,9 @@ export default function App() {
     setSubscription(null)
     setIsAdmin(false)
     setReadingSeconds(0)
+    setMyGroups([])
+    setChapterRoom(null)
+    setMonthRecap(null)
     setActiveTab('home')
     setTabHistory([])
   }
@@ -1565,6 +1608,7 @@ export default function App() {
   // cronológico, notas, comunidade. hasAI: recursos de IA.
   session.tier = entitlement.tier
   session.hasPremium = entitlement.hasPremium
+  session.myGroups = myGroups
   session.hasAI = entitlement.hasAI
   // Constância semanal (redesign, etapa 4) — ver src/routine/routineStreak.js.
   // weekGoalDaysMet: dias já lidos esta semana. weeksInGoal: contador
@@ -1599,6 +1643,45 @@ export default function App() {
     ? { book: lastReadSession.book, bookEn: lastReadSession.bookEn, chStart: lastReadSession.chStart, chEnd: lastReadSession.chEnd }
     : null
 
+  // Próximo livro depois do atual, na ordem do plano — "Próximo: Êxodo."
+  const orderedSessions = blocks.flatMap(b => sessionsByBlock[b.id] ?? [])
+  const bookEnFor = book => orderedSessions.find(x => x.book === book)?.bookEn ?? null
+  const nextBookLabel = (() => {
+    const cur = session.currentBlock?.book
+    const idx = orderedSessions.findIndex(x => x.book === cur)
+    const nxt = idx >= 0 ? orderedSessions.slice(idx).find(x => x.book !== cur && x.type !== 'reflection') : null
+    return nxt ? (session.lang === 'en' ? (nxt.bookEn || nxt.book) : nxt.book) : null
+  })()
+  function closeRecap() {
+    if (monthRecap) markRecapShown(monthRecap.month).catch(() => {})
+    setMonthRecap(null)
+    goBack()
+  }
+  async function saveRecapToLibrary() {
+    if (!monthRecap) return
+    const label = book => (session.lang === 'en' ? (bookEnFor(book) || book) : book)
+    const { title, parts } = recapSummary(monthRecap, session.lang, label)
+    const text = [title, parts.join(' · ')].filter(Boolean).join('\n')
+    await saveNote(authUser.email, `recap:${monthRecap.month}`, text, { sessionTitle: t('recap.libraryTitle', { month: monthLabel(monthRecap.month, session.lang) }, session.lang) })
+  }
+  async function shareRecap({ verseText, title }) {
+    if (!monthRecap) return
+    const lang = session.lang
+    const L = (k, vars) => t(`recap.${k}`, vars, lang)
+    const tiles = []
+    const h = Math.floor(monthRecap.seconds / 3600), m = Math.floor((monthRecap.seconds % 3600) / 60)
+    if (monthRecap.chapters > 0) tiles.push({ num: String(monthRecap.chapters), label: L('chapters') })
+    if (monthRecap.seconds >= 60) tiles.push(h ? { num: `${h}`, unit: `h${String(m).padStart(2, '0')}`, label: L('reading') } : { num: `${m}`, unit: 'min', label: L('reading') })
+    if (monthRecap.weeksMet > 0) tiles.push({ num: String(monthRecap.weeksMet), unit: `/${monthRecap.weeksTotal}`, label: L('weeks'), accent: true })
+    if (monthRecap.highlights > 0) tiles.push({ num: String(monthRecap.highlights), label: L('highlights') })
+    const tv = monthRecap.topVerse
+    const verse = tv && verseText ? { label: L('topVerse'), text: verseText, ref: `${lang === 'en' ? (tv.bookEn || tv.book) : tv.book} ${tv.chapter}:${tv.verse}` } : null
+    const month = monthLabel(monthRecap.month, lang)
+    const blob = await renderRecapImage({ month, title, tiles, verse, next: nextBookLabel ? L('next', { book: nextBookLabel }) : null, brandText: "Jesus' Corner" }).catch(() => null)
+    const summary = [title, ...tiles.map(x => `${x.num}${x.unit ?? ''} ${x.label}`)].join(' · ')
+    await shareRecapImage(blob, { title: month, text: L('shareText', { month, summary }) })
+  }
+
   const screens = {
     // Regra do quadro 12a: nos primeiros 7 dias, e sempre que o painel
     // estiver zerado, a Home é 3c; o painel só entra depois da primeira
@@ -1624,11 +1707,31 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} />,
     stats:   <ProgressScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} onNavigate={navigateTo} />,
+    // Sala do capítulo (17a) — aberta pelo botão "Grupo" da leitura (17c).
+    chapterRoom: chapterRoom
+      ? <ChapterRoomScreen
+          group={chapterRoom.group} book={chapterRoom.book} bookEn={chapterRoom.bookEn} chapter={chapterRoom.chapter}
+          completed={completedSet.has(`${chapterRoom.book}:${chapterRoom.chapter}`)}
+          isModerator={chapterRoom.group.myRole === 'moderator'}
+          lang={session.lang} authUser={authUser} onBack={goBack}
+        />
+      : null,
+    // Retrospectiva do mês (17b) — aparece uma vez no mês seguinte.
+    monthRecap: monthRecap
+      ? <MonthRecapScreen
+          recap={monthRecap} lang={session.lang}
+          nextBook={nextBookLabel}
+          bookLabel={(book, bookEn) => (session.lang === 'en' ? (bookEn || bookEnFor(book) || book) : book)}
+          onClose={closeRecap}
+          onSave={saveRecapToLibrary}
+          onShare={shareRecap}
+        />
+      : null,
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
@@ -1657,12 +1760,12 @@ export default function App() {
   // Comunidade, Estudos…), e é lá que continuam o sino e o ajuste de
   // tamanho de texto. Perfil é alcançado pelo avatar da Home.
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings'].includes(activeTab) || reflectionBento
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap'].includes(activeTab) || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">

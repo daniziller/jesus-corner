@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
@@ -17,6 +17,8 @@ import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
 import { addReadingSeconds } from '../reading/readingTimeStore'
+import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible } from '../groups/chapterRoomStore'
+import { avatarPaletteFor } from './ChapterRoomScreen'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
@@ -29,7 +31,7 @@ import GuidedFlowBanner from '../components/GuidedFlowBanner'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import ToolsSheet from '../components/ToolsSheet'
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, embedded = false }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
   const { lang, hasPremium, hasAI } = session
   const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
   // Leitura imersiva (redesign 1b) — leitura guiada de tela cheia: cabeçalho
@@ -684,6 +686,31 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // já feito sem precisar caçar o versículo de novo na lista.
   const highlightsInHero = heroSession.type === 'reflection' ? [] : (highlights?.filter(h => !h.hidden && h.book === heroSession.book && h.chapter >= heroSession.chStart && h.chapter <= heroSession.chEnd) ?? [])
 
+  // Camada do grupo na leitura (quadro 17c): pontilhado laranja sob o
+  // versículo marcado por outros do grupo + chip com a contagem. Só pra quem
+  // está num grupo (primeiro grupo da pessoa), na leitura imersiva, e com a
+  // chave "Ver marcações do grupo" ligada (rodapé). Só contagens por padrão;
+  // nomes e notas só de quem tem perfil público (ver group_chapter_marks).
+  const myGroup = session.myGroups?.[0] ?? null
+  const [groupLayerOn, setGroupLayerOn] = useState(getGroupMarksVisible)
+  const [groupMarks, setGroupMarks] = useState({})
+  useEffect(() => {
+    if (!immersive || !myGroup || !groupLayerOn || !heroSession || heroSession.type === 'reflection') { setGroupMarks({}); return }
+    let cancelled = false
+    const chapters = []
+    for (let ch = heroSession.chStart; ch <= heroSession.chEnd; ch++) chapters.push(ch)
+    Promise.all(chapters.map(ch => getGroupMarks(myGroup.groupId, heroSession.book, ch).then(m => [ch, m])))
+      .then(entries => { if (!cancelled) setGroupMarks(Object.fromEntries(entries)) })
+      .catch(err => console.error('Failed to load group marks', err))
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immersive, myGroup?.groupId, groupLayerOn, heroSession?.id, heroSession?.book])
+  function toggleGroupLayer() {
+    const next = !groupLayerOn
+    setGroupLayerOn(next)
+    setGroupMarksVisible(next)
+  }
+
   // heroSession já é sempre "o que a pessoa está lendo agora" mesmo em modo
   // 'browse' — toggleInlineChapter (acima) chama featureSession sempre que
   // um capítulo é aberto na lista, então não precisa rastrear
@@ -725,6 +752,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               não inventamos uma 2ª funcionalidade nova (decisão tomada com
               a autora antes de implementar esta tela). */}
           <div style={styles.readerHeaderRight}>
+            {/* Botão "Grupo" (quadro 17c) — abre a sala do capítulo (17a). */}
+            {myGroup && heroSession.type !== 'reflection' && (
+              <button
+                style={styles.groupBtn}
+                onClick={() => onOpenGroupRoom?.({ group: myGroup, book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart })}
+              >
+                <span style={{ display: 'flex' }}>
+                  <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-accent)' }} />
+                  <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-sand)', marginLeft: -6 }} />
+                </span>
+                <span style={styles.groupBtnText}>{t('room.groupBtn', undefined, lang)}</span>
+              </button>
+            )}
             <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
               <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
             </button>
@@ -883,6 +923,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                   highlightSelection={highlightSelection}
                   onVerseNumberClick={handleHighlightVerseClick}
                   onTextSelectionRange={handleHighlightTextRange}
+                  groupMarks={immersive && myGroup && groupLayerOn ? groupMarks : null}
                 />
               )
               return immersive ? <div style={styles.readerTextCard}>{panel}</div> : panel
@@ -1157,6 +1198,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             problema/solução dos FABs mais abaixo e da .bottom-nav. */}
         {!askMenuOpen && createPortal(
           <div style={styles.readerFooter}>
+            {/* Chave da camada do grupo (quadro 17c) — só pra quem está num grupo. */}
+            {myGroup && heroSession.type !== 'reflection' && (
+              <div style={styles.groupLayerCard}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={styles.groupLayerTitle}>{t('room.showMarks', undefined, lang)}</p>
+                  <p style={styles.groupLayerSub}>{t('room.showMarksSub', undefined, lang)}</p>
+                </div>
+                <button role="switch" aria-checked={groupLayerOn} onClick={toggleGroupLayer}
+                  style={{ ...styles.groupLayerSwitch, background: groupLayerOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: groupLayerOn ? 'flex-end' : 'flex-start' }}>
+                  <span style={{ ...styles.groupLayerThumb, background: groupLayerOn ? 'var(--bento-accent)' : '#fff' }} />
+                </button>
+              </div>
+            )}
             {heroSession.type !== 'reflection' && (
               <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact />
             )}
@@ -1393,7 +1447,9 @@ function groupIntoParagraphs(chapter) {
   return paragraphs
 }
 
-function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, onVerseNumberClick, onTextSelectionRange, immersive = false }) {
+function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, onVerseNumberClick, onTextSelectionRange, immersive = false, groupMarks = null }) {
+  // Chip da camada do grupo aberto (mostra nomes/notas de quem compartilhou).
+  const [openMark, setOpenMark] = useState(null)
   const bookKey = lang === 'en' ? session.bookEn : session.book
   const availableVersions = BIBLE_VERSIONS[lang] ?? []
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
@@ -1508,7 +1564,8 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
           <div key={ch} data-chapter={ch} style={immersive ? styles.bibleTextChapterBento : styles.bibleTextChapter}>
             <p style={immersive ? styles.bibleTextChapterLabelBento : styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
             {paragraphs.map((verseNums, pIdx) => (
-              <p key={pIdx} style={immersive ? styles.bibleTextBodyBento : styles.bibleTextBody}>
+              <Fragment key={pIdx}>
+              <p style={immersive ? styles.bibleTextBodyBento : styles.bibleTextBody}>
                 {verseNums.map((v, vIdx) => {
                   // Toca no versículo inteiro (número OU texto corrido) pra
                   // marcar — usa as coordenadas do toque (não o retângulo do
@@ -1540,6 +1597,8 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                         ...(existingHighlight.text ? styles.verseAnnotatedUnderline : {}),
                       }
                     : isSelected ? (immersive ? styles.verseSelectedBento : styles.verseSelected) : undefined
+                  const groupMark = groupMarks?.[ch]?.[v]
+                  const groupStyle = groupMark ? styles.verseGroupMarked : undefined
                   const handleVerseTap = e => {
                     if (window.getSelection?.()?.toString()) return
                     const point = { top: e.clientY, bottom: e.clientY, left: e.clientX, right: e.clientX, width: 0, height: 0 }
@@ -1549,7 +1608,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                     <span
                       key={v}
                       data-verse={v}
-                      style={{ ...highlightStyle, ...styles.verseTapTarget }}
+                      style={{ ...highlightStyle, ...groupStyle, ...styles.verseTapTarget }}
                       onClick={handleVerseTap}
                     >
                       {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
@@ -1567,6 +1626,37 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                   )
                 })}
               </p>
+              {/* Chips da camada do grupo (17c): um por versículo marcado por
+                  outros, logo depois do parágrafo em que ele está. Tocar
+                  abre nomes e notas de quem compartilhou (perfil público). */}
+              {groupMarks?.[ch] && verseNums.filter(v => groupMarks[ch][v]).map(v => {
+                const gm = groupMarks[ch][v]
+                const key = `${ch}:${v}`
+                const notes = gm.sharers.filter(x => x.note).length
+                const open = openMark === key
+                return (
+                  <div key={key} style={styles.groupChipWrap}>
+                    <button type="button" style={styles.groupChip} onClick={() => setOpenMark(open ? null : key)}>
+                      <span style={{ display: 'flex' }}>
+                        {Array.from({ length: Math.min(3, gm.marks) }, (_, i) => (
+                          <span key={i} style={{ ...styles.groupChipAvatar, background: avatarPaletteFor(`${key}:${i}`).bg, marginLeft: i ? -7 : 0 }} />
+                        ))}
+                      </span>
+                      <span style={styles.groupChipText}>{gm.marks === 1 ? t('room.marksOne', undefined, lang) : t('room.marksMany', { n: gm.marks }, lang)}</span>
+                      {notes > 0 && <span style={styles.groupChipNotes}>{notes === 1 ? t('room.notesOne', undefined, lang) : t('room.notesMany', { n: notes }, lang)}</span>}
+                    </button>
+                    {open && (
+                      <div style={styles.groupSharers}>
+                        {gm.sharers.length === 0 && <p style={styles.groupSharerNote}>{t('room.sharersNone', undefined, lang)}</p>}
+                        {gm.sharers.map((sh, i) => (
+                          <p key={i} style={styles.groupSharerNote}><strong style={{ color: 'var(--bento-ink)' }}>{sh.name}</strong>{sh.note ? ` — ${sh.note}` : ''}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              </Fragment>
             ))}
 
             {/* Marcar o capítulo como lido direto no fim do texto — sem
@@ -2770,6 +2860,23 @@ const styles = {
     display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12,
   },
   readerFooterRow: { display: 'flex', gap: 10 },
+  // Camada do grupo (quadro 17c).
+  groupBtn: { height: 34, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', cursor: 'pointer', flexShrink: 0 },
+  groupBtnAvatar: { width: 16, height: 16, borderRadius: 99, border: '1.5px solid var(--bento-ink)', boxSizing: 'border-box', display: 'block' },
+  groupBtnText: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, lineHeight: 1, color: '#fff' },
+  verseGroupMarked: { borderBottom: '2.5px dotted var(--bento-accent)', paddingBottom: 1 },
+  groupChipWrap: { margin: '-10px 0 18px' },
+  groupChip: { display: 'inline-flex', alignItems: 'center', gap: 8, height: 30, borderRadius: 99, background: 'var(--bento-line)', padding: '0 12px 0 6px', border: 'none', cursor: 'pointer' },
+  groupChipAvatar: { width: 20, height: 20, borderRadius: 99, border: '1.5px solid var(--bento-line)', boxSizing: 'border-box', display: 'block' },
+  groupChipText: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)' },
+  groupChipNotes: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)' },
+  groupSharers: { margin: '8px 0 0', borderLeft: '3px solid var(--bento-accent)', padding: '2px 0 2px 12px', display: 'flex', flexDirection: 'column', gap: 6 },
+  groupSharerNote: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t2)', margin: 0 },
+  groupLayerCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
+  groupLayerTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 3px' },
+  groupLayerSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
+  groupLayerSwitch: { flexShrink: 0, width: 46, height: 28, borderRadius: 99, border: 'none', padding: '0 3px', display: 'flex', alignItems: 'center', cursor: 'pointer' },
+  groupLayerThumb: { width: 22, height: 22, borderRadius: 99 },
   readerToolsBtn: {
     flex: 1, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-card)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

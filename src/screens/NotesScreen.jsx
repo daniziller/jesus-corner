@@ -34,6 +34,7 @@ import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { monthLabel } from './MonthRecapScreen'
 
 // Redesign 1e — 5 chips fixos: Todas · Notas · Marcações · Estudos ·
 // Sermões. "Notas" agora reúne nota de capítulo, reflexão de fechamento de
@@ -48,7 +49,7 @@ import AppIcon from '../icons/AppIcon'
 // tem uma "note" de verdade por trás.
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
-  { key: 'notes', types: ['reading', 'book-reflection', 'daily-reflection', 'application-phrase'], labelKey: 'notes.filterNotes' },
+  { key: 'notes', types: ['reading', 'book-reflection', 'daily-reflection', 'application-phrase', 'recap'], labelKey: 'notes.filterNotes' },
   { key: 'highlight', types: ['highlight'], labelKey: 'notes.filterHighlights' },
   { key: 'study', types: ['study'], labelKey: 'notes.filterStudy' },
 ]
@@ -366,6 +367,8 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       return `${bookLabel(note.book)} ${note.chapter}:${formatVerseRanges(note.verses)}`
     }
     if (note.type === 'study') return studyTitleFor(note)
+    // Retrospectiva do mês guardada (quadro 17b).
+    if (note.type === 'recap') return `${monthLabel(note.month, lang)} · ${t('notes.typeRecap', undefined, lang)}`
     return note.key
   }
 
@@ -387,6 +390,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (note.type === 'application-phrase') return t('notes.applicationPhraseTag', undefined, lang)
     if (note.type === 'highlight') return t('notes.typeHighlight', undefined, lang)
     if (note.type === 'sermon') return t('notes.typeSermon', undefined, lang)
+    if (note.type === 'recap') return t('notes.typeRecap', undefined, lang)
     return ''
   }
 
