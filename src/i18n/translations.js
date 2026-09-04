@@ -815,6 +815,14 @@ export const STRINGS = {
       riskLine: 'Se você está passando por um momento difícil, o CVV (Centro de Valorização da Vida) oferece apoio emocional gratuito, sigiloso, 24h por dia: ligue 188 ou acesse cvv.org.br.',
       riskCta: 'Falar com alguém agora',
       aiWrittenNote: 'escrito por IA, confira no texto',
+      // Recusas (quadro 10e) — copy fixa, nunca o texto do modelo.
+      doctrineReply: 'As igrejas não concordam entre si, e não é meu papel decidir por você. Posso mostrar os textos que cada lado usa.',
+      seeTexts: 'Ver os textos',
+      noteToAsk: 'Anotar pra perguntar',
+      noteToAskDone: 'Anotado na Biblioteca',
+      doctrineNotePrefix: 'Pra perguntar na igreja:',
+      outOfScopeReply: 'Isso eu não sei, e nenhum texto responde. Posso ler com você o que a Bíblia diz sobre {topic}.',
+      outOfScopeReplyNoTopic: 'Isso eu não sei, e nenhum texto responde.',
     },
     // Contexto antes do capítulo — tela 10c do redesign Bento.
     context: {
@@ -2164,7 +2172,14 @@ export const STRINGS = {
       askSomethingElse: 'Ask something else…',
       riskLine: "If you're going through a hard time, please reach out to a crisis line in your country — free, confidential support is available 24/7.",
       riskCta: 'Talk to someone now',
-      aiWrittenNote: 'written by AI, check it against the text',
+      aiWrittenNote: 'written by AI, check the text',
+      doctrineReply: "Churches disagree on this, and it's not my place to decide for you. I can show you the texts each side uses.",
+      seeTexts: 'See the texts',
+      noteToAsk: 'Note to ask',
+      noteToAskDone: 'Noted in the Library',
+      doctrineNotePrefix: 'To ask at church:',
+      outOfScopeReply: "I don't know that, and no text answers it. I can read with you what the Bible says about {topic}.",
+      outOfScopeReplyNoTopic: "I don't know that, and no text answers it.",
     },
     context: {
       beforeStart: 'before you start',

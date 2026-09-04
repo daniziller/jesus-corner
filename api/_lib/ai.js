@@ -293,6 +293,9 @@ const PassageAnswerSchema = z.object({
     "outcome='out_of_scope': 1-2 frases dizendo que não sabe / não é o escopo deste assistente, sem tentar improvisar conselho. " +
     "outcome='risk': 1-2 frases de acolhimento breve, SEM conselho e SEM qualquer versículo — a linha de apoio (CVV) é adicionada à parte pelo servidor, nunca pelo modelo."
   ),
+  nearTopic: z.string().nullable().describe(
+    "Só quando outcome='out_of_scope': o tema bíblico mais próximo da pergunta, em 1 a 3 palavras minúsculas no idioma da pergunta (ex: 'aliança', 'perdão', 'provisão'), pra o app oferecer 'ler o que a Bíblia diz sobre <tema>'. null nos outros casos."
+  ),
   supportCitation: z.object({
     reference: z.string().describe('Referência exata no formato "Livro capítulo:versículo" (ex: "Gênesis 41:26") — o versículo que sustenta a resposta diretamente.'),
     quote: z.string().describe('O texto desse versículo, citado com fidelidade (não parafraseado) — será conferido contra o texto bíblico real antes de sair.'),

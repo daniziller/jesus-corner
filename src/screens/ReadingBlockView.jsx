@@ -1899,6 +1899,10 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
   const [recap, setRecap] = useState({ before: '', selected: '' })
   const [followUp, setFollowUp] = useState('')
   const [savedNote, setSavedNote] = useState(false)
+  // Doutrina divergente (10e): os dois textos só aparecem depois de "Ver os
+  // textos"; "Anotar pra perguntar" guarda a pergunta na nota do capítulo.
+  const [doctrineTextsOpen, setDoctrineTextsOpen] = useState(false)
+  const [doctrineNoted, setDoctrineNoted] = useState(false)
   const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
 
   useEffect(() => {
@@ -1922,7 +1926,7 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
   // Reseta "salvo" e o campo de nova pergunta sempre que a resposta muda
   // (ex: depois de "Perguntar outra coisa") — sem isso, o rótulo "Salvo!"
   // de uma resposta anterior ficaria colado na próxima.
-  useEffect(() => { setSavedNote(false); setFollowUp('') }, [state])
+  useEffect(() => { setSavedNote(false); setFollowUp(''); setDoctrineTextsOpen(false); setDoctrineNoted(false) }, [state])
 
   const refLabel = ref.verseStart === ref.verseEnd
     ? `${lang === 'en' ? ref.bookEn : ref.book} ${ref.chapter}:${ref.verseStart}`
@@ -1938,6 +1942,11 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
     if (state.status !== 'ready') return
     onSaveNote(state.question, state.answer.reply)
     setSavedNote(true)
+  }
+  function handleNoteToAsk() {
+    if (state.status !== 'ready' || doctrineNoted) return
+    onSaveNote(state.question, `${L('doctrineNotePrefix')} ${state.question}`)
+    setDoctrineNoted(true)
   }
 
   return createPortal(
@@ -1990,7 +1999,14 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
             const { answer } = state
             const isAnswer = answer.outcome === 'answer'
             const isDoctrine = answer.outcome === 'doctrine_divergent'
+            const isOutOfScope = answer.outcome === 'out_of_scope'
             const isRisk = answer.outcome === 'risk'
+            // Recusas (quadro 10e) têm copy FIXA — o texto do modelo só sai
+            // na resposta normal. Fora do texto: o modelo dá só o tema
+            // próximo (nearTopic) que entra na frase pronta.
+            const replyText = isDoctrine ? L('doctrineReply')
+              : isOutOfScope ? (answer.nearTopic ? L('outOfScopeReply', { topic: answer.nearTopic }) : L('outOfScopeReplyNoTopic'))
+              : answer.reply
             return (
               <>
                 <div style={styles.passageSheetQuestionBubble}>
@@ -1998,16 +2014,23 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
                 </div>
 
                 {/* Risco interrompe ANTES de qualquer versículo — a linha de
-                    apoio vem primeiro, sempre, nunca depois de esperar. */}
-                {isRisk && (
-                  <a href={lang === 'en' ? undefined : 'tel:188'} style={styles.passageSheetRiskCard}>
-                    <AppIcon name="HandHeart" size={18} color="#F0662B" />
-                    <span style={styles.passageSheetRiskText}>{L('riskLine')}</span>
-                    {lang !== 'en' && <span style={styles.passageSheetRiskCta}>{L('riskCta')}</span>}
-                  </a>
+                    apoio vem primeiro, sempre, nunca depois de esperar; e
+                    nenhum texto do modelo sai (quadro 10e). */}
+                {isRisk ? (
+                  <div style={styles.passageSheetRiskCard}>
+                    <p style={styles.passageSheetRiskText}>{L('riskLine')}</p>
+                    {lang !== 'en' && <a href="tel:188" style={styles.passageSheetRiskBtn}>{L('riskCta')}</a>}
+                  </div>
+                ) : (
+                  <p style={styles.passageSheetReply}>{replyText}</p>
                 )}
 
-                <p style={styles.passageSheetReply}>{answer.reply}</p>
+                {isDoctrine && !doctrineTextsOpen && (
+                  <div style={styles.passageSheetChipRow}>
+                    <button style={styles.passageSheetChipAccent} onClick={() => setDoctrineTextsOpen(true)}>{L('seeTexts')}</button>
+                    <button style={styles.passageSheetChipGhost} onClick={handleNoteToAsk} disabled={doctrineNoted}>{doctrineNoted ? L('noteToAskDone') : L('noteToAsk')}</button>
+                  </div>
+                )}
 
                 {isAnswer && (
                   <div style={styles.passageSheetCitations}>
@@ -2022,7 +2045,7 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
                   </div>
                 )}
 
-                {isDoctrine && (
+                {isDoctrine && doctrineTextsOpen && (
                   <div style={styles.passageSheetCitations}>
                     <div style={styles.passageSheetCiteSupport}>
                       <p style={styles.passageSheetCiteSupportLabel}>{answer.doctrineSideA.label} · {answer.doctrineSideA.reference}</p>
@@ -2037,7 +2060,7 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
 
                 {!isRisk && (
                   <div style={styles.passageSheetFooter}>
-                    {(isAnswer || isDoctrine) && (
+                    {isAnswer && (
                       <div style={styles.passageSheetFooterRow}>
                         <button style={styles.passageSheetSaveBtn} onClick={handleSaveNote} disabled={savedNote}>
                           <AppIcon name="StickyNote" size={14} color="rgba(255,255,255,.75)" />
@@ -2923,12 +2946,15 @@ const styles = {
   passageSheetLoading: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'rgba(255,255,255,.5)' },
   passageSheetErrorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: '#FCA5A5', lineHeight: 1.5 },
   passageSheetReply: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'rgba(255,255,255,.9)', margin: '0 0 18px', textWrap: 'pretty' },
-  passageSheetRiskCard: {
-    display: 'flex', alignItems: 'center', gap: 10, borderRadius: 16, background: 'rgba(240,102,43,.14)',
-    padding: '14px 16px', margin: '0 0 16px', textDecoration: 'none',
-  },
-  passageSheetRiskText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: 'white' },
-  passageSheetRiskCta: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-accent)', flexShrink: 0 },
+  // Sinal de sofrimento (quadro 10e): bloco areia, texto e o botão "Falar
+  // com alguém agora" — antes de qualquer versículo, sem texto do modelo.
+  passageSheetRiskCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: 20, margin: '0 0 auto' },
+  passageSheetRiskText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-sand-ink)', margin: '0 0 14px' },
+  passageSheetRiskBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 46, borderRadius: 14, background: 'var(--bento-sand-ink-strong)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, lineHeight: 1, color: 'var(--bento-sand)', textDecoration: 'none' },
+  // Doutrina divergente (quadro 10e): dois chips no lugar da citação.
+  passageSheetChipRow: { display: 'flex', gap: 7, marginBottom: 'auto' },
+  passageSheetChipAccent: { border: 'none', borderRadius: 99, padding: '9px 12px', background: 'rgba(240,102,43,.14)', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-accent)', cursor: 'pointer' },
+  passageSheetChipGhost: { border: 'none', borderRadius: 99, padding: '9px 12px', background: 'rgba(255,255,255,.06)', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.55)', cursor: 'pointer' },
   passageSheetCitations: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 'auto' },
   passageSheetCiteSupport: { borderRadius: 16, background: 'rgba(240,102,43,.14)', padding: '14px 16px' },
   passageSheetCiteSupportLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 7px' },
