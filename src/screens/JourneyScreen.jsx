@@ -1,5 +1,5 @@
 // JourneyScreen.jsx — "Bíblia" (reskin Bento — tela 5f, leitura livre)
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { sessionKeys } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { formatRelativeTime } from '../utils/time'
@@ -259,6 +259,12 @@ export default function JourneyScreen({
 
   const gridBooks = searchResults ?? testamentBooks
   const expandedEntry = gridBooks.find(e => `${e.block.id}:${e.canonicalName}` === expandedBookKey) ?? null
+  // O livro aberto cresce abaixo da grade — rola até ele ao abrir (senão a
+  // pessoa toca numa sigla e não vê nada acontecer).
+  const expandRef = useRef(null)
+  useEffect(() => {
+    if (expandedBookKey && expandRef.current) expandRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [expandedBookKey])
 
   return (
     <div style={styles.screen}>
@@ -338,7 +344,7 @@ export default function JourneyScreen({
             </div>
           )}
           {expandedEntry && (
-            <div style={styles.bookExpandWrap}>
+            <div ref={expandRef} style={styles.bookExpandWrap}>
               <ReadingBlockView
                 key={`${expandedBookKey}:${expandedInitialSessionId}:${expandedInitialTextOpen}`}
                 embedded
