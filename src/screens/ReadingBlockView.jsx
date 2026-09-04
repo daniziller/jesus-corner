@@ -7,7 +7,7 @@ import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
 import { getHighlights, saveHighlight, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { getMessages, sendMessage, getDailyLimitStatus } from '../aiChat/aiChatStore'
 import { formatVerseRanges } from '../utils/verseRanges'
-import { askAboutPassage } from '../aiChat/passageQuestionStore'
+import { askAboutPassage, fetchPassageSuggestions } from '../aiChat/passageQuestionStore'
 import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen, fetchChapterContext } from '../aiChat/chapterContextStore'
 import { getAskEnabled } from '../aiChat/aiPreferencesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
@@ -501,10 +501,20 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // "Perguntar" no menu de seleção (10a) — manda a pergunta pro servidor
   // (api/ask-about-passage.js), que decide/verifica a resposta, e abre a
   // folha de resposta (10b) já em estado de carregamento.
-  async function askAboutSelection(question) {
-    if (!highlightSelection) return
+  // Referência (livro/capítulo/versículo inicial e final) do trecho
+  // selecionado — o que vai pro modelo em 10a (sugestões) e 10b (resposta).
+  const selectionRef = (() => {
+    if (!highlightSelection) return null
     const sortedVerses = [...highlightSelection.verses].sort((a, b) => a - b)
-    const ref = { book: heroSession.book, bookEn: heroSession.bookEn, chapter: highlightSelection.chapter, verseStart: sortedVerses[0], verseEnd: sortedVerses[sortedVerses.length - 1] }
+    return { book: heroSession.book, bookEn: heroSession.bookEn, chapter: highlightSelection.chapter, verseStart: sortedVerses[0], verseEnd: sortedVerses[sortedVerses.length - 1] }
+  })()
+  // Menu "Perguntar" aberto com IA: o rodapé (player + botões) dá lugar ao
+  // cartão de sugestões (quadro 10a) — ver SelectionAiMenu.
+  const askMenuOpen = selectionMenuOpen && !!highlightAnchorRect && hasAI && getAskEnabled()
+
+  async function askAboutSelection(question) {
+    if (!selectionRef) return
+    const ref = selectionRef
     setSelectionMenuOpen(false)
     setPassageAnswer({ status: 'loading', ref, question })
     try {
@@ -1075,6 +1085,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         anchorRect={highlightAnchorRect}
         lang={lang}
         hasAI={hasAI && getAskEnabled()}
+        passageRef={selectionRef}
         onClose={() => { setSelectionMenuOpen(false); setHighlightSelection(null); setHighlightAnchorRect(null) }}
         onAsk={askAboutSelection}
         onMark={openMarkFromSelectionMenu}
@@ -1115,7 +1126,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         {/* Rodapé portalado pro <body> — position:fixed dentro de
             .app-content-inner (zoom:1.15) calcularia a posição errada, mesmo
             problema/solução dos FABs mais abaixo e da .bottom-nav. */}
-        {createPortal(
+        {!askMenuOpen && createPortal(
           <div style={styles.readerFooter}>
             {heroSession.type !== 'reflection' && (
               <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact />
@@ -1633,11 +1644,30 @@ function ChapterContextScreen({ lang, book, chapter, data, onBegin, onSkip }) {
 // continua servindo só o fluxo de grifo/anotação de sempre. Duas etapas:
 // 'menu' (Perguntar/Marcar/Nota/Copiar) e 'question' (campo de texto), pra
 // quem quer perguntar algo que não está nas 3 sugestões prontas.
-function SelectionAiMenu({ anchorRect, lang, hasAI, onClose, onAsk, onMark, onNote, onCopy }) {
+function SelectionAiMenu({ anchorRect, lang, hasAI, passageRef, onClose, onAsk, onMark, onNote, onCopy }) {
   const [mode, setMode] = useState('menu')
   const [question, setQuestion] = useState('')
   const popupRef = useRef(null)
   const [pos, setPos] = useState(null)
+  const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
+
+  // Sugestões geradas pro trecho (ver api/suggest-passage-questions.js).
+  // null = ainda carregando (o cartão não aparece); em falha/offline caem
+  // as três sugestões fixas — nunca um erro visível.
+  const [suggestions, setSuggestions] = useState(null)
+  const refKey = passageRef ? `${passageRef.book}:${passageRef.chapter}:${passageRef.verseStart}-${passageRef.verseEnd}` : null
+  useEffect(() => {
+    if (!hasAI || !passageRef) return
+    let cancelled = false
+    setSuggestions(null)
+    const fallback = [L('suggestion1'), L('suggestion2'), L('suggestion3')]
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { setSuggestions(fallback); return }
+    fetchPassageSuggestions({ ...passageRef, lang })
+      .then(list => { if (!cancelled) setSuggestions(list.length === 3 ? list : fallback) })
+      .catch(() => { if (!cancelled) setSuggestions(fallback) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refKey, hasAI, lang])
 
   useLayoutEffect(() => {
     const el = popupRef.current
@@ -1666,9 +1696,11 @@ function SelectionAiMenu({ anchorRect, lang, hasAI, onClose, onAsk, onMark, onNo
     }
   }, [anchorRect, mode])
 
+  const suggestRef = useRef(null)
   useEffect(() => {
     function handleOutsideClick(e) {
       if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
+      if (suggestRef.current && e.target instanceof Node && suggestRef.current.contains(e.target)) return
       if (e.target instanceof Element && e.target.closest('[data-verse]')) return
       onClose()
     }
@@ -1676,15 +1708,13 @@ function SelectionAiMenu({ anchorRect, lang, hasAI, onClose, onAsk, onMark, onNo
     return () => document.removeEventListener('click', handleOutsideClick, true)
   }, [onClose])
 
-  const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
-
   function submitQuestion() {
     const clean = question.trim()
     if (!clean) return
     onAsk(clean)
   }
 
-  return createPortal(
+  const menu = createPortal(
     <div
       ref={popupRef}
       style={{ ...styles.selectionMenuWrap, ...(pos ? { top: pos.top, left: pos.left, visibility: 'visible' } : { top: -9999, left: -9999, visibility: 'hidden' }) }}
@@ -1700,15 +1730,15 @@ function SelectionAiMenu({ anchorRect, lang, hasAI, onClose, onAsk, onMark, onNo
           )}
           <button style={styles.selectionMenuBtnGhost} onClick={onMark}>
             <span style={styles.selectionMenuSwatch} />
-            <span style={styles.selectionMenuBtnLabel}>{L('mark')}</span>
+            <span style={styles.selectionMenuBtnGhostLabel}>{L('mark')}</span>
           </button>
           <button style={styles.selectionMenuBtnGhost} onClick={onNote}>
-            <AppIcon name="StickyNote" size={15} color="rgba(255,255,255,.72)" />
-            <span style={styles.selectionMenuBtnLabel}>{L('note')}</span>
+            <AppIcon name="StickyNote" size={15} strokeWidth={1.9} color="rgba(255,255,255,.72)" />
+            <span style={styles.selectionMenuBtnGhostLabel}>{L('note')}</span>
           </button>
           <button style={styles.selectionMenuBtnGhost} onClick={onCopy}>
-            <AppIcon name="Copy" size={15} color="rgba(255,255,255,.72)" />
-            <span style={styles.selectionMenuBtnLabel}>{L('copy')}</span>
+            <AppIcon name="Copy" size={15} strokeWidth={1.9} color="rgba(255,255,255,.72)" />
+            <span style={styles.selectionMenuBtnGhostLabel}>{L('copy')}</span>
           </button>
         </div>
       ) : (
@@ -1724,19 +1754,27 @@ function SelectionAiMenu({ anchorRect, lang, hasAI, onClose, onAsk, onMark, onNo
           </button>
         </div>
       )}
-      {hasAI && (
-        <div style={styles.selectionSuggestCard}>
-          <p style={styles.selectionSuggestLabel}>{L('suggestLabel')}</p>
-          <div style={styles.selectionSuggestRow}>
-            {[L('suggestion1'), L('suggestion2'), L('suggestion3')].map((s, i) => (
-              <button key={i} style={styles.selectionSuggestChip} onClick={() => onAsk(s)}>{s}</button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>,
     document.body,
   )
+
+  // Cartão de sugestões — fixo no rodapé da tela, no lugar do player e dos
+  // botões (quadro 10a), não colado ao menu.
+  const suggestCard = hasAI && suggestions && createPortal(
+    <div ref={suggestRef} style={styles.selectionSuggestFooter} onClick={e => e.stopPropagation()}>
+      <div style={styles.selectionSuggestCard}>
+        <p style={styles.selectionSuggestLabel}>{L('suggestLabel')}</p>
+        <div style={styles.selectionSuggestRow}>
+          {suggestions.map((s, i) => (
+            <button key={i} style={styles.selectionSuggestChip} onClick={() => onAsk(s)}>{s}</button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+
+  return <>{menu}{suggestCard}</>
 }
 
 // Popup pequeno, ancorado perto de onde a pessoa tocou o versículo (ou
@@ -2829,14 +2867,22 @@ const styles = {
   selectionMenuDiamondWrap: { display: 'flex' },
   selectionMenuDiamond: { width: 11, height: 11, background: 'var(--bento-ink)', transform: 'rotate(45deg)', borderRadius: 2 },
   selectionMenuSwatch: { width: 14, height: 9, borderRadius: 2, background: 'var(--bento-mark)' },
-  selectionMenuBtnLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-ink)' },
+  selectionMenuBtnLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
+  selectionMenuBtnGhostLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.72)' },
   selectionQuestionBar: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-ink)', borderRadius: 18, padding: '6px 6px 6px 16px', boxShadow: '0 12px 30px rgba(0,0,0,.32)' },
   selectionQuestionInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'white', padding: '10px 0' },
   selectionQuestionSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  // Mesma geometria do readerFooter (que ele substitui enquanto o menu
+  // está aberto): fixo no rodapé, padding 12px 20px 20px do quadro.
+  selectionSuggestFooter: {
+    position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+    width: '100%', maxWidth: 'min(var(--max-width), 560px)', zIndex: 200,
+    padding: '12px 20px calc(20px + var(--safe-bottom))', background: 'var(--bento-bg)',
+  },
   selectionSuggestCard: { background: 'var(--bento-card)', borderRadius: 22, padding: '16px 18px' },
-  selectionSuggestLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
+  selectionSuggestLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
   selectionSuggestRow: { display: 'flex', flexWrap: 'wrap', gap: 7 },
-  selectionSuggestChip: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-ink)', background: 'var(--bento-line)', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
+  selectionSuggestChip: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1, color: 'var(--bento-ink)', background: 'var(--bento-line)', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
 
   // ── Folha de resposta da IA (10b, reskin Bento) ──
   passageSheetOuter: { width: '100%', maxWidth: 'var(--max-width)', height: '78vh', maxHeight: 680, display: 'flex', flexDirection: 'column' },

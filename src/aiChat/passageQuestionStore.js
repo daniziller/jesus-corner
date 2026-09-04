@@ -71,6 +71,18 @@ export function setSaveQuestionsEnabled(enabled) {
 // Manda a pergunta pro servidor (que decide/verifica a resposta) e, se
 // guardar estiver ligado, já salva o par pergunta+resposta localmente antes
 // de devolver — quem chama não precisa se preocupar em salvar depois.
+// Sugestões de pergunta pro menu 10a — GET público, cacheado na borda
+// (ver api/suggest-passage-questions.js). Quem chama trata falha como
+// "usa as três sugestões fixas", nunca como erro visível.
+export async function fetchPassageSuggestions({ book, bookEn, chapter, verseStart, verseEnd, lang }) {
+  const params = new URLSearchParams({ book, chapter: String(chapter), verseStart: String(verseStart), verseEnd: String(verseEnd), lang: lang === 'en' ? 'en' : 'pt' })
+  if (bookEn) params.set('bookEn', bookEn)
+  const res = await fetch(`/api/suggest-passage-questions?${params}`)
+  if (!res.ok) throw new Error(`request_failed_${res.status}`)
+  const body = await res.json()
+  return Array.isArray(body.questions) ? body.questions.slice(0, 3) : []
+}
+
 export async function askAboutPassage({ book, bookEn, chapter, verseStart, verseEnd, question, lang }) {
   const { data: { session: authSession } } = await supabase.auth.getSession()
   if (!authSession) throw new Error('not_authenticated')

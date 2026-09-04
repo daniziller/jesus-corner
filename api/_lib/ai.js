@@ -425,6 +425,33 @@ ${buildFieldsLangInstruction(lang, 'questions')}`,
   return output
 }
 
+// Sugestões de pergunta sobre o trecho selecionado (menu "Perguntar", tela
+// 10a do redesign Bento — ver ADENDO: "até três sugestões de pergunta
+// geradas para aquele trecho... as sugestões mudam com o trecho"). Mesmo
+// espírito de cache compartilhado de generateChapterContext: o trecho é o
+// mesmo pra todo mundo, então o resultado é cacheado por
+// book+chapter+verseStart+verseEnd+lang na borda (ver
+// api/suggest-passage-questions.js). São só os rótulos dos chips — a
+// resposta em si continua vindo de answerAboutPassage, por usuário.
+const PassageSuggestionsSchema = z.object({
+  questions: z.array(z.string()).length(3).describe('Exatamente 3 perguntas curtíssimas (2 a 4 palavras cada, no idioma pedido, com "?" quando for pergunta) que uma pessoa faria sobre ESTE trecho específico — ex: "O que isso significa?", "Por que sete?", "Contexto histórico". A primeira é sempre a de significado; as outras duas nascem de um detalhe concreto do trecho (um número, um nome, um lugar, um gesto). Nunca perguntas de aconselhamento pessoal nem de doutrina de denominação.'),
+})
+
+export async function suggestPassageQuestions({ book, chapter, verseRange, passageText, lang }) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: PassageSuggestionsSchema }),
+    prompt: `Uma pessoa selecionou este trecho enquanto lia ${book} ${chapter}:${verseRange} num app de leitura devocional e vai ver três sugestões de pergunta prontas pra tocar (em vez de digitar):
+
+"${passageText}"
+
+Gere as 3 sugestões. Curtas o bastante pra caber num chip de 12px.
+
+${buildFieldsLangInstruction(lang, 'questions')}`,
+  })
+  return output
+}
+
 // Junta as 3 respostas da pessoa (tela 10d) num parágrafo de diário — ESTA
 // chamada é por usuário (não compartilhada/cacheada, ao contrário das duas
 // acima), porque depende do que a própria pessoa escreveu. O usuário
