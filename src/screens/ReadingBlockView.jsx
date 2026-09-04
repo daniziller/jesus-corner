@@ -7,7 +7,7 @@ import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
 import { getHighlights, saveHighlight, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { getMessages, sendMessage, getDailyLimitStatus } from '../aiChat/aiChatStore'
 import { formatVerseRanges } from '../utils/verseRanges'
-import { askAboutPassage, fetchPassageSuggestions } from '../aiChat/passageQuestionStore'
+import { askAboutPassage, fetchPassageSuggestions, reportPassageAnswer } from '../aiChat/passageQuestionStore'
 import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen, fetchChapterContext } from '../aiChat/chapterContextStore'
 import { getAskEnabled } from '../aiChat/aiPreferencesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
@@ -16,6 +16,7 @@ import { computeBookChapterCounts } from '../utils/progress'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
+import { addReadingSeconds } from '../reading/readingTimeStore'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
@@ -232,6 +233,34 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, expandedChapterId, openPanel, heroSession?.id])
+
+  // Tempo de leitura (painel 12a, "horas de leitura acumulada") — conta só
+  // enquanto um texto de capítulo está aberto E a aba está visível; segundos
+  // com a aba escondida não entram. Descarrega em lotes de ~30s e ao fechar
+  // (ver src/reading/readingTimeStore.js).
+  const readingActive = mode === 'browse'
+    ? expandedChapterId != null
+    : (openPanel === 'texto' && !!heroSession && heroSession.type !== 'reflection')
+  useEffect(() => {
+    if (!readingActive) return
+    let last = Date.now()
+    let pending = 0
+    const tick = () => {
+      const now = Date.now()
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') pending += (now - last) / 1000
+      last = now
+    }
+    const flush = () => { if (pending >= 1) { addReadingSeconds(pending).catch(() => {}); pending = 0 } }
+    const interval = setInterval(() => { tick(); if (pending >= 30) flush() }, 5000)
+    const onVisibility = () => { tick(); if (document.visibilityState !== 'visible') flush() }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibility)
+      tick(); flush()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readingActive, heroSession?.id, expandedChapterId])
 
   // Chat de IA e janela de grifo flutuam por CIMA da leitura (portal pro
   // <body>, ver mais abaixo) — de propósito em estados PRÓPRIOS, separados
@@ -1903,6 +1932,9 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
   // textos"; "Anotar pra perguntar" guarda a pergunta na nota do capítulo.
   const [doctrineTextsOpen, setDoctrineTextsOpen] = useState(false)
   const [doctrineNoted, setDoctrineNoted] = useState(false)
+  // "Reportar resposta" (10b): a resposta sai do histórico do aparelho e vai
+  // pra revisão (api/report-ai-answer.js); no lugar dela fica só o aviso.
+  const [reported, setReported] = useState(false)
   const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
 
   useEffect(() => {
@@ -1926,7 +1958,7 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
   // Reseta "salvo" e o campo de nova pergunta sempre que a resposta muda
   // (ex: depois de "Perguntar outra coisa") — sem isso, o rótulo "Salvo!"
   // de uma resposta anterior ficaria colado na próxima.
-  useEffect(() => { setSavedNote(false); setFollowUp(''); setDoctrineTextsOpen(false); setDoctrineNoted(false) }, [state])
+  useEffect(() => { setSavedNote(false); setFollowUp(''); setDoctrineTextsOpen(false); setDoctrineNoted(false); setReported(false) }, [state])
 
   const refLabel = ref.verseStart === ref.verseEnd
     ? `${lang === 'en' ? ref.bookEn : ref.book} ${ref.chapter}:${ref.verseStart}`
@@ -1942,6 +1974,14 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
     if (state.status !== 'ready') return
     onSaveNote(state.question, state.answer.reply)
     setSavedNote(true)
+  }
+  function handleReport() {
+    if (state.status !== 'ready' || reported) return
+    setReported(true)
+    reportPassageAnswer({
+      book: ref.book, bookEn: ref.bookEn, chapter: ref.chapter, verseStart: ref.verseStart, verseEnd: ref.verseEnd,
+      question: state.question, answer: state.answer, lang,
+    }).catch(err => console.error('Failed to report AI answer', err))
   }
   function handleNoteToAsk() {
     if (state.status !== 'ready' || doctrineNoted) return
@@ -2022,7 +2062,7 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
                     {lang !== 'en' && <a href="tel:188" style={styles.passageSheetRiskBtn}>{L('riskCta')}</a>}
                   </div>
                 ) : (
-                  <p style={styles.passageSheetReply}>{replyText}</p>
+                  <p style={styles.passageSheetReply}>{reported ? L('reportedNote') : replyText}</p>
                 )}
 
                 {isDoctrine && !doctrineTextsOpen && (
@@ -2032,7 +2072,7 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
                   </div>
                 )}
 
-                {isAnswer && (
+                {isAnswer && !reported && (
                   <div style={styles.passageSheetCitations}>
                     <div style={styles.passageSheetCiteSupport}>
                       <p style={styles.passageSheetCiteSupportLabel}>{L('inText', { ref: answer.supportCitation.reference })}</p>
@@ -2062,9 +2102,13 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
                   <div style={styles.passageSheetFooter}>
                     {isAnswer && (
                       <div style={styles.passageSheetFooterRow}>
-                        <button style={styles.passageSheetSaveBtn} onClick={handleSaveNote} disabled={savedNote}>
+                        <button style={styles.passageSheetSaveBtn} onClick={handleSaveNote} disabled={savedNote || reported}>
                           <AppIcon name="StickyNote" size={14} color="rgba(255,255,255,.75)" />
                           <span>{savedNote ? L('savedToNote') : L('saveToNote')}</span>
+                        </button>
+                        {/* Texto, não ícone (quadro 10b). */}
+                        <button style={styles.passageSheetReportBtn} onClick={handleReport} disabled={reported}>
+                          {reported ? L('reported') : L('reportAnswer')}
                         </button>
                       </div>
                     )}
@@ -2967,6 +3011,11 @@ const styles = {
   passageSheetSaveBtn: {
     flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.75)',
+  },
+  passageSheetReportBtn: {
+    flex: 'none', height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)',
+    display: 'flex', alignItems: 'center', padding: '0 14px', cursor: 'pointer',
     fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.75)',
   },
   passageSheetFollowUpRow: { height: 50, borderRadius: 16, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', padding: '0 6px 0 18px', gap: 10 },

@@ -4,13 +4,15 @@
 // até agora — esta tela só liga a interface a eles. Alcançada por
 // ProfileScreen.jsx ("Assistente de leitura", dentro de Preferências),
 // só pra quem tem session.hasAI.
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { getAskEnabled, setAskEnabled, getResponseTone, setResponseTone } from '../aiChat/aiPreferencesStore'
 import { getChapterContextEnabled, setChapterContextEnabled } from '../aiChat/chapterContextStore'
 import { getReflectionQuestionsEnabled, setReflectionQuestionsEnabled, clearAllReflections } from '../aiChat/reflectionQuestionsStore'
 import { getSaveQuestionsEnabled, setSaveQuestionsEnabled, clearAllPassageQuestions } from '../aiChat/passageQuestionStore'
+import { getGroupNoticeEnabled, setGroupNoticeEnabled } from '../groups/groupNoticeStore'
+import { getMyGroups } from '../groups/groupsStore'
 
 const TONES = [
   { id: 'direct', labelKey: 'toneDirect', subKey: 'toneDirectSub' },
@@ -30,6 +32,24 @@ export default function AiSettingsScreen({ session, onBack }) {
   const [reflectionOn, setReflectionOn] = useState(getReflectionQuestionsEnabled)
   const [tone, setTone] = useState(getResponseTone)
   const [saveOn, setSaveOn] = useState(getSaveQuestionsEnabled)
+  // "Aviso do grupo" (quadro 10f): só aparece pra quem está num grupo, nasce
+  // desligado e mora na linha de dados (o servidor é quem manda o aviso).
+  const [inGroup, setInGroup] = useState(false)
+  const [groupNoticeOn, setGroupNoticeOn] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([getMyGroups().catch(() => []), getGroupNoticeEnabled().catch(() => false)]).then(([groups, on]) => {
+      if (cancelled) return
+      setInGroup(groups.length > 0)
+      setGroupNoticeOn(on)
+    })
+    return () => { cancelled = true }
+  }, [])
+  function toggleGroupNotice() {
+    const next = !groupNoticeOn
+    setGroupNoticeOn(next)
+    setGroupNoticeEnabled(next).catch(err => console.error('Failed to save group notice preference', err))
+  }
 
   function toggleAsk() { setAskEnabled(!askOn); setAskOn(!askOn) }
   function toggleContext() { setChapterContextEnabled(!contextOn); setContextOn(!contextOn) }
@@ -64,7 +84,10 @@ export default function AiSettingsScreen({ session, onBack }) {
         <div style={styles.card}>
           <ToggleRow label={L('askLabel')} sub={L('askSub')} value={askOn} onChange={toggleAsk} />
           <ToggleRow label={L('contextLabel')} sub={L('contextSub')} value={contextOn} onChange={toggleContext} />
-          <ToggleRow label={L('reflectionLabel')} sub={L('reflectionSub')} value={reflectionOn} onChange={toggleReflection} last noBorder />
+          <ToggleRow label={L('reflectionLabel')} sub={L('reflectionSub')} value={reflectionOn} onChange={toggleReflection} last={!inGroup} noBorder={!inGroup} />
+          {inGroup && (
+            <ToggleRow label={L('groupNoticeLabel')} sub={L('groupNoticeSub')} value={groupNoticeOn} onChange={toggleGroupNotice} last noBorder />
+          )}
         </div>
 
         <div style={styles.card}>
@@ -100,7 +123,7 @@ export default function AiSettingsScreen({ session, onBack }) {
 
 function ToggleRow({ label, sub, value, onChange, last, noBorder }) {
   return (
-    <div style={{ ...styles.toggleRow, ...(last ? { paddingBottom: 0, marginBottom: 0 } : {}), ...(noBorder ? { borderBottom: 'none' } : {}) }}>
+    <div style={{ ...styles.toggleRow, padding: last ? 0 : '0 0 14px', marginBottom: last ? 0 : 14, borderBottom: noBorder ? 'none' : '1px solid var(--bento-line)' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={styles.toggleLabel}>{label}</p>
         <p style={styles.toggleSub}>{sub}</p>
@@ -131,7 +154,7 @@ const styles = {
   headerSub: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: 0 },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
   card: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
-  toggleRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '0 0 14px', borderBottom: '1px solid var(--bento-line)', marginBottom: 14 },
+  toggleRow: { display: 'flex', alignItems: 'center', gap: 12 },
   toggleLabel: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 3px' },
   toggleSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
   switch: { flexShrink: 0, width: 46, height: 28, borderRadius: 99, border: 'none', padding: '0 3px', display: 'flex', alignItems: 'center', cursor: 'pointer', transition: 'background .15s' },

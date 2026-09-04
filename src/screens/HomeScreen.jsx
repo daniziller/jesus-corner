@@ -29,7 +29,7 @@ function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
 // "Terça, 2 de setembro" / "Tuesday, September 2" — dia de semana curto,
 // primeira letra maiúscula.
-function formatToday(lang) {
+export function formatToday(lang) {
   const raw = new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long',
   })
@@ -39,7 +39,7 @@ function formatToday(lang) {
 
 // Saudação por horário: manhã / tarde / noite — puramente local ao
 // aparelho, sem depender de fuso salvo em lugar nenhum.
-function greetingFor(lang, name) {
+export function greetingFor(lang, name) {
   const h = new Date().getHours()
   const key = h < 12 ? 'greetingMorning' : h < 18 ? 'greetingAfternoon' : 'greetingEvening'
   return translate(`home.${key}`, { name }, lang)

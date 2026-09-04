@@ -62,6 +62,8 @@ import { resolveActivePlanSessions } from './plan/resolveActivePlan'
 import { getThemePlans } from './themePlans/themePlansStore'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
+import { getReadingSeconds } from './reading/readingTimeStore'
+import HomeDashboard, { shouldShowDashboard } from './screens/HomeDashboard'
 import { getLastReadPosition, setLastReadPosition } from './reading/lastReadPositionStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
@@ -208,6 +210,10 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     name: blockName,
     icon: activeBlock.icon,
     percent: activeBlock.percent ?? 0,
+    // Peças soltas pro painel 12a ("Gênesis 40 de 50").
+    book: currentBookDisplay,
+    chapter: (currentSession.type === 'reflection' || currentSession.chStart == null) ? null : currentSession.chStart,
+    bookChapters: bookChapterCounts[currentSession.book] ?? null,
     chapterLabel: (currentSession.type === 'reflection' || currentSession.chStart == null)
       ? null
       : (lang === 'en'
@@ -379,6 +385,15 @@ export default function App() {
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
+  // Tempo de leitura acumulado (segundos) — "horas de leitura" do painel
+  // 12a. Relido sempre que a Home volta a ficar ativa, porque quem soma é o
+  // leitor (ver useReadingTimer em ReadingBlockView.jsx), em lotes.
+  const [readingSeconds, setReadingSeconds] = useState(0)
+  useEffect(() => {
+    if (activeTab !== 'home' || !authUser) return
+    getReadingSeconds().then(setReadingSeconds).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, authUser])
   // Pilha de abas visitadas — alimenta o botão "Voltar" global (header/
   // sidebar, ver goBack abaixo), pra sempre devolver a pessoa pra página
   // que ela estava antes, não importa por qual tela do app ela veio. Toda
@@ -1194,6 +1209,7 @@ export default function App() {
     setMyAvatarUrl(null)
     setSubscription(null)
     setIsAdmin(false)
+    setReadingSeconds(0)
     setActiveTab('home')
     setTabHistory([])
   }
@@ -1584,7 +1600,12 @@ export default function App() {
     : null
 
   const screens = {
-    home:    <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />,
+    // Regra do quadro 12a: nos primeiros 7 dias, e sempre que o painel
+    // estiver zerado, a Home é 3c; o painel só entra depois da primeira
+    // semana cumprida (ver shouldShowDashboard).
+    home: shouldShowDashboard(session)
+      ? <HomeDashboard session={session} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
+      : <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />,
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
