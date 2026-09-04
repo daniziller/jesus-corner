@@ -141,6 +141,10 @@
   --bento-t6: #D6CFC7;
   /* Linha do divisor "ou" nas telas de conta (13b). */
   --bento-divider: #DDD6CE;
+  /* Cartão levemente quente dentro de cartão branco (recortes 14e/14f). */
+  --bento-card-soft: #FBF9F7;
+  /* Texto sobre a seleção azul (--bento-select) no recorte 14c. */
+  --bento-select-ink: #3A4A5C;
   --font-bento: 'Manrope', sans-serif;
 }
 

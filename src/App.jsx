@@ -6,7 +6,7 @@ import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
 import { useIsDesktop } from './utils/useIsDesktop'
 import AuthScreen, { HAS_AUTH_KEY } from './screens/AuthScreen'
-import GuestPaceScreen from './screens/GuestPaceScreen'
+import OnboardingFlow from './screens/OnboardingFlow'
 import WelcomeScreen from './screens/WelcomeScreen'
 import BrandMark from './components/BrandMark'
 import BrandLogo from './components/BrandLogo'
@@ -16,6 +16,9 @@ import { needsConsentRefresh } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import { hasGuestRow, migrateGuestRow } from './backend/userDataStore'
 import { getGuestInviteThreshold, dismissGuestInvite, clearGuestInviteState } from './onboarding/guestInviteStore'
+import { splitMinutes, saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
+import { setSavedPrayerMinutes } from './prayer/prayerDurationStore'
+import { setSavedReflectionMinutes } from './reflection/reflectionDurationStore'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
@@ -75,7 +78,7 @@ import { checkIsAdmin } from './admin/adminStore'
 import { applyPendingInvite, redeemPendingInviteCode } from './invites/inviteStore'
 import { applyPendingOnboardingChoices } from './onboarding/pendingOnboardingChoices'
 import { logActivity } from './activity/activityStore'
-import { syncPushTimezone } from './notifications/pushStore'
+import { syncPushTimezone, subscribeToPush } from './notifications/pushStore'
 import { avatarInitialsOf } from './utils/avatarInitials'
 
 function defaultBlockIdFor(completedSet, planId, readingOrder) {
@@ -333,8 +336,8 @@ export default function App() {
   // mostra as boas-vindas e deixa seguir como convidado.
   const [loginDismissed, setLoginDismissed] = useState(false)
   // Boas-vindas (13a) — a capa do app pra quem nunca autenticou neste
-  // dispositivo. "Começar a ler" segue pra pergunta de ritmo (GuestPaceScreen,
-  // até o onboarding de 15a–15e existir); "Já tenho conta" vai pro login.
+  // dispositivo. "Começar a ler" segue pro onboarding de 7 telas
+  // (OnboardingFlow, 15a–15e); "Já tenho conta" vai pro login.
   const [welcomeDone, setWelcomeDone] = useState(false)
   // Reflexão com perguntas geradas (10d) na tela — ReflectionScreen avisa
   // (onAiFlowChange) pra o shell tirar cabeçalho e barra, como no quadro.
@@ -587,7 +590,7 @@ export default function App() {
         // convidado (redesign 1g/etapa 7 — ver userDataStore.js) — retoma
         // direto no meio do app em vez de mostrar a pergunta de ritmo de
         // novo. Sem progresso nenhum ainda, o render mais abaixo mostra
-        // GuestPaceScreen (a única pergunta, antes de ler).
+        // OnboardingFlow (as perguntas do onboarding, antes de ler).
         if (!hasGuestRow()) {
           if (!cancelled) setBootstrapped(true)
           return
@@ -1063,17 +1066,46 @@ export default function App() {
     return { id: null, email: null, name: lang === 'en' ? 'Guest' : 'Convidado', language: lang, birthdate: null, isGuest: true }
   }
 
-  // Chamado pelo botão "Começar a ler" do GuestPaceScreen — cria a linha
-  // local de convidado já com o ritmo escolhido (setSelectedPlanId grava
-  // nela em vez do backend real, ver userDataStore.js) e entra direto na
-  // leitura de hoje, que pra um convidado novo (completedSet vazio) é
-  // sempre Gênesis 1, não importa o ritmo — por isso é seguro chamar
-  // continueToday() logo em seguida, mesmo lendo `blocks`/`sessionsByBlock`
-  // de um render que ainda não viu o plano recém-escolhido.
-  async function startGuestReading(planId) {
-    await setSelectedPlanId(null, planId)
+  // Chamado pelo "Ler Gênesis 1 agora" do onboarding (15e, OnboardingFlow)
+  // — grava as respostas na linha local de convidado (setSelectedPlanId e
+  // cia. escrevem nela em vez do backend real, ver userDataStore.js) e entra
+  // direto na leitura de hoje, que pra um convidado novo (completedSet
+  // vazio) é sempre Gênesis 1, não importa o ritmo — por isso é seguro
+  // chamar continueToday() logo em seguida, mesmo lendo `blocks`/
+  // `sessionsByBlock` de um render que ainda não viu o plano recém-escolhido.
+  async function startGuestReading(answers) {
+    await setSelectedPlanId(null, answers.planId)
+    await persistRoutineModules(null, answers.readOnly ? ['reading'] : DEFAULT_ROUTINE_MODULES)
+    await persistWeeklyGoalDays(null, answers.days)
+    if (!answers.readOnly) {
+      // Divisão do tempo do método (15f) — os cronômetros de Oração e
+      // Reflexão leem daqui (ver PrayerScreen/ReflectionScreen).
+      const split = splitMinutes(answers.minutes)
+      setSavedPrayerMinutes(split.prayer)
+      setSavedReflectionMinutes(split.reflection)
+    }
+    saveOnboardingAnswers(answers)
+    // O lembrete (15c) só vira inscrição push com uma conta de verdade —
+    // fica pendente até o primeiro login (ver applyPendingReminder).
+    savePendingReminder(answers.reminder)
     await handleAuthenticated(buildGuestUser())
     continueToday()
+  }
+
+  // Horário escolhido no onboarding, aplicado assim que existe usuário real
+  // e a permissão de notificação foi dada (pedida no 15c). Todos os dias da
+  // semana: a pessoa escolheu QUANTOS dias, não quais — o lembrete é "uma
+  // vez por dia", e ela ajusta em Perfil.
+  async function applyPendingReminder() {
+    const pending = getPendingReminder()
+    if (!pending) return
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+    try {
+      await subscribeToPush({ hour: pending.hour, minute: pending.minute, days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] })
+      clearPendingReminder()
+    } catch (err) {
+      console.error('Failed to apply onboarding reminder', err)
+    }
   }
 
   // Chamado depois de login/cadastro bem-sucedidos (inclusive o "login"
@@ -1088,6 +1120,7 @@ export default function App() {
     // convidado no mesmo dispositivo.
     await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
     clearGuestInviteState()
+    if (!user.isGuest) applyPendingReminder()
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
@@ -1432,7 +1465,7 @@ export default function App() {
     // Redesign 1g/etapa 7 — quem já autenticou neste dispositivo alguma vez
     // (ou pediu "Já tenho conta" no meio do fluxo de convidado) vai direto
     // pro login de sempre. Quem nunca autenticou aqui vê a pergunta única
-    // de ritmo (GuestPaceScreen) em vez do cadastro — só entra em contato
+    // do onboarding (OnboardingFlow) em vez do cadastro — só entra em contato
     // com conta/senha/consentimento depois de já ter lido algo (ver
     // SignupScreen mais abaixo, no gate pós-bootstrapped).
     if (authScreenForced || (!loginDismissed && typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY))) {
@@ -1463,7 +1496,7 @@ export default function App() {
     }
     return (
       <>
-        <GuestPaceScreen onStart={startGuestReading} onGoLogin={() => setAuthScreenForced(true)} />
+        <OnboardingFlow onFinish={startGuestReading} onBack={() => setWelcomeDone(false)} />
         <Analytics />
       </>
     )
