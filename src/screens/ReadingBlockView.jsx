@@ -1615,8 +1615,10 @@ function ChapterContextScreen({ lang, book, chapter, data, onBegin, onSkip }) {
         <div style={styles.contextWatchCard}>
           <p style={styles.contextWatchLabel}>{L('watchForTitle')}</p>
           <p style={styles.contextWatchHint}>{L('watchForHint')}</p>
+          {/* Padding das linhas como no quadro: 1ª "0 0 12", do meio "12 0",
+              última "12 0 0" (sem borda). */}
           {(loading ? [0, 1, 2] : data.watchFor).map((point, i) => (
-            <div key={i} style={{ ...styles.contextWatchRow, ...(i === 2 ? { borderBottom: 'none', paddingBottom: 0 } : {}) }}>
+            <div key={i} style={{ ...styles.contextWatchRow, ...(i === 0 ? { paddingTop: 0 } : {}), ...(i === 2 ? { borderBottom: 'none', paddingBottom: 0 } : {}) }}>
               <span style={styles.contextWatchDot} />
               {loading
                 ? <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '80%' }} />
@@ -2654,27 +2656,27 @@ const styles = {
   contextScreen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   contextHeader: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
   contextBackBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  contextHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
-  contextHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
+  contextHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+  contextHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '3px 0 0' },
   contextBody: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
   contextDarkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22 },
   contextAiLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 },
   contextAiDiamond: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  contextAiLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
+  contextAiLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
   contextRecap: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'rgba(255,255,255,.9)', textWrap: 'pretty', margin: '0 0 18px' },
   contextSkeletonLine: { display: 'block', height: 15, borderRadius: 6, background: 'rgba(255,255,255,.14)' },
   contextSubBlock: { flex: 1, minWidth: 0, borderRadius: 16, background: 'rgba(255,255,255,.06)', padding: '13px 14px' },
-  contextSubBlockLabel: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.38)', margin: '0 0 6px' },
+  contextSubBlockLabel: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.38)', margin: '0 0 6px' },
   contextSubBlockValue: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1.35, color: '#fff', margin: 0, minHeight: '1.35em' },
   contextWatchCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
-  contextWatchLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
-  contextWatchHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 14px' },
+  contextWatchLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
+  contextWatchHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: '0 0 14px' },
   contextWatchRow: { display: 'flex', alignItems: 'flex-start', gap: 11, padding: '12px 0', borderBottom: '1px solid var(--bento-line)' },
   contextWatchDot: { width: 7, height: 7, borderRadius: 99, background: 'var(--bento-accent)', marginTop: 5, flexShrink: 0 },
   contextWatchText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-ink)', margin: 0 },
   contextFooter: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))' },
-  contextBeginBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 15.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
-  contextSkipBtn: { width: '100%', border: 'none', background: 'none', marginTop: 12, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
+  contextBeginBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 15.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer' },
+  contextSkipBtn: { width: '100%', border: 'none', background: 'none', padding: 0, marginTop: 12, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
 
   // ── Leitura imersiva (redesign 1b, reskin Bento — tela 4a) ──
   readerHeader: {
