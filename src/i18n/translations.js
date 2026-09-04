@@ -443,6 +443,9 @@ export const STRINGS = {
       // registrado na rotina (dado real, ver ProgressScreen.jsx), não um
       // valor ilustrativo.
       sinceMonth: 'Desde {month}',
+      // Quadro 5b.
+      sinceMonthFull: 'Desde {month} · dois placares, não sete',
+      levelXpShort: 'Nível {level} · faltam {n} XP',
       consistencyLabel: 'Constância',
       weeksInGoal: 'semanas na meta',
       recentWeeksNote: 'Últimas 9 semanas. Uma semana abaixo da meta não apaga as anteriores.',
@@ -1811,6 +1814,8 @@ export const STRINGS = {
       // Bible position) instead of the old stats/achievements/goals grid.
       title: 'Your walk',
       sinceMonth: 'Since {month}',
+      sinceMonthFull: 'Since {month} · two scoreboards, not seven',
+      levelXpShort: 'Level {level} · {n} XP to go',
       consistencyLabel: 'Consistency',
       weeksInGoal: 'weeks on goal',
       recentWeeksNote: "Last 9 weeks. A week below goal doesn't erase the ones before it.",

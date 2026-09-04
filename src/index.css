@@ -137,6 +137,8 @@
   /* Sobre --bento-sand, entre --bento-sand-ink e --bento-sand-label: hint e
      números não selecionados do cartão "Ritmo da semana" (5a). */
   --bento-sand-ink-mid: #7A6B58;
+  /* Mais claro que --bento-t5: o "—" dos blocos ainda não começados (5b). */
+  --bento-t6: #D6CFC7;
   --font-bento: 'Manrope', sans-serif;
 }
 
