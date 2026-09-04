@@ -1891,7 +1891,10 @@ function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
 // ref: { book, bookEn, chapter, verseStart, verseEnd }.
 function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
   const { ref, question } = state
-  const [recapText, setRecapText] = useState('')
+  // Recorte do trecho (quadro 10b): o texto ao redor em cinza e só o trecho
+  // perguntado em azul — aqui, o versículo imediatamente anterior (o fim
+  // dele, se for longo) + os versículos selecionados.
+  const [recap, setRecap] = useState({ before: '', selected: '' })
   const [followUp, setFollowUp] = useState('')
   const [savedNote, setSavedNote] = useState(false)
   const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
@@ -1903,11 +1906,13 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
     fetchBookText(versionId, bookKey).then(chapters => {
       if (cancelled) return
       const chapterData = chapters?.[String(ref.chapter)]
-      const text = Array.from(
+      const selected = Array.from(
         { length: ref.verseEnd - ref.verseStart + 1 },
         (_, i) => chapterData?.verses?.[String(ref.verseStart + i)]
       ).filter(Boolean).join(' ')
-      setRecapText(text)
+      const prev = ref.verseStart > 1 ? (chapterData?.verses?.[String(ref.verseStart - 1)] ?? '') : ''
+      const before = prev.length > 140 ? `…${prev.slice(prev.length - 140).replace(/^\S*\s/, '')}` : prev
+      setRecap({ before, selected })
     }).catch(() => {})
     return () => { cancelled = true }
   }, [lang, ref.book, ref.bookEn, ref.chapter, ref.verseStart, ref.verseEnd])
@@ -1934,14 +1939,16 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
   }
 
   return createPortal(
-    <div style={styles.aiChatOverlayBackdrop} onClick={onClose}>
+    <div style={styles.passageSheetBackdrop} onClick={onClose}>
       <div style={styles.passageSheetOuter} onClick={e => e.stopPropagation()}>
         {/* Recorte do trecho — auto-contido, não depende de rolagem. */}
         <div style={styles.passageSheetRecapWrap}>
           <div style={styles.passageSheetRecapCard}>
             <p style={styles.passageSheetRecapLabel}>{L('chapterLabel', { n: ref.chapter })}</p>
             <p style={styles.passageSheetRecapText}>
-              {recapText ? <span style={styles.passageSheetRecapHighlight}>{recapText}</span> : L('recapLoading')}
+              {recap.selected
+                ? <>{recap.before ? `${recap.before} ` : ''}<span style={styles.passageSheetRecapHighlight}>{recap.selected}</span></>
+                : L('recapLoading')}
             </p>
           </div>
         </div>
@@ -2889,10 +2896,14 @@ const styles = {
   selectionSuggestChip: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1, color: 'var(--bento-ink)', background: 'var(--bento-line)', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
 
   // ── Folha de resposta da IA (10b, reskin Bento) ──
+  // Mesma camada da folha de chat, mas SEM escurecer a leitura atrás — no
+  // quadro 10b a área acima da folha é a tela normal; a camada existe só
+  // pra fechar ao tocar fora.
+  passageSheetBackdrop: { position: 'fixed', inset: 0, zIndex: 210, background: 'transparent', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   passageSheetOuter: { width: '100%', maxWidth: 'var(--max-width)', height: '78vh', maxHeight: 680, display: 'flex', flexDirection: 'column' },
   passageSheetRecapWrap: { flex: 'none', padding: '20px 20px 0' },
   passageSheetRecapCard: { borderRadius: 28, background: 'var(--bento-card)', padding: '22px 24px 24px', filter: 'saturate(.9)' },
-  passageSheetRecapLabel: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 14px' },
+  passageSheetRecapLabel: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, lineHeight: 1, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 14px' },
   passageSheetRecapText: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 500, lineHeight: 1.7, color: 'var(--bento-t3)', margin: 0, textWrap: 'pretty' },
   passageSheetRecapHighlight: { background: 'var(--bento-select)', color: '#3A4A5C', borderRadius: 4, padding: '1px 3px' },
   passageSheetBody: {
@@ -2903,8 +2914,8 @@ const styles = {
   passageSheetHandle: { width: 44, height: 5, borderRadius: 99, background: 'rgba(255,255,255,.22)', margin: '0 auto 20px', flexShrink: 0 },
   passageSheetHeader: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 18px', flexShrink: 0 },
   passageSheetDiamond: { width: 11, height: 11, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  passageSheetHeaderTitle: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
-  passageSheetCloseText: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.35)' },
+  passageSheetHeaderTitle: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
+  passageSheetCloseText: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.35)' },
   passageSheetQuestionBubble: { borderRadius: 18, background: 'rgba(255,255,255,.06)', padding: '14px 16px', margin: '0 0 16px', flexShrink: 0 },
   passageSheetQuestionText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, lineHeight: 1.45, color: 'white', margin: 0 },
   passageSheetLoading: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'rgba(255,255,255,.5)' },
@@ -2918,20 +2929,20 @@ const styles = {
   passageSheetRiskCta: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-accent)', flexShrink: 0 },
   passageSheetCitations: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 'auto' },
   passageSheetCiteSupport: { borderRadius: 16, background: 'rgba(240,102,43,.14)', padding: '14px 16px' },
-  passageSheetCiteSupportLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 7px' },
+  passageSheetCiteSupportLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 7px' },
   passageSheetCiteSupportQuote: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.5, color: 'rgba(255,255,255,.82)', margin: 0 },
   passageSheetCiteExpand: { borderRadius: 16, background: 'rgba(255,255,255,.05)', padding: '14px 16px' },
-  passageSheetCiteExpandLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', margin: '0 0 7px' },
+  passageSheetCiteExpandLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', margin: '0 0 7px' },
   passageSheetCiteExpandNote: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.62)', margin: 0 },
   passageSheetFooter: { flexShrink: 0, paddingTop: 16 },
   passageSheetFooterRow: { display: 'flex', gap: 8, marginBottom: 12 },
   passageSheetSaveBtn: {
     flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer',
-    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'rgba(255,255,255,.75)',
+    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.75)',
   },
   passageSheetFollowUpRow: { height: 50, borderRadius: 16, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', padding: '0 6px 0 18px', gap: 10 },
-  passageSheetFollowUpInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'white' },
+  passageSheetFollowUpInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1, color: 'white' },
   passageSheetFollowUpSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   passageSheetAiFooter: { flexShrink: 0, marginTop: 14, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.32)', textAlign: 'center' },
 }
