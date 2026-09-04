@@ -1529,7 +1529,7 @@ export const STRINGS = {
       loading: 'Carregando...',
       sending: 'Enviando...',
       cancelBtn: 'Cancelar',
-      tab: { metrics: 'Métricas', users: 'Usuários', contact: 'Fale Conosco', broadcast: 'Aviso geral', invites: 'Convites' },
+      tab: { metrics: 'Métricas', users: 'Usuários', contact: 'Fale Conosco', reports: 'Respostas reportadas', broadcast: 'Aviso geral', invites: 'Convites' },
       metric: {
         totalUsers: 'Total de usuários',
         mrrBrl: 'MRR (BRL)',
@@ -1596,6 +1596,19 @@ export const STRINGS = {
         sendReplyBtn: 'Enviar resposta',
         deleteBtn: 'Apagar',
         deleteConfirm: 'Apagar essa mensagem do Fale Conosco? Não dá pra desfazer.',
+      },
+      // Reportes de resposta da IA ("Reportar resposta", quadro 10b).
+      reports: {
+        filter: { pending: 'Pendentes', all: 'Todos' },
+        empty: 'Nenhuma resposta reportada.',
+        status: { pending: 'Pendente', reviewed: 'Revisada', dismissed: 'Descartada' },
+        tone: { direct: 'Direto', explained: 'Explicado', study: 'Estudo' },
+        question: 'Pergunta',
+        answer: 'Resposta da IA',
+        reason: 'Motivo',
+        markReviewed: 'Marcar como revisada',
+        dismiss: 'Descartar',
+        reopen: 'Reabrir',
       },
       broadcast: {
         recipientLabel: 'Quem vai receber',
@@ -3117,7 +3130,7 @@ export const STRINGS = {
       loading: 'Loading...',
       sending: 'Sending...',
       cancelBtn: 'Cancel',
-      tab: { metrics: 'Metrics', users: 'Users', contact: 'Contact', broadcast: 'Broadcast', invites: 'Invites' },
+      tab: { metrics: 'Metrics', users: 'Users', contact: 'Contact', reports: 'Reported answers', broadcast: 'Broadcast', invites: 'Invites' },
       metric: {
         totalUsers: 'Total users',
         mrrBrl: 'MRR (BRL)',
@@ -3184,6 +3197,18 @@ export const STRINGS = {
         sendReplyBtn: 'Send reply',
         deleteBtn: 'Delete',
         deleteConfirm: "Delete this contact message? This can't be undone.",
+      },
+      reports: {
+        filter: { pending: 'Pending', all: 'All' },
+        empty: 'No reported answers.',
+        status: { pending: 'Pending', reviewed: 'Reviewed', dismissed: 'Dismissed' },
+        tone: { direct: 'Direct', explained: 'Explained', study: 'Study' },
+        question: 'Question',
+        answer: 'AI answer',
+        reason: 'Reason',
+        markReviewed: 'Mark as reviewed',
+        dismiss: 'Dismiss',
+        reopen: 'Reopen',
       },
       broadcast: {
         recipientLabel: 'Who receives this',
