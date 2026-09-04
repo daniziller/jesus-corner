@@ -1583,9 +1583,10 @@ export default function App() {
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
   const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings'].includes(activeTab) || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
-  // botão "Salvar plano"; 10d: o rodapé é "Próxima pergunta"); saem pela
-  // própria seta de voltar / ao concluir.
-  const navHidden = immersiveReading || ['adjustPlan'].includes(activeTab) || reflectionBento
+  // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
+  // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
+  // concluir.
+  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">
