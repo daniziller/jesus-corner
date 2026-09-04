@@ -217,6 +217,7 @@ export const STRINGS = {
       markUndone: 'Desmarcar conclusão',
       toolsBtn: 'Ferramentas',
       finishReading: 'Concluir leitura',
+      finishShort: 'Concluir',
       markChapterDone: 'Marcar capítulo {n} como lido',
       chapterMarkedDone: 'Capítulo {n} lido',
       notesLabel: 'Suas anotações',
@@ -622,6 +623,8 @@ export const STRINGS = {
     },
     bibleAudio: {
       listen: 'Ouvir {ref}',
+      // Player compacto da leitura imersiva (quadro 4a).
+      listenChapter: 'Ouvir o capítulo',
       nowPlaying: 'Ouvindo · {ref}',
       loading: 'Carregando o texto…',
       done: 'Fim do capítulo',
@@ -1575,6 +1578,7 @@ export const STRINGS = {
       markUndone: 'Unmark completion',
       toolsBtn: 'Tools',
       finishReading: 'Finish reading',
+      finishShort: 'Finish',
       markChapterDone: 'Mark chapter {n} as read',
       chapterMarkedDone: 'Chapter {n} read',
       notesLabel: 'Your notes',
@@ -1977,6 +1981,7 @@ export const STRINGS = {
     },
     bibleAudio: {
       listen: 'Listen to {ref}',
+      listenChapter: 'Listen to the chapter',
       nowPlaying: 'Playing · {ref}',
       loading: 'Loading the text…',
       done: 'End of chapter',

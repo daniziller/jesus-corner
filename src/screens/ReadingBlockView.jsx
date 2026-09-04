@@ -12,6 +12,7 @@ import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen,
 import { getAskEnabled } from '../aiChat/aiPreferencesStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
+import { computeBookChapterCounts } from '../utils/progress'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
@@ -623,6 +624,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const heroPassage = lang === 'en' ? heroSession.passageEn : heroSession.passage
   const heroChapterSpan = heroSession.type === 'reflection' ? 0 : heroSession.chEnd - heroSession.chStart + 1
   const heroChapterWord = lang === 'en' ? (heroChapterSpan === 1 ? 'chapter' : 'chapters') : (heroChapterSpan === 1 ? 'capítulo' : 'capítulos')
+  // Subtítulo do cabeçalho imersivo (quadro 4a): "NVT · cap. 40 de 50" —
+  // sigla da versão em uso + posição do capítulo (ou do intervalo da sessão)
+  // dentro do livro. Total de capítulos do livro vem da mesma fonte de
+  // Progresso/Biblioteca (computeBookChapterCounts).
+  const readerHeaderSub = (() => {
+    if (heroSession.type === 'reflection') return heroPassage
+    const short = findBibleVersion(getSelectedVersionId(lang))?.short
+    const total = computeBookChapterCounts(sessionsByBlock)[heroSession.book]
+    const range = heroChapterSpan === 1 ? `${heroSession.chStart}` : `${heroSession.chStart}–${heroSession.chEnd}`
+    const cap = lang === 'en' ? 'ch.' : 'cap.'
+    const of = lang === 'en' ? 'of' : 'de'
+    return [short, total ? `${cap} ${range} ${of} ${total}` : `${cap} ${range}`].filter(Boolean).join(' · ')
+  })()
   const heroBookDisplayName = lang === 'en' ? heroSession.bookEn : heroSession.book
   const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
   // Grifos já salvos dentro do alcance da sessão em destaque — mostrados na
@@ -660,13 +674,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <div style={{ ...styles.readerHeader, transform: readerHeaderHidden ? 'translateY(-100%)' : 'none' }}>
           <div style={styles.readerHeaderLeft}>
             <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
-              <AppIcon name="ArrowLeft" size={16} color="var(--bento-ink)" />
+              <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
             </button>
             <div style={{ minWidth: 0 }}>
               <p style={styles.readerHeaderTitle}>{heroTitle}</p>
-              <p style={styles.readerHeaderSub}>
-                {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
-              </p>
+              <p style={styles.readerHeaderSub}>{readerHeaderSub}</p>
             </div>
           </div>
           {/* Dois ícones por fidelidade visual à 4a (ondas + menu) — os dois
@@ -1110,7 +1122,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             )}
             <div style={styles.readerFooterRow}>
               <button style={styles.readerToolsBtn} onClick={() => setToolsOpen(true)}>
-                <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
+                <ToolboxIcon />
                 {t('reading.toolsBtn', undefined, lang)}
               </button>
               <button
@@ -1121,8 +1133,8 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                   else onNavigate?.('reflection')
                 }}
               >
-                <AppIcon name="Check" size={16} color="var(--bento-ink)" />
-                {t('reading.finishReading', undefined, lang)}
+                <AppIcon name="Check" size={16} strokeWidth={2.6} color="var(--bento-ink)" />
+                {t('reading.finishShort', undefined, lang)}
               </button>
             </div>
           </div>,
@@ -1178,6 +1190,17 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       </div>
     )}
     </>
+  )
+}
+
+// Ícone do botão "Ferramentas" do rodapé imersivo (quadro 4a) — o traçado
+// do protótipo (uma caixa aberta) não tem equivalente no Lucide, então o
+// SVG é copiado do HTML, no mesmo tamanho/peso (16px, traço 1.9).
+function ToolboxIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--bento-ink)" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 4h12M4 4v9l6 3 6-3V4" />
+    </svg>
   )
 }
 
@@ -1442,7 +1465,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         const paragraphs = groupIntoParagraphs(chapter)
         const chDone = completedSet?.has(`${session.book}:${ch}`)
         return (
-          <div key={ch} data-chapter={ch} style={styles.bibleTextChapter}>
+          <div key={ch} data-chapter={ch} style={immersive ? styles.bibleTextChapterBento : styles.bibleTextChapter}>
             <p style={immersive ? styles.bibleTextChapterLabelBento : styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
             {paragraphs.map((verseNums, pIdx) => (
               <p key={pIdx} style={immersive ? styles.bibleTextBodyBento : styles.bibleTextBody}>
@@ -1462,7 +1485,12 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                   // salvo) ganha um contorno tracejado.
                   const existingHighlight = highlightForVerse(ch, v)
                   const isSelected = highlightSelection?.chapter === ch && highlightSelection.verses.has(v)
-                  const highlightStyle = existingHighlight
+                  // Leitura imersiva (quadro 4a): trecho marcado sempre no
+                  // realce Bento (#FFE3C9, raio 4, padding 1px 3px); a cor
+                  // escolhida continua guardada e aparece na Biblioteca.
+                  const highlightStyle = existingHighlight && immersive
+                    ? { background: 'var(--bento-mark)', borderRadius: 4, padding: '1px 3px', ...(existingHighlight.text ? styles.verseAnnotatedUnderline : {}) }
+                    : existingHighlight
                     ? {
                         background: highlightColorBg(existingHighlight.color),
                         borderRadius: 3,
@@ -1504,7 +1532,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
             {/* Marcar o capítulo como lido direto no fim do texto — sem
                 precisar voltar pro topo e caçar o chip dele (ver
                 ChapterChips, que continua existindo pra quem prefere). */}
-            {onToggleChapter && (
+            {onToggleChapter && !immersive && (
               <button
                 style={{ ...styles.chapterDoneBtn, ...(chDone ? styles.chapterDoneBtnActive : {}) }}
                 onClick={() => onToggleChapter(session, ch, !chDone)}
@@ -1518,7 +1546,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
       })}
 
       {state.status === 'ready' && (
-        <p style={styles.bibleTextAttribution}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
+        <p style={immersive ? styles.bibleTextAttributionBento : styles.bibleTextAttribution}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
       )}
     </div>
   )
@@ -2627,12 +2655,12 @@ const styles = {
   readerToolsBtn: {
     flex: 1, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-card)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer',
   },
   readerDoneBtn: {
     flex: 1.35, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer',
   },
   toolsExtraBtn: {
     display: 'flex', alignItems: 'center', gap: 8, width: '100%',
@@ -2673,7 +2701,13 @@ const styles = {
   // ── Variantes Bento (reskin, tela 4a) dos 4 estilos acima — só a leitura
   // imersiva usa; a aba Bíblia (5f, ainda não migrada) continua com os de
   // cima. Valores extraídos do bloco id="4a" do HTML do handoff.
-  bibleTextChapterLabelBento: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 18px' },
+  // Sem a linha divisória/padding do modo antigo: o bloco branco já é o
+  // limite do capítulo (quadro 4a).
+  bibleTextChapterBento: { marginBottom: 16 },
+  bibleTextChapterLabelBento: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, lineHeight: 1, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 18px' },
+  // Atribuição exigida pela licença da versão (ver bibleVersions.js) — não
+  // está no quadro 4a, mas não pode sair; fica discreta, nos tokens Bento.
+  bibleTextAttributionBento: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--bento-line)', fontStyle: 'italic' },
   bibleTextBodyBento:   { fontFamily: 'var(--font-bento)', fontSize: 18.5, fontWeight: 500, color: 'var(--bento-ink)', lineHeight: 1.72, margin: '0 0 18px', textWrap: 'pretty' },
   bibleTextVerseNumBento: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)', verticalAlign: 'super' },
   nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
