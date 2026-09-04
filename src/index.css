@@ -95,7 +95,8 @@
   --card-highlight-border: 0.5px solid rgba(157,67,0,.25);
 
   /* Layout */
-  --nav-height: 83px;
+  /* Barra inferior Bento (quadros 3c/4b/4c/5b/5f): 76px, sem raio/sombra. */
+  --nav-height: 76px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --max-width: 430px;
 
@@ -131,6 +132,19 @@
   --bento-sand-icon: #7A4A1E;
   --bento-sand-ink-strong: #3A2A18;
   --bento-pending-border: #CFC6BC;
+  /* Entre --bento-t4 e --bento-t5: subtítulo de passo ainda não feito (4b). */
+  --bento-t4-soft: #B0A79E;
+  /* Sobre --bento-sand, entre --bento-sand-ink e --bento-sand-label: hint e
+     números não selecionados do cartão "Ritmo da semana" (5a). */
+  --bento-sand-ink-mid: #7A6B58;
+  /* Mais claro que --bento-t5: o "—" dos blocos ainda não começados (5b). */
+  --bento-t6: #D6CFC7;
+  /* Linha do divisor "ou" nas telas de conta (13b). */
+  --bento-divider: #DDD6CE;
+  /* Cartão levemente quente dentro de cartão branco (recortes 14e/14f). */
+  --bento-card-soft: #FBF9F7;
+  /* Texto sobre a seleção azul (--bento-select) no recorte 14c. */
+  --bento-select-ink: #3A4A5C;
   --font-bento: 'Manrope', sans-serif;
 }
 
@@ -174,19 +188,17 @@ body {
    não é fixed. overflow-x:auto em .app-content vira a rede de segurança
    pra telas bem estreitas onde o conteúdo escalado passar da largura
    disponível.
-   O zoom 1.15 agora é o tamanho PADRÃO (sempre ligado, sem precisar tocar
-   no botão) — o botão "T" liga um segundo nível, ainda maior (1.3), pra
-   quem precisa de mais. Por isso as duas regras abaixo: a primeira sem
-   condição nenhuma (padrão), a segunda só quando html.large-text (o passo
-   extra). */
-.app-content-inner {
-  zoom: 1.15;
-}
+   Padrão é 1.0 (decisão da autora no redesign Bento: os quadros do
+   handoff são especificados em 390px com tamanhos exatos, e com um zoom
+   padrão de 1.15 tudo renderizava 15% maior que o desenho — conteúdo que
+   cabe em 390px, como dois chips lado a lado, passava a não caber). O
+   botão "T" (AppHeader/Sidebar; nas telas Bento, pelo Perfil) liga o
+   texto grande, 1.15, pra quem precisa. */
 .app-content {
   overflow-x: auto;
 }
 html.large-text .app-content-inner {
-  zoom: 1.3;
+  zoom: 1.15;
 }
 
 /* ── Utilitários gerais ── */
@@ -222,15 +234,18 @@ html.large-text .app-content-inner {
 .status-bar.dark .status-icons { color: white; }
 
 /* ── Bottom Nav ── */
+/* Identidade Bento (design_handoff_jesus_corner/Jesus Corner Redesign.dc.html,
+   rodapé dos quadros 3c/4b/4c/5b/5f): barra branca de 76px, itens de 70px
+   distribuídos com space-around, ícone 20px sobre rótulo Manrope 10px com
+   gap 5px; ativo #1A1714/800, inativo #BDB5AC/600. Sem raio, sem sombra,
+   sem blur, sem pílula de fundo e sem botão central elevado. */
 .bottom-nav {
-  height: var(--nav-height);
-  background: rgba(255,255,255,0.92);
-  border-radius: 26px 26px 0 0;
-  box-shadow: 0 -8px 30px rgba(0,0,0,.08);
+  height: calc(var(--nav-height) + var(--safe-bottom));
+  background: var(--bento-card);
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 0 4px calc(20px + var(--safe-bottom));
+  padding: 0 10px var(--safe-bottom);
   flex-shrink: 0;
   position: fixed;
   bottom: 0;
@@ -239,8 +254,6 @@ html.large-text .app-content-inner {
   width: 100%;
   max-width: var(--max-width);
   z-index: 100;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .nav-item {
@@ -248,54 +261,34 @@ html.large-text .app-content-inner {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 5px;
   cursor: pointer;
-  padding: 8px 10px;
-  border-radius: 14px;
-  min-width: 60px;
-  min-height: 48px;
+  padding: 0;
+  width: 70px;
+  min-height: 44px;
   background: none;
-  transition: transform 0.15s, background 0.2s;
+  transition: transform 0.15s;
   user-select: none;
 }
 .nav-item:active { transform: scale(0.92); }
 
 .nav-icon {
   display: flex;
-  transition: opacity 0.2s;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
 }
 .nav-label {
+  font-family: var(--font-bento);
   font-size: 10px;
-  color: var(--g5);
+  line-height: 1;
+  color: var(--bento-t5);
   font-weight: 600;
   text-align: center;
   transition: color 0.2s;
-  letter-spacing: 0.2px;
 }
-.nav-item.active { background: var(--olt); }
-.nav-item.active .nav-label { color: var(--or); font-weight: 700; }
-
-/* Selo elevado com o gradiente da marca — dá mais destaque pra aba
-   principal (Bíblia), tipo um botão flutuante no meio da barra. O fundo
-   translúcido de .nav-item.active fica redundante em cima do círculo
-   colorido, por isso essa aba não usa mais aquele estilo (ver
-   .nav-item.active + .nav-icon-featured abaixo). */
-.nav-icon-featured {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  align-items: center;
-  justify-content: center;
-  background: var(--grad-vivid);
-  box-shadow: var(--shadow-glow);
-  margin-top: -16px;
-  border: 3px solid var(--white);
-}
-.nav-label-featured { font-weight: 800 !important; }
-.nav-item.active .nav-label-featured { color: var(--or); }
-/* O círculo já avisa "isso é especial" sozinho — o fundo translúcido de
-   .nav-item.active por baixo dele só faria poluição visual. */
-.nav-item.active:has(.nav-icon-featured) { background: none; }
+.nav-item.active .nav-label { color: var(--bento-ink); font-weight: 800; }
 
 /* ── Page header ── */
 .page-header {
@@ -569,9 +562,6 @@ html.large-text .app-content-inner {
     height: 100vh;
     align-items: flex-start;
     padding: 20px 0;
-  }
-  .bottom-nav {
-    border-radius: 0 0 44px 44px;
   }
 }
 

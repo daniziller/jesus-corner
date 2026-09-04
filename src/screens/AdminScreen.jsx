@@ -6,10 +6,10 @@ import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { formatAmount } from '../billing/formatAmount'
-import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast, searchAdminUsers, getAdminUserDetail, listReadingGroupsForAdmin, createInvite, listAdminInvites, revokeInvite } from '../admin/adminStore'
+import { getAdminMetrics, listContactMessages, replyToContactMessage, deleteContactMessage, sendBroadcast, searchAdminUsers, getAdminUserDetail, listReadingGroupsForAdmin, createInvite, listAdminInvites, revokeInvite, listAnswerReports, updateAnswerReport } from '../admin/adminStore'
 
-const TABS = ['metrics', 'users', 'contact', 'broadcast', 'invites']
-const TAB_ICONS = { metrics: 'BarChart3', users: 'Search', contact: 'Mail', broadcast: 'Megaphone', invites: 'Gift' }
+const TABS = ['metrics', 'users', 'contact', 'reports', 'broadcast', 'invites']
+const TAB_ICONS = { metrics: 'BarChart3', users: 'Search', contact: 'Mail', reports: 'TriangleAlert', broadcast: 'Megaphone', invites: 'Gift' }
 
 export default function AdminScreen({ session }) {
   const { lang } = session
@@ -45,6 +45,7 @@ export default function AdminScreen({ session }) {
         {tab === 'metrics' && <MetricsTab lang={lang} />}
         {tab === 'users' && <UsersTab lang={lang} />}
         {tab === 'contact' && <ContactTab lang={lang} />}
+        {tab === 'reports' && <ReportsTab lang={lang} />}
         {tab === 'broadcast' && <BroadcastTab lang={lang} />}
         {tab === 'invites' && <InvitesTab lang={lang} />}
       </div>
@@ -480,6 +481,126 @@ function ContactTab({ lang }) {
           {msg.replied_at && (
             <button style={{ ...styles.deleteBtn, alignSelf: 'flex-start' }} onClick={() => handleDelete(msg)}>
               {t('admin.contact.deleteBtn', undefined, lang)}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Reportes de resposta da IA (quadro 10b, "Reportar resposta") — lista o
+// que as pessoas marcaram como problemático, com a pergunta, a resposta que
+// a IA deu (como saiu do servidor) e quem reportou; revisar/descartar só
+// muda o status, o registro fica.
+function ReportsTab({ lang }) {
+  const [filter, setFilter] = useState('pending')
+  const [reports, setReports] = useState(null)
+  const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState(null)
+  const R = (k, vars) => t(`admin.reports.${k}`, vars, lang)
+
+  function reload() {
+    setReports(null)
+    listAnswerReports({ filter }).then(setReports).catch(err => setError(err.message))
+  }
+  useEffect(reload, [filter])
+
+  async function setStatus(report, status) {
+    if (busyId) return
+    setBusyId(report.id)
+    setError('')
+    try {
+      await updateAnswerReport({ id: report.id, status })
+      reload()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  function passageLabel(key) {
+    // "Livro:capítulo:vInício-vFim" → "Livro capítulo:vInício-vFim"
+    const m = key.match(/^(.+):(\d+):(\d+)-(\d+)$/)
+    if (!m) return key
+    const verses = m[3] === m[4] ? m[3] : `${m[3]}-${m[4]}`
+    return `${m[1]} ${m[2]}:${verses}`
+  }
+
+  function answerText(answer) {
+    if (!answer || typeof answer !== 'object') return ''
+    if (answer.outcome === 'answer') return answer.reply ?? ''
+    return `[${answer.outcome}] ${answer.reply ?? answer.nearTopic ?? ''}`.trim()
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={styles.filterRow}>
+        {['pending', 'all'].map(f => (
+          <button key={f} style={{ ...styles.filterBtn, ...(filter === f ? styles.filterBtnActive : null) }} onClick={() => setFilter(f)}>
+            {R(`filter.${f}`)}
+          </button>
+        ))}
+      </div>
+
+      {error && <p style={styles.errorMsg}>{error}</p>}
+      {!reports && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+      {reports?.length === 0 && <p style={styles.hint}>{R('empty')}</p>}
+
+      {reports?.map(r => (
+        <div key={r.id} style={styles.messageCard}>
+          <div style={styles.messageHeader}>
+            <div>
+              <p style={styles.messageName}>{passageLabel(r.passageKey)}</p>
+              <p style={styles.messageEmail}>
+                {[r.reporterName, r.reporterEmail].filter(Boolean).join(' · ')}
+                {' · '}{new Date(r.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR')}
+                {r.tone ? ` · ${R(`tone.${r.tone}`)}` : ''}
+              </p>
+            </div>
+            {r.status === 'pending'
+              ? <span style={styles.pendingBadge}>{R('status.pending')}</span>
+              : <span style={styles.answeredBadge}>{R(`status.${r.status}`)}</span>}
+          </div>
+
+          <div style={styles.replyPreview}>
+            <p style={styles.replyPreviewLabel}>{R('question')}</p>
+            <p style={styles.replyPreviewBody}>{r.question}</p>
+          </div>
+          <div style={styles.replyPreview}>
+            <p style={styles.replyPreviewLabel}>{R('answer')}</p>
+            <p style={styles.replyPreviewBody}>{answerText(r.answer)}</p>
+            {r.answer?.supportCitation && (
+              <p style={{ ...styles.replyPreviewBody, marginTop: 6, fontStyle: 'italic' }}>
+                {r.answer.supportCitation.reference}: "{r.answer.supportCitation.quote}"
+              </p>
+            )}
+            {r.answer?.expansionCitation && (
+              <p style={{ ...styles.replyPreviewBody, marginTop: 4 }}>
+                {r.answer.expansionCitation.reference} — {r.answer.expansionCitation.note}
+              </p>
+            )}
+          </div>
+          {r.reason && (
+            <div style={styles.replyPreview}>
+              <p style={styles.replyPreviewLabel}>{R('reason')}</p>
+              <p style={styles.replyPreviewBody}>{r.reason}</p>
+            </div>
+          )}
+
+          {r.status === 'pending' ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px', marginTop: 4 }} disabled={busyId === r.id} onClick={() => setStatus(r, 'reviewed')}>
+                {R('markReviewed')}
+              </button>
+              <button style={styles.deleteBtn} disabled={busyId === r.id} onClick={() => setStatus(r, 'dismissed')}>
+                {R('dismiss')}
+              </button>
+            </div>
+          ) : (
+            <button style={{ ...styles.deleteBtn, alignSelf: 'flex-start', color: 'var(--g5)' }} disabled={busyId === r.id} onClick={() => setStatus(r, 'pending')}>
+              {R('reopen')}
             </button>
           )}
         </div>

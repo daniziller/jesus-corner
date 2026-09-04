@@ -12,6 +12,7 @@ export const BIBLE_VERSIONS = {
     {
       id: 'en-nlt',
       label: 'New Living Translation (NLT)',
+      short: 'NLT',
       folder: 'en-nlt',
       attribution: 'Holy Bible, New Living Translation, copyright © 1996, 2004, 2015 by Tyndale House Foundation. All rights reserved. Used by permission of Tyndale House Publishers, Carol Stream, Illinois 60188. All rights reserved.',
     },
@@ -20,6 +21,7 @@ export const BIBLE_VERSIONS = {
     {
       id: 'pt-nvt',
       label: 'Nova Versão Transformadora (NVT)',
+      short: 'NVT',
       folder: 'pt-nvt',
       attribution: 'Bíblia Sagrada, Nova Versão Transformadora © 2016 por Editora Mundo Cristão. Copyright atribuído a Tyndale House Foundation, 2021. Todos os direitos reservados.',
     },

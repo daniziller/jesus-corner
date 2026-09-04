@@ -293,6 +293,9 @@ const PassageAnswerSchema = z.object({
     "outcome='out_of_scope': 1-2 frases dizendo que não sabe / não é o escopo deste assistente, sem tentar improvisar conselho. " +
     "outcome='risk': 1-2 frases de acolhimento breve, SEM conselho e SEM qualquer versículo — a linha de apoio (CVV) é adicionada à parte pelo servidor, nunca pelo modelo."
   ),
+  nearTopic: z.string().nullable().describe(
+    "Só quando outcome='out_of_scope': o tema bíblico mais próximo da pergunta, em 1 a 3 palavras minúsculas no idioma da pergunta (ex: 'aliança', 'perdão', 'provisão'), pra o app oferecer 'ler o que a Bíblia diz sobre <tema>'. null nos outros casos."
+  ),
   supportCitation: z.object({
     reference: z.string().describe('Referência exata no formato "Livro capítulo:versículo" (ex: "Gênesis 41:26") — o versículo que sustenta a resposta diretamente.'),
     quote: z.string().describe('O texto desse versículo, citado com fidelidade (não parafraseado) — será conferido contra o texto bíblico real antes de sair.'),
@@ -419,6 +422,33 @@ Texto que a pessoa acabou de ler:
 "${chapterText}"
 
 Gere as 3 perguntas de reflexão. Nunca peça uma resposta longa — são perguntas de diário, não um ensaio.
+
+${buildFieldsLangInstruction(lang, 'questions')}`,
+  })
+  return output
+}
+
+// Sugestões de pergunta sobre o trecho selecionado (menu "Perguntar", tela
+// 10a do redesign Bento — ver ADENDO: "até três sugestões de pergunta
+// geradas para aquele trecho... as sugestões mudam com o trecho"). Mesmo
+// espírito de cache compartilhado de generateChapterContext: o trecho é o
+// mesmo pra todo mundo, então o resultado é cacheado por
+// book+chapter+verseStart+verseEnd+lang na borda (ver
+// api/suggest-passage-questions.js). São só os rótulos dos chips — a
+// resposta em si continua vindo de answerAboutPassage, por usuário.
+const PassageSuggestionsSchema = z.object({
+  questions: z.array(z.string()).length(3).describe('Exatamente 3 perguntas curtíssimas (2 a 4 palavras cada, no idioma pedido, com "?" quando for pergunta) que uma pessoa faria sobre ESTE trecho específico — ex: "O que isso significa?", "Por que sete?", "Contexto histórico". A primeira é sempre a de significado; as outras duas nascem de um detalhe concreto do trecho (um número, um nome, um lugar, um gesto). Nunca perguntas de aconselhamento pessoal nem de doutrina de denominação.'),
+})
+
+export async function suggestPassageQuestions({ book, chapter, verseRange, passageText, lang }) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: PassageSuggestionsSchema }),
+    prompt: `Uma pessoa selecionou este trecho enquanto lia ${book} ${chapter}:${verseRange} num app de leitura devocional e vai ver três sugestões de pergunta prontas pra tocar (em vez de digitar):
+
+"${passageText}"
+
+Gere as 3 sugestões. Curtas o bastante pra caber num chip de 12px.
 
 ${buildFieldsLangInstruction(lang, 'questions')}`,
   })

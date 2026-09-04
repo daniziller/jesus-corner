@@ -1,5 +1,7 @@
 import NotificationBell from './NotificationBell'
 import AppIcon from '../icons/AppIcon'
+import BrandMark from './BrandMark'
+import BrandLogo from './BrandLogo'
 import { t } from '../i18n'
 
 export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onBack, canGoBack, pendingCount = 0, lang, largeText, onToggleLargeText }) {
@@ -15,8 +17,9 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onBac
           </button>
         )}
         <div style={styles.brand} onClick={() => onNavigate?.('home')}>
-          <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-          <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+          {/* Marca nova (quadro 16b, "cabeçalho"): símbolo 34 + logotipo 17/800 −.8px. */}
+          <BrandMark size={34} />
+          <BrandLogo size={17} letterSpacing="-.8px" />
         </div>
       </div>
       <div style={styles.actions}>

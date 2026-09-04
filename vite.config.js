@@ -22,8 +22,10 @@ export default defineConfig({
         name: "Jesus' Corner",
         short_name: "Jesus' Corner",
         description: 'Seu tempo. Seu plano. Sua conexão com Deus.',
-        theme_color: '#121212',
-        background_color: '#121212',
+        // Marca Bento: tinta #1A1714 na barra do sistema; splash do PWA no
+        // creme #EDE8E2 (mesmo fundo dos splashes iOS/Android).
+        theme_color: '#1A1714',
+        background_color: '#EDE8E2',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',

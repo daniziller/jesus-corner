@@ -1,4 +1,6 @@
 import { t } from '../i18n'
+import BrandMark from './BrandMark'
+import BrandLogo from './BrandLogo'
 import AppIcon from '../icons/AppIcon'
 import NotificationBell from './NotificationBell'
 
@@ -27,8 +29,8 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
     <nav className="sidebar">
       <div className="sidebar-brand" style={{ justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }} onClick={() => onNavigate('home')}>
-          <img src="/icons/icon-192.png" alt="" className="sidebar-logo" />
-          <span className="sidebar-brand-name">JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+          <BrandMark size={34} />
+          <BrandLogo size={17} letterSpacing="-.8px" />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button

@@ -15,6 +15,6 @@
 -->
 <resources>
     <color name="shortcut_background">#F5F5F5</color>
-    <!-- Camada de fundo do adaptive icon: o token brand-deep do design system. -->
-    <color name="ic_launcher_background">#9D4300</color>
+    <!-- Camada de fundo do adaptive icon: o tile do símbolo (preto quente, --bento-ink). -->
+    <color name="ic_launcher_background">#1A1714</color>
 </resources>

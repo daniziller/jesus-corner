@@ -46,6 +46,46 @@ function saveLocally(entry) {
   writeAll(all)
 }
 
+// Tira do aparelho uma pergunta já guardada — usado por "Reportar resposta"
+// (10b): ao reportar, a resposta sai do histórico. Casa pela pergunta e pelo
+// trecho (a mesma pergunta sobre o mesmo trecho é, na prática, a mesma
+// entrada; se houver mais de uma, sai a mais recente).
+export function removePassageQuestion({ book, chapter, verseStart, verseEnd, question }) {
+  const all = readAll()
+  const key = chapterKey(book, chapter)
+  const list = all[key] ?? []
+  let idx = -1
+  for (let i = list.length - 1; i >= 0; i--) {
+    const e = list[i]
+    if (e.question === question && e.verseStart === verseStart && e.verseEnd === verseEnd) { idx = i; break }
+  }
+  if (idx < 0) return false
+  list.splice(idx, 1)
+  if (list.length) all[key] = list
+  else delete all[key]
+  writeAll(all)
+  return true
+}
+
+// "Reportar resposta" (10b) — manda o par pergunta+resposta pra revisão
+// (api/report-ai-answer.js) e tira a entrada do histórico local. A remoção
+// local acontece mesmo se o envio falhar: a pessoa pediu pra sumir com a
+// resposta, e isso não depende de rede.
+export async function reportPassageAnswer({ book, bookEn, chapter, verseStart, verseEnd, question, answer, lang }) {
+  removePassageQuestion({ book, chapter, verseStart, verseEnd, question })
+  const { data: { session: authSession } } = await supabase.auth.getSession()
+  if (!authSession) throw new Error('not_authenticated')
+  const res = await fetch('/api/report-ai-answer', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${authSession.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ book, bookEn, chapter, verseStart, verseEnd, question, answer, lang, tone: getResponseTone() }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body?.error || `request_failed_${res.status}`)
+  }
+}
+
 // "Apagar todas as perguntas" (10f) — limpa tudo de uma vez, em qualquer
 // capítulo.
 export function clearAllPassageQuestions() {
@@ -71,6 +111,18 @@ export function setSaveQuestionsEnabled(enabled) {
 // Manda a pergunta pro servidor (que decide/verifica a resposta) e, se
 // guardar estiver ligado, já salva o par pergunta+resposta localmente antes
 // de devolver — quem chama não precisa se preocupar em salvar depois.
+// Sugestões de pergunta pro menu 10a — GET público, cacheado na borda
+// (ver api/suggest-passage-questions.js). Quem chama trata falha como
+// "usa as três sugestões fixas", nunca como erro visível.
+export async function fetchPassageSuggestions({ book, bookEn, chapter, verseStart, verseEnd, lang }) {
+  const params = new URLSearchParams({ book, chapter: String(chapter), verseStart: String(verseStart), verseEnd: String(verseEnd), lang: lang === 'en' ? 'en' : 'pt' })
+  if (bookEn) params.set('bookEn', bookEn)
+  const res = await fetch(`/api/suggest-passage-questions?${params}`)
+  if (!res.ok) throw new Error(`request_failed_${res.status}`)
+  const body = await res.json()
+  return Array.isArray(body.questions) ? body.questions.slice(0, 3) : []
+}
+
 export async function askAboutPassage({ book, bookEn, chapter, verseStart, verseEnd, question, lang }) {
   const { data: { session: authSession } } = await supabase.auth.getSession()
   if (!authSession) throw new Error('not_authenticated')

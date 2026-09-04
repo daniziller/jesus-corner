@@ -74,3 +74,14 @@ export async function listAdminInvites() {
 export async function revokeInvite({ id }) {
   return authorizedPost('/api/admin/revoke-invite', { id })
 }
+
+// Reportes de resposta da IA ("Reportar resposta", 10b) — ver
+// api/admin/answer-reports.js.
+export async function listAnswerReports({ filter = 'pending', limit = 50, offset = 0 } = {}) {
+  const { reports } = await authorizedPost('/api/admin/answer-reports', { filter, limit, offset })
+  return reports
+}
+
+export async function updateAnswerReport({ id, status }) {
+  return authorizedPost('/api/admin/update-answer-report', { id, status })
+}

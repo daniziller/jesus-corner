@@ -48,7 +48,7 @@ function setGuestRow(row) {
 
 // Exportado só pro bootstrap do App.jsx saber, de forma síncrona, se este
 // dispositivo já tem progresso de convidado (decide se mostra a pergunta de
-// ritmo — GuestPaceScreen — ou já retoma direto no meio do app).
+// ritmo — OnboardingFlow — ou já retoma direto no meio do app).
 export function hasGuestRow() {
   return getGuestRow() !== null
 }
