@@ -1037,11 +1037,8 @@ const styles = {
   filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
   filtersClearBtn:   { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', padding: '2px 4px' },
   bookSelect:        { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-ink)', background: 'var(--bento-card)' },
-  filterRow:  {
-    display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2,
-    maskImage: 'linear-gradient(to right, #000 88%, transparent)',
-    WebkitMaskImage: 'linear-gradient(to right, #000 88%, transparent)',
-  },
+  // Quatro chips cabem na largura do quadro 4c: sem rolagem nem máscara.
+  filterRow:  { display: 'flex', gap: 8 },
   filterBtn:  {
     flexShrink: 0, height: 34, padding: '0 15px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
     fontSize: 12, fontWeight: 700, cursor: 'pointer', borderRadius: 12, border: 'none', fontFamily: 'var(--font-bento)',
