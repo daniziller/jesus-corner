@@ -1648,6 +1648,7 @@ function SelectionAiMenu({ anchorRect, lang, hasAI, passageRef, onClose, onAsk, 
   const [mode, setMode] = useState('menu')
   const [question, setQuestion] = useState('')
   const popupRef = useRef(null)
+  const suggestRef = useRef(null)
   const [pos, setPos] = useState(null)
   const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
 
@@ -1680,11 +1681,15 @@ function SelectionAiMenu({ anchorRect, lang, hasAI, passageRef, onClose, onAsk, 
       const vTop = vv?.offsetTop ?? 0
       const rect = el.getBoundingClientRect()
       const margin = 10
+      // O cartão de sugestões ocupa o rodapé (quadro 10a): o menu nunca
+      // entra nessa faixa — se não cabe abaixo da seleção, sobe pra cima dela.
+      const reserved = suggestRef.current ? suggestRef.current.getBoundingClientRect().height : 0
+      const bottomLimit = vTop + vh - Math.max(margin, reserved + 8)
       let left = anchorRect.left + (anchorRect.width - rect.width) / 2
       left = Math.min(Math.max(left, vLeft + margin), vLeft + vw - rect.width - margin)
       let top = anchorRect.bottom + 8
-      if (top + rect.height > vTop + vh - margin) top = anchorRect.top - rect.height - 8
-      top = Math.min(Math.max(top, vTop + margin), vTop + vh - rect.height - margin)
+      if (top + rect.height > bottomLimit) top = anchorRect.top - rect.height - 8
+      top = Math.min(Math.max(top, vTop + margin), bottomLimit - rect.height)
       setPos({ top, left })
     }
     reposition()
@@ -1694,9 +1699,8 @@ function SelectionAiMenu({ anchorRect, lang, hasAI, passageRef, onClose, onAsk, 
       window.visualViewport?.removeEventListener('resize', reposition)
       window.removeEventListener('resize', reposition)
     }
-  }, [anchorRect, mode])
+  }, [anchorRect, mode, suggestions])
 
-  const suggestRef = useRef(null)
   useEffect(() => {
     function handleOutsideClick(e) {
       if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
