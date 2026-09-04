@@ -4,7 +4,7 @@
 // marca (símbolo na placa clara + logotipo, quadro 16a/13a), a frase, as três
 // promessas reais do produto e dois caminhos — "Começar a ler" (primário,
 // sem conta) e "Já tenho conta". Ninguém precisa de conta para ler; a conta
-// entra depois da primeira leitura (ver GuestSaveInviteScreen.jsx).
+// entra depois da primeira leitura (ver SignupScreen.jsx, quadro 13c).
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import BrandMark from '../components/BrandMark'

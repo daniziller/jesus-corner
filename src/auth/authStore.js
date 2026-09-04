@@ -90,27 +90,42 @@ export async function getCurrentUser() {
 // só o usuário é criado, e ele só consegue entrar depois de clicar no link
 // enviado por email. Sinalizamos isso via needsEmailConfirmation pra que a
 // UI (AuthScreen) mostre a mensagem certa em vez de fingir que já logou.
-export async function signup({ name, email, password, language, birthdate, isPublic }) {
+//
+// Idade mínima (ver src/privacy/minAge.js): a tela de criar conta do redesign
+// (13c, SignupScreen.jsx) não pede mais a idade em número — a pessoa declara
+// "Tenho 18 anos ou mais" na mesma linha do consentimento. Por isso
+// `birthdate` virou opcional quando `ageConfirmed` vem true; a data de
+// nascimento continua podendo ser preenchida depois em Perfil (o gate de
+// idade da Comunidade tolera data ausente, ver isAtLeast em utils/age.js).
+export async function signup({ name, email, password, language, birthdate, isPublic, ageConfirmed }) {
   const cleanEmail = normalizeEmail(email)
   if (!name.trim()) throw new Error('Informe seu nome.')
   if (!isValidEmail(cleanEmail)) throw new Error('Informe um email válido.')
   if (!isValidPassword(password)) throw new Error('A senha precisa ter pelo menos 8 caracteres, com maiúscula, minúscula, número e caractere especial.')
-  if (!birthdate) throw new Error('Informe sua data de nascimento.')
-  const birthDateObj = new Date(birthdate)
-  if (Number.isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
-    throw new Error('Informe uma data de nascimento válida.')
-  }
-  // O Jesus' Corner é para maiores de 18 (ver src/privacy/minAge.js). A
-  // tela também checa antes de chegar aqui — esta é a rede de segurança
-  // para quem chamar signup() por outro caminho.
-  if (isUnderMinAge(birthdate)) {
-    throw new Error(`É preciso ter pelo menos ${MIN_AGE} anos para criar uma conta.`)
+  if (!birthdate && !ageConfirmed) throw new Error('Informe sua data de nascimento.')
+  if (birthdate) {
+    const birthDateObj = new Date(birthdate)
+    if (Number.isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
+      throw new Error('Informe uma data de nascimento válida.')
+    }
+    // O Jesus' Corner é para maiores de 18 (ver src/privacy/minAge.js). A
+    // tela também checa antes de chegar aqui — esta é a rede de segurança
+    // para quem chamar signup() por outro caminho.
+    if (isUnderMinAge(birthdate)) {
+      throw new Error(`É preciso ter pelo menos ${MIN_AGE} anos para criar uma conta.`)
+    }
   }
 
   const { data, error } = await supabase.auth.signUp({
     email: cleanEmail,
     password,
-    options: { data: { name: name.trim(), language: language ?? 'pt', birthdate, is_public: !!isPublic } },
+    options: {
+      data: {
+        name: name.trim(), language: language ?? 'pt', birthdate: birthdate ?? null, is_public: !!isPublic,
+        // Registro da declaração de idade (quando a tela não pediu a data).
+        ...(ageConfirmed && !birthdate ? { age_confirmed_at: new Date().toISOString() } : {}),
+      },
+    },
   })
   if (error) {
     if (isRateLimitError(error.message)) throw new Error('rate_limited')
@@ -154,6 +169,24 @@ export async function updateLanguage(_email, language) {
 
 export async function logout() {
   await supabase.auth.signOut()
+}
+
+// Entrar com Google/Apple (botões da tela 13b, LoginScreen.jsx). Usa o fluxo
+// OAuth do próprio Supabase: redireciona pro provedor e volta pra esta
+// mesma origem já com sessão (onAuthStateChange acima cuida do resto). Só
+// funciona depois de o provedor estar ativado no projeto (Authentication →
+// Providers) — enquanto não estiver, o Supabase responde com erro de
+// provedor não suportado/ativado, que a tela mostra como "ainda não
+// disponível" em vez de quebrar.
+export async function loginWithProvider(provider) {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+  })
+  if (error) {
+    if (/not enabled|unsupported|not supported|disabled/i.test(error.message)) throw new Error('provider_unavailable')
+    throw new Error(error.message)
+  }
 }
 
 // Envia o email de redefinição de senha — usa especificamente o template

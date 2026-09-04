@@ -2,7 +2,7 @@
 //
 // A única pergunta antes de ler: quanto tempo por dia. Sem conta, sem
 // consentimento, sem idade — isso tudo entra só no cadastro (ver
-// GuestSaveInviteScreen.jsx), depois da primeira leitura. Escolher aqui já
+// SignupScreen.jsx), depois da primeira leitura. Escolher aqui já
 // entra direto na leitura (App.jsx/startGuestReading), sem tela intermediária.
 import { useState } from 'react'
 import { t } from '../i18n'

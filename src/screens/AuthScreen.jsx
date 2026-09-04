@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { signup, login, logout, requestPasswordReset, resetPassword, resendConfirmationEmail, passwordRequirements, isValidPassword, needsPasswordChange, changePassword } from '../auth/authStore'
+import { signup, logout, resendConfirmationEmail, passwordRequirements, isValidPassword, needsPasswordChange, changePassword } from '../auth/authStore'
 import { t } from '../i18n'
 import BrandMark from '../components/BrandMark'
 import BrandLogo from '../components/BrandLogo'
@@ -17,18 +17,17 @@ import { redeemInviteCode, savePendingInviteCode, validateInviteCode } from '../
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, needsConsentRefresh, PURPOSES } from '../privacy/consent'
 import ConsentRefreshScreen from './ConsentRefreshScreen'
+import LoginScreen from './LoginScreen'
+import SignupScreen from './SignupScreen'
+import ForgotPasswordScreen from './ForgotPasswordScreen'
 import { MIN_AGE } from '../privacy/minAge'
 import { ageToApproxBirthdate } from '../utils/age'
 import { migrateGuestRow } from '../backend/userDataStore'
 import { clearGuestInviteState } from '../onboarding/guestInviteStore'
+import { HAS_AUTH_KEY } from '../auth/hasAuthKey'
 
-// Gravado no primeiro login/cadastro bem-sucedido — sem isso, quem já usa
-// o app veria o onboarding (pensado pra converter visitante novo) toda vez
-// que a sessão expirasse, em vez de cair direto no login. Exportado porque
-// App.jsx usa a MESMA chave pra decidir, no bootstrap, se mostra o login
-// direto (quem já tem conta neste dispositivo) ou a pergunta de ritmo do
-// convidado (redesign 1g/etapa 7 — ver GuestPaceScreen.jsx).
-export const HAS_AUTH_KEY = 'jc_has_authenticated'
+// Ver src/auth/hasAuthKey.js — re-exportado porque App.jsx importa daqui.
+export { HAS_AUTH_KEY }
 
 const PRAYER_DURATION_OPTIONS = [5, 10, 15, 20, 30]
 const REFLECTION_DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
@@ -55,7 +54,11 @@ const FEATURE_CARDS = [
 ]
 const FEATURE_STEPS = FEATURE_CARDS.map(c => `${FEATURE_STEP_PREFIX}${c.key}`)
 
-export default function AuthScreen({ onAuthenticated, initialMode }) {
+// `onBack` — botão de voltar das telas de conta (13b/13c/13d) quando não há
+// tela anterior dentro daqui (leva de volta às boas-vindas, ver App.jsx);
+// `onContinueWithoutAccount` — "Continuar sem conta" do 13c, segue lendo
+// como convidado. `planId`/`chaptersRead` alimentam o cartão areia do 13c.
+export default function AuthScreen({ onAuthenticated, initialMode, onBack, onContinueWithoutAccount, planId, chaptersRead = 0 }) {
   // Quem nunca autenticou nesse navegador vê o onboarding primeiro (pensado
   // pra converter visitante novo); quem já tem o flag cai direto no login,
   // como antes. `initialMode` força um modo específico — usado pelo link
@@ -63,7 +66,7 @@ export default function AuthScreen({ onAuthenticated, initialMode }) {
   // login direto mesmo em um dispositivo que nunca autenticou aqui.
   const [mode, setMode] = useState(() => (
     initialMode ?? (typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY) ? 'login' : 'onboarding')
-  )) // 'onboarding' | 'login' | 'forgot' | 'forcePasswordChange' | 'consentRefresh'
+  )) // 'onboarding' | 'login' | 'signup' | 'forgot' | 'forcePasswordChange' | 'consentRefresh'
   // Guardado durante 'forcePasswordChange'/'consentRefresh': a pessoa já
   // está autenticada no Supabase nesse ponto, só falta o app "liberar" a
   // sessão (chamar onAuthenticated) depois de resolver as pendências.
@@ -99,6 +102,40 @@ export default function AuthScreen({ onAuthenticated, initialMode }) {
     onAuthenticated(user)
   }
 
+  // Telas de conta do redesign Bento (13b/13c/13d) — tela cheia, sem o
+  // hero escuro + folha branca de antes.
+  if (mode === 'login') {
+    return (
+      <LoginScreen
+        onAuthenticated={handleAuthenticated}
+        onBack={onBack}
+        onGoSignup={() => setMode('signup')}
+        onGoForgot={() => setMode('forgot')}
+      />
+    )
+  }
+  if (mode === 'signup') {
+    return (
+      <SignupScreen
+        chaptersRead={chaptersRead}
+        planId={planId}
+        onAuthenticated={handleAuthenticated}
+        onBack={() => setMode('login')}
+        onContinueWithoutAccount={onContinueWithoutAccount}
+        onGoLogin={() => setMode('login')}
+      />
+    )
+  }
+  if (mode === 'forgot') {
+    return (
+      <ForgotPasswordScreen
+        onAuthenticated={handleAuthenticated}
+        onBack={() => setMode('login')}
+        onGoLogin={() => setMode('login')}
+      />
+    )
+  }
+
   return (
     <div className="auth-screen" style={styles.screen}>
       <div style={styles.hero}>
@@ -110,8 +147,6 @@ export default function AuthScreen({ onAuthenticated, initialMode }) {
 
       <div className="auth-sheet" style={styles.sheet}>
         {mode === 'onboarding' && <OnboardingWizard onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
-        {mode === 'login'  && <LoginView    onAuthenticated={handleAuthenticated} onGoSignup={() => setMode('onboarding')} onGoForgot={() => setMode('forgot')} />}
-        {mode === 'forgot' && <ForgotView   onAuthenticated={handleAuthenticated} onGoLogin={() => setMode('login')} />}
         {mode === 'forcePasswordChange' && (
           <ForceChangePasswordStep onDone={() => handleAuthenticated(pendingUser)} />
         )}
@@ -621,7 +656,7 @@ const CHECKLIST_ITEMS = [
 
 /* ── 8. Cadastro: checklist de recursos + conta + plano + código de convite ── */
 // Exportado — reaproveitado direto (sem passar pelo resto do assistente de
-// onboarding) por GuestSaveInviteScreen.jsx: quem já leu como convidado
+// onboarding) por SignupScreen.jsx: quem já leu como convidado
 // (redesign 1g/etapa 7) já escolheu o ritmo (planId) na pergunta única de
 // entrada, então só falta mesmo os dados de conta. `name` vem vazio nesse
 // caminho (o convite não pede nome antes) — o campo de nome abaixo só
@@ -696,7 +731,7 @@ export function SignupStep({ header, name, prayerMinutes, planId, reflectionMinu
       clearGuestInviteState()
       // Normalmente gravado pelo wrapper handleAuthenticated de AuthScreen
       // (ver mais abaixo) — mas o caminho do convite (redesign 1g/etapa 7,
-      // ver GuestSaveInviteScreen.jsx) usa este componente diretamente, sem
+      // ver SignupScreen.jsx) usa este componente diretamente, sem
       // passar por aquele wrapper, então precisa gravar aqui também (idem-
       // potente: gravar de novo no caminho normal não muda nada).
       if (typeof localStorage !== 'undefined') localStorage.setItem(HAS_AUTH_KEY, '1')
@@ -907,47 +942,6 @@ export function SignupStep({ header, name, prayerMinutes, planId, reflectionMinu
   )
 }
 
-/* ── Login ── */
-function LoginView({ onAuthenticated, onGoSignup, onGoForgot }) {
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError]       = useState('')
-  const [loading, setLoading]   = useState(false)
-
-  async function submit(e) {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      const user = await login({ email, password })
-      setError('')
-      onAuthenticated(user)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <form style={styles.form} onSubmit={submit}>
-      <h1 style={styles.title}>{t('auth.loginTitle')}</h1>
-      <p style={styles.subtitle}>{t('auth.loginSubtitle')}</p>
-
-      <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder={t('auth.emailPlaceholder')} autoFocus />
-      <PasswordField label={t('auth.passwordLabel')} value={password} onChange={setPassword} autoComplete="current-password" />
-
-      {error && <p style={styles.error}>{error}</p>}
-
-      <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading}>{loading ? t('auth.loading') : t('auth.submitLogin')}</button>
-
-      <div style={styles.linksRow}>
-        <span style={styles.link} onClick={onGoForgot}>{t('auth.forgotPassword')}</span>
-        <span style={styles.link} onClick={onGoSignup}>{t('auth.createAccount')}</span>
-      </div>
-    </form>
-  )
-}
-
 // Forçado no login de quem já tinha conta quando a senha deixou de ser um
 // PIN de 6 dígitos — ver needsPasswordChange/changePassword em
 // src/auth/authStore.js e a migration 0026. Sem opção de recusar (like
@@ -1072,104 +1066,6 @@ function ConfirmEmailView({ email, onGoLogin }) {
   )
 }
 
-/* ── Esqueci a senha ── */
-function ForgotView({ onAuthenticated, onGoLogin }) {
-  const [step, setStep]           = useState('request') // 'request' | 'reset'
-  const [email, setEmail]         = useState('')
-  const [code, setCode]           = useState('')
-  const [password, setPassword]   = useState('')
-  const [confirm, setConfirm]     = useState('')
-  const [error, setError]         = useState('')
-  const [note, setNote]           = useState('')
-  const [loading, setLoading]     = useState(false)
-
-  async function submitRequest(e) {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      await requestPasswordReset(email)
-      setError('')
-      setNote('')
-      setStep('reset')
-    } catch (err) {
-      if (err.message === 'rate_limited') {
-        // Um código já foi mandado há pouco (pedir de novo cedo demais é
-        // rejeitado pelo Supabase) — segue pra tela de digitar o código
-        // mesmo assim, com um aviso, em vez de travar a pessoa numa "conta
-        // não encontrada" quando na verdade ela já tem um código válido
-        // esperando no email.
-        setError('')
-        setNote(t('auth.resetRateLimitedNote'))
-        setStep('reset')
-      } else {
-        setNote('')
-        setError(err.message)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function submitReset(e) {
-    e.preventDefault()
-    if (password !== confirm) {
-      setError(t('auth.passwordsDontMatch'))
-      return
-    }
-    setLoading(true)
-    try {
-      const user = await resetPassword({ email, code, newPassword: password })
-      setError('')
-      onAuthenticated(user)
-    } catch (err) {
-      setError(err.message === 'same_as_old_password' ? t('auth.samePasswordError') : err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (step === 'request') {
-    return (
-      <form style={styles.form} onSubmit={submitRequest}>
-        <h1 style={styles.title}>{t('auth.forgotTitle')}</h1>
-        <p style={styles.subtitle}>{t('auth.forgotSubtitle')}</p>
-
-        <Field label={t('auth.emailLabel')} type="email" value={email} onChange={setEmail} placeholder={t('auth.emailPlaceholder')} autoFocus />
-
-        {error && <p style={styles.error}>{error}</p>}
-
-        <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading}>{loading ? t('auth.loading') : t('auth.submitSendCode')}</button>
-
-        <div style={styles.linksRow}>
-          <span />
-          <span style={styles.link} onClick={onGoLogin}>{t('auth.backToLogin')}</span>
-        </div>
-      </form>
-    )
-  }
-
-  return (
-    <form style={styles.form} onSubmit={submitReset}>
-      <h1 style={styles.title}>{t('auth.resetTitle')}</h1>
-      <p style={styles.subtitle}>{t('auth.resetSubtitle', { email })}</p>
-
-      <PinField label={t('auth.codeLabel')} value={code} onChange={setCode} length={12} />
-      <PasswordField label={t('auth.newPasswordLabel')} value={password} onChange={setPassword} showRequirements autoComplete="new-password" />
-      <PasswordField label={t('auth.confirmNewPasswordLabel')} value={confirm} onChange={setConfirm} autoComplete="new-password" />
-
-      {note && <p style={styles.resendSuccess}>{note}</p>}
-      {error && <p style={styles.error}>{error}</p>}
-
-      <button type="submit" className="btn-primary" style={{ marginTop: 6 }} disabled={loading}>{loading ? t('auth.loading') : t('auth.submitReset')}</button>
-
-      <div style={styles.linksRow}>
-        <span />
-        <span style={styles.link} onClick={onGoLogin}>{t('auth.backToLogin')}</span>
-      </div>
-    </form>
-  )
-}
-
 /* ── Campos reutilizáveis ── */
 function Field({ label, value, onChange, type = 'text', placeholder, autoFocus, max, hint }) {
   return (
@@ -1185,26 +1081,6 @@ function Field({ label, value, onChange, type = 'text', placeholder, autoFocus, 
         onChange={e => onChange(e.target.value)}
       />
       {hint && <span style={styles.fieldHint}>{hint}</span>}
-    </label>
-  )
-}
-
-// Só sobrou pro código de verificação por email (12 dígitos, gerado pelo
-// Supabase — o tamanho é definido nas configurações do projeto, não pelo
-// app). Senha de verdade usa PasswordField, abaixo.
-function PinField({ label, value, onChange, length = 6 }) {
-  return (
-    <label style={styles.fieldWrap}>
-      <span style={styles.fieldLabel}>{label}</span>
-      <input
-        style={{ ...styles.input, ...styles.pinInput }}
-        type="password"
-        inputMode="numeric"
-        maxLength={length}
-        placeholder={'•'.repeat(length)}
-        value={value}
-        onChange={e => onChange(e.target.value.replace(/\D/g, '').slice(0, length))}
-      />
     </label>
   )
 }

@@ -10,7 +10,7 @@ import GuestPaceScreen from './screens/GuestPaceScreen'
 import WelcomeScreen from './screens/WelcomeScreen'
 import BrandMark from './components/BrandMark'
 import BrandLogo from './components/BrandLogo'
-import GuestSaveInviteScreen from './screens/GuestSaveInviteScreen'
+import SignupScreen from './screens/SignupScreen'
 import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
 import { needsConsentRefresh } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
@@ -323,11 +323,15 @@ export default function App() {
   // o caso de quem chega pelo login; isto cobre quem já estava com sessão
   // aberta quando a política mudou.
   const [consentRefreshNeeded, setConsentRefreshNeeded] = useState(false)
-  // Link "Já tenho conta" do GuestPaceScreen/GuestSaveInviteScreen
-  // (redesign 1g/etapa 7) — força AuthScreen em modo login mesmo num
-  // dispositivo que nunca autenticou aqui (sem isso, cairia sempre na
-  // pergunta de ritmo do convidado, mesmo pra quem já tem conta).
+  // "Já tenho conta" (boas-vindas 13a / ritmo do convidado / criar conta
+  // 13c) — força AuthScreen em modo login mesmo num dispositivo que nunca
+  // autenticou aqui (sem isso, cairia sempre nas boas-vindas do convidado,
+  // mesmo pra quem já tem conta).
   const [authScreenForced, setAuthScreenForced] = useState(false)
+  // Botão de voltar do login (13b) / "Continuar sem conta" (13c) num
+  // dispositivo que já autenticou antes: em vez de cair de novo no login,
+  // mostra as boas-vindas e deixa seguir como convidado.
+  const [loginDismissed, setLoginDismissed] = useState(false)
   // Boas-vindas (13a) — a capa do app pra quem nunca autenticou neste
   // dispositivo. "Começar a ler" segue pra pergunta de ritmo (GuestPaceScreen,
   // até o onboarding de 15a–15e existir); "Já tenho conta" vai pro login.
@@ -1054,9 +1058,8 @@ export default function App() {
   // direto — mesma fonte que a tela de login usaria de qualquer forma.
   function buildGuestUser() {
     const lang = getAppLanguage() ?? 'pt'
-    // Nome só de exibição (Sidebar/Perfil) — não é o que o formulário de
-    // cadastro usa (GuestSaveInviteScreen manda name="" pra SignupStep de
-    // propósito, pra mostrar o campo de nome de verdade nessa hora).
+    // Nome só de exibição (Sidebar/Perfil) — o formulário de criar conta
+    // (SignupScreen.jsx) pede o nome de verdade nessa hora.
     return { id: null, email: null, name: lang === 'en' ? 'Guest' : 'Convidado', language: lang, birthdate: null, isGuest: true }
   }
 
@@ -1431,15 +1434,21 @@ export default function App() {
     // pro login de sempre. Quem nunca autenticou aqui vê a pergunta única
     // de ritmo (GuestPaceScreen) em vez do cadastro — só entra em contato
     // com conta/senha/consentimento depois de já ter lido algo (ver
-    // GuestSaveInviteScreen mais abaixo, no gate pós-bootstrapped).
-    if (authScreenForced || (typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY))) {
+    // SignupScreen mais abaixo, no gate pós-bootstrapped).
+    if (authScreenForced || (!loginDismissed && typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY))) {
       // authScreenForced sempre quer dizer "já tenho conta" (veio de um
       // link explícito no fluxo de convidado) — força login mesmo se este
       // dispositivo específico nunca autenticou aqui (nesse caso, sem o
       // initialMode, AuthScreen cairia no onboarding antigo por padrão).
       return (
         <>
-          <AuthScreen onAuthenticated={handleAuthenticated} initialMode={authScreenForced ? 'login' : undefined} />
+          <AuthScreen
+            onAuthenticated={handleAuthenticated}
+            initialMode={authScreenForced ? 'login' : undefined}
+            planId={planId}
+            onBack={() => { setAuthScreenForced(false); setLoginDismissed(true) }}
+            onContinueWithoutAccount={() => { setAuthScreenForced(false); setLoginDismissed(true) }}
+          />
           <Analytics />
         </>
       )
@@ -1474,23 +1483,21 @@ export default function App() {
     )
   }
 
-  // Convite a salvar (redesign 1g/etapa 7) — aparece depois da 1ª leitura
-  // concluída em modo convidado, e de novo a cada duas leituras se a pessoa
-  // continuar sem conta (ver src/onboarding/guestInviteStore.js). Tela
-  // cheia (não um card dentro do app) — é a "tela 2" do fluxo de entrada, o
-  // mesmo peso visual da pergunta de ritmo que a trouxe até aqui.
+  // Criar conta depois de já ter lido (quadro 13c) — aparece depois da 1ª
+  // leitura concluída em modo convidado, e de novo a cada duas leituras se
+  // a pessoa continuar sem conta (ver src/onboarding/guestInviteStore.js).
+  // Tela cheia: mostra o que vai para a conta; "Continuar sem conta" (e o
+  // voltar) só adiam o convite, nada do progresso se perde.
   if (authUser.isGuest && completedSet.size >= getGuestInviteThreshold()) {
-    const lastKey = [...completedSet].at(-1) ?? ''
-    const [lastBook, lastPart] = lastKey.split(':')
-    const lastReadLabel = lastPart === 'reflection' ? lastBook : `${lastBook} ${lastPart}`
+    const dismiss = () => { dismissGuestInvite(completedSet.size); goToTab('home') }
     return (
       <>
-        <GuestSaveInviteScreen
-          lastReadLabel={lastReadLabel}
+        <SignupScreen
           chaptersRead={completedSet.size}
           planId={planId}
           onAuthenticated={handleAuthenticated}
-          onDismiss={() => { dismissGuestInvite(completedSet.size); goToTab('home') }}
+          onBack={dismiss}
+          onContinueWithoutAccount={dismiss}
           onGoLogin={() => { setAuthScreenForced(true); setAuthUser(null) }}
         />
         <Analytics />

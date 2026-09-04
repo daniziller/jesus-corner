@@ -139,6 +139,8 @@
   --bento-sand-ink-mid: #7A6B58;
   /* Mais claro que --bento-t5: o "—" dos blocos ainda não começados (5b). */
   --bento-t6: #D6CFC7;
+  /* Linha do divisor "ou" nas telas de conta (13b). */
+  --bento-divider: #DDD6CE;
   --font-bento: 'Manrope', sans-serif;
 }
 
