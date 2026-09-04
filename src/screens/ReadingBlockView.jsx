@@ -1211,7 +1211,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                 </button>
               </div>
             )}
-            {heroSession.type !== 'reflection' && (
+            {/* Quadro 17c: com grupo, o rodapé é a chave + Ferramentas/Concluir,
+                sem o player — o áudio continua em Ferramentas. */}
+            {heroSession.type !== 'reflection' && !myGroup && (
               <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact />
             )}
             <div style={styles.readerFooterRow}>
@@ -1240,6 +1242,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           lang={lang}
           title={t('reading.toolsBtn', undefined, lang)}
           items={[
+            // Com grupo (17c) o player sai do rodapé e passa a viver aqui.
+            ...(myGroup && heroSession.type !== 'reflection' ? [
+              { key: 'audio', icon: 'AudioLines', label: t('bibleAudio.listenChapter', undefined, lang), node: <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact /> },
+            ] : []),
             ...(heroBooks.length > 0 ? [
               { key: 'contexto', icon: 'BookOpen', label: t('reading.tagContext', undefined, lang), node: <InfoPanel type="contexto" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
               { key: 'mapa', icon: 'Map', label: t('reading.tagMap', undefined, lang), node: <InfoPanel type="mapa" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
