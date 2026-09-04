@@ -849,6 +849,7 @@ export const STRINGS = {
       dontKnowFilled: 'Sem problema — vamos com outra pergunta.',
       inputPlaceholder: 'Escreva sua resposta...',
       remainingLabel: 'falta a reflexão',
+      remainingWithMin: 'falta a reflexão · {n} min',
       chapterDoneSuffix: 'concluído',
     },
     // Ajustes do assistente de IA — tela 10f do redesign Bento.
@@ -1488,6 +1489,7 @@ export const STRINGS = {
       thisWeek: 'This week',
       streakLabel: 'day streak',
       remainingLabel: 'of Bible remaining',
+      remainingWithMin: 'reflection left · {n} min',
       shareCardBtn: 'Share progress',
       shareCardGenerating: 'Generating image…',
       shareCardError: "Couldn't generate the image right now. Try again?",

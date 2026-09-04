@@ -325,6 +325,9 @@ export default function App() {
   // dispositivo que nunca autenticou aqui (sem isso, cairia sempre na
   // pergunta de ritmo do convidado, mesmo pra quem já tem conta).
   const [authScreenForced, setAuthScreenForced] = useState(false)
+  // Reflexão com perguntas geradas (10d) na tela — ReflectionScreen avisa
+  // (onAiFlowChange) pra o shell tirar cabeçalho e barra, como no quadro.
+  const [reflectionAiActive, setReflectionAiActive] = useState(false)
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
@@ -1577,10 +1580,12 @@ export default function App() {
   // fica só nas telas que ainda não foram desenhadas (Perfil, Oração,
   // Comunidade, Estudos…), e é lá que continuam o sino e o ajuste de
   // tamanho de texto. Perfil é alcançado pelo avatar da Home.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings'].includes(activeTab)
+  const reflectionBento = activeTab === 'reflection' && reflectionAiActive
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings'].includes(activeTab) || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
-  // botão "Salvar plano"); saem pela própria seta de voltar.
-  const navHidden = immersiveReading || ['adjustPlan'].includes(activeTab)
+  // botão "Salvar plano"; 10d: o rodapé é "Próxima pergunta"); saem pela
+  // própria seta de voltar / ao concluir.
+  const navHidden = immersiveReading || ['adjustPlan'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">
@@ -1613,7 +1618,7 @@ export default function App() {
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} lastReadChapterInfo={lastReadChapterInfo} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} />
+                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} lastReadChapterInfo={lastReadChapterInfo} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onAiFlowChange={setReflectionAiActive} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (
