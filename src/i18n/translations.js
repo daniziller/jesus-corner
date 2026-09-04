@@ -1134,6 +1134,18 @@ export const STRINGS = {
     // Redesign 1g/etapa 7 — "Entrada": ler antes de cadastrar. Duas telas,
     // ver GuestPaceScreen.jsx (a pergunta) e GuestSaveInviteScreen.jsx (o
     // convite a salvar, depois da 1ª leitura).
+    // Boas-vindas — quadro 13a do redesign Bento.
+    welcome: {
+      tagline: 'leitura diária',
+      title: 'A Bíblia inteira, um dia por vez.',
+      subtitle: 'Do primeiro ao último livro, com um plano que cabe na sua rotina. Você diz quanto tempo tem — eu organizo o caminho.',
+      promise1: 'Oração, leitura e reflexão, no seu ritmo',
+      promise2: 'Pergunte sobre o texto enquanto lê',
+      promise3: 'Meta semanal — um dia perdido não zera nada',
+      startBtn: 'Começar a ler',
+      loginBtn: 'Já tenho conta',
+      note: 'Sem cadastro agora. A conta entra quando você quiser salvar.',
+    },
     guestEntry: {
       stepLabel: 'Passo 1 de 1',
       title: 'Quanto tempo você tem por dia?',
@@ -2479,6 +2491,17 @@ export const STRINGS = {
     // Redesign 1g/step 7 — "Entry": read before you sign up. Two screens,
     // see GuestPaceScreen.jsx (the question) and GuestSaveInviteScreen.jsx
     // (the save invite, after the 1st reading).
+    welcome: {
+      tagline: 'daily reading',
+      title: 'The whole Bible, one day at a time.',
+      subtitle: "From the first book to the last, with a plan that fits your routine. You say how much time you have — I organize the way.",
+      promise1: 'Prayer, reading and reflection, at your pace',
+      promise2: 'Ask about the text while you read',
+      promise3: 'Weekly goal — a missed day resets nothing',
+      startBtn: 'Start reading',
+      loginBtn: 'I already have an account',
+      note: 'No sign-up now. The account comes in when you want to save.',
+    },
     guestEntry: {
       stepLabel: 'Step 1 of 1',
       title: 'How much time do you have per day?',

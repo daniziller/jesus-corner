@@ -1,4 +1,6 @@
 import { LANGUAGES } from '../i18n'
+import BrandMark from '../components/BrandMark'
+import BrandLogo from '../components/BrandLogo'
 import { setAppLanguage } from '../i18n/appLanguageStore'
 
 // Primeira tela do app quando ainda não existe usuário logado nem idioma
@@ -15,8 +17,8 @@ export default function LanguageSelectScreen({ onSelect }) {
       <div style={styles.hero}>
         <div style={styles.heroOrbOrange} />
         <div style={styles.heroOrbPink} />
-        <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-        <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+        <BrandMark size={60} variant="plate" style={{ position: 'relative', marginBottom: 10 }} />
+        <BrandLogo size={20} onDark style={{ position: 'relative' }} />
       </div>
 
       <div style={styles.sheet}>

@@ -7,6 +7,9 @@ import Sidebar from './components/Sidebar'
 import { useIsDesktop } from './utils/useIsDesktop'
 import AuthScreen, { HAS_AUTH_KEY } from './screens/AuthScreen'
 import GuestPaceScreen from './screens/GuestPaceScreen'
+import WelcomeScreen from './screens/WelcomeScreen'
+import BrandMark from './components/BrandMark'
+import BrandLogo from './components/BrandLogo'
 import GuestSaveInviteScreen from './screens/GuestSaveInviteScreen'
 import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
 import { needsConsentRefresh } from './privacy/consent'
@@ -325,6 +328,10 @@ export default function App() {
   // dispositivo que nunca autenticou aqui (sem isso, cairia sempre na
   // pergunta de ritmo do convidado, mesmo pra quem já tem conta).
   const [authScreenForced, setAuthScreenForced] = useState(false)
+  // Boas-vindas (13a) — a capa do app pra quem nunca autenticou neste
+  // dispositivo. "Começar a ler" segue pra pergunta de ritmo (GuestPaceScreen,
+  // até o onboarding de 15a–15e existir); "Já tenho conta" vai pro login.
+  const [welcomeDone, setWelcomeDone] = useState(false)
   // Reflexão com perguntas geradas (10d) na tela — ReflectionScreen avisa
   // (onAiFlowChange) pra o shell tirar cabeçalho e barra, como no quadro.
   const [reflectionAiActive, setReflectionAiActive] = useState(false)
@@ -1437,6 +1444,14 @@ export default function App() {
         </>
       )
     }
+    if (!welcomeDone) {
+      return (
+        <>
+          <WelcomeScreen onStart={() => setWelcomeDone(true)} onGoLogin={() => setAuthScreenForced(true)} />
+          <Analytics />
+        </>
+      )
+    }
     return (
       <>
         <GuestPaceScreen onStart={startGuestReading} onGoLogin={() => setAuthScreenForced(true)} />
@@ -1688,9 +1703,11 @@ function PremiumRequired({ feature, lang, onNavigate }) {
 // de dados vazios antes do carregamento terminar.
 function SplashScreen() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'var(--bk-hero)', gap: 14 }}>
-      <img src="/icons/icon-192.png" alt="" style={{ width: 60, height: 60, borderRadius: 15, boxShadow: '0 10px 24px rgba(0,0,0,.35)' }} />
-      <span style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: 1 }}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+    // Marca nova (quadros 16a/13a): sobre fundo escuro, o símbolo na placa
+    // clara e o logotipo com "Corner" laranja.
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'var(--bento-ink)', gap: 14 }}>
+      <BrandMark size={66} variant="plate" />
+      <BrandLogo size={19} onDark letterSpacing="-.8px" />
     </div>
   )
 }

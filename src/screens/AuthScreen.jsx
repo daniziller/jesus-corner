@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { signup, login, logout, requestPasswordReset, resetPassword, resendConfirmationEmail, passwordRequirements, isValidPassword, needsPasswordChange, changePassword } from '../auth/authStore'
 import { t } from '../i18n'
+import BrandMark from '../components/BrandMark'
+import BrandLogo from '../components/BrandLogo'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
 import AppIcon from '../icons/AppIcon'
@@ -102,8 +104,8 @@ export default function AuthScreen({ onAuthenticated, initialMode }) {
       <div style={styles.hero}>
         <div style={styles.heroOrbOrange} />
         <div style={styles.heroOrbPink} />
-        <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-        <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+        <BrandMark size={34} variant="plate" style={{ position: 'relative' }} />
+        <BrandLogo size={15.5} onDark style={{ position: 'relative' }} />
       </div>
 
       <div className="auth-sheet" style={styles.sheet}>

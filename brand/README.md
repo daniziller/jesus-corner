@@ -1,58 +1,61 @@
-# Ícones — Jesus' Corner
+# Marca — Jesus' Corner
 
-A **cruz é a mesma do logo original** — nada foi redesenhado. `render.py` a
-extrai do PNG existente por luminância, preservando cada detalhe do pincel, e
-recompõe sobre o novo fundo.
+Identidade Bento (quadros 16a–16c de `design_handoff_jesus_corner/Jesus Corner
+Redesign.dc.html`). O símbolo é um livro aberto: tile preto quente `#1A1714`
+com raio de ~29% do lado, duas páginas `#A29A91` com linhas de texto
+`#1A1714` e a lombada `#F0662B`. O logotipo é Manrope 800 com tracking −5%,
+"Jesus'" na tinta (branco sobre escuro) e **"Corner" sempre em `#F0662B`**.
 
-Fundo principal: `#9D4300` (`--brand-deep`), a mesma cor do wordmark.
-Cruz: creme `#FFF7F0`.
+## Uma geometria, duas saídas
 
-## O que foi corrigido
+| onde | arquivo |
+| --- | --- |
+| geometria e cores (sem React) | `src/brand/brandSymbol.js` |
+| símbolo na interface (SVG) | `src/components/BrandMark.jsx` |
+| logotipo na interface | `src/components/BrandLogo.jsx` |
+| ícones do app (PNG) | `brand/render-icons.mjs` |
 
-| defeito no arquivo antigo | consequência | correção |
-|---|---|---|
-| marca ocupava 46% do canvas (81% transparente) | ícone aparecia menor que os vizinhos na tela inicial | o tile agora sangra até a borda — 100% |
-| PNG com canal alpha | o iOS não aceita alpha e pinta o transparente de preto | saída de iOS opaca |
-| não havia versão maskable | o Android recorta num círculo de 80% e cortaria a arte | variante com a cruz dentro da zona segura |
-| cinza-azulado `#242C34` no fundo | cor fora do design system | substituído por `--brand-deep` |
+Os PNGs são renderizados pelo Chromium a partir da mesma geometria que o app
+desenha — nunca divergem da tela.
 
-## Arquivos
+## Regra de redução (quadro 16b)
+
+72px com três linhas por página, 44px com duas, 28px e 16px sem nenhuma —
+só as duas páginas e a lombada. `BrandMark` aplica isso sozinho pelo tamanho.
+
+## Variações (quadro 16c) — três, e só três
+
+- **Padrão**: tile preto, páginas cinza, lombada laranja — sobre fundo claro
+  e sobre laranja (onde o logotipo inteiro fica preto).
+- **Sobre fundo escuro**: o mesmo símbolo dentro de uma placa `#EDE8E2` com
+  7px de respiro (quadro 13a) — `variant="plate"`.
+- **Monocromática**: só para carimbo, fatura e favicon — `variant="mono"`.
+
+Não inclinar, não abrir em perspectiva, não arredondar as páginas além de
+6px, não trocar a cor da lombada, não colorir "Jesus'" de laranja e não usar
+o símbolo dentro dos blocos escuros de IA (ali o sinal é o losango).
+
+## Arquivos gerados
 
 | arquivo | onde usar |
-|---|---|
-| `icon-512.png`, `icon-192.png` | PWA (`purpose: any`), header do app |
-| `icon-ios-1024.png` | Xcode / App Store — quadrado, **sem alpha** |
-| `icon-maskable-512.png` | PWA/Android `purpose: maskable` |
-| `favicon-48.png`, `favicon-32.png` | favicon |
-| `icon-dark-512.png` | cruz branca sobre `--bk` — contextos escuros (splash, email) |
-| `icon-light-512.png` | cruz `--brand-deep` sobre `--olt` — superfícies claras, marca d'água |
+| --- | --- |
+| `icon-512.png`, `icon-192.png` | PWA (`purpose: any`), `public/icons/` |
+| `icon-maskable-512.png` | PWA/Android `purpose: maskable` — tile sangrando, livro na zona segura |
+| `icon-ios-1024.png` | Xcode / App Store — quadrado, sem alpha |
+| `favicon-48.png`, `favicon-32.png` | favicon (32px já sem linhas) |
+| `icon-plate-512.png` | sobre fundo escuro (placa creme) |
+| `icon-inverse-512.png` | sobre preto: tile laranja, páginas pretas (16c) |
+| `icon-mono-512.png` | carimbo/fatura |
 
-## Verificado
-
-- iOS sem canal alpha, quadrado cheio de 1024
-- maskable com a cruz inteira dentro do círculo de 80%
-- contraste: principal 6,1:1 · escura 18,7:1 · clara 5,8:1
-- legível a 24px
-
-## Limitação conhecida
-
-A maior fonte disponível no repositório tem a marca com **234px**, então os
-tamanhos grandes são interpolados e ficam um pouco macios — aceitável até
-512px, perceptível no 1024 do iOS.
-
-Para resolver, troque `SRC` no `render.py` por um SVG ou PNG de 1024px ou mais
-e rode de novo. O resto do script não muda.
-
-## Também encontrado
-
-`ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` ainda é o
-**placeholder azul do Capacitor** — o app iOS nunca recebeu o logo do Jesus'
-Corner.
+O script também instala: `public/icons/*`, o AppIcon e os splashes do iOS,
+e no Android TWA o launcher legado, a camada de frente do ícone adaptativo
+(`ic_maskable`, fundo `#1A1714` em `values/colors.xml`), o ícone de
+notificação (silhueta branca) e os splashes.
 
 ## Regenerar
 
 ```
-cd brand && python3 render.py
+node brand/render-icons.mjs
 ```
 
-Requer apenas Pillow.
+Precisa do Playwright com Chromium (`npx playwright install chromium`).
