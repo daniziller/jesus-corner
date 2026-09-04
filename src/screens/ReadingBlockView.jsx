@@ -1577,7 +1577,7 @@ function ChapterContextScreen({ lang, book, chapter, data, onBegin, onSkip }) {
     <div style={styles.contextScreen}>
       <div style={styles.contextHeader}>
         <button style={styles.contextBackBtn} onClick={onSkip} aria-label={t('a11y.goBack', undefined, lang)}>
-          <AppIcon name="ArrowLeft" size={16} color="var(--bento-ink)" />
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
         <div>
           <p style={styles.contextHeaderTitle}>{book} {chapter}</p>
