@@ -178,6 +178,16 @@ export async function logout() {
 // Providers) — enquanto não estiver, o Supabase responde com erro de
 // provedor não suportado/ativado, que a tela mostra como "ainda não
 // disponível" em vez de quebrar.
+// Quais provedores OAuth estão ativados no projeto Supabase — lista separada
+// por vírgula em VITE_OAUTH_PROVIDERS (ex: "google,apple"). Vazio (padrão)
+// esconde os botões da tela de entrar, em vez de mostrar botões que falham.
+export function enabledOAuthProviders() {
+  return String(import.meta.env.VITE_OAUTH_PROVIDERS ?? '')
+    .split(',')
+    .map(p => p.trim().toLowerCase())
+    .filter(p => p === 'google' || p === 'apple')
+}
+
 export async function loginWithProvider(provider) {
   const { error } = await supabase.auth.signInWithOAuth({
     provider,

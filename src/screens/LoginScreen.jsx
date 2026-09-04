@@ -6,7 +6,7 @@
 // dependem do provedor estar ativado no projeto Supabase). Rodapé
 // "Não tem conta? Criar conta" leva ao 13c.
 import { useState } from 'react'
-import { login, loginWithProvider } from '../auth/authStore'
+import { login, loginWithProvider, enabledOAuthProviders } from '../auth/authStore'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { AccountShell, AccountField, AccountPasswordField, AccountPrimaryButton, AccountError, FONT, ui } from './accountUi'
@@ -18,6 +18,10 @@ export default function LoginScreen({ onAuthenticated, onBack, onGoSignup, onGoF
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Google/Apple só aparecem com o provedor ativado no Supabase (ver
+  // VITE_OAUTH_PROVIDERS em .env.example) — sem nenhum, o divisor "ou" e os
+  // dois botões do quadro 13b ficam de fora até a configuração existir.
+  const providers = enabledOAuthProviders()
 
   async function submit(e) {
     e.preventDefault()
@@ -60,22 +64,24 @@ export default function LoginScreen({ onAuthenticated, onBack, onGoSignup, onGoF
         <AccountPrimaryButton type="submit" label={loading ? t('auth.loading', undefined, lang) : L('loginBtn')} disabled={loading} style={{ margin: '0 0 22px' }} />
       </form>
 
-      <div style={styles.dividerRow}>
-        <div style={styles.dividerLine} />
-        <span style={styles.dividerText}>{L('or')}</span>
-        <div style={styles.dividerLine} />
-      </div>
+      {providers.length > 0 && (
+        <>
+          <div style={styles.dividerRow}>
+            <div style={styles.dividerLine} />
+            <span style={styles.dividerText}>{L('or')}</span>
+            <div style={styles.dividerLine} />
+          </div>
 
-      <div style={styles.providers}>
-        <button type="button" style={styles.providerBtn} onClick={() => withProvider('google')}>
-          <span style={styles.providerDot} />
-          <span style={styles.providerText}>{L('google')}</span>
-        </button>
-        <button type="button" style={styles.providerBtn} onClick={() => withProvider('apple')}>
-          <span style={styles.providerDot} />
-          <span style={styles.providerText}>{L('apple')}</span>
-        </button>
-      </div>
+          <div style={styles.providers}>
+            {providers.map(p => (
+              <button key={p} type="button" style={styles.providerBtn} onClick={() => withProvider(p)}>
+                <span style={styles.providerDot} />
+                <span style={styles.providerText}>{L(p)}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </>
   )
 
