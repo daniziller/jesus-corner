@@ -1782,7 +1782,6 @@ export const STRINGS = {
       thisWeek: 'This week',
       streakLabel: 'day streak',
       remainingLabel: 'of Bible remaining',
-      remainingWithMin: 'reflection left · {n} min',
       shareCardBtn: 'Share progress',
       shareCardGenerating: 'Generating image…',
       shareCardError: "Couldn't generate the image right now. Try again?",
@@ -2500,6 +2499,7 @@ export const STRINGS = {
       dontKnowFilled: "No worries — let's go with another question.",
       inputPlaceholder: 'Write your answer...',
       remainingLabel: 'reflection left',
+      remainingWithMin: 'reflection left · {n} min',
       chapterDoneSuffix: 'completed',
     },
     aiSettings: {
