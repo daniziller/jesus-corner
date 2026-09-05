@@ -34,7 +34,7 @@ export function shouldShowDashboard(session) {
   return ageDays >= FIRST_DAYS
 }
 
-export default function HomeDashboard({ session, readingSeconds = 0, onContinueSession, onNavigate, onStartGuided }) {
+export default function HomeDashboard({ session, readingSeconds = 0, onContinueSession, onNavigate, onStartGuided, onOpenProfile }) {
   const {
     lang, hasPremium, userName, avatarInitials, todaySession, weeksInGoal,
     biblePercent, chaptersRead, totalChapters, booksCompleted, currentBlock,
@@ -89,7 +89,7 @@ export default function HomeDashboard({ session, readingSeconds = 0, onContinueS
           <p style={s.greeting}>{greetingFor(lang, userName)}</p>
           <p style={s.date}>{formatToday(lang)}</p>
         </div>
-        <button style={s.avatar} onClick={() => onNavigate?.('profile')} aria-label={translate('nav.profile', undefined, lang)}>
+        <button style={s.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
           {avatarInitials}
         </button>
       </div>
