@@ -132,7 +132,6 @@ export const STRINGS = {
       continueSession: 'Continuar sessão →',
       reviewSession: 'Revisar sessão →',
       thisWeek: 'Esta semana',
-      streakLabel: 'dias seguidos',
       remainingLabel: 'restante da Bíblia',
       shareCardBtn: 'Compartilhar progresso',
       shareCardGenerating: 'Gerando imagem…',
@@ -174,7 +173,6 @@ export const STRINGS = {
       routineDoneTag: 'Feito hoje',
       routineViewCalendar: 'Ver calendário',
       routineHideCalendar: 'Ocultar calendário',
-      routineAllDoneMsg: 'Plano completo hoje! Sua sequência continua. 🔥',
       routineAdjustTimes: 'Ajustar tempos do plano',
     },
     journey: {
@@ -461,7 +459,6 @@ export const STRINGS = {
       heroTagline: 'Continue firme, um passo de cada vez.',
       bibleComplete: 'Bíblia concluída',
       testaments: 'Testamentos',
-      streakLabel: 'dias seguidos',
       chaptersRead: 'capítulos lidos',
       booksCompleted: 'livros concluídos',
       xpToNext: '{n} XP para {title}',
@@ -502,7 +499,6 @@ export const STRINGS = {
     },
     profile: {
       pageTitle: 'Perfil',
-      sequenceLabel: 'sequência',
       bibleLabel: 'da Bíblia',
       friendsLabel: 'amigos',
       levelLabel: 'nível',
@@ -1097,7 +1093,7 @@ export const STRINGS = {
       compare: {
         reading: 'Ler a Bíblia (4 ritmos)',
         prayer: 'Oração e reflexão guiadas',
-        basicProgress: 'Progresso: sequência, % da Bíblia',
+        basicProgress: 'Progresso: constância semanal, % da Bíblia',
         voice: 'Voz natural + mãos-livres',
         guided: 'Rotina guiada automática',
         achievements: 'XP, níveis e conquistas',
@@ -1812,7 +1808,6 @@ export const STRINGS = {
       continueSession: 'Continue session →',
       reviewSession: 'Review session →',
       thisWeek: 'This week',
-      streakLabel: 'day streak',
       remainingLabel: 'of Bible remaining',
       shareCardBtn: 'Share progress',
       shareCardGenerating: 'Generating image…',
@@ -1854,7 +1849,6 @@ export const STRINGS = {
       routineDoneTag: 'Done today',
       routineViewCalendar: 'View calendar',
       routineHideCalendar: 'Hide calendar',
-      routineAllDoneMsg: "Plan complete today! Your streak continues. 🔥",
       routineAdjustTimes: 'Adjust plan times',
     },
     journey: {
@@ -2126,7 +2120,6 @@ export const STRINGS = {
       heroTagline: 'Keep going, one step at a time.',
       bibleComplete: 'Bible completed',
       testaments: 'Testaments',
-      streakLabel: 'day streak',
       chaptersRead: 'chapters read',
       booksCompleted: 'books completed',
       xpToNext: '{n} XP to {title}',
@@ -2163,7 +2156,6 @@ export const STRINGS = {
     },
     profile: {
       pageTitle: 'Profile',
-      sequenceLabel: 'streak',
       bibleLabel: 'of the Bible',
       friendsLabel: 'friends',
       levelLabel: 'level',
@@ -2735,7 +2727,7 @@ export const STRINGS = {
       compare: {
         reading: 'Read the Bible (4 paces)',
         prayer: 'Guided prayer and reflection',
-        basicProgress: 'Progress: streak, % of the Bible',
+        basicProgress: 'Progress: weekly consistency, % of the Bible',
         voice: 'Natural voice + hands-free',
         guided: 'Automatic guided routine',
         achievements: 'XP, levels and achievements',
