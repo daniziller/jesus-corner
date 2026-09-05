@@ -47,14 +47,17 @@ import { monthLabel } from './MonthRecapScreen'
 // passagem/dia do plano de leitura. 'study' é sintético, montado a partir
 // de STUDIES + IA + indutivo (ver studyEntries no useEffect abaixo), não
 // tem uma "note" de verdade por trás.
+// O quadro 4c mostra só quatro chips (Todas · Notas · Marcações ·
+// Estudos), mas o de Sermões voltou a pedido da autora — sem ele (e sem
+// o painel de filtros abaixo) não tinha mais como isolar só as
+// anotações de sermão ou filtrar por livro/cor/preletor/data.
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
   { key: 'notes', types: ['reading', 'book-reflection', 'daily-reflection', 'application-phrase', 'recap'], labelKey: 'notes.filterNotes' },
   { key: 'highlight', types: ['highlight'], labelKey: 'notes.filterHighlights' },
   { key: 'study', types: ['study'], labelKey: 'notes.filterStudy' },
+  { key: 'sermon', types: ['sermon'], labelKey: 'notes.filterSermon' },
 ]
-// Quadro 4c: quatro chips (Todas · Notas · Marcações · Estudos). Sermões
-// aparecem em "Todas".
 
 // Cor própria por tipo — mesma cor usada no rótulo de cada card, pra dar
 // pra reconhecer o tipo de longe. Reskin Bento: o quadradinho de ícone
@@ -863,8 +866,116 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           </div>
         )}
 
-        {/* O painel de filtros por livro/cor/preletor/data saiu com o reskin
-            (o quadro 4c só tem a busca e os quatro chips). */}
+        {/* Painel de filtros (livro/cor/preletor/data) — não está no quadro
+            4c (só busca + chips), mas a autora pediu de volta: sem ele não
+            tinha mais como filtrar por livro, cor da marcação, preletor ou
+            data. Minimizado por padrão — só o botão "Filtros" aparece, com
+            uma bolinha mostrando quantos estão ativos. */}
+        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
+          <>
+            <button style={styles.filtersToggleBtn} onClick={() => setFiltersOpen(v => !v)}>
+              <AppIcon name="SlidersHorizontal" size={14} color="var(--bento-t3)" />
+              <span style={styles.filtersToggleLabel}>{t('notes.filtersToggle', undefined, lang)}</span>
+              {activeFilterCount > 0 && <span style={styles.filtersBadge}>{activeFilterCount}</span>}
+              <AppIcon
+                name="ChevronDown" size={14} color="var(--bento-t5)"
+                style={{ marginLeft: 'auto', transform: filtersOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
+              />
+            </button>
+
+            {filtersOpen && (
+              <>
+                {/* Livro — só notas de leitura/marcação têm um; lista só
+                    os que já têm alguma anotação, em ordem canônica. */}
+                {availableBooks.length > 0 && (
+                  <select
+                    style={styles.bookSelect}
+                    value={bookFilter ?? ''}
+                    onChange={e => setBookFilter(e.target.value || null)}
+                    aria-label={t('notes.filterBookAll', undefined, lang)}
+                  >
+                    <option value="">{t('notes.filterBookAll', undefined, lang)}</option>
+                    {availableBooks.map(b => (
+                      <option key={b} value={b}>{bookLabel(b)}</option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Cor — só dentro da aba "Marcações", pra achar um
+                    versículo pela cor usada. */}
+                {filter === 'highlight' && (
+                  <div style={styles.colorFilterRow}>
+                    <button
+                      style={{ ...styles.colorFilterAllBtn, ...(colorFilter === null ? styles.colorFilterAllBtnActive : {}) }}
+                      onClick={() => setColorFilter(null)}
+                    >
+                      {t('notes.filterColorAll', undefined, lang)}
+                    </button>
+                    {HIGHLIGHT_COLORS.map(c => (
+                      <button
+                        key={c.id}
+                        style={{ ...styles.colorSwatchBtn, background: c.swatch, ...(colorFilter === c.id ? styles.colorSwatchBtnActive : {}) }}
+                        onClick={() => setColorFilter(v => (v === c.id ? null : c.id))}
+                        aria-label={t(c.labelKey, undefined, lang)}
+                        aria-pressed={colorFilter === c.id}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Preletor — só dentro da aba "Sermão". */}
+                {filter === 'sermon' && availablePreachers.length > 0 && (
+                  <select
+                    style={styles.bookSelect}
+                    value={preacherFilter ?? ''}
+                    onChange={e => setPreacherFilter(e.target.value || null)}
+                    aria-label={t('notes.filterPreacherAll', undefined, lang)}
+                  >
+                    <option value="">{t('notes.filterPreacherAll', undefined, lang)}</option>
+                    {availablePreachers.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Data de quando foi adicionada. */}
+                <div style={styles.dateFilterRow}>
+                  {DATE_FILTERS.map(d => (
+                    <button
+                      key={d.key}
+                      style={{ ...styles.dateFilterChip, ...(dateFilterKey === d.key ? styles.dateFilterChipActive : {}) }}
+                      onClick={() => setDateFilterKey(d.key)}
+                    >
+                      {t(d.labelKey, undefined, lang)}
+                    </button>
+                  ))}
+                </div>
+                {dateFilterKey === 'custom' && (
+                  <div style={styles.dateRangeRow}>
+                    <input
+                      type="date" style={styles.dateInput} value={customFrom}
+                      onChange={e => setCustomFrom(e.target.value)}
+                      aria-label={t('notes.dateFilterFrom', undefined, lang)}
+                    />
+                    <span style={styles.dateRangeSep}>–</span>
+                    <input
+                      type="date" style={styles.dateInput} value={customTo}
+                      onChange={e => setCustomTo(e.target.value)}
+                      aria-label={t('notes.dateFilterTo', undefined, lang)}
+                    />
+                  </div>
+                )}
+
+                {activeFilterCount > 0 && (
+                  <button style={styles.filtersClearBtn} onClick={clearFilters}>
+                    {t('notes.filtersClear', undefined, lang)}
+                  </button>
+                )}
+              </>
+            )}
+          </>
+        )}
+
         {state.status === 'loading' && <p style={styles.emptyHint}>{t('notes.loading', undefined, lang)}</p>}
         {state.status === 'error' && <p style={styles.emptyHint}>{t('notes.error', undefined, lang)}</p>}
         {state.status === 'ready' && state.notes.length === 0 && (
