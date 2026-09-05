@@ -93,75 +93,75 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
     await onRespondGroupPlanInvite?.(planId, accept)
   }
 
+  const pendingCount = (pendingGroupPlanInvites?.length ?? 0) + groupInvites.length
+
   return (
     <div className="master-detail">
-      {/* Master: convites pendentes + meus grupos + amigos */}
+      {/* Master: convites pendentes + meus grupos + amigos — sem quadro
+          próprio no handoff (só o quadro 5d, "dentro de um grupo", tem
+          desenho — ver GroupHomeView abaixo); redesenhado em Bento a
+          pedido, seguindo a mesma linguagem visual do resto do app em vez
+          de inventar um quadro que não existe. */}
       <div className={`master-pane${openGroupId ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-        {/* Título — só no desktop (≥768px), igual Rotina/Início/Progresso.
-            No mobile o Figma não mostra esse cabeçalho aqui. */}
-        <div className="page-header hide-on-mobile" style={{ padding: '20px 14px 0' }}>
-          <h1 className="page-title">{t('groups.pageTitle', undefined, lang)}</h1>
+        <div style={styles.bHeader}>
+          <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
+          <p style={styles.bSubtitle}>{t(myGroups.length === 1 ? 'groups.bSubtitleOne' : 'groups.bSubtitleMany', { n: myGroups.length }, lang)}</p>
         </div>
-        <div style={{ padding: '20px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {pendingGroupPlanInvites?.length > 0 && (
-            <div>
-              <div className="section-header"><h3 className="section-title">{t('groups.pendingGroupPlanInvitesTitle', undefined, lang)}</h3></div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {pendingGroupPlanInvites.map(inv => (
-                  <div key={inv.planId} style={styles.inviteCard}>
-                    <div style={{ flex: 1 }}>
-                      <p style={styles.inviteTitle}>{lang === 'en' ? inv.bookEn : inv.book}</p>
-                      <p style={styles.inviteSub}>{t('groups.groupPlanInvitedBy', { group: inv.groupName }, lang)}</p>
-                    </div>
-                    <button style={styles.acceptBtn} onClick={() => handleRespondGroupPlan(inv.planId, true)}>
-                      <AppIcon name="Check" size={14} />
-                    </button>
-                    <button style={styles.declineBtn} onClick={() => handleRespondGroupPlan(inv.planId, false)}>
-                      <AppIcon name="X" size={14} />
-                    </button>
-                  </div>
-                ))}
+        <div style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pendingCount > 0 && (
+            <div style={styles.bCard}>
+              <div style={styles.bCardHeadRow}>
+                <p style={{ ...styles.bCardLabel, color: 'var(--bento-accent)' }}>{t('groups.pendingInvitesTitle', undefined, lang)}</p>
+                <span style={styles.bCardCount}>{pendingCount}</span>
               </div>
-            </div>
-          )}
-
-          {groupInvites.length > 0 && (
-            <div>
-              <div className="section-header"><h3 className="section-title">{t('groups.pendingInvitesTitle', undefined, lang)}</h3></div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {groupInvites.map(inv => (
-                  <div key={inv.groupId} style={styles.inviteCard}>
-                    <div style={{ flex: 1 }}>
-                      <p style={styles.inviteTitle}>{inv.groupName}</p>
-                      <p style={styles.inviteSub}>{t('groups.invitedBy', { name: inv.invitedByName }, lang)}</p>
-                    </div>
-                    <button style={styles.acceptBtn} onClick={() => handleRespondInvite(inv.groupId, true, inv.groupName)}>
-                      <AppIcon name="Check" size={14} />
-                    </button>
-                    <button style={styles.declineBtn} onClick={() => handleRespondInvite(inv.groupId, false)}>
-                      <AppIcon name="X" size={14} />
-                    </button>
+              {pendingGroupPlanInvites?.map((inv, i) => (
+                <div key={inv.planId} style={{ ...styles.bInviteRow, borderBottom: (i === pendingGroupPlanInvites.length - 1 && groupInvites.length === 0) ? 'none' : '1px solid var(--bento-line)' }}>
+                  <span style={{ ...styles.bAvatarCircle, background: 'var(--bento-mark)', color: 'var(--bento-sand-icon)' }}>
+                    <AppIcon name="Users" size={14} color="var(--bento-sand-icon)" />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={styles.bMemberName}>{lang === 'en' ? inv.bookEn : inv.book}</p>
+                    <p style={styles.bMemberSub}>{t('groups.groupPlanInvitedBy', { group: inv.groupName }, lang)}</p>
                   </div>
-                ))}
-              </div>
+                  <button style={styles.bDeclineBtn} onClick={() => handleRespondGroupPlan(inv.planId, false)} aria-label={t('groupAdmin.declineAction', undefined, lang)}>
+                    <AppIcon name="X" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
+                  </button>
+                  <button style={styles.bAcceptBtn} onClick={() => handleRespondGroupPlan(inv.planId, true)} aria-label={t('groupAdmin.acceptAction', undefined, lang)}>
+                    <AppIcon name="Check" size={13} strokeWidth={2.8} color="var(--bento-accent)" />
+                  </button>
+                </div>
+              ))}
+              {groupInvites.map((inv, i) => (
+                <div key={inv.groupId} style={{ ...styles.bInviteRow, borderBottom: i === groupInvites.length - 1 ? 'none' : '1px solid var(--bento-line)' }}>
+                  <span style={styles.bAvatarCircle}>{avatarInitialsOf(inv.groupName)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={styles.bMemberName}>{inv.groupName}</p>
+                    <p style={styles.bMemberSub}>{t('groups.invitedBy', { name: inv.invitedByName }, lang)}</p>
+                  </div>
+                  <button style={styles.bDeclineBtn} onClick={() => handleRespondInvite(inv.groupId, false)} aria-label={t('groupAdmin.declineAction', undefined, lang)}>
+                    <AppIcon name="X" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
+                  </button>
+                  <button style={styles.bAcceptBtn} onClick={() => handleRespondInvite(inv.groupId, true, inv.groupName)} aria-label={t('groupAdmin.acceptAction', undefined, lang)}>
+                    <AppIcon name="Check" size={13} strokeWidth={2.8} color="var(--bento-accent)" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
           <GroupsListSection groups={myGroups} lang={lang} onOpen={setOpenGroupId} onCreate={handleCreateGroup} />
           <FriendsSection lang={lang} onChange={reload} authUser={authUser} />
 
-          <div>
-            <div className="section-header"><h3 className="section-title">{t('groups.activityTitle', undefined, lang)}</h3></div>
+          <div style={styles.bCard}>
+            <p style={styles.bCardLabel}>{t('groups.activityTitle', undefined, lang)}</p>
             {friendActivity.length === 0 ? (
-              <p style={styles.emptyHint}>{t('groups.activityEmpty', undefined, lang)}</p>
+              <p style={styles.bEmptyHint}>{t('groups.activityEmpty', undefined, lang)}</p>
             ) : (
-              <div style={styles.friendProfileCard}>
-                {friendActivity.map((a, i) => (
-                  <div key={a.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '0.5px solid var(--g1)' : 'none' }}>
-                    <ActivityFeedItem activity={a} lang={lang} />
-                  </div>
-                ))}
-              </div>
+              friendActivity.map((a, i) => (
+                <div key={a.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--bento-line)' : 'none' }}>
+                  <ActivityFeedItem activity={a} lang={lang} />
+                </div>
+              ))
             )}
           </div>
         </div>
@@ -253,67 +253,81 @@ function GroupsListSection({ groups, lang, onOpen, onCreate }) {
   }
 
   return (
-    <div>
-      <div className="section-header">
-        <h3 className="section-title">{t('groups.myGroupsTitle', undefined, lang)}</h3>
-        <span style={{ display: 'flex', gap: 12 }}>
-          <span className="section-link" onClick={() => { setJoining(v => !v); setJoinError(''); setJoinSuccess('') }}>
-            {joining ? t('groups.cancel', undefined, lang) : t('groups.joinWithCode', undefined, lang)}
-          </span>
-          <span className="section-link" onClick={() => setCreating(v => !v)}>
-            {creating ? t('groups.cancel', undefined, lang) : t('groups.createGroup', undefined, lang)}
-          </span>
+    <div style={styles.bCard}>
+      <div style={styles.bCardHeadRow}>
+        <p style={styles.bCardLabel}>{t('groups.myGroupsTitle', undefined, lang)}</p>
+        {/* Ícones, não o texto do botão inteiro — o card divide a coluna
+            estreita do master-pane (split desktop) com "Meus grupos" em
+            maiúsculas espaçadas; "Entrar com código"/"Criar grupo" por
+            extenso não cabiam ao lado sem quebrar linha. */}
+        <span style={{ display: 'flex', gap: 6 }}>
+          <button
+            style={{ ...styles.bIconBtn, ...(joining ? styles.bIconBtnOn : {}) }}
+            onClick={() => { setJoining(v => !v); setJoinError(''); setJoinSuccess('') }}
+            aria-label={joining ? t('groups.cancel', undefined, lang) : t('groups.joinWithCode', undefined, lang)}
+          >
+            <AppIcon name="Ticket" size={14} color={joining ? '#fff' : 'var(--bento-t3)'} />
+          </button>
+          <button
+            style={{ ...styles.bIconBtn, ...(creating ? styles.bIconBtnOn : {}) }}
+            onClick={() => setCreating(v => !v)}
+            aria-label={creating ? t('groups.cancel', undefined, lang) : t('groups.createGroup', undefined, lang)}
+          >
+            <AppIcon name="Plus" size={15} color={creating ? '#fff' : 'var(--bento-t3)'} />
+          </button>
         </span>
       </div>
 
       {joining && (
         <form onSubmit={submitJoin} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <input
-            style={styles.input}
+            style={styles.bFieldInput}
             placeholder={t('groups.joinCodePlaceholder', undefined, lang)}
             value={code}
             onChange={e => setCode(e.target.value)}
             autoFocus
           />
-          <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={joinLoading}>
+          <button type="submit" style={styles.bPrimarySmallBtn} disabled={joinLoading}>
             {joinLoading ? t('groups.loading', undefined, lang) : t('groups.join', undefined, lang)}
           </button>
         </form>
       )}
-      {joinError && <p style={styles.error}>{joinError}</p>}
-      {joinSuccess && <p style={styles.emptyHint}>{joinSuccess}</p>}
+      {joinError && <p style={styles.bErrorText}>{joinError}</p>}
+      {joinSuccess && <p style={styles.bEmptyHint}>{joinSuccess}</p>}
 
       {creating && (
         <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           <input
-            style={styles.input}
+            style={styles.bFieldInput}
             placeholder={t('groups.groupNamePlaceholder', undefined, lang)}
             value={name}
             onChange={e => setName(e.target.value)}
             autoFocus
           />
-          <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={loading}>
+          <button type="submit" style={styles.bPrimarySmallBtn} disabled={loading}>
             {loading ? t('groups.loading', undefined, lang) : t('groups.create', undefined, lang)}
           </button>
         </form>
       )}
-      {error && <p style={styles.error}>{error}</p>}
+      {error && <p style={styles.bErrorText}>{error}</p>}
 
       {groups.length === 0 ? (
-        <p style={styles.emptyHint}>{t('groups.noGroupsYet', undefined, lang)}</p>
+        <p style={styles.bEmptyHint}>{t('groups.noGroupsYet', undefined, lang)}</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {groups.map(g => (
-            <button key={g.groupId} style={styles.groupCard} onClick={() => onOpen(g.groupId)}>
-              <div style={styles.groupIcon}><AppIcon name="Users" size={18} color="var(--or)" /></div>
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <p style={styles.groupName}>{g.name}</p>
-                {g.myRole === 'moderator' && <p style={styles.groupRoleTag}>{t('groups.youAreModerator', undefined, lang)}</p>}
-              </div>
-              <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
-            </button>
-          ))}
-        </div>
+        groups.map((g, i) => (
+          <button
+            key={g.groupId}
+            style={{ ...styles.bLinkRow, borderBottom: i === groups.length - 1 ? 'none' : '1px solid var(--bento-line)' }}
+            onClick={() => onOpen(g.groupId)}
+          >
+            <span style={styles.bAvatarCircle}><AppIcon name="Users" size={15} color="var(--bento-accent)" /></span>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <p style={styles.bMemberName}>{g.name}</p>
+              {g.myRole === 'moderator' && <p style={styles.bMemberSub}>{t('groups.youAreModerator', undefined, lang)}</p>}
+            </div>
+            <span style={styles.bChevron}>›</span>
+          </button>
+        ))
       )}
     </div>
   )
@@ -371,70 +385,74 @@ function FriendsSection({ lang, onChange, authUser }) {
   }
 
   return (
-    <div>
-      <div className="section-header">
-        <h3 className="section-title">{t('groups.myFriendsTitle', undefined, lang)}</h3>
-        <span className="section-link" onClick={() => setAdding(v => !v)}>
+    <div style={styles.bCard}>
+      <div style={styles.bCardHeadRow}>
+        <p style={styles.bCardLabel}>{t('groups.myFriendsTitle', undefined, lang)}</p>
+        <button style={styles.bLinkBtn} onClick={() => setAdding(v => !v)}>
           {adding ? t('groups.cancel', undefined, lang) : t('groups.addFriend', undefined, lang)}
-        </span>
+        </button>
       </div>
 
       {adding && (
         <>
           <form onSubmit={submitAdd} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
             <input
-              style={styles.input}
+              style={styles.bFieldInput}
               type="email"
               placeholder={t('groups.friendEmailPlaceholder', undefined, lang)}
               value={email}
               onChange={e => setEmail(e.target.value)}
               autoFocus
             />
-            <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={loading}>
+            <button type="submit" style={styles.bPrimarySmallBtn} disabled={loading}>
               {loading ? t('groups.loading', undefined, lang) : t('groups.send', undefined, lang)}
             </button>
           </form>
-          <p style={styles.addFriendHint}>{t('groups.addFriendHint', undefined, lang)}</p>
+          <p style={styles.bAddFriendHint}>{t('groups.addFriendHint', undefined, lang)}</p>
         </>
       )}
-      {error && <p style={styles.error}>{error}</p>}
-      {invitedMsg && <p style={styles.inviteSentMsg}>{invitedMsg}</p>}
+      {error && <p style={styles.bErrorText}>{error}</p>}
+      {invitedMsg && <p style={styles.bInviteSentMsg}>{invitedMsg}</p>}
 
       {pending.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
-          {pending.map(req => (
-            <div key={req.friendshipId} style={styles.inviteCard}>
-              <div style={styles.friendAvatar}>
-                {req.avatarUrl ? <img src={req.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(req.name)}
+        <div style={{ marginBottom: friends.length > 0 ? 10 : 0 }}>
+          {pending.map((req, i) => (
+            <div key={req.friendshipId} style={{ ...styles.bInviteRow, borderBottom: i === pending.length - 1 && friends.length === 0 ? 'none' : '1px solid var(--bento-line)' }}>
+              <span style={styles.bAvatarCircle}>
+                {req.avatarUrl ? <img src={req.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(req.name)}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={styles.bMemberName}>{req.name}</p>
+                <p style={styles.bMemberSub}>{t('groups.friendRequestReceived', undefined, lang)}</p>
               </div>
-              <div style={{ flex: 1 }}>
-                <p style={styles.inviteTitle}>{req.name}</p>
-                <p style={styles.inviteSub}>{t('groups.friendRequestReceived', undefined, lang)}</p>
-              </div>
-              <button style={styles.acceptBtn} onClick={() => respond(req.friendshipId, true)}><AppIcon name="Check" size={14} /></button>
-              <button style={styles.declineBtn} onClick={() => respond(req.friendshipId, false)}><AppIcon name="X" size={14} /></button>
+              <button style={styles.bDeclineBtn} onClick={() => respond(req.friendshipId, false)} aria-label={t('groupAdmin.declineAction', undefined, lang)}>
+                <AppIcon name="X" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
+              </button>
+              <button style={styles.bAcceptBtn} onClick={() => respond(req.friendshipId, true)} aria-label={t('groupAdmin.acceptAction', undefined, lang)}>
+                <AppIcon name="Check" size={13} strokeWidth={2.8} color="var(--bento-accent)" />
+              </button>
             </div>
           ))}
         </div>
       )}
 
       {friends.length === 0 ? (
-        <p style={styles.emptyHint}>{t('groups.noFriendsYet', undefined, lang)}</p>
+        <p style={styles.bEmptyHint}>{t('groups.noFriendsYet', undefined, lang)}</p>
       ) : (
         <>
-          <div style={styles.friendsGrid}>
+          <div style={styles.bFriendsGrid}>
             {friends.map(f => {
               const expanded = expandedFriendId === f.userId
               return (
                 <button
                   key={f.friendshipId}
-                  style={styles.friendGridItem}
+                  style={styles.bFriendGridItem}
                   onClick={() => setExpandedFriendId(expanded ? null : f.userId)}
                 >
-                  <div style={{ ...styles.friendAvatarCircle, ...(expanded ? styles.friendAvatarCircleActive : {}) }}>
-                    {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(f.name)}
+                  <div style={{ ...styles.bFriendAvatarCircle, ...(expanded ? styles.bFriendAvatarCircleActive : {}) }}>
+                    {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(f.name)}
                   </div>
-                  <span style={styles.friendGridName}>{f.name}</span>
+                  <span style={styles.bFriendGridName}>{f.name}</span>
                 </button>
               )
             })}
@@ -500,7 +518,7 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
     }
   }
 
-  if (loading) return <div style={styles.friendProfileCard} />
+  if (loading) return <div style={styles.bFriendPanel} />
   if (!profile) return null
 
   let activeBlockName = null
@@ -516,50 +534,50 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
   const otherFriends = (friendsOfFriend?.friends ?? []).filter(f => f.userId !== authUser?.id)
 
   return (
-    <div style={styles.friendProfileCard}>
+    <div style={styles.bFriendPanel}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <div style={styles.friendAvatar}>
-          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(profile.name)}
-        </div>
+        <span style={styles.bAvatarCircle}>
+          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(profile.name)}
+        </span>
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--bk)' }}>{profile.name}</p>
-          {profile.bio && <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', marginTop: 2 }}>{profile.bio}</p>}
+          <p style={styles.bMemberName}>{profile.name}</p>
+          {profile.bio && <p style={{ ...styles.bMemberSub, marginTop: 2 }}>{profile.bio}</p>}
         </div>
       </div>
 
       {summary?.isPublic ? (
-        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', gap: 16 }}>
             <StatItemSmall value={`${biblePercent}%`} label={t('groups.friendBibleLabel', undefined, lang)} />
             <StatItemSmall value={summary.studiesCompletedCount} label={t('groups.friendStudiesLabel', undefined, lang)} />
             <StatItemSmall value={otherFriends.length} label={t('groups.friendFriendsCountLabel', undefined, lang)} />
           </div>
-          <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--g5)' }}>
+          <p style={styles.bMemberSub}>
             {t('groups.friendCurrentlyReading', { block: activeBlockName }, lang)}
           </p>
           {summary.groups.length > 0 && (
-            <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--g5)' }}>
+            <p style={styles.bMemberSub}>
               {t('groups.friendGroupsLabel', { groups: summary.groups.map(g => g.name).join(', ') }, lang)}
             </p>
           )}
 
           {otherFriends.length > 0 && (
             <div style={{ marginTop: 6 }}>
-              <p style={styles.friendOfFriendTitle}>{t('groups.friendFriendsListTitle', { name: profile.name }, lang)}</p>
+              <p style={styles.bFriendOfFriendTitle}>{t('groups.friendFriendsListTitle', { name: profile.name }, lang)}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
                 {otherFriends.map(f => {
                   const alreadyFriend = myFriendIds?.has(f.userId) || addedIds.has(f.userId)
                   return (
-                    <div key={f.userId} style={styles.friendOfFriendRow}>
-                      <div style={styles.friendOfFriendAvatar}>
-                        {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : avatarInitialsOf(f.name)}
-                      </div>
-                      <span style={{ flex: 1, fontSize: 11.5, fontWeight: 600, color: 'var(--bk)' }}>{f.name}</span>
+                    <div key={f.userId} style={styles.bFriendOfFriendRow}>
+                      <span style={{ ...styles.bAvatarCircle, width: 26, height: 26 }}>
+                        {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(f.name)}
+                      </span>
+                      <span style={{ flex: 1, ...styles.bMemberName, fontSize: 12 }}>{f.name}</span>
                       {alreadyFriend ? (
-                        <span style={styles.friendOfFriendAdded}>{t('groups.alreadyFriends', undefined, lang)}</span>
+                        <span style={styles.bFriendOfFriendAdded}>{t('groups.alreadyFriends', undefined, lang)}</span>
                       ) : (
                         <button
-                          style={styles.smallLinkBtn}
+                          style={styles.bLinkBtn}
                           disabled={addingId === f.userId}
                           onClick={() => handleAddFriend(f.userId)}
                         >
@@ -574,10 +592,10 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
           )}
         </div>
       ) : (
-        <p style={{ ...styles.emptyHint, marginTop: 8 }}>{t('groups.friendProfilePrivate', undefined, lang)}</p>
+        <p style={{ ...styles.bEmptyHint, marginTop: 8 }}>{t('groups.friendProfilePrivate', undefined, lang)}</p>
       )}
 
-      <button style={styles.unfriendLink} onClick={onUnfriend}>{t('groups.removeFriend', undefined, lang)}</button>
+      <button style={styles.bUnfriendLink} onClick={onUnfriend}>{t('groups.removeFriend', undefined, lang)}</button>
     </div>
   )
 }
@@ -585,8 +603,8 @@ function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfri
 function StatItemSmall({ value, label }) {
   return (
     <div>
-      <p style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' }}>{value}</p>
-      <p style={{ fontSize: 9, fontWeight: 600, color: 'var(--g4)' }}>{label}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-0.3px', margin: 0 }}>{value}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 700, color: 'var(--bento-t4)', margin: 0 }}>{label}</p>
     </div>
   )
 }
@@ -1458,6 +1476,54 @@ function PrayerRequestComments({ requestId, isModerator, authUser, lang, onCount
 }
 
 const styles = {
+  // ── Redesign Bento da lista (sem quadro no handoff — só o quadro 5d,
+  // "dentro de um grupo", tem desenho; ver GroupHomeView). Prefixo `b`
+  // pra não colidir com os estilos antigos abaixo, ainda usados pelas
+  // sub-abas Desafio/Discussão/Oração completas (atrás de "ver mais" de
+  // dentro de um grupo — fora do escopo desta leva). Mesma linguagem
+  // visual de GroupAdminScreen.jsx (quadro 19c): cartões brancos
+  // arredondados-24, rótulo uppercase pequeno, avatar circular, "vê tudo"
+  // como botão de texto.
+  bHeader: { flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '22px 20px 0' },
+  bTitle: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
+  bSubtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
+
+  bCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '14px 20px 4px' },
+  bCardHeadRow: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 },
+  bCardLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  bCardCount: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)' },
+  bLinkBtn: { border: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  bIconBtn: { width: 28, height: 28, flexShrink: 0, borderRadius: 9, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  bIconBtnOn: { background: 'var(--bento-ink)' },
+
+  bLinkRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, padding: '10px 0', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' },
+  bInviteRow: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, padding: '10px 0' },
+  bAvatarCircle: { width: 32, height: 32, flexShrink: 0, borderRadius: 99, background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, overflow: 'hidden' },
+  bMemberName: { fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  bMemberSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  bAcceptBtn: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  bDeclineBtn: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  bChevron: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
+
+  bEmptyHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '14px 4px' },
+  bErrorText: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--re)', margin: '0 0 8px' },
+  bInviteSentMsg: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-accent)', margin: '0 0 8px' },
+  bAddFriendHint: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.5, margin: '0 0 10px' },
+  bFieldInput: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 14px', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)' },
+  bPrimarySmallBtn: { flexShrink: 0, border: 'none', borderRadius: 12, padding: '11px 16px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
+
+  bFriendsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 12, padding: '8px 0 12px' },
+  bFriendGridItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
+  bFriendAvatarCircle: { width: 48, height: 48, borderRadius: 99, background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, overflow: 'hidden' },
+  bFriendAvatarCircleActive: { boxShadow: '0 0 0 2px var(--bento-accent)' },
+  bFriendGridName: { fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t2)', maxWidth: 64, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+
+  bFriendPanel: { borderRadius: 20, background: 'var(--bento-line)', padding: '14px 16px', marginBottom: 12 },
+  bFriendOfFriendTitle: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  bFriendOfFriendRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  bFriendOfFriendAdded: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t4)' },
+  bUnfriendLink: { display: 'block', marginTop: 10, border: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--re)', cursor: 'pointer' },
+
   input: { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none' },
   textarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5 },
   error: { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },

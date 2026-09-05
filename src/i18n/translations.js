@@ -357,8 +357,11 @@ export const STRINGS = {
       // Plano do grupo (22d) — diferente do convite de MEMBRO acima: aqui
       // já sou do grupo, só decidindo se troco a leitura de hoje pelo
       // plano que o moderador enviou (ver App.jsx/respondToGroupPlanInvite).
-      pendingGroupPlanInvitesTitle: 'Plano do grupo',
+      // Some no mesmo card "Convites pendentes" acima — um contador só, sem
+      // rótulo próprio (ver GroupsScreen.jsx).
       groupPlanInvitedBy: 'O grupo {group} tem um plano de leitura',
+      bSubtitleOne: '{n} grupo',
+      bSubtitleMany: '{n} grupos',
       myGroupsTitle: 'Meus grupos',
       createGroup: 'Criar grupo',
       cancel: 'Cancelar',
@@ -2239,8 +2242,9 @@ export const STRINGS = {
       pageTitle: 'Community',
       pendingInvitesTitle: 'Pending invites',
       invitedBy: 'Invited by {name}',
-      pendingGroupPlanInvitesTitle: 'Group plan',
       groupPlanInvitedBy: 'The {group} group has a reading plan',
+      bSubtitleOne: '{n} group',
+      bSubtitleMany: '{n} groups',
       myGroupsTitle: 'My groups',
       createGroup: 'Create group',
       cancel: 'Cancel',
