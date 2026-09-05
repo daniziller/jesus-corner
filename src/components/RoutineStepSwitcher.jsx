@@ -46,13 +46,13 @@ export default function RoutineStepSwitcher({ session, activeStep, onGoPrayer, o
             aria-current={isActive ? 'step' : undefined}
             style={{
               ...styles.dot,
-              background: isActive || done ? color : 'var(--g1)',
+              background: isActive || done ? color : 'var(--bento-line)',
               border: isActive ? `2.5px solid ${color}` : '2.5px solid transparent',
-              boxShadow: isActive ? '0 0 0 2.5px var(--white)' : 'none',
+              boxShadow: isActive ? '0 0 0 2.5px var(--bento-bg)' : 'none',
               cursor: isActive ? 'default' : 'pointer',
             }}
           >
-            <AppIcon name={meta.icon} size={18} color={isActive || done ? 'white' : 'var(--g4)'} />
+            <AppIcon name={meta.icon} size={18} color={isActive || done ? 'white' : 'var(--bento-t4)'} />
           </button>
         )
       })}
@@ -63,7 +63,7 @@ export default function RoutineStepSwitcher({ session, activeStep, onGoPrayer, o
 
 const styles = {
   wrap: { padding: '10px 0 6px', textAlign: 'center' },
-  caption: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 },
+  caption: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 700, color: 'var(--bento-t4)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 },
   row: { display: 'flex', justifyContent: 'center', gap: 16 },
   dot: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
 }

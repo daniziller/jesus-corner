@@ -1,20 +1,31 @@
+// PrayerScreen.jsx — Oração, passo 1 de 3 (reskin Bento, quadro 21a).
+//
+// Duas entradas possíveis: guiada (session.guided?.step === 'prayer',
+// vinda de "Ler agora" em Meu Plano/4b — mostra o cabeçalho com chip
+// escuro "passo N de 3" e "Pular") ou avulsa (tocando "Oração" direto,
+// ex: RoutineStepSwitcher a partir de Leitura/Reflexão/Estudos — cabeçalho
+// mais simples, sem "passo N de 3" nem "Pular", já que não há fluxo pra
+// pular). O quadro só desenha a entrada guiada.
+//
+// Fora do quadro 21a, mantidos por serem funcionalidade real sem outro
+// lugar pra morar: o seletor de duração total (5a hoje só EXIBE os minutos
+// de cada passo, não deixa editar — ver AdjustPlanScreen.jsx) e a lista de
+// pedidos de oração pessoais (PrayerRequests).
 import { useState, useEffect, useRef, useMemo } from 'react'
-import ActsCard, { ACTS_DATA, phaseMinutesFor } from '../components/acts/ActsCard'
+import { ACTS_DATA, phaseMinutesFor } from '../components/acts/ActsCard'
 import PrayerRequests from '../components/prayer/PrayerRequests'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { getSavedPrayerMinutes, setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
-import GuidedFlowBanner from '../components/GuidedFlowBanner'
 
 const DURATION_OPTIONS = [5, 10, 15, 20, 30]
 
 // Fronteiras (em segundos, desde o início do cronômetro) de cada trecho do
-// ACTS, a partir dos minutos por etapa do perfil de duração ativo (ver
-// ACTS_DURATIONS — Leve ora 10min, Padrão/Intensivo oram 15min). Usado pra
-// saber, a qualquer momento, em qual trecho o cronômetro está e disparar o
-// aviso sonoro na troca.
+// ACTS, a partir dos minutos por etapa do perfil de duração ativo. Usado
+// pra saber, a qualquer momento, em qual trecho o cronômetro está de
+// verdade e disparar o aviso sonoro na troca.
 function computePhaseBounds(phaseMinutes) {
   let acc = 0
   const bounds = ACTS_DATA.map((d, i) => {
@@ -33,12 +44,17 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function PrayerScreen({ session, authUser, onPrayerCompleted, onContinueSession, onNavigate, onExitGuided }) {
+export default function PrayerScreen({ session, authUser, onPrayerCompleted, onContinueSession, onNavigate, onExitGuided, onSkipStep, onBack }) {
   const { lang } = session
   const guided = session.guided?.step === 'prayer' ? session.guided : null
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
-  const [openCardId, setOpenCardId] = useState(null)
+  // Qual etapa o painel "para hoje" mostra — segue a etapa real do
+  // cronômetro por padrão (tick() abaixo atualiza sozinho), mas tocar
+  // numa fileira das 4 etapas prevalece (dá pra espiar o guia de uma
+  // etapa futura/já feita sem mexer no cronômetro de verdade).
+  const [previewPhaseId, setPreviewPhaseId] = useState(null)
+  const [stepsExpanded, setStepsExpanded] = useState(false)
   // Duração total escolhida na hora — parte do que a pessoa já escolheu
   // antes (jc_prayer_minutes) ou, na primeira vez, do plano ativo. Trocar
   // aqui sobrescreve o padrão do plano até a pessoa escolher de novo.
@@ -131,7 +147,7 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
     if (phaseIdx !== announcedPhaseRef.current) {
       const wasAlreadyAnnounced = announcedPhaseRef.current !== -1
       announcedPhaseRef.current = phaseIdx
-      setOpenCardId(ACTS_DATA[phaseIdx].id)
+      setPreviewPhaseId(null) // volta a seguir a etapa real
       if (wasAlreadyAnnounced) playChime([659, 880])
     }
 
@@ -143,7 +159,6 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
       incrementPrayerStat(email, 'timerCompletions').catch(err => {
         console.error('Failed to persist prayer stat', err)
       })
-      onPrayerCompleted?.()
     }
   }
 
@@ -175,6 +190,11 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
   useEffect(() => () => releaseWakeLock(), [])
 
   const remaining = Math.max(0, Math.round(TOTAL_SECONDS - elapsed))
+  // Etapa real do cronômetro (independe do que está sendo espiado no
+  // painel "para hoje") — é o que colore as 4 fileiras e a barra do topo,
+  // no código de 3 estados do quadro 4b: areia = feita, preto = agora,
+  // branco = depois.
+  const realPhaseIdx = phaseIndexAt(PHASE_BOUNDS, elapsed)
 
   const fmt = (s) => {
     const m = Math.floor(s / 60).toString().padStart(2, '0')
@@ -196,12 +216,24 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
       requestWakeLock()
       if (announcedPhaseRef.current === -1) {
         announcedPhaseRef.current = 0
-        setOpenCardId(ACTS_DATA[0].id)
       }
     }
   }
 
-  function resetTimer() {
+  // "Próxima etapa" (mockup 21a) — avança antes do tempo acabar. Pula pra
+  // fronteira da próxima etapa (ou pro fim, na última — o que já completa a
+  // oração pelo mesmo caminho do cronômetro normal, via tick()).
+  function skipToNextPhase() {
+    const nextBound = PHASE_BOUNDS[realPhaseIdx + 1]?.start ?? TOTAL_SECONDS
+    accumulatedRef.current = nextBound
+    if (running) startedAtRef.current = Date.now()
+    tick()
+  }
+
+  // Troca a duração total escolhida — reinicia o cronômetro (os limites de
+  // cada etapa mudam) e lembra a escolha pra próxima vez.
+  function selectDuration(minutes) {
+    if (minutes === totalMinutes) return
     clearInterval(intervalRef.current)
     releaseWakeLock()
     setRunning(false)
@@ -209,175 +241,246 @@ export default function PrayerScreen({ session, authUser, onPrayerCompleted, onC
     accumulatedRef.current = 0
     startedAtRef.current = null
     announcedPhaseRef.current = -1
-    setOpenCardId(null)
-  }
-
-  // Troca a duração total escolhida — reinicia o cronômetro (os limites de
-  // cada etapa mudam) e lembra a escolha pra próxima vez.
-  function selectDuration(minutes) {
-    if (minutes === totalMinutes) return
-    resetTimer()
+    setPreviewPhaseId(null)
     setTotalMinutes(minutes)
     setSavedPrayerMinutes(minutes)
   }
 
-  // Etapa em destaque no card do relógio — segue openCardId (já reage à
-  // troca de trecho durante o cronômetro, ver tick()); antes de começar,
-  // mostra a 1a etapa como "próxima", pra já indicar por onde vai começar.
-  const currentPhaseIdx = openCardId != null ? ACTS_DATA.findIndex(d => d.id === openCardId) : 0
-  const currentPhase = ACTS_DATA[currentPhaseIdx]
-  // Fim da etapa em destaque (início da próxima, ou o total se for a última)
-  // — usado só pro relógio de "tempo restante NESTA etapa", separado do
-  // relógio grande acima (que mostra o restante da oração inteira).
-  const phaseEndSeconds = PHASE_BOUNDS[currentPhaseIdx + 1]?.start ?? TOTAL_SECONDS
-  const phaseRemaining = Math.max(0, Math.round(phaseEndSeconds - elapsed))
+  // "Concluir e ir para a leitura" (rodapé fixo) — sempre disponível,
+  // mesmo antes do cronômetro acabar: ninguém precisa do relógio pra saber
+  // que terminou de orar. Marca o dia e, fora do fluxo guiado (que já leva
+  // sozinho pro próximo passo via advanceGuided), navega direto pra leitura.
+  function finishPrayer() {
+    onPrayerCompleted?.()
+    if (!guided) onContinueSession?.()
+  }
 
-  const btnLabel = running ? t('prayer.pause', undefined, lang)
-    : remaining === 0 ? t('prayer.done', undefined, lang)
-    : elapsed > 0 ? t('prayer.resume', undefined, lang)
-    : t('prayer.start', undefined, lang)
+  const previewIdx = previewPhaseId != null ? ACTS_DATA.findIndex(d => d.id === previewPhaseId) : realPhaseIdx
+  const previewPhase = ACTS_DATA[previewIdx]
+  const L = (k, vars) => t(`prayer.${k}`, vars, lang)
+
+  const runBtnLabel = running ? L('pauseBtn') : elapsed > 0 ? L('resumeBtn') : L('startBtn')
+  const runBtnIcon = running ? 'Pause' : 'Play'
 
   return (
-    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-
-      <GuidedFlowBanner guided={guided} lang={lang} onExit={onExitGuided} />
-
-      {/* Hero */}
-      <div style={styles.hero}>
-        <div style={styles.heroOrbBlue} />
-        <div style={styles.heroOrbPink} />
-        <span style={{ position: 'relative', marginBottom: 5 }}><AppIcon name="HandHeart" size={30} color="white" /></span>
-        <span style={{ ...styles.heroTitle, position: 'relative' }}>{t('prayer.heroTitle', undefined, lang)}</span>
-        <span style={{ ...styles.heroSub, position: 'relative' }}>{t('prayer.heroSub', undefined, lang)}</span>
+    <div style={styles.screen}>
+      <div style={styles.header}>
+        <button style={styles.backBtn} onClick={guided ? onExitGuided : onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        {guided ? (
+          <div style={styles.stepChip}>
+            <span style={styles.stepChipTitle}>{L('pageTitle')}</span>
+            <span style={styles.stepChipSub}>{L('stepOf', { n: guided.idx + 1, total: guided.total })}</span>
+          </div>
+        ) : (
+          <p style={styles.plainTitle}>{L('pageTitle')}</p>
+        )}
+        <div style={{ flex: 1 }} />
+        {guided && (
+          <button style={styles.skipBtn} onClick={onSkipStep}>{L('skipStepBtn')}</button>
+        )}
       </div>
 
       <div style={styles.body}>
-        <div className="dashboard-grid">
-
-          {/* Coluna esquerda: timer + roteiro ACTS */}
-          <div className="dashboard-col">
-            <div style={styles.timer}>
-              <span style={styles.timerLabel}>{t('prayer.timerLabel', undefined, lang)}</span>
-              <span style={styles.timerDisplay}>{fmt(remaining)}</span>
-
-              {/* Etapa atual do ACTS em destaque — muda sozinha conforme o
-                  cronômetro avança de trecho (mesmo estado que abre o card
-                  correspondente no acordeão logo abaixo). */}
-              <div style={{ ...styles.currentPhaseBadge, borderColor: currentPhase.borderColor }}>
-                <span style={{ ...styles.currentPhaseDot, background: currentPhase.dotColor }}>{currentPhase.letter}</span>
-                <span style={styles.currentPhaseLabel}>
-                  {t('prayer.currentPhase', { n: currentPhaseIdx + 1, total: ACTS_DATA.length }, lang)}
-                  <strong style={{ color: currentPhase.dotColor }}> {currentPhase.title[lang]}</strong>
-                </span>
-                <span style={styles.phaseRemaining} title={t('prayer.phaseRemaining', undefined, lang)}>
-                  <AppIcon name="Timer" size={11} />
-                  {fmt(phaseRemaining)}
-                </span>
-              </div>
-
-              {/* Duração total — trocar aqui redivide as 4 etapas do ACTS
-                  proporcionalmente (ver phaseMinutesFor) e reinicia o cronômetro. */}
-              <span style={styles.durationLabel}>{t('prayer.durationLabel', undefined, lang)}</span>
-              <div style={styles.durationRow}>
-                {DURATION_OPTIONS.map(n => (
-                  <button
-                    key={n}
-                    style={{ ...styles.durationBtn, ...(n === totalMinutes ? styles.durationBtnActive : null) }}
-                    onClick={() => selectDuration(n)}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
+        {/* Método ACTS · duração total — bloco branco com a barra de 4
+            segmentos (uma por etapa) e o relógio grande da oração inteira. */}
+        <div style={styles.methodCard}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={styles.methodLabel}>{L('methodLabel', { n: totalMinutes })}</p>
+            <div style={styles.segmentRow}>
+              {ACTS_DATA.map((d, i) => (
+                <div
+                  key={d.id}
                   style={{
-                    ...styles.timerBtn, color: 'white',
-                    background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'var(--grad-primary)',
-                    boxShadow: remaining === 0 ? '0 8px 20px rgba(22,163,74,.35)' : 'var(--shadow-glow)',
+                    ...styles.segment,
+                    background: i < realPhaseIdx ? 'var(--bento-sand-icon)' : i === realPhaseIdx ? 'var(--bento-accent)' : 'var(--bento-line)',
                   }}
-                  onClick={toggleRunning}
-                >
-                  {btnLabel}
-                </button>
-                <button style={{ ...styles.timerBtn, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.65)' }} onClick={resetTimer}>
-                  {t('prayer.restart', undefined, lang)}
-                </button>
-              </div>
-              {running && <p style={styles.wakeLockHint}>{t('prayer.wakeLockHint', undefined, lang)}</p>}
-
-              {/* Oração terminada — próximo passo da rotina é a Leitura. */}
-              {remaining === 0 && (
-                <button style={styles.nextStepBtn} onClick={() => onContinueSession?.()}>
-                  {t('prayer.goToReading', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
-                </button>
-              )}
-              {remaining === 0 && guided && (
-                <p style={styles.guidedAutoHint}>
-                  {t('guided.nextAuto', { step: t(`guided.step_${guided.steps[guided.idx + 1]}`, undefined, lang) }, lang)}
-                </p>
-              )}
-            </div>
-
-            <RoutineStepSwitcher
-              session={session}
-              activeStep="prayer"
-              onGoReading={() => onContinueSession?.()}
-              onGoStudy={() => onNavigate?.('studies')}
-              onGoReflection={() => onNavigate?.('reflection')}
-            />
-
-            {/* ACTS acordeão — o card do trecho atual abre sozinho conforme
-                o cronômetro avança, com aviso sonoro na troca. */}
-            <div className="block-grid">
-              {ACTS_DATA.map((data, i) => (
-                <ActsCard
-                  key={data.id}
-                  data={data}
-                  minutes={phaseMinutes[i]}
-                  open={openCardId === data.id}
-                  onToggle={() => setOpenCardId(v => v === data.id ? null : data.id)}
                 />
               ))}
             </div>
           </div>
-
-          {/* Coluna direita: pedidos de oração */}
-          <div className="dashboard-col">
-            <PrayerRequests authUser={authUser} lang={lang} />
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <p style={styles.methodTime}>{fmt(remaining)}</p>
+            <p style={styles.methodTimeLabel}>{L('remainingShort')}</p>
           </div>
-
         </div>
+
+        {/* As 4 etapas — código de 3 estados de 4b: areia (feita) / preto
+            (agora) / branco translúcido (depois). Tocar numa fileira só
+            troca o que o painel abaixo mostra — não mexe no cronômetro. */}
+        {ACTS_DATA.map((d, i) => {
+          const state = i < realPhaseIdx ? 'done' : i === realPhaseIdx ? 'now' : 'later'
+          const title = d.title[lang] ?? d.title.pt
+          return (
+            <button
+              key={d.id}
+              style={{
+                ...styles.phaseRow,
+                ...(state === 'done' ? styles.phaseRowDone : state === 'now' ? styles.phaseRowNow : styles.phaseRowLater),
+              }}
+              onClick={() => setPreviewPhaseId(d.id)}
+            >
+              <div style={{
+                ...styles.phaseLetter,
+                background: state === 'done' ? 'var(--bento-sand-icon)' : state === 'now' ? 'var(--bento-accent)' : 'var(--bento-line)',
+                color: state === 'done' ? 'var(--bento-sand)' : state === 'now' ? 'var(--bento-ink)' : 'var(--bento-t4)',
+              }}>
+                {d.letter}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <p style={{ ...styles.phaseTitle, color: state === 'done' ? 'var(--bento-sand-ink-strong)' : state === 'now' ? '#fff' : 'var(--bento-t3)' }}>{title}</p>
+                <p style={{ ...styles.phaseSub, color: state === 'done' ? 'var(--bento-sand-label)' : state === 'now' ? 'rgba(255,255,255,.5)' : 'var(--bento-t5)' }}>
+                  {state === 'done' ? L('phaseStatusDone', { n: phaseMinutes[i] }) : state === 'now' ? L('phaseStatusNow', { n: phaseMinutes[i] }) : L('phaseStatusLater')}
+                </p>
+              </div>
+              {state === 'done' && <AppIcon name="Check" size={15} strokeWidth={2.6} color="var(--bento-sand-icon)" />}
+              {state === 'now' && <span style={styles.phaseNowClock}>{fmt(Math.max(0, Math.round((PHASE_BOUNDS[i + 1]?.start ?? TOTAL_SECONDS) - elapsed)))}</span>}
+              {state === 'later' && <span style={styles.phaseLaterMin}>{phaseMinutes[i]} min</span>}
+            </button>
+          )
+        })}
+
+        {/* Painel "para hoje" — guia da etapa espiada (previewPhaseId) ou,
+            por padrão, da etapa real em andamento. Conteúdo completo
+            (3 passos + versículo) mantido atrás de "Ver os passos e o
+            versículo" — o quadro só mostra uma frase, mas os passos/
+            versículo já existiam no app (ActsCard.jsx) e não tinham pra
+            onde ir sem essa expansão. */}
+        <div style={styles.stagePanel}>
+          <p style={styles.stagePanelLabel}>{L('phaseForToday', { stage: previewPhase.title[lang] ?? previewPhase.title.pt })}</p>
+          <p style={styles.stagePanelText} dangerouslySetInnerHTML={{ __html: previewPhase.description[lang] ?? previewPhase.description.pt }} />
+
+          <button style={styles.stepsToggle} onClick={() => setStepsExpanded(v => !v)}>
+            {stepsExpanded ? L('hideStepsAndVerse') : L('viewStepsAndVerse')}
+          </button>
+          {stepsExpanded && (
+            <div style={styles.stepsExpanded}>
+              {(previewPhase.steps[lang] ?? previewPhase.steps.pt).map((step, i) => (
+                <div key={i} style={styles.stepLine}>
+                  <span style={styles.stepDot} />
+                  <p style={styles.stepText} dangerouslySetInnerHTML={{ __html: step }} />
+                </div>
+              ))}
+              <div style={styles.verseBox}>
+                <p style={styles.verseText}>{previewPhase.verse[lang] ?? previewPhase.verse.pt}</p>
+                <p style={styles.verseRef}>{previewPhase.verseRef[lang] ?? previewPhase.verseRef.pt}</p>
+              </div>
+            </div>
+          )}
+
+          {remaining > 0 && (
+            <div style={styles.stagePanelActions}>
+              <button style={styles.pauseBtn} onClick={toggleRunning}>
+                <AppIcon name={runBtnIcon} size={13} color="#fff" />
+                <span>{runBtnLabel}</span>
+              </button>
+              <button style={styles.nextPhaseBtn} onClick={skipToNextPhase}>
+                <span>{L('nextPhaseBtn')}</span>
+                <AppIcon name="ArrowRight" size={13} strokeWidth={2.6} color="var(--bento-ink)" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Duração total — fora do quadro 21a (ver comentário no topo do
+            arquivo). */}
+        <div style={styles.durationCard}>
+          <p style={styles.durationLabel}>{L('durationSectionLabel')}</p>
+          <div style={styles.durationRow}>
+            {DURATION_OPTIONS.map(n => (
+              <button
+                key={n}
+                style={{ ...styles.durationBtn, ...(n === totalMinutes ? styles.durationBtnActive : null) }}
+                onClick={() => selectDuration(n)}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <RoutineStepSwitcher
+          session={session}
+          activeStep="prayer"
+          onGoReading={() => onContinueSession?.()}
+          onGoStudy={() => onNavigate?.('studies')}
+          onGoReflection={() => onNavigate?.('reflection')}
+        />
+
+        {/* Pedidos de oração pessoais — fora do quadro 21a, mantidos tal
+            como já existiam (não reskinado por inteiro nesta passada). */}
+        <div style={styles.requestsWrap}>
+          <PrayerRequests authUser={authUser} lang={lang} />
+        </div>
+      </div>
+
+      {/* Rodapé fixo — sempre ativo, mesmo antes do cronômetro acabar. */}
+      <div style={styles.footer}>
+        <button style={styles.finishBtn} onClick={finishPrayer}>
+          <span>{L('finishAndReadBtn')}</span>
+          <span style={styles.finishArrow}>→</span>
+        </button>
       </div>
     </div>
   )
 }
 
 const styles = {
-  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 24, overflow: 'hidden', position: 'relative', background: 'var(--bk-hero)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(0,0,0,.25)' },
-  heroOrbBlue: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
-  heroOrbPink: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },
-  heroTitle:   { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 2, letterSpacing: '-0.3px' },
-  heroSub:     { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.72)', textAlign: 'center', lineHeight: 1.5, marginTop: 3 },
-  body:        { padding: '0 16px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
-  timer:       { background: 'var(--bk-hero)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  timerLabel:  { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.6)', letterSpacing: 1.8, textTransform: 'uppercase' },
-  timerDisplay:{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
-  currentPhaseBadge: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', border: '1px solid', borderRadius: 24, padding: '6px 14px 6px 6px' },
-  currentPhaseDot:   { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 },
-  // minWidth:0 — sem isso, item flex com texto vira "anônimo": recusa
-  // encolher/quebrar linha por padrão (min-width:auto), e o texto vaza pra
-  // fora do card em telas estreitas (mais visível ainda com o zoom 1.15
-  // sempre ligado no app, ver .app-content-inner no index.css).
-  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.8)', minWidth: 0 },
-  phaseRemaining:    { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.72)', fontVariantNumeric: 'tabular-nums', paddingLeft: 8, marginLeft: 2, borderLeft: '1px solid rgba(255,255,255,.15)', flexShrink: 0 },
-  timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
-  wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.62)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
-  durationLabel: { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.6)', letterSpacing: 1.3, textTransform: 'uppercase', marginTop: 2 },
-  durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
-  durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
-  durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.35)' },
-  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', marginTop: 2, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
-  guidedAutoHint: { fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.7)', textAlign: 'center', marginTop: 2 },
+  // Sem barra inferior nesta tela (quadro 21a): o rodapé é "Concluir e ir
+  // para a leitura" — mesmo padrão de AdjustPlanScreen.jsx (5a).
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
+  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stepChip: { height: 34, borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px' },
+  stepChipTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff' },
+  stepChipSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.45)' },
+  plainTitle: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.3px' },
+  skipBtn: { height: 34, borderRadius: 12, border: 'none', background: 'var(--bento-card)', padding: '0 12px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 4px', display: 'flex', flexDirection: 'column', gap: 8 },
+
+  methodCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 },
+  methodLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
+  segmentRow: { display: 'flex', gap: 3, height: 8 },
+  segment: { flex: 1, borderRadius: 99, transition: 'background .3s' },
+  methodTime: { fontFamily: 'var(--font-bento)', fontSize: 22, fontWeight: 800, letterSpacing: '-.8px', color: 'var(--bento-ink)', margin: '0 0 3px', fontVariantNumeric: 'tabular-nums' },
+  methodTimeLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t4)', margin: 0 },
+
+  phaseRow: { width: '100%', borderRadius: 20, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
+  phaseRowDone: { background: 'var(--bento-sand)' },
+  phaseRowNow: { background: 'var(--bento-ink)', padding: '16px 18px' },
+  phaseRowLater: { background: 'var(--bento-card)' },
+  phaseLetter: { width: 32, height: 32, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 },
+  phaseTitle: { fontSize: 14.5, fontWeight: 800, lineHeight: 1.2, margin: '0 0 2px' },
+  phaseSub: { fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, margin: 0 },
+  phaseNowClock: { fontSize: 15, fontWeight: 800, color: 'var(--bento-accent)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
+  phaseLaterMin: { fontSize: 12, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
+
+  stagePanel: { borderRadius: 24, background: 'var(--bento-ink)', padding: '18px 20px', display: 'flex', flexDirection: 'column' },
+  stagePanelLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 10px' },
+  stagePanelText: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'rgba(255,255,255,.9)', margin: 0 },
+  stepsToggle: { alignSelf: 'flex-start', marginTop: 12, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)' },
+  stepsExpanded: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 },
+  stepLine: { display: 'flex', gap: 9, alignItems: 'flex-start' },
+  stepDot: { width: 6, height: 6, borderRadius: '50%', background: 'var(--bento-accent)', flexShrink: 0, marginTop: 6 },
+  stepText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.85)', margin: 0 },
+  verseBox: { borderRadius: 14, background: 'rgba(255,255,255,.06)', padding: '12px 14px', marginTop: 4 },
+  verseText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.55, color: 'rgba(255,255,255,.8)', margin: '0 0 4px' },
+  verseRef: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', margin: 0 },
+  stagePanelActions: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 },
+  pauseBtn: { flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: '#fff' },
+  nextPhaseBtn: { flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)' },
+
+  durationCard: { borderRadius: 20, background: 'var(--bento-card)', padding: '14px 18px' },
+  durationLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 8px' },
+  durationRow: { display: 'flex', gap: 6, background: 'var(--bento-line)', borderRadius: 12, padding: 4 },
+  durationBtn: { flex: 1, height: 30, borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', background: 'transparent', transition: 'background .15s, color .15s' },
+  durationBtnActive: { background: 'var(--bento-ink)', color: '#fff' },
+
+  requestsWrap: { marginTop: 4 },
+
+  footer: { flexShrink: 0, padding: '12px 20px calc(20px + var(--safe-bottom))' },
+  finishBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)', boxShadow: '0 10px 26px rgba(240,102,43,.35)' },
+  finishArrow: { fontSize: 15, fontWeight: 700 },
 }
