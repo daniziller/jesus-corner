@@ -256,3 +256,81 @@ Ordem: 15a → 15b → uma demonstração (14b/14c/14e/14f) → 15f → 15c → 
   marcado por outros + chip "N do grupo marcaram · N notas". Só contagens por
   padrão; nomes e notas só de quem compartilhou. Chave para desligar no
   rodapé. Botão "Grupo" no cabeçalho abre 17a.
+
+---
+
+## O que mudou depois (rodadas 18–23)
+
+### Bíblia (5f, 18a, 18b)
+- 5f: livros por **nome completo**, agrupados por seção (Pentateuco,
+  Históricos…). Linha de 48px: nome (Manrope 700 15px), barra de progresso
+  56×4px (laranja em curso, preta concluído), nº de capítulos em cinza.
+- 18a: bloco escuro com nome do livro, seção e anel de progresso
+  (conic-gradient laranja). Grade 6 colunas, células 44px raio 13:
+  preta = lido, laranja = atual, `#F2EEE9` = por ler. Botão fixo
+  "Continuar em Gênesis 41".
+- 18b: folha escura (mesma da IA, sem losango) com Cap. anterior/próximo e
+  grade centrada no atual. Abre pelo chip escuro do cabeçalho de 4a.
+
+### Perfil (19a–19c) — não é aba
+- Barra continua com 5 abas: Hoje · Meu Plano · Bíblia · Biblioteca · Comunidade.
+- Iniciais no cabeçalho de Hoje = tile laranja 38px raio 13, texto `#1A1714`.
+  Tocar abre a folha 19a.
+- 19a: bloco escuro (nome, e-mail, etiqueta Admin quando for), cartão com
+  Meus dados / Lembrete / Idioma / Versão da Bíblia, cartão com Administração
+  do grupo (só admin) / Assistente / Aparência, Ajuda + Sair no rodapé.
+- Sem conta: o bloco escuro vira "guarde sua leitura" (13c curto); somem
+  Meus dados e Administração.
+- 19b: idioma do app e versão da Bíblia em cartões separados; trocar versão
+  não mexe no progresso. 19c: código de convite, pedidos de entrada
+  (aceitar/recusar), membros, pergunta da semana.
+
+### Meu Plano — tempos independentes (15f, 4b, 5a, 21a–c)
+- **Cada passo tem o seu tempo**: oração, leitura, reflexão. Só a leitura
+  define o trecho diário. Stepper de 5 em 5 min; 0 desliga o passo.
+  Padrão: 10 + 15 + 5.
+- 15f (onboarding) pergunta os três tempos; 5a (Ajustar) tem os mesmos
+  steppers; 4b mostra "10 + 15 + 5 min".
+- 21a Oração = **método ACTS**: Adoração, Confissão, Gratidão (Thanksgiving),
+  Súplica. Tempo dividido em 4 etapas iguais; barra de 4 segmentos no topo;
+  areia = feita, preto = agora, branco = depois. "Próxima etapa" avança antes
+  do tempo; rodapé conclui a oração.
+- 21b Reflexão = 10d com chip "passo 3 de 3", microfone e 3 barras.
+- 21c Rotina concluída: fundo escuro, resumo dos 3 passos, meta da semana
+  (nunca "sequência"), atalho para a sala 17a.
+- Cabeçalho comum dos passos: chip escuro "Nome · passo N de 3" + "Pular".
+
+### Estudos e planos com IA (22a–22d)
+- Entrada: botão "Criar" (escuro com losango) ao lado de "Ajustar" em 4b;
+  admin de grupo cria pelo 19c.
+- Quatro formatos: Plano temático · Livro · Tema (referências cruzadas) ·
+  Para o grupo. Pedido em texto livre ou chip de sugestão; formato inferido
+  e corrigível.
+- Estudo ativo **substitui a leitura do dia**; plano principal pausa e volta
+  sozinho na data mostrada. Cartão "Gênesis pausado" com "Retomar já" fica
+  sempre visível em 22c.
+- 22b: a IA propõe, a pessoa revisa dia a dia (botão trocar trecho) ou
+  "Refazer". "Começar amanhã" se a leitura de hoje já estiver em andamento.
+
+### Admin do app (23a–23d) — web 1280px
+- Shell: sidebar 232px (`#EDE8E2`), 9 seções, usuário no rodapé. Conteúdo
+  em grid 12 colunas, gap 10, cartões brancos raio 24, KPI raio 20.
+- Bloco escuro = o que exige atenção (assinantes, IA, prévia); areia =
+  "Precisa de ação"; laranja só no botão primário e em números que subiram.
+- 23a: KPIs (assinantes, MRR, DAU, trials), novos assinantes/semana, funil
+  até "iniciou trial", retenção por coorte, IA + reportes, saúde técnica,
+  grupos (retenção 2,4× vs. solo), lista de ação.
+- 23b: busca + segmentos + filtros; tabela (Usuário, Plano, Último acesso,
+  Grupo); painel lateral 340px com "Onde está", "Sinal" e ações (mensagem,
+  estender trial, aplicar código, ver como usuário, desativar — com
+  confirmação).
+- 23c: segmentos pré-montados, canal (Push / E-mail / No app), variáveis
+  {nome} {livro} {capítulo} {dias_de_trial} {link_assinar}, prévia do push,
+  "Testar em mim", agendar. Limite do app: 1 push/pessoa/dia, 8h–21h local.
+- 23d: códigos Promo (teto de usos) / Igreja (entra no grupo, sem teto) /
+  Indicação (gerado por membro). Código de igreja aparece para o líder em 19c.
+
+### Regras de produto adicionadas
+- Hoje: 3c nos primeiros 7 dias e sempre que o painel estiver zerado.
+- IA: "Reportar resposta" em 10b; "Aviso do grupo" em 10f desligado por
+  padrão; referência gerada que não bater com o texto é descartada.

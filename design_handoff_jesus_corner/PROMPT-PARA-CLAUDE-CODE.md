@@ -5,56 +5,51 @@ Cole o texto entre as linhas, dentro do repositório `jesus-corner`, com a pasta
 que o Claude Code consiga ler).
 
 Antes de colar, **substitua a lista de telas** pela sua escolha final — a linha
-"Telas canônicas" abaixo é a minha recomendação, não uma decisão sua.
-
----
-
-```
-Contexto
---------
-Este repositório é o app Jesus' Corner (React 18 + Vite). Preciso implementar um
-redesign que já está desenhado. O design vive em:
-
-  design_handoff_jesus_corner/Jesus Corner Redesign.dc.html
-
-Abra esse arquivo e LEIA O HTML. Ele é a fonte da verdade — mais confiável que
-qualquer descrição em prosa. É um canvas com várias rodadas de exploração,
-numeradas por turno: cada opção tem um id no atributo `id` do seu wrapper
-(`10a`, `10b`, `4a`…) e um rótulo em texto logo acima do quadro do celular.
-Cada quadro de 390×800px é UMA tela do app.
-
-Leia também design_handoff_jesus_corner/README.md para o racional de produto,
-as mudanças de lógica (constância semanal, progresso antes da conta) e as
-decisões de navegação e monetização. Onde o README e o HTML divergirem em
-valores visuais, o HTML manda — ele é mais novo.
-
-Telas canônicas (o arquivo já foi limpo — tudo que está nele vale)
+"Telas canônicas (o arquivo já foi limpo — tudo que está nele vale)
 ----------------------------------------------------------------
-Identidade "Bento", marca preto/cinza/laranja (rodada 16):
+Identidade "Bento", marca preto/cinza/laranja (rodada 16). Quadros de 390×800
+são telas do app; quadros de 1280×800 (rodada 23) são o painel web do admin.
 
-  3c   Início (padrão; também a Home dos primeiros 7 dias)
-  12a  Início com painel de métricas (entra depois da 1ª semana cumprida)
-  4a   Leitura
-  4b   Meu Plano
+  APP — navegação com 5 abas: Hoje · Meu Plano · Bíblia · Biblioteca · Comunidade
+  3c   Hoje (padrão; obrigatória nos primeiros 7 dias ou com painel zerado)
+  12a  Hoje com painel de métricas (entra depois da 1ª semana cumprida)
+  19a  Perfil — folha que abre ao tocar nas iniciais em Hoje (não é aba)
+  19b  Idioma do app + versão da Bíblia
+  19c  Administração do grupo (só para admin de grupo)
+  4a   Leitura — cabeçalho com chip escuro "Gênesis 41 ˄" que abre 18b
+  18a  Página do livro — grade de capítulos
+  18b  Seletor de capítulo dentro da leitura (folha escura)
+  5f   Bíblia — lista de livros por nome completo, agrupados por seção
+  4b   Meu Plano — 3 passos com tempos independentes; botões "Criar" e "Ajustar"
+  21a  Oração — método ACTS, 4 etapas com 1/4 do tempo cada
+  21b  Reflexão — 3 perguntas geradas (10d) com cabeçalho de passo
+  21c  Rotina concluída (fundo escuro)
+  5a   Ajustar plano — stepper por passo (0 min desliga o passo)
+  22a  Criar estudo/plano com IA — pedido (texto livre ou sugestão)
+  22b  Proposta — revisar dia a dia, trocar trecho, refazer
+  22c  Meu Plano com estudo ativo (Gênesis pausado, "Retomar já")
+  22d  Plano do grupo — admin cria, líder revisa a pergunta da semana
   4c   Progresso / Caminhada
-  5a   Ajustes
   5b   Biblioteca
-  5c   Onboarding antigo (pergunta única) — SUBSTITUÍDO por 15f; ignore
   5d   Comunidade
-  5f   Bíblia (leitura livre)
-  10a–10f  IA na leitura (menu Perguntar, resposta, contexto, reflexão,
-           recusas, ajustes da IA)
+  5e   Ferramentas da leitura (folha)
+  17a  Sala do capítulo — abre só para quem concluiu
+  17b  Retrospectiva do mês — cartão compartilhável
+  17c  Leitura com camada do grupo (pontilhado + chip "N do grupo marcaram")
+  10a–10f  IA na leitura: menu Perguntar, resposta (com "Reportar resposta"),
+           contexto, reflexão, recusas, ajustes da IA (inclui "Aviso do grupo")
   13a–13d  Boas-vindas, Entrar, Criar conta, Recuperar senha
-  15a–15f  Onboarding: 5 perguntas + resultado (ordem no texto da rodada 15)
-  14b/14c/14e/14f  Demonstrações do onboarding — só UMA aparece, escolhida
-           pela resposta de 15b
-  16a–16c  Marca: símbolo, logotipo, ícone em 4 tamanhos, variações e limites
-  17a–17c  Leitura social (sala do capítulo, retrospectiva do mês, camada do
-           grupo na leitura) — PROPOSTA aprovada, implementar por último
+  15a–15f  Onboarding: 15a → 15b → uma demonstração → 15f → 15c → 15d → 15e
+           (15f = três tempos separados: oração / leitura / reflexão)
+  14b/14c/14e/14f  Demonstrações — só UMA aparece, pela resposta de 15b
+  16a–16c  Marca: símbolo, logotipo ("Corner" sempre #F0662B), ícone, limites
 
-Rodadas 1, 2, 6–9 e 11 foram removidas do arquivo. Se encontrar referência a
-elas em algum texto, ignore.
+  ADMIN DO APP (web 1280px) — rodada 23
+  23a  Visão geral · 23b Usuários · 23c Mensagens · 23d Convites e códigos
+  (as outras 5 seções da navegação ainda não têm tela; não invente)
 
+Removidos do arquivo: rodadas 1, 2, 6–9, 11 e a tela 5c. Rodadas 17 e 20 têm
+textos de revisão sem tela nova — leia como regra de produto.
 Como implementar
 ----------------
 REGRA ZERO — reproduza EXATAMENTE o que está no HTML. Não simplifique, não
@@ -111,9 +106,15 @@ Regras de fidelidade:
 
 Ordem
 -----
-Comece por 4a (Leitura) e depois 10a + 10b, que é o fluxo de IA completo e não
-mexe em nenhuma outra tela. Faça uma tela por vez e me mostre antes de seguir
-para a próxima. Não refatore nada que não esteja no escopo da tela atual.
+Primeiro, auditoria: para cada tela já implementada, rode o passo 4 contra o
+HTML atual e me traga a lista de ❌ antes de corrigir. Depois, nesta ordem:
+  1. Bíblia: 5f → 18a → 18b → chip no cabeçalho de 4a
+  2. Perfil: 19a → 19b → 19c (abre pelas iniciais em 3c/12a; sem aba nova)
+  3. Meu Plano: 4b → 21a (ACTS) → 21b → 21c → 5a (steppers) → 15f (3 tempos)
+  4. Estudos com IA: 22a → 22b → 22c → 22d
+  5. Leitura social: 17a → 17b → 17c
+  6. Admin web: 23a → 23b → 23c → 23d (projeto/rota separada, mesma identidade)
+Uma tela por vez; me mostre antes de seguir. Não refatore fora do escopo.
 
 Sobre as features de IA (turno 10)
 ----------------------------------
@@ -136,6 +137,14 @@ Regras que valem para toda a implementação, não só para o visual:
    não deixa o usuário esperando.
 8. As perguntas do usuário ficam no aparelho por padrão, com opção de apagar
    todas.
+9. "Reportar resposta" (10b) é obrigatório antes de a IA ir ao ar: ao
+   reportar, a resposta sai do histórico e entra na fila de revisão (23a).
+10. Estudos/planos gerados (22): toda referência é verificada contra o texto
+    da versão escolhida antes de aparecer — trecho que não existe é descartado.
+    A IA propõe, a pessoa aprova; o plano principal pausa com data de retorno
+    visível e "Retomar já" sempre disponível.
+11. Plano de grupo (22d): a pergunta da semana sugerida pela IA só entra na
+    sala (17a) depois que o líder revisa. Membros recebem como convite.
 ```
 
 ---
