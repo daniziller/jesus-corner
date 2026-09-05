@@ -30,6 +30,7 @@ import BibleAudioPlayer from '../components/BibleAudioPlayer'
 import GuidedFlowBanner from '../components/GuidedFlowBanner'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import ToolsSheet from '../components/ToolsSheet'
+import ChapterPickerSheet from '../components/ChapterPickerSheet'
 
 export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
   const { lang, hasPremium, hasAI } = session
@@ -158,6 +159,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     }
   }
 
+  // Seletor de capítulo (18b) — troca de capítulo SEM sair da leitura
+  // imersiva, achando a sessão que cobre aquele número (uma sessão pode
+  // cobrir mais de 1 capítulo no plano estruturado).
+  function openChapterFromPicker(ch) {
+    const target = sessions.find(s => s.book === heroSession.book && s.chStart <= ch && ch <= s.chEnd)
+    if (target) featureSession(target)
+    setChapterPickerOpen(false)
+  }
+
   // Abre/fecha o texto embaixo do capítulo tocado (acordeão) — mantém o
   // card de destaque lá em cima sincronizado também (featureSession), pra
   // Contexto/Mapa/Notas continuarem batendo com o capítulo sendo lido.
@@ -199,6 +209,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // Mapa/Notas/Curiosidades saíram do openPanel e vivem na folha Ferramentas.
   const [openPanel, setOpenPanel] = useState(mode !== 'browse' ? 'texto' : null)
   const [toolsOpen, setToolsOpen] = useState(false)
+  // Seletor de capítulo (quadro 18b) — aberto pelo chip escuro do
+  // cabeçalho. Mesma folha escura da IA, mas sem losango.
+  const [chapterPickerOpen, setChapterPickerOpen] = useState(false)
   // Cabeçalho da leitura imersiva some ao rolar pra baixo, volta ao rolar
   // pra cima (redesign 1b). scrollRef é o container que rola (ver JSX).
   const [readerHeaderHidden, setReaderHeaderHidden] = useState(false)
@@ -743,7 +756,26 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
             </button>
             <div style={{ minWidth: 0 }}>
-              <p style={styles.readerHeaderTitle}>{heroTitle}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Chip escuro (quadro 4a) — abre o seletor de capítulo
+                    (18b), a mesma folha escura da IA mas sem losango (aqui
+                    não é a máquina falando). Só tocável numa sessão de
+                    leitura de verdade — a reflexão de fechamento de livro
+                    não tem capítulo pra escolher numa grade de números. */}
+                {heroSession.type === 'reflection' ? (
+                  <div style={styles.readerChapterChip}><span style={styles.readerChapterChipText}>{heroTitle}</span></div>
+                ) : (
+                  <button style={styles.readerChapterChip} onClick={() => setChapterPickerOpen(true)}>
+                    <span style={styles.readerChapterChipText}>{heroTitle}</span>
+                    <AppIcon name="ChevronUp" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
+                  </button>
+                )}
+                {/* "passo N de 3" ao lado do chip (nota do handoff) — só
+                    quando a leitura foi aberta pelo plano guiado (4b). */}
+                {guidedReading && (
+                  <span style={styles.readerStepBadge}>{t('guided.stepOf', { n: guidedReading.idx + 1, total: guidedReading.total }, lang)}</span>
+                )}
+              </div>
               <p style={styles.readerHeaderSub}>{readerHeaderSub}</p>
             </div>
           </div>
@@ -1270,6 +1302,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               {t('reading.tagAskAi', undefined, lang)}
             </button>
           ) : null}
+        />
+        <ChapterPickerSheet
+          open={chapterPickerOpen}
+          onClose={() => setChapterPickerOpen(false)}
+          lang={lang}
+          bookDisplayName={heroBookDisplayName}
+          totalChapters={computeBookChapterCounts(sessionsByBlock)[heroSession.book] ?? 0}
+          currentChapter={heroSession.chStart}
+          completedSet={completedSet}
+          bookKey={heroSession.book}
+          onSelectChapter={openChapterFromPicker}
+          onSwitchBook={() => { setChapterPickerOpen(false); onNavigate?.('journey') }}
         />
       </div>
     ) : (
@@ -2860,7 +2904,15 @@ const styles = {
     width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
   },
-  readerHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-0.4px', color: 'var(--bento-ink)', lineHeight: 1.1, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  // Chip escuro tocável "{Livro} {capítulo}" (quadro 4a) — abre o seletor
+  // de capítulo (18b). readerHeaderSub (versão + posição no livro) é dado
+  // real fora do quadro, mantido como legenda abaixo do chip.
+  readerChapterChip: {
+    display: 'flex', alignItems: 'center', gap: 8, height: 34, maxWidth: '100%',
+    border: 'none', borderRadius: 12, background: 'var(--bento-ink)', padding: '0 12px 0 14px', cursor: 'pointer',
+  },
+  readerChapterChipText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  readerStepBadge: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t4)' },
   readerHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.2, margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   readerTextCardWrap: { padding: '0 20px 4px' },
   readerTextCard: { background: 'var(--bento-card)', borderRadius: 28, padding: '26px 24px' },
