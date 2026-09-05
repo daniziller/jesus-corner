@@ -281,14 +281,9 @@ export default function JourneyScreen({
     const abbr = ref.split(' ')[0]
     return abbr && /[A-Za-zÀ-ÿ]/.test(abbr) ? abbr : entry.displayName.slice(0, 3)
   }
-  // Bloco escuro na grade: o livro da leitura de hoje (e o que está aberto).
-  const currentBook = session.todaySession?.book ?? null
-
-  // Progresso por livro — não está no quadro 5f (só a grade de siglas),
-  // mas é dado real que já existia antes da grade (ver BookRow da versão
-  // anterior) e a autora pediu de volta: um número pequeno no canto de
-  // cada célula. Cheio = check; parcial = % arredondado; 0% = nada, pra
-  // não poluir a grade toda de "0".
+  // Progresso por livro (quadro 5f): barra fina — laranja em curso, preta
+  // concluído — e o total de capítulos ao lado (não quantos já leu; o
+  // total é o dado estável, a barra já mostra o quanto).
   const bookChapterCounts = computeBookChapterCounts(sessionsByBlock ?? {})
   function progressFor(entry) {
     const total = bookChapterCounts[entry.canonicalName] ?? 0
@@ -359,31 +354,34 @@ export default function JourneyScreen({
           {gridBooks.length === 0 ? (
             <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
           ) : (
-            <div style={styles.bookGrid}>
-              {gridBooks.map(entry => {
+            <div>
+              {gridBooks.map((entry, i) => {
                 const key = `${entry.block.id}:${entry.canonicalName}`
-                // expandedBookKey nunca bate aqui (a tela navega pra 18a
-                // em vez de expandir na grade) — só o livro da leitura de
-                // hoje fica em destaque.
-                const active = entry.canonicalName === currentBook
+                // Cabeçalho de seção (Pentateuco, Históricos…) só quando não
+                // é busca — livros vêm em ordem canônica, então um novo
+                // bloco = uma seção nova. Na busca, fica uma lista só, sem
+                // subdividir (os resultados já cruzam seções).
+                const showSectionHeader = !searchResults && (i === 0 || entry.block.id !== gridBooks[i - 1].block.id)
                 const { done, total, pct } = progressFor(entry)
+                const isLast = i === gridBooks.length - 1
                 return (
-                  <button
-                    key={key}
-                    style={{ ...styles.bookCell, ...(active ? styles.bookCellActive : {}) }}
-                    onClick={() => openBook(entry.block, entry.canonicalName)}
-                    aria-label={total ? `${entry.displayName} — ${done}/${total}` : entry.displayName}
-                    title={total ? `${entry.displayName} — ${done}/${total}` : entry.displayName}
-                  >
-                    {abbreviationFor(entry)}
-                    {done === total && total > 0 ? (
-                      <span style={{ ...styles.bookCellBadge, ...(active ? styles.bookCellBadgeActiveDone : styles.bookCellBadgeDone) }}>
-                        <AppIcon name="Check" size={8} strokeWidth={3.5} color={active ? 'var(--bento-ink)' : '#fff'} />
+                  <div key={key}>
+                    {showSectionHeader && (
+                      <p style={{ ...styles.sectionLabel, marginTop: i === 0 ? 0 : 14 }}>
+                        {lang === 'en' ? entry.block.nameEn : entry.block.name}
+                      </p>
+                    )}
+                    <button
+                      style={{ ...styles.bookRow, borderBottom: isLast ? 'none' : '1px solid var(--bento-line)' }}
+                      onClick={() => openBook(entry.block, entry.canonicalName)}
+                    >
+                      <span style={styles.bookRowName}>{entry.displayName}</span>
+                      <span style={styles.bookRowBarTrack}>
+                        <span style={{ ...styles.bookRowBarFill, width: `${pct}%`, background: pct >= 100 ? 'var(--bento-ink)' : 'var(--bento-accent)' }} />
                       </span>
-                    ) : done > 0 ? (
-                      <span style={{ ...styles.bookCellBadge, ...(active ? styles.bookCellBadgeActive : {}) }}>{pct}</span>
-                    ) : null}
-                  </button>
+                      <span style={styles.bookRowCount}>{total || ''}</span>
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -431,20 +429,15 @@ const styles = {
   testamentHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px' },
   testamentLabel:  { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
   testamentSwitchBtn: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)', padding: 0 },
-  bookGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 },
-  bookCell: { position: 'relative', height: 46, borderRadius: 14, border: 'none', padding: 0, background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: '46px', color: 'var(--bento-ink)', textAlign: 'center', cursor: 'pointer' },
-  bookCellActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
-  // Progresso por livro (fora do quadro 5f, pedido de volta pela autora) —
-  // número pequeno no canto: % arredondado enquanto parcial, check quando
-  // o livro inteiro já foi lido.
-  bookCellBadge: {
-    position: 'absolute', top: 3, right: 3, minWidth: 13, height: 13, borderRadius: 99,
-    background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'var(--font-bento)', fontSize: 7, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', padding: '0 2px',
-  },
-  bookCellBadgeActive: { background: 'rgba(255,255,255,.22)', color: '#fff' },
-  bookCellBadgeDone: { background: 'var(--bento-ink)' },
-  bookCellBadgeActiveDone: { background: 'var(--bento-accent)' },
+  // Cabeçalho de seção (Pentateuco, Históricos…) e linha de livro — quadro
+  // 5f atualizado: nome completo + barra fina de progresso + total de
+  // capítulos, em vez da grade de siglas de antes.
+  sectionLabel: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 2px' },
+  bookRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, height: 48, border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' },
+  bookRowName: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)' },
+  bookRowBarTrack: { width: 56, height: 4, borderRadius: 99, background: 'var(--bento-line)', flexShrink: 0, overflow: 'hidden' },
+  bookRowBarFill: { display: 'block', height: 4, borderRadius: 99 },
+  bookRowCount: { width: 34, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t4)' },
 
   todaySessionCard:  { width: '100%', borderRadius: 24, background: 'rgba(255,255,255,.6)', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
   todaySessionIcon:  { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
