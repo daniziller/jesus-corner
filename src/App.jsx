@@ -1680,7 +1680,7 @@ export default function App() {
     // estiver zerado, a Home é 3c; o painel só entra depois da primeira
     // semana cumprida (ver shouldShowDashboard).
     home: shouldShowDashboard(session)
-      ? <HomeDashboard session={session} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
+      ? <HomeDashboard session={session} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />
       : <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />,
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
