@@ -26,6 +26,10 @@
 // são os MESMOS de sempre (vindos de App.jsx) — não existe um "concluído"
 // separado por plano temático: ler Gênesis 4 aqui já conta pro progresso
 // geral da Bíblia, porque é a mesma chave livro:capítulo de sempre.
+//
+// Lista sem quadro no handoff (a criação, 22a/22b, já é Bento desde a
+// Etapa 10) — cabeçalho e cartões seguem o mesmo padrão de tela
+// secundária já usado em GroupAdminScreen.jsx/GroupsScreen.jsx.
 import { useState, useEffect } from 'react'
 import { deleteThemePlan } from '../themePlans/themePlansStore'
 import { themePlanTitle, themePlanProgress } from '../plan/resolveActivePlan'
@@ -35,6 +39,8 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 
+const FONT = 'var(--font-bento)'
+
 // Mesmo limite e mesma janela (30 dias corridos, não mês-calendário) do
 // servidor (ver MAX_PLANS_PER_MONTH/THIRTY_DAYS_MS em
 // api/generate-theme-plan.js) — checado aqui também só pra dar feedback
@@ -43,8 +49,9 @@ import ReadingBlockView from './ReadingBlockView'
 const MAX_PLANS_PER_MONTH = 4
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
-export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onCreateStudy, onGoToReflectionFrom }) {
+export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onCreateStudy, onGoToReflectionFrom, onBack }) {
   const { lang } = session
+  const L = (k, vars) => t(`themePlan.${k}`, vars, lang)
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
 
   const recentPlansCount = plans.filter(p => p.createdAt && Date.now() - new Date(p.createdAt).getTime() < THIRTY_DAYS_MS).length
@@ -120,78 +127,88 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
   }
 
   return (
-    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div style={styles.body}>
-        <div className="page-header" style={{ padding: 0, marginBottom: 4 }}>
-          <h1 className="page-title">{t('themePlan.pageTitle', undefined, lang)}</h1>
-          <p style={styles.heroSub}>{t('themePlan.heroSub', undefined, lang)}</p>
-          {/* Contador de quantos planos ainda dá pra criar esse mês — só
-              enquanto não bateu no limite (atPlanLimit já mostra uma
-              mensagem própria, mais completa, nesse caso — ver abaixo) e só
-              pra quem tem limite de verdade (conta admin nunca bate nele,
-              ver isAdmin). */}
-          {!isAdmin && !atPlanLimit && (
-            <p style={styles.plansRemainingNote}>
-              {t('themePlan.plansRemaining', { remaining: MAX_PLANS_PER_MONTH - recentPlansCount, total: MAX_PLANS_PER_MONTH }, lang)}
-            </p>
-          )}
+    <div style={s.screen}>
+      <div style={s.header}>
+        <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <div>
+          <p style={s.headerTitle}>{L('pageTitle')}</p>
+          <p style={s.headerSub}>{L('heroSub')}</p>
         </div>
+      </div>
+
+      <div style={s.body}>
+        {/* Contador de quantos planos ainda dá pra criar esse mês — só
+            enquanto não bateu no limite (atPlanLimit já mostra uma
+            mensagem própria, mais completa, nesse caso — ver abaixo) e só
+            pra quem tem limite de verdade (conta admin nunca bate nele,
+            ver isAdmin). */}
+        {!isAdmin && !atPlanLimit && (
+          <p style={s.plansRemainingNote}>{L('plansRemaining', { remaining: MAX_PLANS_PER_MONTH - recentPlansCount, total: MAX_PLANS_PER_MONTH })}</p>
+        )}
 
         {atPlanLimit ? (
-          <p style={styles.limitHint}>{t('themePlan.limitReached', undefined, lang)}</p>
+          <p style={s.sandCard}>{L('limitReached')}</p>
         ) : (
-          <button style={styles.newPlanBtn} onClick={onCreateStudy}>
-            <AppIcon name="Sparkles" size={16} color="white" />
-            {t('themePlan.newPlanBtn', undefined, lang)}
+          <button style={s.newPlanBtn} onClick={onCreateStudy}>
+            <AppIcon name="Sparkles" size={16} color="var(--bento-ink)" />
+            {L('newPlanBtn')}
           </button>
         )}
 
-        {plans.length === 0 && (
-          <p style={styles.emptyHint}>{t('themePlan.empty', undefined, lang)}</p>
+        {plans.length === 0 ? (
+          <p style={s.emptyHint}>{L('empty')}</p>
+        ) : (
+          <div style={s.card}>
+            {plans.map((plan, i) => {
+              const progress = themePlanProgress(plan, completedSet)
+              return (
+                <div key={plan.id} style={{ ...s.planRow, borderBottom: i === plans.length - 1 ? 'none' : '1px solid var(--bento-line)' }}>
+                  <button style={s.planRowMain} onClick={() => setActivePlanId(plan.id)}>
+                    <span style={s.planIcon}><AppIcon name="Sparkles" size={15} color="#A21CAF" /></span>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <p style={s.planTitle}>{themePlanTitle(plan)}</p>
+                      <p style={s.planMeta}>
+                        {L('sessionsCount', { done: progress.done, total: progress.total })}
+                        {progress.totalMinutes != null && ` · ~${progress.totalMinutes} ${t('routine.min', undefined, lang)}`}
+                      </p>
+                    </div>
+                    <span style={s.chevron}>›</span>
+                  </button>
+                  <button style={s.deleteBtn} onClick={() => handleDelete(plan)} aria-label={L('deleteAction')}>
+                    <AppIcon name="Trash2" size={13} color="var(--re)" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {plans.map(plan => {
-            const progress = themePlanProgress(plan, completedSet)
-            return (
-              <div key={plan.id} style={styles.planCard}>
-                <button style={styles.planCardMain} onClick={() => setActivePlanId(plan.id)}>
-                  <span style={styles.planCardIcon}><AppIcon name="Sparkles" size={16} color="#A21CAF" /></span>
-                  <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <span style={styles.planCardTheme}>{themePlanTitle(plan)}</span>
-                    <span style={styles.planCardMeta}>
-                      {t('themePlan.sessionsCount', { done: progress.done, total: progress.total }, lang)}
-                      {progress.totalMinutes != null && ` · ~${progress.totalMinutes} ${t('routine.min', undefined, lang)}`}
-                    </span>
-                  </span>
-                  <AppIcon name="ChevronRight" size={16} color="var(--g4)" />
-                </button>
-                <button style={styles.planDeleteBtn} onClick={() => handleDelete(plan)} aria-label={t('themePlan.deleteAction', undefined, lang)}>
-                  <AppIcon name="Trash2" size={13} color="var(--re)" />
-                </button>
-              </div>
-            )
-          })}
-        </div>
       </div>
     </div>
   )
 }
 
-const styles = {
-  body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
+const s = {
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
+  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+  headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
 
-  heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
-  plansRemainingNote: { fontSize: 11, fontWeight: 600, color: '#A21CAF', lineHeight: 1.4, margin: '4px 2px 0' },
-  emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
-  limitHint:  { fontSize: 12, fontWeight: 600, color: 'var(--g5)', textAlign: 'center', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: 13 },
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  plansRemainingNote: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: '#A21CAF', lineHeight: 1.4, margin: '0 2px' },
+  emptyHint: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '24px 12px' },
+  sandCard: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-sand-ink)', textAlign: 'center', background: 'var(--bento-sand)', borderRadius: 18, padding: 14, margin: 0 },
 
-  newPlanBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 14, padding: 13, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: '#A21CAF', boxShadow: '0 8px 20px rgba(162,28,175,.3)' },
+  newPlanBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 14, fontFamily: FONT, fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer', background: 'var(--bento-accent)' },
 
-  planCard:     { display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 6, boxShadow: 'var(--shadow-card)' },
-  planCardMain: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', padding: 7 },
-  planCardIcon: { width: 32, height: 32, borderRadius: 10, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  planCardTheme:{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 },
-  planCardMeta: { display: 'block', fontSize: 10.5, fontWeight: 500, color: 'var(--g5)' },
-  planDeleteBtn:{ width: 30, height: 30, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  card: { borderRadius: 24, background: 'var(--bento-card)', padding: '4px 14px' },
+  planRow: { display: 'flex', alignItems: 'center', gap: 4 },
+  planRowMain: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: FONT, padding: '12px 0' },
+  planIcon: { width: 32, height: 32, borderRadius: 11, background: 'rgba(162,28,175,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  planTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  planMeta: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  chevron: { fontFamily: FONT, fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
+  deleteBtn: { width: 30, height: 30, border: 'none', background: 'none', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
 }
