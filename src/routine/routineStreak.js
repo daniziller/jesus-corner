@@ -39,6 +39,14 @@ export function dayStepCount(day, modules = DEFAULT_ROUTINE_MODULES) {
 // terminando hoje. Se hoje ainda não terminou, isso não zera a sequência na
 // hora — conta a partir de ontem, já que o dia de hoje ainda está "em
 // aberto" até acabar.
+//
+// Removida de todo lugar que o produto mostra pra quem usa o app — decisão
+// da autora, README seção 18 "Sobre culpa e constância": "nenhuma tela
+// mostra sequência perdida" (ver a extinção de routine/goals.js e de
+// session.streak em App.jsx). Continua existindo só porque
+// api/admin/user-detail.js importa daqui pra um número de diagnóstico
+// interno do painel do admin — fora do escopo dessa limpeza (painel do
+// admin só muda quando pedido à parte).
 export function computeRoutineStreak(dailyRoutine, modules = DEFAULT_ROUTINE_MODULES, today = new Date()) {
   const todayKeyStr = dateKey(today)
   const cursor = new Date(today)
@@ -53,38 +61,6 @@ export function computeRoutineStreak(dailyRoutine, modules = DEFAULT_ROUTINE_MOD
   return streak
 }
 
-// Quantas semanas SEGUIDAS (segunda a domingo) a pessoa leu pelo menos 1
-// capítulo em pelo menos 1 dia, terminando na semana atual — métrica
-// separada do streak diário acima (esse é sobre a rotina INTEIRA, dia a
-// dia; este é só sobre leitura, semana a semana, então perdoa um dia sem
-// ler contanto que outro dia da mesma semana tenha). Mesmo espírito
-// "perdoador" do streak diário: se a semana atual ainda não teve nenhuma
-// leitura, isso não zera a sequência na hora — a semana ainda não acabou,
-// então começa a contar da semana passada em vez de considerar a atual
-// como uma quebra.
-export function computeReadingWeekStreak(dailyRoutine, today = new Date()) {
-  const todayKeyStr = dateKey(today)
-  function weekHasReading(weekStart) {
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)
-      const dayKeyStr = dateKey(d)
-      if (dayKeyStr > todayKeyStr) break // não olha pra dias futuros da semana atual
-      if (dailyRoutine[dayKeyStr]?.reading) return true
-    }
-    return false
-  }
-  let cursor = mondayOf(today)
-  if (!weekHasReading(cursor)) {
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 7)
-  }
-  let weekStreak = 0
-  while (weekHasReading(cursor)) {
-    weekStreak++
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - 7)
-  }
-  return weekStreak
-}
-
 // ── Constância semanal (redesign, etapa 4) ──────────────────────────────
 //
 // Substitui a sequência de dias corridos por uma meta semanal: a pessoa
@@ -92,10 +68,7 @@ export function computeReadingWeekStreak(dailyRoutine, today = new Date()) {
 // 3–7, padrão 5 — ver src/routine/weeklyGoalStore.js) e vê "X de 7 dias
 // esta semana" + "Y semanas na meta" (contador histórico que só CRESCE,
 // nunca reseta por um dia perdido — culpa é o principal motivo de alguém
-// desistir de um app devocional). O streak antigo (computeRoutineStreak,
-// acima) continua existindo só pelas conquistas/metas de "dias seguidos"
-// já publicadas (ver utils/achievements.js/routine/goals.js) — não é mais
-// o que a Home/Progresso mostram como "constância".
+// desistir de um app devocional).
 export const DEFAULT_WEEKLY_GOAL_DAYS = 5
 
 // O dia conta pra meta semanal quando a LEITURA foi concluída — Oração e

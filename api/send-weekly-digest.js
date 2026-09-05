@@ -2,11 +2,11 @@
 // pra quem teve alguma atividade na semana anterior (oração, leitura,
 // reflexão ou estudo — ver `hasActivity` abaixo), um boletim semanal: um
 // resumo gerado por IA da semana (a partir das anotações reais escritas),
-// os temas espirituais recorrentes, as métricas atuais (nível, sequência,
-// % da Bíblia lida), as frases de aplicação pessoal escritas na semana (só
-// as próprias palavras da pessoa — não passam pela IA) e uma frase de
-// encorajamento pra semana seguinte. Chega tanto como notificação in-app
-// (sino) quanto por email.
+// os temas espirituais recorrentes, as métricas atuais (nível, semanas na
+// meta, % da Bíblia lida), as frases de aplicação pessoal escritas na
+// semana (só as próprias palavras da pessoa — não passam pela IA) e uma
+// frase de encorajamento pra semana seguinte. Chega tanto como notificação
+// in-app (sino) quanto por email.
 //
 // Aproximação de fuso: o cron roda uma vez só, num horário fixo em UTC
 // (0 9 * * 1 = ~6h em Brasília, que não observa horário de verão desde
@@ -25,16 +25,17 @@
 // rotina (daily_routine, que já é por dia) com (2) as anotações com data
 // própria escritas na semana (notes — reflexão diária, nota de leitura,
 // frase de aplicação, reflexão de fechamento de livro) — o texto real que
-// vira o resumo/temas da IA. As MÉTRICAS (nível, XP, % da Bíblia,
-// sequência) são o estado ATUAL, cumulativo, não só da semana.
+// vira o resumo/temas da IA. As MÉTRICAS (nível, XP, % da Bíblia, semanas
+// na meta) são o estado ATUAL, cumulativo, não só da semana. (Sequência de
+// dias corridos removida de vez — decisão da autora, nenhuma tela ou
+// mensagem do produto mostra isso mais.)
 //
 // Só o Vercel Cron deve conseguir chamar isso — mesmo padrão de
 // autenticação (`Authorization: Bearer $CRON_SECRET`) dos outros crons.
 import { createClient } from '@supabase/supabase-js'
 import { deriveProgress, computeOverallStats, computeGamificationStats } from '../src/utils/progress.js'
 import { levelFor } from '../src/utils/levels.js'
-import { computeWeeklyRoutineStats, computeRoutineStreak, computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES } from '../src/routine/routineStreak.js'
-import { computeGoalsStatus } from '../src/routine/goals.js'
+import { computeWeeklyRoutineStats, computeWeeksInGoal, computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES, DEFAULT_WEEKLY_GOAL_DAYS } from '../src/routine/routineStreak.js'
 import { dateKey } from '../src/utils/dateKey.js'
 import { generateWeeklyDigest } from './_lib/ai.js'
 import { sendEmail } from './_lib/resend.js'
@@ -60,7 +61,7 @@ const COPY = {
     applicationLabel: 'Suas frases de aplicação',
     encouragementLabel: 'Pra semana que vem',
     metricLevel: 'Nível atual',
-    metricStreak: 'Dias seguidos de rotina',
+    metricWeeksInGoal: 'Semanas na meta',
     metricBible: 'Da Bíblia lida',
     ctaButton: 'Abrir o app',
     activity: (d) => `Oração: ${d.prayerDays}/${d.totalDays} dias · Leitura: ${d.readingDays}/${d.totalDays} dias · Estudo: ${d.studyDays}/${d.totalDays} dias · Reflexão: ${d.reflectionDays}/${d.totalDays} dias`,
@@ -74,7 +75,7 @@ const COPY = {
     applicationLabel: 'Your application notes',
     encouragementLabel: 'For the week ahead',
     metricLevel: 'Current level',
-    metricStreak: 'Days in a row',
+    metricWeeksInGoal: 'Weeks on goal',
     metricBible: 'Of the Bible read',
     ctaButton: 'Open the app',
     activity: (d) => `Prayer: ${d.prayerDays}/${d.totalDays} days · Reading: ${d.readingDays}/${d.totalDays} days · Study: ${d.studyDays}/${d.totalDays} days · Reflection: ${d.reflectionDays}/${d.totalDays} days`,
@@ -200,7 +201,7 @@ function buildDigestHtml({ lang, copy, summary, themes, encouragement, applicati
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAFA;border-radius:14px;">
               <tr>
                 ${metricCell(copy.metricLevel, metrics.levelTitle)}
-                ${metricCell(copy.metricStreak, metrics.streakDays)}
+                ${metricCell(copy.metricWeeksInGoal, metrics.weeksInGoal)}
                 ${metricCell(copy.metricBible, `${metrics.biblePercent}%`)}
               </tr>
             </table>
@@ -229,7 +230,7 @@ async function fetchAllUserDataRows() {
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabaseAdmin
       .from('user_data')
-      .select('user_id, plan_id, reading_order, completed_keys, notes, daily_routine, routine_modules, completed_goals, weekly_digests')
+      .select('user_id, plan_id, reading_order, completed_keys, notes, daily_routine, routine_modules, weekly_goal_days, weekly_digests')
       .range(from, from + PAGE - 1)
     if (error) throw error
     rows.push(...(data ?? []))
@@ -286,14 +287,12 @@ export default async function handler(req, res) {
       const { blocks, sessionsByBlock } = deriveProgress(completedSet, row.plan_id, row.reading_order)
       const overall = computeOverallStats(blocks)
       const gami = computeGamificationStats(completedSet, sessionsByBlock, blocks)
-      const goals = computeGoalsStatus(dailyRoutine, row.completed_goals ?? {}, routineModules, lang, now)
-      const goalsXpBonus = goals.reduce((sum, g) => sum + (g.completed ? g.xp : 0), 0)
       const routineXpBonus = computeRoutineXpBonus(dailyRoutine, routineModules, now)
-      const xp = gami.xp + goalsXpBonus + routineXpBonus
+      const xp = gami.xp + routineXpBonus
       const level = levelFor(xp, lang)
-      const streakDays = computeRoutineStreak(dailyRoutine, routineModules, now)
+      const weeksInGoal = computeWeeksInGoal(dailyRoutine, row.weekly_goal_days || DEFAULT_WEEKLY_GOAL_DAYS, now)
 
-      const metrics = { levelTitle: level.title, streakDays, biblePercent: overall.biblePercent }
+      const metrics = { levelTitle: level.title, weeksInGoal, biblePercent: overall.biblePercent }
 
       const { error: notifErr } = await supabaseAdmin.from('notifications').insert({
         user_id: row.user_id,

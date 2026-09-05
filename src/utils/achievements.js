@@ -1,16 +1,18 @@
 // Conquistas: outra forma (não-temporal) de medir e comemorar o progresso da
 // leitura. `ctx` é montado em App.jsx a partir de computeGamificationStats +
-// streak + biblePercent + blocks.
+// biblePercent + blocks. (As duas conquistas de sequência de dias seguidos —
+// streak-7/streak-30 — foram removidas: nenhuma tela pode mostrar "sequência
+// perdida", decisão da autora, README seção 18 "Sobre culpa e constância".)
 //
 // `tone` define a cor do selo (ver src/components/AchievementBadge.jsx):
-//   book (leitura) · flame (sequência) · gold (marcos da Bíblia) ·
-//   scroll (blocos) · prayer (oração).
+//   book (leitura) · gold (marcos da Bíblia) · scroll (blocos) ·
+//   prayer (oração). ('flame' ficou sem nenhuma conquista depois da
+//   remoção de streak-7/streak-30 — deixado no mapa de cores por não fazer
+//   mal nenhum ficar ali, caso uma conquista futura queira usar.)
 // `xp` é a pontuação que a conquista vale — some ao total quando
 // desbloqueada (ver App.jsx: achievementsXpBonus) e aparece no selo.
 export const ACHIEVEMENTS = [
   { id: 'first-session', icon: 'Star', tone: 'book', xp: 20, title: { pt: 'Primeiro passo', en: 'First step' }, desc: { pt: 'Marque sua primeira sessão de leitura', en: 'Mark your first reading session' }, check: ctx => ctx.chaptersRead > 0 },
-  { id: 'streak-7', icon: 'Flame', tone: 'flame', xp: 75, title: { pt: 'Uma semana com Deus', en: 'A week with God' }, desc: { pt: '7 dias seguidos de leitura', en: '7 days in a row reading' }, check: ctx => ctx.streak >= 7 },
-  { id: 'streak-30', icon: 'Flame', tone: 'flame', xp: 300, title: { pt: 'Um mês com Deus', en: 'A month with God' }, desc: { pt: '30 dias seguidos de leitura', en: '30 days in a row reading' }, check: ctx => ctx.streak >= 30 },
   { id: 'first-book', icon: 'BookOpen', tone: 'book', xp: 100, title: { pt: 'Primeiro livro', en: 'First book' }, desc: { pt: 'Termine de ler um livro inteiro', en: 'Finish reading an entire book' }, check: ctx => ctx.booksCompleted >= 1 },
   { id: 'ten-books', icon: 'Library', tone: 'book', xp: 400, title: { pt: 'Biblioteca em construção', en: 'Building a library' }, desc: { pt: '10 livros completos', en: '10 books completed' }, check: ctx => ctx.booksCompleted >= 10 },
   { id: 'thirty-books', icon: 'Archive', tone: 'book', xp: 1000, title: { pt: 'Grande conhecedor', en: 'Great knower' }, desc: { pt: '30 livros completos', en: '30 books completed' }, check: ctx => ctx.booksCompleted >= 30 },

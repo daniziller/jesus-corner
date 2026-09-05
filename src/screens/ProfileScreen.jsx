@@ -294,7 +294,6 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
                   {profile?.bio && <p style={styles.bioDisplay}>{profile.bio}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
-                  <StatItem value={session.streak}       label={t('profile.sequenceLabel', undefined, session.lang)} />
                   <StatItem value={`${session.biblePercent}%`} label={t('profile.bibleLabel', undefined, session.lang)} />
                   {session.hasPremium ? (
                     <>

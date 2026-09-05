@@ -479,9 +479,9 @@ ${buildFieldsLangInstruction(lang, 'paragraph')}`,
 }
 
 // Boletim semanal (aba Notificações + email, ver api/send-weekly-digest.js)
-// — resume a semana de quem usa o app. Métricas (nível, XP, streak, % da
-// Bíblia) e frases de aplicação NÃO vêm da IA — são dado real, montados por
-// quem chama esta função. Só "summary"/"themes"/"encouragement" pedem
+// — resume a semana de quem usa o app. Métricas (nível, XP, semanas na
+// meta, % da Bíblia) e frases de aplicação NÃO vêm da IA — são dado real,
+// montados por quem chama esta função. Só "summary"/"themes"/"encouragement" pedem
 // geração: o texto livre das anotações da semana (reflexões, notas de
 // leitura) não tem estrutura pra virar métrica, mas dá pra resumir e
 // extrair tema. `notesText` já vem formatado (uma linha por anotação) por

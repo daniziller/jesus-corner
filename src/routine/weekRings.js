@@ -1,9 +1,6 @@
 // Semana atual (segunda a domingo) com o status dos 3 passos em cada dia —
 // usado pelos "anéis da semana" (referência: o resumo semanal do app Apple
-// Health/Fitness, um anel por dia) tanto na Home quanto na imagem
-// compartilhável (ver src/screens/HomeScreen.jsx e
-// src/share/shareProgressCard.js — mesma função, pra nunca divergir o que
-// aparece nos dois lugares).
+// Health/Fitness, um anel por dia) na Home (ver src/screens/HomeScreen.jsx).
 import { dateKey } from '../utils/dateKey'
 
 export function computeCurrentWeekDays(dailyRoutine, today = new Date()) {
