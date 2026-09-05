@@ -1,6 +1,6 @@
 // Convite a salvar (redesign 1g/etapa 7) — quando reapresentar a folha
 // "Você leu X, quer guardar isso?" pra quem está lendo sem conta (ver
-// GuestSaveInviteScreen.jsx). Aparece depois da 1ª leitura concluída; se a
+// SignupScreen.jsx). Aparece depois da 1ª leitura concluída; se a
 // pessoa escolher "Continuar sem conta", o convite some e só volta depois
 // de mais duas leituras (repete daí em diante, a cada duas, em vez de
 // insistir a cada capítulo). "Quantidade lida" aqui é o tamanho do

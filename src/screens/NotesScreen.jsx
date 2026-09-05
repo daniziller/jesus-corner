@@ -26,13 +26,15 @@ import { HIGHLIGHT_COLORS } from '../data/highlightColors'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { computeBookChapterCounts } from '../utils/progress'
 import { dateKey } from '../utils/dateKey'
-import { formatRelativeTime } from '../utils/time'
+import { fetchBookText } from '../bible-text/bibleTextStore'
+import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { monthLabel } from './MonthRecapScreen'
 
 // Redesign 1e — 5 chips fixos: Todas · Notas · Marcações · Estudos ·
 // Sermões. "Notas" agora reúne nota de capítulo, reflexão de fechamento de
@@ -47,11 +49,12 @@ import AppIcon from '../icons/AppIcon'
 // tem uma "note" de verdade por trás.
 const FILTERS = [
   { key: 'all', types: null, labelKey: 'notes.filterAll' },
-  { key: 'notes', types: ['reading', 'book-reflection', 'daily-reflection', 'application-phrase'], labelKey: 'notes.filterNotes' },
+  { key: 'notes', types: ['reading', 'book-reflection', 'daily-reflection', 'application-phrase', 'recap'], labelKey: 'notes.filterNotes' },
   { key: 'highlight', types: ['highlight'], labelKey: 'notes.filterHighlights' },
   { key: 'study', types: ['study'], labelKey: 'notes.filterStudy' },
-  { key: 'sermon', types: ['sermon'], labelKey: 'notes.filterSermon' },
 ]
+// Quadro 4c: quatro chips (Todas · Notas · Marcações · Estudos). Sermões
+// aparecem em "Todas".
 
 // Cor própria por tipo — mesma cor usada no rótulo de cada card, pra dar
 // pra reconhecer o tipo de longe. Reskin Bento: o quadradinho de ícone
@@ -241,7 +244,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           .filter(h => !h.hidden)
           .map(h => ({
             key: h.id, id: h.id, text: h.text ?? '', updatedAt: h.createdAt ?? h.updatedAt,
-            type: 'highlight', book: h.book, chapter: h.chapter, verses: h.verses, color: h.color,
+            type: 'highlight', book: h.book, bookEn: h.bookEn, chapter: h.chapter, verses: h.verses, color: h.color,
           }))
         // Anotações de sermão (ver src/notes/sermonNotesStore.js) — id
         // próprio, sem livro/capítulo únicos (pode ter várias passagens ou
@@ -324,6 +327,16 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     return null
   }
 
+  // Tempo relativo no canto do cartão, no formato do quadro 4c ("ontem",
+  // "3 dias", "domingo" vira a data curta a partir de uma semana).
+  function relativeLabel(iso) {
+    const diffD = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+    if (diffD <= 0) return lang === 'en' ? 'today' : 'hoje'
+    if (diffD === 1) return lang === 'en' ? 'yesterday' : 'ontem'
+    if (diffD < 7) return lang === 'en' ? `${diffD} days` : `${diffD} dias`
+    return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'short' })
+  }
+
   function labelFor(note) {
     if (note.type === 'daily-reflection' || note.type === 'application-phrase') {
       const d = new Date(`${note.date}T00:00:00`)
@@ -333,9 +346,12 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         : dateStr
     }
     if (note.type === 'sermon') {
+      // Quadro 4c: "Pr. João Silva · Igreja Batista Central" (a data vira o
+      // tempo relativo no canto do cartão).
+      const who = [note.preacher, note.church].filter(Boolean).join(' · ')
+      if (who) return who
       const d = new Date(`${note.date}T00:00:00`)
-      const dateStr = new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d)
-      return note.preacher ? `${dateStr} · ${note.preacher}` : dateStr
+      return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d)
     }
     const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
     if (note.type === 'book-reflection') {
@@ -351,6 +367,8 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       return `${bookLabel(note.book)} ${note.chapter}:${formatVerseRanges(note.verses)}`
     }
     if (note.type === 'study') return studyTitleFor(note)
+    // Retrospectiva do mês guardada (quadro 17b).
+    if (note.type === 'recap') return `${monthLabel(note.month, lang)} · ${t('notes.typeRecap', undefined, lang)}`
     return note.key
   }
 
@@ -372,6 +390,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (note.type === 'application-phrase') return t('notes.applicationPhraseTag', undefined, lang)
     if (note.type === 'highlight') return t('notes.typeHighlight', undefined, lang)
     if (note.type === 'sermon') return t('notes.typeSermon', undefined, lang)
+    if (note.type === 'recap') return t('notes.typeRecap', undefined, lang)
     return ''
   }
 
@@ -792,29 +811,19 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             da palavra exata que escreveu. */}
         {state.status === 'ready' && state.notes.length > 0 && (
           <>
-            <div style={styles.searchRow}>
-              <div style={styles.searchInputWrap}>
-                <AppIcon name="Search" size={14} color="var(--bento-t5)" />
-                <input
-                  type="text"
-                  style={styles.searchInput}
-                  value={searchQuery}
-                  onChange={e => handleSearchChange(e.target.value)}
-                  placeholder={t('notes.searchPlaceholder', undefined, lang)}
-                />
-              </div>
-              {/* Busca por tema usa IA — só no tier Premium + IA. */}
-              {session.hasAI && (
-                <button
-                  style={{ ...styles.searchAiBtn, opacity: (!searchQuery.trim() || aiSearching) ? 0.5 : 1, cursor: (!searchQuery.trim() || aiSearching) ? 'default' : 'pointer' }}
-                  onClick={runAiSearch}
-                  disabled={!searchQuery.trim() || aiSearching}
-                  aria-label={t('notes.searchAiBtn', undefined, lang)}
-                  title={t('notes.searchAiBtn', undefined, lang)}
-                >
-                  <AppIcon name={aiSearching ? 'RefreshCw' : 'Sparkles'} size={15} color="white" className={aiSearching ? 'icon-spin' : undefined} />
-                </button>
-              )}
+            {/* Um campo só (quadro 4c): filtra por palavra enquanto digita;
+                Enter dispara a busca por tema com IA (Premium + IA) — o botão
+                roxo que existia pra isso saiu do quadro. */}
+            <div style={styles.searchInputWrap}>
+              <AppIcon name="Search" size={17} strokeWidth={2} color="var(--bento-t5)" />
+              <input
+                type="text"
+                style={styles.searchInput}
+                value={searchQuery}
+                onChange={e => handleSearchChange(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && session.hasAI && searchQuery.trim() && !aiSearching) runAiSearch() }}
+                placeholder={t('notes.searchPlaceholder', undefined, lang)}
+              />
             </div>
 
             {aiMatchKeys !== null && (
@@ -854,116 +863,8 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           </div>
         )}
 
-        {/* Painel de filtros (livro/cor/preletor/data) minimizado por
-            padrão — só o botão "Filtros" aparece, com uma bolinha
-            mostrando quantos estão ativos; tocar abre o painel. A busca
-            por tema (IA) ignora todos de propósito, então o botão some
-            nesse modo (ver comentário em filteredNotes acima). */}
-        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
-          <>
-            <button style={styles.filtersToggleBtn} onClick={() => setFiltersOpen(v => !v)}>
-              <AppIcon name="SlidersHorizontal" size={14} color="var(--bento-t3)" />
-              <span style={styles.filtersToggleLabel}>{t('notes.filtersToggle', undefined, lang)}</span>
-              {activeFilterCount > 0 && <span style={styles.filtersBadge}>{activeFilterCount}</span>}
-              <AppIcon
-                name="ChevronDown" size={14} color="var(--bento-t5)"
-                style={{ marginLeft: 'auto', transform: filtersOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
-              />
-            </button>
-
-            {filtersOpen && (
-              <>
-                {/* Livro — só notas de leitura/marcação têm um; lista só
-                    os que já têm alguma anotação, em ordem canônica. */}
-                {availableBooks.length > 0 && (
-                  <select
-                    style={styles.bookSelect}
-                    value={bookFilter ?? ''}
-                    onChange={e => setBookFilter(e.target.value || null)}
-                    aria-label={t('notes.filterBookAll', undefined, lang)}
-                  >
-                    <option value="">{t('notes.filterBookAll', undefined, lang)}</option>
-                    {availableBooks.map(b => (
-                      <option key={b} value={b}>{bookLabel(b)}</option>
-                    ))}
-                  </select>
-                )}
-
-                {/* Cor — só dentro da aba "Marcações", pra achar um
-                    versículo pela cor usada. */}
-                {filter === 'highlight' && (
-                  <div style={styles.colorFilterRow}>
-                    <button
-                      style={{ ...styles.colorFilterAllBtn, ...(colorFilter === null ? styles.colorFilterAllBtnActive : {}) }}
-                      onClick={() => setColorFilter(null)}
-                    >
-                      {t('notes.filterColorAll', undefined, lang)}
-                    </button>
-                    {HIGHLIGHT_COLORS.map(c => (
-                      <button
-                        key={c.id}
-                        style={{ ...styles.colorSwatchBtn, background: c.swatch, ...(colorFilter === c.id ? styles.colorSwatchBtnActive : {}) }}
-                        onClick={() => setColorFilter(v => (v === c.id ? null : c.id))}
-                        aria-label={t(c.labelKey, undefined, lang)}
-                        aria-pressed={colorFilter === c.id}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Preletor — só dentro da aba "Sermão". */}
-                {filter === 'sermon' && availablePreachers.length > 0 && (
-                  <select
-                    style={styles.bookSelect}
-                    value={preacherFilter ?? ''}
-                    onChange={e => setPreacherFilter(e.target.value || null)}
-                    aria-label={t('notes.filterPreacherAll', undefined, lang)}
-                  >
-                    <option value="">{t('notes.filterPreacherAll', undefined, lang)}</option>
-                    {availablePreachers.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                )}
-
-                {/* Data de quando foi adicionada. */}
-                <div style={styles.dateFilterRow}>
-                  {DATE_FILTERS.map(d => (
-                    <button
-                      key={d.key}
-                      style={{ ...styles.dateFilterChip, ...(dateFilterKey === d.key ? styles.dateFilterChipActive : {}) }}
-                      onClick={() => setDateFilterKey(d.key)}
-                    >
-                      {t(d.labelKey, undefined, lang)}
-                    </button>
-                  ))}
-                </div>
-                {dateFilterKey === 'custom' && (
-                  <div style={styles.dateRangeRow}>
-                    <input
-                      type="date" style={styles.dateInput} value={customFrom}
-                      onChange={e => setCustomFrom(e.target.value)}
-                      aria-label={t('notes.dateFilterFrom', undefined, lang)}
-                    />
-                    <span style={styles.dateRangeSep}>–</span>
-                    <input
-                      type="date" style={styles.dateInput} value={customTo}
-                      onChange={e => setCustomTo(e.target.value)}
-                      aria-label={t('notes.dateFilterTo', undefined, lang)}
-                    />
-                  </div>
-                )}
-
-                {activeFilterCount > 0 && (
-                  <button style={styles.filtersClearBtn} onClick={clearFilters}>
-                    {t('notes.filtersClear', undefined, lang)}
-                  </button>
-                )}
-              </>
-            )}
-          </>
-        )}
-
+        {/* O painel de filtros por livro/cor/preletor/data saiu com o reskin
+            (o quadro 4c só tem a busca e os quatro chips). */}
         {state.status === 'loading' && <p style={styles.emptyHint}>{t('notes.loading', undefined, lang)}</p>}
         {state.status === 'error' && <p style={styles.emptyHint}>{t('notes.error', undefined, lang)}</p>}
         {state.status === 'ready' && state.notes.length === 0 && (
@@ -977,7 +878,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           </p>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filteredNotes.map(note => {
             // Estudo — card à parte (ícone + título + progresso + seta),
             // sem editar/deletar por aqui (isso é papel de StudiesScreen).
@@ -992,13 +893,13 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
               return (
                 <button key={note.key} style={styles.studyRow} onClick={() => onOpenStudy?.(note.id)}>
                   <span style={styles.studyRowIcon}>
-                    <AppIcon name={note.icon} size={18} color="var(--bento-accent)" />
+                    <AppIcon name={note.icon} size={16} color="var(--bento-accent)" />
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={styles.studyRowTitle}>{studyTitleFor(note)}</span>
                     <span style={styles.studyRowProgress}>{label}</span>
                   </span>
-                  <AppIcon name="ChevronRight" size={16} color="var(--bento-t5)" />
+                  <span style={styles.studyRowChevron}>›</span>
                 </button>
               )
             }
@@ -1009,44 +910,28 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             // uma marcação da outra numa lista (ver HIGHLIGHT_COLORS). Os
             // outros tipos usam a cor fixa do grupo (ver TYPE_COLOR), pra
             // reconhecer o tipo de longe mesmo sem abrir filtro nenhum.
-            const hc = note.type === 'highlight'
-              ? (HIGHLIGHT_COLORS.find(c => c.id === note.color) ?? HIGHLIGHT_COLORS[0])
-              : null
-            const typeColor = hc ? hc.swatch : TYPE_COLOR[typeGroupFor(note)]
-            const isHighlightWithText = note.type === 'highlight' && !!note.text
+            // Quadro 4c: a marcação é sempre o cartão areia com rótulo e
+            // referência em #7A4A1E (a cor escolhida no grifo segue guardada e
+            // aparece na leitura); os outros tipos usam a cor fixa do grupo.
+            const isHighlight = note.type === 'highlight'
+            const typeColor = TYPE_COLOR[typeGroupFor(note)]
+            // Tempo relativo no canto: sermão usa a data do culto.
+            const timeIso = note.type === 'sermon' && note.date ? `${note.date}T12:00:00` : note.updatedAt
             return (
-              <div key={note.key} style={{ ...styles.card, ...(note.type === 'highlight' ? styles.cardHighlight : {}) }}>
+              // Sem ícones de editar/apagar (o quadro não tem): tocar no
+              // cartão abre a edição inline, onde também dá pra apagar.
+              <div
+                key={note.key}
+                style={{ ...styles.card, ...(isHighlight ? styles.cardHighlight : {}), cursor: isEditing ? 'default' : 'pointer' }}
+                onClick={e => { if (isEditing || isBusy) return; if (e.target instanceof Element && e.target.closest('button, textarea, a, input')) return; startEdit(note) }}
+              >
                 <div style={styles.cardHeader}>
                   <span style={{ ...styles.cardTypeLabel, color: typeColor }}>{typeCapLabel(note)}</span>
-                  {/* Sempre ocupa o espaço flexível (mesmo vazio) pra
-                      empurrar as ações pra direita de forma consistente,
-                      com ou sem tempo relativo (ver labelHasOwnDate). */}
-                  <span style={styles.cardTime}>
-                    {!labelHasOwnDate(note) && note.updatedAt ? formatRelativeTime(note.updatedAt, lang) : ''}
+                  <span style={{ ...styles.cardTime, ...(isHighlight ? { color: 'var(--bento-sand-label)' } : {}) }}>
+                    {timeIso ? relativeLabel(timeIso) : ''}
                   </span>
-                  {!isEditing && (
-                    <span style={styles.cardActions}>
-                      <button
-                        style={styles.cardActionBtn} onClick={() => startEdit(note)}
-                        aria-label={t('notes.editAction', undefined, lang)} disabled={isBusy}
-                      >
-                        <AppIcon name="PenLine" size={13} color="var(--bento-t3)" />
-                      </button>
-                      <button
-                        style={styles.cardActionBtn} onClick={() => deleteNote(note)}
-                        aria-label={t('notes.deleteAction', undefined, lang)} disabled={isBusy}
-                      >
-                        <AppIcon name="Trash2" size={13} color="var(--re)" />
-                      </button>
-                    </span>
-                  )}
                 </div>
 
-                {note.type === 'sermon' && (note.preacher || note.church) && (
-                  <p style={styles.sermonMeta}>
-                    {[note.preacher, note.church].filter(Boolean).join(' · ')}
-                  </p>
-                )}
                 {note.type === 'sermon' && note.passages?.length > 0 && (
                   <div style={styles.passageChipRow}>
                     {note.passages.map((p, i) => (
@@ -1079,20 +964,18 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                       <button style={styles.editCancelBtn} onClick={cancelEdit} disabled={isBusy}>
                         {t('notes.cancelEdit', undefined, lang)}
                       </button>
+                      <button style={styles.editDeleteBtn} onClick={() => deleteNote(note)} disabled={isBusy}>
+                        {t('notes.deleteAction', undefined, lang)}
+                      </button>
                     </div>
                   </>
-                ) : isHighlightWithText ? (
-                  // Marcação com anotação: a citação vem primeiro (é o
-                  // conteúdo principal), a referência embaixo — mesma
-                  // inversão do mockup 4c.
+                ) : isHighlight ? (
+                  // Marcação (quadro 4c): o VERSÍCULO em itálico, a referência
+                  // embaixo; a anotação da pessoa, se houver, vem depois.
                   <>
-                    <p style={styles.highlightQuote}>“{note.text}”</p>
+                    <HighlightQuote note={note} lang={lang} />
                     <p style={{ ...styles.highlightRef, color: typeColor }}>{labelFor(note)}</p>
-                  </>
-                ) : note.type === 'highlight' ? (
-                  <>
-                    <p style={{ ...styles.highlightRef, color: typeColor, marginBottom: 4 }}>{labelFor(note)}</p>
-                    <p style={{ ...styles.cardText, ...styles.cardTextEmpty }}>{t('notes.noAnnotationText', undefined, lang)}</p>
+                    {note.text && <p style={styles.highlightAnnotation}>{note.text}</p>}
                   </>
                 ) : (
                   <>
@@ -1121,13 +1004,33 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   )
 }
 
+// Texto do(s) versículo(s) marcado(s) — lido do mesmo JSON estático da
+// leitura (bibleTextStore), na versão em uso; enquanto carrega mostra só a
+// referência (que vem logo abaixo, ver card de marcação).
+function HighlightQuote({ note, lang }) {
+  const [quote, setQuote] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    const bookKey = lang === 'en' ? (note.bookEn || note.book) : note.book
+    fetchBookText(getSelectedVersionId(lang), bookKey).then(chapters => {
+      if (cancelled) return
+      const verses = chapters?.[String(note.chapter)]?.verses ?? {}
+      const text = [...(note.verses ?? [])].sort((a, b) => a - b).map(v => verses[String(v)]).filter(Boolean).join(' ')
+      setQuote(text)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [note.book, note.bookEn, note.chapter, lang, (note.verses ?? []).join(',')])
+  if (!quote) return null
+  return <p style={styles.highlightQuote}>"{quote}"</p>
+}
+
 const styles = {
   screen:     { background: 'var(--bento-bg)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
   body:       { padding: '20px 20px calc(var(--nav-height) + 90px)', display: 'flex', flexDirection: 'column', gap: 12 },
   title:      { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: '0 0 2px' },
   searchRow:      { display: 'flex', gap: 8 },
   searchInputWrap:{ flex: 1, minWidth: 0, height: 46, display: 'flex', alignItems: 'center', gap: 10, border: 'none', borderRadius: 16, padding: '0 16px', background: 'var(--bento-card)' },
-  searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-ink)' },
+  searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1, color: 'var(--bento-ink)' },
   searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 6px 16px rgba(162,28,175,.3)' },
   aiActiveRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-4px 2px 0' },
   aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: '#A21CAF' },
@@ -1138,11 +1041,8 @@ const styles = {
   filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
   filtersClearBtn:   { alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', padding: '2px 4px' },
   bookSelect:        { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-ink)', background: 'var(--bento-card)' },
-  filterRow:  {
-    display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2,
-    maskImage: 'linear-gradient(to right, #000 88%, transparent)',
-    WebkitMaskImage: 'linear-gradient(to right, #000 88%, transparent)',
-  },
+  // Quatro chips cabem na largura do quadro 4c: sem rolagem nem máscara.
+  filterRow:  { display: 'flex', gap: 8 },
   filterBtn:  {
     flexShrink: 0, height: 34, padding: '0 15px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
     fontSize: 12, fontWeight: 700, cursor: 'pointer', borderRadius: 12, border: 'none', fontFamily: 'var(--font-bento)',
@@ -1164,13 +1064,15 @@ const styles = {
   card:       { background: 'var(--bento-card)', borderRadius: 24, padding: 20 },
   cardHighlight: { background: 'var(--bento-sand)' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
-  cardTypeLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase' },
-  cardTime:   { flex: 1, minWidth: 0, textAlign: 'right', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-t5)' },
+  cardTypeLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase' },
+  cardTime:   { flex: 1, minWidth: 0, textAlign: 'right', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t5)' },
   cardTitleLine: { fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, lineHeight: 1.4, color: 'var(--bento-ink)', margin: '0 0 6px' },
   cardText:   { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.55, whiteSpace: 'pre-wrap', margin: 0 },
   cardTextEmpty: { color: 'var(--bento-t4)', fontStyle: 'italic' },
   highlightQuote: { fontFamily: 'var(--font-bento)', fontStyle: 'italic', fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: 'var(--bento-sand-ink-strong)', margin: '0 0 8px' },
-  highlightRef:   { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, margin: 0 },
+  highlightRef:   { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, lineHeight: 1, margin: 0 },
+  highlightAnnotation: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--bento-sand-ink)', margin: '8px 0 0', whiteSpace: 'pre-wrap' },
+  editDeleteBtn:{ flex: 'none', background: 'none', border: 'none', padding: '9px 6px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer' },
   cardActions:  { display: 'flex', gap: 2, flexShrink: 0 },
   cardActionBtn:{ width: 24, height: 24, border: 'none', background: 'none', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   editTextarea: { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--bento-line)' },
@@ -1194,17 +1096,19 @@ const styles = {
   },
   sheetHandleWrap: { display: 'flex', justifyContent: 'center', padding: '10px 0 6px', cursor: 'pointer' },
   sheetHandle: { width: 36, height: 4, borderRadius: 99, background: 'var(--bento-t5)' },
+  // Linha de Estudo (quadro 4c): rgba(255,255,255,.6) r24 p18/20 gap 14.
   studyRow: {
-    display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-    background: 'rgba(255,255,255,.6)', border: 'none', borderRadius: 16, padding: '13px 14px',
+    display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
+    background: 'rgba(255,255,255,.6)', border: 'none', borderRadius: 24, padding: '18px 20px',
     fontFamily: 'var(--font-bento)', cursor: 'pointer',
   },
   studyRowIcon: {
     width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  studyRowTitle: { display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 3 },
-  studyRowProgress: { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)' },
+  studyRowTitle: { display: 'block', fontSize: 14, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', marginBottom: 3 },
+  studyRowProgress: { display: 'block', fontSize: 12, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)' },
+  studyRowChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)', flexShrink: 0 },
   sermonFormCard: { background: 'var(--bento-card)', borderRadius: 20, padding: 14 },
   sermonFormTitle:{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 10 },
   createLabel:    { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', marginBottom: 6 },

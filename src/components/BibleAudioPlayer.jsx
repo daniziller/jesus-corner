@@ -131,6 +131,9 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
     : status === 'loading' ? L('loading')
     : status === 'done' ? L('done')
     : isBusy ? L('nowPlaying', { ref: chapterRef })
+    // Quadro 4a: o player da leitura imersiva diz só "Ouvir o capítulo" —
+    // o capítulo já está no cabeçalho da tela.
+    : compact ? L('listenChapter')
     : L('listen', { ref: chapterRef })
 
   // Compacto (leitura imersiva 1b) — barra escura fina, um clique só, sem
@@ -139,7 +142,8 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
     return (
       <div style={styles.compactWrap}>
         <button style={styles.compactPlayBtn} onClick={handlePlayPause} aria-label={L('play')}>
-          <AppIcon name={playIcon} size={15} color="var(--bento-ink)" />
+          {/* Triângulo preenchido como no quadro (o Lucide é só contorno). */}
+          <AppIcon name={playIcon} size={15} color="var(--bento-ink)" fill={playIcon === 'Play' ? 'var(--bento-ink)' : 'none'} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={styles.compactTitle}>{titleText}</p>
@@ -216,7 +220,7 @@ const styles = {
   // identidade.
   compactWrap: { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bento-ink)', borderRadius: 22, padding: '14px 16px' },
   compactPlayBtn: { width: 38, height: 38, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  compactTitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'white', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  compactTitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1.2, color: 'white', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   compactTrack: { height: 4, borderRadius: 99, background: 'rgba(255,255,255,.2)', overflow: 'hidden' },
   compactFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)', transition: 'width .4s ease' },
   compactStopBtn: { width: 26, height: 26, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },

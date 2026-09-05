@@ -9,6 +9,8 @@
 // app "libera" o acesso (onAccepted) ou desfaz a sessão (onDeclined),
 // porque consentimento não pode ser imposto sem alternativa real de recusa.
 import { useState } from 'react'
+import BrandMark from '../components/BrandMark'
+import BrandLogo from '../components/BrandLogo'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { logout } from '../auth/authStore'
@@ -98,8 +100,8 @@ export default function ConsentRefreshScreen({ onAccepted, onDeclined, embedded 
       <div style={styles.hero}>
         <div style={styles.heroOrbOrange} />
         <div style={styles.heroOrbPink} />
-        <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-        <span style={styles.brandName}>JESUS' <span style={{ color: 'var(--or)' }}>CORNER</span></span>
+        <BrandMark size={34} variant="plate" style={{ position: 'relative', marginBottom: 0 }} />
+        <BrandLogo size={15.5} onDark style={{ position: 'relative' }} />
       </div>
       <div style={styles.sheet}>{form}</div>
     </div>

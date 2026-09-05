@@ -29,7 +29,7 @@ function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
 // "Terça, 2 de setembro" / "Tuesday, September 2" — dia de semana curto,
 // primeira letra maiúscula.
-function formatToday(lang) {
+export function formatToday(lang) {
   const raw = new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long',
   })
@@ -39,7 +39,7 @@ function formatToday(lang) {
 
 // Saudação por horário: manhã / tarde / noite — puramente local ao
 // aparelho, sem depender de fuso salvo em lugar nenhum.
-function greetingFor(lang, name) {
+export function greetingFor(lang, name) {
   const h = new Date().getHours()
   const key = h < 12 ? 'greetingMorning' : h < 18 ? 'greetingAfternoon' : 'greetingEvening'
   return translate(`home.${key}`, { name }, lang)
@@ -118,8 +118,14 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
           <p style={styles.greeting}>{greeting}</p>
           <p style={styles.date}>{dateLabel}</p>
         </div>
-        <div style={styles.avatar}>{avatarInitials}</div>
+        {/* O avatar é a única porta pro Perfil desde que o cabeçalho com
+            logotipo/sino saiu das telas Bento (ver bentoScreen em App.jsx). */}
+        <button style={styles.avatar} onClick={() => onNavigate?.('profile')} aria-label={translate('nav.profile', undefined, lang)}>
+          {avatarInitials}
+        </button>
       </div>
+
+      <div style={styles.body}>
 
       {/* Cartão da ação principal — único fundo --bento-ink da tela. */}
       <div style={styles.actionCard}>
@@ -137,18 +143,20 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
       </div>
 
       {/* Sequência / Bíblia — dois números grandes (mesma fonte de dado do
-          card de constância e da barra de % em Progresso). */}
+          card de constância e da barra de % em Progresso). Tocar em qualquer
+          um abre "Sua caminhada" (5b) — o quadro 5b diz que ela "entra por
+          Sua caminhada no Início", e estes dois cartões são o resumo dela. */}
       <div style={styles.statsRow}>
-        <div style={styles.statCard}>
-          <p style={styles.statLabel}>{translate('progress.consistencyLabel', undefined, lang)}</p>
+        <button style={styles.statCard} onClick={() => onNavigate?.('stats')}>
+          <p style={styles.statLabel}>{L('sequenceLabel')}</p>
           <p style={{ ...styles.statNumber, color: 'var(--bento-ink)' }}>{weeksInGoal}</p>
           <p style={{ ...styles.statSub, color: 'var(--bento-t3)' }}>{translate('progress.weeksInGoal', undefined, lang)}</p>
-        </div>
-        <div style={{ ...styles.statCard, background: 'var(--bento-sand)' }}>
+        </button>
+        <button style={{ ...styles.statCard, background: 'var(--bento-sand)' }} onClick={() => onNavigate?.('stats')}>
           <p style={{ ...styles.statLabel, color: 'var(--bento-sand-label)' }}>{translate('nav.journey', undefined, lang)}</p>
           <p style={{ ...styles.statNumber, color: 'var(--bento-sand-icon)' }}>{pctLabel}</p>
           <p style={{ ...styles.statSub, color: 'var(--bento-sand-label)' }}>{chaptersLabel}</p>
-        </div>
+        </button>
       </div>
 
       {/* Esta semana */}
@@ -169,7 +177,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
             return (
               <div key={d.key} style={styles.weekDayCol}>
                 <span style={{ ...styles.weekDaySquare, ...styles.weekDaySquare_[state] }}>
-                  {state === 'done' && <AppIcon name="Check" size={15} color="var(--bento-ink)" strokeWidth={3} />}
+                  {state === 'done' && <AppIcon name="Check" size={15} color="var(--bento-ink)" strokeWidth={2.8} />}
                 </span>
                 <span style={{ ...styles.weekDayLetter, ...styles.weekDayLetter_[state] }}>{letters[i]}</span>
               </div>
@@ -181,7 +189,7 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
       {/* Versículo do dia. */}
       <div style={styles.verseCard}>
         <p style={styles.verseLabel}>{L('verseOfDay')}</p>
-        <p style={styles.verseText}>“{verse.text}”</p>
+        <p style={styles.verseText}>"{verse.text}"</p>
         <p style={styles.verseRef}>{verse.ref}</p>
       </div>
 
@@ -190,37 +198,39 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
           <PremiumLockCard lang={lang} onNavigate={onNavigate} variant="premium" />
         </div>
       )}
+      </div>
     </div>
   )
 }
 
 const styles = {
+  // Medidas do quadro 3c: cabeçalho com padding 22px 20px 0; conteúdo
+  // 20px abaixo dele, blocos empilhados com gap 12.
   screen: {
     background: 'var(--bento-bg)',
     height: '100%',
     overflowY: 'auto',
     WebkitOverflowScrolling: 'touch',
-    padding: '20px 20px calc(var(--nav-height) + 24px)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
   },
-  header: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  greeting: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0 },
-  date: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '4px 0 0' },
+  header: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 20px 0' },
+  body: { padding: '20px 20px calc(var(--nav-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 12 },
+  greeting: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0 },
+  date: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
   avatar: {
-    width: 36, height: 36, flexShrink: 0, borderRadius: 14, background: 'var(--bento-ink)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-bg)',
+    width: 36, height: 36, flexShrink: 0, borderRadius: 14, border: 'none', padding: 0, background: 'var(--bento-ink)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, lineHeight: '36px', color: 'var(--bento-bg)',
   },
 
   actionCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 24, color: '#fff' },
   actionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 18px' },
   actionLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, letterSpacing: '.12em',
+    fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
     textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0,
   },
-  actionMin: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
+  actionMin: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1, color: 'rgba(255,255,255,.5)' },
   actionTitle: {
     fontFamily: 'var(--font-bento)', fontSize: 32, fontWeight: 800, letterSpacing: '-1.2px',
     lineHeight: 1.05, margin: '0 0 20px',
@@ -230,25 +240,25 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     cursor: 'pointer', fontFamily: 'var(--font-bento)',
   },
-  startBtnText: { fontSize: 15.5, fontWeight: 800, color: 'var(--bento-ink)' },
+  startBtnText: { fontSize: 15.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   startBtnArrow: { fontSize: 15, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
 
   statsRow: { display: 'flex', gap: 12 },
-  statCard: { flex: 1, borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
+  statCard: { flex: 1, minWidth: 0, borderRadius: 24, border: 'none', background: 'var(--bento-card)', padding: 20, textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   statLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em',
+    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
     textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 14px',
   },
-  statNumber: { fontFamily: 'var(--font-bento)', fontSize: 34, fontWeight: 800, letterSpacing: '-1.4px', margin: '0 0 4px' },
+  statNumber: { fontFamily: 'var(--font-bento)', fontSize: 34, fontWeight: 800, lineHeight: 1, letterSpacing: '-1.4px', margin: '0 0 4px' },
   statSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, margin: 0 },
 
   weekCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
   weekHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 16px' },
   weekLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em',
+    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
     textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0,
   },
-  weekCount: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t3)', margin: 0 },
+  weekCount: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t3)', margin: 0 },
   weekCountStrong: { fontWeight: 800, color: 'var(--bento-ink)' },
   weekGrid: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   weekDayCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
@@ -267,12 +277,12 @@ const styles = {
 
   verseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
   verseLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em',
+    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
     textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px',
   },
   verseText: {
     fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 600, lineHeight: 1.55,
     color: 'var(--bento-ink)', textWrap: 'pretty', margin: '0 0 8px',
   },
-  verseRef: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-accent)', margin: 0 },
+  verseRef: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-accent)', margin: 0 },
 }

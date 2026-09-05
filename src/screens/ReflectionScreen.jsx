@@ -44,7 +44,7 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, lastReadChapterInfo, onBackToReading, onNavigate, onContinueSession, onExitGuided }) {
+export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, lastReadChapterInfo, onBackToReading, onNavigate, onContinueSession, onExitGuided, onAiFlowChange }) {
   const { lang } = session
   const guided = session.guided?.step === 'reflection' ? session.guided : null
 
@@ -62,6 +62,14 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
     && (typeof navigator === 'undefined' || navigator.onLine)
   const [aiPhase, setAiPhase] = useState(aiEligible ? 'active' : 'fallback')
   const [aiQuestions, setAiQuestions] = useState(null)
+  // Avisa o App quando o fluxo 10d está na tela — ele é uma tela Bento
+  // inteira (sem cabeçalho nem barra, como o quadro), ao contrário da
+  // Reflexão guiada antiga logo abaixo.
+  useEffect(() => {
+    onAiFlowChange?.(aiPhase === 'active')
+    return () => onAiFlowChange?.(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPhase])
 
   useEffect(() => {
     if (aiPhase !== 'active' || aiQuestions || !lastReadChapterInfo) return
@@ -358,6 +366,7 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
         lang={lang}
         chapterInfo={lastReadChapterInfo}
         questions={aiQuestions}
+        minutes={totalMinutes}
         onPeekReading={hasPreviousReadingSession ? onBackToReading : null}
         onApprove={async (qa, paragraph) => {
           await saveNote(authUser?.email, noteKey, paragraph)
@@ -539,7 +548,7 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
 // arquivo). Três fases internas: 'answering' (uma pergunta de cada vez),
 // 'composing' (aguardando a IA juntar as respostas) e 'review' (parágrafo
 // pronto, editável, a pessoa aprova antes de salvar).
-function AiReflectionFlow({ lang, chapterInfo, questions, onPeekReading, onApprove }) {
+function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading, onApprove }) {
   const L = (k, vars) => t(`reflectAi.${k}`, vars, lang)
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState(['', '', ''])
@@ -639,7 +648,7 @@ function AiReflectionFlow({ lang, chapterInfo, questions, onPeekReading, onAppro
         <span style={rStyles.headerIcon}><AppIcon name="Check" size={16} color="var(--bento-ink)" /></span>
         <div>
           <p style={rStyles.headerTitle}>{bookLabel} {chapterLabel} {L('chapterDoneSuffix')}</p>
-          <p style={rStyles.headerSub}>{L('remainingLabel')}</p>
+          <p style={rStyles.headerSub}>{minutes ? L('remainingWithMin', { n: minutes }) : L('remainingLabel')}</p>
         </div>
       </div>
 
@@ -691,7 +700,7 @@ function AiReflectionFlow({ lang, chapterInfo, questions, onPeekReading, onAppro
           )}
           <button style={{ ...rStyles.primaryBtn, flex: 1 }} onClick={goNext} disabled={loading || phase === 'composing'}>
             <span>{L('nextQuestion')}</span>
-            <AppIcon name="ChevronRight" size={16} color="var(--bento-accent)" />
+            <AppIcon name="ArrowRight" size={15} strokeWidth={2.4} color="var(--bento-accent)" />
           </button>
         </div>
       </div>
@@ -703,26 +712,27 @@ const rStyles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
   headerIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
-  headerSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
+  headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+  headerSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '3px 0 0' },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
   darkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22 },
   aiLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
   aiDiamond: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  aiLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
+  aiLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
   questionText: { fontFamily: 'var(--font-bento)', fontSize: 24, fontWeight: 800, lineHeight: 1.25, letterSpacing: '-.8px', color: '#fff', textWrap: 'pretty', margin: '0 0 12px', minHeight: '1.25em' },
-  privacyLine: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.45)', margin: 0 },
-  answerCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20, display: 'flex', flexDirection: 'column' },
+  privacyLine: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.45)', margin: 0 },
+  // Ocupa o que sobra da tela, com os chips colados no pé (quadro 10d).
+  answerCard: { flex: 1, minHeight: 0, borderRadius: 24, background: 'var(--bento-card)', padding: 20, display: 'flex', flexDirection: 'column' },
   answerTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'var(--bento-ink)' },
-  chipRow: { marginTop: 12, paddingTop: 4, display: 'flex', flexWrap: 'wrap', gap: 7 },
-  chip: { border: 'none', background: 'var(--bento-line)', borderRadius: 99, padding: '9px 12px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)', cursor: 'pointer' },
+  chipRow: { marginTop: 'auto', paddingTop: 16, display: 'flex', flexWrap: 'wrap', gap: 7 },
+  chip: { border: 'none', background: 'var(--bento-line)', borderRadius: 99, padding: '9px 12px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1, whiteSpace: 'nowrap', color: 'var(--bento-t3)', cursor: 'pointer' },
   hintCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '15px 18px', display: 'flex', alignItems: 'center', gap: 12 },
   hintDiamond: { width: 9, height: 9, background: 'var(--bento-sand-icon)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
   hintText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-sand-ink)', margin: 0 },
   errorText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--re, #DC2626)', margin: 0, textAlign: 'center' },
   footer: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10 },
   peekBtn: { flexShrink: 0, width: 52, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  primaryBtn: { height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: '#fff', cursor: 'pointer' },
+  primaryBtn: { height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, lineHeight: 1, color: '#fff', cursor: 'pointer' },
   textBtn: { border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
   reviewCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
   reviewTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-ink)' },

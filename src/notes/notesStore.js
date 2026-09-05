@@ -28,6 +28,9 @@ export function parseNoteKey(key) {
   if (dailyApplication) return { type: 'application-phrase', date: dailyApplication[1] }
   const daily = key.match(/^reflection:(\d{4}-\d{2}-\d{2})$/)
   if (daily) return { type: 'daily-reflection', date: daily[1] }
+  // Retrospectiva do mês guardada na Biblioteca (quadro 17b).
+  const recap = key.match(/^recap:(\d{4}-\d{2})$/)
+  if (recap) return { type: 'recap', month: recap[1] }
   const bookReflection = key.match(/^(.+):reflection$/)
   if (bookReflection) return { type: 'book-reflection', book: bookReflection[1] }
   const reading = key.match(/^(.+):(\d+)-(\d+)$/)

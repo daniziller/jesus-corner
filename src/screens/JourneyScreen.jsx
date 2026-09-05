@@ -1,14 +1,11 @@
 // JourneyScreen.jsx — "Bíblia" (reskin Bento — tela 5f, leitura livre)
 import { useState, useEffect, useRef } from 'react'
-import { sessionKeys, computeBookChapterCounts } from '../utils/progress'
+import { sessionKeys } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
-import { getRecentChapters } from '../reading/recentChaptersStore'
-import { getBookSortMode, setBookSortMode } from '../utils/bookSortStore'
 import { formatRelativeTime } from '../utils/time'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
-import RecentChaptersRow from '../components/RecentChaptersRow'
 
 // Remove acentos pra busca não exigir digitar "Êxodo" com acento certo.
 function normalizeSearch(str) {
@@ -29,18 +26,10 @@ function flattenBooks(blocksSubset, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading,
+  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
-  // Ordem dos livros na visão de mapa (fora de busca) — 'biblical' (padrão,
-  // ordem canônica) ou 'alpha' (A-Z). Por dispositivo, sobrevive entre
-  // sessões (ver src/utils/bookSortStore.js).
-  const [sortMode, setSortMode] = useState(getBookSortMode)
-  function changeSortMode(mode) {
-    setSortMode(mode)
-    setBookSortMode(mode)
-  }
 
   // Qual testamento está visível agora — reskin Bento: em vez de duas
   // seções em acordeão (Antigo e Novo, cada uma abrindo/fechando por si),
@@ -213,6 +202,7 @@ export default function JourneyScreen({
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, type: heroSession.type })}
         onJumpToChapter={openRecentChapter}
         onExitGuided={onExitGuided}
+        onOpenGroupRoom={onOpenGroupRoom}
       />
     )
   }
@@ -226,61 +216,69 @@ export default function JourneyScreen({
   const lastOpenedSession = lastOpened ? browseSessionsByBlock[lastOpened.blockId]?.find(s => s.id === lastOpened.sessionId) : null
   const lastOpenedBlock = lastOpened ? blocks.find(b => b.id === lastOpened.blockId) : null
 
-  // Últimos capítulos abertos (cards estilo "stories", ver
-  // RecentChaptersRow/recentChaptersStore.js) — mesmo espírito de
-  // lastOpened acima (lido direto do localStorage a cada render, sem
-  // useState, pra nunca ficar desatualizado).
-  const recentChapters = getRecentChapters()
-
-  // Progresso real por livro (capítulos lidos/total) — mostrado em cada
-  // linha de livro, tanto na busca quanto no cartão de testamento.
-  const bookChapterCounts = computeBookChapterCounts(sessionsByBlock)
-
-  // Busca de livro — achata todos os blocos numa lista única de livros
-  // pesquisáveis, independente de qual testamento eles pertencem, já que o
-  // usuário pode não saber de cabeça onde um livro está.
+  // Busca (quadro 5f: "Livro, capítulo ou versículo") — o texto filtra os
+  // livros pelo nome; um número no fim ("Gênesis 41", "Sl 23") é o capítulo:
+  // com um livro só batendo, Enter abre direto nesse capítulo.
   const trimmedQuery = searchQuery.trim()
+  const queryMatch = trimmedQuery.match(/^(.*?)\s*(\d+)?(?::\d+(?:-\d+)?)?$/)
+  const queryName = (queryMatch?.[1] ?? trimmedQuery).trim()
+  const queryChapter = queryMatch?.[2] ? Number(queryMatch[2]) : null
+  const allBooks = flattenBooks(blocks, lang)
   const searchResults = trimmedQuery
-    ? flattenBooks(blocks, lang).filter(entry => normalizeSearch(entry.displayName).includes(normalizeSearch(trimmedQuery)))
+    ? allBooks.filter(entry => {
+        const n = normalizeSearch(entry.displayName)
+        const abbr = normalizeSearch(abbreviationFor(entry))
+        const q = normalizeSearch(queryName || trimmedQuery)
+        return q ? (n.includes(q) || abbr === q) : true
+      })
     : null
+
+  function openSearchTarget() {
+    if (!searchResults || searchResults.length !== 1) return
+    const entry = searchResults[0]
+    if (queryChapter) {
+      const target = browseSessionsByBlock[entry.block.id]?.find(s => s.book === entry.canonicalName && s.chStart <= queryChapter && queryChapter <= s.chEnd)
+      if (target) { jumpToBook(entry.block, entry.canonicalName, target.id, true); return }
+    }
+    openBook(entry.block, entry.canonicalName)
+  }
 
   const atBooks = flattenBooks(blocks.filter(b => b.id <= 4), lang)
   const ntBooks = flattenBooks(blocks.filter(b => b.id >= 5), lang)
-  const sortBooks = list => sortMode === 'alpha'
-    ? [...list].sort((a, b) => a.displayName.localeCompare(b.displayName, lang === 'en' ? 'en' : 'pt'))
-    : list
-  const testamentBlocks = blocks.filter(b => testament === 'at' ? b.id <= 4 : b.id >= 5)
-  const testamentBooks = sortBooks(testament === 'at' ? atBooks : ntBooks)
-  const testamentDone = testamentBlocks.reduce((s, b) => s + b.sessionsDone, 0)
-  const testamentTotal = testamentBlocks.reduce((s, b) => s + b.sessionsTotal, 0)
-  const testamentPercent = testamentTotal ? Math.round((testamentDone / testamentTotal) * 100) : 0
-
-  // Tudo que uma linha de livro (BookRow) precisa pra saber se é ELA que
-  // está expandida agora e, se for, alimentar a instância embutida de
-  // ReadingBlockView — um objeto só pra não espalhar uma dúzia de props
-  // soltas.
-  const embedCtx = {
-    session, authUser, onNavigate, browseSessionsByBlock, completedSet,
-    onToggleSession, onToggleChapter, onGoToReflectionFrom,
-    expandedBookKey, expandedInitialSessionId, expandedInitialTextOpen,
-    scrollTargetKey, clearScrollTarget: () => setScrollTargetKey(null),
+  const testamentBooks = testament === 'at' ? atBooks : ntBooks
+  // Sigla do livro (grade do quadro 5f) — vem da própria referência da 1ª
+  // sessão do livro ("Gn 1:1–2:25" → "Gn"), no idioma da tela.
+  function abbreviationFor(entry) {
+    const sessions = browseSessionsByBlock?.[entry.block.id] ?? sessionsByBlock?.[entry.block.id] ?? []
+    const first = sessions.find(s => s.book === entry.canonicalName && s.type !== 'reflection')
+    const ref = first ? (lang === 'en' ? first.passageEn : first.passage) : ''
+    const abbr = ref.split(' ')[0]
+    return abbr && /[A-Za-zÀ-ÿ]/.test(abbr) ? abbr : entry.displayName.slice(0, 3)
   }
+  // Bloco escuro na grade: o livro da leitura de hoje (e o que está aberto).
+  const currentBook = session.todaySession?.book ?? null
+
+  const gridBooks = searchResults ?? testamentBooks
+  const expandedEntry = gridBooks.find(e => `${e.block.id}:${e.canonicalName}` === expandedBookKey) ?? null
+  // O livro aberto cresce abaixo da grade — rola até ele ao abrir (senão a
+  // pessoa toca numa sigla e não vê nada acontecer).
+  const expandRef = useRef(null)
+  useEffect(() => {
+    if (expandedBookKey && expandRef.current) expandRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [expandedBookKey])
 
   return (
     <div style={styles.screen}>
       <div style={styles.body}>
-        {/* Cabeçalho enxuto — a visão geral de progresso (hero com
-            versículo, % geral, orbes) saiu daqui: já mora no cartão
-            "Bíblia" da Início (3c) e na Caminhada (5b). Aqui fica só a
-            Bíblia em si, pra ler à vontade. */}
         <p style={styles.title}>{t('nav.journey', undefined, lang)}</p>
         <p style={styles.subtitle}>{t('journey.freeReadingSubtitle', undefined, lang)}</p>
         <div style={styles.searchWrap}>
-          <AppIcon name="Search" size={15} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
+          <AppIcon name="Search" size={17} strokeWidth={2} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') openSearchTarget() }}
             placeholder={t('journey.searchPlaceholder', undefined, lang)}
             style={styles.searchInput}
           />
@@ -292,25 +290,9 @@ export default function JourneyScreen({
         </div>
       </div>
 
-      {/* Cards estilo "stories" dos últimos capítulos lidos — fora do
-          padding do conteúdo abaixo de propósito, pra rolar de ponta a
-          ponta (ver RecentChaptersRow, que já cuida da própria margem).
-          Fixo (sticky) ao rolar. */}
-      <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={openRecentChapter} sticky bento />
-
       <div style={styles.body2}>
-        {/* Notas + marcações — atalho pra Biblioteca, perto de onde as
-            anotações e grifos de leitura são criados. */}
-        <button style={styles.notesEntryBtn} onClick={() => onNavigate?.('notes')}>
-          <span style={styles.notesEntryIcon}><AppIcon name="StickyNote" size={14} color="var(--bento-accent)" /></span>
-          <span style={{ flex: 1, textAlign: 'left' }}>{t('nav.notes', undefined, lang)}</span>
-          <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
-        </button>
-
-        {/* Última leitura livre — igual ao mockup 5f, com tempo relativo
-            real (reusa formatRelativeTime, já usado na Biblioteca). Some
-            com busca ativa (que já tem sua própria lista) ou se nunca
-            abriu nada por aqui ainda. */}
+        {/* Última leitura livre (quadro 5f) — tempo relativo real; some com
+            busca ativa ou se nunca abriu nada por aqui ainda. */}
         {!trimmedQuery && lastOpenedSession && (
           <button style={styles.lastReadCard} onClick={() => jumpToBook(lastOpenedBlock, lastOpenedSession.book, lastOpenedSession.id, false)}>
             <span style={{ flex: 1, minWidth: 0 }}>
@@ -324,200 +306,116 @@ export default function JourneyScreen({
           </button>
         )}
 
-        {searchResults ? (
-          searchResults.length === 0 ? (
-            <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {searchResults.map(entry => (
-                <BookRow
-                  key={`${entry.block.id}-${entry.canonicalName}`}
-                  entry={entry}
-                  bookChapterCounts={bookChapterCounts}
-                  completedSet={completedSet}
-                  onOpen={() => openBook(entry.block, entry.canonicalName)}
-                  embedCtx={embedCtx}
-                />
-              ))}
-            </div>
-          )
-        ) : (
-          <>
-            {/* Ordem bíblica (padrão) ou A-Z — só faz sentido fora da
-                busca, que já tem sua própria lista filtrada. */}
-            <div style={styles.sortRow}>
-              <button
-                style={{ ...styles.sortBtn, ...(sortMode === 'biblical' ? styles.sortBtnActive : {}) }}
-                onClick={() => changeSortMode('biblical')}
-              >
-                {t('journey.sortBiblical', undefined, lang)}
-              </button>
-              <button
-                style={{ ...styles.sortBtn, ...(sortMode === 'alpha' ? styles.sortBtnActive : {}) }}
-                onClick={() => changeSortMode('alpha')}
-              >
-                {t('journey.sortAlpha', undefined, lang)}
-              </button>
-            </div>
-
-            {/* Testamento — um cartão só, com um link pra trocar de lado
-                (mockup 5f mostra uma grade de siglas; aqui a linha por
-                livro ficou, porque é ela que carrega o progresso real
-                de cada um — capítulos lidos/total, ou o check de livro
-                concluído — informação que uma grade de 2 letras não
-                cabe). */}
-            <div style={styles.testamentCard}>
-              <div style={styles.testamentHeader}>
-                <span style={styles.testamentLabel}>
-                  {t(testament === 'at' ? 'journey.oldTestament' : 'journey.newTestament', undefined, lang)}
-                </span>
-                <button
-                  style={styles.testamentSwitchBtn}
-                  onClick={() => setTestament(v => (v === 'at' ? 'nt' : 'at'))}
-                >
-                  {t(testament === 'at' ? 'journey.newTestamentShort' : 'journey.oldTestamentShort', undefined, lang)}
-                </button>
-              </div>
-              <p style={styles.testamentPercent}>{testamentPercent}%</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {testamentBooks.map(entry => (
-                  <BookRow
-                    key={`${testament}-${entry.canonicalName}`}
-                    entry={entry}
-                    bookChapterCounts={bookChapterCounts}
-                    completedSet={completedSet}
-                    onOpen={() => openBook(entry.block, entry.canonicalName)}
-                    embedCtx={embedCtx}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Atalho de volta pra sessão estruturada do dia — as "duas
-                portas para o mesmo texto" do mockup 5f: aqui a leitura é
-                livre e não conta no plano; isto cruza pra lá. */}
-            {onContinueSession && (
-              <button style={styles.todaySessionCard} onClick={onContinueSession}>
-                <span style={styles.todaySessionIcon}>
-                  <AppIcon name="BookOpen" size={16} color="var(--bento-accent)" />
-                </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={styles.todaySessionTitle}>{t('journey.todaySessionCta', undefined, lang)}</span>
-                  <span style={styles.todaySessionSub}>{session.todaySession.title} · {t('journey.countsInPlan', undefined, lang)}</span>
-                </span>
-                <span style={styles.todaySessionChevron}>›</span>
+        {/* Um cartão só com a grade de siglas do testamento (quadro 5f) e um
+            link pra trocar de lado; na busca, a grade mostra só os livros
+            que batem. Tocar numa sigla abre o livro logo abaixo da grade
+            (o mesmo ReadingBlockView embutido de sempre). */}
+        <div style={styles.testamentCard}>
+          <div style={styles.testamentHeader}>
+            <span style={styles.testamentLabel}>
+              {searchResults
+                ? t('journey.searchResultsLabel', undefined, lang)
+                : t(testament === 'at' ? 'journey.oldTestament' : 'journey.newTestament', undefined, lang)}
+            </span>
+            {!searchResults && (
+              <button style={styles.testamentSwitchBtn} onClick={() => setTestament(v => (v === 'at' ? 'nt' : 'at'))}>
+                {t(testament === 'at' ? 'journey.newTestamentShort' : 'journey.oldTestamentShort', undefined, lang)}
               </button>
             )}
-          </>
+          </div>
+          {gridBooks.length === 0 ? (
+            <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
+          ) : (
+            <div style={styles.bookGrid}>
+              {gridBooks.map(entry => {
+                const key = `${entry.block.id}:${entry.canonicalName}`
+                const active = expandedBookKey === key || (!expandedBookKey && entry.canonicalName === currentBook)
+                return (
+                  <button
+                    key={key}
+                    style={{ ...styles.bookCell, ...(active ? styles.bookCellActive : {}) }}
+                    onClick={() => openBook(entry.block, entry.canonicalName)}
+                    aria-label={entry.displayName}
+                    title={entry.displayName}
+                  >
+                    {abbreviationFor(entry)}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {expandedEntry && (
+            <div ref={expandRef} style={styles.bookExpandWrap}>
+              <ReadingBlockView
+                key={`${expandedBookKey}:${expandedInitialSessionId}:${expandedInitialTextOpen}`}
+                embedded
+                mode="browse"
+                session={session}
+                authUser={authUser}
+                onNavigate={onNavigate}
+                blockId={expandedEntry.block.id}
+                blocks={[expandedEntry.block]}
+                sessionsByBlock={{ [expandedEntry.block.id]: browseSessionsByBlock[expandedEntry.block.id].filter(s => s.book === expandedEntry.canonicalName) }}
+                completedSet={completedSet}
+                onToggleSession={onToggleSession}
+                onToggleChapter={onToggleChapter}
+                initialSessionId={expandedInitialSessionId}
+                initialTextOpen={expandedInitialTextOpen}
+                onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedEntry.block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, type: heroSession.type })}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Atalho de volta pra sessão estruturada do dia — as "duas portas
+            para o mesmo texto" do quadro 5f. */}
+        {!trimmedQuery && onContinueSession && (
+          <button style={styles.todaySessionCard} onClick={onContinueSession}>
+            <span style={styles.todaySessionIcon}>
+              <AppIcon name="BookOpen" size={16} strokeWidth={1.9} color="var(--bento-accent)" />
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={styles.todaySessionTitle}>{t('journey.todaySessionCta', undefined, lang)}</span>
+              <span style={styles.todaySessionSub}>{session.todaySession.title} · {t('journey.countsInPlan', undefined, lang)}</span>
+            </span>
+            <span style={styles.todaySessionChevron}>›</span>
+          </button>
         )}
       </div>
     </div>
   )
 }
 
-// Linha de livro — nome + progresso real (capítulos lidos/total, ou um
-// check quando o livro inteiro já foi lido) + seta. Usado tanto no cartão
-// de testamento quanto nos resultados de busca (mesmo componente, um só
-// lugar pra manter esse visual consistente). Quando é O livro expandido no
-// momento (embedCtx.expandedBookKey bate com este), cresce logo abaixo de
-// si mesma com a lista de capítulos daquele livro — mesmo componente
-// ReadingBlockView.jsx de sempre, só que embutido (prop `embedded`) em vez
-// de navegar pra uma tela cheia à parte.
-function BookRow({ entry, bookChapterCounts, completedSet, onOpen, embedCtx }) {
-  const { displayName, canonicalName, block } = entry
-  const total = bookChapterCounts[canonicalName] ?? 0
-  let done = 0
-  for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${canonicalName}:${ch}`)) done++
-  const isDone = total > 0 && done === total
-
-  const rowKey = `${block.id}:${canonicalName}`
-  const isExpanded = embedCtx?.expandedBookKey === rowKey
-  const isScrollTarget = embedCtx?.scrollTargetKey === rowKey
-
-  const rowRef = useRef(null)
-  useEffect(() => {
-    if (isScrollTarget && rowRef.current) {
-      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      embedCtx.clearScrollTarget()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isScrollTarget])
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <button ref={rowRef} style={{ ...styles.bookRow, ...(isExpanded ? styles.bookRowActive : {}) }} onClick={onOpen}>
-        <span style={styles.bookRowName}>{displayName}</span>
-        {isDone
-          ? <span style={styles.bookRowDone}><AppIcon name="Check" size={13} color="var(--bento-ink)" /></span>
-          : <span style={styles.bookRowMeta}>{done}/{total}</span>}
-        <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" style={{ transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }} />
-      </button>
-
-      {isExpanded && (
-        <div style={styles.bookExpandWrap}>
-          <ReadingBlockView
-            key={`${rowKey}:${embedCtx.expandedInitialSessionId}:${embedCtx.expandedInitialTextOpen}`}
-            embedded
-            mode="browse"
-            session={embedCtx.session}
-            authUser={embedCtx.authUser}
-            onNavigate={embedCtx.onNavigate}
-            blockId={block.id}
-            blocks={[block]}
-            sessionsByBlock={{ [block.id]: embedCtx.browseSessionsByBlock[block.id].filter(s => s.book === canonicalName) }}
-            completedSet={completedSet}
-            onToggleSession={embedCtx.onToggleSession}
-            onToggleChapter={embedCtx.onToggleChapter}
-            initialSessionId={embedCtx.expandedInitialSessionId}
-            initialTextOpen={embedCtx.expandedInitialTextOpen}
-            onGoToReflection={heroSession => embedCtx.onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, type: heroSession.type })}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
 const styles = {
-  screen: { display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'scroll', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain', paddingBottom: 83, background: 'var(--bento-bg)' },
-  body:   { flex: 'none', padding: '20px 20px 0' },
-  body2:  { padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: 12 },
-  title:      { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: '0 0 4px' },
-  subtitle:   { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 14px' },
+  // Medidas do quadro 5f.
+  screen: { display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'scroll', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain', paddingBottom: 'calc(var(--nav-height) + 18px)', background: 'var(--bento-bg)' },
+  body:   { flex: 'none', padding: '22px 20px 0' },
+  body2:  { padding: '16px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 },
+  title:      { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: '0 0 4px' },
+  subtitle:   { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: '0 0 14px' },
   searchWrap: { display: 'flex', alignItems: 'center', gap: 10, height: 46, background: 'var(--bento-card)', borderRadius: 16, padding: '0 16px' },
-  searchInput:{ flex: 1, border: 'none', background: 'none', outline: 'none', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-ink)' },
+  searchInput:{ flex: 1, minWidth: 0, border: 'none', background: 'none', outline: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1, color: 'var(--bento-ink)' },
   searchClearBtn: { border: 'none', background: 'var(--bento-line)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  searchEmptyHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', padding: '14px 2px', textAlign: 'center' },
-
-  notesEntryBtn:  { display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'var(--bento-card)', border: 'none', borderRadius: 16, padding: '13px 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
-  notesEntryIcon: { width: 30, height: 30, borderRadius: 10, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  searchEmptyHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', padding: '14px 2px', textAlign: 'center', margin: 0 },
 
   lastReadCard:     { width: '100%', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bento-sand)', border: 'none', borderRadius: 24, padding: 20, cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
-  lastReadLabel:    { display: 'block', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', marginBottom: 8 },
-  lastReadTitle:    { display: 'block', fontSize: 19, fontWeight: 800, letterSpacing: '-.6px', color: 'var(--bento-sand-ink-strong)', marginBottom: 3 },
-  lastReadTime:     { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--bento-sand-label)' },
-  lastReadOpenBtn:  { flexShrink: 0, height: 44, padding: '0 18px', borderRadius: 16, background: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', fontSize: 13, fontWeight: 800, color: 'var(--bento-sand)' },
-
-  sortRow:  { display: 'flex', gap: 8 },
-  sortBtn:  { flex: 1, border: 'none', background: 'var(--bento-card)', borderRadius: 12, padding: '10px 10px', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
-  sortBtnActive: { background: 'var(--bento-ink)', color: '#fff' },
+  lastReadLabel:    { display: 'block', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', marginBottom: 8 },
+  lastReadTitle:    { display: 'block', fontSize: 19, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.6px', color: 'var(--bento-sand-ink-strong)', marginBottom: 3 },
+  lastReadTime:     { display: 'block', fontSize: 12, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-sand-label)' },
+  lastReadOpenBtn:  { flexShrink: 0, height: 44, padding: '0 18px', borderRadius: 16, background: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', fontSize: 13, fontWeight: 800, lineHeight: 1, color: 'var(--bento-sand)' },
 
   testamentCard:   { background: 'var(--bento-card)', borderRadius: 24, padding: 20 },
-  testamentHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  testamentLabel:  { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
-  testamentSwitchBtn: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', padding: 0 },
-  testamentPercent: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-accent)', margin: '0 0 14px' },
-
-  bookRow:       { display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'var(--bento-line)', border: 'none', borderRadius: 14, padding: '12px 14px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
-  bookRowActive: { border: '1.5px solid var(--bento-accent)' },
-  bookRowName:   { flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
-  bookRowMeta:   { fontSize: 11, fontWeight: 600, color: 'var(--bento-t4)', flexShrink: 0 },
-  bookRowDone:   { width: 18, height: 18, borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  bookExpandWrap:{ background: 'var(--bento-card)', borderRadius: 16, overflow: 'hidden' },
+  testamentHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px' },
+  testamentLabel:  { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
+  testamentSwitchBtn: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)', padding: 0 },
+  bookGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 },
+  bookCell: { height: 46, borderRadius: 14, border: 'none', padding: 0, background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: '46px', color: 'var(--bento-ink)', textAlign: 'center', cursor: 'pointer' },
+  bookCellActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
+  bookExpandWrap: { marginTop: 12, background: 'var(--bento-line)', borderRadius: 16, overflow: 'hidden' },
 
   todaySessionCard:  { width: '100%', borderRadius: 24, background: 'rgba(255,255,255,.6)', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
   todaySessionIcon:  { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  todaySessionTitle: { display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 3 },
-  todaySessionSub:   { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)' },
-  todaySessionChevron:{ fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)' },
+  todaySessionTitle: { display: 'block', fontSize: 14, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', marginBottom: 3 },
+  todaySessionSub:   { display: 'block', fontSize: 12, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)' },
+  todaySessionChevron:{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)' },
 }
