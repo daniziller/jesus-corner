@@ -63,6 +63,7 @@ import { getReadingOrder, setReadingOrder as persistReadingOrder } from './readi
 import { getReadingSeconds } from './reading/readingTimeStore'
 import HomeDashboard, { shouldShowDashboard } from './screens/HomeDashboard'
 import ChapterRoomScreen from './screens/ChapterRoomScreen'
+import RoutineCompleteScreen from './screens/RoutineCompleteScreen'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
 import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRecapStore'
 import { renderRecapImage, shareRecapImage } from './recap/recapImage'
@@ -426,6 +427,13 @@ export default function App() {
   const [guidedFlow, setGuidedFlow] = useState(null)
   const guidedFlowRef = useRef(null)
   guidedFlowRef.current = guidedFlow
+  // Snapshot pra tela de fechamento do dia (21c, RoutineCompleteScreen) —
+  // { steps, readingSession }, montado no fim da rotina guiada (ver
+  // advanceGuided abaixo) e limpo ao voltar pra Hoje. steps é a mesma lista
+  // de guidedFlow.steps (prayer/reading/reflection incluídos nesta rotina);
+  // readingSession é lastReadSession capturado ANTES de session.todaySession
+  // avançar pra próxima sessão.
+  const [routineCompleteInfo, setRoutineCompleteInfo] = useState(null)
   // Trava enquanto a transição de um passo pro próximo está agendada (ver
   // advanceGuided) — evita agendar duas vezes se markRoutineStep disparar
   // mais de uma vez pro mesmo passo.
@@ -878,7 +886,11 @@ export default function App() {
       if (guidedFlowRef.current !== gf) return // pessoa saiu do modo guiado nesse meio-tempo
       if (nextIdx >= gf.steps.length) {
         setGuidedFlow(null)
-        goToTab('home')
+        // lastReadSession referenciado aqui é o do fechamento (closure desta
+        // chamada, criada antes de markRoutineStep('reflection') zerá-lo) —
+        // ver comentário de routineCompleteInfo acima.
+        setRoutineCompleteInfo({ steps: gf.steps, readingSession: lastReadSession })
+        goToTab('routineComplete')
         return
       }
       setGuidedFlow({ steps: gf.steps, idx: nextIdx })
@@ -1704,6 +1716,19 @@ export default function App() {
           onShare={shareRecap}
         />
       : null,
+    // Rotina concluída (21c) — fecha o ciclo diário guiado (ver
+    // advanceGuided). routineCompleteInfo só existe entre o fim da rotina e
+    // "Voltar para Hoje".
+    routineComplete: routineCompleteInfo
+      ? <RoutineCompleteScreen
+          session={session}
+          authUser={authUser}
+          steps={routineCompleteInfo.steps}
+          readingSession={routineCompleteInfo.readingSession}
+          onBack={() => { setRoutineCompleteInfo(null); goToTab('home') }}
+          onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }}
+        />
+      : null,
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
@@ -1725,10 +1750,10 @@ export default function App() {
   // controles de leitura. Sai pela seta do próprio cabeçalho da tela.
   const immersiveReading = activeTab === 'journey' && journeyEntryMode === 'reading'
   // Telas já na identidade Bento (design_handoff_jesus_corner/Jesus Corner
-  // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f, 5d): nenhum quadro tem o
-  // cabeçalho com logotipo/sino/avatar — o título de cada tela é a saudação
-  // ou o nome dela (ADENDO: "os cabeçalhos usam saudação"). O AppHeader
-  // fica só nas telas que ainda não foram desenhadas (Perfil, Oração,
+  // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f, 5d, 21a): nenhum quadro
+  // tem o cabeçalho com logotipo/sino/avatar — o título de cada tela é a
+  // saudação ou o nome dela (ADENDO: "os cabeçalhos usam saudação"). O
+  // AppHeader fica só nas telas que ainda não foram desenhadas (Perfil,
   // Estudos…), e é lá que continuam o sino e o ajuste de tamanho de texto.
   // Perfil é alcançado pelo avatar da Home. 'groups' só entra quando um
   // grupo está aberto de fato (groupsDetailOpen — o painel 5d, que tem
@@ -1738,13 +1763,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">
@@ -1772,7 +1797,7 @@ export default function App() {
                 height:100% que a tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => { markRoutineStep('prayer'); advanceGuided('prayer') }} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} />
+                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => { markRoutineStep('prayer'); advanceGuided('prayer') }} onSkipStep={() => advanceGuided('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} />
               </div>
             )}
             {reflectionVisitedRef.current && (

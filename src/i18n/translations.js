@@ -590,6 +590,30 @@ export const STRINGS = {
     },
     prayer: {
       pageTitle: 'Oração',
+      // Bento 21a — reskin do passo 1 de 3. stepOf/skipStepBtn só aparecem
+      // dentro da rotina guiada (ver App.jsx: session.guided). Fora dela
+      // (acesso direto, ex: RoutineStepSwitcher) o cabeçalho mostra só
+      // pageTitle, sem "passo N de 3" nem "Pular" — não haveria fluxo pra
+      // pular.
+      stepOf: 'passo {n} de {total}',
+      skipStepBtn: 'Pular',
+      methodLabel: 'Método ACTS · {n} min',
+      remainingShort: 'restantes',
+      phaseStatusDone: '{n} min · feito',
+      phaseStatusNow: 'agora · {n} min',
+      phaseStatusLater: 'depois',
+      phaseForToday: '{stage} · para hoje',
+      viewStepsAndVerse: 'Ver os passos e o versículo',
+      hideStepsAndVerse: 'Ocultar passos e versículo',
+      pauseBtn: 'Pausar',
+      resumeBtn: 'Retomar',
+      startBtn: 'Iniciar',
+      nextPhaseBtn: 'Próxima etapa',
+      finishAndReadBtn: 'Concluir e ir para a leitura',
+      // Fora do quadro 21a: o quadro fixa a duração em 15f/5a, mas hoje
+      // ainda não dá pra editar o valor lá (só liga/desliga o passo) — o
+      // seletor de duração fica aqui até 5a ganhar esse controle.
+      durationSectionLabel: 'Duração total',
       heroTitle: 'Método ACTS',
       heroSub: 'Siga as 4 etapas abaixo, uma de cada vez: Adoração, Confissão, Ação de Graças e Súplicas. Toque em cada uma para ver o guia e use o cronômetro para acompanhar o tempo.',
       timerLabel: 'TEMPO DE ORAÇÃO',
@@ -624,6 +648,28 @@ export const STRINGS = {
       answerAction: 'Marcar como atendido',
       denyAction: 'Deus respondeu de outro jeito',
       deleteAction: 'Deletar',
+    },
+    // Bento 21c — fechamento do dia, tela inteiramente escura (como 13a e
+    // 15e). Nunca fala de "sequência" — a meta é semanal, e um dia perdido
+    // não aparece aqui (README §18). Aberta pelo fim da rotina guiada
+    // (App.jsx/advanceGuided), nunca por navegação direta.
+    routineComplete: {
+      title: 'Rotina feita. {n} minutos.',
+      weekMessageRemaining: '{ordinal} dia da semana. Faltam {remaining} para a meta — e você tem até domingo.',
+      weekMessageMet: '{ordinal} dia da semana. Meta da semana já batida — o resto é só bônus.',
+      ordinal1: 'Primeiro', ordinal2: 'Segundo', ordinal3: 'Terceiro', ordinal4: 'Quarto', ordinal5: 'Quinto', ordinal6: 'Sexto', ordinal7: 'Sétimo',
+      prayerRowLabel: 'Oração',
+      prayerRowValue: '{n} min',
+      readingRowLabel: 'Leitura',
+      // Com marcação(ões) reais no capítulo lido — sem inventar contagem
+      // quando não houver nenhuma marcação (mostra só a referência).
+      readingRowValue: '{ref}',
+      readingRowValueWithMarks: '{ref} · {n} marcação(ões)',
+      readingRowValueGeneric: 'Sessão concluída',
+      reflectionRowLabel: 'Reflexão',
+      reflectionRowValue: 'Salvo no diário',
+      backHomeBtn: 'Voltar para Hoje',
+      viewGroupCommentsBtn: 'Ver o que o grupo comentou',
     },
     handsFree: {
       introTitle: 'Modo mãos-livres',
@@ -2247,6 +2293,22 @@ export const STRINGS = {
     },
     prayer: {
       pageTitle: 'Prayer',
+      stepOf: 'step {n} of {total}',
+      skipStepBtn: 'Skip',
+      methodLabel: 'ACTS Method · {n} min',
+      remainingShort: 'left',
+      phaseStatusDone: '{n} min · done',
+      phaseStatusNow: 'now · {n} min',
+      phaseStatusLater: 'later',
+      phaseForToday: '{stage} · for today',
+      viewStepsAndVerse: 'View the steps and verse',
+      hideStepsAndVerse: 'Hide steps and verse',
+      pauseBtn: 'Pause',
+      resumeBtn: 'Resume',
+      startBtn: 'Start',
+      nextPhaseBtn: 'Next step',
+      finishAndReadBtn: 'Finish and go to reading',
+      durationSectionLabel: 'Total duration',
       heroTitle: 'ACTS Method',
       heroSub: 'Follow the 4 steps below, one at a time: Adoration, Confession, Thanksgiving, and Supplication. Tap each one to see its guide and use the timer to track your time.',
       timerLabel: 'PRAYER TIME',
@@ -2281,6 +2343,22 @@ export const STRINGS = {
       answerAction: 'Mark as answered',
       denyAction: 'God responded another way',
       deleteAction: 'Delete',
+    },
+    routineComplete: {
+      title: 'Routine done. {n} minutes.',
+      weekMessageRemaining: '{ordinal} day of the week. {remaining} more to reach your goal — and you have until Sunday.',
+      weekMessageMet: '{ordinal} day of the week. Weekly goal already met — the rest is bonus.',
+      ordinal1: 'First', ordinal2: 'Second', ordinal3: 'Third', ordinal4: 'Fourth', ordinal5: 'Fifth', ordinal6: 'Sixth', ordinal7: 'Seventh',
+      prayerRowLabel: 'Prayer',
+      prayerRowValue: '{n} min',
+      readingRowLabel: 'Reading',
+      readingRowValue: '{ref}',
+      readingRowValueWithMarks: '{ref} · {n} highlight(s)',
+      readingRowValueGeneric: 'Session completed',
+      reflectionRowLabel: 'Reflection',
+      reflectionRowValue: 'Saved to your journal',
+      backHomeBtn: 'Back to Today',
+      viewGroupCommentsBtn: 'See what the group said',
     },
     handsFree: {
       introTitle: 'Hands-free mode',
