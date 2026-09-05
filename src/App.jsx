@@ -1875,12 +1875,12 @@ export default function App() {
     aiSettings: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <AiSettingsScreen session={session} onBack={goBack} />,
-    contact: <ContactScreen session={session} authUser={authUser} />,
-    applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
+    contact: <ContactScreen session={session} authUser={authUser} onBack={goBack} />,
+    applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} />,
+    inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} onBack={goBack} />,
     themePlan: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
-      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('createStudy')} onGoToReflectionFrom={goToReflectionFrom} />,
+      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('createStudy')} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
     // Etapa 10 (22a/22b) — "Criar estudo" e a proposta gerada, alcançadas
     // pelo botão "Criar" em Meu Plano (RoutineScreen.jsx).
     createStudy: !session.hasAI
@@ -1979,13 +1979,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'contact', 'applicationPhrases', 'inductiveMethod'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">
