@@ -6,14 +6,21 @@
 // pra elas, com o título da sessão de leitura do dia + a data de cada
 // uma). Mesmo padrão de edição/exclusão de NotesScreen.jsx, deliberadamente
 // duplicado (não importado de lá) — telas de histórico pequenas assim não
-// valem o acoplamento de compartilhar componente.
+// valem o acoplamento de compartilhar componente. Cores/medidas dos
+// cartões seguem as mesmas de NotesScreen.jsx (cartão branco raio 24, tag
+// uppercase pequena) pra ficar visualmente igual à tela irmã.
+//
+// Sem quadro próprio no handoff — cabeçalho segue o mesmo padrão de tela
+// secundária já usado em GroupAdminScreen.jsx/ContactScreen.jsx.
 import { useState, useEffect } from 'react'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, noteSessionTitleOf, parseNoteKey } from '../notes/notesStore'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function ApplicationPhrasesScreen({ session, authUser }) {
+const FONT = 'var(--font-bento)'
+
+export default function ApplicationPhrasesScreen({ session, authUser, onBack }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', phrases: [] })
   const [editingKey, setEditingKey] = useState(null)
@@ -114,97 +121,100 @@ export default function ApplicationPhrasesScreen({ session, authUser }) {
   }
 
   return (
-    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div style={styles.body}>
-        <div className="page-header" style={{ padding: 0, marginBottom: 4 }}>
-          <h1 className="page-title">{t('applicationPhrases.pageTitle', undefined, lang)}</h1>
-          <p style={styles.heroSub}>{t('applicationPhrases.heroSub', undefined, lang)}</p>
+    <div style={s.screen}>
+      <div style={s.header}>
+        <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <div>
+          <p style={s.headerTitle}>{t('applicationPhrases.pageTitle', undefined, lang)}</p>
+          <p style={s.headerSub}>{t('applicationPhrases.heroSub', undefined, lang)}</p>
         </div>
+      </div>
 
-        {state.status === 'loading' && <p style={styles.emptyHint}>{t('applicationPhrases.loading', undefined, lang)}</p>}
-        {state.status === 'error' && <p style={styles.emptyHint}>{t('applicationPhrases.error', undefined, lang)}</p>}
+      <div style={s.body}>
+        {state.status === 'loading' && <p style={s.emptyHint}>{t('applicationPhrases.loading', undefined, lang)}</p>}
+        {state.status === 'error' && <p style={s.emptyHint}>{t('applicationPhrases.error', undefined, lang)}</p>}
         {state.status === 'ready' && state.phrases.length === 0 && (
-          <p style={styles.emptyHint}>{t('applicationPhrases.empty', undefined, lang)}</p>
+          <p style={s.emptyHint}>{t('applicationPhrases.empty', undefined, lang)}</p>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {state.phrases.map(phrase => {
-            const isEditing = editingKey === phrase.key
-            const isBusy = busyKey === phrase.key
-            return (
-              <div key={phrase.key} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <span style={styles.cardIcon}><AppIcon name="Sparkles" size={13} color="#A21CAF" /></span>
-                  <span style={styles.cardLabel}>
-                    {phrase.sessionTitle && <span style={styles.cardSession}>{phrase.sessionTitle}</span>}
-                    <span style={styles.cardDate}>{dateLabelFor(phrase.date)}</span>
+        {state.phrases.map(phrase => {
+          const isEditing = editingKey === phrase.key
+          const isBusy = busyKey === phrase.key
+          return (
+            <div key={phrase.key} style={s.card}>
+              <div style={s.cardHeader}>
+                {phrase.sessionTitle && <p style={s.cardTitleLine}>{phrase.sessionTitle}</p>}
+                <span style={s.cardTime}>{dateLabelFor(phrase.date)}</span>
+                {!isEditing && (
+                  <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                    <button
+                      style={s.cardActionBtn} onClick={() => startEdit(phrase)}
+                      aria-label={t('applicationPhrases.editAction', undefined, lang)} disabled={isBusy}
+                    >
+                      <AppIcon name="PenLine" size={13} color="var(--bento-t3)" />
+                    </button>
+                    <button
+                      style={s.cardActionBtn} onClick={() => deletePhrase(phrase)}
+                      aria-label={t('applicationPhrases.deleteAction', undefined, lang)} disabled={isBusy}
+                    >
+                      <AppIcon name="Trash2" size={13} color="var(--re)" />
+                    </button>
                   </span>
-                  {!isEditing && (
-                    <span style={styles.cardActions}>
-                      <button
-                        style={styles.cardActionBtn} onClick={() => startEdit(phrase)}
-                        aria-label={t('applicationPhrases.editAction', undefined, lang)} disabled={isBusy}
-                      >
-                        <AppIcon name="PenLine" size={13} color="var(--g5)" />
-                      </button>
-                      <button
-                        style={styles.cardActionBtn} onClick={() => deletePhrase(phrase)}
-                        aria-label={t('applicationPhrases.deleteAction', undefined, lang)} disabled={isBusy}
-                      >
-                        <AppIcon name="Trash2" size={13} color="var(--re)" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-
-                {isEditing ? (
-                  <>
-                    <input
-                      type="text"
-                      style={styles.editInput}
-                      value={editText}
-                      onChange={e => setEditText(e.target.value)}
-                      maxLength={140}
-                      autoFocus
-                    />
-                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                      <button
-                        style={styles.editSaveBtn} onClick={() => saveEdit(phrase)}
-                        disabled={isBusy || !editText.trim()}
-                      >
-                        {isBusy ? t('applicationPhrases.saving', undefined, lang) : t('applicationPhrases.saveEdit', undefined, lang)}
-                      </button>
-                      <button style={styles.editCancelBtn} onClick={cancelEdit} disabled={isBusy}>
-                        {t('applicationPhrases.cancelEdit', undefined, lang)}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <p style={styles.cardText}>{phrase.text}</p>
                 )}
               </div>
-            )
-          })}
-        </div>
+
+              {isEditing ? (
+                <>
+                  <input
+                    type="text"
+                    style={s.editInput}
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    maxLength={140}
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                    <button
+                      style={s.editSaveBtn} onClick={() => saveEdit(phrase)}
+                      disabled={isBusy || !editText.trim()}
+                    >
+                      {isBusy ? t('applicationPhrases.saving', undefined, lang) : t('applicationPhrases.saveEdit', undefined, lang)}
+                    </button>
+                    <button style={s.editCancelBtn} onClick={cancelEdit} disabled={isBusy}>
+                      {t('applicationPhrases.cancelEdit', undefined, lang)}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p style={s.cardText}>{phrase.text}</p>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-const styles = {
-  body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
-  heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
-  emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '24px 12px' },
-  card:       { background: 'linear-gradient(135deg,#FDF4FF,#FAE8FF)', border: '0.5px dashed rgba(192,38,211,.4)', borderRadius: 18, padding: 13 },
+const s = {
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
+  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+  headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
+
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  emptyHint: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '24px 12px' },
+
+  card: { background: 'var(--bento-card)', borderRadius: 24, padding: 20 },
   cardHeader: { display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
-  cardIcon:   { width: 22, height: 22, borderRadius: 7, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  cardLabel:  { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' },
-  cardSession:{ fontSize: 11, fontWeight: 700, color: 'var(--bk)', lineHeight: 1.3 },
-  cardDate:   { fontSize: 9.5, fontWeight: 600, color: '#A21CAF', letterSpacing: 0.3, textTransform: 'uppercase', marginTop: 1 },
-  cardText:   { fontSize: 13, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.5 },
-  cardActions:  { display: 'flex', gap: 2, flexShrink: 0 },
-  cardActionBtn:{ width: 24, height: 24, border: 'none', background: 'none', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  editInput:  { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'white' },
-  editSaveBtn:  { flex: 1, background: '#A21CAF', border: 'none', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
-  editCancelBtn:{ flex: 1, background: 'white', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: 9, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  cardTitleLine: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 12, fontWeight: 800, lineHeight: 1.3, color: 'var(--bento-ink)', margin: 0 },
+  cardTime: { flexShrink: 0, fontFamily: FONT, fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
+  cardText: { fontFamily: FONT, fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', lineHeight: 1.5, margin: 0 },
+  cardActionBtn: { width: 24, height: 24, border: 'none', background: 'none', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  editInput: { width: '100%', border: 'none', borderRadius: 11, padding: '10px 12px', fontFamily: FONT, fontSize: 13, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)' },
+  editSaveBtn: { flex: 1, background: 'var(--bento-accent)', border: 'none', borderRadius: 11, padding: 9, fontFamily: FONT, fontSize: 11.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  editCancelBtn: { flex: 1, background: 'var(--bento-line)', border: 'none', borderRadius: 11, padding: 9, fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
 }

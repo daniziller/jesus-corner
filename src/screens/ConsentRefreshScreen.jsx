@@ -8,14 +8,18 @@
 // A sessão do Supabase já existe nos dois casos — esta tela só decide se o
 // app "libera" o acesso (onAccepted) ou desfaz a sessão (onDeclined),
 // porque consentimento não pode ser imposto sem alternativa real de recusa.
+//
+// Sem quadro próprio no handoff — reaproveita as peças de accountUi.jsx
+// (13b/13c/13d) em vez de inventar um visual novo. Sem botão "voltar" no
+// modo tela cheia (diferente de AccountShell): não existe pra onde voltar
+// aqui, "recusar" (que desfaz a sessão) já é a saída.
 import { useState } from 'react'
-import BrandMark from '../components/BrandMark'
-import BrandLogo from '../components/BrandLogo'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { logout } from '../auth/authStore'
 import { recordConsents, PURPOSES } from '../privacy/consent'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
+import { AccountPrimaryButton, AccountError, FONT, ui } from './accountUi'
 
 export default function ConsentRefreshScreen({ onAccepted, onDeclined, embedded = false }) {
   const [agreedToTerms, setAgreedToTerms] = useState(false)
@@ -51,79 +55,65 @@ export default function ConsentRefreshScreen({ onAccepted, onDeclined, embedded 
   }
 
   const form = (
-    <div style={styles.form}>
-      <h1 style={styles.title}>{t('auth.consentRefreshTitle')}</h1>
-      <p style={styles.subtitle}>{t('auth.consentRefreshBody')}</p>
+    <>
+      <p style={s.title}>{t('auth.consentRefreshTitle')}</p>
+      <p style={s.subtitle}>{t('auth.consentRefreshBody')}</p>
 
-      <div style={styles.agreeRow}>
-        <input type="checkbox" style={styles.agreeCheckbox} checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)} />
-        <span style={styles.agreeText}>
-          {t('auth.agreeToTermsPrefix')}
-          <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.termsLabel')}</a>
-          {t('auth.agreeToTermsMiddle')}
-          <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.agreeLink}>{t('profile.privacyLabel')}</a>
-          {t('auth.agreeToTermsSuffix')}
-        </span>
+      <div style={s.card}>
+        <label style={s.agreeRow}>
+          <input type="checkbox" style={s.agreeCheckbox} checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)} />
+          <span style={s.agreeText}>
+            {t('auth.agreeToTermsPrefix')}
+            <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={s.agreeLink}>{t('profile.termsLabel')}</a>
+            {t('auth.agreeToTermsMiddle')}
+            <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={s.agreeLink}>{t('profile.privacyLabel')}</a>
+            {t('auth.agreeToTermsSuffix')}
+          </span>
+        </label>
+
+        <label style={{ ...s.agreeRow, borderTop: '1px solid var(--bento-divider)', paddingTop: 14, marginTop: 14 }}>
+          <input type="checkbox" style={s.agreeCheckbox} checked={agreedToSensitive} onChange={e => setAgreedToSensitive(e.target.checked)} />
+          <span style={s.agreeText}>{t('auth.agreeToSensitiveData')}</span>
+        </label>
+
+        <label style={{ ...s.agreeRow, borderTop: '1px solid var(--bento-divider)', paddingTop: 14, marginTop: 14 }}>
+          <input type="checkbox" style={s.agreeCheckbox} checked={agreedToMarketing} onChange={e => setAgreedToMarketing(e.target.checked)} />
+          <span style={s.agreeText}>{t('auth.agreeToMarketing')}</span>
+        </label>
       </div>
 
-      <div style={styles.agreeRow}>
-        <input type="checkbox" style={styles.agreeCheckbox} checked={agreedToSensitive} onChange={e => setAgreedToSensitive(e.target.checked)} />
-        <span style={styles.agreeText}>{t('auth.agreeToSensitiveData')}</span>
-      </div>
+      <AccountError text={error} />
 
-      <div style={styles.agreeRow}>
-        <input type="checkbox" style={styles.agreeCheckbox} checked={agreedToMarketing} onChange={e => setAgreedToMarketing(e.target.checked)} />
-        <span style={styles.agreeText}>{t('auth.agreeToMarketing')}</span>
-      </div>
+      <AccountPrimaryButton
+        label={loading ? t('auth.loading') : t('onboarding.continueBtn')}
+        onClick={confirm}
+        disabled={loading || declining || !agreedToTerms || !agreedToSensitive}
+        style={{ margin: '16px 0 0' }}
+      />
 
-      {error && <p style={styles.error}>{error}</p>}
-
-      <button
-        type="button" className="btn-primary" style={{ marginTop: 6 }}
-        onClick={confirm} disabled={loading || declining || !agreedToTerms || !agreedToSensitive}
-      >
-        {loading ? t('auth.loading') : t('onboarding.continueBtn')}
+      <button type="button" style={{ ...ui.footLink, marginTop: 14 }} onClick={decline} disabled={declining}>
+        {declining ? t('auth.loading') : t('auth.consentRefreshDecline')}
       </button>
-
-      <div style={styles.linksRow}>
-        <span style={styles.link} onClick={decline}>
-          {declining ? t('auth.loading') : t('auth.consentRefreshDecline')}
-        </span>
-      </div>
-    </div>
+    </>
   )
 
   if (embedded) return form
 
   return (
-    <div style={styles.screen}>
-      <div style={styles.hero}>
-        <div style={styles.heroOrbOrange} />
-        <div style={styles.heroOrbPink} />
-        <BrandMark size={34} variant="plate" style={{ position: 'relative', marginBottom: 0 }} />
-        <BrandLogo size={15.5} onDark style={{ position: 'relative' }} />
+    <div style={ui.screen}>
+      <div style={{ ...ui.body, padding: '52px 20px 0' }}>
+        <div style={{ ...ui.col, display: 'flex', flexDirection: 'column', flex: 1 }}>{form}</div>
       </div>
-      <div style={styles.sheet}>{form}</div>
     </div>
   )
 }
 
-const styles = {
-  screen:        { display: 'flex', flexDirection: 'column', height: '100%' },
-  hero:          { background: 'var(--bk-hero)', padding: '18px 24px 14px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, flexShrink: 0, position: 'relative', overflow: 'hidden' },
-  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -100, right: -60 },
-  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -90, left: -50 },
-  logo:          { position: 'relative', width: 34, height: 34, borderRadius: 9, boxShadow: '0 6px 14px rgba(0,0,0,.35)', flexShrink: 0 },
-  brandName:     { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 15.5, fontWeight: 800, color: 'var(--white)', letterSpacing: 0.5 },
-  sheet:         { flex: 1, overflowY: 'auto', background: 'var(--white)', borderRadius: '20px 20px 0 0', marginTop: -14, padding: '24px 22px 32px' },
-  form:          { display: 'flex', flexDirection: 'column', gap: 12 },
-  title:         { fontSize: 25, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px' },
-  subtitle:      { fontSize: 15.5, fontWeight: 500, color: 'var(--g5)', marginTop: -6, marginBottom: 4, lineHeight: 1.5 },
-  error:         { fontSize: 13.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
-  linksRow:      { display: 'flex', justifyContent: 'space-between', marginTop: 4 },
-  link:          { fontSize: 13, fontWeight: 700, color: 'var(--or)', cursor: 'pointer' },
-  agreeRow:      { display: 'flex', alignItems: 'flex-start', gap: 9, padding: '2px 1px' },
-  agreeCheckbox: { width: 16, height: 16, marginTop: 1, flexShrink: 0, accentColor: 'var(--or)', cursor: 'pointer' },
-  agreeText:     { fontSize: 13.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5 },
-  agreeLink:     { color: 'var(--or)', fontWeight: 700, textDecoration: 'none' },
+const s = {
+  title: { fontFamily: FONT, fontSize: 24, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: '0 0 8px' },
+  subtitle: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t3)', margin: '0 0 20px' },
+  card: { borderRadius: 24, background: 'var(--bento-card)', padding: 18 },
+  agreeRow: { display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' },
+  agreeCheckbox: { width: 17, height: 17, marginTop: 1, flexShrink: 0, accentColor: 'var(--bento-accent)', cursor: 'pointer' },
+  agreeText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t2)' },
+  agreeLink: { color: 'var(--bento-accent)', fontWeight: 700, textDecoration: 'none' },
 }
