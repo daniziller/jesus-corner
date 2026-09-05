@@ -67,7 +67,7 @@ export async function getPendingGroupInvitesCount() {
 export async function getGroupDetail(groupId) {
   const { data: group, error: groupError } = await supabase
     .from('reading_groups')
-    .select('id, name, created_by, created_at')
+    .select('id, name, description, created_by, created_at, invite_code')
     .eq('id', groupId)
     .maybeSingle()
   if (groupError || !group) {
@@ -86,7 +86,9 @@ export async function getGroupDetail(groupId) {
   return {
     id: group.id,
     name: group.name,
+    description: group.description,
     createdBy: group.created_by,
+    inviteCode: group.invite_code,
     members: (members ?? []).map(m => ({
       userId: m.user_id,
       name: m.member?.name ?? '',
@@ -94,6 +96,46 @@ export async function getGroupDetail(groupId) {
       joinedAt: m.joined_at,
     })),
   }
+}
+
+// Pedidos de entrada por código, ainda sem decisão do moderador (status
+// 'requested' — ver migration 0046_group_invite_codes.sql). Diferente de
+// getPendingGroupInvites: aqui é o MODERADOR que consulta os pedidos de
+// OUTRAS pessoas pro grupo dele, não a própria pessoa vendo seus convites.
+export async function getPendingJoinRequests(groupId) {
+  const { data, error } = await supabase
+    .from('reading_group_members')
+    .select('user_id, created_at, member:profiles!reading_group_members_user_id_fkey(name)')
+    .eq('group_id', groupId)
+    .eq('status', 'requested')
+    .order('created_at', { ascending: true })
+  if (error) { console.error('[groupsStore] getPendingJoinRequests failed:', error.message); return [] }
+  return (data ?? []).map(r => ({
+    userId: r.user_id,
+    name: r.member?.name ?? '',
+    requestedAt: r.created_at,
+  }))
+}
+
+// Pede entrada num grupo digitando o código de convite (quadro 19c) — cria
+// a própria linha 'requested', que um moderador aprova ou recusa depois
+// (ver respondToJoinRequest). Devolve o grupo (nome) pra confirmar na hora
+// pra quem pediu.
+export async function redeemGroupInviteCode(code) {
+  const { data, error } = await supabase.rpc('redeem_group_invite_code', { code })
+  if (error) throw new Error(error.message)
+  return { groupId: data?.id, name: data?.name }
+}
+
+// Aprova ou recusa um pedido de entrada por código — só quem já é
+// moderador do grupo pode chamar (a RPC recusa se não for).
+export async function respondToJoinRequest(groupId, userId, accept) {
+  const { error } = await supabase.rpc('respond_to_group_join_request', {
+    target_group_id: groupId,
+    target_user_id: userId,
+    accept,
+  })
+  if (error) throw new Error(error.message)
 }
 
 // Cria um grupo (e já entra como moderador) via RPC — ver
@@ -143,6 +185,16 @@ export async function setMemberRole(groupId, userId, role) {
     target_group_id: groupId,
     target_user_id: userId,
     new_role: role,
+  })
+  if (error) throw new Error(error.message)
+}
+
+// Edita nome/descrição do grupo (quadro 19c) — só moderador.
+export async function updateGroupInfo(groupId, name, description) {
+  const { error } = await supabase.rpc('update_group_info', {
+    target_group_id: groupId,
+    new_name: name,
+    new_description: description,
   })
   if (error) throw new Error(error.message)
 }
