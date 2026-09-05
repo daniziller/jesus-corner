@@ -1,6 +1,6 @@
 // JourneyScreen.jsx — "Bíblia" (reskin Bento — tela 5f, leitura livre)
 import { useState, useEffect, useRef } from 'react'
-import { sessionKeys } from '../utils/progress'
+import { sessionKeys, computeBookChapterCounts } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { formatRelativeTime } from '../utils/time'
 import { t } from '../i18n'
@@ -258,6 +258,20 @@ export default function JourneyScreen({
   // Bloco escuro na grade: o livro da leitura de hoje (e o que está aberto).
   const currentBook = session.todaySession?.book ?? null
 
+  // Progresso por livro — não está no quadro 5f (só a grade de siglas),
+  // mas é dado real que já existia antes da grade (ver BookRow da versão
+  // anterior) e a autora pediu de volta: um número pequeno no canto de
+  // cada célula. Cheio = check; parcial = % arredondado; 0% = nada, pra
+  // não poluir a grade toda de "0".
+  const bookChapterCounts = computeBookChapterCounts(sessionsByBlock ?? {})
+  function progressFor(entry) {
+    const total = bookChapterCounts[entry.canonicalName] ?? 0
+    if (!total) return { done: 0, total: 0, pct: 0 }
+    let done = 0
+    for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${entry.canonicalName}:${ch}`)) done++
+    return { done, total, pct: Math.round((done / total) * 100) }
+  }
+
   const gridBooks = searchResults ?? testamentBooks
   const expandedEntry = gridBooks.find(e => `${e.block.id}:${e.canonicalName}` === expandedBookKey) ?? null
   // O livro aberto cresce abaixo da grade — rola até ele ao abrir (senão a
@@ -330,15 +344,23 @@ export default function JourneyScreen({
               {gridBooks.map(entry => {
                 const key = `${entry.block.id}:${entry.canonicalName}`
                 const active = expandedBookKey === key || (!expandedBookKey && entry.canonicalName === currentBook)
+                const { done, total, pct } = progressFor(entry)
                 return (
                   <button
                     key={key}
                     style={{ ...styles.bookCell, ...(active ? styles.bookCellActive : {}) }}
                     onClick={() => openBook(entry.block, entry.canonicalName)}
-                    aria-label={entry.displayName}
-                    title={entry.displayName}
+                    aria-label={total ? `${entry.displayName} — ${done}/${total}` : entry.displayName}
+                    title={total ? `${entry.displayName} — ${done}/${total}` : entry.displayName}
                   >
                     {abbreviationFor(entry)}
+                    {done === total && total > 0 ? (
+                      <span style={{ ...styles.bookCellBadge, ...(active ? styles.bookCellBadgeActiveDone : styles.bookCellBadgeDone) }}>
+                        <AppIcon name="Check" size={8} strokeWidth={3.5} color={active ? 'var(--bento-ink)' : '#fff'} />
+                      </span>
+                    ) : done > 0 ? (
+                      <span style={{ ...styles.bookCellBadge, ...(active ? styles.bookCellBadgeActive : {}) }}>{pct}</span>
+                    ) : null}
                   </button>
                 )
               })}
@@ -409,8 +431,19 @@ const styles = {
   testamentLabel:  { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
   testamentSwitchBtn: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)', padding: 0 },
   bookGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 },
-  bookCell: { height: 46, borderRadius: 14, border: 'none', padding: 0, background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: '46px', color: 'var(--bento-ink)', textAlign: 'center', cursor: 'pointer' },
+  bookCell: { position: 'relative', height: 46, borderRadius: 14, border: 'none', padding: 0, background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: '46px', color: 'var(--bento-ink)', textAlign: 'center', cursor: 'pointer' },
   bookCellActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
+  // Progresso por livro (fora do quadro 5f, pedido de volta pela autora) —
+  // número pequeno no canto: % arredondado enquanto parcial, check quando
+  // o livro inteiro já foi lido.
+  bookCellBadge: {
+    position: 'absolute', top: 3, right: 3, minWidth: 13, height: 13, borderRadius: 99,
+    background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontFamily: 'var(--font-bento)', fontSize: 7, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', padding: '0 2px',
+  },
+  bookCellBadgeActive: { background: 'rgba(255,255,255,.22)', color: '#fff' },
+  bookCellBadgeDone: { background: 'var(--bento-ink)' },
+  bookCellBadgeActiveDone: { background: 'var(--bento-accent)' },
   bookExpandWrap: { marginTop: 12, background: 'var(--bento-line)', borderRadius: 16, overflow: 'hidden' },
 
   todaySessionCard:  { width: '100%', borderRadius: 24, background: 'rgba(255,255,255,.6)', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
