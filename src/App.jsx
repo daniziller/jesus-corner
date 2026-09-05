@@ -354,6 +354,12 @@ export default function App() {
   // Reflexão com perguntas geradas (10d) na tela — ReflectionScreen avisa
   // (onAiFlowChange) pra o shell tirar cabeçalho e barra, como no quadro.
   const [reflectionAiActive, setReflectionAiActive] = useState(false)
+  // Comunidade (5d): o painel Bento de UM grupo aberto tem cabeçalho
+  // próprio (ver GroupHomeView) e não precisa do AppHeader antigo por
+  // cima; a lista de vários grupos (fora do quadro 5d, sem desenho
+  // próprio) continua dependendo dele. GroupsScreen avisa qual dos dois
+  // está de fato na tela (onDetailOpenChange) pra o shell decidir.
+  const [groupsDetailOpen, setGroupsDetailOpen] = useState(false)
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
@@ -1710,7 +1716,7 @@ export default function App() {
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
-      : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
+      : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onDetailOpenChange={setGroupsDetailOpen} />,
     stats:   <ProgressScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} onNavigate={navigateTo} />,
     // Sala do capítulo (17a) — aberta pelo botão "Grupo" da leitura (17c).
     chapterRoom: chapterRoom
@@ -1753,14 +1759,21 @@ export default function App() {
   // controles de leitura. Sai pela seta do próprio cabeçalho da tela.
   const immersiveReading = activeTab === 'journey' && journeyEntryMode === 'reading'
   // Telas já na identidade Bento (design_handoff_jesus_corner/Jesus Corner
-  // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f): nenhum quadro tem o
+  // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f, 5d): nenhum quadro tem o
   // cabeçalho com logotipo/sino/avatar — o título de cada tela é a saudação
   // ou o nome dela (ADENDO: "os cabeçalhos usam saudação"). O AppHeader
   // fica só nas telas que ainda não foram desenhadas (Perfil, Oração,
-  // Comunidade, Estudos…), e é lá que continuam o sino e o ajuste de
-  // tamanho de texto. Perfil é alcançado pelo avatar da Home.
+  // Estudos…), e é lá que continuam o sino e o ajuste de tamanho de texto.
+  // Perfil é alcançado pelo avatar da Home. 'groups' só entra quando um
+  // grupo está aberto de fato (groupsDetailOpen — o painel 5d, que tem
+  // cabeçalho próprio); a lista de vários grupos, sem quadro no redesign,
+  // continua usando o AppHeader antigo, como sempre usou — só o painel de
+  // dentro de um grupo tinha o AppHeader antigo empilhado por cima do
+  // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
+  // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap'].includes(activeTab) || reflectionBento
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap'].includes(activeTab)
+    || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao

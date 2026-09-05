@@ -42,7 +42,7 @@ function formatDate(iso, lang) {
   return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR')
 }
 
-export default function GroupsScreen({ session, authUser, onSocialChange, onOpenGroupRoom }) {
+export default function GroupsScreen({ session, authUser, onSocialChange, onOpenGroupRoom, onDetailOpenChange }) {
   const { lang, todaySession } = session
   const [myGroups, setMyGroups] = useState([])
   const [groupInvites, setGroupInvites] = useState([])
@@ -60,6 +60,15 @@ export default function GroupsScreen({ session, authUser, onSocialChange, onOpen
     getPendingGroupInvites().then(setGroupInvites).catch(err => console.error('Failed to load group invites', err))
     getFriendsActivity(20).then(setFriendActivity).catch(err => console.error('Failed to load friend activity', err))
   }, [reloadKey])
+
+  // Avisa o shell (App.jsx) se o painel de UM grupo está aberto — só ele
+  // tem cabeçalho Bento próprio (quadro 5d); a lista de vários grupos
+  // continua dependendo do AppHeader antigo, sem quadro no redesign.
+  useEffect(() => {
+    onDetailOpenChange?.(!!openGroupId)
+    return () => onDetailOpenChange?.(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openGroupId])
 
   const openGroup = myGroups.find(g => g.groupId === openGroupId) ?? null
 
