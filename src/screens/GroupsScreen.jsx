@@ -43,7 +43,7 @@ function formatDate(iso, lang) {
   return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR')
 }
 
-export default function GroupsScreen({ session, authUser, onSocialChange, onOpenGroupRoom, onDetailOpenChange }) {
+export default function GroupsScreen({ session, authUser, pendingGroupPlanInvites, onRespondGroupPlanInvite, onSocialChange, onOpenGroupRoom, onDetailOpenChange }) {
   const { lang, todaySession } = session
   const [myGroups, setMyGroups] = useState([])
   const [groupInvites, setGroupInvites] = useState([])
@@ -84,6 +84,15 @@ export default function GroupsScreen({ session, authUser, onSocialChange, onOpen
     reload()
   }
 
+  // Convite de Plano do grupo (22d) — diferente do convite de MEMBRO acima
+  // (respondToGroupInvite): aqui a pessoa já é do grupo, só está decidindo
+  // se troca a leitura de hoje pelo plano que o moderador enviou (ver
+  // App.jsx/respondToGroupPlanInvite — nunca troca sem essa decisão
+  // explícita, ver README "Duas regras de produto").
+  async function handleRespondGroupPlan(planId, accept) {
+    await onRespondGroupPlanInvite?.(planId, accept)
+  }
+
   return (
     <div className="master-detail">
       {/* Master: convites pendentes + meus grupos + amigos */}
@@ -94,6 +103,28 @@ export default function GroupsScreen({ session, authUser, onSocialChange, onOpen
           <h1 className="page-title">{t('groups.pageTitle', undefined, lang)}</h1>
         </div>
         <div style={{ padding: '20px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {pendingGroupPlanInvites?.length > 0 && (
+            <div>
+              <div className="section-header"><h3 className="section-title">{t('groups.pendingGroupPlanInvitesTitle', undefined, lang)}</h3></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {pendingGroupPlanInvites.map(inv => (
+                  <div key={inv.planId} style={styles.inviteCard}>
+                    <div style={{ flex: 1 }}>
+                      <p style={styles.inviteTitle}>{lang === 'en' ? inv.bookEn : inv.book}</p>
+                      <p style={styles.inviteSub}>{t('groups.groupPlanInvitedBy', { group: inv.groupName }, lang)}</p>
+                    </div>
+                    <button style={styles.acceptBtn} onClick={() => handleRespondGroupPlan(inv.planId, true)}>
+                      <AppIcon name="Check" size={14} />
+                    </button>
+                    <button style={styles.declineBtn} onClick={() => handleRespondGroupPlan(inv.planId, false)}>
+                      <AppIcon name="X" size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {groupInvites.length > 0 && (
             <div>
               <div className="section-header"><h3 className="section-title">{t('groups.pendingInvitesTitle', undefined, lang)}</h3></div>

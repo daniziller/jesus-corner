@@ -26,6 +26,7 @@ import {
   getGroupDetail, getPendingJoinRequests, respondToJoinRequest,
   setMemberRole, removeGroupMember, updateGroupInfo,
 } from '../groups/groupsStore'
+import { getLatestGroupPlan } from '../groups/groupPlansStore'
 
 const FONT = 'var(--font-bento)'
 const MEMBERS_COLLAPSED_COUNT = 4
@@ -47,7 +48,7 @@ function relativeRequestTime(iso, L) {
   return L('requestedDaysAgo', { n: days })
 }
 
-export default function GroupAdminScreen({ session, authUser, onBack, onOpenGroupRoom }) {
+export default function GroupAdminScreen({ session, authUser, onBack, onNavigate, onOpenGroupRoom }) {
   const lang = session.lang
   const L = (k, vars) => t(`groupAdmin.${k}`, vars, lang)
   const myGroup = session.myGroups?.find(g => g.myRole === 'moderator') ?? session.myGroups?.[0]
@@ -55,6 +56,7 @@ export default function GroupAdminScreen({ session, authUser, onBack, onOpenGrou
 
   const [group, setGroup] = useState(null)
   const [requests, setRequests] = useState([])
+  const [groupPlan, setGroupPlan] = useState(undefined) // undefined = ainda carregando, null = nenhum
   const [loading, setLoading] = useState(true)
   const [busyUserId, setBusyUserId] = useState(null)
   const [shareState, setShareState] = useState('idle')
@@ -69,10 +71,11 @@ export default function GroupAdminScreen({ session, authUser, onBack, onOpenGrou
   useEffect(() => {
     if (!groupId) { setLoading(false); return }
     let cancelled = false
-    Promise.all([getGroupDetail(groupId), getPendingJoinRequests(groupId)]).then(([detail, pending]) => {
+    Promise.all([getGroupDetail(groupId), getPendingJoinRequests(groupId), getLatestGroupPlan(groupId)]).then(([detail, pending, plan]) => {
       if (cancelled) return
       setGroup(detail)
       setRequests(pending)
+      setGroupPlan(plan)
       setLoading(false)
     })
     return () => { cancelled = true }
@@ -282,6 +285,29 @@ export default function GroupAdminScreen({ session, authUser, onBack, onOpenGrou
             )
           })}
         </div>
+
+        {/* Plano do grupo (22d, entrada levantada na rodada 22 pro quadro
+            19c — "Adição necessária"). Sem plano ainda: convite pra criar
+            um (mesmo botão "Criar" de Meu Plano). Com um já enviado: só o
+            status de aceite — reenviar/encerrar fica fora desta leva (o
+            mais recente por created_at já é "o" plano vigente do grupo,
+            ver getLatestGroupPlan). */}
+        {groupPlan !== undefined && (
+          <div style={styles.card}>
+            {groupPlan ? (
+              <div style={styles.linkRow}>
+                <span style={styles.linkLabel}>{L('groupPlanLabel')}</span>
+                <span style={styles.linkSub}>{L('groupPlanAccepted', { accepted: groupPlan.memberCounts.accepted, total: groupPlan.totalMembers })}</span>
+              </div>
+            ) : (
+              <button style={styles.linkRow} onClick={() => onNavigate?.('createStudy')}>
+                <span style={styles.linkLabel}>{L('groupPlanLabel')}</span>
+                <span style={styles.linkSub}>{L('groupPlanNone')}</span>
+                <span style={styles.chevron}>›</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Pergunta da semana + editar grupo. */}
         <div style={styles.card}>

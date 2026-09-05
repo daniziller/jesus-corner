@@ -20,7 +20,10 @@ const STEP_ORDER = ['prayer', 'reading', 'reflection']
 
 export default function RoutineScreen({ session, onContinueSession, onNavigate, onStartGuided, onResumeFixedPlan }) {
   const { lang, plan, activePlan, todayRoutine, todaySession, routineModules, dailyRoutine, weekGoalDaysMet, weeklyGoalDays, pausedFixedSession } = session
-  const isStudy = activePlan.kind === 'theme'
+  // Plano de grupo (22d) usa o mesmo tratamento visual de plano por tema —
+  // um losango + barra de progresso segmentada no lugar do subtítulo comum
+  // — só o rótulo muda (ver studyDayOf/groupDayOf abaixo).
+  const isStudy = activePlan.kind === 'theme' || activePlan.kind === 'group'
   const L = (k, vars) => t(`routine.${k}`, vars, lang)
 
   const modules = routineModules ?? DEFAULT_ROUTINE_MODULES
@@ -126,7 +129,7 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
                 {showStudy && (
                   <div style={styles.studyLabelRow}>
                     <span style={styles.studyDiamond} />
-                    <p style={styles.studyLabel}>{L('studyDayOf', { n: activePlan.doneCount + 1, total: activePlan.totalCount })}</p>
+                    <p style={styles.studyLabel}>{L(activePlan.kind === 'group' ? 'groupDayOf' : 'studyDayOf', { n: activePlan.doneCount + 1, total: activePlan.totalCount })}</p>
                   </div>
                 )}
                 <p style={styles.currentTitle}>{showStudy ? todaySession.title : stepTitle(k)}</p>

@@ -523,6 +523,37 @@ ${buildDigestLangInstruction(lang)}`,
   return output
 }
 
+// Sugestão de "pergunta da semana" pro Plano do grupo (quadro 22d) — a IA
+// propõe, mas quem publica de verdade é o líder, que sempre revisa e pode
+// editar antes de enviar (ver README, regra "a voz na Comunidade continua
+// humana"); esta função só escreve o RASCUNHO. Uma chamada só (não duas
+// como findThemePassages) — é um rascunho de 1 frase que um humano sempre
+// reescreve ou aprova antes de valer, o ganho de uma segunda passada de
+// revisão não compensa o custo aqui.
+const WeeklyQuestionSchema = z.object({
+  question: z.string().describe('Uma pergunta curta (1 frase, no idioma pedido) pra abrir a discussão de um grupo de leitura sobre este capítulo — ancorada num detalhe concreto do texto (um número, um nome, um gesto, uma tensão da narrativa), que convida reflexão pessoal, nunca testa conhecimento nem tem resposta "certa". Ex: "Paulo escreve da prisão e fala em alegria doze vezes. De onde vem a sua, quando as coisas não vão bem?"'),
+})
+
+export async function suggestWeeklyQuestion({ book, chStart, chEnd, chapterText, bookInfo, lang }) {
+  const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
+  const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: WeeklyQuestionSchema }),
+    prompt: `Você está sugerindo a "pergunta da semana" pra sala de discussão de um grupo de leitura bíblica, sobre ${book} ${range}, dentro de um app de leitura devocional. Um líder humano vai revisar e pode editar antes de publicar — a voz final é dele, não a sua; escreva um rascunho forte o bastante pra já servir quase pronto.
+
+Visão geral do livro: ${overview}
+
+Texto do capítulo:
+"${chapterText}"
+
+Gere a pergunta. Uma frase só, ancorada num detalhe concreto do texto, sem resposta certa/errada.
+
+${buildFieldsLangInstruction(lang, 'question')}`,
+  })
+  return output.question
+}
+
 // Busca por tema nas anotações pessoais (aba Notas — ver
 // api/search-notes.js/src/notes/notesSearchStore.js) — complementa a busca
 // por palavra (client-side, instantânea, sem custo) pra quando a pessoa
