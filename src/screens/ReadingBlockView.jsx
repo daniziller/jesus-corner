@@ -1242,18 +1242,23 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           onClose={() => setToolsOpen(false)}
           lang={lang}
           title={t('reading.toolsBtn', undefined, lang)}
+          subtitle={t('reading.toolsSubtitle', {
+            ref: `${heroBookDisplayName} ${heroSession.chStart}${heroSession.chStart !== heroSession.chEnd ? `–${heroSession.chEnd}` : ''}`,
+          }, lang)}
           items={[
             // Com grupo (17c) o player sai do rodapé e passa a viver aqui.
+            // Fora do quadro 5e (que só desenha os 4 cards fixos) — vira
+            // linha cheia abaixo da grade, não um 5º card.
             ...(myGroup && heroSession.type !== 'reflection' ? [
               { key: 'audio', icon: 'AudioLines', label: t('bibleAudio.listenChapter', undefined, lang), node: <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact /> },
             ] : []),
             ...(heroBooks.length > 0 ? [
-              { key: 'contexto', icon: 'BookOpen', label: t('reading.tagContext', undefined, lang), node: <InfoPanel type="contexto" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
-              { key: 'mapa', icon: 'Map', label: t('reading.tagMap', undefined, lang), node: <InfoPanel type="mapa" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
+              { key: 'contexto', icon: 'BookOpen', label: t('reading.tagContext', undefined, lang), sub: t('reading.toolsContextSub', undefined, lang), node: <InfoPanel type="contexto" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
+              { key: 'mapa', icon: 'Map', label: t('reading.tagMap', undefined, lang), sub: t('reading.toolsMapSub', { place: heroBooks[0].info.location.name }, lang), node: <InfoPanel type="mapa" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
             ] : []),
-            ...(hasPremium ? [{ key: 'notas', icon: 'StickyNote', label: t('reading.tagNotes', undefined, lang), node: <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} /> }] : []),
+            ...(hasPremium ? [{ key: 'notas', icon: 'StickyNote', label: t('reading.toolsNotesTitle', undefined, lang), sub: t(noteText.trim() ? 'reading.toolsNotesSubHas' : 'reading.toolsNotesSubEmpty', undefined, lang), node: <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} /> }] : []),
             ...(heroBooks.length > 0 ? [
-              { key: 'curiosidades', icon: 'Lightbulb', label: t('reading.tagTrivia', undefined, lang), node: <InfoPanel type="curiosidades" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
+              { key: 'curiosidades', icon: 'Lightbulb', label: t('reading.tagTrivia', undefined, lang), sub: t('reading.toolsTriviaSub', { n: heroBooks[0].info.curiosities.length }, lang), node: <InfoPanel type="curiosidades" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
             ] : []),
           ]}
           extra={hasAI ? (
@@ -1261,7 +1266,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               style={styles.toolsExtraBtn}
               onClick={() => { setToolsOpen(false); openAiChat() }}
             >
-              <AppIcon name="HelpCircle" size={16} color="var(--or)" />
+              <AppIcon name="HelpCircle" size={16} color="var(--bento-accent)" />
               {t('reading.tagAskAi', undefined, lang)}
             </button>
           ) : null}
@@ -2895,10 +2900,10 @@ const styles = {
     fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer',
   },
   toolsExtraBtn: {
-    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-    border: '1px solid rgba(18,18,18,.07)', borderRadius: 12, background: 'var(--white)',
-    padding: '11px 14px', cursor: 'pointer', fontFamily: 'var(--font)',
-    fontSize: 13.5, fontWeight: 600, color: 'var(--g6)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
+    border: 'none', borderRadius: 16, background: 'var(--bento-card)',
+    padding: '14px 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)',
+    fontSize: 13.5, fontWeight: 800, color: 'var(--bento-accent)',
   },
   completeBtn: { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   completeBtnDone:{ background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
