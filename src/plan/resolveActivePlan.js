@@ -39,7 +39,10 @@ export function themePlanProgress(themePlan, completedSet) {
 // todayThemePicks — `{ planId, keys }` do que a pessoa escolheu ler hoje
 // (ver src/routine/dailyRoutineStore.js/setThemePicks), ou undefined/null
 // se nada foi escolhido ainda hoje. Só usado pelo branch 'theme' abaixo.
-export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks) {
+// groupPlans — planos de grupo (22d) que a pessoa já ACEITOU (ver
+// src/groups/groupPlansStore.js/getMyAcceptedGroupPlans), só usado pelo
+// branch 'group' abaixo.
+export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans) {
   if (activeAltPlan?.type === 'theme') {
     const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
     if (themePlan) {
@@ -98,6 +101,42 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
       }
     }
     // Plano referenciado não existe mais (deletado) — cai no fallback fixo.
+  }
+
+  // Plano do grupo (22d) — mesma mecânica do plano por tema (mesmo formato
+  // `passages`/deriveThemeTexts), só que a fonte é um plano que um
+  // moderador enviou pro grupo e a pessoa aceitou (não algo que ela mesma
+  // gerou). Sem "escolha do dia" (needsThemePick) — o plano de grupo
+  // sempre avança na ordem, uma leitura de cada vez, igual cronológico/fixo.
+  if (activeAltPlan?.type === 'group') {
+    const groupPlan = groupPlans?.find(p => p.id === activeAltPlan.planId)
+    if (groupPlan) {
+      const texts = deriveThemeTexts(groupPlan.passages).map(s => ({
+        ...s,
+        status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
+      }))
+      const doneCount = texts.filter(s => s.status === 'done').length
+      const percent = texts.length ? Math.round((doneCount / texts.length) * 100) : 0
+      const syntheticBlock = {
+        id: `group:${groupPlan.id}`, name: groupPlan.title, nameEn: groupPlan.title,
+        sessionsTotal: texts.length, icon: 'Users', gradientKey: 'purple', percent,
+        status: doneCount === texts.length ? 'done' : doneCount > 0 ? 'active' : 'todo',
+      }
+      return {
+        kind: 'group',
+        icon: 'Users',
+        label: groupPlan.title,
+        labelEn: groupPlan.title,
+        readingMinutes: null,
+        doneCount,
+        totalCount: texts.length,
+        percent,
+        blocks: [syntheticBlock],
+        sessionsByBlock: { [syntheticBlock.id]: texts },
+      }
+    }
+    // Plano referenciado não existe mais (deletado/não aceito) — cai no
+    // fallback fixo.
   }
 
   if (activeAltPlan?.type === 'chrono') {

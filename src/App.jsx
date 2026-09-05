@@ -31,6 +31,8 @@ import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
 import CreateStudyScreen from './screens/CreateStudyScreen'
 import StudyProposalScreen from './screens/StudyProposalScreen'
+import GroupPlanProposalScreen from './screens/GroupPlanProposalScreen'
+import GroupPlanReaderScreen from './screens/GroupPlanReaderScreen'
 import ChronologicalPlanScreen from './screens/ChronologicalPlanScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
@@ -83,6 +85,11 @@ import { detectLanguageFromIp } from './i18n/detectLanguage'
 import { t } from './i18n'
 import { getMyActiveChallenges, recordChallengeProgress } from './groups/challengesStore'
 import { getPendingGroupInvitesCount, getMyGroups } from './groups/groupsStore'
+import {
+  getMyPendingGroupPlanInvites, getMyAcceptedGroupPlans,
+  sendGroupReadingPlan, respondToGroupReadingPlan,
+} from './groups/groupPlansStore'
+import { setRoomQuestion } from './groups/chapterRoomStore'
 import { getPendingFriendRequestsCount } from './friends/friendsStore'
 import { getMyProfile } from './profile/profileStore'
 import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
@@ -142,7 +149,7 @@ function findCurrentReadingSession(blocks, sessionsByBlock, lastRead = null) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans) {
   const lang = authUser.language ?? 'pt'
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
 
@@ -154,7 +161,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // pessoa escolheu ler hoje, se o plano ativo for por tema) também vem do
   // dia de hoje na rotina — ver src/routine/dailyRoutineStore.js/setThemePicks.
   const todayThemePicks = todayRoutine.themePicks
-  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks)
+  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans)
   // Sessão (e bloco) onde o usuário realmente parou — baseado no último
   // capítulo marcado como lido, não na ordem sugerida dos livros/blocos.
   // Continua olhando pra TODOS os textos do plano (não só os de hoje) —
@@ -549,6 +556,17 @@ export default function App() {
   // vive só entre a geração e a decisão em StudyProposalScreen.jsx (22b:
   // "Salvar p/ depois" ou "Começar"). Null fora dessa janela.
   const [generatedStudyPlan, setGeneratedStudyPlan] = useState(null)
+  // Planos do grupo (22d) que EU já aceitei — mesmo motivo de themePlans
+  // acima: buildSession precisa saber as sessões do plano de grupo ativo
+  // sem esperar um fetch. Convites ainda pendentes (não aceitos/recusados)
+  // ficam à parte, só pro banner de GroupsScreen (ver refreshGroupPlans).
+  const [groupPlans, setGroupPlans] = useState([])
+  const [pendingGroupPlanInvites, setPendingGroupPlanInvites] = useState([])
+  // Plano de grupo recém-montado em CreateStudyScreen.jsx (formato "Para o
+  // grupo"), ainda não enviado — vive só entre montar e decidir em
+  // GroupPlanProposalScreen.jsx (22d: "Enviar para o grupo"). Null fora
+  // dessa janela — mesmo padrão de generatedStudyPlan acima.
+  const [generatedGroupPlan, setGeneratedGroupPlan] = useState(null)
   // "Auto-abrir" — consumidos por ThemePlanScreen/ChronologicalPlanScreen
   // quando "Continuar sessão" (Home/Rotina) aponta pra um plano alternativo,
   // mesmo padrão de journeyEntryMode/journeyResumeSessionId abaixo.
@@ -707,7 +725,7 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -730,6 +748,8 @@ export default function App() {
         // contrário devolve false na hora, sem custo.
         redeemPendingInviteCode(),
       getMyGroups().catch(() => []),
+      getMyAcceptedGroupPlans().catch(() => []),
+      getMyPendingGroupPlanInvites().catch(() => []),
       ])
       if (cancelled) return
       const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
@@ -756,6 +776,8 @@ export default function App() {
       setPendingSocialCount(pendingSocial)
       setMyAvatarUrl(myProfile?.avatarUrl ?? null)
     setMyGroups(groups ?? [])
+      setGroupPlans(acceptedGroupPlans ?? [])
+      setPendingGroupPlanInvites(pendingGroupPlans ?? [])
       setSubscription(finalSubscription)
       setIsAdmin(adminStatus)
       // Consentimento em dia? Se a política mudou de versão desde o último
@@ -1002,6 +1024,14 @@ export default function App() {
       goToTab('chronologicalPlan')
       return
     }
+    // Plano do grupo (22d) — sem "sessão de hoje" restrita como o por tema
+    // (needsThemePick não existe aqui, ver resolveActivePlan.js), então
+    // sempre dá pra abrir direto no leitor (GroupPlanReaderScreen.jsx acha
+    // sozinho onde a pessoa parou, via completedSet).
+    if (activeAltPlan?.type === 'group') {
+      goToTab('groupPlanReader')
+      return
+    }
     const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock, lastReadPosition)
     setActiveBlockId(block.id)
     setJourneyResumeSessionId(resumeSession.id)
@@ -1085,6 +1115,16 @@ export default function App() {
   // Livro, 100% local) mas ainda não salva nada; StudyProposalScreen
   // mostra a proposta e só aqui, na decisão final, o plano vira real.
   function reviewGeneratedStudy(plan) {
+    // Formato "Para o grupo" segue pra 22d (GroupPlanProposalScreen), não
+    // pra 22b — proposta/envio de plano de grupo é um fluxo bem diferente
+    // (pergunta da semana, convite pra cada membro), mas nasce do MESMO
+    // botão "Criar"/CreateStudyScreen.jsx, então reaproveita o mesmo
+    // callback onGenerated em vez de duplicar a tela inteira.
+    if (plan.format === 'group') {
+      setGeneratedGroupPlan(plan)
+      goToTab('groupPlanProposal')
+      return
+    }
     setGeneratedStudyPlan(plan)
     goToTab('studyProposal')
   }
@@ -1140,6 +1180,42 @@ export default function App() {
     else startThemePlanReadingToday(plan.id, keys)
   }
 
+  // "Enviar para o grupo" (22d) — grava o plano de verdade (RPC
+  // send_group_reading_plan já convida todo mundo e já entra o próprio
+  // moderador 'accepted', ver migração) e publica a pergunta da 1ª semana
+  // (se a pessoa deixou uma) na sala do capítulo dessa semana — mesmo
+  // mecanismo de sempre (setRoomQuestion, ver ChapterRoomScreen.jsx),
+  // então a pergunta já aparece em 17a sem nenhum código novo lá.
+  async function sendGeneratedGroupPlan(plan, question) {
+    if (!authUser) return
+    const startsAt = new Date().toISOString().slice(0, 10)
+    const created = await sendGroupReadingPlan({
+      groupId: plan.groupId, book: plan.book, bookEn: plan.bookEn, title: plan.title,
+      overview: plan.overview ?? null, weeks: plan.weeks, passages: plan.passages, startsAt,
+    })
+    const firstWeek = plan.weeks[0]
+    if (question?.trim() && firstWeek) {
+      await setRoomQuestion(plan.groupId, plan.book, firstWeek.chStart, question.trim())
+        .catch(err => console.error('Failed to publish weekly question', err))
+    }
+    setGeneratedGroupPlan(null)
+    // O próprio moderador já nasce 'accepted' no envio — reflete isso na
+    // hora (troca a leitura de hoje), sem esperar um refetch pra saber.
+    selectActivePlan({ type: 'group', planId: created.id })
+    refreshSocialState()
+    goToTab('routine')
+  }
+
+  // "Aceitar"/"Recusar" um convite de plano do grupo (banner em
+  // GroupsScreen.jsx) — aceitar troca a leitura de hoje pro plano do grupo
+  // (mesmo mecanismo de ativar qualquer plano alternativo, ver
+  // selectActivePlan); recusar só grava a resposta, nada muda pra pessoa.
+  async function respondToGroupPlanInvite(planId, accept) {
+    await respondToGroupReadingPlan(planId, accept)
+    if (accept) selectActivePlan({ type: 'group', planId })
+    refreshSocialState()
+  }
+
   // Tocar numa sessão da lista "Sessões do plano" (PlanScreen.jsx) quando o
   // plano ativo é o cronológico — mesma ideia de openReadingSession acima,
   // só que abrindo o movimento certo em ChronologicalPlanScreen em vez do
@@ -1176,6 +1252,7 @@ export default function App() {
       goToTab('themePlan')
     }
     else if (d.tab === 'chronologicalPlan') openChronoSession(d.movementId)
+    else if (d.tab === 'groupPlanReader') goToTab('groupPlanReader')
   }
 
   // Rebusca a assinatura e atualiza o estado — usado depois de resgatar um
@@ -1260,7 +1337,7 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -1279,6 +1356,8 @@ export default function App() {
       applyPendingInvite(),
       redeemPendingInviteCode(),
       getMyGroups().catch(() => []),
+      getMyAcceptedGroupPlans().catch(() => []),
+      getMyPendingGroupPlanInvites().catch(() => []),
     ])
     const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
     const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
@@ -1302,6 +1381,8 @@ export default function App() {
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
     setMyGroups(groups ?? [])
+    setGroupPlans(acceptedGroupPlans ?? [])
+    setPendingGroupPlanInvites(pendingGroupPlans ?? [])
     setSubscription(finalSubscription)
     setIsAdmin(adminStatus)
   }
@@ -1334,6 +1415,9 @@ export default function App() {
     setIsAdmin(false)
     setReadingSeconds(0)
     setMyGroups([])
+    setGroupPlans([])
+    setPendingGroupPlanInvites([])
+    setGeneratedGroupPlan(null)
     setChapterRoom(null)
     setMonthRecap(null)
     setActiveTab('home')
@@ -1346,10 +1430,12 @@ export default function App() {
   // essas listas ficarem em dia.
   function refreshSocialState() {
     if (!authUser?.email) return
-    Promise.all([getMyActiveChallenges(), getPendingSocialCount()])
-      .then(([challenges, pendingSocial]) => {
+    Promise.all([getMyActiveChallenges(), getPendingSocialCount(), getMyAcceptedGroupPlans(), getMyPendingGroupPlanInvites()])
+      .then(([challenges, pendingSocial, acceptedGroupPlans, pendingGroupPlans]) => {
         setActiveChallenges(challenges)
         setPendingSocialCount(pendingSocial)
+        setGroupPlans(acceptedGroupPlans)
+        setPendingGroupPlanInvites(pendingGroupPlans)
       })
       .catch(err => console.error('Failed to refresh social state', err))
   }
@@ -1688,7 +1774,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans)
   // Modo guiado disponível pros componentes (banner + auto-avanço). idx/step
   // derivados aqui pra não repetir a conta em cada tela.
   session.guided = guidedFlow
@@ -1803,13 +1889,20 @@ export default function App() {
     studyProposal: generatedStudyPlan
       ? <StudyProposalScreen session={session} plan={generatedStudyPlan} onBack={goBack} onRefazer={refazerGeneratedStudy} onSaveForLater={saveStudyForLater} onStart={startGeneratedStudy} />
       : null,
+    // Etapa 10 (22d) — proposta e envio de um plano de grupo (só quem
+    // modera chega aqui, ver CreateStudyScreen.jsx), e o leitor dele depois
+    // de aceito (aberto por "Continuar sessão", ver continueToday).
+    groupPlanProposal: generatedGroupPlan
+      ? <GroupPlanProposalScreen session={session} authUser={authUser} plan={generatedGroupPlan} onBack={goBack} onSend={sendGeneratedGroupPlan} />
+      : null,
+    groupPlanReader: <GroupPlanReaderScreen session={session} authUser={authUser} completedSet={completedSet} plan={groupPlans.find(p => p.id === activeAltPlan?.planId)} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onBack={goBack} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
-      : <GroupsScreen session={session} authUser={authUser} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onDetailOpenChange={setGroupsDetailOpen} />,
+      : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onDetailOpenChange={setGroupsDetailOpen} />,
     stats:   <ProgressScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} onNavigate={navigateTo} />,
     // Sala do capítulo (17a) — aberta pelo botão "Grupo" da leitura (17c).
     chapterRoom: chapterRoom
@@ -1854,7 +1947,7 @@ export default function App() {
     // Bento 19b — Idioma e versão da Bíblia, alcançada pela folha do Perfil.
     language: <LanguageSettingsScreen session={session} authUser={authUser} onBack={goBack} onChangeLanguage={changeLanguage} />,
     // Bento 19c — Administração do grupo, alcançada pela folha do Perfil.
-    groupAdmin: <GroupAdminScreen session={session} authUser={authUser} onBack={goBack} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
+    groupAdmin: <GroupAdminScreen session={session} authUser={authUser} onBack={goBack} onNavigate={navigateTo} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
     ...(isAdmin ? { admin: <AdminScreen session={session} /> } : {}),
@@ -1886,13 +1979,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">

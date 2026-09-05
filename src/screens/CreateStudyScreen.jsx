@@ -12,13 +12,19 @@
 // claro que dá pra trocar ("a pessoa corrige se a IA errou" vira "a
 // pessoa escolhe").
 //
-// "Para o grupo" só aparece pra quem modera algum grupo (mesmo gate de
-// "Administração do grupo" em ProfileSheet.jsx) — ver nota no card.
+// "Para o grupo" (22a → 22d) só aparece pra quem modera algum grupo (mesmo
+// gate/simplificação de "Administração do grupo" em GroupAdminScreen.jsx:
+// trata "o grupo que modero" como singular). Único exemplo do mockup de
+// plano de grupo é formato Livro (ver src/groups/groupBookPlan.js) — então
+// escolher "Para o grupo" pula direto pro mesmo seletor de livro do
+// formato Livro, sem campo de texto livre (não tem "assunto" pra pedir pra
+// IA, só o livro).
 import { useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { generateThemePlan } from '../themePlans/themePlansStore'
 import { buildBookPlan, allBooksFlat } from '../themePlans/bookPlan'
+import { buildGroupPlan } from '../groups/groupBookPlan'
 
 const FONT = 'var(--font-bento)'
 const MAX_SCOPE_LENGTH = 200
@@ -34,6 +40,8 @@ export default function CreateStudyScreen({ session, onBack, onGenerated }) {
   const lang = session.lang
   const L = (k, vars) => t(`createStudy.${k}`, vars, lang)
 
+  const moderatedGroup = session.myGroups?.find(g => g.myRole === 'moderator')
+
   const [text, setText] = useState('')
   const [format, setFormat] = useState('thematic')
   const [bookPickerOpen, setBookPickerOpen] = useState(false)
@@ -43,11 +51,12 @@ export default function CreateStudyScreen({ session, onBack, onGenerated }) {
 
   const books = allBooksFlat(lang)
   const trimmed = text.trim()
-  const canSubmit = format === 'book' ? !!selectedBook : trimmed.length > 0 && trimmed.length <= MAX_SCOPE_LENGTH
+  const needsBook = format === 'book' || format === 'group'
+  const canSubmit = needsBook ? !!selectedBook : trimmed.length > 0 && trimmed.length <= MAX_SCOPE_LENGTH
 
   function chooseFormat(id) {
     setFormat(id)
-    setBookPickerOpen(id === 'book')
+    setBookPickerOpen(id === 'book' || id === 'group')
   }
 
   async function handleSubmit() {
@@ -55,7 +64,9 @@ export default function CreateStudyScreen({ session, onBack, onGenerated }) {
     setGenerating(true)
     setError('')
     try {
-      if (format === 'book') {
+      if (format === 'group') {
+        onGenerated?.({ ...buildGroupPlan(selectedBook, lang), format, groupId: moderatedGroup.groupId, groupName: moderatedGroup.name })
+      } else if (format === 'book') {
         onGenerated?.(buildBookPlan(selectedBook, lang))
       } else {
         const plan = await generateThemePlan(trimmed, 'standard', lang)
@@ -135,10 +146,10 @@ export default function CreateStudyScreen({ session, onBack, onGenerated }) {
           <p style={s.cardLabel}>{L('formatLabel')}</p>
           <div style={s.formatGrid}>
             {FORMATS.map(f => {
-              // "Para o grupo" (quadro 22d) ainda não existe como tela —
-              // fica de fora do grid até a próxima leva desta etapa, em
-              // vez de apontar pra um fluxo que não foi construído.
-              if (f.id === 'group') return null
+              // "Para o grupo" (quadro 22a: "só admin") só aparece pra quem
+              // modera algum grupo — quem não modera nenhum não vê nem a
+              // opção, em vez de ver e descobrir depois que não pode usar.
+              if (f.id === 'group' && !moderatedGroup) return null
               const on = format === f.id
               return (
                 <button key={f.id} style={{ ...s.formatCell, ...(on ? s.formatCellOn : {}) }} onClick={() => chooseFormat(f.id)}>
