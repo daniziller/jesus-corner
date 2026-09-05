@@ -215,6 +215,25 @@ export const STRINGS = {
       newTestamentShort: 'Novo →',
       oldTestamentShort: '← Antigo',
     },
+    // Bento 18a — página do livro (capítulos), alcançada tocando um livro
+    // na grade de 5f. Substitui o antigo "expande a lista de sessões
+    // embutida" por uma tela própria com a grade de números do quadro.
+    bookChapters: {
+      bookPosition: '{block} · {n}º livro',
+      chaptersReadOf: '{total} capítulos · {done} lidos',
+      chaptersLabel: 'Capítulos',
+      legendRead: 'lido',
+      legendCurrent: 'atual',
+      continueBtn: 'Continuar em {ref}',
+    },
+    // Bento 18b — seletor de capítulo aberto pelo chip do cabeçalho da
+    // Leitura (4a). Mesma folha escura de 10b, mas sem losango: aqui não é
+    // a IA falando.
+    chapterPicker: {
+      switchBook: 'trocar livro',
+      chapterShort: 'Cap. {n}',
+      scrollHint: 'Role para ver os outros capítulos.',
+    },
     reading: {
       tagContext: 'Contexto', tagMap: 'Mapa', tagNotes: 'Notas', tagTrivia: 'Curiosidades', tagText: 'Texto Bíblico', tagAskAi: 'Perguntar à IA', tagHighlight: 'Grifar e anotar',
       textLoading: 'Carregando o texto...',
@@ -1932,6 +1951,19 @@ export const STRINGS = {
       countsInPlan: 'counts toward your plan',
       newTestamentShort: 'New →',
       oldTestamentShort: '← Old',
+    },
+    bookChapters: {
+      bookPosition: '{block} · Book {n}',
+      chaptersReadOf: '{total} chapters · {done} read',
+      chaptersLabel: 'Chapters',
+      legendRead: 'read',
+      legendCurrent: 'current',
+      continueBtn: 'Continue in {ref}',
+    },
+    chapterPicker: {
+      switchBook: 'switch book',
+      chapterShort: 'Ch. {n}',
+      scrollHint: 'Scroll to see the other chapters.',
     },
     reading: {
       tagContext: 'Context', tagMap: 'Map', tagNotes: 'Notes', tagTrivia: 'Trivia', tagText: 'Bible Text', tagAskAi: 'Ask AI', tagHighlight: 'Highlight & note',

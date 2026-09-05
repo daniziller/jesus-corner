@@ -1,11 +1,12 @@
 // JourneyScreen.jsx — "Bíblia" (reskin Bento — tela 5f, leitura livre)
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { sessionKeys, computeBookChapterCounts } from '../utils/progress'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { formatRelativeTime } from '../utils/time'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
+import BookChapterScreen from './BookChapterScreen'
 
 // Remove acentos pra busca não exigir digitar "Êxodo" com acento certo.
 function normalizeSearch(str) {
@@ -66,18 +67,12 @@ export default function JourneyScreen({
     if (lastViewedBlockId != null) setTestament(lastViewedBlockId <= 4 ? 'at' : 'nt')
   }, [lastViewedBlockId])
 
-  // Livro expandido INLINE na própria lista (navegação livre pela aba
-  // Bíblia) — chave `${blockId}:${bookName}`, só um por vez (abrir outro
-  // fecha o anterior). Substitui a navegação de tela cheia que existia
-  // antes só pra esse caso (o fluxo guiado acima continua tela cheia).
+  // Livro aberto (quadro 18a: Página do livro) — chave `${blockId}:${bookName}`,
+  // navega pra uma tela própria (BookChapterScreen) em vez de expandir
+  // inline na lista, como antes do reskin Bento.
   const [expandedBookKey, setExpandedBookKey] = useState(null)
   const [expandedInitialSessionId, setExpandedInitialSessionId] = useState(null)
   const [expandedInitialTextOpen, setExpandedInitialTextOpen] = useState(false)
-  // Chave do livro pro qual precisa rolar a lista assim que ele expandir —
-  // só usado quando o pulo vem de FORA da lista de livros visível no
-  // momento ("Continuar leitura", card de "lido recentemente"); um toque
-  // direto na própria linha do livro não precisa rolar pra lugar nenhum.
-  const [scrollTargetKey, setScrollTargetKey] = useState(null)
 
   // O botão "Ir para a leitura de hoje" (Rotina) chama onContinueSession
   // mesmo com a tela já montada (usuário já está na aba Bíblia) — os
@@ -106,12 +101,10 @@ export default function JourneyScreen({
 
   // Pulo pra um livro vindo de FORA da lista de livros visível agora
   // ("Continuar leitura", card de "lido recentemente") — limpa a busca
-  // (o livro alvo pode não bater com uma busca ativa) e marca a linha do
-  // livro como alvo de rolagem (ver BookRow/scrollTargetKey).
+  // (a tela do livro, 18a, não depende da lista continuar visível).
   function jumpToBook(block, bookName, sessionIdToFeature, textOpen) {
     setSearchQuery('')
     expandBook(block, bookName, sessionIdToFeature, textOpen)
-    setScrollTargetKey(`${block.id}:${bookName}`)
   }
 
   // Tocar um card de "lido recentemente" (RecentChaptersRow) — diferente de
@@ -156,19 +149,20 @@ export default function JourneyScreen({
     setInitialSessionId(null)
   }
 
-  // Toque direto numa linha de livro (cartão de testamento ou busca) —
-  // expande ali mesmo, na lista (nunca navega). Tocar de novo o mesmo
-  // livro já expandido fecha (acordeão); tocar outro livro troca qual está
-  // aberto. Ao abrir do zero, já pula pro primeiro capítulo pendente (ou o
-  // 1o) daquele livro, em destaque — sempre pela divisão "1 capítulo = 1
-  // sessão" (browseSessionsByBlock), já que isso é sempre navegação livre,
-  // nunca o fluxo guiado da Rotina.
+  // Volta da página do livro (18a, BookChapterScreen) pro mapa/grade —
+  // mesma guarda de testamento que closeBlock acima.
+  function closeBook() {
+    setLastViewedBlockId(expandedBookKey ? Number(expandedBookKey.split(':')[0]) : lastViewedBlockId)
+    setExpandedBookKey(null)
+    setExpandedInitialSessionId(null)
+  }
+
+  // Toque direto numa sigla de livro (grade de 5f ou busca) — navega pra
+  // 18a (BookChapterScreen), já com o 1º capítulo pendente (ou o 1º do
+  // livro) em destaque — sempre pela divisão "1 capítulo = 1 sessão"
+  // (browseSessionsByBlock), já que isso é sempre navegação livre, nunca o
+  // fluxo guiado da Rotina.
   function openBook(block, bookName) {
-    const key = `${block.id}:${bookName}`
-    if (expandedBookKey === key) {
-      setExpandedBookKey(null)
-      return
-    }
     const sessions = browseSessionsByBlock[block.id]
     const bookSessions = sessions.filter(s => s.book === bookName)
     const target = bookSessions.find(s => sessionKeys(s).some(k => !completedSet.has(k))) ?? bookSessions[0]
@@ -203,6 +197,38 @@ export default function JourneyScreen({
         onJumpToChapter={openRecentChapter}
         onExitGuided={onExitGuided}
         onOpenGroupRoom={onOpenGroupRoom}
+      />
+    )
+  }
+
+  if (expandedBookKey != null) {
+    const [blockIdStr, bookName] = expandedBookKey.split(':')
+    const block = blocks.find(b => b.id === Number(blockIdStr))
+    const bookIdx = block?.books.indexOf(bookName) ?? -1
+    const displayName = bookIdx >= 0 ? (lang === 'en' ? block.booksEn[bookIdx] : bookName) : bookName
+    return (
+      // key inclui expandedInitialSessionId — pular pra um capítulo
+      // DIFERENTE do MESMO livro (ex: via RecentChaptersRow) precisa
+      // remontar do zero, senão o painel de leitura embutido continuaria
+      // preso no capítulo antigo (mesmo raciocínio do ReadingBlockView
+      // acima).
+      <BookChapterScreen
+        key={`${expandedBookKey}:${expandedInitialSessionId}`}
+        session={session}
+        authUser={authUser}
+        block={block}
+        bookName={bookName}
+        displayName={displayName}
+        sessionsByBlock={sessionsByBlock}
+        browseSessionsByBlock={browseSessionsByBlock}
+        completedSet={completedSet}
+        onToggleSession={onToggleSession}
+        onToggleChapter={onToggleChapter}
+        onGoToReflectionFrom={onGoToReflectionFrom}
+        onNavigate={onNavigate}
+        onBack={closeBook}
+        initialSessionId={expandedInitialSessionId}
+        initialTextOpen={expandedInitialTextOpen}
       />
     )
   }
@@ -273,13 +299,6 @@ export default function JourneyScreen({
   }
 
   const gridBooks = searchResults ?? testamentBooks
-  const expandedEntry = gridBooks.find(e => `${e.block.id}:${e.canonicalName}` === expandedBookKey) ?? null
-  // O livro aberto cresce abaixo da grade — rola até ele ao abrir (senão a
-  // pessoa toca numa sigla e não vê nada acontecer).
-  const expandRef = useRef(null)
-  useEffect(() => {
-    if (expandedBookKey && expandRef.current) expandRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [expandedBookKey])
 
   return (
     <div style={styles.screen}>
@@ -343,7 +362,10 @@ export default function JourneyScreen({
             <div style={styles.bookGrid}>
               {gridBooks.map(entry => {
                 const key = `${entry.block.id}:${entry.canonicalName}`
-                const active = expandedBookKey === key || (!expandedBookKey && entry.canonicalName === currentBook)
+                // expandedBookKey nunca bate aqui (a tela navega pra 18a
+                // em vez de expandir na grade) — só o livro da leitura de
+                // hoje fica em destaque.
+                const active = entry.canonicalName === currentBook
                 const { done, total, pct } = progressFor(entry)
                 return (
                   <button
@@ -364,27 +386,6 @@ export default function JourneyScreen({
                   </button>
                 )
               })}
-            </div>
-          )}
-          {expandedEntry && (
-            <div ref={expandRef} style={styles.bookExpandWrap}>
-              <ReadingBlockView
-                key={`${expandedBookKey}:${expandedInitialSessionId}:${expandedInitialTextOpen}`}
-                embedded
-                mode="browse"
-                session={session}
-                authUser={authUser}
-                onNavigate={onNavigate}
-                blockId={expandedEntry.block.id}
-                blocks={[expandedEntry.block]}
-                sessionsByBlock={{ [expandedEntry.block.id]: browseSessionsByBlock[expandedEntry.block.id].filter(s => s.book === expandedEntry.canonicalName) }}
-                completedSet={completedSet}
-                onToggleSession={onToggleSession}
-                onToggleChapter={onToggleChapter}
-                initialSessionId={expandedInitialSessionId}
-                initialTextOpen={expandedInitialTextOpen}
-                onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedEntry.block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, type: heroSession.type })}
-              />
             </div>
           )}
         </div>
@@ -444,7 +445,6 @@ const styles = {
   bookCellBadgeActive: { background: 'rgba(255,255,255,.22)', color: '#fff' },
   bookCellBadgeDone: { background: 'var(--bento-ink)' },
   bookCellBadgeActiveDone: { background: 'var(--bento-accent)' },
-  bookExpandWrap: { marginTop: 12, background: 'var(--bento-line)', borderRadius: 16, overflow: 'hidden' },
 
   todaySessionCard:  { width: '100%', borderRadius: 24, background: 'rgba(255,255,255,.6)', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
   todaySessionIcon:  { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
