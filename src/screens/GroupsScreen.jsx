@@ -20,6 +20,8 @@ import {
   getPrayerRequests, postPrayerRequest, deletePrayerRequest, togglePraying,
   getPrayerComments, postPrayerComment, deletePrayerComment, toggleCommentLike as togglePrayerCommentLike,
 } from '../groups/prayerRequestsStore'
+import { getRoomStats } from '../groups/chapterRoomStore'
+import { formatRelativeTime } from '../utils/time'
 import ActivityFeedItem from '../components/ActivityFeedItem'
 
 // Todos os 66 livros (pt/en), na mesma ordem/nomes usados em completed_keys
@@ -40,8 +42,8 @@ function formatDate(iso, lang) {
   return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR')
 }
 
-export default function GroupsScreen({ session, authUser, onSocialChange }) {
-  const { lang } = session
+export default function GroupsScreen({ session, authUser, onSocialChange, onOpenGroupRoom }) {
+  const { lang, todaySession } = session
   const [myGroups, setMyGroups] = useState([])
   const [groupInvites, setGroupInvites] = useState([])
   const [openGroupId, setOpenGroupId] = useState(null)
@@ -133,6 +135,8 @@ export default function GroupsScreen({ session, authUser, onSocialChange }) {
             groupName={openGroup.name}
             lang={lang}
             authUser={authUser}
+            todaySession={todaySession}
+            onOpenGroupRoom={onOpenGroupRoom}
             onBack={() => setOpenGroupId(null)}
             onLeft={() => { setOpenGroupId(null); reload() }}
           />
@@ -495,8 +499,16 @@ function StatItemSmall({ value, label }) {
 }
 
 /* ── Detalhe de um grupo: sub-abas Desafio / Discussão ── */
-function GroupDetailView({ groupId, groupName, lang, authUser, onBack, onLeft }) {
-  const [tab, setTab] = useState('challenge')
+// Quadro 5d: abrir um grupo cai direto no painel único (Leitura do grupo /
+// Pedido de oração / nota compartilhada / escrever no grupo) — não mais nas
+// 3 abas de cara. Desafio/Oração completa/Discussão completa continuam
+// existindo (nada do que já funcionava foi tirado), só que agora vivem atrás
+// de "ver mais" — decisão da autora: o quadro 5d não desenha desafios nem
+// lista de membros, então isso sai do primeiro plano em vez de ser recriado
+// do zero num visual que o quadro nunca definiu.
+function GroupDetailView({ groupId, groupName, lang, authUser, todaySession, onOpenGroupRoom, onBack, onLeft }) {
+  const [view, setView] = useState('home') // 'home' | 'challenge' | 'prayer' | 'discussion'
+  const [autoInvite, setAutoInvite] = useState(false)
   const [detail, setDetail] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -519,29 +531,46 @@ function GroupDetailView({ groupId, groupName, lang, authUser, onBack, onLeft })
     return <div style={{ padding: 20 }} />
   }
 
+  if (view === 'home') {
+    return (
+      <GroupHomeView
+        groupId={groupId}
+        groupName={groupName}
+        members={detail.members}
+        lang={lang}
+        todaySession={todaySession}
+        onOpenGroupRoom={onOpenGroupRoom}
+        onBack={onBack}
+        onInvite={() => { setAutoInvite(true); setView('challenge') }}
+        onGoPrayer={() => setView('prayer')}
+        onGoDiscussion={() => setView('discussion')}
+      />
+    )
+  }
+
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button onClick={onBack} style={styles.backBtn} aria-label="back">
+        <button onClick={() => setView('home')} style={styles.backBtn} aria-label="back">
           <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />
         </button>
         <h1 className="page-title">{groupName}</h1>
       </div>
 
       <div style={{ padding: '0 14px 4px', display: 'flex', gap: 8 }}>
-        <button style={{ ...styles.subTab, ...(tab === 'challenge' ? styles.subTabActive : {}) }} onClick={() => setTab('challenge')}>
+        <button style={{ ...styles.subTab, ...(view === 'challenge' ? styles.subTabActive : {}) }} onClick={() => { setAutoInvite(false); setView('challenge') }}>
           {t('groups.challengeTab', undefined, lang)}
         </button>
-        <button style={{ ...styles.subTab, ...(tab === 'prayer' ? styles.subTabActive : {}) }} onClick={() => setTab('prayer')}>
+        <button style={{ ...styles.subTab, ...(view === 'prayer' ? styles.subTabActive : {}) }} onClick={() => setView('prayer')}>
           {t('groups.prayerTab', undefined, lang)}
         </button>
-        <button style={{ ...styles.subTab, ...(tab === 'discussion' ? styles.subTabActive : {}) }} onClick={() => setTab('discussion')}>
+        <button style={{ ...styles.subTab, ...(view === 'discussion' ? styles.subTabActive : {}) }} onClick={() => setView('discussion')}>
           {t('groups.discussionTab', undefined, lang)}
         </button>
       </div>
 
       <div style={{ padding: '10px 14px 14px' }}>
-        {tab === 'challenge' && (
+        {view === 'challenge' && (
           <ChallengeTab
             groupId={groupId}
             members={detail.members}
@@ -550,12 +579,13 @@ function GroupDetailView({ groupId, groupName, lang, authUser, onBack, onLeft })
             lang={lang}
             onChange={reload}
             onLeave={handleLeave}
+            autoInvite={autoInvite}
           />
         )}
-        {tab === 'prayer' && (
+        {view === 'prayer' && (
           <GroupPrayerTab groupId={groupId} isModerator={isModerator} authUser={authUser} lang={lang} />
         )}
-        {tab === 'discussion' && (
+        {view === 'discussion' && (
           <DiscussionTab groupId={groupId} members={detail.members} isModerator={isModerator} authUser={authUser} lang={lang} />
         )}
       </div>
@@ -563,12 +593,164 @@ function GroupDetailView({ groupId, groupName, lang, authUser, onBack, onLeft })
   )
 }
 
+// Quadro 5d propriamente dito. Só o que o quadro desenha: cabeçalho com
+// "Convidar", card de leitura do grupo (liga na Sala do Capítulo — 17a — do
+// livro/capítulo da sessão de hoje da própria pessoa, mesma lógica que já
+// existe em ReadingBlockView ao ler com o grupo), prévia do pedido de
+// oração mais recente, prévia da nota mais recente e o atalho "Escrever no
+// grupo". Cada card leva pra tela completa correspondente ao ser tocado.
+function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpenGroupRoom, onBack, onInvite, onGoPrayer, onGoDiscussion }) {
+  const [roomStats, setRoomStats] = useState(null)
+  const [latestPrayer, setLatestPrayer] = useState(undefined)
+  const [latestNote, setLatestNote] = useState(undefined)
+  const [writeOpen, setWriteOpen] = useState(false)
+
+  // "Leitura do grupo" usa a sessão de hoje da própria pessoa — não existe
+  // hoje um "capítulo combinado do grupo" separado disso; é a mesma leitura
+  // que, se tocada em grupo (ReadingBlockView), já abre a Sala do Capítulo.
+  const hasReading = !!(todaySession && !todaySession.needsThemePick && todaySession.type !== 'reflection' && todaySession.book)
+  const bookDisplay = hasReading ? (lang === 'en' ? todaySession.bookEn : todaySession.book) : ''
+  const chapterLabel = hasReading
+    ? `${bookDisplay} ${todaySession.chStart}${todaySession.chStart !== todaySession.chEnd ? `–${todaySession.chEnd}` : ''}`
+    : ''
+
+  useEffect(() => {
+    if (!hasReading) { setRoomStats(null); return }
+    getRoomStats(groupId, todaySession.book, todaySession.chStart).then(setRoomStats).catch(err => console.error('Failed to load room stats', err))
+  }, [groupId, hasReading, todaySession?.book, todaySession?.chStart])
+
+  useEffect(() => {
+    getPrayerRequests(groupId).then(list => setLatestPrayer(list[0] ?? null)).catch(err => { console.error('Failed to load prayer requests', err); setLatestPrayer(null) })
+    // getComments vem em ordem crescente (ver commentsStore.js) — a mais
+    // recente é a última do array, fixada ou não (aqui é só uma prévia).
+    getComments(groupId).then(list => setLatestNote(list[list.length - 1] ?? null)).catch(err => { console.error('Failed to load comments', err); setLatestNote(null) })
+  }, [groupId])
+
+  function handlePray(e) {
+    e.stopPropagation()
+    if (!latestPrayer) return
+    setLatestPrayer(p => ({ ...p, prayingByMe: !p.prayingByMe, prayingCount: p.prayingCount + (p.prayingByMe ? -1 : 1) }))
+    togglePraying(latestPrayer.id).catch(err => console.error('Failed to toggle praying', err))
+  }
+
+  const AVATAR_PALETTE = [
+    { bg: 'var(--bento-accent)', ink: 'var(--bento-ink)' },
+    { bg: 'var(--bento-sand)', ink: 'var(--bento-sand-icon)' },
+    { bg: 'var(--bento-mark)', ink: 'var(--bento-sand-icon)' },
+  ]
+  const visibleMembers = members.slice(0, 3)
+  const overflow = members.length - visibleMembers.length
+
+  return (
+    <div style={styles.homeWrap}>
+      <div style={styles.homeHeader}>
+        <button onClick={onBack} style={styles.homeBackBtn} aria-label="back">
+          <AppIcon name="ArrowLeft" size={18} color="var(--bento-ink)" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={styles.homeTitle}>{t('groups.pageTitle', undefined, lang)}</p>
+          <p style={styles.homeSubtitle}>{t('groups.homeSubtitle', { name: groupName, n: members.length }, lang)}</p>
+        </div>
+        <button style={styles.inviteBtn} onClick={onInvite}>{t('groups.invite', undefined, lang)}</button>
+      </div>
+
+      <div style={styles.homeScroll}>
+        {hasReading && (
+          <div style={styles.readingCard}>
+            <p style={styles.readingLabel}>{t('groups.homeReadingLabel', undefined, lang)}</p>
+            <p style={styles.readingTitle}>{chapterLabel}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+              <div style={{ display: 'flex' }}>
+                {visibleMembers.map((m, i) => {
+                  const c = AVATAR_PALETTE[i % AVATAR_PALETTE.length]
+                  return (
+                    <div key={m.userId} style={{ ...styles.readingAvatar, background: c.bg, color: c.ink, marginLeft: i > 0 ? -6 : 0 }}>
+                      {avatarInitialsOf(m.name)}
+                    </div>
+                  )
+                })}
+                {overflow > 0 && (
+                  <div style={{ ...styles.readingAvatar, background: 'rgba(255,255,255,.12)', color: '#fff', marginLeft: -6 }}>
+                    +{overflow}
+                  </div>
+                )}
+              </div>
+              {roomStats && (
+                <span style={styles.readingStatus}>{t('groups.homeReadStatus', { done: roomStats.completed, total: roomStats.members }, lang)}</span>
+              )}
+            </div>
+            <button
+              style={styles.readingCta}
+              onClick={() => onOpenGroupRoom?.({ group: { groupId, name: groupName }, book: todaySession.book, bookEn: todaySession.bookEn, chapter: todaySession.chStart })}
+            >
+              {t('groups.homeReadCta', undefined, lang)}
+            </button>
+          </div>
+        )}
+
+        <div style={styles.prayerCard} onClick={onGoPrayer}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <p style={styles.prayerLabel}>{t('groups.homePrayerLabel', undefined, lang)}</p>
+            {latestPrayer && <span style={styles.prayerTime}>{formatRelativeTime(latestPrayer.createdAt, lang)}</span>}
+          </div>
+          {latestPrayer === undefined ? null : latestPrayer ? (
+            <>
+              <p style={styles.prayerQuote}>"{latestPrayer.body}" — {latestPrayer.authorName}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button style={styles.prayBtn} onClick={handlePray}>{t('groups.homePrayBtn', undefined, lang)}</button>
+                <span style={styles.prayerCount}>{t('groups.homePrayedCount', { n: latestPrayer.prayingCount }, lang)}</span>
+              </div>
+            </>
+          ) : (
+            <p style={styles.prayerEmpty}>{t('groups.homeNoPrayerYet', undefined, lang)}</p>
+          )}
+        </div>
+
+        <div style={styles.noteCard} onClick={onGoDiscussion}>
+          {latestNote === undefined ? null : latestNote ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={styles.noteAvatar}>{avatarInitialsOf(latestNote.authorName)}</div>
+                <p style={styles.noteTitle}>{t('groups.homeNoteShared', { name: latestNote.authorName }, lang)}</p>
+                <span style={styles.noteTime}>{formatRelativeTime(latestNote.createdAt, lang)}</span>
+              </div>
+              <p style={styles.noteBody}>"{latestNote.body}"</p>
+            </>
+          ) : (
+            <p style={styles.noteEmptyText}>{t('groups.homeNoNoteYet', undefined, lang)}</p>
+          )}
+        </div>
+
+        <div>
+          <button style={styles.writeRow} onClick={() => setWriteOpen(o => !o)}>
+            <div style={styles.writeIcon}><AppIcon name="Plus" size={16} color="var(--bento-accent)" /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={styles.writeTitle}>{t('groups.homeWriteTitle', undefined, lang)}</p>
+              <p style={styles.writeSub}>{t('groups.homeWriteSub', undefined, lang)}</p>
+            </div>
+            <span style={styles.writeChevron}>›</span>
+          </button>
+          {writeOpen && (
+            <div style={styles.writeChooser}>
+              <button style={styles.writeChooserBtn} onClick={onGoDiscussion}>{t('groups.homeWriteNoteOption', undefined, lang)}</button>
+              <button style={styles.writeChooserBtn} onClick={onGoPrayer}>{t('groups.homeWritePrayerOption', undefined, lang)}</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Aba Desafio: membros, placar, propor desafio, convidar, sair ── */
-function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange, onLeave }) {
+// autoInvite: abre o painel de convite já expandido — usado pelo atalho
+// "Convidar" do cabeçalho do quadro 5d, que cai aqui reaproveitando a
+// mesma lista de amigos convidáveis em vez de duplicá-la.
+function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange, onLeave, autoInvite = false }) {
   const [challenges, setChallenges] = useState([])
   const [leaderboards, setLeaderboards] = useState({})
   const [proposing, setProposing] = useState(false)
-  const [inviting, setInviting] = useState(false)
+  const [inviting, setInviting] = useState(autoInvite)
   const [friends, setFriends] = useState([])
 
   function reload() {
@@ -1242,4 +1424,54 @@ const styles = {
   prayingBtnActive: { color: 'var(--or)' },
   prayerCommentsWrap: { marginTop: 10, paddingTop: 10, borderTop: '0.5px solid var(--g1)' },
   prayerCommentItem: { background: 'var(--g1)', borderRadius: 10, padding: 9 },
+
+  // Quadro 5d — painel único do grupo (GroupHomeView).
+  homeWrap: { display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bento-bg)' },
+  homeHeader: { flex: 'none', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '20px 20px 0' },
+  homeBackBtn: {
+    width: 34, height: 34, borderRadius: 11, border: 'none', background: 'var(--bento-card)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+  },
+  homeTitle: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0 },
+  homeSubtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '4px 0 0' },
+  inviteBtn: {
+    height: 34, padding: '0 14px', borderRadius: 12, border: 'none', background: 'var(--bento-card)',
+    fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer', flexShrink: 0,
+  },
+  homeScroll: {
+    flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+    padding: '18px 20px calc(96px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 12,
+  },
+  readingCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22, color: '#fff' },
+  readingLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: '0 0 14px' },
+  readingTitle: { fontFamily: 'var(--font-bento)', fontSize: 24, fontWeight: 800, letterSpacing: '-.9px', margin: '0 0 14px' },
+  readingAvatar: { width: 28, height: 28, borderRadius: 10, fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, lineHeight: '28px', textAlign: 'center' },
+  readingStatus: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
+  readingCta: { width: '100%', height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  prayerCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: 20, cursor: 'pointer' },
+  prayerLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: 0 },
+  prayerTime: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-sand-label)' },
+  prayerQuote: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 600, lineHeight: 1.55, color: 'var(--bento-sand-ink-strong)', margin: '0 0 14px' },
+  prayBtn: { height: 38, padding: '0 16px', borderRadius: 14, border: 'none', background: 'var(--bento-sand-icon)', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-sand)', cursor: 'pointer' },
+  prayerCount: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-sand-label)' },
+  prayerEmpty: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-sand-ink-mid)', margin: 0 },
+  noteCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20, cursor: 'pointer' },
+  noteAvatar: { width: 30, height: 30, borderRadius: 10, background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, color: 'var(--bento-t3)', textAlign: 'center', lineHeight: '30px', flexShrink: 0 },
+  noteTitle: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
+  noteTime: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-t5)' },
+  noteBody: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--bento-t2)', margin: 0 },
+  noteEmptyText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  writeRow: {
+    width: '100%', borderRadius: 24, background: 'rgba(255,255,255,.6)', padding: '18px 20px',
+    display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', textAlign: 'left',
+  },
+  writeIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  writeTitle: { fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 3px' },
+  writeSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  writeChevron: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)' },
+  writeChooser: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 },
+  writeChooserBtn: {
+    width: '100%', textAlign: 'left', borderRadius: 16, background: 'var(--bento-card)', padding: '14px 18px',
+    border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)',
+  },
 }

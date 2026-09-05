@@ -414,6 +414,28 @@ export const STRINGS = {
       friendCurrentlyReading: 'Lendo agora: {block}',
       friendGroupsLabel: 'Grupos: {groups}',
       friendProfilePrivate: 'Esse perfil é privado — só nome, foto e mensagem ficam visíveis.',
+      // Bento 5d — painel único do grupo (GroupHomeView). challengeTab/
+      // prayerTab/discussionTab acima continuam servindo o "ver mais"
+      // (fora do quadro); estas aqui são específicas da prévia da home.
+      homeSubtitle: '{name} · {n} pessoas',
+      homeReadingLabel: 'Leitura do grupo',
+      homeReadStatus: '{done} de {total} já leram hoje',
+      homeReadCta: 'Ler com o grupo',
+      homePrayerLabel: 'Pedido de oração',
+      homePrayBtn: 'Orei por isso',
+      homePrayedCount: '{n} pessoas oraram',
+      homeNoPrayerYet: 'Nenhum pedido ainda — toque aqui pra compartilhar um.',
+      homeNoteShared: '{name} compartilhou uma nota',
+      homeNoNoteYet: 'Nenhuma nota ainda — toque aqui pra escrever a primeira.',
+      homeWriteTitle: 'Escrever no grupo',
+      // O quadro diz "Nota, pedido ou versículo", mas hoje só dá pra
+      // escrever nota ou pedido a partir daqui (compartilhar um versículo
+      // específico já existe, mas só a partir da própria leitura — ver
+      // ReadingBlockView/postToRoom). Ajustado pra não prometer uma 3ª
+      // opção que este atalho não abre.
+      homeWriteSub: 'Nota ou pedido de oração',
+      homeWriteNoteOption: 'Nota para o grupo',
+      homeWritePrayerOption: 'Pedido de oração',
       activityTitle: 'Atividade dos amigos',
       activityEmpty: 'Quando seus amigos com perfil público concluírem um livro, subirem de nível ou entrarem num grupo, aparece aqui.',
     },
@@ -2065,6 +2087,20 @@ export const STRINGS = {
       friendCurrentlyReading: 'Currently reading: {block}',
       friendGroupsLabel: 'Groups: {groups}',
       friendProfilePrivate: "This profile is private — only name, photo, and bio are visible.",
+      homeSubtitle: '{name} · {n} people',
+      homeReadingLabel: 'Group reading',
+      homeReadStatus: '{done} of {total} have read today',
+      homeReadCta: 'Read with the group',
+      homePrayerLabel: 'Prayer request',
+      homePrayBtn: 'I prayed for this',
+      homePrayedCount: '{n} people prayed',
+      homeNoPrayerYet: 'No requests yet — tap here to share one.',
+      homeNoteShared: '{name} shared a note',
+      homeNoNoteYet: 'No notes yet — tap here to write the first one.',
+      homeWriteTitle: 'Write to the group',
+      homeWriteSub: 'A note or a prayer request',
+      homeWriteNoteOption: 'Note for the group',
+      homeWritePrayerOption: 'Prayer request',
       activityTitle: 'Friends activity',
       activityEmpty: "When your friends with a public profile finish a book, level up, or join a group, it'll show up here.",
     },
