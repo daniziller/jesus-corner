@@ -226,6 +226,7 @@ export default function ProfileSheet({
   if (!open) return null
 
   const myGroup = session.myGroups?.[0] ?? null
+  const moderatedGroup = session.myGroups?.find(g => g.myRole === 'moderator') ?? null
   const displayAvatarUrl = profile?.avatarUrl
 
   return createPortal(
@@ -318,12 +319,11 @@ export default function ProfileSheet({
           </div>
 
           {/* Card 2 — Administração do grupo (moderador) / Assistente de
-              leitura (IA) / Aparência. "Administração do grupo" (quadro
-              19c) ainda não tem tela própria — entra numa próxima leva,
-              junto com o backend de convite por código (ver PR #47);
-              até lá a linha fica de fora em vez de apontar pra lugar
-              nenhum. */}
+              leitura (IA) / Aparência. */}
           <div style={s.card}>
+            {moderatedGroup && (
+              <Row icon="Wrench" label={L('groupAdminLabel')} sub={moderatedGroup.name} onPress={() => go('groupAdmin')} />
+            )}
             {session.hasAI && (
               <Row label={L('aiSettingsLabel')} sub={L('aiSettingsSub')} onPress={() => go('aiSettings')} />
             )}
