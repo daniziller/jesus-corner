@@ -254,7 +254,6 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     xpForNext: progressToNext.xpForNext,
     achievements,
     achievementsXp: achievementsXpBonus,
-    goals,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     plan,
     activePlan,
