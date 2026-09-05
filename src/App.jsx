@@ -570,7 +570,7 @@ export default function App() {
   // quando o alvo é o mesmo capítulo de antes.
   const [browseJumpTarget, setBrowseJumpTarget] = useState(null)
   // Acessibilidade: "texto grande" — por dispositivo, ver src/utils/textScaleStore.js
-  // e a regra html.large-text #root { zoom } em index.css.
+  // e a regra html.large-text .app-content-inner { zoom } em index.css.
   const [largeText, setLargeText] = useState(getLargeTextEnabled)
 
   useEffect(() => {
