@@ -16,8 +16,13 @@ const REMINDER_KEY = 'jc_pending_reminder'
 export const HISTORY = ['never', 'stopped', 'done']
 // 15b — o que faz parar (multi).
 export const PAINS = ['understand', 'rhythm', 'time', 'forget', 'alone']
-// 15f — tempo total do método por dia.
-export const METHOD_MINUTES = [15, 30, 45, 60]
+// 15f — tempo de cada passo, três controles independentes (5 em 5 min).
+// Padrões do quadro: Oração 10 · Leitura 15 (nunca zera — é a única que
+// afeta o plano) · Reflexão 5.
+export const STEP_MINUTES_DEFAULT = { prayer: 10, reading: 15, reflection: 5 }
+export const STEP_MINUTES_STEP = 5
+export const STEP_MINUTES_MIN = { prayer: 0, reading: 5, reflection: 0 }
+export const STEP_MINUTES_MAX = { prayer: 60, reading: 60, reflection: 60 }
 // 15c — hora do lembrete.
 export const REMINDERS = {
   morning: { hour: 6, minute: 30 },
@@ -39,29 +44,13 @@ export function demoFor(pains) {
   return 'reading'
 }
 
-// Divisão do tempo total entre os três passos — mesma proporção do quadro
-// 15f (30 min → 5 oração / 17 leitura / 8 reflexão). Arredonda pelo maior
-// resto pra sempre bater o total, com pelo menos 1 min por passo.
-const SPLIT_WEIGHTS = [5 / 30, 17 / 30, 8 / 30]
-export function splitMinutes(total) {
-  const raw = SPLIT_WEIGHTS.map(w => w * total)
-  const floors = raw.map(Math.floor).map(v => Math.max(1, v))
-  let remainder = total - floors.reduce((a, b) => a + b, 0)
-  const order = raw.map((r, i) => ({ i, frac: r - Math.floor(r) })).sort((a, b) => b.frac - a.frac)
-  const result = [...floors]
-  for (let k = 0; remainder > 0 && k < order.length; k++, remainder--) result[order[k].i] += 1
-  return { prayer: result[0], reading: result[1], reflection: result[2] }
-}
-
-// Ritmo de leitura (árvore de sessões em SESSIONS_BY_PLAN) que cabe no tempo
-// de leitura: o maior plano cujo readingMinutes não passa do alvo. Com
-// "só quero ler", o tempo todo é leitura. Abaixo de 12 min cai no 'free'
-// (1 capítulo por sessão, ~7 min).
-export function planIdFor(totalMinutes, readOnly) {
-  const target = readOnly ? totalMinutes : splitMinutes(totalMinutes).reading
+// Ritmo de leitura (árvore de sessões em SESSIONS_BY_PLAN) que cabe no
+// tempo de leitura escolhido no 15f: o maior plano cujo readingMinutes não
+// passa do alvo. Abaixo de 12 min cai no 'free' (1 capítulo por sessão).
+export function planIdFor(readingMinutes) {
   const timed = PLANS.filter(p => p.readingMinutes).sort((a, b) => a.readingMinutes - b.readingMinutes)
   let chosen = null
-  for (const p of timed) if (p.readingMinutes <= target) chosen = p
+  for (const p of timed) if (p.readingMinutes <= readingMinutes) chosen = p
   return chosen ? chosen.id : 'free'
 }
 
