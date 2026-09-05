@@ -32,6 +32,7 @@ import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
+import { getAllPassageQuestions, removePassageQuestion } from '../aiChat/passageQuestionStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { monthLabel } from './MonthRecapScreen'
@@ -57,6 +58,9 @@ const FILTERS = [
   { key: 'highlight', types: ['highlight'], labelKey: 'notes.filterHighlights' },
   { key: 'study', types: ['study'], labelKey: 'notes.filterStudy' },
   { key: 'sermon', types: ['sermon'], labelKey: 'notes.filterSermon' },
+  // Adição do README §13 — perguntas guardadas da IA (10a/10b, ligado em
+  // Ajustes/10f: "Guardar minhas perguntas"). Sem quadro desenhado.
+  { key: 'question', types: ['question'], labelKey: 'notes.filterQuestions' },
 ]
 
 // Cor própria por tipo — mesma cor usada no rótulo de cada card, pra dar
@@ -72,6 +76,7 @@ const TYPE_COLOR = {
   highlight: 'var(--bento-sand-icon)',
   study:     'var(--bento-t3)',
   sermon:    'var(--bento-t3)',
+  question:  'var(--bento-t3)',
 }
 
 // A que grupo de cor/ícone uma anotação pertence — mesmas 4 categorias da
@@ -81,6 +86,7 @@ function typeGroupFor(note) {
   if (note.type === 'highlight') return 'highlight'
   if (note.type === 'sermon') return 'sermon'
   if (note.type === 'study') return 'study'
+  if (note.type === 'question') return 'question'
   return 'notes'
 }
 
@@ -295,10 +301,26 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
               doneCount, total,
             }
           })
+        // Perguntas guardadas da IA (10a/10b, ligado em Ajustes/10f) —
+        // adição do README §13, sem quadro desenhado. Só as de "Perguntar
+        // sobre o texto" (10a/10b): a Reflexão com pergunta gerada (10d) já
+        // aparece aqui como a nota de Reflexão de verdade (o parágrafo
+        // aprovado, não o par pergunta/resposta cru) — listar os dois
+        // duplicaria a mesma sessão de leitura na Biblioteca. Guardado em
+        // localStorage (não no backend), então não passa pelo Promise.all
+        // acima. `id: null` — apagar usa book+chapter+question (ver
+        // deleteQuestion), não um id de linha.
+        const questionEntries = Object.values(getAllPassageQuestions()).flat().map(q => ({
+          key: `question:${q.book}:${q.chapter}:${q.verseStart}-${q.verseEnd}:${q.createdAt}`,
+          id: null, text: q.question, updatedAt: q.createdAt,
+          type: 'question', book: q.book, bookEn: q.bookEn, chapter: q.chapter,
+          verseStart: q.verseStart, verseEnd: q.verseEnd, question: q.question,
+          answerReply: q.answer?.outcome === 'answer' ? q.answer.reply : null,
+        }))
         // Mais recentes primeiro; anotações salvas antes desta tela existir
         // não têm updatedAt (formato antigo, só texto) — ficam no fim, sem
         // embaralhar as que já têm data de verdade.
-        const notes = [...noteEntries, ...highlightEntries, ...sermonEntries, ...studyEntries]
+        const notes = [...noteEntries, ...highlightEntries, ...sermonEntries, ...studyEntries, ...questionEntries]
           .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
         setState({ status: 'ready', notes })
       })
@@ -394,6 +416,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (note.type === 'highlight') return t('notes.typeHighlight', undefined, lang)
     if (note.type === 'sermon') return t('notes.typeSermon', undefined, lang)
     if (note.type === 'recap') return t('notes.typeRecap', undefined, lang)
+    if (note.type === 'question') return t('notes.typeQuestion', undefined, lang)
     return ''
   }
 
@@ -573,6 +596,15 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     } finally {
       setBusyKey(null)
     }
+  }
+
+  // Apaga uma pergunta guardada (ver questionEntries acima) — local
+  // (localStorage), sem confirmação de servidor, mesmo store que
+  // "Reportar resposta" (ReadingBlockView.jsx) usa pra tirar do histórico.
+  function deleteQuestion(note) {
+    if (!window.confirm(t('notes.deleteConfirm', undefined, lang))) return
+    removePassageQuestion({ book: note.book, chapter: note.chapter, verseStart: note.verseStart, verseEnd: note.verseEnd, question: note.question })
+    setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
   }
 
   // Editar a busca por palavra enquanto uma busca por tema (IA) está ativa
@@ -1012,6 +1044,27 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
                   </span>
                   <span style={styles.studyRowChevron}>›</span>
                 </button>
+              )
+            }
+            // Pergunta guardada da IA — card só de leitura (a pergunta/
+            // resposta já foi verificada no momento em que foi feita; não
+            // edita aqui). Toque na referência volta pro texto; "Apagar"
+            // tira do histórico (mesmo botão que "Reportar resposta" usa
+            // em ReadingBlockView.jsx).
+            if (note.type === 'question') {
+              return (
+                <div key={note.key} style={styles.card}>
+                  <div style={styles.cardHeader}>
+                    <span style={{ ...styles.cardTypeLabel, color: TYPE_COLOR.question }}>{typeCapLabel(note)}</span>
+                    <span style={styles.cardTime}>{note.updatedAt ? relativeLabel(note.updatedAt) : ''}</span>
+                  </div>
+                  <button style={{ ...styles.passageChip, marginBottom: 8 }} onClick={() => onOpenBiblePassage?.(note.book, note.chapter)}>
+                    <AppIcon name="BookOpen" size={11} color="var(--bento-accent)" /> {bookLabel(note.book)} {note.chapter}
+                  </button>
+                  <p style={styles.cardText}>{note.question}</p>
+                  {note.answerReply && <p style={{ ...styles.cardText, color: 'var(--bento-t3)', marginTop: 6 }}>{note.answerReply}</p>}
+                  <button style={styles.editDeleteBtn} onClick={() => deleteQuestion(note)}>{t('notes.deleteAction', undefined, lang)}</button>
+                </div>
               )
             }
             const isEditing = editingKey === note.key
