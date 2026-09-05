@@ -25,6 +25,7 @@ const MODEL = 'anthropic/claude-sonnet-5'
 const AVG_WORDS_PER_CHAPTER = 570
 
 const ThemePassagesSchema = z.object({
+  title: z.string().describe('Título curto do plano (2 a 5 palavras, no mesmo idioma do assunto) — ex: "Ansiedade: o que a Bíblia diz". É o único título que a pessoa vê (ela não digita um, só descreve o assunto em texto livre); precisa identificar o plano sozinho, sem repetir a palavra "plano" ou "estudo".'),
   overview: z.string().describe('Um parágrafo curto (2 a 4 frases, no mesmo idioma do assunto) explicando o fio condutor do plano: por que essas passagens foram escolhidas e organizadas nessa ordem, e o que a pessoa vai entender/vivenciar ao ler todas em sequência. Escrito pra quem ainda não viu a lista de passagens — dá o contexto antes de começar a ler.'),
   passages: z.array(z.object({
     book: z.string().describe('Nome do livro EXATAMENTE como aparece na lista de livros válidos fornecida no prompt — nenhuma variação de grafia.'),
@@ -36,8 +37,8 @@ const ThemePassagesSchema = z.object({
 
 function buildLangInstruction(lang) {
   return lang === 'en'
-    ? 'Write the "reason" and "overview" fields in English.'
-    : 'Escreva os campos "reason" e "overview" em português.'
+    ? 'Write the "title", "reason" and "overview" fields in English.'
+    : 'Escreva os campos "title", "reason" e "overview" em português.'
 }
 
 // Mesma ideia, só que pro campo "reply" do chat (ver answerTextQuestion) —
@@ -117,12 +118,15 @@ async function reviewThemePassages(scope, draft, canonicalBooks, lang, targetWor
 
 Assunto: "${scope}"
 
+Rascunho do título: "${draft.title}"
+
 Rascunho da visão geral: "${draft.overview}"
 
 Rascunho das passagens:
 ${formatPassageList(draft.passages)}
 
 Revise com atenção a:
+- O título: curto (2 a 5 palavras), identifica o plano sozinho. Reescreva se estiver genérico demais ou repetir "plano"/"estudo".
 - Remova qualquer passagem cuja relação com o assunto seja fraca, forçada, ou genérica demais.
 - Corrija ou remova referências que pareçam erradas (livro/capítulo que não fazem sentido).
 - Se faltar alguma passagem claramente importante pro assunto, adicione.

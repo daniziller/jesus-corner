@@ -18,8 +18,9 @@ import { computeCurrentWeekDays } from '../routine/weekRings'
 
 const STEP_ORDER = ['prayer', 'reading', 'reflection']
 
-export default function RoutineScreen({ session, onContinueSession, onNavigate, onStartGuided }) {
-  const { lang, plan, activePlan, todayRoutine, todaySession, routineModules, dailyRoutine, weekGoalDaysMet, weeklyGoalDays } = session
+export default function RoutineScreen({ session, onContinueSession, onNavigate, onStartGuided, onResumeFixedPlan }) {
+  const { lang, plan, activePlan, todayRoutine, todaySession, routineModules, dailyRoutine, weekGoalDaysMet, weeklyGoalDays, pausedFixedSession } = session
+  const isStudy = activePlan.kind === 'theme'
   const L = (k, vars) => t(`routine.${k}`, vars, lang)
 
   const modules = routineModules ?? DEFAULT_ROUTINE_MODULES
@@ -81,7 +82,15 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
           <p style={styles.title}>{L('title')}</p>
           <p style={styles.subtitle}>{headerParts.join(' · ')}</p>
         </div>
-        <button style={styles.adjustBtn} onClick={() => onNavigate?.('adjustPlan')}>{L('adjust')}</button>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {session.hasAI && (
+            <button style={styles.createBtn} onClick={() => onNavigate?.('createStudy')}>
+              <span style={styles.createDiamond} />
+              {L('create')}
+            </button>
+          )}
+          <button style={styles.adjustBtn} onClick={() => onNavigate?.('adjustPlan')}>{L('adjust')}</button>
+        </div>
       </div>
 
       <div style={styles.body}>
@@ -104,8 +113,9 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
           }
           if (isCurrent) {
             const started = k === 'reading' && todaySession.progress > 0
+            const showStudy = k === 'reading' && isStudy
             const subtitle = k === 'reading'
-              ? (started ? L('readingResumeSubtitle', { title: todaySession.title }) : todaySession.title)
+              ? (showStudy ? activePlan.label : started ? L('readingResumeSubtitle', { title: todaySession.title }) : todaySession.title)
               : null
             return (
               <div key={k} style={styles.currentCard}>
@@ -113,8 +123,21 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
                   <p style={styles.currentLabel}>{L('nowStepOf', { i: i + 1, total: enabled.length })}</p>
                   <span style={styles.currentTime}>{L('minShort', { n: stepMin[k] })}</span>
                 </div>
-                <p style={styles.currentTitle}>{stepTitle(k)}</p>
+                {showStudy && (
+                  <div style={styles.studyLabelRow}>
+                    <span style={styles.studyDiamond} />
+                    <p style={styles.studyLabel}>{L('studyDayOf', { n: activePlan.doneCount + 1, total: activePlan.totalCount })}</p>
+                  </div>
+                )}
+                <p style={styles.currentTitle}>{showStudy ? todaySession.title : stepTitle(k)}</p>
                 {subtitle && <p style={styles.currentSubtitle}>{subtitle}</p>}
+                {showStudy && activePlan.totalCount > 1 && (
+                  <div style={styles.studyBarRow}>
+                    {Array.from({ length: activePlan.totalCount }, (_, i) => (
+                      <span key={i} style={{ ...styles.studyBarSeg, background: i < activePlan.doneCount ? 'var(--bento-accent)' : 'rgba(255,255,255,.14)' }} />
+                    ))}
+                  </div>
+                )}
                 <button style={styles.currentBtn} onClick={() => startStep(k)}>
                   <span style={styles.currentBtnText}>{L(`start_${k}`)}</span>
                   <span style={styles.currentBtnArrow}>→</span>
@@ -132,6 +155,20 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
             </div>
           )
         })}
+
+        {/* Quadro 22c — plano fixo pausado enquanto um estudo/cronológico
+            está ativo. "Retomar já" larga o estudo sem custar mais que um
+            toque, sem culpa nenhuma (mesma regra do quadro). */}
+        {pausedFixedSession && (
+          <div style={styles.pausedCard}>
+            <span style={styles.pausedIcon}><AppIcon name="StickyNote" size={14} color="var(--bento-t3)" /></span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={styles.pausedTitle}>{L('pausedTitle', { title: pausedFixedSession.title })}</p>
+              <p style={styles.pausedSub}>{L('pausedSub')}</p>
+            </div>
+            <button style={styles.pausedResumeBtn} onClick={onResumeFixedPlan}>{L('pausedResume')}</button>
+          </div>
+        )}
 
         <button style={styles.handsFreeCard} onClick={() => onNavigate?.('handsFree')}>
           <span style={styles.handsFreeIcon}><AppIcon name="AudioLines" size={16} color="var(--bento-accent)" /></span>
@@ -172,6 +209,15 @@ const styles = {
     height: 34, flexShrink: 0, padding: '0 14px', borderRadius: 12, border: 'none', background: 'var(--bento-card)',
     fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer',
   },
+  // "Criar" (quadro 22c) — entrada de CreateStudyScreen.jsx (22a). Losango
+  // laranja porque é onde a IA entra, mesmo sinal usado em qualquer bloco
+  // de IA no app.
+  createBtn: {
+    height: 34, flexShrink: 0, padding: '0 12px', borderRadius: 12, border: 'none', background: 'var(--bento-ink)',
+    display: 'flex', alignItems: 'center', gap: 6,
+    fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, lineHeight: 1, color: '#fff', cursor: 'pointer',
+  },
+  createDiamond: { width: 7, height: 7, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 1.5, flexShrink: 0 },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '20px 20px calc(var(--nav-height) + 20px)', display: 'flex', flexDirection: 'column', gap: 12 },
 
   doneCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: 'var(--bento-sand)', border: 'none', borderRadius: 24, padding: '18px 20px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
@@ -188,6 +234,20 @@ const styles = {
   currentBtn: { height: 52, width: '100%', borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   currentBtnText: { fontSize: 15.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   currentBtnArrow: { fontSize: 15, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
+  // Estudo ativo (quadro 22c) — losango + "Estudo · dia N de M" acima do
+  // título, e a barra de dias no lugar do rodapé de sempre.
+  studyLabelRow: { display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px' },
+  studyDiamond: { width: 9, height: 9, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  studyLabel: { fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
+  studyBarRow: { display: 'flex', gap: 4, margin: '0 0 18px' },
+  studyBarSeg: { flex: 1, height: 5, borderRadius: 99 },
+  // "Gênesis pausado" (quadro 22c) — plano fixo em espera enquanto um
+  // estudo/cronológico está ativo.
+  pausedCard: { display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bento-card)', borderRadius: 24, padding: '16px 20px' },
+  pausedIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  pausedTitle: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1.2, margin: '0 0 3px' },
+  pausedSub: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.2, margin: 0 },
+  pausedResumeBtn: { flexShrink: 0, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)' },
 
   pendingCard: { display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,.6)', borderRadius: 24, padding: '18px 20px' },
   pendingDot: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: '2px dashed var(--bento-pending-border)', boxSizing: 'border-box' },

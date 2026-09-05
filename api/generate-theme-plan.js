@@ -136,12 +136,11 @@ export default async function handler(req, res) {
     }
   }
 
-  const { title, scope, paceId, lang } = req.body ?? {}
-  const cleanTitle = (title ?? '').trim()
+  // Quadro 22a: só um campo de texto livre (o assunto) — não existe mais
+  // título digitado à parte; a IA propõe o título junto com o resto (ver
+  // ThemePassagesSchema em api/_lib/ai.js).
+  const { scope, paceId, lang } = req.body ?? {}
   const cleanScope = (scope ?? '').trim()
-  if (!cleanTitle || cleanTitle.length > MAX_TITLE_LENGTH) {
-    return res.status(400).json({ error: 'invalid_title' })
-  }
   if (!cleanScope || cleanScope.length > MAX_SCOPE_LENGTH) {
     return res.status(400).json({ error: 'invalid_scope' })
   }
@@ -156,11 +155,15 @@ export default async function handler(req, res) {
   // existe mais ritmo escolhido pela pessoa pra plano por tema.
   const targetWords = pace.readingMinutes == null ? 0 : pace.readingMinutes * WORDS_PER_MINUTE
 
-  let passages, overview
+  let passages, overview, aiTitle
   try {
     const aiResult = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords)
     passages = aiResult.passages
     overview = (aiResult.overview ?? '').trim()
+    // Cap defensivo — a IA já recebe a instrução de ser curta, mas isso
+    // nunca é a única linha de defesa contra um campo maior do que a UI
+    // (22a, um título só, sem quebra de linha) espera exibir.
+    aiTitle = (aiResult.title ?? '').trim().slice(0, MAX_TITLE_LENGTH)
   } catch (err) {
     console.error('[generate-theme-plan] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })
@@ -225,7 +228,7 @@ export default async function handler(req, res) {
 
   const plan = {
     id: `theme-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    title: cleanTitle,
+    title: aiTitle || cleanScope.slice(0, MAX_TITLE_LENGTH),
     scope: cleanScope,
     overview,
     lang: cleanLang,

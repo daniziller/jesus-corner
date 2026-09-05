@@ -8,14 +8,16 @@ import { supabase } from '../lib/supabaseClient'
 // Chama api/generate-theme-plan.js (mesmo padrão de authorizedPost em
 // src/billing/subscriptionStore.js: pega o token da sessão atual, manda no
 // header). Devolve o plano PRONTO — quem chamar ainda precisa salvar com
-// saveThemePlan pra persistir.
-export async function generateThemePlan(title, scope, paceId, lang) {
+// saveThemePlan pra persistir. Sem `title` — o quadro 22a só pede o
+// assunto em texto livre; a própria IA propõe o título (ver
+// ThemePassagesSchema em api/_lib/ai.js).
+export async function generateThemePlan(scope, paceId, lang) {
   const { data: { session: authSession } } = await supabase.auth.getSession()
   if (!authSession) throw new Error('not_authenticated')
   const res = await fetch('/api/generate-theme-plan', {
     method: 'POST',
     headers: { Authorization: `Bearer ${authSession.access_token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, scope, paceId, lang }),
+    body: JSON.stringify({ scope, paceId, lang }),
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body?.error || `request_failed_${res.status}`)
