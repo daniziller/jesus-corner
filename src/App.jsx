@@ -16,7 +16,7 @@ import { needsConsentRefresh } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import { hasGuestRow, migrateGuestRow } from './backend/userDataStore'
 import { getGuestInviteThreshold, dismissGuestInvite, clearGuestInviteState } from './onboarding/guestInviteStore'
-import { splitMinutes, saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
+import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
 import { setSavedPrayerMinutes } from './prayer/prayerDurationStore'
 import { setSavedReflectionMinutes } from './reflection/reflectionDurationStore'
 import HomeScreen from './screens/HomeScreen'
@@ -1121,15 +1121,18 @@ export default function App() {
   // `sessionsByBlock` de um render que ainda não viu o plano recém-escolhido.
   async function startGuestReading(answers) {
     await setSelectedPlanId(null, answers.planId)
-    await persistRoutineModules(null, answers.readOnly ? ['reading'] : DEFAULT_ROUTINE_MODULES)
+    // Cada passo do 15f é independente agora — zerar Oração ou Reflexão
+    // desliga só aquele passo (Leitura nunca zera, é a única obrigatória).
+    const modules = ['reading']
+    if (answers.prayerMinutes > 0) modules.push('prayer')
+    if (answers.reflectionMinutes > 0) modules.push('reflection')
+    await persistRoutineModules(null, modules)
     await persistWeeklyGoalDays(null, answers.days)
-    if (!answers.readOnly) {
-      // Divisão do tempo do método (15f) — os cronômetros de Oração e
-      // Reflexão leem daqui (ver PrayerScreen/ReflectionScreen).
-      const split = splitMinutes(answers.minutes)
-      setSavedPrayerMinutes(split.prayer)
-      setSavedReflectionMinutes(split.reflection)
-    }
+    // Os cronômetros de Oração e Reflexão leem daqui (ver
+    // PrayerScreen/ReflectionScreen) — Leitura já vem do plano escolhido
+    // acima (planId), não precisa de duração salva à parte.
+    setSavedPrayerMinutes(answers.prayerMinutes)
+    setSavedReflectionMinutes(answers.reflectionMinutes)
     saveOnboardingAnswers(answers)
     // O lembrete (15c) só vira inscrição push com uma conta de verdade —
     // fica pendente até o primeiro login (ver applyPendingReminder).

@@ -21,7 +21,7 @@ import {
   Sailboat, Amphora, PawPrint, MapPin, Circle,
   CheckCircle2, ArrowUp, ChevronDown, ChevronUp, CloudRain, ArrowLeft,
   X, ChevronRight, ChevronLeft, ArrowRight, Pin, UserPlus, Calendar, Type, Gift,
-  Highlighter, Share2, Pencil, SlidersHorizontal, Plus,
+  Highlighter, Share2, Pencil, SlidersHorizontal, Plus, Minus,
   Play, Pause, AudioLines, MoreVertical, Copy, AlignLeft,
 } from 'lucide-react'
 
@@ -59,7 +59,7 @@ const REGISTRY = {
   Sailboat, Amphora, PawPrint, MapPin,
   CheckCircle2, ArrowUp, ChevronDown, ChevronUp, CloudRain, ArrowLeft,
   X, ChevronRight, ChevronLeft, ArrowRight, Pin, UserPlus, Calendar, Type, Gift,
-  Highlighter, Share2, Pencil, SlidersHorizontal, Plus,
+  Highlighter, Share2, Pencil, SlidersHorizontal, Plus, Minus,
   Play, Pause, AudioLines, MoreVertical, Copy, AlignLeft,
   Instagram,
 }

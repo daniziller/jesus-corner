@@ -13,7 +13,10 @@ import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import AppIcon from '../icons/AppIcon'
 import OnboardingDemo from './OnboardingDemo'
-import { PAINS, METHOD_MINUTES, REMINDERS, WEEK_DAYS, demoFor, splitMinutes, planIdFor, estimateCompletion, formatClock } from '../onboarding/onboardingAnswers'
+import {
+  PAINS, REMINDERS, WEEK_DAYS, demoFor, planIdFor, estimateCompletion, formatClock,
+  STEP_MINUTES_DEFAULT, STEP_MINUTES_STEP, STEP_MINUTES_MIN, STEP_MINUTES_MAX,
+} from '../onboarding/onboardingAnswers'
 
 const FONT = 'var(--font-bento)'
 const STEPS = ['history', 'pains', 'demo', 'minutes', 'reminder', 'days', 'result']
@@ -25,8 +28,12 @@ export default function OnboardingFlow({ onFinish, onBack }) {
   const [stepIdx, setStepIdx] = useState(0)
   const [history, setHistory] = useState(null)
   const [pains, setPains] = useState([])
-  const [minutes, setMinutes] = useState(30)
-  const [readOnly, setReadOnly] = useState(false)
+  // 15f — três controles independentes (Oração/Leitura/Reflexão), 5 em 5
+  // min. Leitura nunca zera (é a única que define o plano); Oração e
+  // Reflexão podem, e zerar equivale a desligar aquele passo.
+  const [prayerMinutes, setPrayerMinutes] = useState(STEP_MINUTES_DEFAULT.prayer)
+  const [readingMinutes, setReadingMinutes] = useState(STEP_MINUTES_DEFAULT.reading)
+  const [reflectionMinutes, setReflectionMinutes] = useState(STEP_MINUTES_DEFAULT.reflection)
   const [reminder, setReminder] = useState('morning') // 'morning' | 'midday' | 'night' | null
   const [days, setDays] = useState(5)
   const [starting, setStarting] = useState(false)
@@ -35,9 +42,10 @@ export default function OnboardingFlow({ onFinish, onBack }) {
   const next = () => setStepIdx(i => Math.min(i + 1, STEPS.length - 1))
   const back = () => (stepIdx === 0 ? onBack() : setStepIdx(i => i - 1))
 
+  const totalMinutes = prayerMinutes + readingMinutes + reflectionMinutes
   const answers = {
-    history, pains, minutes, readOnly,
-    planId: planIdFor(minutes, readOnly),
+    history, pains, prayerMinutes, readingMinutes, reflectionMinutes, minutes: totalMinutes,
+    planId: planIdFor(readingMinutes),
     reminder: reminder ? REMINDERS[reminder] : null,
     days,
   }
@@ -123,36 +131,42 @@ export default function OnboardingFlow({ onFinish, onBack }) {
   }
 
   if (step === 'minutes') {
-    const split = splitMinutes(minutes)
-    const pct = v => `${Math.round((v / minutes) * 100)}%`
+    // "Só quero ler" (atalho do quadro 15f) zera Oração e Reflexão juntas;
+    // desfazer devolve o padrão de cada uma (mesmo padrão do atalho de
+    // lembrete logo abaixo, no step 'reminder').
+    const readOnly = prayerMinutes === 0 && reflectionMinutes === 0
+    function toggleReadOnly() {
+      if (readOnly) {
+        setPrayerMinutes(STEP_MINUTES_DEFAULT.prayer)
+        setReflectionMinutes(STEP_MINUTES_DEFAULT.reflection)
+      } else {
+        setPrayerMinutes(0)
+        setReflectionMinutes(0)
+      }
+    }
+    const rows = [
+      { key: 'prayer', value: prayerMinutes, set: setPrayerMinutes, label: L('splitPrayer'), sub: L('minutesPrayerSub'), dark: false },
+      { key: 'reading', value: readingMinutes, set: setReadingMinutes, label: L('splitReading'), sub: L('minutesReadingSub'), dark: true },
+      { key: 'reflection', value: reflectionMinutes, set: setReflectionMinutes, label: L('splitReflection'), sub: L('minutesReflectionSub'), dark: false },
+    ]
     return (
       <QuestionShell L={L} n={3} onBack={back} onSkip={next}
-        title={L('minutesTitle')} sub={L('minutesSub')} subMargin={22}
+        title={L('minutesTitle')} sub={L('minutesSub')} subMargin={18}
         why={L('minutesWhy')} btnLabel={L('continueBtn')} onContinue={next}>
-        <div style={{ display: 'flex', gap: 7, margin: '0 0 12px' }}>
-          {METHOD_MINUTES.map(m => <Tile key={m} on={minutes === m} n={m} unit={L('min')} height={68} onClick={() => setMinutes(m)} />)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 10px' }}>
+          {rows.map(row => (
+            <StepMinutesRow
+              key={row.key} dark={row.dark} label={row.label} sub={row.sub} value={row.value} unit={L('min')}
+              onDecrease={() => row.set(v => Math.max(STEP_MINUTES_MIN[row.key], v - STEP_MINUTES_STEP))}
+              onIncrease={() => row.set(v => Math.min(STEP_MINUTES_MAX[row.key], v + STEP_MINUTES_STEP))}
+            />
+          ))}
         </div>
-        <div style={s.darkCard}>
-          <p style={s.darkLabel}>{readOnly ? L('splitReadOnlyLabel', { n: minutes }) : L('splitLabel', { n: minutes })}</p>
-          {readOnly ? (
-            <>
-              <div style={s.splitBar}><div style={{ width: '100%', borderRadius: 99, background: 'var(--bento-accent)' }} /></div>
-              <SplitRow color="var(--bento-accent)" label={<>{L('splitReading')}<span style={{ color: 'rgba(255,255,255,.35)' }}>{L('splitRequired')}</span></>} value={L('splitMin', { n: minutes })} last />
-            </>
-          ) : (
-            <>
-              <div style={s.splitBar}>
-                <div style={{ width: pct(split.prayer), borderRadius: 99, background: 'rgba(240,102,43,.45)' }} />
-                <div style={{ width: pct(split.reading), borderRadius: 99, background: 'var(--bento-accent)' }} />
-                <div style={{ width: pct(split.reflection), borderRadius: 99, background: 'rgba(255,255,255,.28)' }} />
-              </div>
-              <SplitRow color="rgba(240,102,43,.45)" label={L('splitPrayer')} value={L('splitMin', { n: split.prayer })} />
-              <SplitRow color="var(--bento-accent)" label={<>{L('splitReading')}<span style={{ color: 'rgba(255,255,255,.35)' }}>{L('splitRequired')}</span></>} value={L('splitMin', { n: split.reading })} />
-              <SplitRow color="rgba(255,255,255,.28)" label={L('splitReflection')} value={L('splitMin', { n: split.reflection })} last />
-            </>
-          )}
+        <div style={s.totalCard}>
+          <p style={s.totalLabel}>{L('minutesTotalLabel')}</p>
+          <p style={s.totalValue}>{totalMinutes} <span style={s.totalUnit}>{L('min')}</span></p>
         </div>
-        <button type="button" style={s.textLink} onClick={() => setReadOnly(v => !v)}>{readOnly ? L('readOnlyUndo') : L('readOnly')}</button>
+        <button type="button" style={s.textLink} onClick={toggleReadOnly}>{readOnly ? L('readOnlyUndo') : L('readOnly')}</button>
       </QuestionShell>
     )
   }
@@ -207,7 +221,7 @@ export default function OnboardingFlow({ onFinish, onBack }) {
       <div style={{ ...s.darkCard, margin: 0 }}>
         <p style={{ ...s.darkLabel, margin: '0 0 12px' }}>{L('withDays', { n: days })}</p>
         <p style={s.estTitle}>{L('finishIn', { duration: durationLabel(L, est) })}</p>
-        <p style={s.estSub}>{est.perDay === 1 ? L('perDayOne', { min: minutes }) : L('perDay', { n: est.perDay, min: minutes })}</p>
+        <p style={s.estSub}>{est.perDay === 1 ? L('perDayOne', { min: totalMinutes }) : L('perDay', { n: est.perDay, min: totalMinutes })}</p>
       </div>
     </QuestionShell>
   )
@@ -262,12 +276,27 @@ function Tile({ on, n, unit, height, onClick }) {
   )
 }
 
-function SplitRow({ color, label, value, last }) {
+// Linha de passo com -/valor/+ (quadro 15f) — a Leitura vem em destaque
+// (fundo escuro), Oração e Reflexão em branco. Os dois botões trocam de
+// cor com o fundo, mas o "+" fica sempre laranja — é o convite a ajustar.
+function StepMinutesRow({ dark, label, sub, value, unit, onDecrease, onIncrease }) {
+  const minusColor = dark ? 'rgba(255,255,255,.8)' : 'var(--bento-ink)'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: last ? 0 : '0 0 9px' }}>
-      <span style={{ width: 8, height: 8, borderRadius: 99, background: color, flex: 'none' }} />
-      <p style={s.splitLabel}>{label}</p>
-      <span style={s.splitValue}>{value}</span>
+    <div style={{ ...s.stepRow, background: dark ? 'var(--bento-ink)' : 'var(--bento-card)' }}>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ ...s.stepLabel, color: dark ? '#fff' : 'var(--bento-ink)' }}>{label}</span>
+        <span style={{ ...s.stepSub, color: dark ? 'rgba(255,255,255,.5)' : 'var(--bento-t3)' }}>{sub}</span>
+      </span>
+      <button type="button" style={{ ...s.stepBtn, background: dark ? 'rgba(255,255,255,.08)' : 'var(--bento-line)' }} onClick={onDecrease} aria-label="-5">
+        <AppIcon name="Minus" size={13} strokeWidth={2.4} color={minusColor} />
+      </button>
+      <span style={s.stepValueWrap}>
+        <span style={{ ...s.stepValue, color: dark ? '#fff' : 'var(--bento-ink)' }}>{value}</span>
+        <span style={{ ...s.stepUnit, color: dark ? 'rgba(255,255,255,.45)' : 'var(--bento-t4)' }}>{unit}</span>
+      </span>
+      <button type="button" style={s.stepBtnAccent} onClick={onIncrease} aria-label="+5">
+        <AppIcon name="Plus" size={13} strokeWidth={2.4} color="var(--bento-ink)" />
+      </button>
     </div>
   )
 }
@@ -363,9 +392,21 @@ const s = {
   tileUnit: { fontFamily: FONT, fontSize: 9.5, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t4)' },
   darkCard: { borderRadius: 22, background: 'var(--bento-ink)', padding: 20, margin: '0 0 10px' },
   darkLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 14px' },
-  splitBar: { display: 'flex', gap: 3, height: 10, margin: '0 0 16px' },
-  splitLabel: { flex: 1, fontFamily: FONT, fontSize: 13, fontWeight: 600, lineHeight: 1.2, color: 'rgba(255,255,255,.62)', margin: 0 },
-  splitValue: { fontFamily: FONT, fontSize: 13, fontWeight: 800, lineHeight: 1, color: '#fff' },
+  // Linha de passo (StepMinutesRow, quadro 15f) — nome+apoio à esquerda,
+  // -/valor/+ à direita. Reaproveitada em branco (Oração/Reflexão) e em
+  // --bento-ink (Leitura, em destaque — é a única que afeta o plano).
+  stepRow: { borderRadius: 20, padding: '14px 14px 14px 18px', display: 'flex', alignItems: 'center', gap: 10 },
+  stepLabel: { display: 'block', fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.2, marginBottom: 2 },
+  stepSub: { display: 'block', fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.3 },
+  stepBtn: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stepBtnAccent: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stepValueWrap: { width: 52, flexShrink: 0, textAlign: 'center' },
+  stepValue: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1, letterSpacing: '-.6px' },
+  stepUnit: { fontFamily: FONT, fontSize: 10, fontWeight: 600, lineHeight: 1, marginLeft: 2 },
+  totalCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 12px' },
+  totalLabel: { flex: 1, fontFamily: FONT, fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: 'var(--bento-sand-ink)', margin: 0 },
+  totalValue: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1, letterSpacing: '-.8px', color: 'var(--bento-sand-ink-strong)', margin: 0 },
+  totalUnit: { fontFamily: FONT, fontSize: 11, fontWeight: 700, color: 'var(--bento-sand-label)' },
   textLink: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0, textAlign: 'center', width: '100%' },
   estTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.2, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
   estSub: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.5)', margin: 0 },
