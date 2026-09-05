@@ -29,6 +29,8 @@ import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
+import CreateStudyScreen from './screens/CreateStudyScreen'
+import StudyProposalScreen from './screens/StudyProposalScreen'
 import ChronologicalPlanScreen from './screens/ChronologicalPlanScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
@@ -60,7 +62,8 @@ import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
 import { resolveActivePlanSessions } from './plan/resolveActivePlan'
-import { getThemePlans } from './themePlans/themePlansStore'
+import { getThemePlans, saveThemePlan, generateThemePlan } from './themePlans/themePlansStore'
+import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { getReadingSeconds } from './reading/readingTimeStore'
@@ -158,6 +161,22 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // sessionsByBlock nunca fica vazio, então nunca quebra; a escolha do dia
   // só afeta o que é mostrado como "sessão de hoje" logo abaixo.
   const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock, lastReadPosition)
+  // Onde o plano fixo (Gênesis…) ficou pausado, pra mostrar em Meu Plano
+  // (quadro 22c: "Gênesis pausado em 41 · Retomar já") enquanto um estudo
+  // (activeAltPlan) estiver ativo — sempre calculado a partir de
+  // blocks/sessionsByBlock ORIGINAIS (não activePlanData.blocks, que já
+  // seriam os do estudo), então não depende de qual plano está "de hoje".
+  // SEM lastReadPosition aqui de propósito: esse ponteiro é global (última
+  // leitura em QUALQUER plano — ver comentário de findCurrentReadingSession
+  // acima), então enquanto o estudo estiver ativo ele aponta pro capítulo
+  // do ESTUDO, não do plano fixo — se esse capítulo por acaso bater com um
+  // livro real do cânon (ex.: um estudo sobre Rute), a busca acharia
+  // "Rute" no plano fixo por engano. Sem o ponteiro, cai direto na
+  // prioridade 2 (primeira sessão pendente pelo completedSet) — a posição
+  // real de onde o plano fixo está, não contaminada pela leitura do estudo.
+  const pausedFixedSession = activePlanData.kind !== 'fixed'
+    ? findCurrentReadingSession(blocks, sessionsByBlock).session
+    : null
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
   const plan = { ...planRaw, label: lang === 'en' ? planRaw.labelEn : planRaw.label }
@@ -263,6 +282,11 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     // o RoutineStepSwitcher leem daqui em vez de plan.modules.
     routineModules: routineModules ?? DEFAULT_ROUTINE_MODULES,
     activeStudyId: activeStudyId ?? null,
+    // Quadro 22c ("Gênesis pausado em 41 · Retomar já") — null quando não
+    // há nada pausado (plano fixo já é o de hoje, ver activePlan.kind).
+    pausedFixedSession: pausedFixedSession
+      ? { title: lang === 'en' ? pausedFixedSession.titleEn ?? pausedFixedSession.title : pausedFixedSession.title }
+      : null,
     // Nome do 1º bloco na ordem ATUAL (Pentateuco ou Evangelhos) — usado no
     // texto de "Reiniciar leitura" da aba Perfil, pra não ficar hardcoded
     // "Pentateuco" quando a ordem for NT primeiro (ver ProfileScreen.jsx).
@@ -521,6 +545,10 @@ export default function App() {
   // cada render e precisa saber as sessões do plano por tema ativo sem
   // esperar um fetch.
   const [themePlans, setThemePlans] = useState([])
+  // Plano recém-gerado em CreateStudyScreen.jsx (22a), ainda não salvo —
+  // vive só entre a geração e a decisão em StudyProposalScreen.jsx (22b:
+  // "Salvar p/ depois" ou "Começar"). Null fora dessa janela.
+  const [generatedStudyPlan, setGeneratedStudyPlan] = useState(null)
   // "Auto-abrir" — consumidos por ThemePlanScreen/ChronologicalPlanScreen
   // quando "Continuar sessão" (Home/Rotina) aponta pra um plano alternativo,
   // mesmo padrão de journeyEntryMode/journeyResumeSessionId abaixo.
@@ -1053,6 +1081,65 @@ export default function App() {
     openThemePlanToday(planId, keys)
   }
 
+  // Etapa 10 (22a/22b) — CreateStudyScreen gera o plano (IA ou, no formato
+  // Livro, 100% local) mas ainda não salva nada; StudyProposalScreen
+  // mostra a proposta e só aqui, na decisão final, o plano vira real.
+  function reviewGeneratedStudy(plan) {
+    setGeneratedStudyPlan(plan)
+    goToTab('studyProposal')
+  }
+
+  // "Refazer" (quadro 22b) — pede outra proposta inteira pro MESMO
+  // assunto, sem sair da tela de revisão. Só existe pra planos com `scope`
+  // (formato Livro não tem assunto pra regenerar — o botão nem aparece
+  // nesse caso, ver StudyProposalScreen.jsx).
+  async function refazerGeneratedStudy(currentPlan) {
+    const fresh = await generateThemePlan(currentPlan.scope, 'standard', session.lang)
+    setGeneratedStudyPlan({ ...fresh, format: currentPlan.format })
+  }
+
+  // As passagens que a IA (ou, no formato Livro, o próprio livro escolhido)
+  // trouxe podem coincidir com capítulos já lidos antes, fora desse plano
+  // — sem desmarcar, o checklist de textos do plano mostraria esses textos
+  // como "concluído", travados pra não poderem ser escolhidos de novo,
+  // mesmo sendo a primeira vez que a pessoa lê aquele texto DENTRO desse
+  // plano. Chamado nos dois pontos em que um plano novo vira real (22b:
+  // "Salvar p/ depois" e "Começar").
+  function offerUnmarkAlreadyRead(plan) {
+    const newTexts = deriveThemeTexts(plan.passages)
+    const alreadyReadTexts = newTexts.filter(txt => sessionKeys(txt).some(k => completedSet.has(k)))
+    if (alreadyReadTexts.length > 0 && window.confirm(t('themePlan.unmarkReadConfirm', { count: alreadyReadTexts.length }, session.lang))) {
+      alreadyReadTexts.forEach(txt => toggleSession(txt, false))
+    }
+  }
+
+  // "Salvar p/ depois" (22b) — persiste o plano na lista, mas não o torna
+  // ativo. Aparece na lista de planos de ThemePlanScreen pra ativar depois.
+  async function saveStudyForLater(plan) {
+    if (!authUser) return
+    const updated = await saveThemePlan(authUser.email, plan)
+    setThemePlans(updated)
+    setGeneratedStudyPlan(null)
+    offerUnmarkAlreadyRead(plan)
+    goToTab('routine')
+  }
+
+  // "Começar hoje/amanhã" (22b) — salva e ativa de uma vez. `startedToday`
+  // decide se pula direto pra leitura (ainda não leu nada hoje) ou só
+  // ativa e volta pra Meu Plano (leitura de hoje já em andamento — mesma
+  // regra do quadro: "'hoje' aparece se ainda não leu").
+  async function startGeneratedStudy(plan, startedToday) {
+    if (!authUser) return
+    const updated = await saveThemePlan(authUser.email, plan)
+    setThemePlans(updated)
+    setGeneratedStudyPlan(null)
+    offerUnmarkAlreadyRead(plan)
+    const passages = updated.find(p => p.id === plan.id)?.passages ?? plan.passages
+    const keys = passages[0] ? [themeTextKey(passages[0])] : []
+    if (startedToday) addThemePlanToRoutine(plan.id, keys)
+    else startThemePlanReadingToday(plan.id, keys)
+  }
+
   // Tocar numa sessão da lista "Sessões do plano" (PlanScreen.jsx) quando o
   // plano ativo é o cronológico — mesma ideia de openReadingSession acima,
   // só que abrindo o movimento certo em ChronologicalPlanScreen em vez do
@@ -1292,6 +1379,14 @@ export default function App() {
     if (authUser) {
       persistActiveAltPlan(authUser.email, ref).catch(err => console.error('Failed to persist active alt plan', err))
     }
+  }
+
+  // "Retomar já" (quadro 22c) — volta pro plano fixo (Gênesis…), largando
+  // o estudo/cronológico ativo. Passa o MESMO planId já em uso (não muda
+  // de ritmo, só desliga o activeAltPlan) — selectActivePlan({type:'fixed'})
+  // é o mecanismo de sempre pra isso.
+  function resumeFixedPlan() {
+    selectActivePlan({ type: 'fixed', id: planId })
   }
 
   // Escolhe quais textos de um plano por tema a pessoa vai ler HOJE (card do
@@ -1686,7 +1781,7 @@ export default function App() {
       ? <HomeDashboard session={session} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />
       : <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />,
     routine: hasPremium
-      ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
+      ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     adjustPlan: hasPremium
       ? <AdjustPlanScreen session={session} activeAltPlan={activeAltPlan} onSelectPace={selectPlan} onSelectActivePlan={selectActivePlan} onToggleRoutineModule={toggleRoutineModule} onSelectWeeklyGoal={selectWeeklyGoalDays} onNavigate={navigateTo} onBack={goBack} />
@@ -1699,7 +1794,15 @@ export default function App() {
     inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
     themePlan: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
-      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onAddSessionsToRoutine={addThemePlanToRoutine} onStartThemeReading={startThemePlanReadingToday} onGoToReflectionFrom={goToReflectionFrom} />,
+      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('createStudy')} onGoToReflectionFrom={goToReflectionFrom} />,
+    // Etapa 10 (22a/22b) — "Criar estudo" e a proposta gerada, alcançadas
+    // pelo botão "Criar" em Meu Plano (RoutineScreen.jsx).
+    createStudy: !session.hasAI
+      ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
+      : <CreateStudyScreen session={session} onBack={goBack} onGenerated={reviewGeneratedStudy} />,
+    studyProposal: generatedStudyPlan
+      ? <StudyProposalScreen session={session} plan={generatedStudyPlan} onBack={goBack} onRefazer={refazerGeneratedStudy} onSaveForLater={saveStudyForLater} onStart={startGeneratedStudy} />
+      : null,
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
@@ -1783,13 +1886,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">
