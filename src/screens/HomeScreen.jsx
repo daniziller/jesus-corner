@@ -45,7 +45,7 @@ export function greetingFor(lang, name) {
   return translate(`home.${key}`, { name }, lang)
 }
 
-export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onStartGuided }) {
+export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onStartGuided, onOpenProfile }) {
   const {
     lang, hasPremium, userName, avatarInitials, todaySession, weeksInGoal,
     biblePercent, chaptersRead, totalChapters,
@@ -118,9 +118,9 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
           <p style={styles.greeting}>{greeting}</p>
           <p style={styles.date}>{dateLabel}</p>
         </div>
-        {/* O avatar é a única porta pro Perfil desde que o cabeçalho com
-            logotipo/sino saiu das telas Bento (ver bentoScreen em App.jsx). */}
-        <button style={styles.avatar} onClick={() => onNavigate?.('profile')} aria-label={translate('nav.profile', undefined, lang)}>
+        {/* O avatar abre a folha do Perfil (19a) por cima da Home, sem
+            navegar de aba — ver ProfileSheet.jsx/profileOpen em App.jsx. */}
+        <button style={styles.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
           {avatarInitials}
         </button>
       </div>

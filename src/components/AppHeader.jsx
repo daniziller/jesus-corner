@@ -4,7 +4,7 @@ import BrandMark from './BrandMark'
 import BrandLogo from './BrandLogo'
 import { t } from '../i18n'
 
-export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onBack, canGoBack, pendingCount = 0, lang, largeText, onToggleLargeText }) {
+export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onOpenProfile, onBack, canGoBack, pendingCount = 0, lang, largeText, onToggleLargeText }) {
   return (
     <div className="app-header" style={styles.header}>
       <div style={styles.leftGroup}>
@@ -34,7 +34,7 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onBac
         </button>
         <NotificationBell pendingCount={pendingCount} onNavigate={onNavigate} lang={lang} variant="header" />
         <div style={styles.avatarSlot}>
-          <div style={styles.avatar} onClick={() => onNavigate?.('profile')}>
+          <div style={styles.avatar} onClick={() => onOpenProfile?.()}>
             {avatarUrl
               ? <img src={avatarUrl} alt="" style={styles.avatarImg} />
               : avatarInitials

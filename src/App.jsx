@@ -36,6 +36,8 @@ import StudiesScreen from './screens/StudiesScreen'
 import InductiveMethodScreen from './screens/InductiveMethodScreen'
 import ProgressScreen from './screens/ProgressScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import ProfileSheet from './screens/ProfileSheet'
+import LanguageSettingsScreen from './screens/LanguageSettingsScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
 import HandsFreeScreen from './screens/HandsFreeScreen'
@@ -357,6 +359,13 @@ export default function App() {
   // próprio) continua dependendo dele. GroupsScreen avisa qual dos dois
   // está de fato na tela (onDetailOpenChange) pra o shell decidir.
   const [groupsDetailOpen, setGroupsDetailOpen] = useState(false)
+  // Perfil como folha (quadro 19a) — sobe por cima da tela atual (com a
+  // barra de abas continuando visível/tocável embaixo dela), em vez de
+  // navegar pra uma aba própria. Alcançado pelo avatar (Home e AppHeader,
+  // nas telas ainda com AppHeader — ver comentário mais abaixo). O
+  // Sidebar de telas ≥768px continua indo pra 'profile' (ProfileScreen
+  // antigo, tela cheia) — layout de desktop fora do escopo deste redesign.
+  const [profileOpen, setProfileOpen] = useState(false)
   // Status da assinatura (Stripe) — ver src/billing/subscriptionStore.js.
   // null enquanto não carregou ou pra quem nunca assinou.
   const [subscription, setSubscription] = useState(null)
@@ -1672,7 +1681,7 @@ export default function App() {
     // semana cumprida (ver shouldShowDashboard).
     home: shouldShowDashboard(session)
       ? <HomeDashboard session={session} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
-      : <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />,
+      : <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />,
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
@@ -1733,7 +1742,11 @@ export default function App() {
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
     upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
+    // Só alcançada pelo Sidebar (telas ≥768px) — no app (<768px) o avatar
+    // abre a folha ProfileSheet (renderizada fora deste mapa, ver abaixo).
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onSelectPace={selectPlan} onProfileUpdated={handleProfileUpdated} />,
+    // Bento 19b — Idioma e versão da Bíblia, alcançada pela folha do Perfil.
+    language: <LanguageSettingsScreen session={session} authUser={authUser} onBack={goBack} onChangeLanguage={changeLanguage} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
     ...(isAdmin ? { admin: <AdminScreen session={session} /> } : {}),
@@ -1753,23 +1766,25 @@ export default function App() {
   // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f, 5d, 21a): nenhum quadro
   // tem o cabeçalho com logotipo/sino/avatar — o título de cada tela é a
   // saudação ou o nome dela (ADENDO: "os cabeçalhos usam saudação"). O
-  // AppHeader fica só nas telas que ainda não foram desenhadas (Perfil,
-  // Estudos…), e é lá que continuam o sino e o ajuste de tamanho de texto.
-  // Perfil é alcançado pelo avatar da Home. 'groups' só entra quando um
-  // grupo está aberto de fato (groupsDetailOpen — o painel 5d, que tem
-  // cabeçalho próprio); a lista de vários grupos, sem quadro no redesign,
+  // AppHeader fica só nas telas que ainda não foram desenhadas (Estudos…),
+  // e é lá que continuam o sino e o ajuste de tamanho de texto. Perfil não
+  // é mais uma dessas — virou a folha ProfileSheet (19a), aberta pelo
+  // avatar (Home e o próprio AppHeader) por cima de qualquer tela, sem
+  // navegar de aba. 'groups' só entra quando um grupo está aberto de fato
+  // (groupsDetailOpen — o painel 5d, que tem cabeçalho próprio); a lista
+  // de vários grupos, sem quadro no redesign,
   // continua usando o AppHeader antigo, como sempre usou — só o painel de
   // dentro de um grupo tinha o AppHeader antigo empilhado por cima do
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">
@@ -1782,7 +1797,7 @@ export default function App() {
         {/* Header fixo (logo + avatar), presente em todas as abas — só em
             telas <768px; a leitura imersiva usa o próprio cabeçalho compacto. */}
         {!immersiveReading && !bentoScreen && (
-          <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} onBack={goBack} canGoBack={tabHistory.length > 0} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
+          <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} onOpenProfile={() => setProfileOpen(true)} onBack={goBack} canGoBack={tabHistory.length > 0} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
         )}
 
         {/* Conteúdo da tela ativa */}
@@ -1824,6 +1839,22 @@ export default function App() {
         )}
       </div>
 
+      <ProfileSheet
+        open={profileOpen}
+        session={session}
+        authUser={authUser}
+        subscription={subscription}
+        isAdmin={isAdmin}
+        largeText={largeText}
+        onToggleLargeText={toggleLargeText}
+        onNavigate={navigateTo}
+        onClose={() => setProfileOpen(false)}
+        onLogout={handleLogout}
+        onResetProgress={handleResetProgress}
+        onChangeReadingOrder={selectReadingOrder}
+        onSelectPace={selectPlan}
+        onProfileUpdated={handleProfileUpdated}
+      />
       <AchievementCelebration achievement={celebratingAchievement} lang={session.lang} onClose={dismissAchievementCelebration} />
       <Analytics />
     </div>

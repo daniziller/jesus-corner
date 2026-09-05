@@ -709,6 +709,21 @@ html.large-text .app-content-inner {
   }
 }
 
+/* ── Folha do Perfil (ProfileSheet.jsx, quadro 19a) — única folha do app
+   que fica ACIMA da barra de abas (não some por baixo dela como as
+   demais), então não pode usar o mesmo "bottom: 0" das outras. No
+   mobile, sobra --nav-height (76px) pra barra continuar visível/tocável
+   embaixo; no desktop (≥768px), .bottom-nav já é display:none (ver
+   bloco "≥768px" abaixo), então a folha desce até o fim de verdade. */
+.profile-sheet-panel {
+  bottom: var(--nav-height);
+}
+@media (min-width: 768px) {
+  .profile-sheet-panel {
+    bottom: 0;
+  }
+}
+
 /* ── Responsive (tablet/desktop, ≥768px — abandona a moldura de celular
    por um shell com navegação lateral) ── */
 @media (min-width: 768px) {
