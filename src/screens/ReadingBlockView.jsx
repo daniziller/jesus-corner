@@ -1024,9 +1024,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
 
   return (
     <>
-    {/* Portal pro <body> — não pro fluxo normal: .app-content-inner tem
-        zoom:1.15 (recurso de texto grande, sempre ativo nessa escala
-        mínima), e "zoom" cria um novo bloco de containment pra
+    {/* Portal pro <body> — não pro fluxo normal: .app-content-inner ganha
+        zoom quando "texto grande" está ligado (ver html.large-text em
+        index.css), e "zoom" cria um novo bloco de containment pra
         position:fixed no Chrome/Safari, fazendo o botão calcular a
         posição errada (testado: aparecia fora da tela). Fora dessa
         árvore, o mesmo truque de centralização de .bottom-nav
@@ -1194,8 +1194,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           {headerAndPanels}
         </div>
         {/* Rodapé portalado pro <body> — position:fixed dentro de
-            .app-content-inner (zoom:1.15) calcularia a posição errada, mesmo
-            problema/solução dos FABs mais abaixo e da .bottom-nav. */}
+            .app-content-inner com zoom ligado (texto grande) calcularia a
+            posição errada, mesmo problema/solução dos FABs mais abaixo e
+            da .bottom-nav. */}
         {!askMenuOpen && createPortal(
           <div style={styles.readerFooter}>
             {/* Chave da camada do grupo (quadro 17c) — só pra quem está num grupo. */}
@@ -3029,7 +3030,8 @@ const styles = {
   // (ancorada embaixo, tipo bandeja de mensagens), sem tirar a pessoa da
   // posição de rolagem em que estava. Mesmo truque de centralização de
   // .bottom-nav/.aiFabWrap, portada pro <body> (ver comentário no JSX
-  // sobre zoom:1.15 quebrar position:fixed dentro de .app-content-inner).
+  // sobre zoom quebrar position:fixed dentro de .app-content-inner quando
+  // "texto grande" está ligado).
   aiChatOverlayBackdrop: { position: 'fixed', inset: 0, background: 'rgba(18,18,18,.32)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   aiChatOverlayWindow: { width: '100%', maxWidth: 'var(--max-width)', height: '72vh', maxHeight: 640, background: 'var(--white)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(0,0,0,.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
   aiChatOverlayHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '0.5px solid var(--g1)', flexShrink: 0 },
