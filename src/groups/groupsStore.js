@@ -198,3 +198,14 @@ export async function updateGroupInfo(groupId, name, description) {
   })
   if (error) throw new Error(error.message)
 }
+
+// Remove um membro comum do grupo (quadro 19c, opção "remover" ao tocar
+// num membro) — só moderador, e nunca sobre outro moderador ou a própria
+// linha (ver migration 0047_group_remove_member.sql).
+export async function removeGroupMember(groupId, userId) {
+  const { error } = await supabase.rpc('remove_group_member', {
+    target_group_id: groupId,
+    target_user_id: userId,
+  })
+  if (error) throw new Error(error.message)
+}

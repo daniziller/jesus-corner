@@ -10,6 +10,7 @@ import {
 import {
   getMyGroups, getPendingGroupInvites, getGroupDetail, createGroup,
   inviteFriendToGroup, respondToGroupInvite, leaveGroup, setMemberRole,
+  redeemGroupInviteCode,
 } from '../groups/groupsStore'
 import { createChallenge, getChallengesForGroup, getChallengeLeaderboard, completeChallenge } from '../groups/challengesStore'
 import { getComments, postComment, deleteComment, toggleCommentLike, setCommentPinned } from '../groups/commentsStore'
@@ -167,12 +168,18 @@ function GroupsEmptyState({ lang }) {
   )
 }
 
-/* ── Lista de grupos + criar grupo ── */
+/* ── Lista de grupos + criar grupo + entrar com código ── */
 function GroupsListSection({ groups, lang, onOpen, onCreate }) {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const [joining, setJoining] = useState(false)
+  const [code, setCode] = useState('')
+  const [joinLoading, setJoinLoading] = useState(false)
+  const [joinError, setJoinError] = useState('')
+  const [joinSuccess, setJoinSuccess] = useState('')
 
   async function submit(e) {
     e.preventDefault()
@@ -190,14 +197,60 @@ function GroupsListSection({ groups, lang, onOpen, onCreate }) {
     }
   }
 
+  // Entrar num grupo pelo código de convite (quadro 19c) — não entra na
+  // hora: cria um pedido 'requested' que um moderador do grupo aprova
+  // depois (ver redeemGroupInviteCode/groupAdmin.joinRequestsLabel).
+  async function submitJoin(e) {
+    e.preventDefault()
+    if (!code.trim()) return
+    setJoinLoading(true)
+    setJoinError('')
+    try {
+      const { name: groupName } = await redeemGroupInviteCode(code)
+      setJoinSuccess(t('groups.joinRequestSent', { group: groupName }, lang))
+      setCode('')
+      setJoining(false)
+    } catch (err) {
+      setJoinError(
+        err.message === 'invalid_code' ? t('groups.joinCodeInvalid', undefined, lang)
+        : err.message === 'already_in_group' ? t('groups.joinCodeAlready', undefined, lang)
+        : err.message
+      )
+    } finally {
+      setJoinLoading(false)
+    }
+  }
+
   return (
     <div>
       <div className="section-header">
         <h3 className="section-title">{t('groups.myGroupsTitle', undefined, lang)}</h3>
-        <span className="section-link" onClick={() => setCreating(v => !v)}>
-          {creating ? t('groups.cancel', undefined, lang) : t('groups.createGroup', undefined, lang)}
+        <span style={{ display: 'flex', gap: 12 }}>
+          <span className="section-link" onClick={() => { setJoining(v => !v); setJoinError(''); setJoinSuccess('') }}>
+            {joining ? t('groups.cancel', undefined, lang) : t('groups.joinWithCode', undefined, lang)}
+          </span>
+          <span className="section-link" onClick={() => setCreating(v => !v)}>
+            {creating ? t('groups.cancel', undefined, lang) : t('groups.createGroup', undefined, lang)}
+          </span>
         </span>
       </div>
+
+      {joining && (
+        <form onSubmit={submitJoin} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input
+            style={styles.input}
+            placeholder={t('groups.joinCodePlaceholder', undefined, lang)}
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            autoFocus
+          />
+          <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={joinLoading}>
+            {joinLoading ? t('groups.loading', undefined, lang) : t('groups.join', undefined, lang)}
+          </button>
+        </form>
+      )}
+      {joinError && <p style={styles.error}>{joinError}</p>}
+      {joinSuccess && <p style={styles.emptyHint}>{joinSuccess}</p>}
 
       {creating && (
         <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
