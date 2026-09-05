@@ -1027,6 +1027,11 @@ export const STRINGS = {
       filterHighlights: 'Marcações',
       filterStudy: 'Estudos',
       filterSermon: 'Sermões',
+      // Adição do README §13 ("perguntas guardadas da IA, vindas de 10f") —
+      // sem quadro desenhado, mesmo tratamento visual das demais peças
+      // desta tela (chip + rótulo colorido no card, ver TYPE_COLOR).
+      filterQuestions: 'Perguntas',
+      typeQuestion: 'Pergunta',
       studyStart: 'Começar',
       studyReview: 'Concluído · revisar',
       studyResume: 'Passo {step} de {total} · retomar',
@@ -2711,6 +2716,8 @@ export const STRINGS = {
       filterHighlights: 'Highlights',
       filterStudy: 'Studies',
       filterSermon: 'Sermons',
+      filterQuestions: 'Questions',
+      typeQuestion: 'Question',
       studyStart: 'Start',
       studyReview: 'Completed · review',
       studyResume: 'Step {step} of {total} · resume',
