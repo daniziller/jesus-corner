@@ -28,6 +28,13 @@ export const ACHIEVEMENTS = [
   { id: 'whole-bible', icon: 'Crown', tone: 'gold', xp: 3000, title: { pt: 'Bíblia completa!', en: 'Whole Bible!' }, desc: { pt: 'Leia a Bíblia inteira do início ao fim', en: 'Read the entire Bible from start to finish' }, check: ctx => ctx.biblePercent >= 100 },
   { id: 'first-prayer-request', icon: 'HandHeart', tone: 'prayer', xp: 20, title: { pt: 'Primeira oração registrada', en: 'First prayer logged' }, desc: { pt: 'Adicione seu primeiro pedido de oração', en: 'Add your first prayer request' }, check: ctx => ctx.requestsAdded >= 1 },
   { id: 'five-prayer-requests', icon: 'Repeat', tone: 'prayer', xp: 60, title: { pt: 'Guerreiro de oração', en: 'Prayer warrior' }, desc: { pt: 'Registre 5 pedidos de oração', en: 'Log 5 prayer requests' }, check: ctx => ctx.requestsAdded >= 5 },
+  // As duas de baixo (requestsAnswered) ficaram congeladas no Bloco 11: o
+  // diário pessoal de oração (pasta "Atendidos", que incrementava isso) saiu
+  // de vez da Súplica — o pedido social novo (25a/25b) só tem 'open'/
+  // 'closed', sem estado "atendido" (encerrar não é o mesmo que "Deus
+  // respondeu"). Quem já tinha desbloqueado continua com a conquista; quem
+  // não tinha não desbloqueia mais — decisão tomada com a autora, ver
+  // PrayerScreen.jsx.
   { id: 'first-answered-prayer', icon: 'Sparkles', tone: 'prayer', xp: 30, title: { pt: 'Deus responde!', en: 'God answers!' }, desc: { pt: 'Marque seu primeiro pedido como atendido', en: 'Mark your first request as answered' }, check: ctx => ctx.requestsAnswered >= 1 },
   { id: 'five-answered-prayers', icon: 'Award', tone: 'prayer', xp: 100, title: { pt: 'Testemunha de milagres', en: 'Witness to miracles' }, desc: { pt: '5 pedidos de oração atendidos', en: '5 prayer requests answered' }, check: ctx => ctx.requestsAnswered >= 5 },
   { id: 'first-prayer-timer', icon: 'Hourglass', tone: 'prayer', xp: 25, title: { pt: 'Tempo com Deus', en: 'Time with God' }, desc: { pt: 'Complete o cronômetro de oração pela primeira vez', en: 'Complete the prayer timer for the first time' }, check: ctx => ctx.timerCompletions >= 1 },

@@ -482,6 +482,29 @@ ${buildFieldsLangInstruction(lang, 'paragraph')}`,
   return output
 }
 
+// "Escrever com ajuda" (tela 25b) — transforma um desabafo longo num
+// pedido de oração de até 240 caracteres, em primeira pessoa. Igual a
+// composeReflection: só gera o rascunho, a pessoa aprova (ou edita) antes
+// de publicar — nunca automático, nunca salva sozinho.
+const ComposePrayerRequestSchema = z.object({
+  request: z.string().max(240).describe('O pedido de oração reescrito como UMA frase curta (até 240 caracteres), em primeira pessoa, no idioma pedido — preserva o assunto e o sentimento real do desabafo original, sem inventar detalhes nem adicionar uma conclusão piedosa que a pessoa não escreveu.'),
+})
+
+export async function composePrayerRequest({ text, lang }) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: ComposePrayerRequestSchema }),
+    prompt: `Uma pessoa escreveu um desabafo longo que quer transformar num pedido de oração curto pra compartilhar com seu grupo ou amigos:
+
+"${text}"
+
+Reescreva como um pedido de oração de até 240 caracteres, em primeira pessoa, mantendo o assunto e o sentimento reais do desabafo.
+
+${buildFieldsLangInstruction(lang, 'request')}`,
+  })
+  return output
+}
+
 // Boletim semanal (aba Notificações + email, ver api/send-weekly-digest.js)
 // — resume a semana de quem usa o app. Métricas (nível, XP, semanas na
 // meta, % da Bíblia) e frases de aplicação NÃO vêm da IA — são dado real,

@@ -137,9 +137,13 @@ const ACTS_DATA = [
     verseBg: '#EEF2FF',
     verseBorder: '#4F46E5',
     verseRefColor: '#4338CA',
+    // Texto de 25a ("Súplica · para hoje", o cartão escuro): "comece pelos
+    // seus" é sobre os SEUS próprios pedidos silenciosos, não uma lista —
+    // "os pedidos abaixo" são os até 3 de quem espera oração, renderizados
+    // logo depois deste painel (ver PrayerScreen.jsx).
     description: {
-      pt: 'Com o coração preparado, traga seus pedidos a Deus — e os dos outros.',
-      en: "With your heart prepared, bring your requests to God — and those of others.",
+      pt: 'Comece pelos seus — depois leve os pedidos abaixo, se houver. Um toque marca que você orou.',
+      en: 'Start with your own — then bring the requests below, if any. One tap marks that you prayed.',
     },
     steps: {
       pt: [

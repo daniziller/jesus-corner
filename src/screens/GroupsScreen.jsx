@@ -19,9 +19,9 @@ import { getFriendProfile, getFriendProgressSummary } from '../profile/profileSt
 import { logActivity, getFriendsActivity } from '../activity/activityStore'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import {
-  getPrayerRequests, postPrayerRequest, deletePrayerRequest, togglePraying,
-  getPrayerComments, postPrayerComment, deletePrayerComment, toggleCommentLike as togglePrayerCommentLike,
+  getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest, togglePraying,
 } from '../groups/prayerRequestsStore'
+import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
 import { getRoomStats } from '../groups/chapterRoomStore'
 import { formatRelativeTime } from '../utils/time'
 import ActivityFeedItem from '../components/ActivityFeedItem'
@@ -229,6 +229,7 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
             groupName={openGroup.name}
             lang={lang}
             authUser={authUser}
+            hasAI={session.hasAI}
             todaySession={todaySession}
             onOpenGroupRoom={onOpenGroupRoom}
             onBack={() => setOpenGroupId(null)}
@@ -520,7 +521,7 @@ function StatItemSmall({ value, label }) {
 // de "ver mais" — decisão da autora: o quadro 5d não desenha desafios nem
 // lista de membros, então isso sai do primeiro plano em vez de ser recriado
 // do zero num visual que o quadro nunca definiu.
-function GroupDetailView({ groupId, groupName, lang, authUser, todaySession, onOpenGroupRoom, onBack, onLeft }) {
+function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySession, onOpenGroupRoom, onBack, onLeft }) {
   const [view, setView] = useState('home') // 'home' | 'challenge' | 'prayer' | 'discussion'
   const [autoInvite, setAutoInvite] = useState(false)
   const [detail, setDetail] = useState(null)
@@ -597,7 +598,7 @@ function GroupDetailView({ groupId, groupName, lang, authUser, todaySession, onO
           />
         )}
         {view === 'prayer' && (
-          <GroupPrayerTab groupId={groupId} isModerator={isModerator} authUser={authUser} lang={lang} />
+          <GroupPrayerTab groupId={groupId} isModerator={isModerator} authUser={authUser} lang={lang} hasAI={hasAI} />
         )}
         {view === 'discussion' && (
           <DiscussionTab groupId={groupId} members={detail.members} isModerator={isModerator} authUser={authUser} lang={lang} />
@@ -634,7 +635,10 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
   }, [groupId, hasReading, todaySession?.book, todaySession?.chStart])
 
   useEffect(() => {
-    getPrayerRequests(groupId).then(list => setLatestPrayer(list[0] ?? null)).catch(err => { console.error('Failed to load prayer requests', err); setLatestPrayer(null) })
+    // Feed (não a súplica capada em 3) porque isto é só uma prévia de UM
+    // grupo específico — mais recente primeiro, pode incluir um pedido meu
+    // (ver isMine abaixo: nesse caso não faz sentido mostrar o botão Orei).
+    getPrayerRequestsFeed(groupId, 1).then(list => setLatestPrayer(list[0] ?? null)).catch(err => { console.error('Failed to load prayer requests', err); setLatestPrayer(null) })
     // getComments vem em ordem crescente (ver commentsStore.js) — a mais
     // recente é a última do array, fixada ou não (aqui é só uma prévia).
     getComments(groupId).then(list => setLatestNote(list[list.length - 1] ?? null)).catch(err => { console.error('Failed to load comments', err); setLatestNote(null) })
@@ -642,8 +646,8 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
 
   function handlePray(e) {
     e.stopPropagation()
-    if (!latestPrayer) return
-    setLatestPrayer(p => ({ ...p, prayingByMe: !p.prayingByMe, prayingCount: p.prayingCount + (p.prayingByMe ? -1 : 1) }))
+    if (!latestPrayer || latestPrayer.isMine) return
+    setLatestPrayer(p => ({ ...p, prayingByMe: !p.prayingByMe, prayCount: p.prayCount + (p.prayingByMe ? -1 : 1) }))
     togglePraying(latestPrayer.id).catch(err => console.error('Failed to toggle praying', err))
   }
 
@@ -709,10 +713,12 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
           </div>
           {latestPrayer === undefined ? null : latestPrayer ? (
             <>
-              <p style={styles.prayerQuote}>"{latestPrayer.body}" — {latestPrayer.authorName}</p>
+              <p style={styles.prayerQuote}>"{latestPrayer.body}" — {latestPrayer.anonymous ? t('prayer.anonymousLabel', undefined, lang) : latestPrayer.authorName}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button style={styles.prayBtn} onClick={handlePray}>{t('groups.homePrayBtn', undefined, lang)}</button>
-                <span style={styles.prayerCount}>{t('groups.homePrayedCount', { n: latestPrayer.prayingCount }, lang)}</span>
+                {!latestPrayer.isMine && (
+                  <button style={styles.prayBtn} onClick={handlePray}>{t('groups.homePrayBtn', undefined, lang)}</button>
+                )}
+                <span style={styles.prayerCount}>{t('groups.homePrayedCount', { n: latestPrayer.prayCount }, lang)}</span>
               </div>
             </>
           ) : (
@@ -1187,193 +1193,87 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
   )
 }
 
-/* ── Aba Oração: pedidos do grupo, "orando por isso" (mãos unidas) e
-   comentários por pedido (com curtida) ── */
-function GroupPrayerTab({ groupId, isModerator, authUser, lang }) {
+/* ── Aba Oração: pedidos deste grupo, modelo novo (25a/25b, Bloco 11) —
+   sem comentário nenhum (o design novo proíbe), "Orei" só conta, nunca
+   expõe quem (ver get_prayer_requests_feed). Publicar abre a mesma folha
+   de 25b, já com este grupo escolhido. ── */
+function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
   const [requests, setRequests] = useState([])
-  const [body, setBody] = useState('')
-  const [posting, setPosting] = useState(false)
-  const [expandedRequestId, setExpandedRequestId] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
 
   function reload() {
-    getPrayerRequests(groupId).then(setRequests).catch(err => console.error('Failed to load prayer requests', err))
+    getPrayerRequestsFeed(groupId).then(setRequests).catch(err => console.error('Failed to load prayer requests', err))
   }
 
   useEffect(() => { reload() }, [groupId])
 
-  async function submit(e) {
-    e.preventDefault()
-    if (!body.trim()) return
-    setPosting(true)
-    try {
-      await postPrayerRequest(groupId, body)
-      setBody('')
-      reload()
-    } catch (err) {
-      console.error('Failed to post prayer request', err)
-    } finally {
-      setPosting(false)
-    }
-  }
-
   async function handleDelete(requestId) {
     if (!window.confirm(t('groups.deletePrayerRequestConfirm', undefined, lang))) return
     await deletePrayerRequest(requestId)
-    if (expandedRequestId === requestId) setExpandedRequestId(null)
     reload()
   }
 
-  async function handleTogglePraying(request) {
+  function handleClose(requestId) {
+    if (!window.confirm(t('prayer.closeRequestConfirm', undefined, lang))) return
+    setRequests(prev => prev.filter(r => r.id !== requestId))
+    closePrayerRequest(requestId).catch(err => console.error('Failed to close prayer request', err))
+  }
+
+  function handleTogglePraying(request) {
     // otimista: atualiza local antes de esperar o servidor
     setRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayingByMe: !r.prayingByMe, prayingCount: r.prayingCount + (r.prayingByMe ? -1 : 1) }
+      ? { ...r, prayingByMe: !r.prayingByMe, prayCount: r.prayCount + (r.prayingByMe ? -1 : 1) }
       : r))
     togglePraying(request.id).catch(err => console.error('Failed to toggle praying', err))
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <textarea
-          style={styles.textarea}
-          placeholder={t('groups.prayerRequestPlaceholder', undefined, lang)}
-          value={body}
-          onChange={e => setBody(e.target.value)}
-          rows={3}
-        />
-        <button type="submit" className="btn-primary" disabled={posting}>
-          {posting ? t('groups.loading', undefined, lang) : t('groups.postPrayerRequest', undefined, lang)}
-        </button>
-      </form>
+      <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+        {t('groups.postPrayerRequest', undefined, lang)}
+      </button>
 
       {requests.length === 0 ? (
         <p style={styles.emptyHint}>{t('groups.noPrayerRequestsYet', undefined, lang)}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {requests.map(r => {
-            const canDelete = r.userId === authUser?.id || isModerator
-            const expanded = expandedRequestId === r.id
+            const canDelete = isModerator && !r.isMine
             return (
               <div key={r.id} style={styles.commentCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={styles.commentAuthor}>{r.authorName}</span>
+                  <span style={styles.commentAuthor}>{r.anonymous ? t('prayer.anonymousLabel', undefined, lang) : r.authorName}</span>
                   <span style={styles.commentDate}>{formatDate(r.createdAt, lang)}</span>
                 </div>
                 <p style={styles.commentBody}>{r.body}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
-                  <button style={{ ...styles.prayingBtn, ...(r.prayingByMe ? styles.prayingBtnActive : {}) }} onClick={() => handleTogglePraying(r)}>
-                    <AppIcon name="HandHeart" size={13} color={r.prayingByMe ? 'var(--or)' : 'var(--g4)'} /> {t('groups.prayingCount', { n: r.prayingCount }, lang)}
-                  </button>
-                  <button style={styles.smallLinkBtn} onClick={() => setExpandedRequestId(expanded ? null : r.id)}>
-                    <AppIcon name="MessageCircle" size={12} style={{ verticalAlign: 'middle', marginRight: 3 }} />
-                    {t('groups.commentsCount', { n: r.commentCount }, lang)}
-                  </button>
+                  {r.isMine ? (
+                    <button style={styles.smallLinkBtn} onClick={() => handleClose(r.id)}>{t('prayer.closeRequestBtn', undefined, lang)}</button>
+                  ) : (
+                    <button style={{ ...styles.prayingBtn, ...(r.prayingByMe ? styles.prayingBtnActive : {}) }} onClick={() => handleTogglePraying(r)}>
+                      <AppIcon name="HandHeart" size={13} color={r.prayingByMe ? 'var(--or)' : 'var(--g4)'} /> {t('groups.homePrayedCount', { n: r.prayCount }, lang)}
+                    </button>
+                  )}
                   {canDelete && (
                     <button style={styles.smallLinkBtn} onClick={() => handleDelete(r.id)}>{t('groups.deleteComment', undefined, lang)}</button>
                   )}
                 </div>
-                {expanded && (
-                  <PrayerRequestComments
-                    requestId={r.id}
-                    isModerator={isModerator}
-                    authUser={authUser}
-                    lang={lang}
-                    onCountChange={n => setRequests(prev => prev.map(req => req.id === r.id ? { ...req, commentCount: n } : req))}
-                  />
-                )}
               </div>
             )
           })}
         </div>
       )}
-    </div>
-  )
-}
 
-/* ── Comentários de um pedido de oração específico — mesma UI de
-   comentário/curtida do mural de discussão, só que aninhada dentro do
-   pedido em vez de num mural plano. ── */
-function PrayerRequestComments({ requestId, isModerator, authUser, lang, onCountChange }) {
-  const [comments, setComments] = useState([])
-  const [body, setBody] = useState('')
-  const [posting, setPosting] = useState(false)
-
-  function reload() {
-    getPrayerComments(requestId).then(data => {
-      setComments(data)
-      onCountChange?.(data.length)
-    }).catch(err => console.error('Failed to load prayer comments', err))
-  }
-
-  useEffect(() => { reload() }, [requestId])
-
-  async function submit(e) {
-    e.preventDefault()
-    if (!body.trim()) return
-    setPosting(true)
-    try {
-      await postPrayerComment(requestId, body)
-      setBody('')
-      reload()
-    } catch (err) {
-      console.error('Failed to post prayer comment', err)
-    } finally {
-      setPosting(false)
-    }
-  }
-
-  async function handleDelete(commentId) {
-    if (!window.confirm(t('groups.deleteCommentConfirm', undefined, lang))) return
-    await deletePrayerComment(commentId)
-    reload()
-  }
-
-  async function handleLike(comment) {
-    setComments(prev => prev.map(c => c.id === comment.id
-      ? { ...c, likedByMe: !c.likedByMe, likeCount: c.likeCount + (c.likedByMe ? -1 : 1) }
-      : c))
-    togglePrayerCommentLike(comment.id).catch(err => console.error('Failed to toggle like', err))
-  }
-
-  return (
-    <div style={styles.prayerCommentsWrap}>
-      {comments.length === 0 ? (
-        <p style={{ ...styles.emptyHint, marginBottom: 8 }}>{t('groups.noCommentsYet', undefined, lang)}</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
-          {comments.map(c => {
-            const canDelete = c.userId === authUser?.id || isModerator
-            return (
-              <div key={c.id} style={styles.prayerCommentItem}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={styles.commentAuthor}>{c.authorName}</span>
-                  <span style={styles.commentDate}>{formatDate(c.createdAt, lang)}</span>
-                </div>
-                <p style={styles.commentBody}>{c.body}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-                  <button style={{ ...styles.likeBtn, ...(c.likedByMe ? styles.likeBtnActive : {}) }} onClick={() => handleLike(c)}>
-                    <AppIcon name="Heart" size={12} color={c.likedByMe ? 'var(--or)' : 'var(--g4)'} /> {c.likeCount}
-                  </button>
-                  {canDelete && (
-                    <button style={styles.smallLinkBtn} onClick={() => handleDelete(c.id)}>{t('groups.deleteComment', undefined, lang)}</button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-      <form onSubmit={submit} style={{ display: 'flex', gap: 6 }}>
-        <input
-          style={styles.input}
-          placeholder={t('groups.commentPlaceholder', undefined, lang)}
-          value={body}
-          onChange={e => setBody(e.target.value)}
+      {addOpen && (
+        <AddPrayerRequestSheet
+          lang={lang}
+          authUser={authUser}
+          hasAI={hasAI}
+          defaultGroupId={groupId}
+          onClose={() => setAddOpen(false)}
+          onCreated={reload}
         />
-        <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 14px' }} disabled={posting}>
-          {posting ? t('groups.loading', undefined, lang) : t('groups.postComment', undefined, lang)}
-        </button>
-      </form>
+      )}
     </div>
   )
 }
@@ -1484,8 +1384,6 @@ const styles = {
   likeBtnActive: { color: 'var(--or)' },
   prayingBtn: { display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', color: 'var(--g5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 0 },
   prayingBtnActive: { color: 'var(--or)' },
-  prayerCommentsWrap: { marginTop: 10, paddingTop: 10, borderTop: '0.5px solid var(--g1)' },
-  prayerCommentItem: { background: 'var(--g1)', borderRadius: 10, padding: 9 },
 
   // Quadro 5d — painel único do grupo (GroupHomeView).
   homeWrap: { display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bento-bg)' },

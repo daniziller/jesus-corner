@@ -90,7 +90,9 @@ export default async function handler(req, res) {
     for (const { user_id } of tombstones ?? []) {
       try {
         const counts = await Promise.all(
-          ['group_comments', 'group_prayer_requests', 'group_prayer_comments', 'reading_groups', 'reading_challenges']
+          // group_prayer_comments saiu do banco na migration 0052 (pedido de
+          // oração não aceita mais comentário no design novo).
+          ['group_comments', 'group_prayer_requests', 'reading_groups', 'reading_challenges']
             .map(t => supabaseAdmin
               .from(t)
               .select('*', { count: 'exact', head: true })

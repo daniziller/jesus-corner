@@ -37,11 +37,13 @@ export default async function handler(req, res) {
 
   const [
     perfil, dados, assinatura, consentimentos,
-    comentarios, pedidosOracao, comentariosOracao,
+    comentarios, pedidosOracao,
     membroDeGrupos, progressoDesafios, notificacoes,
   ] = await Promise.all([
     grab('profiles'), grab('user_data'), grab('subscriptions'), grab('consents'),
-    grab('group_comments'), grab('group_prayer_requests'), grab('group_prayer_comments'),
+    // group_prayer_comments saiu do banco na migration 0052 — pedido de
+    // oração não aceita mais comentário no design novo (25a/25b).
+    grab('group_comments'), grab('group_prayer_requests'),
     grab('reading_group_members'), grab('reading_challenge_progress'), grab('notifications'),
   ])
 
@@ -73,7 +75,6 @@ export default async function handler(req, res) {
     conteudo_em_grupo: {
       comentarios,
       pedidos_de_oracao: pedidosOracao,
-      comentarios_em_pedidos: comentariosOracao,
     },
     notificacoes,
   }
