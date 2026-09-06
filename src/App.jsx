@@ -65,6 +65,8 @@ import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
 import { resolveActivePlanSessions } from './plan/resolveActivePlan'
+import { getStepMinutes, setStepMinutes as persistStepMinutes } from './plan/stepMinutesStore'
+import { setWeeklyDays as persistWeeklyDays, daysArrayForCount } from './routine/weeklyDaysStore'
 import { getThemePlans, saveThemePlan, generateThemePlan } from './themePlans/themePlansStore'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
@@ -102,8 +104,8 @@ import { logActivity } from './activity/activityStore'
 import { syncPushTimezone, subscribeToPush } from './notifications/pushStore'
 import { avatarInitialsOf } from './utils/avatarInitials'
 
-function defaultBlockIdFor(completedSet, planId, readingOrder) {
-  return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder).blocks).id
+function defaultBlockIdFor(completedSet, planId, readingOrder, readingMinutesPerDay = null) {
+  return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder, readingMinutesPerDay).blocks).id
 }
 
 // Sessão (e respectivo bloco) que o card "Continue sua leitura" da Home (e
@@ -150,7 +152,7 @@ function findCurrentReadingSession(blocks, sessionsByBlock, lastRead = null) {
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans, stepMinutes) {
   const lang = authUser.language ?? 'pt'
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
 
@@ -162,7 +164,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // pessoa escolheu ler hoje, se o plano ativo for por tema) também vem do
   // dia de hoje na rotina — ver src/routine/dailyRoutineStore.js/setThemePicks.
   const todayThemePicks = todayRoutine.themePicks
-  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans)
+  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, stepMinutes?.reading)
   // Sessão (e bloco) onde o usuário realmente parou — baseado no último
   // capítulo marcado como lido, não na ordem sugerida dos livros/blocos.
   // Continua olhando pra TODOS os textos do plano (não só os de hoje) —
@@ -187,7 +189,19 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     : null
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
-  const plan = { ...planRaw, label: lang === 'en' ? planRaw.labelEn : planRaw.label }
+  // Minutos de cada passo (Bloco 4 do redesign) — a fonte real agora é
+  // stepMinutes (conta, sincroniza entre aparelhos — ver stepMinutesStore.js),
+  // não mais o ritmo escolhido; planRaw só entra como PADRÃO enquanto a
+  // pessoa não tiver salvo nada ainda (stepMinutes.<passo> null). Leitura é
+  // a única sem 0 como resposta válida (ver validação no store) — sempre
+  // um número, nunca desliga o passo.
+  const plan = {
+    ...planRaw,
+    label: lang === 'en' ? planRaw.labelEn : planRaw.label,
+    prayerMinutes: stepMinutes?.prayer ?? planRaw.prayerMinutes,
+    readingMinutes: stepMinutes?.reading ?? planRaw.readingMinutes,
+    reflectionMinutes: stepMinutes?.reflection ?? planRaw.reflectionMinutes,
+  }
   const activePlan = {
     kind: activePlanData.kind,
     icon: activePlanData.icon,
@@ -555,6 +569,14 @@ export default function App() {
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [weeklyGoalDays, setWeeklyGoalDaysState] = useState(DEFAULT_WEEKLY_GOAL_DAYS)
+  // Minutos reais de cada passo (Bloco 4 do redesign, item 2/6 da seção 5 —
+  // ver stepMinutesStore.js) — null em cada campo até carregar/enquanto sem
+  // preferência salva (quem lê decide o padrão: session.plan.*Minutes cobre
+  // isso em buildSession). reading, desde a decisão tomada com a autora
+  // neste bloco, é a fonte REAL do tamanho da sessão de leitura do plano
+  // fixo (ver deriveProgress/dynamicSessions.js) — substitui os 4 ritmos
+  // fixos (Leve/Padrão/Intensivo), mantidos só pro plano Livre/navegação.
+  const [stepMinutes, setStepMinutesState] = useState({ prayer: null, reading: null, reflection: null })
   const [activeBlockId, setActiveBlockId] = useState(1)
   // "Último texto lido" ({ book, chapter }, por dispositivo — ver
   // lastReadPositionStore.js). Alimenta o card "Continue sua leitura" da
@@ -665,7 +687,10 @@ export default function App() {
     })
   }
 
-  const { blocks, sessionsByBlock } = useMemo(() => deriveProgress(completedSet, planId, readingOrder), [completedSet, planId, readingOrder])
+  const { blocks, sessionsByBlock } = useMemo(
+    () => deriveProgress(completedSet, planId, readingOrder, stepMinutes.reading),
+    [completedSet, planId, readingOrder, stepMinutes.reading]
+  )
 
   // ── Retrospectiva do mês (17b) ──
   // Uma vez por sessão de usuário: garante o snapshot do mês e, se o mês
@@ -749,11 +774,12 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userStepMinutes, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
         getWeeklyGoalDays(user.email),
+        getStepMinutes(),
         getActiveAltPlan(user.email),
         getThemePlans(user.email),
         getDailyRoutine(),
@@ -789,9 +815,10 @@ export default function App() {
       setPlanId(userPlanId)
       setReadingOrderState(userReadingOrder)
       setWeeklyGoalDaysState(userWeeklyGoalDays)
+      setStepMinutesState(userStepMinutes)
       setActiveAltPlanState(userActiveAltPlan)
       setThemePlans(userThemePlans)
-      setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
+      setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
       setDailyRoutine(routine)
       setRoutineModulesState(userRoutineModules)
       setActiveStudyIdState(userActiveStudyId)
@@ -1362,11 +1389,12 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userStepMinutes, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
       getWeeklyGoalDays(user.email),
+      getStepMinutes(),
       getActiveAltPlan(user.email),
       getThemePlans(user.email),
       getPrayerStats(user.email),
@@ -1395,9 +1423,10 @@ export default function App() {
     setPlanId(userPlanId)
     setReadingOrderState(userReadingOrder)
     setWeeklyGoalDaysState(userWeeklyGoalDays)
+    setStepMinutesState(userStepMinutes)
     setActiveAltPlanState(userActiveAltPlan)
     setThemePlans(userThemePlans)
-    setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder))
+    setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
     setPrayerStats(stats)
     setDailyRoutine(routine)
     setRoutineModulesState(userRoutineModules)
@@ -1428,6 +1457,7 @@ export default function App() {
     setPlanId('standard')
     setReadingOrderState('ot_first')
     setWeeklyGoalDaysState(DEFAULT_WEEKLY_GOAL_DAYS)
+    setStepMinutesState({ prayer: null, reading: null, reflection: null })
     setActiveAltPlanState(null)
     setThemePlans([])
     setRoutineModulesState(DEFAULT_ROUTINE_MODULES)
@@ -1533,6 +1563,46 @@ export default function App() {
     }
   }
 
+  // "Ritmo da semana" em Ajustar meu plano (5a/26d, Bloco 4) — mesma
+  // pergunta (3 a 7 dias), mas grava no store NOVO (weeklyDaysStore.js,
+  // Bloco 2/3), que mantém weekly_days (o array que 29a/30a/4b usam pra
+  // saber QUAIS dias) e weekly_goal_days (o número, compatibilidade com
+  // quem já lia só ele) sincronizados — diferente de selectWeeklyGoalDays
+  // acima, que só grava o número (ainda usado pelo onboarding antigo).
+  function selectWeeklyDaysCount(n) {
+    setWeeklyGoalDaysState(n)
+    if (authUser) {
+      persistWeeklyDays(daysArrayForCount(n)).catch(err => console.error('Failed to persist weekly days', err))
+    }
+  }
+
+  // Minutos de cada passo (26d/5a, Bloco 4) — patch: { prayer?, reading?,
+  // reflection? }, cada um null (sem preferência) ou 0-60 (0 desliga o
+  // passo, exceto Leitura — ver validação em stepMinutesStore.js). UI
+  // otimista: session.plan.*Minutes reflete a mudança antes do save
+  // terminar (buildSession lê stepMinutes direto do estado).
+  //
+  // "Zerar um passo o remove da rotina" (nota do quadro 26d) — cruzar de/pra
+  // 0 também liga/desliga o módulo em routineModules (a mesma chave que
+  // Home/Rotina/Reflexão já filtram por routineModules.includes), pra não
+  // ter dois interruptores contando histórias diferentes sobre o mesmo
+  // passo. Leitura nunca cruza (mínimo 1, ver stepMinutesStore.js).
+  function saveStepMinutes(patch) {
+    setStepMinutesState(prev => {
+      const next = { ...prev, ...patch }
+      for (const key of ['prayer', 'reflection']) {
+        if (!(key in patch)) continue
+        const wasOn = (prev[key] ?? 1) > 0
+        const isOn = (patch[key] ?? 1) > 0
+        if (wasOn !== isOn) toggleRoutineModule(key, isOn)
+      }
+      return next
+    })
+    if (authUser) {
+      persistStepMinutes(patch).catch(err => console.error('Failed to persist step minutes', err))
+    }
+  }
+
   // Troca o idioma do app (chamado a partir do seletor na aba Perfil) —
   // atualiza o estado local na hora (UI otimista) e salva em segundo plano.
   function changeLanguage(language) {
@@ -1547,7 +1617,7 @@ export default function App() {
     setCompletedSet(new Set())
     // Primeiro bloco da ordem de leitura ATUAL, não sempre o 1 (Pentateuco)
     // — com NT primeiro, reiniciar deve voltar pros Evangelhos.
-    setActiveBlockId(defaultBlockIdFor(new Set(), planId, readingOrder))
+    setActiveBlockId(defaultBlockIdFor(new Set(), planId, readingOrder, stepMinutes.reading))
     setActiveTab('home')
     setTabHistory([])
     resetProgress(authUser.email).catch(err => console.error('Failed to reset progress', err))
@@ -1585,7 +1655,7 @@ export default function App() {
       }
     }
 
-    const { blocks: nextBlocks } = deriveProgress(nextSet, planId, readingOrder)
+    const { blocks: nextBlocks } = deriveProgress(nextSet, planId, readingOrder, stepMinutes.reading)
     const prevXp = computeGamificationStats(prevSet, sessionsByBlock, blocks).xp
     const nextXp = computeGamificationStats(nextSet, sessionsByBlock, nextBlocks).xp
     const prevLevelNum = levelFor(prevXp).level
@@ -1799,7 +1869,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans, stepMinutes)
   // Modo guiado disponível pros componentes (banner + auto-avanço). idx/step
   // derivados aqui pra não repetir a conta em cada tela.
   session.guided = guidedFlow
@@ -1895,7 +1965,7 @@ export default function App() {
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     adjustPlan: hasPremium
-      ? <AdjustPlanScreen session={session} activeAltPlan={activeAltPlan} onSelectPace={selectPlan} onSelectActivePlan={selectActivePlan} onToggleRoutineModule={toggleRoutineModule} onSelectWeeklyGoal={selectWeeklyGoalDays} onNavigate={navigateTo} onBack={goBack} />
+      ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} activeAltPlan={activeAltPlan} onToggleRoutineModule={toggleRoutineModule} onSelectWeeklyDaysCount={selectWeeklyDaysCount} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     aiSettings: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
@@ -2038,12 +2108,12 @@ export default function App() {
                 height:100% que a tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen session={session} authUser={authUser} onPrayerCompleted={() => { markRoutineStep('prayer'); advanceGuided('prayer') }} onSkipStep={() => advanceGuided('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} />
+                <PrayerScreen session={session} authUser={authUser} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} onPrayerCompleted={() => { markRoutineStep('prayer'); advanceGuided('prayer') }} onSkipStep={() => advanceGuided('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} />
               </div>
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} lastReadChapterInfo={lastReadChapterInfo} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onAiFlowChange={setReflectionAiActive} />
+                <ReflectionScreen session={session} authUser={authUser} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} hasPreviousReadingSession={!!lastReadSession} lastReadChapterInfo={lastReadChapterInfo} onBackToReading={backToLastReadSession} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onAiFlowChange={setReflectionAiActive} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (

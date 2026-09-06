@@ -19,8 +19,6 @@ import { computeCurrentWeekDays } from '../routine/weekRings'
 import { isDayGoalMet, computeRecentWeeksStatus, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
 import { getWeeklyDays, WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysStore'
 import { getApplicationPhraseForDate, setApplicationFulfilled } from '../reflection/applicationPhraseStore'
-import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
-import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 
 const CARD_STEPS = ['prayer', 'reading', 'reflection']
 const FONT = 'var(--font-bento)'
@@ -150,11 +148,14 @@ export default function HomeDashboard({ session, authUser, readingSeconds = 0, o
   }
 
   // ── "Hoje" (resumo dos passos do dia — 29a/30a) ──
+  // Bloco 4 do redesign: plan.prayerMinutes/reflectionMinutes já vêm do
+  // valor real salvo (stepMinutesStore.js) — as duas stores antigas
+  // (localStorage, por aparelho) saíram de uso aqui.
   const enabledSteps = CARD_STEPS.filter(s => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s))
   const stepMinMap = {
-    prayer: getSavedPrayerMinutes() ?? plan.prayerMinutes ?? 0,
+    prayer: plan.prayerMinutes ?? 0,
     reading: activePlan.readingMinutes ?? plan.readingMinutes ?? 0,
-    reflection: getSavedReflectionMinutes() ?? plan.reflectionMinutes ?? 0,
+    reflection: plan.reflectionMinutes ?? 0,
   }
   function handleStart() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }

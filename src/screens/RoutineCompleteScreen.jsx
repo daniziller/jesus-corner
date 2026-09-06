@@ -8,8 +8,6 @@ import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { formatToday } from './HomeScreen'
-import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
-import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { getHighlights } from '../highlights/highlightsStore'
 
 const FONT = 'var(--font-bento)'
@@ -34,10 +32,13 @@ export default function RoutineCompleteScreen({ session, authUser, steps, readin
     return () => { cancelled = true }
   }, [authUser?.email])
 
+  // Bloco 4 do redesign: session.plan.prayerMinutes/reflectionMinutes já
+  // vêm do valor real salvo (stepMinutesStore.js) — as duas stores antigas
+  // (localStorage, por aparelho) saíram de uso aqui.
   const stepMin = {
-    prayer: getSavedPrayerMinutes() ?? session.plan.prayerMinutes,
+    prayer: session.plan.prayerMinutes,
     reading: session.activePlan.readingMinutes,
-    reflection: getSavedReflectionMinutes() ?? session.plan.reflectionMinutes,
+    reflection: session.plan.reflectionMinutes,
   }
   const totalMinutes = steps.reduce((sum, s) => sum + (stepMin[s] ?? 0), 0)
 

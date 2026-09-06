@@ -19,8 +19,8 @@
 // (chave livro:capítulo / livro:reflection), o mesmo compartilhado com a
 // leitura livre e os planos Leve/Padrão/Intensivo — ler Gênesis aqui já
 // conta pro progresso geral da Bíblia.
-import { BIBLE_BLOCKS, PLANS, WORDS_PER_MINUTE } from './bibleBlocks.js'
-import { getChapterWords } from './chapterWordCounts.js'
+import { PLANS, WORDS_PER_MINUTE } from './bibleBlocks.js'
+import { buildBookSessions } from './dynamicSessions.js'
 import { sessionKeys } from '../utils/progress.js'
 
 export const CHRONOLOGICAL_MOVEMENTS = [
@@ -88,57 +88,6 @@ export const CHRONOLOGICAL_MOVEMENTS = [
     books: ['Apocalipse'],
   },
 ]
-
-const BOOK_EN_BY_PT = Object.fromEntries(
-  BIBLE_BLOCKS.flatMap(b => b.books.map((name, i) => [name, b.booksEn[i]]))
-)
-
-function makeSession(id, book, chStart, chEnd, chapterWords) {
-  const bookEn = BOOK_EN_BY_PT[book]
-  const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
-  const words = chapterWords.slice(chStart - 1, chEnd).reduce((s, w) => s + w, 0)
-  return {
-    id, book, bookEn, books: [book],
-    title: `${book} ${range}`, titleEn: `${bookEn} ${range}`,
-    passage: `${book} ${range}`, passageEn: `${bookEn} ${range}`,
-    words, minutes: Math.max(1, Math.round(words / WORDS_PER_MINUTE)),
-    chStart, chEnd,
-  }
-}
-
-function makeReflectionSession(id, book) {
-  const bookEn = BOOK_EN_BY_PT[book]
-  return {
-    id, book, bookEn, books: [book],
-    title: `Reflexão: ${book}`, titleEn: `Reflection: ${bookEn}`,
-    passage: '4 perguntas de reflexão', passageEn: '4 reflection questions',
-    words: 0, minutes: 10, type: 'reflection',
-  }
-}
-
-// Divide os capítulos de UM livro em sessões de ~targetWords cada (nunca
-// combina livros diferentes numa sessão), igual à divisão usada pelo plano
-// por tema — e fecha com a mesma sessão de reflexão que os planos fixos já
-// têm ao final de cada livro (ver bibleBlocks.js).
-function buildBookSessions(book, targetWords, startId) {
-  const chapterWords = getChapterWords(book)
-  const sessions = []
-  let id = startId
-  let chunkStart = 1
-  let chunkWords = 0
-  chapterWords.forEach((words, i) => {
-    const ch = i + 1
-    if (chunkWords > 0 && chunkWords + words > targetWords) {
-      sessions.push(makeSession(id++, book, chunkStart, ch - 1, chapterWords))
-      chunkStart = ch
-      chunkWords = 0
-    }
-    chunkWords += words
-  })
-  sessions.push(makeSession(id++, book, chunkStart, chapterWords.length, chapterWords))
-  sessions.push(makeReflectionSession(id++, book))
-  return { sessions, nextId: id }
-}
 
 function buildChronoSessionsByMovement(planPaceId) {
   const pace = PLANS.find(p => p.id === planPaceId) ?? PLANS.find(p => p.id === 'standard')

@@ -1,28 +1,35 @@
+// ReflectionScreen.jsx — Reflexão, passo 3 de 3 (reskin Bento, quadros
+// 26c/29b). Dois fluxos possíveis, cabeçalho igual nos dois (bate com
+// Oração/Leitura — nota do quadro 21b "é 10d com o cabeçalho de passo"):
+// com IA (session.hasAI + interruptor 10f ligado + capítulo real ancorando
+// as perguntas) ou manual (roteiro Reviver/Entender/Aplicar de sempre,
+// reskinado aqui pela primeira vez — não tinha quadro próprio, mas 0%
+// identidade antiga é regra do redesign inteiro, então segue o MESMO
+// padrão visual de PrayerScreen.jsx: cartão de método+relógio, fileiras de
+// etapa, painel "para hoje"). Os dois terminam no mesmo último passo — a
+// frase de aplicação refeita (29b, ApplicationStepCard.jsx).
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
-import ReflectionGuideCard from '../components/reflection/ReflectionGuideCard'
+import ApplicationStepCard from '../components/reflection/ApplicationStepCard'
 import { REFLECTION_DATA, phaseMinutesFor } from '../data/reflectionGuide'
-import { getSavedReflectionMinutes, setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
-import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
-import { getNotes, saveNote, noteTextOf } from '../notes/notesStore'
+import {
+  getPinnedApplicationPhrase, setPinnedApplicationPhrase, dailyApplicationKeyFor,
+} from '../reflection/applicationPhraseStore'
+import { getNotes, saveNote, noteTextOf, noteReminderRequestedOf } from '../notes/notesStore'
 import { getHighlights } from '../highlights/highlightsStore'
 import { formatVerseRanges } from '../utils/verseRanges'
 import { dateKey } from '../utils/dateKey'
 import {
   getReflectionQuestionsEnabled, fetchReflectionQuestions, composeReflectionDraft, saveApprovedReflection,
 } from '../aiChat/reflectionQuestionsStore'
+import { useSpeechToText, isSpeechToTextSupported } from '../utils/useSpeechToText'
+import TimePerStepSheet from '../components/TimePerStepSheet'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
-import GuidedFlowBanner from '../components/GuidedFlowBanner'
-
-// Inclui 8 porque é o padrão do plano Leve (session.plan.reflectionMinutes)
-// — sem ele, quem estivesse no Leve abriria a tela sem nenhum botão aceso.
-const DURATION_OPTIONS = [5, 8, 10, 15, 20, 30]
 
 // Mesmo mecanismo de cronômetro por fases do PrayerScreen.jsx (ACTS), a
-// partir dos minutos por etapa do perfil de duração ativo (ver
-// REFLECTION_DURATIONS — Leve reflete 8min, Padrão 10min, Intensivo 15min).
-// Ver PrayerScreen.jsx pros comentários completos sobre wake lock / relógio
+// partir dos minutos por etapa do perfil de duração ativo. Ver
+// PrayerScreen.jsx pros comentários completos sobre wake lock / relógio
 // real / aviso sonoro — a lógica aqui é a mesma, deliberadamente duplicada
 // em vez de compartilhada, pra não acoplar duas telas que evoluem por
 // razões diferentes (uma é oração, a outra é reflexão sobre a leitura do dia).
@@ -44,27 +51,20 @@ function phaseIndexAt(bounds, elapsedSeconds) {
   return idx
 }
 
-export default function ReflectionScreen({ session, authUser, onReflectionCompleted, hasPreviousReadingSession, lastReadChapterInfo, onBackToReading, onNavigate, onContinueSession, onExitGuided, onAiFlowChange }) {
+export default function ReflectionScreen({ session, authUser, completedSet, stepMinutes, onSaveStepMinutes, onReflectionCompleted, hasPreviousReadingSession, lastReadChapterInfo, onBackToReading, onNavigate, onContinueSession, onExitGuided, onAiFlowChange }) {
   const { lang } = session
   const guided = session.guided?.step === 'reflection' ? session.guided : null
 
-  // Reflexão com perguntas geradas (10d, reskin Bento) — substitui o fluxo
-  // inteiro de fases com cronômetro abaixo quando elegível: precisa de IA
-  // (session.hasAI), do interruptor ligado (10f, ainda não implementado —
-  // desligado por padrão, ver reflectionQuestionsStore.js) e de um
-  // capítulo real pra ancorar as perguntas (lastReadChapterInfo, resolvido
-  // em App.jsx — session.todaySession já pode ter avançado pro PRÓXIMO
-  // capítulo a essa altura). Decidido uma vez na montagem; se a busca das
+  // Reflexão com perguntas geradas (10d/26c) — substitui o roteiro manual
+  // abaixo quando elegível: precisa de IA (session.hasAI), do interruptor
+  // ligado (10f) e de um capítulo real pra ancorar as perguntas
+  // (lastReadChapterInfo). Decidido uma vez na montagem; se a busca das
   // perguntas falhar depois (rede, offline, capítulo sem texto), cai pro
-  // fluxo antigo sozinho — nunca uma parede (mesmo espírito de 10c em
-  // ReadingBlockView.jsx).
+  // fluxo manual sozinho — nunca uma parede.
   const aiEligible = session.hasAI && getReflectionQuestionsEnabled() && !!lastReadChapterInfo
     && (typeof navigator === 'undefined' || navigator.onLine)
   const [aiPhase, setAiPhase] = useState(aiEligible ? 'active' : 'fallback')
   const [aiQuestions, setAiQuestions] = useState(null)
-  // Avisa o App quando o fluxo 10d está na tela — ele é uma tela Bento
-  // inteira (sem cabeçalho nem barra, como o quadro), ao contrário da
-  // Reflexão guiada antiga logo abaixo.
   useEffect(() => {
     onAiFlowChange?.(aiPhase === 'active')
     return () => onAiFlowChange?.(false)
@@ -87,25 +87,21 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [openCardId, setOpenCardId] = useState(null)
+  const [timeSheetOpen, setTimeSheetOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [hasSavedNote, setHasSavedNote] = useState(false)
-  // Frase de aplicação do dia — campo separado da anotação geral, ligado
-  // especificamente ao 3o passo da etapa "Aplicar" ("escreva uma frase
-  // curta pra lembrar disso ao longo do dia"). Mesmo esquema de chave por
-  // dia da anotação geral, só com prefixo diferente.
+  // Frase de aplicação do dia (29b) — separada da anotação geral, ligada
+  // ao último passo ("Aplicar"). Mesmo esquema de chave por dia, prefixo
+  // diferente.
   const [applicationPhrase, setApplicationPhrase] = useState('')
-  // Frase nova ≠ da fixada na Home — em vez de um window.confirm bloqueante
-  // (feio no PWA instalado), guarda o texto aqui e mostra uma confirmação
-  // inline logo abaixo do campo (ver confirmPinUpdate / pinConfirmCard).
+  const [reminderRequested, setReminderRequested] = useState(false)
+  // Frase nova ≠ da fixada na Home — confirmação inline (ver
+  // confirmPinUpdate / ApplicationStepCard) em vez de um window.confirm
+  // bloqueante.
   const [pendingPin, setPendingPin] = useState(null)
-  // Reflexão não tem "sessão" própria como a leitura (Sessão 1, 2...) — é
-  // uma prática diária, então a chave da anotação é o dia (dateKey, local,
-  // não UTC — ver utils/dateKey.js), uma por dia.
   const noteKey = `reflection:${dateKey()}`
-  const applicationPhraseKey = `application:${dateKey()}`
-  // Duração total escolhida na hora — parte do que a pessoa já escolheu
-  // antes (jc_reflection_minutes) ou, na primeira vez, do plano ativo.
-  const [totalMinutes, setTotalMinutes] = useState(() => getSavedReflectionMinutes() ?? session.plan.reflectionMinutes)
+  const applicationPhraseKey = dailyApplicationKeyFor()
+  const totalMinutes = stepMinutes?.reflection ?? session.plan.reflectionMinutes
 
   const phaseMinutes = useMemo(() => phaseMinutesFor(totalMinutes), [totalMinutes])
   const { bounds: PHASE_BOUNDS, totalSeconds: TOTAL_SECONDS } = useMemo(
@@ -186,7 +182,6 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
       setRunning(false)
       releaseWakeLock()
       playChime([659, 880, 1047])
-      onReflectionCompleted?.()
     }
   }
 
@@ -218,11 +213,12 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   // ReadingBlockView.jsx (NotesPanel), reaproveitando o mesmo notesStore,
   // só com chaves por dia em vez de por passagem.
   useEffect(() => {
-    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); setApplicationPhrase(''); return }
+    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); setApplicationPhrase(''); setReminderRequested(false); return }
     getNotes(authUser.email).then(map => {
       setNoteText(noteTextOf(map[noteKey]))
       setHasSavedNote(Boolean(noteTextOf(map[noteKey])))
       setApplicationPhrase(noteTextOf(map[applicationPhraseKey]))
+      setReminderRequested(noteReminderRequestedOf(map[applicationPhraseKey]))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteKey, applicationPhraseKey, authUser?.email])
@@ -251,28 +247,31 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
   // A frase do dia sempre grava no histórico (application:{dia}); virar a
   // frase FIXADA no card da Home (application:pinned) é outra decisão: a
   // 1a frase de todas fixa sozinha (nada pra comparar ainda) — da 2a em
-  // diante, só troca se a pessoa confirmar (senão continuaria fixando
-  // sozinho toda vez, e ela pode querer manter uma frase antiga em
-  // destaque por mais de um dia).
+  // diante, só troca se a pessoa confirmar.
   async function handleSaveApplicationPhrase(text) {
     setApplicationPhrase(text)
     try {
-      // Título da sessão de leitura do dia, gravado junto — é o que deixa
-      // ApplicationPhrasesScreen.jsx mostrar "escrita lendo X", sem
-      // precisar tentar adivinhar isso depois só a partir da data.
-      await saveNote(authUser?.email, applicationPhraseKey, text, { sessionTitle: session.todaySession?.title ?? null })
+      await saveNote(authUser?.email, applicationPhraseKey, text, { sessionTitle: session.todaySession?.title ?? null, reminderRequested })
       if (!text.trim()) return
       const currentPinned = await getPinnedApplicationPhrase(authUser?.email)
       if (!currentPinned) {
         await setPinnedApplicationPhrase(authUser?.email, text)
       } else if (currentPinned !== text) {
-        // Pede confirmação inline (ver pendingPin / confirmPinUpdate) em
-        // vez de trocar o card da Home sem avisar.
         setPendingPin(text)
       }
     } catch (err) {
+      // Não bloqueia "Salvar e concluir o dia" por uma falha de rede — a
+      // frase fica no estado local (setApplicationPhrase acima já rodou);
+      // só a persistência que falhou, sem travar o fechamento do dia.
       console.error('Failed to persist application phrase', err)
     }
+  }
+
+  function handleToggleReminder(next) {
+    setReminderRequested(next)
+    saveNote(authUser?.email, applicationPhraseKey, applicationPhrase, { sessionTitle: session.todaySession?.title ?? null, reminderRequested: next }).catch(err => {
+      console.error('Failed to persist reminder preference', err)
+    })
   }
 
   async function confirmPinUpdate(accept) {
@@ -286,17 +285,30 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
     }
   }
 
+  // "Me ajuda a escrever" (29b, só com IA) — reaproveita o endpoint que já
+  // junta respostas num parágrafo (compose-reflection), aqui só como
+  // ponto de partida pra frase: pega a 1a frase do parágrafo composto. No
+  // fluxo manual não há perguntas/respostas reais — usa a anotação livre
+  // do dia como contexto, quando existe; sem chapterInfo nem contexto
+  // nenhum, o chip nem aparece (ver hasAI && aiContext em
+  // ApplicationStepCard).
+  const manualQaContext = noteText.trim() ? [{ question: t('reflection.notesLabel', undefined, lang), answer: noteText.trim() }] : null
+  async function aiAssistApplication(qa) {
+    if (!lastReadChapterInfo || !qa) return null
+    const draft = await composeReflectionDraft({ book: lastReadChapterInfo.book, chapter: lastReadChapterInfo.chStart, lang, qa })
+    const firstSentence = draft.split(/(?<=[.!?])\s/)[0] ?? draft
+    return firstSentence.slice(0, 140)
+  }
+
+  function finishReflection() {
+    onReflectionCompleted?.()
+  }
+
   // Etapa em destaque — mesmo padrão do PrayerScreen (segue openCardId, que
   // já reage à troca de trecho durante o cronômetro em tick()); antes de
   // começar, mostra a 1a etapa como "próxima".
   const currentPhaseIdx = openCardId != null ? REFLECTION_DATA.findIndex(d => d.id === openCardId) : 0
-  const currentPhase = REFLECTION_DATA[currentPhaseIdx]
-  // Fim da etapa em destaque (início da próxima, ou o total se for a
-  // última) — pro relógio de "tempo restante NESTA etapa", separado do
-  // relógio grande acima (restante da reflexão inteira).
-  const phaseEndSeconds = PHASE_BOUNDS[currentPhaseIdx + 1]?.start ?? TOTAL_SECONDS
-  const phaseRemaining = Math.max(0, Math.round(phaseEndSeconds - elapsed))
-
+  const realPhaseIdx = currentPhaseIdx
   const remaining = Math.max(0, Math.round(TOTAL_SECONDS - elapsed))
 
   const fmt = (s) => {
@@ -324,135 +336,164 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
     }
   }
 
-  function resetTimer() {
-    clearInterval(intervalRef.current)
-    releaseWakeLock()
-    setRunning(false)
-    setElapsed(0)
-    accumulatedRef.current = 0
-    startedAtRef.current = null
-    announcedPhaseRef.current = -1
-    setOpenCardId(null)
+  function skipToNextPhase() {
+    const nextBound = PHASE_BOUNDS[realPhaseIdx + 1]?.start ?? TOTAL_SECONDS
+    accumulatedRef.current = nextBound
+    if (running) startedAtRef.current = Date.now()
+    tick()
   }
 
-  // Troca a duração total escolhida — reinicia o cronômetro (os limites de
-  // cada etapa mudam) e lembra a escolha pra próxima vez.
-  function selectDuration(minutes) {
-    if (minutes === totalMinutes) return
-    resetTimer()
-    setTotalMinutes(minutes)
-    setSavedReflectionMinutes(minutes)
-  }
-
-  const btnLabel = running ? t('reflection.pause', undefined, lang)
-    : remaining === 0 ? t('reflection.done', undefined, lang)
-    : elapsed > 0 ? t('reflection.resume', undefined, lang)
-    : t('reflection.start', undefined, lang)
+  const L = (k, vars) => t(`reflection.${k}`, vars, lang)
 
   // Rotina de hoje inteira concluída (só os passos que o plano da pessoa
-  // realmente tem — ver mesmo filtro em RoutineScreen.jsx) — mostra um
-  // atalho pra aba Progresso embaixo de tudo. Lido direto de
-  // session.todayRoutine (não do cronômetro local desta tela), então
-  // aparece tanto assim que o 3o passo termina quanto ao reabrir esta tela
-  // depois, já com os três feitos.
+  // realmente tem — ver mesmo filtro em RoutineScreen.jsx).
   const allStepsDone = session.routineModules.every(m => session.todayRoutine?.[m])
 
-  // Tela própria (10d), inteira — não um card dentro do hero/cronômetro de
-  // baixo (ver decisão registrada no topo do arquivo). Só chega aqui
-  // depois de TODOS os hooks já terem rodado.
+  // Tela própria (10d/26c) — cabeçalho igual ao de Oração/Leitura + as
+  // perguntas geradas + o passo de aplicação no fim.
   if (aiPhase === 'active') {
     return (
       <AiReflectionFlow
-        lang={lang}
+        lang={lang} session={session} guided={guided}
         chapterInfo={lastReadChapterInfo}
         questions={aiQuestions}
-        minutes={totalMinutes}
+        stepMinutes={stepMinutes}
+        onOpenTimeSheet={() => setTimeSheetOpen(true)}
         onPeekReading={hasPreviousReadingSession ? onBackToReading : null}
+        onExitGuided={onExitGuided}
+        applicationPhrase={applicationPhrase}
+        onSaveApplicationPhrase={handleSaveApplicationPhrase}
+        pendingPin={pendingPin}
+        onConfirmPin={confirmPinUpdate}
+        reminderRequested={reminderRequested}
+        onToggleReminder={handleToggleReminder}
+        hasAI={session.hasAI}
+        onAiAssist={aiAssistApplication}
         onApprove={async (qa, paragraph) => {
           await saveNote(authUser?.email, noteKey, paragraph)
           saveApprovedReflection({ book: lastReadChapterInfo.book, chapter: lastReadChapterInfo.chStart, qa, paragraph })
-          onReflectionCompleted?.()
         }}
+        onAllDone={finishReflection}
       />
     )
   }
 
   return (
-    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-
-      <GuidedFlowBanner guided={guided} lang={lang} onExit={onExitGuided} />
-
-      {/* Hero */}
-      <div style={styles.hero}>
-        <div style={styles.heroOrbPurple} />
-        <div style={styles.heroOrbFuchsia} />
-        <span style={{ position: 'relative', marginBottom: 5 }}><AppIcon name="PenLine" size={30} color="white" /></span>
-        <span style={{ ...styles.heroTitle, position: 'relative' }}>{t('reflection.heroTitle', undefined, lang)}</span>
-        <span style={{ ...styles.heroSub, position: 'relative' }}>{t('reflection.heroSub', undefined, lang)}</span>
+    <div style={styles.screen}>
+      <div style={styles.header}>
+        <button style={styles.backBtn} onClick={guided ? onExitGuided : () => onNavigate?.('home')} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        {guided ? (
+          <div style={styles.stepChip}>
+            <span style={styles.stepChipTitle}>{L('pageTitle')}</span>
+            <span style={styles.stepChipSub}>{L('stepOf', { n: guided.idx + 1, total: guided.total })}</span>
+          </div>
+        ) : (
+          <p style={styles.plainTitle}>{L('pageTitle')}</p>
+        )}
+        <div style={{ flex: 1 }} />
+        <button style={styles.timePill} onClick={() => setTimeSheetOpen(true)}>
+          <span style={styles.timePillText}>{t('routine.minShort', { n: totalMinutes }, lang)}</span>
+          <AppIcon name="ChevronDown" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
+        </button>
       </div>
 
       <div style={styles.body}>
-        {/* Só aparece vindo de "Ir para Reflexão" logo depois de marcar uma
-            sessão como lida (ver App.jsx/lastReadSession) — some sozinho
-            quando a Reflexão de hoje é concluída, ou se a tela foi aberta
-            direto pela aba, sem sessão recente pra voltar. */}
         {hasPreviousReadingSession && (
           <button style={styles.backToReadingBtn} onClick={onBackToReading}>
-            <AppIcon name="ArrowLeft" size={13} color="#6B21A8" />
+            <AppIcon name="ArrowLeft" size={13} color="var(--bento-ink)" />
             {t('reflection.backToReading', undefined, lang)}
           </button>
         )}
-        <div style={styles.timer}>
-          <span style={styles.timerLabel}>{t('reflection.timerLabel', undefined, lang)}</span>
-          <span style={styles.timerDisplay}>{fmt(remaining)}</span>
 
-          {/* Etapa do roteiro em destaque — muda sozinha conforme o
-              cronômetro avança de trecho (mesmo padrão do ACTS em
-              PrayerScreen.jsx), com o relógio da etapa embutido ao lado. */}
-          <div style={{ ...styles.currentPhaseBadge, borderColor: currentPhase.borderColor }}>
-            <span style={{ ...styles.currentPhaseDot, background: currentPhase.dotColor }}>{currentPhase.letter}</span>
-            <span style={styles.currentPhaseLabel}>
-              {t('reflection.currentPhase', { n: currentPhaseIdx + 1, total: REFLECTION_DATA.length }, lang)}
-              <strong style={{ color: currentPhase.dotColor }}> {currentPhase.title[lang]}</strong>
-            </span>
-            <span style={styles.phaseRemaining} title={t('reflection.phaseRemaining', undefined, lang)}>
-              <AppIcon name="Timer" size={11} />
-              {fmt(phaseRemaining)}
-            </span>
+        {/* Método · duração total — mesmo padrão de PrayerScreen.jsx. */}
+        <div style={styles.methodCard}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={styles.methodLabel}>{t('routine.minShort', { n: totalMinutes }, lang)}</p>
+            <div style={styles.segmentRow}>
+              {REFLECTION_DATA.map((d, i) => (
+                <div
+                  key={d.id}
+                  style={{
+                    ...styles.segment,
+                    background: i < realPhaseIdx ? 'var(--bento-sand-icon)' : i === realPhaseIdx ? 'var(--bento-accent)' : 'var(--bento-line)',
+                  }}
+                />
+              ))}
+            </div>
           </div>
-
-          {/* Duração total — trocar aqui redivide as 3 etapas
-              proporcionalmente (ver phaseMinutesFor) e reinicia o cronômetro. */}
-          <span style={styles.durationLabel}>{t('reflection.durationLabel', undefined, lang)}</span>
-          <div style={styles.durationRow}>
-            {DURATION_OPTIONS.map(n => (
-              <button
-                key={n}
-                style={{ ...styles.durationBtn, ...(n === totalMinutes ? styles.durationBtnActive : null) }}
-                onClick={() => selectDuration(n)}
-              >
-                {n}
-              </button>
-            ))}
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <p style={styles.methodTime}>{fmt(remaining)}</p>
+            <p style={styles.methodTimeLabel}>{t('prayer.remainingShort', undefined, lang)}</p>
           </div>
-
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              style={{
-                ...styles.timerBtn, color: 'white',
-                background: remaining === 0 ? 'linear-gradient(135deg,#22C55E,var(--gr))' : 'var(--grad-primary)',
-                boxShadow: remaining === 0 ? '0 8px 20px rgba(22,163,74,.35)' : 'var(--shadow-glow)',
-              }}
-              onClick={toggleRunning}
-            >
-              {btnLabel}
-            </button>
-            <button style={{ ...styles.timerBtn, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.65)' }} onClick={resetTimer}>
-              {t('reflection.restart', undefined, lang)}
-            </button>
-          </div>
-          {running && <p style={styles.wakeLockHint}>{t('reflection.wakeLockHint', undefined, lang)}</p>}
         </div>
+
+        {REFLECTION_DATA.map((d, i) => {
+          const state = i < realPhaseIdx ? 'done' : i === realPhaseIdx ? 'now' : 'later'
+          const title = d.title[lang] ?? d.title.pt
+          return (
+            <Fragment key={d.id}>
+              <button
+                style={{
+                  ...styles.phaseRow,
+                  ...(state === 'done' ? styles.phaseRowDone : state === 'now' ? styles.phaseRowNow : styles.phaseRowLater),
+                }}
+                onClick={() => setOpenCardId(d.id)}
+              >
+                <div style={{
+                  ...styles.phaseLetter,
+                  background: state === 'done' ? 'var(--bento-sand-icon)' : state === 'now' ? 'var(--bento-accent)' : 'var(--bento-line)',
+                  color: state === 'done' ? 'var(--bento-sand)' : state === 'now' ? 'var(--bento-ink)' : 'var(--bento-t4)',
+                }}>
+                  {d.letter}
+                </div>
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <p style={{ ...styles.phaseTitle, color: state === 'done' ? 'var(--bento-sand-ink-strong)' : state === 'now' ? '#fff' : 'var(--bento-t3)' }}>{title}</p>
+                  <p style={{ ...styles.phaseSub, color: state === 'done' ? 'var(--bento-sand-label)' : state === 'now' ? 'rgba(255,255,255,.5)' : 'var(--bento-t5)' }}>
+                    {state === 'done' ? t('prayer.phaseStatusDone', { n: phaseMinutes[i] }, lang) : state === 'now' ? t('prayer.phaseStatusNow', { n: phaseMinutes[i] }, lang) : t('prayer.phaseStatusLater', undefined, lang)}
+                  </p>
+                </div>
+                {state === 'done' && <AppIcon name="Check" size={15} strokeWidth={2.6} color="var(--bento-sand-icon)" />}
+                {state === 'now' && <span style={styles.phaseNowClock}>{fmt(Math.max(0, Math.round((PHASE_BOUNDS[i + 1]?.start ?? TOTAL_SECONDS) - elapsed)))}</span>}
+                {state === 'later' && <span style={styles.phaseLaterMin}>{phaseMinutes[i]} min</span>}
+              </button>
+
+              {/* A etapa em foco expande o guia (R/E) ou o passo de
+                  aplicação refeito (A, 29b) — sempre a etapa REAL do
+                  cronômetro, não uma escolhida à parte (a Reflexão manual
+                  não tem "espiar etapa futura" como a Oração). */}
+              {state === 'now' && d.id !== 'A' && (
+                <div style={styles.stagePanel}>
+                  <p style={styles.stagePanelLabel}>{L('currentPhase', { n: i + 1, total: REFLECTION_DATA.length })} <strong>{title}</strong></p>
+                  <p style={styles.stagePanelText}>{d.description?.[lang] ?? d.description?.pt ?? d.subtitle[lang] ?? d.subtitle.pt}</p>
+                  {remaining > 0 && (
+                    <div style={styles.stagePanelActions}>
+                      <button style={styles.pauseBtn} onClick={toggleRunning}>
+                        <AppIcon name={running ? 'Pause' : 'Play'} size={13} color="#fff" />
+                        <span>{running ? t('prayer.pauseBtn', undefined, lang) : elapsed > 0 ? t('prayer.resumeBtn', undefined, lang) : t('prayer.startBtn', undefined, lang)}</span>
+                      </button>
+                      <button style={styles.nextPhaseBtn} onClick={skipToNextPhase}>
+                        <span>{t('prayer.nextPhaseBtn', undefined, lang)}</span>
+                        <AppIcon name="ArrowRight" size={13} strokeWidth={2.6} color="var(--bento-ink)" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {state === 'now' && d.id === 'A' && (
+                <ApplicationStepCard
+                  lang={lang} hasAI={session.hasAI}
+                  value={applicationPhrase} onSave={handleSaveApplicationPhrase}
+                  pendingPin={pendingPin} onConfirmPin={confirmPinUpdate}
+                  reminderRequested={reminderRequested} onToggleReminder={handleToggleReminder}
+                  aiContext={manualQaContext ? () => aiAssistApplication(manualQaContext) : null}
+                  onFinish={finishReflection}
+                />
+              )}
+            </Fragment>
+          )
+        })}
 
         <RoutineStepSwitcher
           session={session}
@@ -462,49 +503,10 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
           onGoStudy={() => onNavigate?.('studies')}
         />
 
-        {/* Roteiro acordeão — o card da etapa atual abre sozinho conforme o
-            cronômetro avança, com aviso sonoro na troca (mesmo padrão do ACTS). */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {REFLECTION_DATA.map((data, i) => (
-            <Fragment key={data.id}>
-              <ReflectionGuideCard
-                data={data}
-                minutes={phaseMinutes[i]}
-                open={openCardId === data.id}
-                onToggle={() => setOpenCardId(v => v === data.id ? null : data.id)}
-              />
-              {/* Campo separado da anotação geral, colado no passo
-                  "Aplicar" (id 'A') — é ali que o roteiro pede uma frase
-                  curta pra lembrar a aplicação do dia. */}
-              {data.id === 'A' && (
-                <>
-                  <ApplicationPhraseField lang={lang} value={applicationPhrase} onSave={handleSaveApplicationPhrase} />
-                  {pendingPin && (
-                    <div style={styles.pinConfirmCard}>
-                      <p style={styles.pinConfirmText}>{t('reflection.updateHomeCardConfirm', undefined, lang)}</p>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button style={styles.pinConfirmYes} onClick={() => confirmPinUpdate(true)}>
-                          {t('reflection.updateHomeCardYes', undefined, lang)}
-                        </button>
-                        <button style={styles.pinConfirmNo} onClick={() => confirmPinUpdate(false)}>
-                          {t('reflection.updateHomeCardNo', undefined, lang)}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </Fragment>
-          ))}
-        </div>
-
-        {/* Textos marcados hoje durante a sessão de leitura — só aparece se
-            tiver algum (ver useEffect acima); só leitura, editar continua
-            em Notas ou na própria leitura. */}
         {todayHighlights.length > 0 && (
           <div style={styles.notesPanel}>
             <p style={styles.notesLabel}>
-              <AppIcon name="Highlighter" size={12} color="var(--gold)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
+              <AppIcon name="Highlighter" size={12} color="var(--bento-accent)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
               {t('reflection.markedTextsLabel', undefined, lang)}
             </p>
             <p style={styles.fieldHint}>{t('reflection.markedTextsHint', undefined, lang)}</p>
@@ -522,13 +524,8 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
           </div>
         )}
 
-        {/* Anotação do dia — uma por dia (não por etapa), guardada no mesmo
-            backend das anotações de leitura (ver notesStore.js). */}
         <NotesPanel value={noteText} hasSavedNote={hasSavedNote} onSave={handleSaveNote} lang={lang} />
 
-        {/* Oração + Leitura + Reflexão de hoje, todas concluídas (ver
-            allStepsDone acima) — atalho pra ver o progresso, fechando o
-            ciclo da rotina do dia. */}
         {allStepsDone && (
           <div style={styles.routineCompleteCard}>
             <p style={styles.routineCompleteTitle}>{t('reflection.routineCompleteTitle', undefined, lang)}</p>
@@ -539,23 +536,40 @@ export default function ReflectionScreen({ session, authUser, onReflectionComple
           </div>
         )}
       </div>
+
+      <TimePerStepSheet
+        open={timeSheetOpen}
+        onClose={() => setTimeSheetOpen(false)}
+        initialMinutes={{ prayer: stepMinutes?.prayer ?? session.plan.prayerMinutes, reading: stepMinutes?.reading ?? session.plan.readingMinutes, reflection: stepMinutes?.reflection ?? session.plan.reflectionMinutes }}
+        completedSet={completedSet}
+        onSave={onSaveStepMinutes}
+        lang={lang}
+      />
     </div>
   )
 }
 
-// Reflexão com perguntas geradas (10d, reskin Bento) — tela própria,
-// substitui o cronômetro em fases inteiro (ver decisão no topo do
-// arquivo). Três fases internas: 'answering' (uma pergunta de cada vez),
-// 'composing' (aguardando a IA juntar as respostas) e 'review' (parágrafo
-// pronto, editável, a pessoa aprova antes de salvar).
-function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading, onApprove }) {
+// Reflexão com perguntas geradas (10d/26c) — cabeçalho de passo igual a
+// Oração/Leitura, Escrever/Falar/Só pensar pra responder, "trocar" dentro
+// do cartão da pergunta, chips na mesma linha da resposta, e o passo de
+// aplicação (29b) no fim, antes de fechar o dia. Fases internas:
+// 'answering' (uma pergunta de cada vez), 'composing' (aguardando a IA
+// juntar as respostas), 'review' (parágrafo pronto, editável) e
+// 'application' (a frase do dia, último passo de qualquer um dos dois
+// fluxos).
+function AiReflectionFlow({
+  lang, session, guided, chapterInfo, questions, stepMinutes, onOpenTimeSheet, onPeekReading, onExitGuided,
+  applicationPhrase, onSaveApplicationPhrase, pendingPin, onConfirmPin, reminderRequested, onToggleReminder,
+  hasAI, onAiAssist, onApprove, onAllDone,
+}) {
   const L = (k, vars) => t(`reflectAi.${k}`, vars, lang)
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState(['', '', ''])
-  const [phase, setPhase] = useState('answering') // 'answering' | 'composing' | 'review' | 'error'
+  const [phase, setPhase] = useState('answering') // 'answering' | 'composing' | 'review' | 'application' | 'error'
   const [paragraph, setParagraph] = useState('')
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [inputMode, setInputMode] = useState('write') // 'write' | 'speak' | 'think'
 
   const loading = !questions
   const currentQuestion = questions?.[index]
@@ -566,19 +580,22 @@ function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading
     setAnswers(prev => prev.map((a, i) => (i === index ? text : a)))
   }
 
-  function fillDontKnow() {
-    if (answers[index].trim()) return
-    setAnswer(t('reflectAi.dontKnowFilled', undefined, lang))
+  const speech = useSpeechToText({ lang, onResult: text => setAnswer((answers[index] ? answers[index] + ' ' : '') + text) })
+
+  function chooseMode(mode) {
+    setInputMode(mode)
+    if (mode !== 'speak' && speech.listening) speech.stop()
+    if (mode === 'speak') speech.start()
+    if (mode === 'think') { setAnswer(''); goNext() }
   }
 
-  // "Outra pergunta" (mockup 10d) — pula esta pergunta sem exigir resposta,
-  // mesmo destino de terminar as 3 normalmente. Não gera uma pergunta NOVA
-  // (as perguntas são cacheadas/compartilhadas — ver
-  // generate-reflection-questions.js), é um "pula esta" simplificado.
+  // "trocar"/"Outra pergunta" (mockup 26c) — pula esta pergunta sem exigir
+  // resposta, mesmo destino de terminar as 3 normalmente. Não gera uma
+  // pergunta NOVA (as perguntas são cacheadas/compartilhadas), é um "pula
+  // esta" simplificado.
   async function goNext() {
+    if (speech.listening) speech.stop()
     if (index < 2) { setIndex(i => i + 1); return }
-    // Última pergunta — compõe o parágrafo com as respostas que existem
-    // (pergunta pulada = string vazia, não entra na composição).
     const qa = questions
       .map((q, i) => ({ question: q, answer: answers[i].trim() }))
       .filter(pair => pair.answer)
@@ -599,6 +616,11 @@ function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading
     }
   }
 
+  function fillDontKnow() {
+    if (answers[index].trim()) return
+    setAnswer(t('reflectAi.dontKnowFilled', undefined, lang))
+  }
+
   async function approve() {
     if (saving) return
     setSaving(true)
@@ -607,22 +629,41 @@ function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading
         .map((q, i) => ({ question: q, answer: answers[i].trim() }))
         .filter(pair => pair.answer)
       await onApprove(qa, paragraph)
+      setPhase('application')
     } finally {
       setSaving(false)
     }
   }
 
+  const qaForAssist = questions
+    ? questions.map((q, i) => ({ question: q, answer: answers[i].trim() })).filter(p => p.answer)
+    : null
+
+  if (phase === 'application') {
+    return (
+      <div style={rStyles.screen}>
+        <ReflectionStepHeader lang={lang} guided={guided} onExitGuided={onExitGuided} onOpenTimeSheet={onOpenTimeSheet} minutes={stepMinutes?.reflection ?? session.plan.reflectionMinutes} />
+        <div style={rStyles.body}>
+          <ApplicationStepCard
+            lang={lang} hasAI={hasAI}
+            value={applicationPhrase} onSave={onSaveApplicationPhrase}
+            pendingPin={pendingPin} onConfirmPin={onConfirmPin}
+            reminderRequested={reminderRequested} onToggleReminder={onToggleReminder}
+            aiContext={qaForAssist?.length ? () => onAiAssist(qaForAssist) : null}
+            onFinish={onAllDone}
+          />
+        </div>
+      </div>
+    )
+  }
+
   if (phase === 'review') {
     return (
       <div style={rStyles.screen}>
-        <div style={rStyles.header}>
-          <span style={rStyles.headerIcon}><AppIcon name="Check" size={16} color="var(--bento-ink)" /></span>
-          <div>
-            <p style={rStyles.headerTitle}>{L('reviewTitle')}</p>
-            <p style={rStyles.headerSub}>{L('reviewHint')}</p>
-          </div>
-        </div>
+        <ReflectionStepHeader lang={lang} guided={guided} onExitGuided={onExitGuided} onOpenTimeSheet={onOpenTimeSheet} minutes={stepMinutes?.reflection ?? session.plan.reflectionMinutes} />
         <div style={rStyles.body}>
+          <p style={rStyles.reviewTitle}>{L('reviewTitle')}</p>
+          <p style={rStyles.reviewHint}>{L('reviewHint')}</p>
           <div style={rStyles.reviewCard}>
             <textarea
               style={rStyles.reviewTextarea}
@@ -644,19 +685,27 @@ function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading
 
   return (
     <div style={rStyles.screen}>
-      <div style={rStyles.header}>
-        <span style={rStyles.headerIcon}><AppIcon name="Check" size={16} color="var(--bento-ink)" /></span>
-        <div>
-          <p style={rStyles.headerTitle}>{bookLabel} {chapterLabel} {L('chapterDoneSuffix')}</p>
-          <p style={rStyles.headerSub}>{minutes ? L('remainingWithMin', { n: minutes }) : L('remainingLabel')}</p>
-        </div>
+      <ReflectionStepHeader lang={lang} guided={guided} onExitGuided={onExitGuided} onOpenTimeSheet={onOpenTimeSheet} minutes={stepMinutes?.reflection ?? session.plan.reflectionMinutes} />
+
+      <div style={rStyles.modeRow}>
+        <button style={{ ...rStyles.modeBtn, ...(inputMode === 'write' ? rStyles.modeBtnOn : {}) }} onClick={() => chooseMode('write')}>
+          {t('reflection.inputModeWrite', undefined, lang)}
+        </button>
+        <button style={{ ...rStyles.modeBtnLight, ...(inputMode === 'speak' ? rStyles.modeBtnOn : {}) }} onClick={() => chooseMode('speak')} disabled={!isSpeechToTextSupported()}>
+          <AppIcon name="AudioLines" size={13} color={inputMode === 'speak' ? '#fff' : 'var(--bento-t3)'} />
+          {t('reflection.inputModeSpeak', undefined, lang)}
+        </button>
+        <button style={rStyles.modeBtnLight} onClick={() => chooseMode('think')}>
+          {t('reflection.inputModeThink', undefined, lang)}
+        </button>
       </div>
 
       <div style={rStyles.body}>
         <div style={rStyles.darkCard}>
           <div style={rStyles.aiLabelRow}>
             <span style={rStyles.aiDiamond} />
-            <p style={rStyles.aiLabel}>{L('questionOf', { n: index + 1, total: 3 })}</p>
+            <p style={rStyles.aiLabel}>{L('questionOf', { n: index + 1, total: 3 })} · {bookLabel} {chapterLabel}</p>
+            <button style={rStyles.trocarBtn} onClick={goNext} disabled={loading || phase === 'composing'}>{L('trocarBtn')}</button>
           </div>
           {loading || phase === 'composing'
             ? <p style={rStyles.questionText}>{phase === 'composing' ? L('composing') : ''}</p>
@@ -665,6 +714,8 @@ function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading
         </div>
 
         <div style={rStyles.answerCard}>
+          {speech.listening && <p style={rStyles.listeningHint}>{t('reflection.listeningHint', undefined, lang)}</p>}
+          {speech.error && <p style={rStyles.errorText}>{t('reflection.speechUnsupported', undefined, lang)}</p>}
           <textarea
             style={rStyles.answerTextarea}
             value={answers[index]}
@@ -677,15 +728,16 @@ function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading
             <button style={rStyles.chip} onClick={fillDontKnow} disabled={loading || phase === 'composing'}>
               {L('dontKnowChip')}
             </button>
-            <button style={rStyles.chip} onClick={goNext} disabled={loading || phase === 'composing'}>
-              {L('anotherQuestionChip')}
-            </button>
           </div>
         </div>
 
-        <div style={rStyles.hintCard}>
-          <span style={rStyles.hintDiamond} />
-          <p style={rStyles.hintText}>{L('composeHint')}</p>
+        <div style={rStyles.dotsRow}>
+          <div style={{ display: 'flex', gap: 5, flex: 'none' }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ ...rStyles.dot, background: i <= index ? 'var(--bento-sand-icon)' : 'var(--bento-line)' }} />
+            ))}
+          </div>
+          <span style={rStyles.dotsNote}>{L('questionsNote')}</span>
         </div>
 
         {errorMsg && <p style={rStyles.errorText}>{errorMsg}</p>}
@@ -708,81 +760,77 @@ function AiReflectionFlow({ lang, chapterInfo, questions, minutes, onPeekReading
   )
 }
 
-const rStyles = {
-  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
-  header: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
-  headerIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
-  headerSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '3px 0 0' },
-  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
-  darkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22 },
-  aiLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
-  aiDiamond: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  aiLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
-  questionText: { fontFamily: 'var(--font-bento)', fontSize: 24, fontWeight: 800, lineHeight: 1.25, letterSpacing: '-.8px', color: '#fff', textWrap: 'pretty', margin: '0 0 12px', minHeight: '1.25em' },
-  privacyLine: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.45)', margin: 0 },
-  // Ocupa o que sobra da tela, com os chips colados no pé (quadro 10d).
-  answerCard: { flex: 1, minHeight: 0, borderRadius: 24, background: 'var(--bento-card)', padding: 20, display: 'flex', flexDirection: 'column' },
-  answerTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'var(--bento-ink)' },
-  chipRow: { marginTop: 'auto', paddingTop: 16, display: 'flex', flexWrap: 'wrap', gap: 7 },
-  chip: { border: 'none', background: 'var(--bento-line)', borderRadius: 99, padding: '9px 12px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1, whiteSpace: 'nowrap', color: 'var(--bento-t3)', cursor: 'pointer' },
-  hintCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '15px 18px', display: 'flex', alignItems: 'center', gap: 12 },
-  hintDiamond: { width: 9, height: 9, background: 'var(--bento-sand-icon)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  hintText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-sand-ink)', margin: 0 },
-  errorText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--re, #DC2626)', margin: 0, textAlign: 'center' },
-  footer: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10 },
-  peekBtn: { flexShrink: 0, width: 52, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  primaryBtn: { height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, lineHeight: 1, color: '#fff', cursor: 'pointer' },
-  textBtn: { border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
-  reviewCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
-  reviewTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-ink)' },
-}
-
-// Campo de UMA linha (não textarea) — é uma frase curta, não um texto
-// corrido como a anotação geral (ver NotesPanel logo abaixo). Salva na
-// mesma chave por dia (application:{dateKey}), separada de reflection:
-// {dateKey} de propósito, pra não misturar as duas.
-function ApplicationPhraseField({ value, onSave, lang }) {
-  const [text, setText] = useState(value)
-  const [justSaved, setJustSaved] = useState(false)
-
-  useEffect(() => { setText(value) }, [value])
-
-  function handleSave() {
-    onSave(text)
-    setJustSaved(true)
-    setTimeout(() => setJustSaved(false), 1500)
-  }
-
+// Cabeçalho de passo compartilhado por todas as sub-fases do fluxo com IA
+// (answering/review/application) — igual ao de Oração/Leitura (nota do
+// quadro 21b).
+function ReflectionStepHeader({ lang, guided, onExitGuided, onOpenTimeSheet, minutes }) {
   return (
-    <div style={styles.phraseCard}>
-      <p style={styles.phraseLabel}>
-        <AppIcon name="Sparkles" size={12} color="#A21CAF" style={{ verticalAlign: 'middle', marginRight: 5 }} />
-        {t('reflection.applicationPhraseLabel', undefined, lang)}
-      </p>
-      <p style={styles.fieldHint}>{t('reflection.applicationPhraseHint', undefined, lang)}</p>
-      <input
-        type="text"
-        style={styles.phraseInput}
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder={t('reflection.applicationPhrasePlaceholder', undefined, lang)}
-        maxLength={140}
-      />
-      <button style={styles.phraseSaveBtn} onClick={handleSave}>
-        {justSaved ? t('reflection.savedNote', undefined, lang) : t('reflection.saveApplicationPhrase', undefined, lang)}
+    <div style={rStyles.header}>
+      <button onClick={onExitGuided} style={rStyles.headerBackBtn} aria-label={t('a11y.goBack', undefined, lang)}>
+        <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+      </button>
+      <div style={rStyles.stepChip}>
+        <span style={rStyles.stepChipTitle}>{t('reflection.pageTitle', undefined, lang)}</span>
+        {guided && <span style={rStyles.stepChipSub}>{t('reflection.stepOf', { n: guided.idx + 1, total: guided.total }, lang)}</span>}
+      </div>
+      <div style={{ flex: 1 }} />
+      <button style={rStyles.timePill} onClick={onOpenTimeSheet}>
+        <span style={rStyles.timePillText}>{t('routine.minShort', { n: minutes }, lang)}</span>
+        <AppIcon name="ChevronDown" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
       </button>
     </div>
   )
 }
 
+const rStyles = {
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '20px 20px 14px' },
+  headerBackBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stepChip: { height: 34, borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px' },
+  stepChipTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff' },
+  stepChipSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.45)' },
+  timePill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', cursor: 'pointer' },
+  timePillText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)' },
+
+  modeRow: { flex: 'none', padding: '0 20px 10px', display: 'flex', gap: 6 },
+  modeBtn: { flex: 1, height: 36, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', color: '#fff', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, cursor: 'pointer' },
+  modeBtnLight: { flex: 1, height: 36, borderRadius: 12, border: 'none', background: 'var(--bento-card)', color: 'var(--bento-t3)', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  modeBtnOn: { background: 'var(--bento-ink)', color: '#fff' },
+
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  darkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22 },
+  aiLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
+  aiDiamond: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  aiLabel: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  trocarBtn: { flexShrink: 0, border: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.4)', cursor: 'pointer' },
+  questionText: { fontFamily: 'var(--font-bento)', fontSize: 23, fontWeight: 800, lineHeight: 1.25, letterSpacing: '-.8px', color: '#fff', textWrap: 'pretty', margin: '0 0 12px', minHeight: '1.25em' },
+  privacyLine: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.45)', margin: 0 },
+  answerCard: { flex: 1, minHeight: 0, borderRadius: 24, background: 'var(--bento-card)', padding: 20, display: 'flex', flexDirection: 'column' },
+  listeningHint: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-accent)', margin: '0 0 8px' },
+  answerTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'var(--bento-ink)' },
+  chipRow: { marginTop: 'auto', paddingTop: 14, display: 'flex', flexWrap: 'wrap', gap: 7 },
+  chip: { border: 'none', background: 'var(--bento-line)', borderRadius: 99, padding: '9px 12px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1, whiteSpace: 'nowrap', color: 'var(--bento-t3)', cursor: 'pointer' },
+  dotsRow: { borderRadius: 20, background: 'rgba(255,255,255,.6)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 },
+  dot: { width: 26, height: 5, borderRadius: 99 },
+  dotsNote: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)' },
+  errorText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--re, #DC2626)', margin: 0, textAlign: 'center' },
+  footer: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10 },
+  peekBtn: { flexShrink: 0, width: 54, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  primaryBtn: { height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer' },
+  textBtn: { border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
+  reviewTitle: { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: '4px 0 2px' },
+  reviewHint: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 4px' },
+  reviewCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
+  reviewTextarea: { width: '100%', border: 'none', outline: 'none', resize: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-ink)' },
+}
+
 // Mesmo padrão do NotesPanel de ReadingBlockView.jsx — deliberadamente
 // duplicado (não importado de lá) pra não acoplar as duas telas, mesmo
-// espírito do resto do cronômetro nesta tela (ver comentário no topo do
-// arquivo).
+// espírito do resto do cronômetro nesta tela.
 function NotesPanel({ value, hasSavedNote, onSave, lang }) {
   const [text, setText] = useState(value)
   const [justSaved, setJustSaved] = useState(false)
+  const speech = useSpeechToText({ lang, onResult: t => setText(v => (v ? v + ' ' : '') + t) })
 
   useEffect(() => { setText(value) }, [value])
 
@@ -794,17 +842,22 @@ function NotesPanel({ value, hasSavedNote, onSave, lang }) {
 
   return (
     <div style={styles.notesPanel}>
-      {/* Nada de display:flex aqui — um <p> flex com o texto solto (sem
-          span próprio) vira item flex "anônimo" com min-width:auto por
-          padrão, então ele recusa encolher/quebrar linha e a última
-          palavra vaza pra fora do card (mais visível ainda com o zoom
-          1.15 sempre ligado no app, ver .app-content-inner no index.css).
-          Bolinha de "salvo" como inline-block resolve sem esse problema. */}
-      <p style={styles.notesLabel}>
-        <AppIcon name="PenLine" size={12} color="var(--or)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
-        {t('reflection.notesLabel', undefined, lang)}
-        {hasSavedNote && <span style={styles.notesSavedDot} />}
-      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+        <p style={{ ...styles.notesLabel, marginBottom: 0, flex: 1 }}>
+          <AppIcon name="PenLine" size={12} color="var(--bento-accent)" style={{ verticalAlign: 'middle', marginRight: 5 }} />
+          {t('reflection.notesLabel', undefined, lang)}
+          {hasSavedNote && <span style={styles.notesSavedDot} />}
+        </p>
+        {isSpeechToTextSupported() && (
+          <button
+            style={{ ...styles.micBtn, background: speech.listening ? 'var(--bento-accent)' : 'var(--bento-line)' }}
+            onClick={() => (speech.listening ? speech.stop() : speech.start())}
+            aria-label={t('reflection.inputModeSpeak', undefined, lang)}
+          >
+            <AppIcon name="AudioLines" size={13} color={speech.listening ? 'var(--bento-ink)' : 'var(--bento-t3)'} />
+          </button>
+        )}
+      </div>
       <p style={styles.fieldHint}>{t('reflection.notesHint', undefined, lang)}</p>
       <textarea
         style={styles.notesTextarea}
@@ -821,49 +874,56 @@ function NotesPanel({ value, hasSavedNote, onSave, lang }) {
 }
 
 const styles = {
-  backToReadingBtn: { display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', border: '0.5px solid rgba(107,33,168,.3)', background: '#F3E8FF', borderRadius: 10, padding: '7px 12px', fontSize: 11.5, fontWeight: 700, color: '#6B21A8', cursor: 'pointer', fontFamily: 'var(--font)', marginBottom: 4 },
-  hero:        { minHeight: 150, margin: '10px 16px', borderRadius: 24, overflow: 'hidden', position: 'relative', background: 'var(--bk-hero)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '18px 22px', boxShadow: '0 12px 28px rgba(0,0,0,.25)' },
-  heroOrbPurple: { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(60px)', opacity: 0.5, top: -60, left: -50 },
-  heroOrbFuchsia: { position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(60px)', opacity: 0.3, bottom: -60, right: -40 },
-  heroTitle:   { fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: 'white', marginBottom: 2, letterSpacing: '-0.3px' },
-  heroSub:     { fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.72)', textAlign: 'center', lineHeight: 1.5, marginTop: 3 },
-  body:        { padding: '0 16px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
-  timer:       { background: 'var(--bk-hero)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  timerLabel:  { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.6)', letterSpacing: 1.8, textTransform: 'uppercase' },
-  timerDisplay:{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 300, color: 'white', letterSpacing: 4, fontVariantNumeric: 'tabular-nums' },
-  currentPhaseBadge: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', border: '1px solid', borderRadius: 24, padding: '6px 14px 6px 6px' },
-  currentPhaseDot:   { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'white', flexShrink: 0 },
-  // minWidth:0 — mesmo ajuste de PrayerScreen.jsx (ver comentário lá):
-  // sem isso, o texto desse item flex recusa quebrar linha e vaza pra
-  // fora do card em telas estreitas.
-  currentPhaseLabel: { fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.8)', minWidth: 0 },
-  phaseRemaining:    { display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,.72)', fontVariantNumeric: 'tabular-nums', paddingLeft: 8, marginLeft: 2, borderLeft: '1px solid rgba(255,255,255,.15)', flexShrink: 0 },
-  timerBtn:    { padding: '8px 18px', borderRadius: 24, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, border: 'none', fontFamily: 'var(--font)', transition: 'transform .15s' },
-  wakeLockHint:{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.62)', textAlign: 'center', lineHeight: 1.5, marginTop: 2, maxWidth: 220 },
-  durationLabel: { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.6)', letterSpacing: 1.3, textTransform: 'uppercase', marginTop: 2 },
-  durationRow: { display: 'flex', gap: 6, background: 'rgba(255,255,255,.06)', borderRadius: 14, padding: 4 },
-  durationBtn: { width: 34, height: 30, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'rgba(255,255,255,.55)', background: 'transparent', transition: 'background .15s, color .15s' },
-  durationBtnActive: { background: 'var(--grad-primary)', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.35)' },
-  phraseCard:  { background: 'linear-gradient(135deg,#FDF4FF,#FAE8FF)', border: '0.5px dashed rgba(192,38,211,.4)', borderRadius: 16, padding: 13 },
-  phraseLabel: { fontSize: 10, fontWeight: 700, color: '#A21CAF', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
-  phraseInput: { width: '100%', border: '0.5px solid rgba(192,38,211,.3)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--bk)', outline: 'none', marginBottom: 10, background: 'white' },
-  phraseSaveBtn:{ width: '100%', background: '#A21CAF', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
-  pinConfirmCard: { background: 'white', border: '0.5px solid rgba(192,38,211,.4)', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 10 },
-  pinConfirmText: { fontSize: 12, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.4 },
-  pinConfirmYes: { flex: 1, background: '#A21CAF', border: 'none', borderRadius: 10, padding: '9px 12px', fontSize: 11.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' },
-  pinConfirmNo: { flex: 1, background: 'var(--g1)', border: 'none', borderRadius: 10, padding: '9px 12px', fontSize: 11.5, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  notesPanel:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  notesLabel:  { fontSize: 10, fontWeight: 700, color: 'var(--or)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
-  fieldHint:   { fontSize: 11, fontWeight: 500, color: 'var(--g5)', marginBottom: 9, lineHeight: 1.4 },
-  notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 6, verticalAlign: 'middle' },
-  markedTextItem: { background: 'var(--olt)', border: '0.5px solid var(--gold-soft)', borderRadius: 13, padding: 11 },
-  markedTextRef:  { fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', marginBottom: 3 },
-  markedTextBody: { fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },
-  notesTextarea:{ width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--g1)' },
-  notesSaveBtn:{ width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '20px 20px 14px' },
+  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stepChip: { height: 34, borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px' },
+  stepChipTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff' },
+  stepChipSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.45)' },
+  plainTitle: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.3px' },
+  timePill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', cursor: 'pointer' },
+  timePillText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)' },
 
-  routineCompleteCard:  { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 14, textAlign: 'center', boxShadow: 'var(--shadow-card)' },
-  routineCompleteTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 10 },
-  guidedAutoHint: { fontSize: 11, fontWeight: 600, color: 'var(--g5)', marginBottom: 10 },
-  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 24, padding: '10px 18px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 4px', display: 'flex', flexDirection: 'column', gap: 8 },
+  backToReadingBtn: { display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', border: 'none', background: 'var(--bento-card)', borderRadius: 12, padding: '9px 14px', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
+
+  methodCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 },
+  methodLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
+  segmentRow: { display: 'flex', gap: 3, height: 8 },
+  segment: { flex: 1, borderRadius: 99, transition: 'background .3s' },
+  methodTime: { fontFamily: 'var(--font-bento)', fontSize: 22, fontWeight: 800, letterSpacing: '-.8px', color: 'var(--bento-ink)', margin: '0 0 3px', fontVariantNumeric: 'tabular-nums' },
+  methodTimeLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t4)', margin: 0 },
+
+  phaseRow: { width: '100%', borderRadius: 20, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
+  phaseRowDone: { background: 'var(--bento-sand)' },
+  phaseRowNow: { background: 'var(--bento-ink)', padding: '16px 18px' },
+  phaseRowLater: { background: 'var(--bento-card)' },
+  phaseLetter: { width: 32, height: 32, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 },
+  phaseTitle: { fontSize: 14.5, fontWeight: 800, lineHeight: 1.2, margin: '0 0 2px' },
+  phaseSub: { fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, margin: 0 },
+  phaseNowClock: { fontSize: 15, fontWeight: 800, color: 'var(--bento-accent)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
+  phaseLaterMin: { fontSize: 12, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
+
+  stagePanel: { borderRadius: 24, background: 'var(--bento-ink)', padding: '18px 20px', display: 'flex', flexDirection: 'column' },
+  stagePanelLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 10px' },
+  stagePanelText: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'rgba(255,255,255,.9)', margin: 0 },
+  stagePanelActions: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 },
+  pauseBtn: { flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: '#fff' },
+  nextPhaseBtn: { flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)' },
+
+  notesPanel: { borderRadius: 22, background: 'var(--bento-card)', padding: 16 },
+  notesLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 3px' },
+  micBtn: { flexShrink: 0, width: 26, height: 26, borderRadius: 9, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  fieldHint: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 10px', lineHeight: 1.4 },
+  notesSavedDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--bento-accent)', marginLeft: 6, verticalAlign: 'middle' },
+  markedTextItem: { background: 'var(--bento-sand)', borderRadius: 14, padding: 11 },
+  markedTextRef: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-sand-icon)', margin: '0 0 3px' },
+  markedTextBody: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-sand-ink)', lineHeight: 1.5, whiteSpace: 'pre-wrap', margin: 0 },
+  notesTextarea: { width: '100%', border: 'none', borderRadius: 14, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--bento-line)' },
+  notesSaveBtn: { width: '100%', background: 'var(--bento-ink)', border: 'none', borderRadius: 12, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer' },
+
+  routineCompleteCard: { borderRadius: 22, background: 'var(--bento-card)', padding: 16, textAlign: 'center' },
+  routineCompleteTitle: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 10px' },
+  guidedAutoHint: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)', margin: '0 0 10px' },
+  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 14, padding: '11px 18px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: '#fff', cursor: 'pointer', background: 'var(--bento-ink)' },
 }

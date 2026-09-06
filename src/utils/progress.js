@@ -1,4 +1,5 @@
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks.js'
+import { buildDynamicSessionsByBlock } from '../data/dynamicSessions.js'
 
 // Ordem de percurso dos 8 blocos temáticos — 'ot_first' (padrão, sempre foi
 // assim) ou 'nt_first' (sugestão do onboarding pra quem nunca leu a Bíblia,
@@ -31,8 +32,20 @@ function isSessionDone(session, completedSet) {
 // "1 sessão = 1 dia"), calcula o status de cada sessão (done/pending, com a
 // primeira pendente destacada como "current") e o percentual de cada bloco.
 // Todos os blocos e sessões ficam sempre acessíveis.
-export function deriveProgress(completedSet, planId, readingOrder = 'ot_first') {
-  const sessionsSource = SESSIONS_BY_PLAN[planId] ?? SESSIONS_BY_PLAN.standard
+//
+// readingMinutesPerDay (Bloco 4 do redesign, item 2/6 da seção 5) — quando
+// presente (número, incl. 0), o plano fixo/canônico usa esse número REAL
+// (ver stepMinutesStore.js) pra dividir as sessões dinamicamente
+// (dynamicSessions.js), no lugar dos 4 ritmos fixos de SESSIONS_BY_PLAN
+// (Leve/Padrão/Intensivo — mantidos só pro plano 'free', usado na
+// navegação livre da aba Bíblia, e por planos/estudos por tema, que
+// continuam com sua própria divisão). undefined/null preserva o
+// comportamento antigo por planId, pra quem chama sem essa migração
+// (ex: planos por tema, cronológico, cada um com sua própria fonte).
+export function deriveProgress(completedSet, planId, readingOrder = 'ot_first', readingMinutesPerDay = null) {
+  const sessionsSource = readingMinutesPerDay !== null
+    ? buildDynamicSessionsByBlock(readingMinutesPerDay)
+    : SESSIONS_BY_PLAN[planId] ?? SESSIONS_BY_PLAN.standard
   const blockOrder = readingOrder === 'nt_first' ? NT_FIRST_ORDER : OT_FIRST_ORDER
   const orderedBlocks = blockOrder.map(id => BIBLE_BLOCKS.find(b => b.id === id))
   const blocks = []

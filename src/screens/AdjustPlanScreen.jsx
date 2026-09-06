@@ -1,44 +1,38 @@
-// AdjustPlanScreen.jsx — "Ajustar meu plano" (redesign 1d, reskin Bento — tela 5a)
+// AdjustPlanScreen.jsx — "Ajustar meu plano" (redesign 1d, reskin Bento —
+// tela 5a). Toda a configuração da rotina num lugar só, visitado raramente:
+// alcançada pelo link "Ajustar" em Meu Plano (4b) e pelo onboarding. A
+// execução do dia mora em RoutineScreen (4b).
 //
-// Toda a configuração da rotina num lugar só, visitado raramente: alcançada
-// pelo link "Ajustar" em Meu Plano (4b) e pelo onboarding. A execução do
-// dia mora em RoutineScreen (4b).
+// Bloco 4 do redesign: "Tempo de cada passo" troca o antigo seletor de
+// ritmo (Leve/Padrão/Intensivo/Livre) por steppers de minuto livre — a
+// mesma decisão de 26d, e Leitura aqui é a fonte real da divisão de
+// sessões (ver dynamicSessions.js). "Ritmo da semana" agora grava no
+// weeklyDaysStore.js novo (mantém weekly_days em sincronia, não só o
+// número — ver App.jsx/selectWeeklyDaysCount).
 //
-// Segue o quadro 5a à letra: Tempo por dia, Passos do dia e Ritmo da
-// semana, e só. O seletor de ordem (tradicional/cronológica) que morava
-// aqui como cartão extra saiu na auditoria do redesign — a escolha da
-// ordem cronológica fica sem tela até ganhar um lugar próprio (decisão da
-// autora); a lógica (onSelectActivePlan com type 'chrono') continua
-// intacta e é respeitada pelo seletor de ritmo abaixo.
+// Exceção: no plano CRONOLÓGICO (activeAltPlan.type === 'chrono'), a
+// divisão em sessões ainda vem de PLANS (Leve/Padrão/Intensivo/Livre —
+// ver ChronologicalPlanScreen.jsx, "paceId sempre vem de fora, pra não ter
+// dois seletores de ritmo espalhados") — não migrou pra minutos livres
+// nesta leva (fora do pedido desta rodada), então o seletor de ritmo
+// antigo continua existindo só pra esse caso.
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
-import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
-import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { StepMinutesEditor } from '../components/TimePerStepSheet'
 
-const STEP_ORDER = ['prayer', 'reading', 'reflection', 'study']
 const WEEKLY_GOAL_OPTIONS = [3, 4, 5, 6, 7]
 
-export default function AdjustPlanScreen({ session, activeAltPlan, onSelectPace, onSelectActivePlan, onToggleRoutineModule, onSelectWeeklyGoal, onNavigate, onBack }) {
-  const { lang, plan, activePlan, routineModules, weeklyGoalDays } = session
+export default function AdjustPlanScreen({ session, completedSet, stepMinutes, onSaveStepMinutes, activeAltPlan, onToggleRoutineModule, onSelectWeeklyDaysCount, onNavigate, onBack }) {
+  const { lang, plan, routineModules, weeklyGoalDays } = session
   const L = (k, vars) => t(`routine.${k}`, vars, lang)
-
   const isChrono = activeAltPlan?.type === 'chrono'
-  const currentPaceId = isChrono ? activeAltPlan.paceId : plan.id
-  const isOn = key => routineModules.includes(key)
+  const isStudyOn = routineModules.includes('study')
 
-  function choosePace(id) {
-    onSelectActivePlan?.(isChrono ? { type: 'chrono', paceId: id } : { type: 'fixed', id })
-    onSelectPace?.(id)
-  }
-
-  const prayerMin = getSavedPrayerMinutes() ?? plan.prayerMinutes
-  const reflectionMin = getSavedReflectionMinutes() ?? plan.reflectionMinutes
-  const stepMin = {
-    prayer: prayerMin,
-    reading: activePlan.readingMinutes,
-    reflection: reflectionMin,
-    study: null,
+  const minutes = {
+    prayer: stepMinutes?.prayer ?? plan.prayerMinutes,
+    reading: stepMinutes?.reading ?? plan.readingMinutes,
+    reflection: stepMinutes?.reflection ?? plan.reflectionMinutes,
   }
 
   return (
@@ -51,65 +45,59 @@ export default function AdjustPlanScreen({ session, activeAltPlan, onSelectPace,
       </div>
 
       <div style={styles.body}>
-        {/* Tempo por dia — o ritmo do plano fixo (Leve/Padrão/Intensivo/Livre). */}
-        <div style={styles.card}>
-          <p style={styles.sectionLabel}>{L('timePerDayLabel')}</p>
-          <p style={styles.sectionHint}>{L('timePerDayHint')}</p>
-          <div style={styles.paceRow}>
-            {PLANS.map(p => {
-              const on = currentPaceId === p.id
-              return (
-                <button key={p.id} style={{ ...styles.paceBtn, ...(on ? styles.paceBtnOn : {}) }} onClick={() => choosePace(p.id)}>
-                  <span style={{ ...styles.paceNum, color: on ? 'var(--bento-ink)' : 'var(--bento-t3)' }}>
-                    {p.minutesPerDay ?? (lang === 'en' ? p.labelEn : p.label)}
-                  </span>
-                  <span style={{ ...styles.paceUnit, fontWeight: on ? 700 : 600, color: on ? 'rgba(26,23,20,.6)' : 'var(--bento-t5)' }}>
-                    {p.minutesPerDay ? t('routine.min', undefined, lang) : ''}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Passos do dia — Leitura fica ligada e travada. */}
-        <div style={styles.card}>
-          <p style={styles.sectionLabel}>{L('stepsLabel')}</p>
-          <p style={{ ...styles.sectionHint, margin: '0 0 8px' }}>{L('stepsHint')}</p>
-          <div>
-            {STEP_ORDER.map((key, i) => {
-              const on = isOn(key)
-              const locked = key === 'reading'
-              const min = stepMin[key]
-              return (
-                <div key={key} style={{ ...styles.stepRow, ...(i === STEP_ORDER.length - 1 ? { borderBottom: 'none', paddingBottom: 0 } : {}) }}>
-                  <span style={{ ...styles.stepName, color: on ? 'var(--bento-ink)' : 'var(--bento-t5)' }}>
-                    {t(`home.routine${key[0].toUpperCase()}${key.slice(1)}`, undefined, lang)}
-                  </span>
-                  {on && min != null && <span style={styles.stepMin}>{L('minShort', { n: min })}</span>}
+        {isChrono ? (
+          // Cronológico: ritmo antigo (Leve/Padrão/Intensivo/Livre) — ver
+          // nota no topo do arquivo. Mantido intacto, não migrado agora.
+          <div style={styles.card}>
+            <p style={styles.sectionLabel}>{L('timePerDayLabel')}</p>
+            <p style={styles.sectionHint}>{L('timePerDayHint')}</p>
+            <div style={styles.paceRow}>
+              {PLANS.map(p => {
+                const on = activeAltPlan.paceId === p.id
+                return (
                   <button
-                    role="switch"
-                    aria-checked={on}
-                    disabled={locked}
-                    onClick={() => !locked && onToggleRoutineModule?.(key, !on)}
-                    style={{
-                      ...styles.switch,
-                      background: locked ? 'var(--bento-ink)' : on ? 'var(--bento-accent)' : 'var(--bento-line)',
-                      justifyContent: on ? 'flex-end' : 'flex-start',
-                      cursor: locked ? 'default' : 'pointer',
-                    }}
+                    key={p.id} style={{ ...styles.paceBtn, ...(on ? styles.paceBtnOn : {}) }}
+                    onClick={() => onNavigate?.('journey')}
                   >
-                    <span style={styles.switchThumb} />
+                    <span style={{ ...styles.paceNum, color: on ? 'var(--bento-ink)' : 'var(--bento-t3)' }}>
+                      {p.minutesPerDay ?? (lang === 'en' ? p.labelEn : p.label)}
+                    </span>
+                    <span style={{ ...styles.paceUnit, fontWeight: on ? 700 : 600, color: on ? 'rgba(26,23,20,.6)' : 'var(--bento-t5)' }}>
+                      {p.minutesPerDay ? t('routine.min', undefined, lang) : ''}
+                    </span>
                   </button>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          // Tempo de cada passo (5a/26d) — steppers de minuto livre; Leitura
+          // é a fonte real do tamanho da sessão (dynamicSessions.js).
+          <StepMinutesEditor minutes={minutes} onChange={onSaveStepMinutes} completedSet={completedSet} lang={lang} showNoTimer={false} />
+        )}
+
+        {/* Estudo — único passo que continua sendo liga/desliga puro (sem
+            minutos próprios; o tempo de estudo é livre, ver 4c/22c). */}
+        <div style={styles.card}>
+          <div style={styles.studyRow}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={styles.studyName}>{t('home.routineStudy', undefined, lang)}</p>
+              <p style={styles.studySub}>{L('studySwitchSub')}</p>
+            </div>
+            <button
+              role="switch" aria-checked={isStudyOn}
+              onClick={() => onToggleRoutineModule?.('study', !isStudyOn)}
+              style={{ ...styles.switch, background: isStudyOn ? 'var(--bento-accent)' : 'var(--bento-line)', justifyContent: isStudyOn ? 'flex-end' : 'flex-start' }}
+            >
+              <span style={styles.switchThumb} />
+            </button>
           </div>
         </div>
 
-        {/* Ritmo da semana — meta de dias/semana (constância semanal,
-            etapa 4). Um dia perdido não zera nada; isso só decide o que
-            conta como "meta batida" na Home/Progresso. */}
+        {/* Ritmo da semana — meta de dias/semana (constância semanal). Um
+            dia perdido não zera nada; isso só decide o que conta como
+            "meta batida" na Home/Progresso, e QUAIS dias ficam marcados
+            (weekly_days — ver selectWeeklyDaysCount em App.jsx). */}
         <div style={{ ...styles.card, background: 'var(--bento-sand)' }}>
           <p style={{ ...styles.sectionLabel, color: 'var(--bento-sand-label)' }}>{L('weeklyGoalLabel')}</p>
           <p style={{ ...styles.sectionHint, color: 'var(--bento-sand-ink-mid)' }}>{L('weeklyGoalHint')}</p>
@@ -120,7 +108,7 @@ export default function AdjustPlanScreen({ session, activeAltPlan, onSelectPace,
                 <button
                   key={n}
                   style={{ ...styles.weeklyGoalBtn, ...(on ? styles.weeklyGoalBtnOn : {}) }}
-                  onClick={() => onSelectWeeklyGoal?.(n)}
+                  onClick={() => onSelectWeeklyDaysCount?.(n)}
                 >
                   {n}
                 </button>
@@ -145,11 +133,10 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
   },
   headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
-  // Sem barra inferior nesta tela (quadro 5a): o rodapé é o "Salvar plano".
   body: {
     flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
     padding: '0 20px 4px',
-    display: 'flex', flexDirection: 'column', gap: 12,
+    display: 'flex', flexDirection: 'column', gap: 10,
   },
   card: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
   sectionLabel: {
@@ -166,15 +153,12 @@ const styles = {
   paceBtnOn: { background: 'var(--bento-accent)' },
   paceNum: { fontSize: 18, fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap' },
   paceUnit: { fontSize: 10, fontWeight: 600, lineHeight: 1 },
-  stepRow: {
-    display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0',
-    borderBottom: '1px solid var(--bento-line)',
-  },
-  stepName: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 700, lineHeight: 1 },
-  stepMin: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t5)' },
+  studyRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  studyName: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  studySub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
   switch: {
     width: 46, height: 28, flexShrink: 0, borderRadius: 99, border: 'none', padding: '0 3px',
-    display: 'flex', alignItems: 'center', transition: 'background .15s',
+    display: 'flex', alignItems: 'center', transition: 'background .15s', cursor: 'pointer',
   },
   switchThumb: { width: 22, height: 22, borderRadius: '50%', background: '#fff' },
   weeklyGoalRow: { display: 'flex', gap: 7 },
