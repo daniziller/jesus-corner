@@ -486,6 +486,17 @@ export default function App() {
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [activeTab, setActiveTab] = useState('home')
+  // Painel admin (23a-d, Bloco 14) roda fora do chrome do app inteiro — ver
+  // .admin-active em index.css. Precisa ficar ANTES dos retornos antecipados
+  // de bootstrap/login (mais abaixo) pra não virar um hook condicional: como
+  // 'activeTab' só existe de verdade DEPOIS do login, chamar este useEffect
+  // junto da tela principal (só alcançada pós-login) fazia a árvore de hooks
+  // ter uma quantidade diferente entre a tela de login e a tela do app,
+  // travando o React inteiro em branco ("Rendered more hooks than during
+  // the previous render") assim que alguém terminava o cadastro/onboarding.
+  useEffect(() => {
+    document.documentElement.classList.toggle('admin-active', activeTab === 'admin')
+  }, [activeTab])
   // Tempo de leitura acumulado (segundos) — "horas de leitura" do painel
   // 12a. Relido sempre que a Home volta a ficar ativa, porque quem soma é o
   // leitor (ver useReadingTimer em ReadingBlockView.jsx), em lotes.
@@ -2380,9 +2391,6 @@ export default function App() {
   // roda fora do chrome do app inteiro (ver .admin-active em index.css).
   const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab) || reflectionBento
   const isAdminScreen = activeTab === 'admin'
-  useEffect(() => {
-    document.documentElement.classList.toggle('admin-active', isAdminScreen)
-  }, [isAdminScreen])
 
   return (
     <div className="app-shell">

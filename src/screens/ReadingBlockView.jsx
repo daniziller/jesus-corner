@@ -1715,6 +1715,21 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         return (
           <div key={ch} data-chapter={ch} style={immersive ? styles.bibleTextChapterBento : styles.bibleTextChapter}>
             <p style={immersive ? styles.bibleTextChapterLabelBento : styles.bibleTextChapterLabel}>{chLabel} {ch}</p>
+
+            {/* Mesma ação de "marcar como lido" também no INÍCIO do texto —
+                antes só existia no fim (ver comentário mais abaixo); quem
+                já sabe que vai ler o capítulo inteiro marca de saída, sem
+                precisar rolar até o final pra achar o botão. */}
+            {onToggleChapter && !immersive && (
+              <button
+                style={{ ...styles.chapterDoneBtn, ...styles.chapterDoneBtnTop, ...(chDone ? styles.chapterDoneBtnActive : {}) }}
+                onClick={() => onToggleChapter(session, ch, !chDone)}
+              >
+                <AppIcon name={chDone ? 'Check' : 'Circle'} size={13} />
+                {chDone ? t('reading.chapterMarkedDone', { n: ch }, lang) : t('reading.markChapterDone', { n: ch }, lang)}
+              </button>
+            )}
+
             {paragraphs.map((verseNums, pIdx) => (
               <Fragment key={pIdx}>
               <p style={immersive ? styles.bibleTextBodyBento : styles.bibleTextBody}>
@@ -3122,6 +3137,10 @@ const styles = {
   nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
   chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 10, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--g1)' },
   chapterDoneBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
+  // Versão do botão acima pro topo do capítulo (antes do 1º parágrafo) —
+  // marginTop:0 (nada antes dele pra afastar) e um pouco mais de respiro
+  // embaixo, já que aqui ele antecede texto corrido, não sucede.
+  chapterDoneBtnTop:    { marginTop: 0, marginBottom: 16 },
 
   // Marcação de trechos específicos (versículo a versículo) — ver
   // src/highlights/highlightsStore.js. Mesma família de tom do resto do
