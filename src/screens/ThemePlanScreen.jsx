@@ -1,8 +1,9 @@
 // ThemePlanScreen.jsx
 // Lista de planos por tema/livro salvos + o leitor de um plano ativo.
-// Criar um plano novo mora em CreateStudyScreen.jsx (22a) e
-// StudyProposalScreen.jsx (22b) desde a Etapa 10 — esta tela só lista o
-// que já existe (`onCreateStudy` abre 22a) e lê um plano já salvo.
+// Criar um plano novo mora em AddStudyScreen.jsx (26e, entrada real desde
+// o Bloco 12) → CreateStudyScreen.jsx (22a) → StudyProposalScreen.jsx
+// (22b/26f) — esta tela só lista o que já existe (`onCreateStudy` abre
+// 26e) e lê um plano já salvo.
 //
 // A lista de planos salvos (`plans`) vem de fora (App.jsx) em vez de ser
 // buscada aqui — App.jsx precisa dela pra saber as sessões do plano por

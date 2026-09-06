@@ -1,5 +1,8 @@
 // CreateStudyScreen.jsx — "Criar estudo" (quadro 22a). Alcançada pelo
-// botão "Criar" no cabeçalho de Meu Plano (RoutineScreen.jsx).
+// cartão "Criar com a IA" de AddStudyScreen.jsx (26e — a entrada real
+// desde o Bloco 12), já com `initialText` preenchido do que foi digitado
+// lá; "Mais opções" nenhuma existe aqui além do próprio formato — é a
+// mesma tela, só chegando com o texto pronto em vez de vazio.
 //
 // Um campo de texto livre (é a IA ouvindo, por isso o bloco escuro com
 // losango) em vez do formulário Título+Escopo de antes — a pessoa só
@@ -36,13 +39,13 @@ const FORMATS = [
   { id: 'group', labelKey: 'formatGroupLabel', subKey: 'formatGroupSub' },
 ]
 
-export default function CreateStudyScreen({ session, onBack, onGenerated }) {
+export default function CreateStudyScreen({ session, initialText = '', onBack, onGenerated }) {
   const lang = session.lang
   const L = (k, vars) => t(`createStudy.${k}`, vars, lang)
 
   const moderatedGroup = session.myGroups?.find(g => g.myRole === 'moderator')
 
-  const [text, setText] = useState('')
+  const [text, setText] = useState(initialText)
   const [format, setFormat] = useState('thematic')
   const [bookPickerOpen, setBookPickerOpen] = useState(false)
   const [selectedBook, setSelectedBook] = useState(null)
