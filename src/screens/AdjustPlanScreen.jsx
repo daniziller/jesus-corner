@@ -6,9 +6,9 @@
 // Bloco 4 do redesign: "Tempo de cada passo" troca o antigo seletor de
 // ritmo (Leve/Padrão/Intensivo/Livre) por steppers de minuto livre — a
 // mesma decisão de 26d, e Leitura aqui é a fonte real da divisão de
-// sessões (ver dynamicSessions.js). "Ritmo da semana" agora grava no
-// weeklyDaysStore.js novo (mantém weekly_days em sincronia, não só o
-// número — ver App.jsx/selectWeeklyDaysCount).
+// sessões (ver dynamicSessions.js). "Ritmo da semana" (Bloco 8) usa o
+// mesmo WeeklyDaysPicker do onboarding (27a) — dias específicos, não uma
+// quantidade — ver App.jsx/saveWeeklyDays.
 //
 // Exceção: no plano CRONOLÓGICO (activeAltPlan.type === 'chrono'), a
 // divisão em sessões ainda vem de PLANS (Leve/Padrão/Intensivo/Livre —
@@ -20,11 +20,10 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
 import { StepMinutesEditor } from '../components/TimePerStepSheet'
+import WeeklyDaysPicker from '../components/WeeklyDaysPicker'
 
-const WEEKLY_GOAL_OPTIONS = [3, 4, 5, 6, 7]
-
-export default function AdjustPlanScreen({ session, completedSet, stepMinutes, onSaveStepMinutes, activeAltPlan, onToggleRoutineModule, onSelectWeeklyDaysCount, onNavigate, onBack }) {
-  const { lang, plan, routineModules, weeklyGoalDays } = session
+export default function AdjustPlanScreen({ session, completedSet, stepMinutes, onSaveStepMinutes, activeAltPlan, onToggleRoutineModule, weeklyDays, onSaveWeeklyDays, onNavigate, onBack }) {
+  const { lang, plan, routineModules } = session
   const L = (k, vars) => t(`routine.${k}`, vars, lang)
   const isChrono = activeAltPlan?.type === 'chrono'
   const isStudyOn = routineModules.includes('study')
@@ -94,27 +93,15 @@ export default function AdjustPlanScreen({ session, completedSet, stepMinutes, o
           </div>
         </div>
 
-        {/* Ritmo da semana — meta de dias/semana (constância semanal). Um
-            dia perdido não zera nada; isso só decide o que conta como
-            "meta batida" na Home/Progresso, e QUAIS dias ficam marcados
-            (weekly_days — ver selectWeeklyDaysCount em App.jsx). */}
+        {/* Ritmo da semana (27a, Bloco 8) — dias específicos, não só uma
+            quantidade. Um dia perdido não zera nada; isso só decide o que
+            conta como "meta batida" na Home/Progresso, QUAIS dias ficam
+            marcados (weekly_days) e quando o lembrete toca — mesmo
+            componente do onboarding, ver WeeklyDaysPicker.jsx. */}
         <div style={{ ...styles.card, background: 'var(--bento-sand)' }}>
           <p style={{ ...styles.sectionLabel, color: 'var(--bento-sand-label)' }}>{L('weeklyGoalLabel')}</p>
           <p style={{ ...styles.sectionHint, color: 'var(--bento-sand-ink-mid)' }}>{L('weeklyGoalHint')}</p>
-          <div style={styles.weeklyGoalRow}>
-            {WEEKLY_GOAL_OPTIONS.map(n => {
-              const on = weeklyGoalDays === n
-              return (
-                <button
-                  key={n}
-                  style={{ ...styles.weeklyGoalBtn, ...(on ? styles.weeklyGoalBtnOn : {}) }}
-                  onClick={() => onSelectWeeklyDaysCount?.(n)}
-                >
-                  {n}
-                </button>
-              )
-            })}
-          </div>
+          <WeeklyDaysPicker days={weeklyDays} onChange={onSaveWeeklyDays} lang={lang} />
         </div>
 
         {/* "Trocar plano" (28d/28e, Bloco 6) — onde começar (Gênesis,
@@ -172,12 +159,6 @@ const styles = {
     display: 'flex', alignItems: 'center', transition: 'background .15s', cursor: 'pointer',
   },
   switchThumb: { width: 22, height: 22, borderRadius: '50%', background: '#fff' },
-  weeklyGoalRow: { display: 'flex', gap: 7 },
-  weeklyGoalBtn: {
-    flex: 1, height: 46, borderRadius: 14, border: 'none', padding: 0, background: 'rgba(255,255,255,.55)',
-    fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, lineHeight: '46px', color: 'var(--bento-sand-ink-mid)', cursor: 'pointer',
-  },
-  weeklyGoalBtnOn: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
   changePlanRow: { display: 'flex', alignItems: 'center', gap: 14, borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' },
   changePlanTitle: { fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 3px' },
   changePlanSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
