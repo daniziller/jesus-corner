@@ -134,8 +134,10 @@ export function computeRecentWeeksStatus(dailyRoutine, weeklyGoalDays = DEFAULT_
 }
 
 // Segunda-feira da semana em que "d" cai (getDay(): 0=domingo..6=sábado) —
-// semana sempre começa na segunda, terminando no domingo.
-function mondayOf(d) {
+// semana sempre começa na segunda, terminando no domingo. Exportada (Bloco 3
+// do redesign) pra applicationPhraseMath.js usar a MESMA convenção de semana
+// ao contar aplicações cumpridas, em vez de duplicar a conta.
+export function mondayOf(d) {
   const day = d.getDay()
   const diff = (day === 0 ? -6 : 1) - day
   const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff)

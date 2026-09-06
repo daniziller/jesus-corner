@@ -9,12 +9,14 @@
 // O que saiu daqui (desde antes do reskin): o acordeão "Como funciona o
 // método", os interruptores de módulo, o seletor de duração, a seção de
 // Estudos, o card de plano por tema — ver AdjustPlanScreen.jsx e Biblioteca.
+import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
 import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { DEFAULT_ROUTINE_MODULES, isDayGoalMet } from '../routine/routineStreak'
 import { computeCurrentWeekDays } from '../routine/weekRings'
+import { getWeeklyDays } from '../routine/weeklyDaysStore'
 
 const STEP_ORDER = ['prayer', 'reading', 'reflection']
 
@@ -74,7 +76,15 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
   // Esta semana — mesma fonte/critério da Home (dia conta pra meta quando a
   // LEITURA foi concluída, ver isDayGoalMet): 3 estados visuais (feito · em
   // curso · o resto), não 7 células com letra — aqui é resumo, não painel.
-  const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
+  // Só os dias MARCADOS (weekly_days, quadro 27a) viram segmento — dia fora
+  // da meta nem aparece, mesmo critério de HomeDashboard.jsx (30a): dia em
+  // branco é dia livre de culpa, não um buraco na barra.
+  const weekDaysAll = computeCurrentWeekDays(dailyRoutine ?? {})
+  const [weeklyDays, setWeeklyDaysState] = useState(null)
+  useEffect(() => {
+    getWeeklyDays().then(setWeeklyDaysState).catch(() => setWeeklyDaysState([true, true, true, true, true, false, false]))
+  }, [])
+  const weekDays = weeklyDays ? weekDaysAll.filter((_, i) => weeklyDays[i]) : []
   const daysMet = weekGoalDaysMet ?? 0
   const goalDays = weeklyGoalDays ?? 5
 
