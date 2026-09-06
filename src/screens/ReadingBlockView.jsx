@@ -32,6 +32,14 @@ import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import ToolsSheet from '../components/ToolsSheet'
 import ChapterPickerSheet from '../components/ChapterPickerSheet'
 
+// "6:20" — mm:ss do relógio do passo (26b), sem zero à esquerda no minuto
+// (mesmo formato usado em 26a/26h/26c pro cronômetro de cada passo).
+function formatClock(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60)
+  const sec = Math.floor(totalSeconds % 60)
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
 export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
   const { lang, hasPremium, hasAI } = session
   const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
@@ -58,6 +66,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const bookInfoSource = lang === 'en' ? BOOK_INFO_EN : BOOK_INFO
 
   const scrollRef = useRef(null)
+  // Card branco do texto do capítulo em foco (readerTextCard) — usado só
+  // pra medir o progresso de leitura do capítulo (quadro 26b, ver o efeito
+  // de scroll abaixo), não pra rolar até ele.
+  const textCardRef = useRef(null)
   // Guarda o elemento DOM de cada card de capítulo (preenchido pelos
   // próprios SessionCard via registerCardRef) — usado só pra rolar até o
   // topo do card ao clicar em "Próximo" (ver goToNextInline).
@@ -216,6 +228,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // pra cima (redesign 1b). scrollRef é o container que rola (ver JSX).
   const [readerHeaderHidden, setReaderHeaderHidden] = useState(false)
   const lastReaderScrollY = useRef(0)
+  // Progresso de LEITURA do capítulo (quadro 26b — "a barra fina é o quanto
+  // falta do CAPÍTULO, não do tempo") — quanto do card branco do texto
+  // (textCardRef) já passou pelo topo da tela, 0 a 100. Reaproveita o MESMO
+  // listener de scroll do cabeçalho que some/aparece, em vez de um 2º
+  // listener, e recalcula na hora (onScroll() direto) sempre que o capítulo
+  // muda, não só ao rolar.
+  const [chapterProgressPct, setChapterProgressPct] = useState(0)
   useEffect(() => {
     if (!immersive) return
     const el = scrollRef.current
@@ -225,10 +244,37 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       if (y > lastReaderScrollY.current + 8 && y > 56) setReaderHeaderHidden(true)
       else if (y < lastReaderScrollY.current - 8 || y < 24) setReaderHeaderHidden(false)
       lastReaderScrollY.current = y
+      const textEl = textCardRef.current
+      if (textEl) {
+        const containerRect = el.getBoundingClientRect()
+        const textRect = textEl.getBoundingClientRect()
+        const textTop = el.scrollTop + (textRect.top - containerRect.top)
+        const ratio = textRect.height > 0 ? (el.scrollTop + containerRect.height - textTop) / textRect.height : 0
+        setChapterProgressPct(Math.max(0, Math.min(100, Math.round(ratio * 100))))
+      }
     }
+    onScroll()
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
   }, [immersive, heroSession?.id])
+
+  // Relógio do passo (26b, "6:20" ao lado da barra) — segundos desde que
+  // ESTA sessão de leitura guiada começou; zera a cada capítulo, diferente
+  // do acumulado de sempre em readingTimeStore.js (esse continua contando
+  // pro painel de métricas, sem relação com este). Só conta com a aba
+  // visível, mesmo cuidado do efeito de tempo de leitura logo abaixo.
+  const [stepElapsedSeconds, setStepElapsedSeconds] = useState(0)
+  useEffect(() => {
+    if (!guidedReading) return
+    setStepElapsedSeconds(0)
+    const interval = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        setStepElapsedSeconds(s => s + 1)
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guidedReading, heroSession?.id])
 
   // "Último texto lido" — grava o capítulo que a pessoa está lendo agora,
   // em QUALQUER modo, pro card "Continue sua leitura" da Home reabrir
@@ -750,60 +796,100 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       {immersive ? (
         // Cabeçalho (identidade Bento, tela 4a) — some ao rolar pra baixo,
         // volta ao rolar pra cima (readerHeaderHidden). Fica fixo no topo.
-        <div style={{ ...styles.readerHeader, transform: readerHeaderHidden ? 'translateY(-100%)' : 'none' }}>
-          <div style={styles.readerHeaderLeft}>
-            <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
-              <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-            </button>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {/* Chip escuro (quadro 4a) — abre o seletor de capítulo
-                    (18b), a mesma folha escura da IA mas sem losango (aqui
-                    não é a máquina falando). Só tocável numa sessão de
-                    leitura de verdade — a reflexão de fechamento de livro
-                    não tem capítulo pra escolher numa grade de números. */}
-                {heroSession.type === 'reflection' ? (
-                  <div style={styles.readerChapterChip}><span style={styles.readerChapterChipText}>{heroTitle}</span></div>
-                ) : (
-                  <button style={styles.readerChapterChip} onClick={() => setChapterPickerOpen(true)}>
-                    <span style={styles.readerChapterChipText}>{heroTitle}</span>
-                    <AppIcon name="ChevronUp" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
+        <div style={{
+          ...(guidedReading ? styles.readerHeaderGuided : styles.readerHeader),
+          transform: readerHeaderHidden ? 'translateY(-100%)' : 'none',
+        }}>
+          {guidedReading ? (
+            // Cabeçalho da Leitura dentro do fluxo guiado (26b) — igual ao
+            // de Oração/Reflexão (26a/26c): seta + pílula escura "Leitura ·
+            // N de 3" + pílula clara com o tempo do passo. Antes a Leitura
+            // era o único passo sem esse cabeçalho (nota do handoff). 2ª
+            // linha nova: o chip de capítulo/seletor de sempre + a barra
+            // fina de progresso do CAPÍTULO (não do tempo) + o relógio do
+            // passo — os dois só existem numa sessão de leitura de
+            // verdade, não na reflexão de fim de livro. Sem os ícones de
+            // Ferramentas (duplicavam o botão do rodapé) nem o botão
+            // "Grupo" (o design de 26b não reserva espaço pra ele aqui;
+            // continua acessível pela aba Bíblia fora do fluxo guiado).
+            <>
+              <div style={styles.guidedStepRow}>
+                <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
+                  <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+                </button>
+                <div style={styles.guidedStepPill}>
+                  <span style={styles.guidedStepPillText}>{t('home.routineReading', undefined, lang)}</span>
+                  <span style={styles.guidedStepPillCount}>{t('guided.stepOf', { n: guidedReading.idx + 1, total: guidedReading.total }, lang)}</span>
+                </div>
+                <button style={styles.guidedTimePill} onClick={() => onNavigate?.('adjustPlan')}>
+                  <span style={styles.guidedTimePillText}>{t('routine.minShort', { n: session.activePlan.readingMinutes ?? session.plan.readingMinutes ?? 0 }, lang)}</span>
+                  <AppIcon name="ChevronDown" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
+                </button>
+              </div>
+              {heroSession.type !== 'reflection' && (
+                <div style={styles.guidedChapterRow}>
+                  <button style={styles.guidedChapterChip} onClick={() => setChapterPickerOpen(true)}>
+                    <span style={styles.guidedChapterChipText}>{heroTitle}</span>
+                    <AppIcon name="ChevronDown" size={10} strokeWidth={2.8} color="var(--bento-accent)" />
+                  </button>
+                  <div style={styles.guidedChapterBarTrack}><div style={{ ...styles.guidedChapterBarFill, width: `${chapterProgressPct}%` }} /></div>
+                  <span style={styles.guidedChapterClock}>{formatClock(stepElapsedSeconds)}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div style={styles.readerHeaderLeft}>
+                <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
+                  <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+                </button>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {/* Chip escuro (quadro 4a) — abre o seletor de capítulo
+                        (18b), a mesma folha escura da IA mas sem losango (aqui
+                        não é a máquina falando). Só tocável numa sessão de
+                        leitura de verdade — a reflexão de fechamento de livro
+                        não tem capítulo pra escolher numa grade de números. */}
+                    {heroSession.type === 'reflection' ? (
+                      <div style={styles.readerChapterChip}><span style={styles.readerChapterChipText}>{heroTitle}</span></div>
+                    ) : (
+                      <button style={styles.readerChapterChip} onClick={() => setChapterPickerOpen(true)}>
+                        <span style={styles.readerChapterChipText}>{heroTitle}</span>
+                        <AppIcon name="ChevronUp" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
+                      </button>
+                    )}
+                  </div>
+                  <p style={styles.readerHeaderSub}>{readerHeaderSub}</p>
+                </div>
+              </div>
+              {/* Dois ícones por fidelidade visual à 4a (ondas + menu) — os
+                  dois abrem Ferramentas, a mesma única ação que o cabeçalho
+                  já tinha; não inventamos uma 2ª funcionalidade nova
+                  (decisão tomada com a autora antes de implementar esta
+                  tela). */}
+              <div style={styles.readerHeaderRight}>
+                {/* Botão "Grupo" (quadro 17c) — abre a sala do capítulo (17a). */}
+                {myGroup && heroSession.type !== 'reflection' && (
+                  <button
+                    style={styles.groupBtn}
+                    onClick={() => onOpenGroupRoom?.({ group: myGroup, book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart })}
+                  >
+                    <span style={{ display: 'flex' }}>
+                      <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-accent)' }} />
+                      <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-sand)', marginLeft: -6 }} />
+                    </span>
+                    <span style={styles.groupBtnText}>{t('room.groupBtn', undefined, lang)}</span>
                   </button>
                 )}
-                {/* "passo N de 3" ao lado do chip (nota do handoff) — só
-                    quando a leitura foi aberta pelo plano guiado (4b). */}
-                {guidedReading && (
-                  <span style={styles.readerStepBadge}>{t('guided.stepOf', { n: guidedReading.idx + 1, total: guidedReading.total }, lang)}</span>
-                )}
+                <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
+                  <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
+                </button>
+                <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
+                  <AppIcon name="MoreVertical" size={16} color="var(--bento-ink)" />
+                </button>
               </div>
-              <p style={styles.readerHeaderSub}>{readerHeaderSub}</p>
-            </div>
-          </div>
-          {/* Dois ícones por fidelidade visual à 4a (ondas + menu) — os dois
-              abrem Ferramentas, a mesma única ação que o cabeçalho já tinha;
-              não inventamos uma 2ª funcionalidade nova (decisão tomada com
-              a autora antes de implementar esta tela). */}
-          <div style={styles.readerHeaderRight}>
-            {/* Botão "Grupo" (quadro 17c) — abre a sala do capítulo (17a). */}
-            {myGroup && heroSession.type !== 'reflection' && (
-              <button
-                style={styles.groupBtn}
-                onClick={() => onOpenGroupRoom?.({ group: myGroup, book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart })}
-              >
-                <span style={{ display: 'flex' }}>
-                  <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-accent)' }} />
-                  <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-sand)', marginLeft: -6 }} />
-                </span>
-                <span style={styles.groupBtnText}>{t('room.groupBtn', undefined, lang)}</span>
-              </button>
-            )}
-            <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
-              <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
-            </button>
-            <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
-              <AppIcon name="MoreVertical" size={16} color="var(--bento-ink)" />
-            </button>
-          </div>
+            </>
+          )}
         </div>
       ) : (
         <div style={styles.browseHeader}>
@@ -958,7 +1044,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                   groupMarks={immersive && myGroup && groupLayerOn ? groupMarks : null}
                 />
               )
-              return immersive ? <div style={styles.readerTextCard}>{panel}</div> : panel
+              return immersive ? <div ref={textCardRef} style={styles.readerTextCard}>{panel}</div> : panel
             })()}
             {nextForHero && (
               <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
@@ -2898,6 +2984,30 @@ const styles = {
     padding: '20px 20px 14px', background: 'var(--bento-bg)',
     transition: 'transform .2s ease-out',
   },
+  // Cabeçalho da Leitura no fluxo guiado (26b) — mesma base fixa/sticky de
+  // readerHeader, mas em coluna (2 linhas: passo+tempo, depois
+  // capítulo+progresso+relógio) em vez de uma linha só com space-between.
+  readerHeaderGuided: {
+    position: 'sticky', top: 0, zIndex: 20,
+    display: 'flex', flexDirection: 'column', gap: 10,
+    padding: '20px 20px 12px', background: 'var(--bento-bg)',
+    transition: 'transform .2s ease-out',
+  },
+  guidedStepRow: { display: 'flex', alignItems: 'center', gap: 10 },
+  guidedStepPill: { flex: 1, minWidth: 0, height: 34, borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px' },
+  guidedStepPillText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  guidedStepPillCount: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.45)', flexShrink: 0 },
+  guidedTimePill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', cursor: 'pointer' },
+  guidedTimePillText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)' },
+  guidedChapterRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  guidedChapterChip: {
+    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, height: 32,
+    border: 'none', borderRadius: 11, background: 'var(--bento-ink)', padding: '0 12px 0 14px', cursor: 'pointer',
+  },
+  guidedChapterChipText: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' },
+  guidedChapterBarTrack: { flex: 1, height: 6, borderRadius: 99, background: '#DDD5CC', overflow: 'hidden' },
+  guidedChapterBarFill: { height: 6, borderRadius: 99, background: 'var(--bento-accent)' },
+  guidedChapterClock: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)' },
   readerHeaderLeft: { display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 },
   readerHeaderRight: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
   readerIconBtn: {

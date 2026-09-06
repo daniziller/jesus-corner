@@ -794,7 +794,8 @@ export const STRINGS = {
       // Com marcação(ões) reais no capítulo lido — sem inventar contagem
       // quando não houver nenhuma marcação (mostra só a referência).
       readingRowValue: '{ref}',
-      readingRowValueWithMarks: '{ref} · {n} marcação(ões)',
+      readingRowValueWithMarkOne: '{ref} · {n} marcação',
+      readingRowValueWithMarksMany: '{ref} · {n} marcações',
       readingRowValueGeneric: 'Sessão concluída',
       reflectionRowLabel: 'Reflexão',
       reflectionRowValue: 'Salvo no diário',
@@ -2673,7 +2674,8 @@ export const STRINGS = {
       prayerRowValue: '{n} min',
       readingRowLabel: 'Reading',
       readingRowValue: '{ref}',
-      readingRowValueWithMarks: '{ref} · {n} highlight(s)',
+      readingRowValueWithMarkOne: '{ref} · {n} highlight',
+      readingRowValueWithMarksMany: '{ref} · {n} highlights',
       readingRowValueGeneric: 'Session completed',
       reflectionRowLabel: 'Reflection',
       reflectionRowValue: 'Saved to your journal',
