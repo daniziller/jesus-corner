@@ -83,7 +83,7 @@ import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecap
 import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRecapStore'
 import { renderRecapImage, shareRecapImage } from './recap/recapImage'
 import { getHighlights } from './highlights/highlightsStore'
-import { saveNote } from './notes/notesStore'
+import { saveNote, getNotes } from './notes/notesStore'
 import { getLastReadPosition, setLastReadPosition } from './reading/lastReadPositionStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
@@ -103,6 +103,7 @@ import { getMySubscription, isPremiumActive } from './billing/subscriptionStore'
 import { resolveEntitlement } from './billing/entitlement'
 import { checkIsAdmin } from './admin/adminStore'
 import { applyPendingInvite, redeemPendingInviteCode } from './invites/inviteStore'
+import { savePendingFriendUsername, redeemPendingFriendUsername } from './friends/inviteLinkStore'
 import { applyPendingOnboardingChoices } from './onboarding/pendingOnboardingChoices'
 import { logActivity } from './activity/activityStore'
 import { syncPushTimezone, subscribeToPush } from './notifications/pushStore'
@@ -724,12 +725,13 @@ export default function App() {
     recapCheckedFor.current = authUser.email ?? 'guest'
     let cancelled = false
     ;(async () => {
-      const [seconds, hl] = await Promise.all([getReadingSeconds().catch(() => 0), getHighlights(authUser.email).catch(() => [])])
+      const [seconds, hl, notes] = await Promise.all([getReadingSeconds().catch(() => 0), getHighlights(authUser.email).catch(() => []), getNotes(authUser.email).catch(() => ({}))])
       const recap = await ensureSnapshotAndGetDueRecap({
         chaptersRead: [...completedSet].filter(k => !k.endsWith(':reflection')).length,
         readingSeconds: seconds,
         completedBooks: [...computeCompletedBooks(completedSet, sessionsByBlock)],
         highlights: hl,
+        notes,
         dailyRoutine,
         weeklyGoalDays,
       })
@@ -828,6 +830,11 @@ export default function App() {
       getMyPendingGroupPlanInvites().catch(() => []),
       ])
       if (cancelled) return
+      // Username de /d/:username salvo antes de existir sessão (ver
+      // App.jsx mais abaixo e src/friends/inviteLinkStore.js) — mesmo
+      // padrão de redeemPendingInviteCode, só que não afeta assinatura,
+      // por isso fica fora do Promise.all de cima.
+      redeemPendingFriendUsername().catch(() => false)
       const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
 
       // Se um convite de acesso grátis acabou de ser aplicado, a assinatura
@@ -1048,6 +1055,21 @@ export default function App() {
     }
     return true
   }
+
+  // Link pessoal de amigo (24c, "jesuscorner.app/d/username" — ver
+  // src/friends/inviteLinkStore.js) — o app não tem roteamento de verdade
+  // (é tudo estado do React), então quem abre /d/:username cai aqui uma vez
+  // no carregamento: guarda o username e limpa a URL na hora, ANTES de
+  // saber se a pessoa já tem sessão ou não. redeemPendingFriendUsername()
+  // (chamada no bootstrap logo abaixo e em handleAuthenticated) é quem de
+  // fato manda o pedido, assim que existir sessão — cobre tanto quem já
+  // estava logado quanto quem precisa criar conta/entrar primeiro.
+  useEffect(() => {
+    const match = /^\/d\/([a-z0-9_]{3,20})\/?$/i.exec(window.location.pathname)
+    if (!match) return
+    window.history.replaceState({}, '', '/')
+    savePendingFriendUsername(match[1])
+  }, [])
 
   // Depois de voltar do Stripe Checkout (success_url leva pra cá com
   // ?checkout=success) — o webhook grava a assinatura de forma assíncrona,
@@ -1469,6 +1491,7 @@ export default function App() {
       getMyAcceptedGroupPlans().catch(() => []),
       getMyPendingGroupPlanInvites().catch(() => []),
     ])
+    redeemPendingFriendUsername().catch(() => false)
     const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
     const finalSubscription = inviteApplied ? await getMySubscription() : mySubscription
     // O AuthScreen só chama onAuthenticated depois de resolver o próprio

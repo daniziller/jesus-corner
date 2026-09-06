@@ -40,6 +40,7 @@ export function recapSummary(recap, lang, bookLabel) {
   if (recap.seconds >= 60) { const { h, m } = hoursLabel(recap.seconds); parts.push(`${h ? `${h}h${String(m).padStart(2, '0')}` : `${m} min`} ${L('reading')}`) }
   if (recap.weeksMet > 0) parts.push(`${recap.weeksMet}/${recap.weeksTotal} ${L('weeks')}`)
   if (recap.highlights > 0) parts.push(`${recap.highlights} ${L('highlights')}`)
+  if (recap.applicationsFulfilled > 0) parts.push(`${recap.applicationsFulfilled} ${L('applications')}`)
   return { title, parts }
 }
 
@@ -67,6 +68,9 @@ export default function MonthRecapScreen({ recap, lang, nextBook, bookLabel, onC
   if (recap.seconds >= 60) tiles.push({ key: 'reading', num: h ? <>{h}<span style={s.tileUnit}>h</span>{String(m).padStart(2, '0')}</> : <>{m}<span style={s.tileUnit}>min</span></>, label: L('reading') })
   if (recap.weeksMet > 0) tiles.push({ key: 'weeks', accent: true, num: <>{recap.weeksMet}<span style={{ ...s.tileUnit, color: 'rgba(240,102,43,.6)' }}>/{recap.weeksTotal}</span></>, label: L('weeks') })
   if (recap.highlights > 0) tiles.push({ key: 'highlights', num: <>{recap.highlights}</>, label: L('highlights') })
+  // "Aplicações cumpridas" — item extra do quadro 17b, além do mockup
+  // original (ver comentário em monthlyRecapStore.js).
+  if (recap.applicationsFulfilled > 0) tiles.push({ key: 'applications', num: <>{recap.applicationsFulfilled}</>, label: L('applications') })
 
   const topRef = recap.topVerse ? `${bookLabel(recap.topVerse.book, recap.topVerse.bookEn)} ${recap.topVerse.chapter}:${recap.topVerse.verse}` : null
 

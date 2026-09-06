@@ -4,14 +4,15 @@ import AppIcon from '../icons/AppIcon'
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks'
 import { computeBookChapterCounts, deriveProgress, computeOverallStats, pickActiveBlock } from '../utils/progress'
 import {
-  getFriends, getPendingRequests, sendFriendRequest, respondToFriendRequest, removeFriend,
-  getFriendFriendsList, sendFriendRequestByUserId,
+  getFriends, getPendingRequests, getFriendFriendsList, sendFriendRequestByUserId,
 } from '../friends/friendsStore'
 import {
   getMyGroups, getPendingGroupInvites, getGroupDetail, createGroup,
   inviteFriendToGroup, respondToGroupInvite, leaveGroup, setMemberRole,
-  redeemGroupInviteCode,
+  redeemGroupInviteCode, getGroupMemberCounts,
 } from '../groups/groupsStore'
+import AddFriendsScreen from './AddFriendsScreen'
+import CreateGroupSheet from '../components/CreateGroupSheet'
 import { createChallenge, getChallengesForGroup, getChallengeLeaderboard, completeChallenge } from '../groups/challengesStore'
 import { getComments, postComment, deleteComment, toggleCommentLike, setCommentPinned } from '../groups/commentsStore'
 import { getFriendProfile, getFriendProgressSummary } from '../profile/profileStore'
@@ -46,10 +47,21 @@ function formatDate(iso, lang) {
 export default function GroupsScreen({ session, authUser, pendingGroupPlanInvites, onRespondGroupPlanInvite, onSocialChange, onOpenGroupRoom, onDetailOpenChange }) {
   const { lang, todaySession } = session
   const [myGroups, setMyGroups] = useState([])
+  const [memberCounts, setMemberCounts] = useState({})
   const [groupInvites, setGroupInvites] = useState([])
   const [openGroupId, setOpenGroupId] = useState(null)
+  const [friendsOpen, setFriendsOpen] = useState(false)
+  const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [friendActivity, setFriendActivity] = useState([])
+  const [friendsCount, setFriendsCount] = useState(0)
+  const [pendingFriendsCount, setPendingFriendsCount] = useState(0)
+  // "Sala aberta agora" (24a) — simplificação deliberada, documentada: olha
+  // só o PRIMEIRO grupo (a maioria tem poucos), não "o grupo com mais gente
+  // em atraso" que o handoff sugere como alternativa — isso exigiria
+  // agregar atraso de todo mundo em todo grupo, um cálculo bem mais caro só
+  // pra um cartão que já é opcional por natureza.
+  const [featuredRoomStats, setFeaturedRoomStats] = useState(null)
 
   function reload() {
     setReloadKey(k => k + 1)
@@ -57,25 +69,42 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
   }
 
   useEffect(() => {
-    getMyGroups().then(setMyGroups).catch(err => console.error('Failed to load groups', err))
+    getMyGroups().then(groups => {
+      setMyGroups(groups)
+      if (groups.length) getGroupMemberCounts(groups.map(g => g.groupId)).then(setMemberCounts).catch(() => {})
+    }).catch(err => console.error('Failed to load groups', err))
     getPendingGroupInvites().then(setGroupInvites).catch(err => console.error('Failed to load group invites', err))
     getFriendsActivity(20).then(setFriendActivity).catch(err => console.error('Failed to load friend activity', err))
+    getFriends().then(f => setFriendsCount(f.length)).catch(() => {})
+    getPendingRequests().then(p => setPendingFriendsCount(p.length)).catch(() => {})
   }, [reloadKey])
 
-  // Avisa o shell (App.jsx) se o painel de UM grupo está aberto — só ele
-  // tem cabeçalho Bento próprio (quadro 5d); a lista de vários grupos
-  // continua dependendo do AppHeader antigo, sem quadro no redesign.
+  const hasTodayReading = !!(todaySession && !todaySession.needsThemePick && todaySession.type !== 'reflection' && todaySession.book)
+  const featuredGroup = myGroups[0] ?? null
   useEffect(() => {
-    onDetailOpenChange?.(!!openGroupId)
+    if (!featuredGroup || !hasTodayReading) { setFeaturedRoomStats(null); return }
+    getRoomStats(featuredGroup.groupId, todaySession.book, todaySession.chStart)
+      .then(setFeaturedRoomStats).catch(() => setFeaturedRoomStats(null))
+  }, [featuredGroup?.groupId, hasTodayReading, todaySession?.book, todaySession?.chStart])
+
+  // Avisa o shell (App.jsx) se uma tela interna está aberta (um grupo ou
+  // Adicionar amigos) — só elas têm cabeçalho Bento próprio (5d/24c); a
+  // lista (24a) continua dependendo do AppHeader antigo, sem quadro no
+  // redesign original (24a é uma adição posterior do handoff).
+  const detailOpen = !!openGroupId || friendsOpen
+  useEffect(() => {
+    onDetailOpenChange?.(detailOpen)
     return () => onDetailOpenChange?.(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openGroupId])
+  }, [detailOpen])
 
   const openGroup = myGroups.find(g => g.groupId === openGroupId) ?? null
 
-  async function handleCreateGroup(name) {
-    await createGroup(name)
+  async function handleCreateGroup(name, readingMode) {
+    const created = await createGroup(name, readingMode)
+    setCreateSheetOpen(false)
     reload()
+    setOpenGroupId(created.groupId)
   }
 
   async function handleRespondInvite(groupId, accept, groupName) {
@@ -97,17 +126,39 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
 
   return (
     <div className="master-detail">
-      {/* Master: convites pendentes + meus grupos + amigos — sem quadro
-          próprio no handoff (só o quadro 5d, "dentro de um grupo", tem
-          desenho — ver GroupHomeView abaixo); redesenhado em Bento a
-          pedido, seguindo a mesma linguagem visual do resto do app em vez
-          de inventar um quadro que não existe. */}
-      <div className={`master-pane${openGroupId ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-        <div style={styles.bHeader}>
-          <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
-          <p style={styles.bSubtitle}>{t(myGroups.length === 1 ? 'groups.bSubtitleOne' : 'groups.bSubtitleMany', { n: myGroups.length }, lang)}</p>
+      {/* Master = quadro 24a (Bloco 10): home da Comunidade — sala aberta
+          agora (condicional), seus grupos, criar/entrar e amigos. Antes
+          disso abria direto numa lista simples sem quadro próprio no
+          handoff; 24a é uma adição posterior que formaliza essa entrada. */}
+      <div className={`master-pane${detailOpen ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
+        <div style={styles.aHeader}>
+          <div>
+            <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
+            <p style={styles.bSubtitle}>{t('groups.communitySummary', { groups: myGroups.length, friends: friendsCount }, lang)}</p>
+          </div>
+          <button type="button" style={styles.aAddBtn} onClick={() => setCreateSheetOpen(true)} aria-label={t('groups.createGroup', undefined, lang)}>
+            <AppIcon name="Plus" size={16} strokeWidth={2.2} color="var(--bento-accent)" />
+          </button>
         </div>
         <div style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {hasTodayReading && featuredGroup && featuredRoomStats && featuredRoomStats.completed > 0 && (
+            <div style={styles.aRoomHero}>
+              <div style={styles.aRoomLabelRow}>
+                <span style={styles.aRoomDiamond} />
+                <p style={styles.aRoomLabel}>{t('groups.roomOpenNow', undefined, lang)}</p>
+              </div>
+              <p style={styles.aRoomTitle}>{featuredGroup.name} · {lang === 'en' ? todaySession.bookEn : todaySession.book} {todaySession.chStart}</p>
+              <p style={styles.aRoomStatus}>{t('groups.homeReadStatus', { done: featuredRoomStats.completed, total: featuredRoomStats.members }, lang)}</p>
+              <button
+                type="button" style={styles.aRoomBtn}
+                onClick={() => onOpenGroupRoom?.({ group: { groupId: featuredGroup.groupId, name: featuredGroup.name }, book: todaySession.book, bookEn: todaySession.bookEn, chapter: todaySession.chStart })}
+              >
+                <span>{t('groups.enterRoom', undefined, lang)}</span>
+                <span style={{ fontWeight: 700 }}>→</span>
+              </button>
+            </div>
+          )}
+
           {pendingCount > 0 && (
             <div style={styles.bCard}>
               <div style={styles.bCardHeadRow}>
@@ -149,8 +200,8 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
             </div>
           )}
 
-          <GroupsListSection groups={myGroups} lang={lang} onOpen={setOpenGroupId} onCreate={handleCreateGroup} />
-          <FriendsSection lang={lang} onChange={reload} authUser={authUser} />
+          <GroupsListSection groups={myGroups} memberCounts={memberCounts} lang={lang} onOpen={setOpenGroupId} onCreateTap={() => setCreateSheetOpen(true)} onReload={reload} />
+          <FriendsPreviewCard lang={lang} friendsCount={friendsCount} pendingCount={pendingFriendsCount} onOpen={() => setFriendsOpen(true)} />
 
           <div style={styles.bCard}>
             <p style={styles.bCardLabel}>{t('groups.activityTitle', undefined, lang)}</p>
@@ -167,9 +218,11 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
         </div>
       </div>
 
-      {/* Detail: grupo selecionado */}
-      <div className={`detail-pane${!openGroupId ? ' hide-on-mobile' : ''}`}>
-        {openGroup ? (
+      {/* Detail: grupo selecionado (5d) ou Adicionar amigos (24c) */}
+      <div className={`detail-pane${!detailOpen ? ' hide-on-mobile' : ''}`}>
+        {friendsOpen ? (
+          <AddFriendsScreen session={session} authUser={authUser} onBack={() => setFriendsOpen(false)} onChange={reload} />
+        ) : openGroup ? (
           <GroupDetailView
             key={openGroupId}
             groupId={openGroupId}
@@ -185,6 +238,10 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
           <GroupsEmptyState lang={lang} />
         )}
       </div>
+
+      {createSheetOpen && (
+        <CreateGroupSheet lang={lang} onClose={() => setCreateSheetOpen(false)} onCreate={handleCreateGroup} />
+      )}
     </div>
   )
 }
@@ -200,33 +257,12 @@ function GroupsEmptyState({ lang }) {
 }
 
 /* ── Lista de grupos + criar grupo + entrar com código ── */
-function GroupsListSection({ groups, lang, onOpen, onCreate }) {
-  const [creating, setCreating] = useState(false)
-  const [name, setName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
+function GroupsListSection({ groups, memberCounts, lang, onOpen, onCreateTap, onReload }) {
   const [joining, setJoining] = useState(false)
   const [code, setCode] = useState('')
   const [joinLoading, setJoinLoading] = useState(false)
   const [joinError, setJoinError] = useState('')
   const [joinSuccess, setJoinSuccess] = useState('')
-
-  async function submit(e) {
-    e.preventDefault()
-    if (!name.trim()) return
-    setLoading(true)
-    try {
-      await onCreate(name.trim())
-      setName('')
-      setCreating(false)
-      setError('')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // Entrar num grupo pelo código de convite (quadro 19c) — não entra na
   // hora: cria um pedido 'requested' que um moderador do grupo aprova
@@ -241,6 +277,7 @@ function GroupsListSection({ groups, lang, onOpen, onCreate }) {
       setJoinSuccess(t('groups.joinRequestSent', { group: groupName }, lang))
       setCode('')
       setJoining(false)
+      onReload?.()
     } catch (err) {
       setJoinError(
         err.message === 'invalid_code' ? t('groups.joinCodeInvalid', undefined, lang)
@@ -253,233 +290,99 @@ function GroupsListSection({ groups, lang, onOpen, onCreate }) {
   }
 
   return (
-    <div style={styles.bCard}>
-      <div style={styles.bCardHeadRow}>
-        <p style={styles.bCardLabel}>{t('groups.myGroupsTitle', undefined, lang)}</p>
-        {/* Ícones, não o texto do botão inteiro — o card divide a coluna
-            estreita do master-pane (split desktop) com "Meus grupos" em
-            maiúsculas espaçadas; "Entrar com código"/"Criar grupo" por
-            extenso não cabiam ao lado sem quebrar linha. */}
-        <span style={{ display: 'flex', gap: 6 }}>
-          <button
-            style={{ ...styles.bIconBtn, ...(joining ? styles.bIconBtnOn : {}) }}
-            onClick={() => { setJoining(v => !v); setJoinError(''); setJoinSuccess('') }}
-            aria-label={joining ? t('groups.cancel', undefined, lang) : t('groups.joinWithCode', undefined, lang)}
-          >
-            <AppIcon name="Ticket" size={14} color={joining ? '#fff' : 'var(--bento-t3)'} />
-          </button>
-          <button
-            style={{ ...styles.bIconBtn, ...(creating ? styles.bIconBtnOn : {}) }}
-            onClick={() => setCreating(v => !v)}
-            aria-label={creating ? t('groups.cancel', undefined, lang) : t('groups.createGroup', undefined, lang)}
-          >
-            <AppIcon name="Plus" size={15} color={creating ? '#fff' : 'var(--bento-t3)'} />
-          </button>
-        </span>
+    <>
+      <div style={styles.bCard}>
+        <div style={styles.bCardHeadRow}>
+          <p style={styles.bCardLabel}>{t('groups.myGroupsTitle', undefined, lang)}</p>
+        </div>
+        {groups.length === 0 ? (
+          <p style={styles.bEmptyHint}>{t('groups.noGroupsYet', undefined, lang)}</p>
+        ) : (
+          groups.map((g, i) => (
+            <button
+              key={g.groupId}
+              style={{ ...styles.bLinkRow, borderBottom: i === groups.length - 1 ? 'none' : '1px solid var(--bento-line)' }}
+              onClick={() => onOpen(g.groupId)}
+            >
+              <span style={{ ...styles.bAvatarCircle, borderRadius: 12 }}>{avatarInitialsOf(g.name)}</span>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <p style={styles.bMemberName}>{g.name}</p>
+                <p style={styles.bMemberSub}>
+                  {t(memberCounts[g.groupId] === 1 ? 'groups.memberCountOne' : 'groups.memberCountMany', { n: memberCounts[g.groupId] ?? 0 }, lang)}
+                  {g.myRole === 'moderator' ? ` · ${t('groups.youAreModerator', undefined, lang)}` : ''}
+                </p>
+              </div>
+              <span style={styles.bChevron}>›</span>
+            </button>
+          ))
+        )}
       </div>
 
-      {joining && (
-        <form onSubmit={submitJoin} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input
-            style={styles.bFieldInput}
-            placeholder={t('groups.joinCodePlaceholder', undefined, lang)}
-            value={code}
-            onChange={e => setCode(e.target.value)}
-            autoFocus
-          />
-          <button type="submit" style={styles.bPrimarySmallBtn} disabled={joinLoading}>
-            {joinLoading ? t('groups.loading', undefined, lang) : t('groups.join', undefined, lang)}
-          </button>
-        </form>
-      )}
-      {joinError && <p style={styles.bErrorText}>{joinError}</p>}
-      {joinSuccess && <p style={styles.bEmptyHint}>{joinSuccess}</p>}
-
-      {creating && (
-        <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input
-            style={styles.bFieldInput}
-            placeholder={t('groups.groupNamePlaceholder', undefined, lang)}
-            value={name}
-            onChange={e => setName(e.target.value)}
-            autoFocus
-          />
-          <button type="submit" style={styles.bPrimarySmallBtn} disabled={loading}>
-            {loading ? t('groups.loading', undefined, lang) : t('groups.create', undefined, lang)}
-          </button>
-        </form>
-      )}
-      {error && <p style={styles.bErrorText}>{error}</p>}
-
-      {groups.length === 0 ? (
-        <p style={styles.bEmptyHint}>{t('groups.noGroupsYet', undefined, lang)}</p>
-      ) : (
-        groups.map((g, i) => (
-          <button
-            key={g.groupId}
-            style={{ ...styles.bLinkRow, borderBottom: i === groups.length - 1 ? 'none' : '1px solid var(--bento-line)' }}
-            onClick={() => onOpen(g.groupId)}
-          >
-            <span style={styles.bAvatarCircle}><AppIcon name="Users" size={15} color="var(--bento-accent)" /></span>
-            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-              <p style={styles.bMemberName}>{g.name}</p>
-              {g.myRole === 'moderator' && <p style={styles.bMemberSub}>{t('groups.youAreModerator', undefined, lang)}</p>}
-            </div>
-            <span style={styles.bChevron}>›</span>
-          </button>
-        ))
-      )}
-    </div>
-  )
-}
-
-/* ── Amigos: lista, pedidos pendentes, adicionar por email ── */
-function FriendsSection({ lang, onChange, authUser }) {
-  const [friends, setFriends] = useState([])
-  const [pending, setPending] = useState([])
-  const [adding, setAdding] = useState(false)
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [invitedMsg, setInvitedMsg] = useState('')
-  const [expandedFriendId, setExpandedFriendId] = useState(null)
-
-  function reload() {
-    getFriends().then(setFriends).catch(err => console.error('Failed to load friends', err))
-    getPendingRequests().then(setPending).catch(err => console.error('Failed to load friend requests', err))
-  }
-
-  useEffect(() => { reload() }, [])
-
-  async function submitAdd(e) {
-    e.preventDefault()
-    if (!email.trim()) return
-    setLoading(true)
-    setError('')
-    setInvitedMsg('')
-    try {
-      const result = await sendFriendRequest(email.trim())
-      setEmail('')
-      if (result?.invited) {
-        setInvitedMsg(t('groups.inviteSent', undefined, lang))
-      } else {
-        setAdding(false)
-      }
-      onChange?.()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function respond(friendshipId, accept) {
-    await respondToFriendRequest(friendshipId, accept)
-    reload()
-    onChange?.()
-  }
-
-  async function unfriend(friendshipId) {
-    await removeFriend(friendshipId)
-    reload()
-  }
-
-  return (
-    <div style={styles.bCard}>
-      <div style={styles.bCardHeadRow}>
-        <p style={styles.bCardLabel}>{t('groups.myFriendsTitle', undefined, lang)}</p>
-        <button style={styles.bLinkBtn} onClick={() => setAdding(v => !v)}>
-          {adding ? t('groups.cancel', undefined, lang) : t('groups.addFriend', undefined, lang)}
+      {/* Criar grupo / Entrar com código (24a) — os dois atalhos de entrada
+          que antes viviam só como ícones no cabeçalho do card acima. */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="button" style={styles.aCreateTile} onClick={onCreateTap}>
+          <AppIcon name="Plus" size={17} strokeWidth={2} color="var(--bento-sand-icon)" />
+          <p style={styles.aTileTitle}>{t('groups.createGroup', undefined, lang)}</p>
+          <p style={styles.aTileSub}>{t('groups.createGroupTileSub', undefined, lang)}</p>
+        </button>
+        <button type="button" style={styles.aJoinTile} onClick={() => { setJoining(v => !v); setJoinError(''); setJoinSuccess('') }}>
+          <AppIcon name="Ticket" size={17} strokeWidth={2} color="var(--bento-ink)" />
+          <p style={{ ...styles.aTileTitle, color: 'var(--bento-ink)' }}>{t('groups.joinWithCode', undefined, lang)}</p>
+          <p style={{ ...styles.aTileSub, color: 'var(--bento-t4)' }}>{t('groups.joinWithCodeTileSub', undefined, lang)}</p>
         </button>
       </div>
 
-      {adding && (
-        <>
-          <form onSubmit={submitAdd} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+      {joining && (
+        <div style={styles.bCard}>
+          <form onSubmit={submitJoin} style={{ display: 'flex', gap: 8 }}>
             <input
               style={styles.bFieldInput}
-              type="email"
-              placeholder={t('groups.friendEmailPlaceholder', undefined, lang)}
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              placeholder={t('groups.joinCodePlaceholder', undefined, lang)}
+              value={code}
+              onChange={e => setCode(e.target.value)}
               autoFocus
             />
-            <button type="submit" style={styles.bPrimarySmallBtn} disabled={loading}>
-              {loading ? t('groups.loading', undefined, lang) : t('groups.send', undefined, lang)}
+            <button type="submit" style={styles.bPrimarySmallBtn} disabled={joinLoading}>
+              {joinLoading ? t('groups.loading', undefined, lang) : t('groups.join', undefined, lang)}
             </button>
           </form>
-          <p style={styles.bAddFriendHint}>{t('groups.addFriendHint', undefined, lang)}</p>
-        </>
-      )}
-      {error && <p style={styles.bErrorText}>{error}</p>}
-      {invitedMsg && <p style={styles.bInviteSentMsg}>{invitedMsg}</p>}
-
-      {pending.length > 0 && (
-        <div style={{ marginBottom: friends.length > 0 ? 10 : 0 }}>
-          {pending.map((req, i) => (
-            <div key={req.friendshipId} style={{ ...styles.bInviteRow, borderBottom: i === pending.length - 1 && friends.length === 0 ? 'none' : '1px solid var(--bento-line)' }}>
-              <span style={styles.bAvatarCircle}>
-                {req.avatarUrl ? <img src={req.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(req.name)}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={styles.bMemberName}>{req.name}</p>
-                <p style={styles.bMemberSub}>{t('groups.friendRequestReceived', undefined, lang)}</p>
-              </div>
-              <button style={styles.bDeclineBtn} onClick={() => respond(req.friendshipId, false)} aria-label={t('groupAdmin.declineAction', undefined, lang)}>
-                <AppIcon name="X" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
-              </button>
-              <button style={styles.bAcceptBtn} onClick={() => respond(req.friendshipId, true)} aria-label={t('groupAdmin.acceptAction', undefined, lang)}>
-                <AppIcon name="Check" size={13} strokeWidth={2.8} color="var(--bento-accent)" />
-              </button>
-            </div>
-          ))}
         </div>
       )}
-
-      {friends.length === 0 ? (
-        <p style={styles.bEmptyHint}>{t('groups.noFriendsYet', undefined, lang)}</p>
-      ) : (
-        <>
-          <div style={styles.bFriendsGrid}>
-            {friends.map(f => {
-              const expanded = expandedFriendId === f.userId
-              return (
-                <button
-                  key={f.friendshipId}
-                  style={styles.bFriendGridItem}
-                  onClick={() => setExpandedFriendId(expanded ? null : f.userId)}
-                >
-                  <div style={{ ...styles.bFriendAvatarCircle, ...(expanded ? styles.bFriendAvatarCircleActive : {}) }}>
-                    {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(f.name)}
-                  </div>
-                  <span style={styles.bFriendGridName}>{f.name}</span>
-                </button>
-              )
-            })}
-          </div>
-          {friends.map(f => expandedFriendId === f.userId && (
-            <FriendProfilePanel
-              key={f.userId}
-              friendUserId={f.userId}
-              lang={lang}
-              authUser={authUser}
-              myFriendIds={new Set(friends.map(fr => fr.userId))}
-              onUnfriend={() => unfriend(f.friendshipId)}
-              onFriendAdded={reload}
-            />
-          ))}
-        </>
-      )}
-    </div>
+      {joinError && <p style={styles.bErrorText}>{joinError}</p>}
+      {joinSuccess && <p style={styles.bEmptyHint}>{joinSuccess}</p>}
+    </>
   )
 }
 
-/* ── Painel de perfil de um amigo (expande abaixo do nome, na lista de
-   amigos) — nome/foto/mensagem sempre aparecem pra amigos; progresso, o que
-   está estudando, os grupos e a lista de amigos dele só aparecem se o dono
-   marcou o perfil como público (ver get_friend_progress_summary e
-   get_friend_friends_list em 0004/0012_*.sql). ── */
-function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfriend, onFriendAdded }) {
+// Cartão condensado "Amigos" (24a) — avatar row + pedidos pendentes;
+// substitui a antiga FriendsSection embutida, que agora mora inteira em
+// AddFriendsScreen.jsx (24c), aberta ao tocar aqui.
+function FriendsPreviewCard({ lang, friendsCount, pendingCount, onOpen }) {
+  return (
+    <button type="button" style={styles.bCard} onClick={onOpen}>
+      <div style={styles.bCardHeadRow}>
+        <p style={styles.bCardLabel}>{t('groups.myFriendsTitle', undefined, lang)}</p>
+        {pendingCount > 0 && <span style={{ ...styles.bCardCount, background: 'none', color: 'var(--bento-accent)' }}>{t('groups.pendingRequestsCount', { n: pendingCount }, lang)}</span>}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={styles.aAddFriendCircle}><AppIcon name="Plus" size={15} strokeWidth={2.2} color="var(--bento-t3)" /></div>
+        <p style={styles.aFriendsCountText}>{t(friendsCount === 1 ? 'groups.friendsCountOne' : 'groups.friendsCountMany', { n: friendsCount }, lang)}</p>
+        <span style={{ ...styles.bChevron, marginLeft: 'auto' }}>›</span>
+      </div>
+    </button>
+  )
+}
+
+/* ── Painel de perfil de um amigo (expande abaixo do nome, na grade de
+   amigos de AddFriendsScreen.jsx, 24c) — nome/foto/mensagem sempre
+   aparecem pra amigos; progresso, o que está estudando, os grupos e a
+   lista de amigos dele só aparecem se o dono marcou o perfil como público
+   (ver get_friend_progress_summary e get_friend_friends_list em
+   0004/0012_*.sql). Exportado porque a antiga FriendsSection embutida
+   (que vivia aqui, ao lado dele) virou AddFriendsScreen.jsx — o painel em
+   si não mudou, só passou a ser chamado de outro arquivo. ── */
+export function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfriend, onFriendAdded }) {
   const [profile, setProfile] = useState(null)
   const [summary, setSummary] = useState(null)
   const [friendsOfFriend, setFriendsOfFriend] = useState(null)

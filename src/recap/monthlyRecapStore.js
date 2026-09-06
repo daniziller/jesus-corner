@@ -20,7 +20,8 @@ function prevMonthKey(key) {
 // Garante o snapshot do mês corrente e devolve a retrospectiva do mês
 // anterior, se ela ainda não foi mostrada. `totals` vem do estado já
 // carregado do app (ver App.jsx): { chaptersRead, readingSeconds,
-// completedBooks: [nomes], highlights: [...], dailyRoutine, weeklyGoalDays }.
+// completedBooks: [nomes], highlights: [...], dailyRoutine, weeklyGoalDays,
+// notes: {...} }.
 export async function ensureSnapshotAndGetDueRecap(totals, today = new Date()) {
   const key = monthKeyOf(today)
   const prev = prevMonthKey(key)
@@ -70,6 +71,21 @@ export async function ensureSnapshotAndGetDueRecap(totals, today = new Date()) {
     }
     const booksFinished = (cur.books ?? []).filter(b => !(base.books ?? []).includes(b))
 
+    // "Aplicações cumpridas" (item extra do quadro 17b, além do mockup
+    // original) — conta os dias do mês em que a frase de aplicação da
+    // Reflexão (application:{data}, ver applicationPhraseStore.js) foi
+    // marcada como cumprida no Início. application:pinned não é um dia,
+    // fica de fora.
+    const notes = totals.notes ?? {}
+    let applicationsFulfilled = 0
+    for (const [key, entry] of Object.entries(notes)) {
+      if (!key.startsWith('application:') || key === 'application:pinned') continue
+      if (!entry?.fulfilled) continue
+      const dateStr = key.slice('application:'.length)
+      const d = new Date(`${dateStr}T00:00:00`)
+      if (d >= monthStart && d <= monthEnd) applicationsFulfilled++
+    }
+
     return {
       month: prev,
       chapters: Math.max(0, (cur.chapters ?? 0) - (base.chapters ?? 0)),
@@ -77,6 +93,7 @@ export async function ensureSnapshotAndGetDueRecap(totals, today = new Date()) {
       weeksMet: weeks.filter(w => w.met).length,
       weeksTotal: weeks.length,
       highlights: highlightsInMonth.length,
+      applicationsFulfilled,
       booksFinished,
       topVerse,
     }

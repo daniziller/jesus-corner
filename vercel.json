@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/d/:username",
+      "destination": "/index.html"
+    }
+  ],
   "crons": [
     {
       "path": "/api/send-contribution-reminders",
