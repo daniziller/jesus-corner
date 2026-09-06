@@ -84,6 +84,10 @@ import ChapterRoomScreen from './screens/ChapterRoomScreen'
 import RoutineCompleteScreen from './screens/RoutineCompleteScreen'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
 import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRecapStore'
+import WeeklySummaryNumbersScreen from './screens/WeeklySummaryNumbersScreen'
+import WeeklySummaryTextScreen from './screens/WeeklySummaryTextScreen'
+import WeeklySummaryPrayerGroupScreen from './screens/WeeklySummaryPrayerGroupScreen'
+import { getWeeklySummaries } from './recap/weeklySummaryStore'
 import { renderRecapImage, shareRecapImage } from './recap/recapImage'
 import { getHighlights } from './highlights/highlightsStore'
 import { saveNote, getNotes } from './notes/notesStore'
@@ -492,6 +496,17 @@ export default function App() {
   const [chapterRoom, setChapterRoom] = useState(null) // { group, book, bookEn, chapter }
   const [monthRecap, setMonthRecap] = useState(null)
   const recapCheckedFor = useRef(null)
+  // Resumo semanal (31a/31b/31c, Bloco 13) — histórico já pronto, gravado
+  // pelo cron de domingo à noite (ver api/send-weekly-digest.js); o app só
+  // lê. `weekSummaryIndex` é qual semana as 3 telas estão mostrando agora
+  // (0 = mais recente) — mora aqui, não em cada tela, pra sobreviver à
+  // navegação entre as 3.
+  const [weeklySummaries, setWeeklySummaries] = useState([])
+  const [weekSummaryIndex, setWeekSummaryIndex] = useState(0)
+  useEffect(() => {
+    if (!authUser?.email) { setWeeklySummaries([]); return }
+    getWeeklySummaries().then(setWeeklySummaries).catch(err => console.error('Failed to load weekly summaries', err))
+  }, [authUser?.email])
   useEffect(() => {
     if (activeTab !== 'home' || !authUser) return
     getReadingSeconds().then(setReadingSeconds).catch(() => {})
@@ -2265,7 +2280,7 @@ export default function App() {
     // hasPremium: é a mesma info de "progresso básico" que ProgressScreen/
     // stats (acima) já mostra sem trava, só reorganizada e com tempo por
     // passo (que ProgressScreen não tinha).
-    metrics: <MetricsScreen session={session} completedSet={completedSet} sessionsByBlock={sessionsByBlock} stepMinutes={stepMinutes} onNavigate={navigateTo} onBack={goBack} />,
+    metrics: <MetricsScreen session={session} completedSet={completedSet} sessionsByBlock={sessionsByBlock} stepMinutes={stepMinutes} hasWeeklySummary={weeklySummaries.length > 0} onNavigate={navigateTo} onBack={goBack} />,
     metricsBlocks: <MetricsBlocksScreen session={session} completedSet={completedSet} onBack={goBack} />,
     // Sala do capítulo (17a) — aberta pelo botão "Grupo" da leitura (17c).
     chapterRoom: chapterRoom
@@ -2287,6 +2302,20 @@ export default function App() {
           onShare={shareRecap}
         />
       : null,
+    // Resumo semanal (31a/31b/31c, Bloco 13) — 3 telas em sequência, dado
+    // já pronto (weeklySummaries, gravado pelo cron de domingo à noite).
+    weeklySummaryNumbers: <WeeklySummaryNumbersScreen
+      session={session} weeklyDays={weeklyDays} summaries={weeklySummaries} selectedIndex={weekSummaryIndex}
+      onSelectWeek={setWeekSummaryIndex} onBack={goBack} onOpenText={() => goToTab('weeklySummaryText')}
+    />,
+    weeklySummaryText: <WeeklySummaryTextScreen
+      session={session} summaries={weeklySummaries} selectedIndex={weekSummaryIndex}
+      onSelectWeek={setWeekSummaryIndex} onBack={goBack} onOpenPrayerGroup={() => goToTab('weeklySummaryPrayerGroup')}
+      onOpenLibrary={() => navigateTo('notes')}
+    />,
+    weeklySummaryPrayerGroup: <WeeklySummaryPrayerGroupScreen
+      session={session} summaries={weeklySummaries} selectedIndex={weekSummaryIndex} onBack={goBack}
+    />,
     // Rotina concluída (21c) — fecha o ciclo diário guiado (ver
     // advanceGuided). routineCompleteInfo só existe entre o fim da rotina e
     // "Voltar para Hoje".
@@ -2342,13 +2371,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">

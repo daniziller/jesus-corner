@@ -32,7 +32,7 @@ import { computeCompletedBooks } from '../utils/progress'
 
 const PERIODS = ['30d', 'year', 'all']
 
-export default function MetricsScreen({ session, completedSet, sessionsByBlock, stepMinutes, onNavigate, onBack }) {
+export default function MetricsScreen({ session, completedSet, sessionsByBlock, stepMinutes, hasWeeklySummary, onNavigate, onBack }) {
   const { lang } = session
   const L = (k, vars) => t(`metrics.${k}`, vars, lang)
   const [period, setPeriod] = useState('all')
@@ -164,6 +164,15 @@ export default function MetricsScreen({ session, completedSet, sessionsByBlock, 
             <span style={s.listValue}>{L('booksCompletedValue', { n: completedBooks })}</span>
           </div>
         </div>
+
+        {/* Resumo semanal (31a-c, Bloco 13) — só aparece depois do primeiro
+            resumo (domingo à noite); antes disso não tem pra onde levar. */}
+        {hasWeeklySummary && (
+          <button style={s.blocksBtn} onClick={() => onNavigate?.('weeklySummaryNumbers')}>
+            <span>{L('weeklySummaryRowBtn')}</span>
+            <span style={{ color: 'var(--bento-accent)', fontWeight: 700 }}>→</span>
+          </button>
+        )}
       </div>
 
       <div style={s.footer}>
