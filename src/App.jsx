@@ -2239,12 +2239,12 @@ export default function App() {
     aiSettings: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <AiSettingsScreen session={session} onBack={goBack} />,
-    contact: <ContactScreen session={session} authUser={authUser} />,
-    applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} />,
-    inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
+    contact: <ContactScreen session={session} authUser={authUser} onBack={goBack} />,
+    applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} />,
+    inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} onBack={goBack} />,
     themePlan: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
-      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} />,
+      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
     // 26e — entrada real de "Adicionar estudo" (pelo botão "Criar" em Meu
     // Plano/RoutineScreen.jsx): prontos + banco da comunidade não pedem IA
     // nenhuma, só o cartão "Criar com a IA" lá dentro pede session.hasAI —
@@ -2281,7 +2281,7 @@ export default function App() {
     groupPlanReader: <GroupPlanReaderScreen session={session} authUser={authUser} completedSet={completedSet} plan={groupPlans.find(p => p.id === activeAltPlan?.planId)} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onBack={goBack} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
-      : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
+      : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
@@ -2382,14 +2382,23 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab)
+  // 'profile' entrou nesta lista junto da migração pra Bento do Perfil de
+  // desktop (antes ficava de fora, com o AppHeader antigo por cima da
+  // versão antiga da tela); 'contact'/'applicationPhrases'/'inductiveMethod'/
+  // 'themePlan' entraram junto da migração dessas telas — cada uma tem
+  // cabeçalho Bento próprio agora. 'studies' continua de fora de
+  // propósito — ver comentário da Etapa 12 em StudiesScreen.jsx (reskin só
+  // de cor, cabeçalho antigo mantido).
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir. 'admin' (23a-d, Bloco 14) tem sidebar e cabeçalho PRÓPRIOS —
   // roda fora do chrome do app inteiro (ver .admin-active em index.css).
-  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab) || reflectionBento
+  // 'contact'/'applicationPhrases'/'inductiveMethod' também saem sozinhas
+  // (tela de utilidade cheia, sem rodapé de rotina).
+  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab) || reflectionBento
   const isAdminScreen = activeTab === 'admin'
 
   return (

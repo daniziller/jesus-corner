@@ -27,7 +27,7 @@ export default function RoutineDayRing({ modules, done, size = 26, strokeWidth =
       viewBox={`0 0 ${size} ${size}`}
       style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}
     >
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--g2)" strokeWidth={strokeWidth} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bento-line)" strokeWidth={strokeWidth} />
       {modules.map((key, i) => {
         const raw = done?.[key]
         const frac = typeof raw === 'number' ? Math.max(0, Math.min(1, raw)) : (raw ? 1 : 0)

@@ -1,11 +1,19 @@
+// LanguageSelectScreen.jsx — primeira tela do app quando ainda não existe
+// usuário logado nem idioma escolhido no dispositivo. Depois da escolha,
+// login/criar conta já nascem no idioma certo (ver i18n/index.js:
+// currentLanguage() lê essa preferência).
+//
+// Sem quadro no handoff (redesign Bento cobre 52 telas a partir de
+// WelcomeScreen.jsx/13a, que já pressupõe idioma escolhido) — esta tela
+// vem ANTES até de 13a, então segue a mesma linguagem visual dela (fundo
+// --bento-ink cheio, sem o hero escuro + folha branca que tinha antes),
+// mantendo a própria bilíngue (pt+en juntos, já que ainda não dá pra saber
+// em qual idioma escrever).
 import { LANGUAGES } from '../i18n'
 import BrandMark from '../components/BrandMark'
 import BrandLogo from '../components/BrandLogo'
 import { setAppLanguage } from '../i18n/appLanguageStore'
 
-// Primeira tela do app quando ainda não existe usuário logado nem idioma
-// escolhido no dispositivo. Depois da escolha, login/criar conta já nascem
-// no idioma certo (ver i18n/index.js: currentLanguage() lê essa preferência).
 export default function LanguageSelectScreen({ onSelect }) {
   function choose(lang) {
     setAppLanguage(lang)
@@ -13,44 +21,38 @@ export default function LanguageSelectScreen({ onSelect }) {
   }
 
   return (
-    <div style={styles.screen}>
-      <div style={styles.hero}>
-        <div style={styles.heroOrbOrange} />
-        <div style={styles.heroOrbPink} />
-        <BrandMark size={60} variant="plate" style={{ position: 'relative', marginBottom: 10 }} />
-        <BrandLogo size={20} onDark style={{ position: 'relative' }} />
+    <div style={s.screen}>
+      <div style={s.top}>
+        <div style={s.brandRow}>
+          <BrandMark size={54} variant="plate" />
+          <BrandLogo size={18} onDark letterSpacing="-.8px" />
+        </div>
+        <p style={s.title}>Escolha seu idioma<br />Choose your language</p>
+        <p style={s.subtitle}>Você pode trocar depois no seu perfil.<br />You can change this later in your profile.</p>
       </div>
 
-      <div style={styles.sheet}>
-        <h1 style={styles.title}>Escolha seu idioma<br />Choose your language</h1>
-        <p style={styles.subtitle}>Você pode trocar depois no seu perfil.<br />You can change this later in your profile.</p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 22 }}>
-          {LANGUAGES.map(l => (
-            <button key={l.id} style={styles.langBtn} onClick={() => choose(l.id)}>
-              <span style={styles.langFlag}>{l.flag}</span>
-              <span style={styles.langLabel}>{l.label}</span>
-              <span style={styles.langArrow}>→</span>
-            </button>
-          ))}
-        </div>
+      <div style={s.footer}>
+        {LANGUAGES.map(l => (
+          <button key={l.id} style={s.langBtn} onClick={() => choose(l.id)}>
+            <span style={s.langFlag}>{l.flag}</span>
+            <span style={s.langLabel}>{l.label}</span>
+            <span style={s.langArrow}>→</span>
+          </button>
+        ))}
       </div>
     </div>
   )
 }
 
-const styles = {
-  screen:        { display: 'flex', flexDirection: 'column', height: '100%' },
-  hero:          { background: 'var(--bk-hero)', padding: '48px 24px 36px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, position: 'relative', overflow: 'hidden' },
-  heroOrbOrange: { position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'var(--hero-orb-a)', filter: 'blur(70px)', opacity: 0.5, top: -80, right: -60 },
-  heroOrbPink:   { position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'var(--hero-orb-b)', filter: 'blur(70px)', opacity: 0.32, bottom: -70, left: -50 },
-  logo:          { position: 'relative', width: 60, height: 60, borderRadius: 15, marginBottom: 10, boxShadow: '0 10px 24px rgba(0,0,0,.35)' },
-  brandName:     { position: 'relative', fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--white)', letterSpacing: 1 },
-  sheet:         { flex: 1, overflowY: 'auto', background: 'var(--white)', borderRadius: '20px 20px 0 0', marginTop: -14, padding: '28px 22px 32px' },
-  title:         { fontSize: 20, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.3px', lineHeight: 1.35, textAlign: 'center' },
-  subtitle:      { fontSize: 12, fontWeight: 500, color: 'var(--g5)', marginTop: 8, lineHeight: 1.5, textAlign: 'center' },
-  langBtn:       { display: 'flex', alignItems: 'center', gap: 12, width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 14, padding: '16px 18px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left' },
-  langFlag:      { fontSize: 26, flexShrink: 0 },
-  langLabel:     { flex: 1, fontSize: 15, fontWeight: 700, color: 'var(--bk)' },
-  langArrow:     { fontSize: 16, color: 'var(--g4)', fontWeight: 700 },
+const s = {
+  screen: { minHeight: '100%', height: '100%', background: 'var(--bento-ink)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', overflowY: 'auto' },
+  top: { flex: 1, padding: '52px 26px 0', display: 'flex', flexDirection: 'column' },
+  brandRow: { display: 'flex', alignItems: 'center', gap: 13, margin: '0 0 34px' },
+  title: { fontFamily: 'var(--font-bento)', fontSize: 24, fontWeight: 800, lineHeight: 1.3, letterSpacing: '-.6px', color: '#fff', margin: '0 0 12px', textWrap: 'pretty' },
+  subtitle: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.6, color: 'rgba(255,255,255,.55)', margin: 0, textWrap: 'pretty' },
+  footer: { flex: 'none', padding: '0 26px calc(32px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10 },
+  langBtn: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', border: 'none', background: 'rgba(255,255,255,.07)', borderRadius: 18, padding: '16px 18px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
+  langFlag: { fontSize: 26, flexShrink: 0 },
+  langLabel: { flex: 1, fontSize: 15, fontWeight: 700, color: '#fff' },
+  langArrow: { fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,.5)' },
 }

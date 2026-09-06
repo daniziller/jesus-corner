@@ -1,10 +1,12 @@
-// Paleta de "temas" (fundo em gradiente claro + cor de destaque) reaproveitada
-// em qualquer lugar que mostre uma métrica/ícone com 1 de 3 rótulos —
-// streak/atividade em laranja, nível em roxo, restante/social em verde.
-// Compartilhada entre ActivityFeedItem, HomeScreen e ProgressScreen pra não
-// duplicar os mesmos hex em cada arquivo.
+// Paleta de "temas" (fundo sólido + cor de destaque) reaproveitada em
+// qualquer lugar que mostre uma métrica/ícone com 1 de 3 rótulos —
+// streak/atividade em laranja, nível em roxo, restante/social em verde. Hoje
+// usada só por ActivityFeedItem.jsx (Home/Progresso migraram pra estilo
+// próprio inline durante o redesign Bento). Cor sólida, sem degradê — a
+// identidade Bento não usa gradiente em superfície nenhuma (ver
+// src/index.css, tokens --bento-*).
 export const STAT_THEMES = {
-  orange: { bg: 'linear-gradient(135deg,#FFF3E8,#FFDDB8)', border: 'rgba(157,67,0,.25)', color: 'var(--or)' },
-  purple: { bg: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: 'rgba(168,85,247,.25)', color: '#9333EA' },
-  green:  { bg: 'linear-gradient(135deg,#E4FBEC,#C7F5D6)', border: 'rgba(22,163,74,.25)',  color: 'var(--gr)' },
+  orange: { bg: 'var(--bento-mark)', color: 'var(--bento-accent)' },
+  purple: { bg: '#F3E8FF', color: '#9333EA' },
+  green:  { bg: '#E1F5E9', color: '#1E8E4F' },
 }

@@ -41,8 +41,8 @@ export default function ActivityFeedItem({ activity, lang }) {
         <AppIcon name={TYPE_ICON[activity.type] ?? 'Sparkles'} size={14} color={theme.color} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.4 }}>{activityText(activity, lang)}</p>
-        <p style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--g4)', marginTop: 1 }}>{formatRelativeTime(activity.createdAt, lang)}</p>
+        <p style={{ fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.4 }}>{activityText(activity, lang)}</p>
+        <p style={{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 600, color: 'var(--bento-t4)', marginTop: 1 }}>{formatRelativeTime(activity.createdAt, lang)}</p>
       </div>
     </div>
   )

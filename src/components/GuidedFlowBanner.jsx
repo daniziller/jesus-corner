@@ -14,7 +14,7 @@ export default function GuidedFlowBanner({ guided, lang, onExit }) {
     <div style={styles.wrap}>
       <div style={styles.dots}>
         {steps.map((s, i) => (
-          <span key={s} style={{ ...styles.dot, background: i < idx ? 'var(--gr)' : i === idx ? 'white' : 'rgba(255,255,255,.28)' }} />
+          <span key={s} style={{ ...styles.dot, background: i < idx ? 'var(--bento-accent)' : i === idx ? 'white' : 'rgba(255,255,255,.28)' }} />
         ))}
       </div>
       <span style={styles.label}>
@@ -28,9 +28,9 @@ export default function GuidedFlowBanner({ guided, lang, onExit }) {
 }
 
 const styles = {
-  wrap: { display: 'flex', alignItems: 'center', gap: 10, margin: '10px 16px 0', padding: '8px 12px', borderRadius: 14, background: 'var(--bk-hero)', color: 'white' },
+  wrap: { display: 'flex', alignItems: 'center', gap: 10, margin: '10px 16px 0', padding: '8px 12px', borderRadius: 14, background: 'var(--bento-ink)', color: 'white' },
   dots: { display: 'flex', gap: 5, flexShrink: 0 },
   dot: { width: 7, height: 7, borderRadius: '50%' },
-  label: { flex: 1, minWidth: 0, fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  label: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   exitBtn: { width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
 }

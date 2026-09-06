@@ -588,8 +588,21 @@ export const STRINGS = {
       groupPlanInvitedBy: 'O grupo {group} tem um plano de leitura',
       bSubtitleOne: '{n} grupo',
       bSubtitleMany: '{n} grupos',
+      // Linha embaixo do título "Comunidade" (24a) — resumo combinado de
+      // grupos + amigos, substituiu o bSubtitleOne/Many acima (mantidos por
+      // compatibilidade, não usados em lugar nenhum agora).
+      communitySummary: '{groups} grupos · {friends} amigos',
+      // Cartão "sala aberta agora" (24a) — aparece só quando há gente lendo
+      // o mesmo capítulo de hoje no grupo em destaque, ver ChapterRoomScreen.
+      roomOpenNow: 'Sala aberta agora',
+      enterRoom: 'Entrar na sala',
       myGroupsTitle: 'Meus grupos',
       createGroup: 'Criar grupo',
+      // Subtítulos dos dois atalhos de entrada (24a) — "Criar grupo" e
+      // "Entrar com código" lado a lado, cada um com um título curto e uma
+      // linha de apoio.
+      createGroupTileSub: 'Comece um grupo com seus amigos',
+      joinWithCodeTileSub: 'Já tem um código? Use aqui',
       cancel: 'Cancelar',
       groupNamePlaceholder: 'Nome do grupo',
       create: 'Criar',
@@ -606,7 +619,16 @@ export const STRINGS = {
       joinRequestSent: 'Pedido enviado! Um moderador do grupo "{group}" vai aprovar em breve.',
       noGroupsYet: 'Você ainda não faz parte de nenhum grupo.',
       youAreModerator: 'Você é moderador',
+      // Cada linha da lista de grupos (24a) — quantos membros tem, ver
+      // GroupsListSection. membersTitle (mais abaixo) é o mesmo número, só
+      // que no cabeçalho de dentro de um grupo já aberto.
+      memberCountOne: '{n} membro',
+      memberCountMany: '{n} membros',
       myFriendsTitle: 'Meus amigos',
+      // Contador no cartão "Meus amigos" (24a) — só pedidos de amizade
+      // pendentes, não confundir com pendingInvitesTitle (convites de
+      // grupo/plano, cartão à parte).
+      pendingRequestsCount: '{n} pedidos',
       addFriend: 'Adicionar amigo',
       friendEmailPlaceholder: 'Email do seu amigo',
       addFriendHint: 'Se essa pessoa ainda não tiver uma conta no Jesus\' Corner, ela vai receber um e-mail de convite pra se cadastrar.',
@@ -615,6 +637,8 @@ export const STRINGS = {
       inviteSent: 'Essa pessoa ainda não tem conta — enviamos um convite por email para ela se juntar ao Jesus\' Corner.',
       noFriendsYet: 'Você ainda não tem amigos adicionados.',
       removeFriend: 'Desfazer amizade',
+      friendsCountOne: '{n} amigo',
+      friendsCountMany: '{n} amigos',
       emptyStateTitle: 'Escolha um grupo',
       emptyStateSub: 'Selecione um grupo na lista ao lado pra ver os desafios e a discussão.',
       challengeTab: 'Desafio',
@@ -773,10 +797,6 @@ export const STRINGS = {
       cancel: 'Cancelar',
       nameRequiredError: 'Informe seu nome.',
       ageInvalidError: 'Informe uma idade válida.',
-      reconfigurePlanner: 'Reconfigurar Planejador de Jornada',
-      plannerAutoRecalc: 'O app recalcula tudo automaticamente',
-      plannerComingSoon: 'Planejador de Jornada — em breve!',
-      currentPlanLabel: '⚙️ PLANO ATUAL · {plan} · ~{n} CAP/SESSÃO',
       remindersLabel: 'Lembretes',
       reminderEveryDay: 'Todos os dias',
       reminderWeekdays: 'Seg a Sex',
@@ -2961,8 +2981,13 @@ export const STRINGS = {
       groupPlanInvitedBy: 'The {group} group has a reading plan',
       bSubtitleOne: '{n} group',
       bSubtitleMany: '{n} groups',
+      communitySummary: '{groups} groups · {friends} friends',
+      roomOpenNow: 'Room open now',
+      enterRoom: 'Enter room',
       myGroupsTitle: 'My groups',
       createGroup: 'Create group',
+      createGroupTileSub: 'Start a group with your friends',
+      joinWithCodeTileSub: 'Already have a code? Use it here',
       cancel: 'Cancel',
       groupNamePlaceholder: 'Group name',
       create: 'Create',
@@ -2975,7 +3000,10 @@ export const STRINGS = {
       joinRequestSent: 'Request sent! A moderator of "{group}" will approve it soon.',
       noGroupsYet: "You're not part of any group yet.",
       youAreModerator: "You're a moderator",
+      memberCountOne: '{n} member',
+      memberCountMany: '{n} members',
       myFriendsTitle: 'My friends',
+      pendingRequestsCount: '{n} requests',
       addFriend: 'Add friend',
       friendEmailPlaceholder: "Your friend's email",
       addFriendHint: "If this person doesn't have a Jesus' Corner account yet, they'll receive an email invitation to sign up.",
@@ -2984,6 +3012,8 @@ export const STRINGS = {
       inviteSent: "This person doesn't have an account yet — we sent them an email invitation to join Jesus' Corner.",
       noFriendsYet: "You haven't added any friends yet.",
       removeFriend: 'Unfriend',
+      friendsCountOne: '{n} friend',
+      friendsCountMany: '{n} friends',
       emptyStateTitle: 'Choose a group',
       emptyStateSub: 'Select a group from the list to see its challenges and discussion.',
       challengeTab: 'Challenge',
@@ -3130,10 +3160,6 @@ export const STRINGS = {
       cancel: 'Cancel',
       nameRequiredError: 'Enter your name.',
       ageInvalidError: 'Enter a valid age.',
-      reconfigurePlanner: 'Reconfigure Journey Planner',
-      plannerAutoRecalc: 'The app recalculates everything automatically',
-      plannerComingSoon: 'Journey Planner — coming soon!',
-      currentPlanLabel: '⚙️ CURRENT PLAN · {plan} · ~{n} CH/SESSION',
       remindersLabel: 'Reminders',
       reminderEveryDay: 'Every day',
       reminderWeekdays: 'Mon to Fri',

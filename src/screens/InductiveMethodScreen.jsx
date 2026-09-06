@@ -6,8 +6,16 @@
 // Acessível a partir de qualquer lugar dos estudos indutivos (ver o link
 // fixo em StudiesScreen.jsx) — tela só de leitura, sem estado próprio,
 // então não precisa do tratamento "sempre montada" que Notas/Estudos têm.
+//
+// Sem quadro próprio no handoff — cabeçalho segue o mesmo padrão de tela
+// secundária já usado em ContactScreen.jsx/GroupAdminScreen.jsx. O roxo do
+// "exemplo prático" é o mesmo já usado noutros lugares do app pra
+// conteúdo gerado/estudo (ver ThemePlanScreen.jsx/NotesScreen.jsx,
+// #A21CAF) — não é uma cor nova.
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+
+const FONT = 'var(--font-bento)'
 
 const STEPS = [
   {
@@ -127,81 +135,80 @@ const PRACTICE_STEPS = [
   },
 ]
 
-export default function InductiveMethodScreen({ session, onOpenBiblePassage }) {
+export default function InductiveMethodScreen({ session, onOpenBiblePassage, onBack }) {
   const { lang } = session
 
   return (
-    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div style={styles.body}>
-        <div className="page-header" style={{ padding: 0, marginBottom: 4 }}>
-          <h1 className="page-title">{t('studies.inductiveMethodPageTitle', undefined, lang)}</h1>
-        </div>
+    <div style={s.screen}>
+      <div style={s.header}>
+        <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <p style={s.headerTitle}>{t('studies.inductiveMethodPageTitle', undefined, lang)}</p>
+      </div>
 
-        <div style={styles.hero}>
-          <p style={styles.heroText}>
+      <div style={s.body}>
+        <div style={s.darkCard}>
+          <p style={s.darkText}>
             {lang === 'en'
               ? 'The Inductive Bible Study method is a way of reading Scripture that starts directly from the text to reach its conclusions — unlike the deductive method, which starts from an already-defined theme or doctrine and looks for verses to confirm it.'
               : 'O Estudo Bíblico Indutivo é um método de leitura das Escrituras que parte diretamente do texto para chegar às conclusões — ao contrário do método dedutivo, que parte de um tema ou doutrina já definida e busca versículos que o confirmem.'}
           </p>
         </div>
 
-        <p style={styles.paragraph}>
+        <p style={s.paragraph}>
           {lang === 'en'
             ? 'In the inductive approach, the reader sets preconceived ideas aside, slows down, and pays close attention to what the text actually says, before interpreting or applying anything. The goal is to let the Bible speak for itself, seeking to understand what the original author meant to communicate to their original audience — only then asking what that means for us today.'
             : 'Na abordagem indutiva, o leitor deixa de lado suas ideias pré-concebidas, desacelera e observa com atenção o que o texto realmente diz, antes de interpretar ou aplicar qualquer coisa. A meta é deixar que a Bíblia fale por si mesma, buscando entender o que o autor original quis comunicar ao seu público original — para só depois perguntar o que isso significa hoje, para nós.'}
         </p>
-        <p style={styles.sectionTitle}>
+        <p style={s.sectionTitle}>
           {lang === 'en' ? 'The four fundamental steps' : 'As quatro etapas fundamentais'}
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {STEPS.map((step, i) => (
-            <div key={step.title} style={styles.stepCard}>
-              <div style={styles.stepHeader}>
-                <span style={styles.stepIcon}><AppIcon name={step.icon} size={16} color="var(--or)" /></span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.stepTitle}>{i + 1}. {lang === 'en' ? step.titleEn : step.title}</p>
-                  <p style={styles.stepQuestion}>{lang === 'en' ? step.questionEn : step.question}</p>
-                </div>
+        {STEPS.map((step, i) => (
+          <div key={step.title} style={s.stepCard}>
+            <div style={s.stepHeader}>
+              <span style={s.stepIcon}><AppIcon name={step.icon} size={16} color="var(--bento-accent)" /></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={s.stepTitle}>{i + 1}. {lang === 'en' ? step.titleEn : step.title}</p>
+                <p style={s.stepQuestion}>{lang === 'en' ? step.questionEn : step.question}</p>
               </div>
-              <p style={styles.paragraph}>{lang === 'en' ? step.bodyEn : step.body}</p>
             </div>
-          ))}
-        </div>
+            <p style={s.paragraph}>{lang === 'en' ? step.bodyEn : step.body}</p>
+          </div>
+        ))}
 
-        <p style={styles.sectionTitle}>
+        <p style={s.sectionTitle}>
           {lang === 'en' ? 'How to practice the method, step by step' : 'Como praticar o método, passo a passo'}
         </p>
-        <div style={styles.panel}>
+        <div style={s.card}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {PRACTICE_STEPS.map((step, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={styles.qNumber}>{i + 1}</span>
-                <p style={styles.panelText}>{lang === 'en' ? step.bodyEn : step.body}</p>
+                <span style={s.qNumber}>{i + 1}</span>
+                <p style={s.paragraph}>{lang === 'en' ? step.bodyEn : step.body}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <p style={styles.sectionTitle}>
+        <p style={s.sectionTitle}>
           {lang === 'en' ? 'Worked example: Philippians 1' : 'Exemplo prático: Filipenses 1'}
         </p>
-        <button style={styles.readPassageBtn} onClick={() => onOpenBiblePassage?.('Filipenses', 1)}>
-          <AppIcon name="BookOpen" size={14} color="var(--or)" />
+        <button style={s.readPassageBtn} onClick={() => onOpenBiblePassage?.('Filipenses', 1)}>
+          <AppIcon name="BookOpen" size={14} color="var(--bento-accent)" />
           {lang === 'en' ? 'Open Philippians 1 in the Bible' : 'Abrir Filipenses 1 na Bíblia'}
         </button>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {EXAMPLE_PHIL1.map(item => (
-            <div key={item.key} style={styles.exampleCard}>
-              <div style={styles.stepHeader}>
-                <span style={styles.exampleIcon}><AppIcon name={item.icon} size={16} color="#7C3AED" /></span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.exampleTitle}>{lang === 'en' ? item.labelEn : item.label}</p>
-                </div>
+        {EXAMPLE_PHIL1.map(item => (
+          <div key={item.key} style={s.exampleCard}>
+            <div style={s.stepHeader}>
+              <span style={s.exampleIcon}><AppIcon name={item.icon} size={16} color="#A21CAF" /></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={s.exampleTitle}>{lang === 'en' ? item.labelEn : item.label}</p>
               </div>
-              <p style={styles.paragraph}>{lang === 'en' ? item.bodyEn : item.body}</p>
             </div>
-          ))}
-        </div>
+            <p style={s.paragraph}>{lang === 'en' ? item.bodyEn : item.body}</p>
+          </div>
+        ))}
 
         {/* Sugestão de por onde começar — pedido explícito: sem isso, o
             passo "escolha uma passagem ou livro" fica abstrato demais pra
@@ -211,37 +218,46 @@ export default function InductiveMethodScreen({ session, onOpenBiblePassage }) {
             digital) porque o método pede sublinhar/circular/marcar o
             texto (ver "Como praticar o método" acima) — mais natural no
             papel do que numa tela. */}
-        <div style={styles.tipCard}>
-          <AppIcon name="Sparkles" size={16} color="var(--or)" />
-          <p style={styles.tipText}>
-            {lang === 'en'
-              ? "Never practiced the method before? We suggest starting with the letter to the Philippians — short (just 4 chapters), practical, and full of direct, everyday application. We also recommend using a paper Bible instead of a digital one: underlining, circling, and marking up the text is a lot more natural on paper."
-              : 'Nunca praticou o método antes? Sugerimos começar pela carta aos Filipenses — curta (só 4 capítulos), prática e cheia de aplicação direta pro dia a dia. Recomendamos também usar uma Bíblia de papel, não digital: sublinhar, circular e marcar o texto fica bem mais natural no papel do que numa tela.'}
-          </p>
+        <div style={s.sandCard}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <AppIcon name="Sparkles" size={16} color="var(--bento-sand-icon)" />
+            <p style={s.sandText}>
+              {lang === 'en'
+                ? "Never practiced the method before? We suggest starting with the letter to the Philippians — short (just 4 chapters), practical, and full of direct, everyday application. We also recommend using a paper Bible instead of a digital one: underlining, circling, and marking up the text is a lot more natural on paper."
+                : 'Nunca praticou o método antes? Sugerimos começar pela carta aos Filipenses — curta (só 4 capítulos), prática e cheia de aplicação direta pro dia a dia. Recomendamos também usar uma Bíblia de papel, não digital: sublinhar, circular e marcar o texto fica bem mais natural no papel do que numa tela.'}
+            </p>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-const styles = {
-  body:         { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
-  hero:         { background: 'var(--grad-vivid)', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-glow)' },
-  heroText:     { fontSize: 13, fontWeight: 600, color: 'white', lineHeight: 1.6 },
-  paragraph:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.6 },
-  sectionTitle: { fontSize: 11, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.5, textTransform: 'uppercase', margin: '6px 2px 0' },
-  stepCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 14, boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 8 },
-  stepHeader:   { display: 'flex', gap: 10, alignItems: 'flex-start' },
-  stepIcon:     { width: 30, height: 30, borderRadius: 10, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  stepTitle:    { fontSize: 13.5, fontWeight: 800, color: 'var(--bk)', letterSpacing: '-0.2px' },
-  stepQuestion: { fontSize: 11.5, fontWeight: 600, color: 'var(--or)', fontStyle: 'italic', marginTop: 1 },
-  panel:        { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  panelText:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.6 },
-  qNumber:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--or)', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
-  tipCard:      { display: 'flex', gap: 10, alignItems: 'flex-start', background: 'var(--olt)', border: '0.5px solid rgba(157,67,0,.2)', borderRadius: 16, padding: 14 },
-  tipText:      { fontSize: 12, fontWeight: 600, color: 'var(--bk)', lineHeight: 1.55 },
-  readPassageBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'flex-start', border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--olt)', borderRadius: 13, padding: '9px 14px', fontSize: 12, fontWeight: 700, color: 'var(--or)', cursor: 'pointer', fontFamily: 'var(--font)', margin: '-2px 0 2px' },
-  exampleCard:  { background: 'rgba(124,58,237,.05)', border: '0.5px solid rgba(124,58,237,.2)', borderRadius: 18, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 },
-  exampleIcon:  { width: 30, height: 30, borderRadius: 10, background: 'rgba(124,58,237,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  exampleTitle: { fontSize: 13.5, fontWeight: 800, color: '#7C3AED', letterSpacing: '-0.2px' },
+const s = {
+  screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
+  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  darkCard: { borderRadius: 20, background: 'var(--bento-ink)', padding: 16 },
+  darkText: { fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.75)', lineHeight: 1.6, margin: 0 },
+  paragraph: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.6, margin: 0 },
+  sectionTitle: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '6px 2px 0' },
+
+  card: { borderRadius: 20, background: 'var(--bento-card)', padding: 16 },
+  stepCard: { borderRadius: 20, background: 'var(--bento-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 },
+  stepHeader: { display: 'flex', gap: 10, alignItems: 'flex-start' },
+  stepIcon: { width: 30, height: 30, borderRadius: 10, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  stepTitle: { fontFamily: FONT, fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.2px', margin: 0 },
+  stepQuestion: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-accent)', fontStyle: 'italic', margin: '1px 0 0' },
+  qNumber: { width: 20, height: 20, borderRadius: '50%', background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+
+  readPassageBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'flex-start', border: 'none', background: 'var(--bento-mark)', borderRadius: 13, padding: '9px 14px', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-sand-icon)', cursor: 'pointer' },
+  exampleCard: { borderRadius: 20, background: 'rgba(162,28,175,.06)', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 },
+  exampleIcon: { width: 30, height: 30, borderRadius: 10, background: 'rgba(162,28,175,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  exampleTitle: { fontFamily: FONT, fontSize: 13.5, fontWeight: 800, color: '#A21CAF', letterSpacing: '-.2px', margin: 0 },
+
+  sandCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: 16 },
+  sandText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-sand-ink)', lineHeight: 1.55, margin: 0 },
 }
