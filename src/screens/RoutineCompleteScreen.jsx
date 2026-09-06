@@ -59,7 +59,12 @@ export default function RoutineCompleteScreen({ session, authUser, steps, readin
       const bookLabel = lang === 'en' ? (readingSession.bookEn || readingSession.book) : readingSession.book
       const ref = `${bookLabel} ${readingSession.chStart}${readingSession.chStart !== readingSession.chEnd ? `–${readingSession.chEnd}` : ''}`
       const markCount = (highlights ?? []).filter(h => !h.hidden && h.book === readingSession.book && h.chapter >= readingSession.chStart && h.chapter <= readingSession.chEnd).length
-      rows.push({ key: 'reading', label: L('readingRowLabel'), value: markCount > 0 ? L('readingRowValueWithMarks', { ref, n: markCount }) : L('readingRowValue', { ref }) })
+      rows.push({
+        key: 'reading', label: L('readingRowLabel'),
+        value: markCount > 0
+          ? L(markCount === 1 ? 'readingRowValueWithMarkOne' : 'readingRowValueWithMarksMany', { ref, n: markCount })
+          : L('readingRowValue', { ref }),
+      })
     } else if (readingSession?.book) {
       const bookLabel = lang === 'en' ? (readingSession.bookEn || readingSession.book) : readingSession.book
       rows.push({ key: 'reading', label: L('readingRowLabel'), value: L('readingRowValue', { ref: bookLabel }) })

@@ -17,10 +17,15 @@ export function getLastReadPosition() {
   }
 }
 
+// readAt (Bloco 3 do redesign, quadro 29a — "Último texto lido, ontem às
+// 6:48") — hora em que a posição foi salva, pra Home mostrar quando foi a
+// última leitura, não só onde. Registros salvos antes desta mudança não têm
+// readAt (getLastReadPosition devolve o objeto assim mesmo; quem lê trata
+// null como "hora desconhecida").
 export function setLastReadPosition(book, chapter) {
   if (!book || !chapter) return
   try {
-    localStorage.setItem(KEY, JSON.stringify({ book, chapter }))
+    localStorage.setItem(KEY, JSON.stringify({ book, chapter, readAt: new Date().toISOString() }))
   } catch {
     // localStorage cheio/indisponível — não é crítico, só perde o "continuar".
   }

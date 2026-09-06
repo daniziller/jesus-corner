@@ -240,6 +240,16 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // capítulos do livro sai da mesma fonte de Progresso/Notas.
   const bookChapterCounts = computeBookChapterCounts(sessionsByBlock)
   const currentBookDisplay = lang === 'en' ? (currentSession.bookEn || currentSession.book) : currentSession.book
+  // Progresso do LIVRO onde a pessoa está (não do bloco inteiro) — "80% de
+  // Gênesis" no quadro 29a ("Onde você está"). Conta capítulos concluídos
+  // com a mesma chave de sessionKeys ("livro:capítulo"), 1 a 1 até o total
+  // do livro; reflexão de fim de livro não entra nessa conta.
+  const bookTotalChapters = bookChapterCounts[currentSession.book] ?? 0
+  let bookChaptersDone = 0
+  for (let ch = 1; ch <= bookTotalChapters; ch++) {
+    if (completedSet.has(`${currentSession.book}:${ch}`)) bookChaptersDone++
+  }
+  const bookPercent = bookTotalChapters > 0 ? Math.round((bookChaptersDone / bookTotalChapters) * 100) : 0
   const currentBlock = {
     name: blockName,
     icon: activeBlock.icon,
@@ -248,6 +258,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     book: currentBookDisplay,
     chapter: (currentSession.type === 'reflection' || currentSession.chStart == null) ? null : currentSession.chStart,
     bookChapters: bookChapterCounts[currentSession.book] ?? null,
+    bookPercent,
     chapterLabel: (currentSession.type === 'reflection' || currentSession.chStart == null)
       ? null
       : (lang === 'en'
@@ -302,6 +313,14 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     dailyRoutine,
     todayRoutine,
     currentBlock,
+    // "Você parou em Gênesis 41" + "ontem às 6:48" (29a) — última posição
+    // salva por lastReadPositionStore.js (por dispositivo, ver o arquivo).
+    // Pode ser diferente de currentBlock.chapter: aquele é o PRÓXIMO
+    // capítulo pendente (pra "Continuar em 42"), este é o ÚLTIMO que a
+    // pessoa de fato abriu/concluiu.
+    lastReadPosition: lastReadPosition
+      ? { book: lastReadPosition.book, chapter: lastReadPosition.chapter, readAt: lastReadPosition.readAt ?? null }
+      : null,
     // Plano por tema ativo sem escolha de hoje ainda (activePlan.needsThemePick)
     // — Home/Rotina mostram um convite pra escolher os textos em vez de uma
     // sessão normal (ver DailyRoutineCard/todaySessionCard), então título/
@@ -1870,7 +1889,7 @@ export default function App() {
     // estiver zerado, a Home é 3c; o painel só entra depois da primeira
     // semana cumprida (ver shouldShowDashboard).
     home: shouldShowDashboard(session)
-      ? <HomeDashboard session={session} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />
+      ? <HomeDashboard session={session} authUser={authUser} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} onOpenBiblePassage={openBiblePassage} />
       : <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />,
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
