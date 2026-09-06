@@ -287,7 +287,16 @@ const s = {
   chapterGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 },
   chapterCell: { height: 44, borderRadius: 13, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 14, textAlign: 'center' },
 
-  expandWrap: { background: 'var(--bento-line)', borderRadius: 16, overflow: 'hidden' },
+  // flexShrink: 0 é o ponto central do bug corrigido aqui: sem isso, o
+  // navegador dá a este item (dentro da coluna flex rolável `body` acima)
+  // um tamanho mínimo automático de 0 — regra do próprio CSS pra qualquer
+  // item de flex com overflow diferente de "visible" — e como `body` fica
+  // menor que a soma dos filhos, TODO o encolhimento cai neste item (os
+  // outros, sem overflow declarado, não encolhem abaixo do próprio
+  // conteúdo). Resultado: o capítulo abria de verdade (texto no DOM,
+  // "Marcar capítulo X como lido" incluso) mas com 0px de altura — some
+  // sem erro nenhum no console, o mais enganoso dos bugs de layout.
+  expandWrap: { background: 'var(--bento-line)', borderRadius: 16, overflow: 'hidden', flexShrink: 0 },
 
   footer: { flexShrink: 0, padding: '12px 20px calc(20px + var(--safe-bottom))' },
   continueBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
