@@ -42,6 +42,8 @@ import GroupsScreen from './screens/GroupsScreen'
 import StudiesScreen from './screens/StudiesScreen'
 import InductiveMethodScreen from './screens/InductiveMethodScreen'
 import ProgressScreen from './screens/ProgressScreen'
+import MetricsScreen from './screens/MetricsScreen'
+import MetricsBlocksScreen from './screens/MetricsBlocksScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import ProfileSheet from './screens/ProfileSheet'
 import LanguageSettingsScreen from './screens/LanguageSettingsScreen'
@@ -52,6 +54,7 @@ import HandsFreeScreen from './screens/HandsFreeScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
 import { markChaptersManually, unmarkChaptersManually } from './bible/manualChapterMarks'
+import { logChaptersRead } from './bible/chapterReadLog'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
 import { levelFor, levelProgress } from './utils/levels'
 import { isAtLeast } from './utils/age'
@@ -1834,6 +1837,11 @@ export default function App() {
     const persist = done ? markKeysDone(authUser.email, keys) : markKeysUndone(authUser.email, keys)
     persist.catch(err => console.error('Failed to persist session progress', err))
     recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
+    // Traço de auditoria com data (chapters_read, origem 'sessao') — sem
+    // isso "capítulos lidos" em 30 dias/este ano (métricas, 30b) não tem
+    // como filtrar por período (completed_keys não guarda quando cada
+    // capítulo foi lido). Best-effort, não bloqueia a marcação em si.
+    if (done && newlyDoneKeys.length) logChaptersRead(newlyDoneKeys, 'sessao')
     if (done) {
       markRoutineStep('reading')
       // Marcar uma sessão como lida também conta como "último texto lido"
@@ -1869,6 +1877,7 @@ export default function App() {
     const persist = done ? markKeysDone(authUser.email, [key]) : markKeysUndone(authUser.email, [key])
     persist.catch(err => console.error('Failed to persist chapter progress', err))
     recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
+    if (done && newlyDoneKeys.length) logChaptersRead(newlyDoneKeys, 'sessao')
     if (done) {
       markRoutineStep('reading')
       setLastReadPosition(session.book, chapter)
@@ -2131,6 +2140,12 @@ export default function App() {
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onDetailOpenChange={setGroupsDetailOpen} />,
     stats:   <ProgressScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} onNavigate={navigateTo} />,
+    // "Minhas métricas" (30b/30c, Bloco 7) — Perfil (19a). Não tem gate de
+    // hasPremium: é a mesma info de "progresso básico" que ProgressScreen/
+    // stats (acima) já mostra sem trava, só reorganizada e com tempo por
+    // passo (que ProgressScreen não tinha).
+    metrics: <MetricsScreen session={session} completedSet={completedSet} sessionsByBlock={sessionsByBlock} stepMinutes={stepMinutes} onNavigate={navigateTo} onBack={goBack} />,
+    metricsBlocks: <MetricsBlocksScreen session={session} completedSet={completedSet} onBack={goBack} />,
     // Sala do capítulo (17a) — aberta pelo botão "Grupo" da leitura (17c).
     chapterRoom: chapterRoom
       ? <ChapterRoomScreen
@@ -2206,13 +2221,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">

@@ -12,9 +12,7 @@
 // distinguir, se um dia precisar (relatório, admin, desfazer em lote), o
 // que veio de sessão do que foi marcado à mão.
 import { markKeysDone, markKeysUndone } from '../progress/progressStore'
-import { insertRow, selectRows } from '../backend/guestTableStore'
-
-const TABLE = 'chapters_read'
+import { logChaptersRead } from './chapterReadLog'
 
 // Marca uma lista de capítulos de UM livro como lidos manualmente. `book` é
 // o nome canônico em português (mesma chave de completed_keys/BIBLE_BLOCKS).
@@ -24,15 +22,8 @@ export async function markChaptersManually(book, chapters) {
   await markKeysDone(null, keys)
   // Best-effort: o traço de origem não pode travar a marcação em si (a
   // porcentagem já está correta mesmo se este insert falhar por algum
-  // motivo). Cada insert é independente pra um erro num capítulo não
-  // derrubar os outros.
-  await Promise.all(
-    chapters.map(ch =>
-      insertRow(TABLE, { livro: book, capitulo: ch, origem: 'manual' }).catch(err =>
-        console.error(`Failed to log manual chapter mark ${book}:${ch}`, err)
-      )
-    )
-  )
+  // motivo) — ver chapterReadLog.js.
+  await logChaptersRead(keys, 'manual')
 }
 
 // Desmarca — usado por "Desmarcar tudo"/toque de novo num capítulo já
@@ -43,11 +34,4 @@ export async function unmarkChaptersManually(book, chapters) {
   if (chapters.length === 0) return
   const keys = chapters.map(ch => `${book}:${ch}`)
   await markKeysUndone(null, keys)
-}
-
-// Todos os registros de marcação manual do usuário — usado pra distinguir
-// "lido de verdade" de "importado" onde isso importar na UI (ex: um selo
-// discreto na Biblioteca, se a autora pedir depois).
-export async function getManuallyMarkedChapters() {
-  return selectRows(TABLE)
 }

@@ -252,6 +252,12 @@ export default function ProfileSheet({
             </div>
           </div>
 
+          {/* "Minhas métricas" (30b, Bloco 7) — acima de conta/preferências
+              (Card 1 logo abaixo), como pede o handoff. */}
+          <div style={s.card}>
+            <Row icon="BarChart3" label={L('metricsLabel')} sub={L('metricsSub')} onPress={() => go('metrics')} last />
+          </div>
+
           {/* Card 1 — Meus dados / Lembrete / Idioma / Versão da Bíblia. */}
           <div style={s.card}>
             <Row label={L('myDataLabel')} sub={L('myDataSub')} onPress={() => editMode ? cancelEdit() : startEdit()} last={!editMode} />

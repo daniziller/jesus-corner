@@ -19,6 +19,7 @@ import PrayerRequests from '../components/prayer/PrayerRequests'
 import { getRequests } from '../prayer/prayerStore'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { getPrayerMethod, setPrayerMethod } from '../prayer/prayerMethodStore'
+import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import TimePerStepSheet from '../components/TimePerStepSheet'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -278,7 +279,10 @@ export default function PrayerScreen({ session, authUser, completedSet, stepMinu
   // mesmo antes do cronômetro acabar: ninguém precisa do relógio pra saber
   // que terminou de orar. Marca o dia e, fora do fluxo guiado (que já leva
   // sozinho pro próximo passo via advanceGuided), navega direto pra leitura.
+  // `elapsed` (mesmo cronômetro do card, ACTS ou livre) vira uma linha em
+  // session_seconds — sem isso "Tempo com Deus" (30b) não tem de onde vir.
   function finishPrayer() {
+    logSessionSeconds('prayer', elapsed).catch(err => console.error('Failed to log prayer session seconds', err))
     onPrayerCompleted?.()
     if (!guided) onContinueSession?.()
   }

@@ -22,6 +22,7 @@ import {
   getReflectionQuestionsEnabled, fetchReflectionQuestions, composeReflectionDraft, saveApprovedReflection,
 } from '../aiChat/reflectionQuestionsStore'
 import { useSpeechToText, isSpeechToTextSupported } from '../utils/useSpeechToText'
+import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import TimePerStepSheet from '../components/TimePerStepSheet'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -300,7 +301,12 @@ export default function ReflectionScreen({ session, authUser, completedSet, step
     return firstSentence.slice(0, 140)
   }
 
-  function finishReflection() {
+  // `aiSeconds` vem do fluxo de IA (que não usa o cronômetro do fluxo
+  // manual, ver AiReflectionFlow abaixo) — sem ele, cai no `elapsed` do
+  // cronômetro normal (fluxo manual). De qualquer jeito, uma linha em
+  // session_seconds — mesma dependência de finishPrayer em PrayerScreen.
+  function finishReflection(aiSeconds) {
+    logSessionSeconds('reflection', aiSeconds ?? elapsed).catch(err => console.error('Failed to log reflection session seconds', err))
     onReflectionCompleted?.()
   }
 
@@ -563,6 +569,12 @@ function AiReflectionFlow({
   hasAI, onAiAssist, onApprove, onAllDone,
 }) {
   const L = (k, vars) => t(`reflectAi.${k}`, vars, lang)
+  // Este fluxo não tem cronômetro (é por perguntas, não por tempo) — pra
+  // "Tempo com Deus" (30b) ainda ter de onde vir, mede o relógio de parede
+  // desde que a tela abriu até "Concluir" (onFinish, mais abaixo), sem
+  // pausar se a aba perder o foco: diferente do fluxo manual/Oração, aqui
+  // não há botão de pausa, então o tempo de tela aberta É o tempo gasto.
+  const startedAtRef = useRef(Date.now())
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState(['', '', ''])
   const [phase, setPhase] = useState('answering') // 'answering' | 'composing' | 'review' | 'application' | 'error'
@@ -650,7 +662,7 @@ function AiReflectionFlow({
             pendingPin={pendingPin} onConfirmPin={onConfirmPin}
             reminderRequested={reminderRequested} onToggleReminder={onToggleReminder}
             aiContext={qaForAssist?.length ? () => onAiAssist(qaForAssist) : null}
-            onFinish={onAllDone}
+            onFinish={() => onAllDone(Math.round((Date.now() - startedAtRef.current) / 1000))}
           />
         </div>
       </div>
