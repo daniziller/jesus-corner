@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #EDE8E2; -webkit-font-smoothing: antialiased; }
+  a { color: #F0662B; text-decoration: none; }
+  a:hover { color: #1A1714; }
+  summary { list-style: none; cursor: pointer; }
+  summary::-webkit-details-marker { display: none; }
+  input, textarea, button { font-family: 'Manrope', sans-serif; }
+</style>
+</helmet>
+
+<div style="font-family:'Manrope',sans-serif;color:#1A1714;background:#EDE8E2;min-width:0">
+
+  <header style="position:sticky;top:0;z-index:30;background:rgba(237,232,226,.88);backdrop-filter:blur(14px)">
+    <div style="max-width:1080px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <a href="#top" style="display:flex;align-items:center;gap:10px;color:#1A1714">
+        <span style="width:34px;height:34px;border-radius:10px;background:#1A1714;display:flex;align-items:center;justify-content:center;gap:2.5px;flex:none">
+          <span style="width:9px;height:16px;border-radius:2px 1px 1px 2px;background:#A29A91"></span>
+          <span style="width:2px;height:18px;border-radius:1px;background:#F0662B"></span>
+          <span style="width:9px;height:16px;border-radius:1px 2px 2px 1px;background:#A29A91"></span>
+        </span>
+        <span style="font:800 16px/1 'Manrope',sans-serif;letter-spacing:-.5px">Jesus' <span style="color:#F0662B">Corner</span></span>
+      </a>
+      <nav style="display:flex;gap:26px;flex:1;justify-content:center;flex-wrap:wrap">
+        <a href="#como" style="font:700 13px/1 'Manrope',sans-serif;color:#6E655C">Como funciona</a>
+        <a href="#recursos" style="font:700 13px/1 'Manrope',sans-serif;color:#6E655C">Recursos</a>
+        <a href="#planos" style="font:700 13px/1 'Manrope',sans-serif;color:#6E655C">Planos</a>
+        <a href="#perguntas" style="font:700 13px/1 'Manrope',sans-serif;color:#6E655C">Perguntas</a>
+      </nav>
+      <div style="display:flex;align-items:center;gap:8px;flex:none">
+        <div style="display:flex;gap:2px;background:#E6E1DA;border-radius:99px;padding:3px">
+          <span style="font:800 11px/1 'Manrope',sans-serif;padding:7px 10px;border-radius:99px;background:#fff;color:#1A1714">PT</span>
+          <span style="font:800 11px/1 'Manrope',sans-serif;padding:7px 10px;border-radius:99px;color:#8B8279">EN</span>
+        </div>
+        <a href="#top" style="font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;background:#F0662B;padding:12px 18px;border-radius:14px">Entrar</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top" style="max-width:1080px;margin:0 auto;padding:0 24px">
+
+    <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(32px,5vw,64px);align-items:center;padding:clamp(48px,7vw,92px) 0 clamp(40px,6vw,72px)">
+      <div style="min-width:0">
+        <span style="display:inline-flex;align-items:center;gap:8px;font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8B8279;margin:0 0 22px">
+          <span style="width:7px;height:7px;border-radius:2px;background:#F0662B"></span>Disponível agora no navegador
+        </span>
+        <h1 style="font:800 clamp(32px,5.2vw,50px)/1.06 'Manrope',sans-serif;letter-spacing:-2px;margin:0 0 18px;text-wrap:pretty">Seu tempo. Sua rotina. Sua conexão com Deus.</h1>
+        <p style="font:500 16px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0 0 30px;max-width:440px;text-wrap:pretty">O app pra ler a Bíblia com constância: um plano no seu ritmo, oração guiada todo dia e um tempo de qualidade só seu com Deus — sem pressa, sem distração.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <a href="#planos" style="font:800 15px/1 'Manrope',sans-serif;color:#1A1714;background:#F0662B;padding:18px 26px;border-radius:16px">Começar agora</a>
+          <a href="#como" style="font:800 15px/1 'Manrope',sans-serif;color:#1A1714;background:#fff;padding:18px 26px;border-radius:16px">Ver como funciona</a>
+        </div>
+        <p style="font:600 12.5px/1.5 'Manrope',sans-serif;color:#8B8279;margin:20px 0 0">Funciona no navegador, sem instalação. Em breve na Play Store e App Store.</p>
+      </div>
+      <div style="min-width:0;display:flex;justify-content:center">
+        <div style="flex:none;width:274px;border-radius:38px;background:linear-gradient(150deg,#3a3a3d 0%,#111 45%,#000 100%);padding:5px;border:1px solid rgba(255,255,255,.2);box-shadow:0 30px 70px -20px rgba(0,0,0,.4),0 8px 20px rgba(0,0,0,.15)">
+          <div role="img" aria-label="Tela de leitura do app, com o texto bíblico completo" style="width:264px;height:542px;border-radius:33px;overflow:hidden">
+            <div style="width:390px;height:800px;background:#EDE8E2;display:flex;flex-direction:column;transform:scale(0.6769);transform-origin:top left">
+        <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:20px 20px 14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:34px;height:34px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5l-5 5 5 5"></path></svg>
+            </div>
+            <div style="height:34px;border-radius:12px;background:#1A1714;display:flex;align-items:center;gap:8px;padding:0 12px 0 14px">
+              <span style="font:800 13px/1 'Manrope',sans-serif;color:#fff">Gênesis 41</span>
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="#F0662B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5-5 5 5"></path></svg>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div style="width:34px;height:34px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="1.9" stroke-linecap="round"><path d="M4 7v6M7.5 4.5v11M11 6v8M14.5 8v4"></path></svg>
+            </div>
+            <div style="width:34px;height:34px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="1.9" stroke-linecap="round"><circle cx="10" cy="4.5" r="1.3"></circle><circle cx="10" cy="10" r="1.3"></circle><circle cx="10" cy="15.5" r="1.3"></circle></svg>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:0 20px">
+          <div style="border-radius:28px;background:#fff;padding:26px 24px;height:100%;box-sizing:border-box;overflow:hidden">
+            <p style="font:800 11px/1 'Manrope',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#F0662B;margin:0 0 18px">Capítulo 41</p>
+            <p style="font:500 18.5px/1.72 'Manrope',sans-serif;color:#1A1714;margin:0 0 18px;text-wrap:pretty"><span style="font:800 10.5px/1 'Manrope',sans-serif;color:#F0662B;vertical-align:super;margin-right:4px">1</span>Dois anos mais tarde, o faraó sonhou que estava de pé na margem do rio Nilo.<span style="font:800 10.5px/1 'Manrope',sans-serif;color:#F0662B;vertical-align:super;margin:0 4px 0 6px">2</span>Do rio saíram sete vacas gordas e sadias, que começaram a pastar entre os juncos.</p>
+            <p style="font:500 18.5px/1.72 'Manrope',sans-serif;color:#1A1714;margin:0 0 18px;text-wrap:pretty"><span style="font:800 10.5px/1 'Manrope',sans-serif;color:#F0662B;vertical-align:super;margin-right:4px">3</span>Depois <span style="background:#FFE3C9;border-radius:4px;padding:1px 3px">saíram do rio outras sete vacas, magras e feias</span>, que ficaram ao lado das primeiras, na margem do rio.<span style="font:800 10.5px/1 'Manrope',sans-serif;color:#F0662B;vertical-align:super;margin:0 4px 0 6px">4</span>Então as vacas magras devoraram as sete gordas e sadias. E o faraó despertou.</p>
+            <p style="font:500 18.5px/1.72 'Manrope',sans-serif;color:#1A1714;margin:0 0 18px;text-wrap:pretty"><span style="font:800 10.5px/1 'Manrope',sans-serif;color:#F0662B;vertical-align:super;margin-right:4px">5</span>Ele voltou a dormir e teve outro sonho: viu sete espigas de trigo, cheias e maduras, crescendo num mesmo pé.</p>
+            <p style="font:500 18.5px/1.72 'Manrope',sans-serif;color:#1A1714;margin:0;text-wrap:pretty"><span style="font:800 10.5px/1 'Manrope',sans-serif;color:#F0662B;vertical-align:super;margin-right:4px">6</span>Em seguida, brotaram outras sete espigas, murchas e queimadas pelo vento leste.</p>
+          </div>
+        </div>
+        <div style="flex:none;padding:12px 20px 20px">
+          <div style="border-radius:22px;background:#1A1714;padding:14px 16px;display:flex;align-items:center;gap:12px;margin:0 0 10px">
+            <div style="width:38px;height:38px;flex:none;border-radius:14px;background:#F0662B;display:flex;align-items:center;justify-content:center">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="#1A1714"><path d="M5 3l8 5-8 5z"></path></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <p style="font:700 12.5px/1.2 'Manrope',sans-serif;color:#fff;margin:0 0 6px">Ouvir o capítulo</p>
+              <div style="height:4px;border-radius:99px;background:rgba(255,255,255,.2)"><div style="width:22%;height:4px;border-radius:99px;background:#F0662B"></div></div>
+            </div>
+            <span style="font:600 11px/1 'Manrope',sans-serif;color:rgba(255,255,255,.5);flex:none">7:12</span>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;height:52px;border-radius:18px;background:#fff;display:flex;align-items:center;justify-content:center;gap:8px">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="1.9" stroke-linecap="round"><path d="M4 4h12M4 4v9l6 3 6-3V4"></path></svg>
+              <span style="font:700 13.5px/1 'Manrope',sans-serif;color:#1A1714">Ferramentas</span>
+            </div>
+            <div style="flex:1.35;height:52px;border-radius:18px;background:#F0662B;display:flex;align-items:center;justify-content:center;gap:8px">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"></path></svg>
+              <span style="font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714">Concluir</span>
+            </div>
+          </div>
+        </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="como" style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09)">
+      <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Como funciona</p>
+      <h2 style="font:800 clamp(25px,3.4vw,34px)/1.1 'Manrope',sans-serif;letter-spacing:-1.3px;margin:0 0 10px">Três passos, todo dia</h2>
+      <p style="font:500 15px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0 0 40px;max-width:520px">Oração, leitura e reflexão — cada um abre o próximo sozinho, sem voltar pro menu. Você escolhe o tempo de cada passo.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:clamp(24px,3vw,40px)">
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:12px;margin:0 0 14px">
+            <span style="width:32px;height:32px;border-radius:12px;background:#F0662B;display:flex;align-items:center;justify-content:center;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;flex:none">1</span>
+            <span style="font:700 11.5px/1 'Manrope',sans-serif;color:#A29A91">10 min</span>
+          </div>
+          <h3 style="font:800 18px/1.2 'Manrope',sans-serif;letter-spacing:-.5px;margin:0 0 8px">Oração</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Roteiro ACTS — Adoração, Confissão, Gratidão e Súplica — com temporizador que avança sozinho de etapa em etapa.</p>
+        </div>
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:12px;margin:0 0 14px">
+            <span style="width:32px;height:32px;border-radius:12px;background:#F0662B;display:flex;align-items:center;justify-content:center;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;flex:none">2</span>
+            <span style="font:700 11.5px/1 'Manrope',sans-serif;color:#A29A91">15 min</span>
+          </div>
+          <h3 style="font:800 18px/1.2 'Manrope',sans-serif;letter-spacing:-.5px;margin:0 0 8px">Leitura</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">O capítulo do dia, no seu ritmo — com contexto histórico, marcação de trechos e a opção de ouvir em voz alta.</p>
+        </div>
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:12px;margin:0 0 14px">
+            <span style="width:32px;height:32px;border-radius:12px;background:#F0662B;display:flex;align-items:center;justify-content:center;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;flex:none">3</span>
+            <span style="font:700 11.5px/1 'Manrope',sans-serif;color:#A29A91">5 min</span>
+          </div>
+          <h3 style="font:800 18px/1.2 'Manrope',sans-serif;letter-spacing:-.5px;margin:0 0 8px">Reflexão</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Feche o dia em três perguntas curtas — Reviver, Entender e Aplicar — com o que Deus falou com você na leitura.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09);display:flex;flex-direction:column;gap:clamp(48px,7vw,88px)">
+      <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0">Direto do app</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(28px,4vw,56px);align-items:center">
+        <div style="min-width:0">
+          <h3 style="font:800 clamp(22px,2.8vw,28px)/1.18 'Manrope',sans-serif;letter-spacing:-1px;margin:0 0 12px;text-wrap:pretty">Sua rotina com Deus, num só lugar</h3>
+          <p style="font:500 14.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:0 0 20px;max-width:430px;text-wrap:pretty">Oração, leitura e reflexão numa linha do tempo que se preenche conforme você avança. Toque em iniciar e ela se conduz sozinha, um passo abrindo o próximo — ou faça tudo só ouvindo, no modo mãos-livres.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:430px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:7px;height:7px;border-radius:2px;background:#F0662B;flex:none"></span><span style="font:600 13.5px/1.4 'Manrope',sans-serif;color:#1A1714">Cada passo com o seu próprio tempo</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:7px;height:7px;border-radius:2px;background:#F0662B;flex:none"></span><span style="font:600 13.5px/1.4 'Manrope',sans-serif;color:#1A1714">Meta da semana, nunca sequência quebrada</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:7px;height:7px;border-radius:2px;background:#F0662B;flex:none"></span><span style="font:600 13.5px/1.4 'Manrope',sans-serif;color:#1A1714">Pule um passo sem perder o dia</span></div>
+          </div>
+        </div>
+        <div style="min-width:0;display:flex;justify-content:center">
+          <div style="flex:none;width:250px;border-radius:36px;background:linear-gradient(150deg,#3a3a3d 0%,#111 45%,#000 100%);padding:5px;border:1px solid rgba(255,255,255,.2);box-shadow:0 24px 56px -20px rgba(0,0,0,.35)">
+            <div role="img" aria-label="Tela Hoje do app: passo atual, sequência e semana" style="width:240px;height:492px;border-radius:31px;overflow:hidden">
+              <div style="width:390px;height:800px;background:#EDE8E2;display:flex;flex-direction:column;transform:scale(0.61538);transform-origin:top left">
+        <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:22px 20px 0">
+          <div>
+            <p style="font:800 21px/1.1 'Manrope',sans-serif;letter-spacing:-.7px;color:#1A1714;margin:0">Bom dia, Diego</p>
+            <p style="font:500 12.5px/1.2 'Manrope',sans-serif;color:#8B8279;margin:4px 0 0">Terça, 2 de setembro</p>
+          </div>
+          <div style="width:38px;height:38px;border-radius:13px;background:#F0662B;font:800 12px/38px 'Manrope',sans-serif;color:#1A1714;text-align:center">DZ</div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:20px 20px 0;display:flex;flex-direction:column;gap:12px">
+          <div style="border-radius:28px;background:#1A1714;padding:24px;color:#fff">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 18px">
+              <p style="font:700 11px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);margin:0">Agora · passo 2 de 3</p>
+              <span style="font:600 11.5px/1 'Manrope',sans-serif;color:rgba(255,255,255,.5)">12 min</span>
+            </div>
+            <p style="font:800 32px/1.05 'Manrope',sans-serif;letter-spacing:-1.2px;margin:0 0 20px">Gênesis 41</p>
+            <div style="height:52px;border-radius:18px;background:#F0662B;display:flex;align-items:center;justify-content:center;gap:8px">
+              <span style="font:800 15.5px/1 'Manrope',sans-serif;color:#1A1714">Continuar leitura</span>
+              <span style="font:700 15px/1 'Manrope',sans-serif;color:#1A1714">→</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px">
+            <div style="flex:1;border-radius:24px;background:#fff;padding:20px">
+              <p style="font:700 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Sequência</p>
+              <p style="font:800 34px/1 'Manrope',sans-serif;letter-spacing:-1.4px;color:#1A1714;margin:0 0 4px">18</p>
+              <p style="font:500 11.5px/1.3 'Manrope',sans-serif;color:#8B8279;margin:0">semanas na meta</p>
+            </div>
+            <div style="flex:1;border-radius:24px;background:#E6DACB;padding:20px">
+              <p style="font:700 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;margin:0 0 14px;color:#9C8B76">Bíblia</p>
+              <p style="font:800 34px/1 'Manrope',sans-serif;letter-spacing:-1.4px;color:#7A4A1E;margin:0 0 4px">3,3%</p>
+              <p style="font:500 11.5px/1.3 'Manrope',sans-serif;color:#9C8B76;margin:0">40 de 1.189 cap.</p>
+            </div>
+          </div>
+          <div style="border-radius:24px;background:#fff;padding:20px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 16px">
+              <p style="font:700 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0">Esta semana</p>
+              <p style="font:600 12px/1 'Manrope',sans-serif;color:#8B8279;margin:0"><span style="font-weight:800;color:#1A1714">2 completos</span> de 5</p>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:34px;height:34px;border-radius:12px;background:#F0662B;display:flex;align-items:center;justify-content:center">
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"></path></svg>
+                </div>
+                <span style="font:800 10px/1 'Manrope',sans-serif;color:#1A1714">S</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:34px;height:34px;border-radius:12px;background:#F0662B;display:flex;align-items:center;justify-content:center">
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"></path></svg>
+                </div>
+                <span style="font:800 10px/1 'Manrope',sans-serif;color:#1A1714">T</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:34px;height:34px;border-radius:12px;border:2px dashed #F0662B;box-sizing:border-box"></div>
+                <span style="font:800 10px/1 'Manrope',sans-serif;color:#F0662B">Q</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:34px;height:34px;border-radius:12px;background:#F2EEE9"></div>
+                <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Q</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:34px;height:34px;border-radius:12px;background:#F2EEE9"></div>
+                <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">S</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:34px;height:34px;border-radius:12px;background:#F2EEE9"></div>
+                <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">S</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                <div style="width:34px;height:34px;border-radius:12px;background:#F2EEE9"></div>
+                <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">D</span>
+              </div>
+            </div>
+          </div>
+          <div style="border-radius:24px;background:#fff;padding:20px">
+            <p style="font:700 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 10px">Versículo do dia</p>
+            <p style="font:600 14.5px/1.55 'Manrope',sans-serif;color:#1A1714;margin:0 0 8px;text-wrap:pretty">"Então vocês experimentarão a paz de Deus, que excede todo entendimento."</p>
+            <p style="font:700 11.5px/1 'Manrope',sans-serif;color:#F0662B;margin:0">Filipenses 4:7</p>
+          </div>
+        </div>
+        <div style="flex:none;height:76px;display:flex;align-items:center;justify-content:space-around;padding:0 10px;background:#fff">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="1.9" stroke-linecap="round"><path d="M3 9.5l7-6 7 6V17h-5v-5H8v5H3z"></path></svg>
+            <span style="font:800 10px/1 'Manrope',sans-serif;color:#1A1714">Hoje</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="3" width="12" height="14" rx="2"></rect><path d="M7 7.5h6M7 11h6M7 14.5h3"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Meu Plano</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="1.5"></rect><path d="M10 4v12"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Bíblia</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><path d="M3 7l7-3 7 3-7 3z"></path><path d="M6 9.5V14c0 1 1.8 2 4 2s4-1 4-2V9.5"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Biblioteca</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="2.5"></circle><circle cx="14" cy="8.5" r="2"></circle><path d="M3 16c0-2.2 2-3.5 4.5-3.5S12 13.8 12 16"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Comunidade</span>
+          </div>
+        </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(28px,4vw,56px);align-items:center">
+        <div style="min-width:0;display:flex;justify-content:center;order:1">
+          <div style="flex:none;width:250px;border-radius:36px;background:linear-gradient(150deg,#3a3a3d 0%,#111 45%,#000 100%);padding:5px;border:1px solid rgba(255,255,255,.2);box-shadow:0 24px 56px -20px rgba(0,0,0,.35)">
+            <div role="img" aria-label="Tela de progresso pela Bíblia inteira" style="width:240px;height:492px;border-radius:31px;overflow:hidden">
+              <div style="width:390px;height:800px;background:#EDE8E2;display:flex;flex-direction:column;transform:scale(0.61538);transform-origin:top left">
+        <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:22px 20px 0">
+          <div>
+            <p style="font:800 21px/1.1 'Manrope',sans-serif;letter-spacing:-.7px;color:#1A1714;margin:0">Sua caminhada</p>
+            <p style="font:500 12.5px/1.2 'Manrope',sans-serif;color:#8B8279;margin:4px 0 0">Desde 12 de março</p>
+          </div>
+          <div style="width:38px;height:38px;border-radius:13px;background:#F0662B;font:800 12px/38px 'Manrope',sans-serif;color:#1A1714;text-align:center">DZ</div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:18px 20px 0;display:flex;flex-direction:column;gap:10px">
+          <div style="border-radius:28px;background:#1A1714;padding:20px;color:#fff">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px">
+              <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);margin:0">Constância</p>
+              <span style="font:600 11px/1 'Manrope',sans-serif;color:rgba(255,255,255,.38)">últimas 9 semanas</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 14px">
+              <p style="font:800 42px/1 'Manrope',sans-serif;letter-spacing:-2px;margin:0">18</p>
+              <p style="font:500 13px/1.3 'Manrope',sans-serif;color:rgba(255,255,255,.55);margin:0">semanas<br />na meta</p>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:6px;height:44px;margin:0 0 10px">
+              <div style="flex:1;height:60%;border-radius:5px;background:rgba(240,102,43,.45)"></div>
+              <div style="flex:1;height:100%;border-radius:5px;background:#F0662B"></div>
+              <div style="flex:1;height:80%;border-radius:5px;background:#F0662B"></div>
+              <div style="flex:1;height:100%;border-radius:5px;background:#F0662B"></div>
+              <div style="flex:1;height:45%;border-radius:5px;background:rgba(240,102,43,.45)"></div>
+              <div style="flex:1;height:100%;border-radius:5px;background:#F0662B"></div>
+              <div style="flex:1;height:88%;border-radius:5px;background:#F0662B"></div>
+              <div style="flex:1;height:100%;border-radius:5px;background:#F0662B"></div>
+              <div style="flex:1;height:32%;border-radius:5px;background:rgba(255,255,255,.18)"></div>
+            </div>
+            <p style="font:500 11.5px/1.4 'Manrope',sans-serif;color:rgba(255,255,255,.45);margin:0">A barra clara é esta semana, em curso.</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1;border-radius:20px;background:#fff;padding:14px 13px">
+              <p style="font:800 34px/1 'Manrope',sans-serif;letter-spacing:-1.6px;color:#1A1714;margin:0 0 6px">243</p>
+              <p style="font:600 10.5px/1.25 'Manrope',sans-serif;color:#8B8279;margin:0">capítulos<br />lidos</p>
+            </div>
+            <div style="flex:1;border-radius:20px;background:#fff;padding:14px 13px">
+              <p style="font:800 34px/1 'Manrope',sans-serif;letter-spacing:-1.6px;color:#1A1714;margin:0 0 6px">41<span style="font-size:19px;letter-spacing:-.6px">h</span></p>
+              <p style="font:600 10.5px/1.25 'Manrope',sans-serif;color:#8B8279;margin:0">de leitura<br />acumulada</p>
+            </div>
+            <div style="flex:1;border-radius:20px;background:#E6DACB;padding:14px 13px">
+              <p style="font:800 34px/1 'Manrope',sans-serif;letter-spacing:-1.6px;color:#7A4A1E;margin:0 0 6px">2</p>
+              <p style="font:600 10.5px/1.25 'Manrope',sans-serif;color:#9C8B76;margin:0">livros<br />concluídos</p>
+            </div>
+          </div>
+          <div style="border-radius:24px;background:#fff;padding:18px 20px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px">
+              <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0">Onde você está · Pentateuco</p>
+              <span style="font:800 12px/1 'Manrope',sans-serif;color:#F0662B">18,8%</span>
+            </div>
+            <p style="font:800 22px/1.1 'Manrope',sans-serif;letter-spacing:-.9px;color:#1A1714;margin:0 0 12px">Gênesis 40 de 50</p>
+            <div style="height:10px;border-radius:99px;background:#F2EEE9;margin:0 0 10px"><div style="width:19%;height:10px;border-radius:99px;background:#F0662B"></div></div>
+            <p style="font:500 11px/1.3 'Manrope',sans-serif;color:#BDB5AC;margin:0">3,3% da Bíblia inteira · 40 de 1.189 capítulos</p>
+          </div>
+          <div style="border-radius:24px;background:#fff;padding:16px 20px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px">
+              <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0">Esta semana</p>
+              <p style="font:600 11.5px/1 'Manrope',sans-serif;color:#8B8279;margin:0"><span style="font-weight:800;color:#1A1714">2 completos</span> de 5</p>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="width:28px;height:28px;border-radius:10px;background:#F0662B;display:flex;align-items:center;justify-content:center">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"></path></svg>
+                </div>
+                <span style="font:800 9.5px/1 'Manrope',sans-serif;color:#1A1714">S</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="width:28px;height:28px;border-radius:10px;background:#F0662B;display:flex;align-items:center;justify-content:center">
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"></path></svg>
+                </div>
+                <span style="font:800 9.5px/1 'Manrope',sans-serif;color:#1A1714">T</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="width:28px;height:28px;border-radius:10px;border:2px dashed #F0662B;box-sizing:border-box"></div>
+                <span style="font:800 9.5px/1 'Manrope',sans-serif;color:#F0662B">Q</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="width:28px;height:28px;border-radius:10px;background:#F2EEE9"></div>
+                <span style="font:600 9.5px/1 'Manrope',sans-serif;color:#BDB5AC">Q</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="width:28px;height:28px;border-radius:10px;background:#F2EEE9"></div>
+                <span style="font:600 9.5px/1 'Manrope',sans-serif;color:#BDB5AC">S</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="width:28px;height:28px;border-radius:10px;background:#F2EEE9"></div>
+                <span style="font:600 9.5px/1 'Manrope',sans-serif;color:#BDB5AC">S</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="width:28px;height:28px;border-radius:10px;background:#F2EEE9"></div>
+                <span style="font:600 9.5px/1 'Manrope',sans-serif;color:#BDB5AC">D</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;padding:10px 20px 8px">
+          <div style="border-radius:22px;background:#1A1714;padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px">
+            <div style="flex:1;min-width:0">
+              <p style="font:800 9.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.42);margin:0 0 6px">Agora · passo 2 de 3</p>
+              <p style="font:800 17px/1 'Manrope',sans-serif;letter-spacing:-.6px;color:#fff;margin:0">Gênesis 41 <span style="font:600 12px/1 'Manrope',sans-serif;color:rgba(255,255,255,.45)">· 12 min</span></p>
+            </div>
+            <div style="flex:none;height:46px;border-radius:15px;background:#F0662B;display:flex;align-items:center;padding:0 18px;gap:8px">
+              <span style="font:800 14px/1 'Manrope',sans-serif;color:#1A1714">Continuar</span>
+              <span style="font:700 14px/1 'Manrope',sans-serif;color:#1A1714">→</span>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;height:76px;display:flex;align-items:center;justify-content:space-around;padding:0 10px;background:#fff">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="1.9" stroke-linecap="round"><path d="M3 9.5l7-6 7 6V17h-5v-5H8v5H3z"></path></svg>
+            <span style="font:800 10px/1 'Manrope',sans-serif;color:#1A1714">Hoje</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="3" width="12" height="14" rx="2"></rect><path d="M7 7.5h6M7 11h6M7 14.5h3"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Meu Plano</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="1.5"></rect><path d="M10 4v12"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Bíblia</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><path d="M3 7l7-3 7 3-7 3z"></path><path d="M6 9.5V14c0 1 1.8 2 4 2s4-1 4-2V9.5"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Biblioteca</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="2.5"></circle><circle cx="14" cy="8.5" r="2"></circle><path d="M3 16c0-2.2 2-3.5 4.5-3.5S12 13.8 12 16"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Comunidade</span>
+          </div>
+        </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="min-width:0;order:2">
+          <h3 style="font:800 clamp(22px,2.8vw,28px)/1.18 'Manrope',sans-serif;letter-spacing:-1px;margin:0 0 12px;text-wrap:pretty">Veja seu progresso pela Bíblia inteira</h3>
+          <p style="font:500 14.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:0 0 14px;max-width:430px;text-wrap:pretty">A constância das últimas nove semanas abre a tela, seguida dos três números que só sobem — capítulos lidos, horas de leitura e livros concluídos. Abaixo, onde você está no livro e no bloco, com a fatia da Bíblia inteira já percorrida.</p>
+          <p style="font:500 14.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:0;max-width:430px;text-wrap:pretty">Um mês fraco não apaga nada: o app mostra que você voltou, não quantos dias você perdeu.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(28px,4vw,56px);align-items:center">
+        <div style="min-width:0">
+          <h3 style="font:800 clamp(22px,2.8vw,28px)/1.18 'Manrope',sans-serif;letter-spacing:-1px;margin:0 0 12px;text-wrap:pretty">O plano mostra só o dia de hoje</h3>
+          <p style="font:500 14.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:0 0 20px;max-width:430px;text-wrap:pretty">Nada de calendário cheio de dias perdidos: o passo feito fica em areia, o de agora em preto, o que vem depois fica discreto. A semana aparece no fim como resumo, não como placar.</p>
+          <a href="#recursos" style="display:inline-flex;align-items:center;gap:6px;font:800 14px/1 'Manrope',sans-serif;color:#F0662B">Ver todos os recursos →</a>
+        </div>
+        <div style="min-width:0;display:flex;justify-content:center">
+          <div style="flex:none;width:250px;border-radius:36px;background:linear-gradient(150deg,#3a3a3d 0%,#111 45%,#000 100%);padding:5px;border:1px solid rgba(255,255,255,.2);box-shadow:0 24px 56px -20px rgba(0,0,0,.35)">
+            <div role="img" aria-label="Tela Meu Plano do app, com os três passos do dia" style="width:240px;height:492px;border-radius:31px;overflow:hidden">
+              <div style="width:390px;height:800px;background:#EDE8E2;display:flex;flex-direction:column;transform:scale(0.61538);transform-origin:top left">
+        <div style="flex:none;display:flex;align-items:flex-start;justify-content:space-between;padding:22px 20px 0">
+          <div>
+            <p style="font:800 21px/1.1 'Manrope',sans-serif;letter-spacing:-.7px;color:#1A1714;margin:0">Meu plano</p>
+            <p style="font:500 12.5px/1.2 'Manrope',sans-serif;color:#8B8279;margin:4px 0 0">10 + 15 + 5 min · 1 feito</p>
+          </div>
+          <div style="height:34px;padding:0 14px;border-radius:12px;background:#fff;display:flex;align-items:center"><span style="font:700 12px/1 'Manrope',sans-serif;color:#1A1714">Ajustar</span></div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:20px 20px 0;display:flex;flex-direction:column;gap:12px">
+          <div style="border-radius:24px;background:#E6DACB;padding:18px 20px;display:flex;align-items:center;gap:14px">
+            <div style="width:34px;height:34px;flex:none;border-radius:12px;background:#7A4A1E;display:flex;align-items:center;justify-content:center">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#E6DACB" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"></path></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <p style="font:800 15.5px/1.2 'Manrope',sans-serif;color:#3A2A18;margin:0 0 3px">Oração</p>
+              <p style="font:500 12px/1.2 'Manrope',sans-serif;color:#9C8B76;margin:0">ACTS · 10 min · às 6:42</p>
+            </div>
+          </div>
+          <div style="border-radius:28px;background:#1A1714;padding:24px;color:#fff">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 16px">
+              <p style="font:800 11px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#F0662B;margin:0">Agora · passo 2 de 3</p>
+              <span style="font:600 11.5px/1 'Manrope',sans-serif;color:rgba(255,255,255,.5)">12 min</span>
+            </div>
+            <p style="font:800 27px/1.1 'Manrope',sans-serif;letter-spacing:-1px;margin:0 0 6px">Leitura</p>
+            <p style="font:500 13.5px/1.4 'Manrope',sans-serif;color:rgba(255,255,255,.55);margin:0 0 20px">Gênesis 41 — onde você parou</p>
+            <div style="height:52px;border-radius:18px;background:#F0662B;display:flex;align-items:center;justify-content:center;gap:8px">
+              <span style="font:800 15.5px/1 'Manrope',sans-serif;color:#1A1714">Ler agora</span>
+              <span style="font:700 15px/1 'Manrope',sans-serif;color:#1A1714">→</span>
+            </div>
+          </div>
+          <div style="border-radius:24px;background:rgba(255,255,255,.6);padding:18px 20px;display:flex;align-items:center;gap:14px">
+            <div style="width:34px;height:34px;flex:none;border-radius:12px;border:2px dashed #CFC6BC;box-sizing:border-box"></div>
+            <div style="flex:1;min-width:0">
+              <p style="font:800 15.5px/1.2 'Manrope',sans-serif;color:#8B8279;margin:0 0 3px">Reflexão</p>
+              <p style="font:500 12px/1.2 'Manrope',sans-serif;color:#B0A79E;margin:0">8 min · depois da leitura</p>
+            </div>
+          </div>
+          <div style="border-radius:24px;background:#fff;padding:18px 20px;display:flex;align-items:center;gap:14px">
+            <div style="width:34px;height:34px;flex:none;border-radius:12px;background:#FFE3C9;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#F0662B" stroke-width="1.9" stroke-linecap="round"><path d="M4 8v4M7 6v8M10 4v12M13 7v6M16 9v2"></path></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <p style="font:700 14px/1.2 'Manrope',sans-serif;color:#1A1714;margin:0 0 3px">Modo mãos-livres</p>
+              <p style="font:500 12px/1.2 'Manrope',sans-serif;color:#8B8279;margin:0">Faça a rotina só ouvindo</p>
+            </div>
+            <span style="font:700 15px/1 'Manrope',sans-serif;color:#BDB5AC">›</span>
+          </div>
+          <div style="border-radius:24px;background:#fff;padding:18px 20px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 14px">
+              <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0">Esta semana</p>
+              <p style="font:600 12px/1 'Manrope',sans-serif;color:#8B8279;margin:0"><span style="font-weight:800;color:#1A1714">2 completos</span> de 5</p>
+            </div>
+            <div style="display:flex;gap:6px">
+              <div style="flex:1;height:12px;border-radius:99px;background:#F0662B"></div>
+              <div style="flex:1;height:12px;border-radius:99px;background:#F0662B"></div>
+              <div style="flex:1;height:12px;border-radius:99px;border:2px dashed #F0662B;box-sizing:border-box"></div>
+              <div style="flex:1;height:12px;border-radius:99px;background:#F2EEE9"></div>
+              <div style="flex:1;height:12px;border-radius:99px;background:#F2EEE9"></div>
+              <div style="flex:1;height:12px;border-radius:99px;background:#F2EEE9"></div>
+              <div style="flex:1;height:12px;border-radius:99px;background:#F2EEE9"></div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;height:76px;display:flex;align-items:center;justify-content:space-around;padding:0 10px;background:#fff">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><path d="M3 9.5l7-6 7 6V17h-5v-5H8v5H3z"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Hoje</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A1714" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="3" width="12" height="14" rx="2"></rect><path d="M7 7.5h6M7 11h6M7 14.5h3"></path></svg>
+            <span style="font:800 10px/1 'Manrope',sans-serif;color:#1A1714">Meu Plano</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="1.5"></rect><path d="M10 4v12"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Bíblia</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><path d="M3 7l7-3 7 3-7 3z"></path><path d="M6 9.5V14c0 1 1.8 2 4 2s4-1 4-2V9.5"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Biblioteca</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:70px">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#BDB5AC" stroke-width="1.9" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="2.5"></circle><circle cx="14" cy="8.5" r="2"></circle><path d="M3 16c0-2.2 2-3.5 4.5-3.5S12 13.8 12 16"></path></svg>
+            <span style="font:600 10px/1 'Manrope',sans-serif;color:#BDB5AC">Comunidade</span>
+          </div>
+        </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09)">
+      <div style="background:#1A1714;border-radius:28px;padding:clamp(28px,4vw,44px)">
+        <div style="display:flex;align-items:center;gap:10px;margin:0 0 16px">
+          <span style="width:10px;height:10px;border-radius:2px;background:#F0662B;transform:rotate(45deg);flex:none"></span>
+          <span style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45)">Assistente de leitura</span>
+        </div>
+        <h3 style="font:800 clamp(21px,2.8vw,26px)/1.25 'Manrope',sans-serif;letter-spacing:-.9px;color:#fff;margin:0 0 12px;max-width:620px;text-wrap:pretty">Pergunte sobre o texto sem sair da leitura</h3>
+        <p style="font:500 14px/1.7 'Manrope',sans-serif;color:rgba(255,255,255,.62);margin:0 0 22px;max-width:560px">Selecione um trecho e pergunte. A resposta sempre cita o versículo que a sustenta e indica onde ler mais — se não houver citação no próprio texto, a resposta não sai.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span style="font:700 12px/1 'Manrope',sans-serif;color:#F0662B;background:rgba(240,102,43,.14);padding:11px 15px;border-radius:99px">O que isso significa?</span>
+          <span style="font:700 12px/1 'Manrope',sans-serif;color:rgba(255,255,255,.9);background:rgba(255,255,255,.06);padding:11px 15px;border-radius:99px">Por que sete?</span>
+          <span style="font:700 12px/1 'Manrope',sans-serif;color:rgba(255,255,255,.9);background:rgba(255,255,255,.06);padding:11px 15px;border-radius:99px">Contexto histórico</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="recursos" style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09)">
+      <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Recursos</p>
+      <h2 style="font:800 clamp(25px,3.4vw,34px)/1.1 'Manrope',sans-serif;letter-spacing:-1.3px;margin:0 0 10px;max-width:640px;text-wrap:pretty">Tudo o que você precisa pra ler a Bíblia com constância</h2>
+      <p style="font:500 15px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0 0 40px">Sem complicação, sem culpa — só um passo de cada vez.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:clamp(24px,3vw,40px)">
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Planos flexíveis</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Leve, Padrão, Intensivo ou Livre — troque o ritmo quando quiser, sem perder o progresso.</p>
+        </div>
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Plano cronológico</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">A Bíblia reordenada pela linha do tempo dos acontecimentos, não pela ordem dos livros.</p>
+        </div>
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Ouça em voz alta</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Capítulo a capítulo ou em sequência — e o modo mãos-livres conduz a rotina inteira por áudio.</p>
+        </div>
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Marque e anote</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Grife um versículo e escreva uma nota só sobre aquele trecho — tudo buscável depois.</p>
+        </div>
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Estudo indutivo</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Observe, interprete e aplique qualquer livro da Bíblia, capítulo por capítulo, no seu ritmo.</p>
+        </div>
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Grupos e sala do capítulo</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Uma sala por capítulo, aberta a quem concluiu. Quem lê em grupo permanece 2,4× mais tempo.</p>
+        </div>
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Anotações e sermões</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Notas de leitura, reflexões e sermões com preletor, igreja e textos lidos — num lugar só.</p>
+        </div>
+        <div style="min-width:0">
+          <h3 style="font:700 15px/1.3 'Manrope',sans-serif;margin:0 0 8px">Português e inglês</h3>
+          <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0">Todo o conteúdo bilíngue, incluindo o contexto histórico de cada livro.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="planos" style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09)">
+      <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Planos</p>
+      <h2 style="font:800 clamp(25px,3.4vw,34px)/1.1 'Manrope',sans-serif;letter-spacing:-1.3px;margin:0 0 10px">Comece de graça. Desbloqueie quando quiser.</h2>
+      <p style="font:500 15px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0 0 36px">Valor fixo, mensal ou anual — troque de nível ou cancele quando quiser.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;align-items:stretch">
+        <div style="background:#fff;border-radius:24px;padding:26px 24px;display:flex;flex-direction:column;min-width:0">
+          <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Grátis</p>
+          <p style="font:800 30px/1.1 'Manrope',sans-serif;letter-spacing:-1.2px;margin:0 0 4px">R$0</p>
+          <p style="font:600 12.5px/1.4 'Manrope',sans-serif;color:#8B8279;margin:0 0 22px">Pra começar hoje</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin:0 0 24px">
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Bíblia inteira — Leve, Padrão, Intensivo ou Livre</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Oração e reflexão guiadas</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Áudio com a voz do aparelho</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Progresso e capítulos lidos</p>
+          </div>
+          <a href="#top" style="margin-top:auto;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;background:#F2EEE9;padding:17px;border-radius:16px;text-align:center">Criar conta grátis</a>
+        </div>
+        <div style="background:#fff;border-radius:24px;padding:26px 24px;display:flex;flex-direction:column;min-width:0">
+          <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Premium</p>
+          <p style="font:800 30px/1.1 'Manrope',sans-serif;letter-spacing:-1.2px;margin:0 0 4px">R$12,90<span style="font:700 14px/1 'Manrope',sans-serif;color:#8B8279">/mês</span></p>
+          <p style="font:600 12.5px/1.4 'Manrope',sans-serif;color:#8B8279;margin:0 0 22px">ou R$119,90/ano · a experiência completa</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin:0 0 24px">
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Tudo do grátis, e mais:</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Voz natural e modo mãos-livres</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Plano cronológico da Bíblia</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Marcações, notas e conquistas</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:#6E655C;margin:0">Comunidade: amigos e grupos</p>
+          </div>
+          <a href="#top" style="margin-top:auto;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;background:#F2EEE9;padding:17px;border-radius:16px;text-align:center">Assinar Premium</a>
+        </div>
+        <div style="background:#1A1714;border-radius:24px;padding:26px 24px;display:flex;flex-direction:column;min-width:0">
+          <div style="display:flex;align-items:center;gap:10px;margin:0 0 14px">
+            <span style="width:10px;height:10px;border-radius:2px;background:#F0662B;transform:rotate(45deg);flex:none"></span>
+            <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);margin:0">Premium + IA · popular</p>
+          </div>
+          <p style="font:800 30px/1.1 'Manrope',sans-serif;letter-spacing:-1.2px;color:#fff;margin:0 0 4px">R$21,90<span style="font:700 14px/1 'Manrope',sans-serif;color:rgba(255,255,255,.45)">/mês</span></p>
+          <p style="font:600 12.5px/1.4 'Manrope',sans-serif;color:rgba(255,255,255,.62);margin:0 0 22px">ou R$199,90/ano · Premium + o assistente</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin:0 0 24px">
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:rgba(255,255,255,.62);margin:0">Tudo do Premium, e mais:</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:rgba(255,255,255,.9);margin:0">Perguntas sobre qualquer passagem</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:rgba(255,255,255,.9);margin:0">Planos e estudos por tema</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:rgba(255,255,255,.9);margin:0">Contexto antes do capítulo</p>
+            <p style="font:500 13px/1.55 'Manrope',sans-serif;color:rgba(255,255,255,.9);margin:0">Perguntas geradas na reflexão</p>
+          </div>
+          <a href="#top" style="margin-top:auto;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;background:#F0662B;padding:17px;border-radius:16px;text-align:center">Assinar Premium + IA</a>
+        </div>
+      </div>
+      <p style="font:500 12.5px/1.65 'Manrope',sans-serif;color:#8B8279;margin:22px 0 0;max-width:640px">O pagamento é feito pela loja (Google Play / App Store) dentro do app, ou por cartão na versão web. Ninguém precisa de conta para começar a ler.</p>
+    </section>
+
+    <section style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09);display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(28px,4vw,56px);align-items:start">
+      <div style="min-width:0">
+        <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Baixe onde quiser</p>
+        <h2 style="font:800 clamp(21px,2.8vw,27px)/1.2 'Manrope',sans-serif;letter-spacing:-1px;margin:0 0 12px">Já disponível na web</h2>
+        <p style="font:500 14px/1.7 'Manrope',sans-serif;color:#6E655C;margin:0 0 22px;max-width:400px">Sem loja de aplicativos, sem espaço extra no celular — instale direto do navegador, com ícone na tela inicial como qualquer outro app.</p>
+        <a href="#top" style="display:inline-flex;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;background:#F0662B;padding:17px 22px;border-radius:16px">Como instalar</a>
+      </div>
+      <div style="min-width:0">
+        <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Lista de espera</p>
+        <p style="font:500 14px/1.7 'Manrope',sans-serif;color:#6E655C;margin:0 0 16px;max-width:400px">Google Play e App Store estão a caminho — quer ser avisado(a) assim que sair?</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;max-width:400px">
+          <input type="email" placeholder="seu@email.com" aria-label="Seu e-mail" style="flex:1;min-width:150px;background:#fff;border:none;border-radius:16px;padding:16px;font:500 13.5px/1 'Manrope',sans-serif;color:#1A1714;outline:none" />
+          <button type="button" style="border:none;cursor:pointer;font:800 13.5px/1 'Manrope',sans-serif;color:#1A1714;background:#fff;padding:16px 20px;border-radius:16px">Me avisa</button>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09);display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(28px,4vw,56px);align-items:center">
+      <div style="min-width:0">
+        <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Por que fiz o app</p>
+        <h2 style="font:800 clamp(22px,2.9vw,29px)/1.2 'Manrope',sans-serif;letter-spacing:-1.1px;margin:0 0 16px;text-wrap:pretty">A história de amor mais bonita já contada — e ela é pra todo mundo.</h2>
+        <p style="font:500 14.5px/1.75 'Manrope',sans-serif;color:#6E655C;margin:0;text-wrap:pretty">Criei o Jesus' Corner porque a Bíblia conta a história de um Deus que ama, busca e nunca desiste do Seu povo — do Éden até a eternidade — e eu queria uma forma simples de voltar a essa história todo dia. O nome vem de um "quarto": um cantinho só seu, sem plateia, sem comparação, só você, a Bíblia e Deus.</p>
+      </div>
+      <div style="min-width:0;background:#E6DACB;border-radius:28px;padding:clamp(26px,3.4vw,38px)">
+        <p style="font:500 clamp(16px,1.9vw,19px)/1.6 'Manrope',sans-serif;font-style:italic;color:#5A4327;margin:0 0 16px;text-wrap:pretty">"Mas, quando orarem, cada um vá para seu quarto, feche a porta e ore a seu Pai, em segredo. Então seu Pai, que observa em segredo, os recompensará."</p>
+        <p style="font:800 11px/1 'Manrope',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#9C8B76;margin:0">Mateus 6:6 · NVT</p>
+      </div>
+    </section>
+
+    <section id="perguntas" style="padding:clamp(40px,6vw,72px) 0;border-top:1px solid rgba(26,23,20,.09);display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(28px,4vw,56px);align-items:start">
+      <div style="min-width:0">
+        <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 18px">Perguntas frequentes</p>
+        <div style="display:flex;flex-direction:column">
+          <details style="border-top:1px solid rgba(26,23,20,.09);padding:16px 0">
+            <summary style="font:700 14px/1.4 'Manrope',sans-serif;color:#1A1714">Preciso pagar pra usar?</summary>
+            <p style="font:500 13.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:12px 0 0">Não. O plano grátis já dá pra ler a Bíblia inteira em qualquer ritmo, fazer a oração e a reflexão guiadas, ouvir com a voz do aparelho e acompanhar seu progresso. Sem anúncios em nenhum plano.</p>
+          </details>
+          <details style="border-top:1px solid rgba(26,23,20,.09);padding:16px 0">
+            <summary style="font:700 14px/1.4 'Manrope',sans-serif;color:#1A1714">Funciona sem internet?</summary>
+            <p style="font:500 13.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:12px 0 0">Sim. Leitura, áudio baixado e notas funcionam offline; só o assistente fica indisponível — e o app diz isso na hora, não depois de esperar.</p>
+          </details>
+          <details style="border-top:1px solid rgba(26,23,20,.09);padding:16px 0">
+            <summary style="font:700 14px/1.4 'Manrope',sans-serif;color:#1A1714">Qual versão da Bíblia o app usa?</summary>
+            <p style="font:500 13.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:12px 0 0">NVT em português e NLT em inglês, licenciadas via API.Bible. Trocar de versão não mexe no seu progresso. Mais versões em breve.</p>
+          </details>
+          <details style="border-top:1px solid rgba(26,23,20,.09);padding:16px 0">
+            <summary style="font:700 14px/1.4 'Manrope',sans-serif;color:#1A1714">Meus amigos veem meu progresso?</summary>
+            <p style="font:500 13.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:12px 0 0">Por padrão seu perfil é visível pros seus amigos. Você pode deixá-lo privado a qualquer momento — aí só nome, foto e mensagem continuam visíveis.</p>
+          </details>
+          <details style="border-top:1px solid rgba(26,23,20,.09);border-bottom:1px solid rgba(26,23,20,.09);padding:16px 0">
+            <summary style="font:700 14px/1.4 'Manrope',sans-serif;color:#1A1714">Tem restrição de idade?</summary>
+            <p style="font:500 13.5px/1.7 'Manrope',sans-serif;color:#6E655C;margin:12px 0 0">Sim, o app é destinado a maiores de 18 anos — o cadastro pede a idade.</p>
+          </details>
+        </div>
+      </div>
+      <div id="contato" style="min-width:0;background:#fff;border-radius:28px;padding:clamp(24px,3vw,32px)">
+        <p style="font:800 10.5px/1 'Manrope',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#A29A91;margin:0 0 14px">Fale conosco</p>
+        <h2 style="font:800 clamp(20px,2.4vw,24px)/1.25 'Manrope',sans-serif;letter-spacing:-.8px;margin:0 0 10px">Dúvida, sugestão ou algo quebrado?</h2>
+        <p style="font:500 13.5px/1.65 'Manrope',sans-serif;color:#6E655C;margin:0 0 20px">Escreva pra gente — respondemos no e-mail que você deixar.</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input type="text" placeholder="Seu nome" aria-label="Nome" style="background:#F2EEE9;border:none;border-radius:16px;padding:16px;font:500 13.5px/1 'Manrope',sans-serif;color:#1A1714;outline:none" />
+          <input type="email" placeholder="seu@email.com" aria-label="E-mail" style="background:#F2EEE9;border:none;border-radius:16px;padding:16px;font:500 13.5px/1 'Manrope',sans-serif;color:#1A1714;outline:none" />
+          <textarea rows="4" placeholder="Escreva sua mensagem..." aria-label="Mensagem" style="background:#F2EEE9;border:none;border-radius:16px;padding:16px;font:500 13.5px/1.5 'Manrope',sans-serif;color:#1A1714;outline:none;resize:vertical"></textarea>
+          <button type="button" style="border:none;cursor:pointer;font:800 14px/1 'Manrope',sans-serif;color:#1A1714;background:#F0662B;padding:18px;border-radius:16px;margin-top:2px">Enviar mensagem</button>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding:clamp(40px,6vw,64px) 0 clamp(48px,7vw,80px);border-top:1px solid rgba(26,23,20,.09);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px">
+      <div style="min-width:0">
+        <h2 style="font:800 clamp(24px,3.2vw,32px)/1.15 'Manrope',sans-serif;letter-spacing:-1.3px;margin:0 0 8px;text-wrap:pretty">Seu cantinho com Deus começa hoje.</h2>
+        <p style="font:500 14.5px/1.6 'Manrope',sans-serif;color:#6E655C;margin:0">Sem conta, sem cartão — abra e comece a ler.</p>
+      </div>
+      <a href="#top" style="font:800 15.5px/1 'Manrope',sans-serif;color:#1A1714;background:#F0662B;padding:19px 28px;border-radius:16px;flex:none">Começar a ler</a>
+    </section>
+
+  </main>
+
+  <footer style="border-top:1px solid rgba(26,23,20,.09)">
+    <div style="max-width:1080px;margin:0 auto;padding:28px 24px 44px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="width:30px;height:30px;border-radius:9px;background:#1A1714;display:flex;align-items:center;justify-content:center;gap:2px;flex:none">
+          <span style="width:8px;height:14px;border-radius:2px 1px 1px 2px;background:#A29A91"></span>
+          <span style="width:2px;height:16px;border-radius:1px;background:#F0662B"></span>
+          <span style="width:8px;height:14px;border-radius:1px 2px 2px 1px;background:#A29A91"></span>
+        </span>
+        <span style="font:700 12.5px/1.4 'Manrope',sans-serif;color:#6E655C">Jesus' Corner © 2026 · Todos os direitos reservados</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <a href="#top" style="font:700 12.5px/1 'Manrope',sans-serif;color:#6E655C">Privacidade</a>
+        <a href="#top" style="font:700 12.5px/1 'Manrope',sans-serif;color:#6E655C">Termos</a>
+        <a href="https://www.instagram.com/jesuscorner.app/" style="font:700 12.5px/1 'Manrope',sans-serif;color:#6E655C">Instagram</a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200}}"></script>
+</body>
+</html>
