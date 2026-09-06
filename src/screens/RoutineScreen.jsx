@@ -125,17 +125,22 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
               </button>
             )
           }
+          // "Sem plano" (28d) — Leitura não tem trecho do dia pra mostrar
+          // nem tempo alvo; vira um convite fixo pra ler livre na Bíblia.
+          const noPlanReading = session.hasNoPlan && k === 'reading'
           if (isCurrent) {
             const started = k === 'reading' && todaySession.progress > 0
             const showStudy = k === 'reading' && isStudy
-            const subtitle = k === 'reading'
+            const subtitle = noPlanReading
+              ? L('noPlanReadingSub')
+              : k === 'reading'
               ? (showStudy ? activePlan.label : started ? L('readingResumeSubtitle', { title: todaySession.title }) : todaySession.title)
               : null
             return (
               <div key={k} style={styles.currentCard}>
                 <div style={styles.currentHead}>
                   <p style={styles.currentLabel}>{L('nowStepOf', { i: i + 1, total: enabled.length })}</p>
-                  <span style={styles.currentTime}>{L('minShort', { n: stepMin[k] })}</span>
+                  {!noPlanReading && <span style={styles.currentTime}>{L('minShort', { n: stepMin[k] })}</span>}
                 </div>
                 {showStudy && (
                   <div style={styles.studyLabelRow}>
@@ -153,7 +158,7 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
                   </div>
                 )}
                 <button style={styles.currentBtn} onClick={() => startStep(k)}>
-                  <span style={styles.currentBtnText}>{L(`start_${k}`)}</span>
+                  <span style={styles.currentBtnText}>{noPlanReading ? L('noPlanReadingBtn') : L(`start_${k}`)}</span>
                   <span style={styles.currentBtnArrow}>→</span>
                 </button>
               </div>
@@ -164,7 +169,7 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
               <span style={styles.pendingDot} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={styles.pendingTitle}>{stepTitle(k)}</p>
-                <p style={styles.pendingSub}>{pendingSubFor(k)}</p>
+                <p style={styles.pendingSub}>{noPlanReading ? L('noPlanReadingSub') : pendingSubFor(k)}</p>
               </div>
             </div>
           )

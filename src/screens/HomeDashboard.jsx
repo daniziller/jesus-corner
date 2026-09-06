@@ -83,7 +83,7 @@ function weekRemainingNote(markedDays, todayIndex, lang) {
 export default function HomeDashboard({ session, authUser, readingSeconds = 0, onContinueSession, onNavigate, onStartGuided, onOpenProfile, onOpenBiblePassage }) {
   const {
     lang, userName, avatarInitials, todaySession, weeksInGoal,
-    chaptersRead, booksCompleted, currentBlock,
+    chaptersRead, booksCompleted, currentBlock, hasNoPlan,
     dailyRoutine, routineModules, plan, activePlan,
     weeklyGoalDays, weekGoalDaysMet, lastReadPosition,
   } = session
@@ -162,8 +162,12 @@ export default function HomeDashboard({ session, authUser, readingSeconds = 0, o
     if (session.hasPremium && onStartGuided) onStartGuided()
     else onContinueSession?.()
   }
+  // "Sem plano" (28d): Leitura não tem minutos de trecho pra mostrar —
+  // vira só o nome, sem número, em vez de "Leitura 0".
   const todayStripText = enabledSteps
-    .map(s => `${translate(`home.routine${cap(s)}`, undefined, lang)} ${stepMinMap[s]}`)
+    .map(s => s === 'reading' && hasNoPlan
+      ? translate('home.routineReading', undefined, lang)
+      : `${translate(`home.routine${cap(s)}`, undefined, lang)} ${stepMinMap[s]}`)
     .join(' · ')
 
   // ── Constância · últimas 9 semanas ──
@@ -230,7 +234,19 @@ export default function HomeDashboard({ session, authUser, readingSeconds = 0, o
               <span style={s.wherePct}>{L('wherePercentOfBook', { pct: currentBlock.bookPercent, book: currentBlock.book })}</span>
             )}
           </div>
-          {hasLastRead ? (
+          {hasNoPlan ? (
+            // "Sem plano" (28d) — não existe "onde parou" pra mostrar; o
+            // convite é sempre pra aba Bíblia, onde a pessoa lê e marca o
+            // que quiser (28c).
+            <>
+              <p style={s.whereTitle}>{L('whereNoPlanTitle')}</p>
+              <p style={s.whereSub}>{L('whereNoPlanBody')}</p>
+              <button style={{ ...s.whereContinueBtn, width: '100%' }} onClick={() => onNavigate?.('journey')}>
+                <span style={s.whereContinueText}>{L('whereNoPlanCta')}</span>
+                <span style={s.whereContinueArrow}>→</span>
+              </button>
+            </>
+          ) : hasLastRead ? (
             <>
               <p style={s.whereTitle}>{L('whereStoppedAt', { book: lastReadPosition.book, chapter: lastReadPosition.chapter })}</p>
               {readAtLabel && <p style={s.whereSub}>{L('whereLastReadPrefix', { when: readAtLabel })}</p>}
