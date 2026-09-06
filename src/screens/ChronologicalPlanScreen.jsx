@@ -25,15 +25,13 @@
 // App.jsx/continueToday).
 import { useState, useMemo, useEffect } from 'react'
 import { CHRONOLOGICAL_MOVEMENTS, deriveChronoProgress } from '../data/chronologicalPlan'
-import { GRADIENT_MAP } from '../data/bibleBlocks'
-import { ACCENT_MAP, GLOW_MAP } from '../utils/blockColors'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 
 export default function ChronologicalPlanScreen({
   session, authUser, completedSet, onToggleSession, onToggleChapter, onNavigate,
-  paceId, autoOpenMovementId, onGoToReflectionFrom,
+  paceId, autoOpenMovementId, onGoToReflectionFrom, onBack,
 }) {
   const { lang } = session
   const [activeMovementId, setActiveMovementId] = useState(autoOpenMovementId ?? null)
@@ -74,14 +72,23 @@ export default function ChronologicalPlanScreen({
   const totalSessions = blocks.reduce((s, b) => s + b.sessionsTotal, 0)
   const overallPercent = totalSessions ? Math.round((totalDone / totalSessions) * 1000) / 10 : 0
 
+  // Sem quadro no handoff — cabeçalho e cartões seguem o mesmo padrão de
+  // tela secundária já usado em ThemePlanScreen.jsx/GroupAdminScreen.jsx,
+  // no lugar do degradê por bloco que essa lista tinha antes do redesign
+  // Bento (ver GRADIENT_MAP/ACCENT_MAP/GLOW_MAP, não usados mais aqui).
   return (
-    <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div style={styles.body}>
-        <div className="page-header" style={{ padding: 0, marginBottom: 4 }}>
-          <h1 className="page-title">{t('chronoPlan.pageTitle', undefined, lang)}</h1>
-          <p style={styles.heroSub}>{t('chronoPlan.heroSub', undefined, lang)}</p>
+    <div style={styles.screen}>
+      <div style={styles.header}>
+        <button style={styles.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <div>
+          <p style={styles.headerTitle}>{t('chronoPlan.pageTitle', undefined, lang)}</p>
+          <p style={styles.headerSub}>{t('chronoPlan.heroSub', undefined, lang)}</p>
         </div>
+      </div>
 
+      <div style={styles.body}>
         <div style={styles.overallCard}>
           <div style={styles.overallBar}>
             <div style={{ ...styles.overallBarFill, width: `${overallPercent}%` }} />
@@ -105,47 +112,55 @@ export default function ChronologicalPlanScreen({
 }
 
 function MovementCard({ block, onOpen, lang }) {
-  const gradient = GRADIENT_MAP[block.gradientKey]
-  const accent = ACCENT_MAP[block.gradientKey]
   const name = lang === 'en' ? block.nameEn : block.name
   const desc = lang === 'en' ? block.descEn : block.desc
+  const isActive = block.status === 'active'
+  const isDone = block.status === 'done'
 
   return (
     <button
-      style={{
-        ...styles.movementCard,
-        boxShadow: block.status === 'active' ? `var(--shadow-premium), 0 8px 22px ${GLOW_MAP[block.gradientKey]}` : `0 8px 22px ${GLOW_MAP[block.gradientKey]}`,
-        border: block.status === 'active' ? '0.5px solid var(--gold-soft)' : styles.movementCard.border,
-      }}
+      style={{ ...styles.movementCard, ...(isActive ? styles.movementCardActive : {}) }}
       onClick={onOpen}
     >
-      <div style={{ width: 44, height: 44, borderRadius: 13, background: gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <AppIcon name={block.icon} size={20} color={accent} />
+      <div style={{ ...styles.movementIcon, ...(isActive ? styles.movementIconActive : {}) }}>
+        <AppIcon name={block.icon} size={19} color={isActive ? 'var(--bento-ink)' : 'var(--bento-sand-icon)'} />
       </div>
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <p style={styles.movementName}>{name}</p>
-        <p style={styles.movementDesc}>{desc}</p>
-        {block.status === 'active' && <span className="badge badge-orange" style={{ marginTop: 3 }}>{t('journey.inProgressBadge', undefined, lang)}</span>}
-        {block.status === 'done' && <span className="badge badge-green" style={{ marginTop: 3 }}>{t('journey.doneBadge', undefined, lang)}</span>}
+        <p style={{ ...styles.movementName, ...(isActive ? { color: '#fff' } : {}) }}>{name}</p>
+        <p style={{ ...styles.movementDesc, ...(isActive ? { color: 'rgba(255,255,255,.6)' } : {}) }}>{desc}</p>
+        {isActive && <span style={styles.badgeActive}>{t('journey.inProgressBadge', undefined, lang)}</span>}
+        {isDone && <span style={styles.badgeDone}>{t('journey.doneBadge', undefined, lang)}</span>}
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: accent, letterSpacing: '-0.5px' }}>{block.percent}%</div>
-        <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--g5)' }}>{block.sessionsDone}/{block.sessionsTotal}</div>
+        <div style={{ ...styles.movementPercent, ...(isActive ? { color: 'var(--bento-accent)' } : {}) }}>{block.percent}%</div>
+        <div style={{ ...styles.movementCount, ...(isActive ? { color: 'rgba(255,255,255,.45)' } : {}) }}>{block.sessionsDone}/{block.sessionsTotal}</div>
       </div>
     </button>
   )
 }
 
 const styles = {
-  body:       { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
-  heroSub:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 2px' },
+  screen:     { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  header:     { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
+  backBtn:    { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  headerTitle:{ fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
+  headerSub:  { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
 
-  overallCard:   { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: '12px 14px', boxShadow: 'var(--shadow-card)' },
-  overallBar:    { height: 6, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 },
-  overallBarFill:{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99 },
-  overallLabel:  { fontSize: 11, fontWeight: 700, color: 'var(--g5)' },
+  body:       { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 12 },
 
-  movementCard: { display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 12, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)' },
-  movementName: { fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 2, letterSpacing: '-0.2px' },
-  movementDesc: { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  overallCard:   { background: 'var(--bento-card)', borderRadius: 16, padding: '12px 14px' },
+  overallBar:    { height: 6, background: 'var(--bento-line)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 },
+  overallBarFill:{ height: '100%', background: 'var(--bento-accent)', borderRadius: 99 },
+  overallLabel:  { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)' },
+
+  movementCard:  { display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'var(--bento-card)', border: 'none', borderRadius: 20, padding: 12, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-bento)' },
+  movementCardActive: { background: 'var(--bento-ink)' },
+  movementIcon:  { width: 44, height: 44, borderRadius: 13, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  movementIconActive: { background: 'var(--bento-accent)' },
+  movementName:  { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 2, letterSpacing: '-0.2px' },
+  movementDesc:  { fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  movementPercent: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-0.5px' },
+  movementCount: { fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 600, color: 'var(--bento-t4)' },
+  badgeActive: { display: 'inline-block', marginTop: 3, fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', background: 'rgba(240,102,43,.16)', borderRadius: 999, padding: '2px 8px' },
+  badgeDone:   { display: 'inline-block', marginTop: 3, fontSize: 9.5, fontWeight: 800, color: '#1E8E4F', background: '#E1F5E9', borderRadius: 999, padding: '2px 8px' },
 }
