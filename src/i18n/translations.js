@@ -245,6 +245,14 @@ export const STRINGS = {
       countsInPlan: 'conta no plano',
       newTestamentShort: 'Novo →',
       oldTestamentShort: '← Antigo',
+      // Bloco 5 do redesign (28a/28b) — os dois testamentos do mesmo
+      // tamanho, cada um com status real (onde você está, ou sugestão de
+      // começo), e a lista de livros com chips de grupo.
+      booksCount: '{n} livros',
+      chaptersOfTotal: '{done} de {total} capítulos',
+      youAreAt: 'Você está em {book} {n}',
+      goodStart: '{book} é um bom começo',
+      allBooksChip: 'Todos os {n}',
     },
     // Bento 18a — página do livro (capítulos), alcançada tocando um livro
     // na grade de 5f. Substitui o antigo "expande a lista de sessões
@@ -256,6 +264,19 @@ export const STRINGS = {
       legendRead: 'lido',
       legendCurrent: 'atual',
       continueBtn: 'Continuar em {ref}',
+      // Modo "Marcando" (quadro 28c) — marcação livre de capítulo.
+      markReadLabel: 'Marcar lidos',
+      markingLabel: 'Marcando',
+      pendingOne: '1 marcado agora, ainda não salvo',
+      pendingMany: '{n} marcados agora, ainda não salvos',
+      markUpTo: 'Marcar 1 a {n}',
+      markWholeBook: 'Marcar todo o livro',
+      unmarkAll: 'Desmarcar tudo',
+      tapToMark: 'Toque para marcar',
+      legendUnread: 'por ler',
+      discardAria: 'Descartar marcações',
+      saveOne: 'Salvar 1 capítulo',
+      saveMany: 'Salvar {n} capítulos',
     },
     // Bento 18b — seletor de capítulo aberto pelo chip do cabeçalho da
     // Leitura (4a). Mesma folha escura de 10b, mas sem losango: aqui não é
@@ -2248,6 +2269,11 @@ export const STRINGS = {
       countsInPlan: 'counts toward your plan',
       newTestamentShort: 'New →',
       oldTestamentShort: '← Old',
+      booksCount: '{n} books',
+      chaptersOfTotal: '{done} of {total} chapters',
+      youAreAt: 'You are in {book} {n}',
+      goodStart: '{book} is a good place to start',
+      allBooksChip: 'All {n}',
     },
     bookChapters: {
       bookPosition: '{block} · Book {n}',
@@ -2256,6 +2282,18 @@ export const STRINGS = {
       legendRead: 'read',
       legendCurrent: 'current',
       continueBtn: 'Continue in {ref}',
+      markReadLabel: 'Mark as read',
+      markingLabel: 'Marking',
+      pendingOne: '1 marked now, not saved yet',
+      pendingMany: '{n} marked now, not saved yet',
+      markUpTo: 'Mark 1 to {n}',
+      markWholeBook: 'Mark whole book',
+      unmarkAll: 'Unmark all',
+      tapToMark: 'Tap to mark',
+      legendUnread: 'unread',
+      discardAria: 'Discard marks',
+      saveOne: 'Save 1 chapter',
+      saveMany: 'Save {n} chapters',
     },
     chapterPicker: {
       switchBook: 'switch book',
