@@ -18,8 +18,6 @@ import { hasGuestRow, migrateGuestRow } from './backend/userDataStore'
 import { migrateGuestExtraTables } from './backend/guestTableStore'
 import { getGuestInviteThreshold, dismissGuestInvite, clearGuestInviteState } from './onboarding/guestInviteStore'
 import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
-import { setSavedPrayerMinutes } from './prayer/prayerDurationStore'
-import { setSavedReflectionMinutes } from './reflection/reflectionDurationStore'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
@@ -64,7 +62,7 @@ import AchievementCelebration from './components/AchievementCelebration'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
 import { computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, DEFAULT_WEEKLY_GOAL_DAYS } from './routine/routineStreak'
-import { getWeeklyGoalDays, setWeeklyGoalDays as persistWeeklyGoalDays } from './routine/weeklyGoalStore'
+import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
 import { dateKey } from './utils/dateKey'
@@ -72,7 +70,7 @@ import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
 import { resolveActivePlanSessions } from './plan/resolveActivePlan'
 import { getStepMinutes, setStepMinutes as persistStepMinutes } from './plan/stepMinutesStore'
-import { setWeeklyDays as persistWeeklyDays, daysArrayForCount } from './routine/weeklyDaysStore'
+import { getWeeklyDays, setWeeklyDays as persistWeeklyDays, countTrue } from './routine/weeklyDaysStore'
 import { getThemePlans, saveThemePlan, generateThemePlan } from './themePlans/themePlansStore'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
@@ -581,6 +579,11 @@ export default function App() {
   const [planId, setPlanId] = useState('standard')
   const [readingOrder, setReadingOrderState] = useState('ot_first')
   const [weeklyGoalDays, setWeeklyGoalDaysState] = useState(DEFAULT_WEEKLY_GOAL_DAYS)
+  // Dias específicos da semana (Bloco 2/8, weekly_days) — weeklyGoalDays
+  // acima continua existindo em paralelo (compatibilidade, ver
+  // weeklyDaysStore.js), mas quem decide QUAIS dias marcar/lembrar é este
+  // array de 7 booleanos, editável de verdade em Ajustar meu plano (27a).
+  const [weeklyDays, setWeeklyDaysState] = useState([true, true, true, true, true, false, false])
   // Minutos reais de cada passo (Bloco 4 do redesign, item 2/6 da seção 5 —
   // ver stepMinutesStore.js) — null em cada campo até carregar/enquanto sem
   // preferência salva (quem lê decide o padrão: session.plan.*Minutes cobre
@@ -777,9 +780,10 @@ export default function App() {
         // Sessão real encontrada com progresso de convidado ainda por
         // migrar (ex: voltando do redirect de confirmação de email depois
         // de ler como convidado e só então cadastrar) — mesma função que
-        // SignupStep chama no caminho comum; aqui cobre o caminho que passa
-        // por fora dele. Sem progresso de convidado, não faz nada.
-        await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
+        // SignupScreen chama no caminho comum (cadastro recém-criado, sem
+        // conflito real — freshAccount:true), só que aqui cobre o caminho
+        // que passa por fora dele. Sem progresso de convidado, não faz nada.
+        await migrateGuestRow({ freshAccount: true }).catch(err => console.error('Failed to migrate guest progress', err))
         // Bloco 2 do redesign — session_seconds/chapters_read (tabelas à
         // parte de user_data) têm sua própria migração de convidado, ver
         // src/backend/guestTableStore.js.
@@ -795,11 +799,12 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userStepMinutes, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
         getWeeklyGoalDays(user.email),
+        getWeeklyDays(),
         getStepMinutes(),
         getActiveAltPlan(user.email),
         getThemePlans(user.email),
@@ -836,6 +841,7 @@ export default function App() {
       setPlanId(userPlanId)
       setReadingOrderState(userReadingOrder)
       setWeeklyGoalDaysState(userWeeklyGoalDays)
+      setWeeklyDaysState(userWeeklyDays)
       setStepMinutesState(userStepMinutes)
       setActiveAltPlanState(userActiveAltPlan)
       setThemePlans(userThemePlans)
@@ -1355,13 +1361,21 @@ export default function App() {
     return { id: null, email: null, name: lang === 'en' ? 'Guest' : 'Convidado', language: lang, birthdate: null, isGuest: true }
   }
 
-  // Chamado pelo "Ler Gênesis 1 agora" do onboarding (15e, OnboardingFlow)
-  // — grava as respostas na linha local de convidado (setSelectedPlanId e
-  // cia. escrevem nela em vez do backend real, ver userDataStore.js) e entra
-  // direto na leitura de hoje, que pra um convidado novo (completedSet
-  // vazio) é sempre Gênesis 1, não importa o ritmo — por isso é seguro
-  // chamar continueToday() logo em seguida, mesmo lendo `blocks`/
-  // `sessionsByBlock` de um render que ainda não viu o plano recém-escolhido.
+  // Chamado pelo botão final do onboarding (15e, OnboardingFlow) — grava as
+  // respostas na linha local de convidado (setSelectedPlanId e cia. escrevem
+  // nela em vez do backend real, ver userDataStore.js) e entra direto na
+  // leitura de hoje, que pra um convidado novo (completedSet vazio) é sempre
+  // o começo do livro escolhido — por isso é seguro chamar continueToday()
+  // logo em seguida, mesmo lendo `blocks`/`sessionsByBlock` de um render que
+  // ainda não viu o plano recém-escolhido.
+  //
+  // Bloco 8 do redesign: antes esta função gravava oração/reflexão nas
+  // stores antigas (prayerDurationStore/reflectionDurationStore, só
+  // localStorage) e a meta semanal só como número — desde o Bloco 4/27a a
+  // fonte real dos três passos é stepMinutesStore.js (sincroniza entre
+  // aparelhos) e weekly_days (quais dias, não só quantos). Ficar gravando
+  // nos dois lugares antigos deixava Meu Plano/Oração/Reflexão sem ver o que
+  // a pessoa respondeu no onboarding assim que ela criasse conta de verdade.
   async function startGuestReading(answers) {
     await setSelectedPlanId(null, answers.planId)
     // Cada passo do 15f é independente agora — zerar Oração ou Reflexão
@@ -1370,12 +1384,23 @@ export default function App() {
     if (answers.prayerMinutes > 0) modules.push('prayer')
     if (answers.reflectionMinutes > 0) modules.push('reflection')
     await persistRoutineModules(null, modules)
-    await persistWeeklyGoalDays(null, answers.days)
-    // Os cronômetros de Oração e Reflexão leem daqui (ver
-    // PrayerScreen/ReflectionScreen) — Leitura já vem do plano escolhido
-    // acima (planId), não precisa de duração salva à parte.
-    setSavedPrayerMinutes(answers.prayerMinutes)
-    setSavedReflectionMinutes(answers.reflectionMinutes)
+    await persistWeeklyDays(answers.weeklyDays)
+    await persistStepMinutes({ prayer: answers.prayerMinutes, reading: answers.readingMinutes, reflection: answers.reflectionMinutes })
+    // "Onde começar" (28d, pergunta extra no fim do onboarding) — mesma
+    // lógica de applyStartChoice (App.jsx), só que com email explícito nulo:
+    // authUser ainda não existe neste ponto (handleAuthenticated só roda
+    // logo abaixo), então os wrappers que checam `if (authUser)` (selectPlan,
+    // selectActivePlan) não persistiriam nada; aqui chama a store de baixo
+    // nível direto, do mesmo jeito que setSelectedPlanId(null, ...) acima já
+    // fazia.
+    if (answers.startOrder === 'chrono') {
+      await persistActiveAltPlan(null, { type: 'chrono', paceId: answers.planId })
+    } else if (answers.startOrder === 'none') {
+      await setSelectedPlanId(null, 'none')
+    } else if (answers.startBook) {
+      const block = blocks.find(b => b.books.includes(answers.startBook))
+      await persistReadingOrder(null, block && block.id >= 5 ? 'nt_first' : 'ot_first')
+    }
     saveOnboardingAnswers(answers)
     // O lembrete (15c) só vira inscrição push com uma conta de verdade —
     // fica pendente até o primeiro login (ver applyPendingReminder).
@@ -1407,9 +1432,12 @@ export default function App() {
   async function handleAuthenticated(user) {
     // migrateGuestRow() só migra de verdade quando há sessão real — no
     // "login" sintético do convidado (sem sessão nenhuma) não faz nada, é
-    // seguro chamar sempre (ver src/backend/userDataStore.js). Cobre quem
-    // loga numa conta JÁ existente depois de ter lido um pouco como
-    // convidado no mesmo dispositivo.
+    // seguro chamar sempre (ver src/backend/userDataStore.js). freshAccount
+    // fica no padrão (false) aqui de propósito: este é o caminho de LOGIN,
+    // que cobre quem entra numa conta JÁ existente depois de ter lido um
+    // pouco como convidado no mesmo dispositivo — "servidor vence" pros
+    // campos que competem, pra não trocar o progresso real da conta pelas
+    // migalhas do convidado.
     await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
     await migrateGuestExtraTables().catch(err => console.error('Failed to migrate guest extra tables', err))
     clearGuestInviteState()
@@ -1417,11 +1445,12 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userStepMinutes, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
       getWeeklyGoalDays(user.email),
+      getWeeklyDays(),
       getStepMinutes(),
       getActiveAltPlan(user.email),
       getThemePlans(user.email),
@@ -1451,6 +1480,7 @@ export default function App() {
     setPlanId(userPlanId)
     setReadingOrderState(userReadingOrder)
     setWeeklyGoalDaysState(userWeeklyGoalDays)
+    setWeeklyDaysState(userWeeklyDays)
     setStepMinutesState(userStepMinutes)
     setActiveAltPlanState(userActiveAltPlan)
     setThemePlans(userThemePlans)
@@ -1485,6 +1515,7 @@ export default function App() {
     setPlanId('standard')
     setReadingOrderState('ot_first')
     setWeeklyGoalDaysState(DEFAULT_WEEKLY_GOAL_DAYS)
+    setWeeklyDaysState([true, true, true, true, true, false, false])
     setStepMinutesState({ prayer: null, reading: null, reflection: null })
     setActiveAltPlanState(null)
     setThemePlans([])
@@ -1661,25 +1692,19 @@ export default function App() {
     }
   }
 
-  // "Ritmo da semana" em Ajustar meu plano (1d) — quantos dias por semana a
-  // pessoa quer se comprometer (3–7). Ver src/routine/weeklyGoalStore.js.
-  function selectWeeklyGoalDays(days) {
-    setWeeklyGoalDaysState(days)
+  // "Ritmo da semana" em Ajustar meu plano (27a, Bloco 8) — dias
+  // específicos da semana, não só uma quantidade (WeeklyDaysPicker.jsx,
+  // compartilhado com o onboarding). Grava em weeklyDaysStore.js, que
+  // mantém weekly_days (o array que 29a/30a/4b usam pra saber QUAIS dias) e
+  // weekly_goal_days (o número, compatibilidade com quem já lia só ele)
+  // sincronizados no banco; aqui espelha os dois no estado local na hora,
+  // sem esperar um refetch. Substitui a antiga selectWeeklyDaysCount (só
+  // dava pra escolher uma quantidade, não quais dias).
+  function saveWeeklyDays(days) {
+    setWeeklyDaysState(days)
+    setWeeklyGoalDaysState(countTrue(days))
     if (authUser) {
-      persistWeeklyGoalDays(authUser.email, days).catch(err => console.error('Failed to persist weekly goal days', err))
-    }
-  }
-
-  // "Ritmo da semana" em Ajustar meu plano (5a/26d, Bloco 4) — mesma
-  // pergunta (3 a 7 dias), mas grava no store NOVO (weeklyDaysStore.js,
-  // Bloco 2/3), que mantém weekly_days (o array que 29a/30a/4b usam pra
-  // saber QUAIS dias) e weekly_goal_days (o número, compatibilidade com
-  // quem já lia só ele) sincronizados — diferente de selectWeeklyGoalDays
-  // acima, que só grava o número (ainda usado pelo onboarding antigo).
-  function selectWeeklyDaysCount(n) {
-    setWeeklyGoalDaysState(n)
-    if (authUser) {
-      persistWeeklyDays(daysArrayForCount(n)).catch(err => console.error('Failed to persist weekly days', err))
+      persistWeeklyDays(days).catch(err => console.error('Failed to persist weekly days', err))
     }
   }
 
@@ -2097,7 +2122,7 @@ export default function App() {
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     adjustPlan: hasPremium
-      ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} activeAltPlan={activeAltPlan} onToggleRoutineModule={toggleRoutineModule} onSelectWeeklyDaysCount={selectWeeklyDaysCount} onNavigate={navigateTo} onBack={goBack} />
+      ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} activeAltPlan={activeAltPlan} onToggleRoutineModule={toggleRoutineModule} weeklyDays={weeklyDays} onSaveWeeklyDays={saveWeeklyDays} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // "Onde começar" (28d/28e, Bloco 6) — "Trocar plano" em Ajustar meu
     // plano (5a). chooseStartExisting nunca é alcançada por navegação

@@ -58,16 +58,53 @@ export function hasGuestRow() {
 
 // Copia a linha local do convidado pra dentro da conta que acabou de ser
 // criada/logada, e apaga o local — chamado depois de QUALQUER autenticação
-// real bem-sucedida (login ou cadastro, ver App.jsx/AuthScreen.jsx). Só
+// real bem-sucedida (login ou cadastro, ver App.jsx/SignupScreen.jsx). Só
 // migra de verdade quando já existe uma sessão real (getUserId() != null);
 // chamado sem sessão (ex: o próprio boot do modo convidado) não faz nada,
 // então é seguro chamar sem se preocupar em distinguir os dois casos.
-export async function migrateGuestRow() {
+//
+// `freshAccount` decide COMO migrar, e existe pra corrigir um bug real:
+// antes, esta função sempre sobrescrevia a linha da conta inteira com a do
+// convidado ("local vence" sempre) — inofensivo logo após um cadastro (a
+// conta é nova, não tem nada pra perder), mas destrutivo no login: alguém
+// com uma conta ANTIGA que testa o app sem entrar, num aparelho novo, e só
+// depois faz login, teria o próprio progresso trocado pelas poucas migalhas
+// do convidado. A regra certa (já documentada em guestTableStore.js pras
+// tabelas irmãs session_seconds/chapters_read) é "servidor vence" pros
+// campos que competem entre si — completed_keys e weekly_days acima de
+// tudo.
+//   - freshAccount = true (cadastro, ou o redirect de confirmação de
+//     e-mail que fecha o mesmo cadastro por fora — ver os dois pontos de
+//     chamada): a conta acabou de nascer, não existe conflito de verdade,
+//     copia a linha do convidado inteira, sem checar nada.
+//   - freshAccount = false (padrão, login): só preenche campos que a conta
+//     AINDA NÃO TINHA (nulo, ou array/objeto vazio) — nunca troca um valor
+//     que a conta já tinha antes de logar neste aparelho.
+// Limitação conhecida e aceitável: o primeiro login via Google/Apple de
+// alguém que NUNCA tinha conta também cria a conta na hora, mas passa pelo
+// caminho de login (freshAccount=false) — campos com valor-padrão
+// não-vazio (plan_id='standard', weekly_days de seg a sex) podem não herdar
+// a escolha exata do convidado nesse caso específico; completed_keys/
+// daily_routine/notes (o que realmente importa) continuam migrando normal,
+// porque começam vazios em qualquer conta nova.
+export async function migrateGuestRow({ freshAccount = false } = {}) {
   const guest = getGuestRow()
   if (!guest) return
   const userId = await getUserId()
   if (!userId) return
-  const { updated_at, ...patch } = guest
+  const { updated_at, ...guestPatch } = guest
+  let patch = guestPatch
+  if (!freshAccount) {
+    const serverRow = await fetchRow()
+    patch = {}
+    for (const [key, guestValue] of Object.entries(guestPatch)) {
+      const serverValue = serverRow?.[key]
+      const isEmpty = serverValue == null
+        || (Array.isArray(serverValue) && serverValue.length === 0)
+        || (typeof serverValue === 'object' && !Array.isArray(serverValue) && Object.keys(serverValue).length === 0)
+      if (isEmpty) patch[key] = guestValue
+    }
+  }
   if (Object.keys(patch).length > 0) await updateRow(patch)
   try { localStorage.removeItem(GUEST_KEY) } catch { /* ignora */ }
 }

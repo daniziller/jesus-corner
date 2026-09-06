@@ -1,12 +1,17 @@
-// onboardingAnswers.js — respostas do onboarding de 7 telas (quadros 15a–15f)
-// e o que cada uma muda no app.
+// onboardingAnswers.js — respostas do onboarding (OnboardingFlow.jsx) e o
+// que cada uma muda no app.
 //
 // As respostas ficam em localStorage porque, nesse ponto, ainda não existe
 // conta nem linha de convidado (a linha nasce em App.startGuestReading, ao
-// tocar "Ler Gênesis 1 agora" no 15e). Plano, meta semanal e passos da
-// rotina vão pra linha de dados (userDataStore) na hora de começar; o
-// horário do lembrete espera uma conta de verdade (a inscrição push é por
-// usuário — ver pushStore.js), então fica pendente aqui até o primeiro login.
+// tocar o botão final do 15e). Plano, meta semanal e passos da rotina vão
+// pra linha de dados (userDataStore) na hora de começar; o horário do
+// lembrete espera uma conta de verdade (a inscrição push é por usuário —
+// ver pushStore.js), então fica pendente aqui até o primeiro login.
+//
+// A projeção de conclusão (dias marcados × minutos de leitura) não mora
+// mais aqui — usa readingProjection.js (computeProjection/
+// formatYearsMonths), a mesma conta que 26d/30b já usam, pra não ter dois
+// jeitos de calcular "quanto falta" no mesmo app.
 import { PLANS } from '../data/bibleBlocks'
 
 const ANSWERS_KEY = 'jc_onboarding_answers'
@@ -29,10 +34,6 @@ export const REMINDERS = {
   midday: { hour: 12, minute: 30 },
   night: { hour: 21, minute: 30 },
 }
-// 15d — dias por semana.
-export const WEEK_DAYS = [3, 4, 5, 6, 7]
-
-export const TOTAL_CHAPTERS = 1189
 
 // Qual demonstração aparece depois do 15b (ADENDO: "não entendo" → 14c,
 // "perco o ritmo" → 14e, "leio sozinho" → 14f, outras → 14b). Com mais de
@@ -52,17 +53,6 @@ export function planIdFor(readingMinutes) {
   let chosen = null
   for (const p of timed) if (p.readingMinutes <= readingMinutes) chosen = p
   return chosen ? chosen.id : 'free'
-}
-
-// Estimativa de conclusão: capítulos por dia do ritmo × dias por semana.
-export function estimateCompletion(planId, daysPerWeek, today = new Date()) {
-  const plan = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
-  const perDay = plan.avgChapters || 1
-  const weeks = Math.ceil(TOTAL_CHAPTERS / (perDay * daysPerWeek))
-  const months = Math.max(1, Math.round((weeks * 7) / 30.44))
-  const end = new Date(today)
-  end.setDate(end.getDate() + weeks * 7)
-  return { perDay, weeks, months, years: Math.floor(months / 12), restMonths: months % 12, endDate: end }
 }
 
 export function saveOnboardingAnswers(answers) {

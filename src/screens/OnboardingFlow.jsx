@@ -1,26 +1,46 @@
-// OnboardingFlow.jsx — o onboarding de 7 telas até o primeiro versículo
-// (quadros 15a → 15b → uma demonstração 14x → 15f → 15c → 15d → 15e).
+// OnboardingFlow.jsx — o onboarding até o primeiro capítulo (quadros
+// 15a → 15b → uma demonstração 14x → 15f → 27a → 15c → 28d → 15e).
 //
-// Cinco perguntas, cada uma com "Pular" no mesmo lugar e a linha "Por que eu
-// pergunto"; uma demonstração escolhida pela dor marcada no 15b; e o
-// resultado (15e), que repete as respostas e abre Gênesis 1. Nada aqui pede
-// conta: as respostas viram plano/meta/rotina na linha local de convidado
-// quando a pessoa toca "Ler Gênesis 1 agora" (ver App.startGuestReading e
-// src/onboarding/onboardingAnswers.js). Substitui a pergunta única antiga
-// (5c/GuestPaceScreen).
-import { useState } from 'react'
+// Cinco perguntas numeradas, cada uma com "Pular" no mesmo lugar e a linha
+// "Por que eu pergunto"; uma demonstração escolhida pela dor marcada no 15b;
+// "onde começar" (28d, Bloco 8 — reaproveita ChooseStartScreen.jsx sem
+// duplicar UI, com completedSet vazio porque um convidado novo nunca tem
+// progresso ainda); e o resultado (15e), que repete as respostas e abre o
+// livro escolhido. Nada aqui pede conta: as respostas viram plano/meta/
+// rotina na linha local de convidado quando a pessoa toca o botão final
+// (ver App.startGuestReading e src/onboarding/onboardingAnswers.js).
+// Substitui a pergunta única antiga (5c/GuestPaceScreen).
+//
+// Nota obrigatória do handoff (seção 3.2): o onboarding tinha a opção de
+// crescer pra 6 perguntas (27a nova + 15d antiga, cada uma com seu próprio
+// número) ou ficar em 5 (27a substitui 15d, já que uma escolha de dias
+// específicos cobre uma contagem de dias sozinha). Ficou em 5 — decisão já
+// tomada antes deste bloco.
+import { useState, useMemo } from 'react'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import AppIcon from '../icons/AppIcon'
 import OnboardingDemo from './OnboardingDemo'
+import ChooseStartScreen from './ChooseStartScreen'
+import WeeklyDaysPicker from '../components/WeeklyDaysPicker'
+import { deriveProgress, computeBookChapterCounts } from '../utils/progress'
+import { computeProjection, formatYearsMonths } from '../plan/readingProjection'
+import { countTrue, WEEKLY_DAYS_PRESETS } from '../routine/weeklyDaysStore'
 import {
-  PAINS, REMINDERS, WEEK_DAYS, demoFor, planIdFor, estimateCompletion, formatClock,
+  PAINS, REMINDERS, demoFor, planIdFor, formatClock,
   STEP_MINUTES_DEFAULT, STEP_MINUTES_STEP, STEP_MINUTES_MIN, STEP_MINUTES_MAX,
 } from '../onboarding/onboardingAnswers'
 
 const FONT = 'var(--font-bento)'
-const STEPS = ['history', 'pains', 'demo', 'minutes', 'reminder', 'days', 'result']
+// Ordem canônica (nota obrigatória do handoff, seção 3.2): 5 perguntas
+// numeradas — história(15a)·dor(15b)·tempo(15f)·dias(27a)·hora(15c) — com a
+// demonstração (14x) e "onde começar" (28d, chooseStart) como paradas extras
+// não numeradas entre elas. 28d "aparece no fim do onboarding" (nota do
+// próprio quadro 28d no handoff) — por isso vem depois da última pergunta,
+// não entre as outras.
+const STEPS = ['history', 'pains', 'demo', 'minutes', 'days', 'reminder', 'chooseStart', 'result']
 const TOTAL_QUESTIONS = 5
+const EMPTY_SET = new Set()
 
 export default function OnboardingFlow({ onFinish, onBack }) {
   const lang = getAppLanguage() ?? 'pt'
@@ -35,19 +55,52 @@ export default function OnboardingFlow({ onFinish, onBack }) {
   const [readingMinutes, setReadingMinutes] = useState(STEP_MINUTES_DEFAULT.reading)
   const [reflectionMinutes, setReflectionMinutes] = useState(STEP_MINUTES_DEFAULT.reflection)
   const [reminder, setReminder] = useState('morning') // 'morning' | 'midday' | 'night' | null
-  const [days, setDays] = useState(5)
+  // 27a — dias específicos da semana, não só uma quantidade (substitui o
+  // antigo 15d/"quantos dias", fundido aqui por decisão já tomada). Padrão
+  // "dias úteis" — o mesmo default de weekly_days no banco (migration 0049),
+  // pra a pré-visualização do onboarding já nascer igual ao que uma conta
+  // nova teria de qualquer jeito.
+  const [weeklyDays, setWeeklyDays] = useState(WEEKLY_DAYS_PRESETS.weekdays)
+  // 28d, pergunta extra no fim — onde começar (Gênesis/Mateus/outro
+  // livro/sem plano) e em que ordem. null até a pessoa passar por lá.
+  const [startChoice, setStartChoice] = useState(null)
   const [starting, setStarting] = useState(false)
 
   const step = STEPS[stepIdx]
   const next = () => setStepIdx(i => Math.min(i + 1, STEPS.length - 1))
   const back = () => (stepIdx === 0 ? onBack() : setStepIdx(i => i - 1))
 
+  // Estrutura da Bíblia (blocos/livros/capítulos) — dado estrutural, não
+  // progresso; completedSet vazio e planId 'standard' aqui não mudam essa
+  // estrutura, só serviriam pra tamanho de sessão (que 28d/ChooseStartScreen
+  // não usa). Mesma fonte que App.jsx usa pra tudo isso, sem duplicar nada.
+  const { blocks, sessionsByBlock } = useMemo(() => deriveProgress(EMPTY_SET, 'standard', 'ot_first', null), [])
+  const bookChapterCounts = useMemo(() => computeBookChapterCounts(sessionsByBlock), [sessionsByBlock])
+
   const totalMinutes = prayerMinutes + readingMinutes + reflectionMinutes
+  // Projeção real (mesma conta de 26d/30b, ver readingProjection.js) — usa
+  // os dias marcados em `weeklyDays`, que já existe com um padrão sensato
+  // antes mesmo de a pessoa responder a pergunta 4: a pré-visualização em
+  // "minutes" (15f) e o cartão de "days" (27a) mostram sempre o número
+  // certo pro estado atual, recalculado a cada toque.
+  const projection = useMemo(
+    () => computeProjection({ completedSet: EMPTY_SET, readingMinutesPerDay: readingMinutes, weeklyDays, lang }),
+    [readingMinutes, weeklyDays, lang]
+  )
+
   const answers = {
     history, pains, prayerMinutes, readingMinutes, reflectionMinutes, minutes: totalMinutes,
+    // "Só quero ler" (atalho do 15f) — corrigido aqui: antes esse campo
+    // nunca ia pro objeto de respostas (só existia como variável local
+    // dentro do passo 'minutes'), então a linha "Só leitura" do resultado
+    // (15e) nunca aparecia, mesmo zerando os dois passos.
+    readOnly: prayerMinutes === 0 && reflectionMinutes === 0,
     planId: planIdFor(readingMinutes),
     reminder: reminder ? REMINDERS[reminder] : null,
-    days,
+    weeklyDays,
+    days: countTrue(weeklyDays),
+    startBook: startChoice?.book ?? null,
+    startOrder: startChoice?.order ?? 'biblical',
   }
 
   async function finish() {
@@ -75,8 +128,26 @@ export default function OnboardingFlow({ onFinish, onBack }) {
     return <OnboardingDemo kind={demoFor(pains)} onContinue={next} onSkip={next} />
   }
 
+  // 28d — "onde começar", pergunta extra no fim do onboarding (não conta
+  // nas 5 numeradas). completedSet vazio de propósito: um convidado
+  // recém-chegado nunca tem progresso ainda, então a tela nem mostra o
+  // cartão bege de "você já tem capítulos marcados" — só as opções.
+  if (step === 'chooseStart') {
+    return (
+      <ChooseStartScreen
+        session={{ lang, hasNoPlan: false, readingOrder: 'ot_first', activeAltPlan: null }}
+        completedSet={EMPTY_SET}
+        bookChapterCounts={bookChapterCounts}
+        blocks={blocks}
+        initialChoice={startChoice}
+        onContinue={(book, order) => { setStartChoice({ book, order }); next() }}
+        onBack={back}
+      />
+    )
+  }
+
   if (step === 'result') {
-    return <ResultScreen L={L} lang={lang} answers={answers} onStart={finish} starting={starting} />
+    return <ResultScreen L={L} lang={lang} answers={answers} blocks={blocks} projection={projection} onStart={finish} starting={starting} />
   }
 
   if (step === 'history') {
@@ -163,10 +234,44 @@ export default function OnboardingFlow({ onFinish, onBack }) {
           ))}
         </div>
         <div style={s.totalCard}>
-          <p style={s.totalLabel}>{L('minutesTotalLabel')}</p>
-          <p style={s.totalValue}>{totalMinutes} <span style={s.totalUnit}>{L('min')}</span></p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: readingMinutes > 0 ? '0 0 10px' : 0 }}>
+            <p style={{ ...s.totalLabel, flex: 1, margin: 0 }}>{L('minutesTotalLabel')}</p>
+            <p style={{ ...s.totalValue, margin: 0 }}>{totalMinutes} <span style={s.totalUnit}>{L('min')}</span></p>
+          </div>
+          {/* Projeção real (15f, "+ projeção da Bíblia inteira") — usa o
+              padrão de dias por semana até a pessoa responder 27a (próxima
+              pergunta), e recalcula sozinha se ela voltar e mudar. */}
+          {readingMinutes > 0 && projection.monthsRemaining != null && (
+            <div style={s.projSubCard}>
+              <p style={s.projText}>{L('minutesProjection', { time: formatYearsMonths(projection.monthsRemaining, lang) })}</p>
+              <p style={s.projSub}>{L('minutesProjectionSub', { chapters: projection.chaptersRemaining, days: countTrue(weeklyDays) })}</p>
+            </div>
+          )}
         </div>
         <button type="button" style={s.textLink} onClick={toggleReadOnly}>{readOnly ? L('readOnlyUndo') : L('readOnly')}</button>
+      </QuestionShell>
+    )
+  }
+
+  // 27a — quais dias da semana, não só quantos (substitui o antigo 15d).
+  if (step === 'days') {
+    const daysCount = countTrue(weeklyDays)
+    return (
+      <QuestionShell L={L} n={4} onBack={back} onSkip={next}
+        title={L('daysTitle')} sub={L('daysSub')} subMargin={16}
+        why={L('daysWhy')} btnLabel={L('continueBtn')} onContinue={next}>
+        <WeeklyDaysPicker days={weeklyDays} onChange={setWeeklyDays} lang={lang} />
+        <div style={{ ...s.darkCard, margin: '10px 0 0' }}>
+          <p style={s.darkLabel}>{L('commitmentLabel')}</p>
+          <p style={s.estTitle}>{daysCount === 1 ? L('daysPerWeekOne') : L('daysPerWeekMany', { n: daysCount })}</p>
+          <p style={{ ...s.estSub, margin: readingMinutes > 0 ? '0 0 14px' : 0 }}>{L('minutesEachDay', { min: readingMinutes })}</p>
+          {readingMinutes > 0 && projection.monthsRemaining != null && (
+            <div style={s.projSubCardDark}>
+              <p style={s.projTextDark}>{L('minutesProjection', { time: formatYearsMonths(projection.monthsRemaining, lang) })}</p>
+              <p style={s.projSubDark}>{L('minutesProjectionSub', { chapters: projection.chaptersRemaining, days: daysCount })}</p>
+            </div>
+          )}
+        </div>
       </QuestionShell>
     )
   }
@@ -178,7 +283,7 @@ export default function OnboardingFlow({ onFinish, onBack }) {
       ['night', 'reminderNight', 'reminderNightSub'],
     ]
     return (
-      <QuestionShell L={L} n={4} onBack={back} onSkip={() => { setReminder(null); next() }}
+      <QuestionShell L={L} n={5} onBack={back} onSkip={() => { setReminder(null); next() }}
         title={L('reminderTitle')} sub={L('reminderSub')} subMargin={24}
         why={L('reminderWhy')} btnLabel={L('continueBtn')} onContinue={continueFromReminder}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 0 16px' }}>
@@ -209,29 +314,9 @@ export default function OnboardingFlow({ onFinish, onBack }) {
     )
   }
 
-  // step === 'days'
-  const est = estimateCompletion(answers.planId, days)
-  return (
-    <QuestionShell L={L} n={5} onBack={back} onSkip={next}
-      title={L('daysTitle')} sub={L('daysSub')} subMargin={24}
-      why={L('daysWhy')} btnLabel={L('daysBtn')} onContinue={next}>
-      <div style={{ display: 'flex', gap: 7, margin: '0 0 16px' }}>
-        {WEEK_DAYS.map(d => <Tile key={d} on={days === d} n={d} unit={L('days')} height={64} onClick={() => setDays(d)} />)}
-      </div>
-      <div style={{ ...s.darkCard, margin: 0 }}>
-        <p style={{ ...s.darkLabel, margin: '0 0 12px' }}>{L('withDays', { n: days })}</p>
-        <p style={s.estTitle}>{L('finishIn', { duration: durationLabel(L, est) })}</p>
-        <p style={s.estSub}>{est.perDay === 1 ? L('perDayOne', { min: totalMinutes }) : L('perDay', { n: est.perDay, min: totalMinutes })}</p>
-      </div>
-    </QuestionShell>
-  )
-}
-
-function durationLabel(L, est) {
-  const { years, restMonths, months } = est
-  if (years >= 2) return restMonths ? L('aboutYearsMonths', { y: years, m: restMonths }) : L('aboutYears', { y: years })
-  if (years === 1) return restMonths ? L('aboutOneYearMonths', { m: restMonths }) : L('aboutOneYear')
-  return months === 1 ? L('aboutMonth') : L('aboutMonths', { m: months })
+  // Nunca deveria chegar aqui (todo valor de STEPS tem um bloco acima) —
+  // guarda de segurança, não uma tela de verdade.
+  return null
 }
 
 /* ── Casca comum das cinco perguntas ── */
@@ -263,16 +348,6 @@ function QuestionShell({ L, n, onBack, onSkip, title, sub, subMargin, why, btnLa
         </button>
       </div>
     </div>
-  )
-}
-
-function Tile({ on, n, unit, height, onClick }) {
-  return (
-    <button type="button" aria-pressed={on} onClick={onClick}
-      style={{ ...s.tile, height, background: on ? 'var(--bento-accent)' : 'var(--bento-card)' }}>
-      <span style={{ ...s.tileNum, fontSize: on ? 22 : 20 }}>{n}</span>
-      <span style={{ ...s.tileUnit, ...(on ? { fontWeight: 700, color: 'rgba(26,23,20,.6)' } : {}) }}>{unit}</span>
-    </button>
   )
 }
 
@@ -310,24 +385,41 @@ function TimeShape({ id, color }) {
 }
 
 /* ── 15e — resultado ── */
-function ResultScreen({ L, lang, answers, onStart, starting }) {
-  const ref = lang === 'en' ? 'Genesis 1' : 'Gênesis 1'
-  const est = estimateCompletion(answers.planId, answers.days)
+function bookDisplayName(blocks, book, lang) {
+  if (!book) return null
+  if (lang !== 'en') return book
+  for (const block of blocks) {
+    const i = block.books.indexOf(book)
+    if (i !== -1) return block.booksEn[i]
+  }
+  return book
+}
+
+function ResultScreen({ L, lang, answers, blocks, projection, onStart, starting }) {
+  const isNoPlan = answers.startOrder === 'none'
+  const bookRef = bookDisplayName(blocks, answers.startBook, lang)
   const rest = 7 - answers.days
-  const month = est.endDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'long', year: 'numeric' })
   const startKey = answers.history === 'never' ? 'resultStartNever' : answers.history === 'done' ? 'resultStartDone' : 'resultStartStopped'
   // Parte o texto em volta de {ref} pra pôr a referência em negrito.
-  const [startA, startB] = L(startKey, { ref: '\u0000' }).split('\u0000')
+  const [startA, startB] = isNoPlan ? [null, null] : L(startKey, { ref: ' ' }).split(' ')
+  const perDay = Math.max(1, Math.round(projection.chaptersPerDay ?? 0))
 
   const rows = [
-    <>{startA}<strong style={s.strong}>{ref}</strong>{startB}</>,
+    isNoPlan
+      ? <>{L('resultNoPlanStart')}</>
+      : <>{startA}<strong style={s.strong}>{bookRef} 1</strong>{startB}</>,
     <><strong style={s.strong}>{L('resultDays', { n: answers.days })}</strong>{L(`resultRest${Math.min(rest, 4)}`)}</>,
     answers.reminder
       ? <>{L('resultReminderPrefix')}<strong style={s.strong}>{formatClock(answers.reminder.hour, answers.reminder.minute)}</strong>{L('resultReminderSuffix')}</>
       : <>{L('resultNoReminder')}</>,
     ...(answers.pains.includes('understand') ? [<><strong style={s.strong}>{L('resultAi')}</strong>{L('resultAiSuffix')}</>] : []),
     ...(answers.readOnly ? [<><strong style={s.strong}>{L('resultReadOnly')}</strong>{L('resultReadOnlySuffix')}</>] : []),
-    <>{L('resultFinishPrefix')}<strong style={s.strong}>{month}</strong></>,
+    // Só ritmo, sem data — decisão da autora: uma data de conclusão logo na
+    // primeira sessão pode assustar; a data completa só aparece depois, nas
+    // métricas (30b), quando a pessoa já tem alguns dias de uso.
+    ...(!isNoPlan && projection.chaptersRemaining
+      ? [<>{L('resultPacePrefix')}<strong style={s.strong}>{perDay === 1 ? L('resultPaceChapterOne') : L('resultPaceChaptersMany', { n: perDay })}</strong></>]
+      : []),
   ]
 
   return (
@@ -347,7 +439,7 @@ function ResultScreen({ L, lang, answers, onStart, starting }) {
       </div>
       <div style={{ flex: 'none', padding: '22px 24px calc(32px + var(--safe-bottom))' }}>
         <button type="button" style={{ ...s.resultBtn, ...(starting ? { opacity: .7 } : {}) }} onClick={onStart} disabled={starting}>
-          <span style={{ fontFamily: FONT, fontSize: 16, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' }}>{L('resultBtn', { ref })}</span>
+          <span style={{ fontFamily: FONT, fontSize: 16, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' }}>{isNoPlan ? L('resultBtnNoPlan') : L('resultBtn', { ref: `${bookRef} 1` })}</span>
           <span style={{ fontFamily: FONT, fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)' }}>→</span>
         </button>
         <p style={s.resultNote}>{L('resultNote')}</p>
@@ -386,10 +478,7 @@ const s = {
   checkBoxOff: { border: '2px solid var(--bento-divider)' },
   checkBoxOn: { background: 'var(--bento-ink)' },
   checkText: { flex: 1, fontFamily: FONT, fontSize: 14.5, lineHeight: 1.25, color: 'var(--bento-ink)', margin: 0, textAlign: 'left' },
-  // 15f / 15d
-  tile: { flex: 1, borderRadius: 16, border: 'none', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tileNum: { fontFamily: FONT, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
-  tileUnit: { fontFamily: FONT, fontSize: 9.5, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t4)' },
+  // 15f / 27a
   darkCard: { borderRadius: 22, background: 'var(--bento-ink)', padding: 20, margin: '0 0 10px' },
   darkLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 14px' },
   // Linha de passo (StepMinutesRow, quadro 15f) — nome+apoio à esquerda,
@@ -403,10 +492,19 @@ const s = {
   stepValueWrap: { width: 52, flexShrink: 0, textAlign: 'center' },
   stepValue: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1, letterSpacing: '-.6px' },
   stepUnit: { fontFamily: FONT, fontSize: 10, fontWeight: 600, lineHeight: 1, marginLeft: 2 },
-  totalCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 12px' },
-  totalLabel: { flex: 1, fontFamily: FONT, fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: 'var(--bento-sand-ink)', margin: 0 },
-  totalValue: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1, letterSpacing: '-.8px', color: 'var(--bento-sand-ink-strong)', margin: 0 },
+  totalCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '14px 18px', margin: '0 0 12px' },
+  totalLabel: { fontFamily: FONT, fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: 'var(--bento-sand-ink)' },
+  totalValue: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1, letterSpacing: '-.8px', color: 'var(--bento-sand-ink-strong)' },
   totalUnit: { fontFamily: FONT, fontSize: 11, fontWeight: 700, color: 'var(--bento-sand-label)' },
+  // Projeção (15f/27a) — cartão tan mais escuro sobre o sand claro do
+  // totalCard, e a versão translúcida-laranja sobre o darkCard de 27a
+  // (mesmo padrão de TimePerStepSheet.jsx, pra não inventar um 3º estilo).
+  projSubCard: { borderRadius: 13, background: 'rgba(90,67,39,.12)', padding: '10px 12px' },
+  projText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-sand-ink-strong)', margin: '0 0 2px' },
+  projSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-sand-ink-mid)', margin: 0 },
+  projSubCardDark: { borderRadius: 14, background: 'rgba(240,102,43,.14)', padding: '12px 14px' },
+  projTextDark: { fontFamily: FONT, fontSize: 12.5, fontWeight: 700, lineHeight: 1.35, color: '#fff', margin: '0 0 3px' },
+  projSubDark: { fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.5)', margin: 0 },
   textLink: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0, textAlign: 'center', width: '100%' },
   estTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.2, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
   estSub: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.5)', margin: 0 },

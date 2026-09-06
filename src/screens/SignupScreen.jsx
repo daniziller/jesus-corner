@@ -17,8 +17,7 @@ import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
 import { setSelectedPlanId } from '../plan/planStore'
 import { setReadingOrder } from '../reading/readingOrderStore'
-import { setSavedPrayerMinutes } from '../prayer/prayerDurationStore'
-import { setSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import { setStepMinutes } from '../plan/stepMinutesStore'
 import { savePendingOnboardingChoices } from '../onboarding/pendingOnboardingChoices'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, PURPOSES } from '../privacy/consent'
@@ -64,7 +63,10 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
       // Migra o progresso feito sem conta neste aparelho (leitura/plano já
       // guardados em localStorage). Sem linha de convidado não faz nada.
       // Falha aqui não pode travar o cadastro — o pior caso é reler.
-      await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
+      // A conta acabou de ser criada agora mesmo — sem conflito real,
+      // migra a linha de convidado inteira (ver migrateGuestRow em
+      // userDataStore.js).
+      await migrateGuestRow({ freshAccount: true }).catch(err => console.error('Failed to migrate guest progress', err))
       clearGuestInviteState()
       markHasAuthenticated()
 
@@ -78,24 +80,25 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
         { purpose: PURPOSES.PUBLIC_PROFILE, granted: false },
       ])
 
-      // Tempos de oração/reflexão são só localStorage — não dependem de
-      // sessão. Plano/ordem exigem sessão de verdade, por isso o "pendente"
-      // quando o e-mail ainda precisa de confirmação.
-      setSavedPrayerMinutes(plan.prayerMinutes)
-      setSavedReflectionMinutes(plan.reflectionMinutes)
+      // Minutos de cada passo (Bloco 8) — mesma condição de plano/ordem
+      // logo abaixo: exige sessão de verdade (stepMinutesStore.js), por
+      // isso o "pendente" quando o e-mail ainda precisa de confirmação.
+      const stepMinutes = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
 
       if (user.needsEmailConfirmation) {
-        if (!hadGuestRow) savePendingOnboardingChoices({ planId: plan.id, readingOrder: 'ot_first' })
+        if (!hadGuestRow) savePendingOnboardingChoices({ planId: plan.id, readingOrder: 'ot_first', stepMinutes })
         setConfirmationEmail(user.email)
         setLoading(false)
         return
       }
 
-      // Quem já tinha linha de convidado acabou de migrá-la com plano e
-      // ordem dentro — só quem chegou sem nada precisa dos padrões aqui.
+      // Quem já tinha linha de convidado acabou de migrá-la com plano,
+      // ordem e minutos dentro — só quem chegou sem nada precisa dos
+      // padrões aqui.
       if (!hadGuestRow) {
         setSelectedPlanId(user.email, plan.id).catch(() => {})
         setReadingOrder(user.email, 'ot_first').catch(() => {})
+        setStepMinutes(stepMinutes).catch(() => {})
       }
       trackOnboardingEvent('signup_completed', { userId: user.id })
       onAuthenticated(user)
