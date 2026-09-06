@@ -14,6 +14,7 @@
 // Email roda em lotes de concorrência limitada, não tudo de uma vez, pra
 // não estourar rate limit do Resend nem o tempo de execução da function.
 import { createClient } from '@supabase/supabase-js'
+import webpush from 'web-push'
 import { requireAdmin } from '../_lib/adminAuth.js'
 import { sendEmail } from '../_lib/resend.js'
 import { listAllUsers } from '../_lib/adminUsers.js'
@@ -24,6 +25,42 @@ const NOTIFICATION_TYPE = 'admin_broadcast'
 const NOTIFICATION_BATCH_SIZE = 500
 const EMAIL_CONCURRENCY = 15
 const APP_URL = 'https://app.jesuscorner.app'
+
+if (process.env.VAPID_SUBJECT) {
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT, process.env.VITE_VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY)
+}
+
+// Segmentos pré-montados (23c, Bloco 14) — o admin não escreve consulta,
+// só escolhe. "Concluíram um livro" (do mockup) ficou de fora desta leva:
+// precisaria cruzar completed_keys (array por usuário) contra a lista de
+// capítulos do livro pra cada linha de user_data, um preço de consulta bem
+// mais alto que os três abaixo — documentado, não construído por enquanto.
+async function resolveSegmentPreset(preset, allowed) {
+  if (preset === 'trialExpiring48h') {
+    const in48h = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+    const { data, error } = await supabaseAdmin.from('subscriptions').select('user_id').eq('status', 'trialing').lte('current_period_end', in48h)
+    if (error) throw error
+    return intersect(allowed, new Set((data ?? []).map(r => r.user_id)))
+  }
+  if (preset === 'inactive14d') {
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+    const [sessionRes, chaptersRes] = await Promise.all([
+      supabaseAdmin.from('session_seconds').select('user_id').gte('created_at', since),
+      supabaseAdmin.from('chapters_read').select('user_id').gte('created_at', since),
+    ])
+    if (sessionRes.error) throw sessionRes.error
+    if (chaptersRes.error) throw chaptersRes.error
+    const activeIds = new Set([...(sessionRes.data ?? []).map(r => r.user_id), ...(chaptersRes.data ?? []).map(r => r.user_id)])
+    return new Set([...allowed].filter(id => !activeIds.has(id)))
+  }
+  if (preset === 'noGroup') {
+    const { data, error } = await supabaseAdmin.from('reading_group_members').select('user_id').eq('status', 'joined')
+    if (error) throw error
+    const inGroupIds = new Set((data ?? []).map(r => r.user_id))
+    return new Set([...allowed].filter(id => !inGroupIds.has(id)))
+  }
+  return allowed
+}
 
 function intersect(a, b) {
   return new Set([...a].filter(x => b.has(x)))
@@ -70,6 +107,10 @@ async function resolveRecipientIds({ recipientMode, recipientUserId, segment }, 
       .eq('status', 'joined')
     if (error) throw error
     allowed = intersect(allowed, new Set((data ?? []).map(r => r.user_id)))
+  }
+
+  if (segment?.preset) {
+    allowed = await resolveSegmentPreset(segment.preset, allowed)
   }
 
   return allowed
@@ -126,8 +167,9 @@ export default async function handler(req, res) {
 
   const {
     languages = ['pt', 'en'],
-    titlePt, titleEn, bodyPt, bodyEn, sendEmail: shouldSendEmail,
+    titlePt, titleEn, bodyPt, bodyEn, sendEmail: shouldSendEmail, sendPush: shouldSendPush,
     recipientMode = 'all', recipientUserId = null, segment = null,
+    segmentLabel = null,
     dryRun = false,
   } = req.body ?? {}
 
@@ -160,6 +202,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'resolve_recipients_failed' })
   }
 
+  // Interpolação de variável — só {nome} nesta leva (o mockup também mostra
+  // {livro}/{capítulo}/{dias_de_trial}/{link_assinar}, que exigiriam
+  // cruzar progresso/assinatura POR PESSOA a cada envio; documentado,
+  // fica pra depois). Sem nome cadastrado, cai no e-mail antes do @.
+  function interpolate(text, u) {
+    const name = u.user_metadata?.name?.trim().split(/\s+/)[0] || u.email?.split('@')[0] || ''
+    return text.replace(/\{nome\}/g, name)
+  }
+
   const recipients = users
     .filter(u => allowedIds.has(u.id))
     .map(u => ({ ...u, lang: u.user_metadata?.language === 'en' ? 'en' : 'pt' }))
@@ -169,8 +220,8 @@ export default async function handler(req, res) {
     .map(u => ({
       id: u.id,
       email: u.email,
-      title: u.lang === 'en' ? titleEn.trim() : titlePt.trim(),
-      body: u.lang === 'en' ? bodyEn.trim() : bodyPt.trim(),
+      title: interpolate(u.lang === 'en' ? titleEn.trim() : titlePt.trim(), u),
+      body: interpolate(u.lang === 'en' ? bodyEn.trim() : bodyPt.trim(), u),
     }))
 
   if (dryRun) {
@@ -195,5 +246,48 @@ export default async function handler(req, res) {
     ;({ emailsSent, emailsFailed } = await sendEmailBatches(emailable))
   }
 
-  return res.status(200).json({ ok: true, recipients: recipients.length, emailsSent, emailsFailed })
+  let pushSent = 0
+  let pushFailed = 0
+  if (shouldSendPush) {
+    const recipientIds = recipients.map(r => r.id)
+    const { data: subs, error: subsErr } = await supabaseAdmin
+      .from('push_subscriptions').select('user_id, endpoint, p256dh, auth').in('user_id', recipientIds)
+    if (subsErr) {
+      console.error('Failed to load push subscriptions for broadcast:', subsErr.message)
+    } else {
+      const contentByUser = new Map(recipients.map(r => [r.id, r]))
+      for (const sub of subs ?? []) {
+        const content = contentByUser.get(sub.user_id)
+        if (!content) continue
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            JSON.stringify({ title: content.title, body: content.body, url: '/' })
+          )
+          pushSent++
+        } catch (err) {
+          pushFailed++
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+          } else {
+            console.error('Failed to send broadcast push to', sub.endpoint, err.message)
+          }
+        }
+      }
+    }
+  }
+
+  // Histórico "Enviadas recentemente" (23c) — sem taxa de abertura (não
+  // existe rastreio de abertura de push/email neste app); só o que
+  // realmente sabemos: pra quem, quantos, por qual canal.
+  const { error: logErr } = await supabaseAdmin.from('admin_broadcast_log').insert({
+    segment_label: segmentLabel,
+    recipient_count: recipients.length,
+    channels: [shouldSendEmail && 'email', shouldSendPush && 'push', 'inapp'].filter(Boolean),
+    title: titlePt?.trim() || titleEn?.trim() || null,
+    sent_by: caller.id,
+  })
+  if (logErr) console.error('Failed to log broadcast:', logErr.message)
+
+  return res.status(200).json({ ok: true, recipients: recipients.length, emailsSent, emailsFailed, pushSent, pushFailed })
 }

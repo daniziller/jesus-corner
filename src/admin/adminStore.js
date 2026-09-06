@@ -58,8 +58,13 @@ export async function listReadingGroupsForAdmin() {
   return groups
 }
 
-export async function sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun }) {
-  return authorizedPost('/api/admin/broadcast', { languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, recipientMode, recipientUserId, segment, dryRun })
+export async function sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, sendPush, recipientMode, recipientUserId, segment, segmentLabel, dryRun }) {
+  return authorizedPost('/api/admin/broadcast', { languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail, sendPush, recipientMode, recipientUserId, segment, segmentLabel, dryRun })
+}
+
+export async function listBroadcastLog() {
+  const { log } = await authorizedPost('/api/admin/list-broadcast-log')
+  return log
 }
 
 export async function createInvite({ email, kind, discountPercent, discountDuration, languages }) {
