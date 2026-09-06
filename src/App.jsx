@@ -15,6 +15,7 @@ import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
 import { needsConsentRefresh } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import { hasGuestRow, migrateGuestRow } from './backend/userDataStore'
+import { migrateGuestExtraTables } from './backend/guestTableStore'
 import { getGuestInviteThreshold, dismissGuestInvite, clearGuestInviteState } from './onboarding/guestInviteStore'
 import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
 import { setSavedPrayerMinutes } from './prayer/prayerDurationStore'
@@ -714,6 +715,10 @@ export default function App() {
         // SignupStep chama no caminho comum; aqui cobre o caminho que passa
         // por fora dele. Sem progresso de convidado, não faz nada.
         await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
+        // Bloco 2 do redesign — session_seconds/chapters_read (tabelas à
+        // parte de user_data) têm sua própria migração de convidado, ver
+        // src/backend/guestTableStore.js.
+        await migrateGuestExtraTables().catch(err => console.error('Failed to migrate guest extra tables', err))
         clearGuestInviteState()
       }
 
@@ -1332,6 +1337,7 @@ export default function App() {
     // loga numa conta JÁ existente depois de ter lido um pouco como
     // convidado no mesmo dispositivo.
     await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
+    await migrateGuestExtraTables().catch(err => console.error('Failed to migrate guest extra tables', err))
     clearGuestInviteState()
     if (!user.isGuest) applyPendingReminder()
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr

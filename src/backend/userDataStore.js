@@ -14,7 +14,10 @@
 // a mesma assinatura de chamada das telas, sem uso real.
 import { supabase } from '../lib/supabaseClient'
 
-async function getUserId() {
+// Exportada (Bloco 2 do redesign) pra que as tabelas novas fora de
+// user_data (session_seconds, chapters_read — ver src/backend/
+// guestTableStore.js) saibam se há sessão real sem duplicar a chamada.
+export async function getUserId() {
   const { data } = await supabase.auth.getUser()
   return data?.user?.id ?? null
 }
