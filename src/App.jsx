@@ -25,6 +25,8 @@ import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
 import AdjustPlanScreen from './screens/AdjustPlanScreen'
+import ChooseStartScreen from './screens/ChooseStartScreen'
+import ExistingProgressScreen from './screens/ExistingProgressScreen'
 import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
@@ -308,6 +310,12 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     achievements,
     achievementsXp: achievementsXpBonus,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
+    // "Sem plano" (28d) — a pessoa escolheu não ter um trecho do dia pra
+    // Leitura; ela lê e marca livre pela aba Bíblia (28c). Home/Meu Plano
+    // checam isso pra trocar "sessão de hoje" por um convite pra ler livre
+    // em vez de fingir que existe um alvo — Oração/Reflexão continuam
+    // normais, é só a LEITURA que muda de figura.
+    hasNoPlan: planId === 'none',
     plan,
     activePlan,
     readingOrder,
@@ -579,6 +587,11 @@ export default function App() {
   // fixos (Leve/Padrão/Intensivo), mantidos só pro plano Livre/navegação.
   const [stepMinutes, setStepMinutesState] = useState({ prayer: null, reading: null, reflection: null })
   const [activeBlockId, setActiveBlockId] = useState(1)
+  // "Onde começar" (28d/28e, Bloco 6) — a escolha feita em 28d, guardada só
+  // enquanto a folha 28e (reconciliação de progresso prévio) está aberta;
+  // nunca persiste sozinha (aplicar de vez é applyStartChoice/
+  // applyExistingProgressChoice, chamados só na confirmação final).
+  const [pendingStartChoice, setPendingStartChoice] = useState(null) // { book, order } | null
   // "Último texto lido" ({ book, chapter }, por dispositivo — ver
   // lastReadPositionStore.js). Alimenta o card "Continue sua leitura" da
   // Home e o botão "Continuar sessão", que reabrem exatamente esse
@@ -692,6 +705,10 @@ export default function App() {
     () => deriveProgress(completedSet, planId, readingOrder, stepMinutes.reading),
     [completedSet, planId, readingOrder, stepMinutes.reading]
   )
+  // Total de capítulos por livro — usado pelo fluxo "onde começar" (28d/28e,
+  // Bloco 6) pra saber quantos capítulos tem o livro escolhido, sem
+  // depender de estar dentro de buildSession.
+  const bookChapterCounts = useMemo(() => computeBookChapterCounts(sessionsByBlock), [sessionsByBlock])
 
   // ── Retrospectiva do mês (17b) ──
   // Uma vez por sessão de usuário: garante o snapshot do mês e, se o mês
@@ -1051,6 +1068,13 @@ export default function App() {
   // (tema/cronológico) ainda abre pelo plano em destaque, sem o "último
   // lido" (as sessões deles não mapeiam 1:1 com livro:capítulo).
   function continueToday() {
+    // "Sem plano" (28d) — não existe "sessão de hoje" pra abrir; manda pra
+    // aba Bíblia em modo livre, onde a pessoa lê e marca o que quiser (ver
+    // session.hasNoPlan em buildSession).
+    if (planId === 'none' && !activeAltPlan) {
+      goToTab('journey')
+      return
+    }
     if (activeAltPlan?.type === 'theme') {
       const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
       if (themePlan) {
@@ -1531,6 +1555,85 @@ export default function App() {
     selectActivePlan({ type: 'fixed', id: planId })
   }
 
+  // "Onde começar" (28d, Bloco 6) — troca o plano fixo pra começar num
+  // livro/ordem escolhidos. Simplificação deliberada: "outro livro" fora
+  // de Gênesis/Mateus não reposiciona o ponteiro pro meio do testamento —
+  // a granularidade que já existe (readingOrder) é por TESTAMENTO, não por
+  // livro; qualquer livro do AT vira ot_first, qualquer um do NT vira
+  // nt_first (documentado em ChooseStartScreen.jsx).
+  function applyStartChoice(book, order) {
+    if (order === 'none') {
+      selectActivePlan({ type: 'fixed', id: 'none' })
+      return
+    }
+    const realPlanId = planId === 'none' ? 'standard' : planId
+    if (order === 'chrono') {
+      selectActivePlan({ type: 'chrono', paceId: realPlanId })
+      return
+    }
+    selectActivePlan({ type: 'fixed', id: realPlanId })
+    const block = blocks.find(b => b.books.includes(book))
+    selectReadingOrder(block && block.id >= 5 ? 'nt_first' : 'ot_first')
+  }
+
+  // Reconciliação de progresso prévio num livro (28e) — as 4 saídas do
+  // quadro. 'continue'/'reread' nunca mexem em completedSet (a marcação
+  // livre de 28c continua sendo a única fonte de verdade pro que foi lido
+  // de verdade); só 'clean' e 'finish' chamam markChaptersManuallyFor, a
+  // mesma trilha de auditoria de 28c — não conta como sessão nem hábito.
+  function applyExistingProgressChoice(book, action) {
+    const total = bookChapterCounts[book] ?? 0
+    if (action === 'reread') {
+      setLastReadPosition(book, 1)
+      setLastReadPositionState({ book, chapter: 1 })
+      return
+    }
+    if (action === 'clean') {
+      const allChapters = Array.from({ length: total }, (_, i) => i + 1)
+      markChaptersManuallyFor(book, allChapters, false)
+      setLastReadPosition(book, 1)
+      setLastReadPositionState({ book, chapter: 1 })
+      return
+    }
+    if (action === 'finish') {
+      const remaining = Array.from({ length: total }, (_, i) => i + 1).filter(ch => !completedSet.has(`${book}:${ch}`))
+      markChaptersManuallyFor(book, remaining, true)
+      return
+    }
+    // 'continue' — nada a fazer, o ponteiro (lastReadPosition/completedSet)
+    // já reflete onde a pessoa parou.
+  }
+
+  // "Continuar" em 28d — se o livro escolhido já tem progresso, abre 28e
+  // pra decidir o que fazer com ele ANTES de aplicar (setActiveTab direto,
+  // sem empilhar histórico — um só "Voltar" depois de confirmar em 28e já
+  // devolve pra tela de onde "Trocar plano" foi aberto). Sem progresso
+  // prévio, aplica de vez e volta.
+  function handleChooseStartContinue(book, order) {
+    if (order !== 'none' && book) {
+      const total = bookChapterCounts[book] ?? 0
+      let done = 0
+      for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${book}:${ch}`)) done++
+      if (done > 0) {
+        setPendingStartChoice({ book, order })
+        setActiveTab('chooseStartExisting')
+        return
+      }
+    }
+    applyStartChoice(book, order)
+    goBack()
+  }
+
+  // Confirmação final de 28e — aplica ordem/livro E a reconciliação de
+  // progresso junto, na mesma ação (a pessoa só vê um botão).
+  function handleExistingProgressConfirm(action) {
+    if (!pendingStartChoice) return
+    applyStartChoice(pendingStartChoice.book, pendingStartChoice.order)
+    applyExistingProgressChoice(pendingStartChoice.book, action)
+    setPendingStartChoice(null)
+    goBack()
+  }
+
   // Escolhe quais textos de um plano por tema a pessoa vai ler HOJE (card do
   // plano ativo, ver PlanScreen.jsx) — mesmo padrão otimista de
   // markRoutineStep abaixo: atualiza dailyRoutine local na hora, persiste em
@@ -1987,6 +2090,15 @@ export default function App() {
     adjustPlan: hasPremium
       ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} activeAltPlan={activeAltPlan} onToggleRoutineModule={toggleRoutineModule} onSelectWeeklyDaysCount={selectWeeklyDaysCount} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    // "Onde começar" (28d/28e, Bloco 6) — "Trocar plano" em Ajustar meu
+    // plano (5a). chooseStartExisting nunca é alcançada por navegação
+    // direta (setActiveTab, não navigateTo) — só via handleChooseStartContinue.
+    chooseStart: hasPremium
+      ? <ChooseStartScreen session={session} completedSet={completedSet} bookChapterCounts={bookChapterCounts} blocks={blocks} initialChoice={pendingStartChoice} onContinue={handleChooseStartContinue} onBack={goBack} />
+      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    chooseStartExisting: hasPremium && pendingStartChoice
+      ? <ExistingProgressScreen session={session} blocks={blocks} book={pendingStartChoice.book} order={pendingStartChoice.order} completedSet={completedSet} bookChapterCounts={bookChapterCounts} readingMinutes={stepMinutes.reading} onConfirm={handleExistingProgressConfirm} onBack={() => setActiveTab('chooseStart')} />
+      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     aiSettings: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <AiSettingsScreen session={session} onBack={goBack} />,
@@ -2094,13 +2206,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">

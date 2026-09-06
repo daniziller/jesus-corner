@@ -116,6 +116,17 @@ export default function AdjustPlanScreen({ session, completedSet, stepMinutes, o
             })}
           </div>
         </div>
+
+        {/* "Trocar plano" (28d/28e, Bloco 6) — onde começar (Gênesis,
+            Mateus, outro livro ou sem plano) e em que ordem (bíblica ou
+            cronológica). Único acesso a essa decisão fora do onboarding. */}
+        <button style={styles.changePlanRow} onClick={() => onNavigate?.('chooseStart')}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={styles.changePlanTitle}>{L('changePlan')}</p>
+            <p style={styles.changePlanSub}>{L('changePlanSub')}</p>
+          </div>
+          <span style={styles.changePlanChevron}>›</span>
+        </button>
       </div>
 
       <div style={styles.footer}>
@@ -167,6 +178,10 @@ const styles = {
     fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, lineHeight: '46px', color: 'var(--bento-sand-ink-mid)', cursor: 'pointer',
   },
   weeklyGoalBtnOn: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
+  changePlanRow: { display: 'flex', alignItems: 'center', gap: 14, borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' },
+  changePlanTitle: { fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 3px' },
+  changePlanSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
+  changePlanChevron: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)' },
   footer: { flexShrink: 0, padding: '16px 20px calc(22px + var(--safe-bottom))' },
   saveBtn: {
     width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
