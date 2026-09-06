@@ -27,3 +27,17 @@ export const WEEKDAY_FULL = {
   pt: ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'],
   en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
 }
+
+// "Ritmo da semana" (5a/26d) — só escolhe QUANTOS dias (3 a 7), não QUAIS;
+// vira um array de 7 booleanos usando os presets de cima quando existe um
+// exato (3/4/5/7), ou o padrão "de segunda pra cá, sem domingo" pra 6 (o
+// único descanso natural de 1 dia). O quadro 27a (Bloco 8) troca isso por
+// escolha dia a dia; até lá, este é um ponto de partida sensato, nunca
+// inventado à toa.
+export function daysArrayForCount(n) {
+  if (n === 3) return WEEKLY_DAYS_PRESETS.threeDays
+  if (n === 4) return WEEKLY_DAYS_PRESETS.fourDays
+  if (n === 5) return WEEKLY_DAYS_PRESETS.weekdays
+  if (n === 7) return WEEKLY_DAYS_PRESETS.everyDay
+  return [true, true, true, true, true, true, false] // 6 — descansa domingo
+}

@@ -42,7 +42,7 @@ export function themePlanProgress(themePlan, completedSet) {
 // groupPlans — planos de grupo (22d) que a pessoa já ACEITOU (ver
 // src/groups/groupPlansStore.js/getMyAcceptedGroupPlans), só usado pelo
 // branch 'group' abaixo.
-export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans) {
+export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, readingMinutesOverride) {
   if (activeAltPlan?.type === 'theme') {
     const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
     if (themePlan) {
@@ -166,7 +166,10 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
     icon: planRaw.icon,
     label: planRaw.label,
     labelEn: planRaw.labelEn,
-    readingMinutes: planRaw.readingMinutes,
+    // Bloco 4 do redesign: minutos reais salvos (stepMinutesStore.js), não
+    // mais o ritmo — blocks/sessionsByBlock (parâmetros desta função) já
+    // vêm divididos por esse mesmo número (ver App.jsx/deriveProgress).
+    readingMinutes: readingMinutesOverride ?? planRaw.readingMinutes,
     doneCount,
     totalCount,
     percent: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,

@@ -17,7 +17,7 @@
 import { fetchRow, updateRow } from '../backend/userDataStore'
 import { countTrue } from './weeklyDaysMath'
 
-export { DAY_KEYS, WEEKLY_DAYS_PRESETS, WEEKDAY_ABBR3, WEEKDAY_FULL, countTrue } from './weeklyDaysMath'
+export { DAY_KEYS, WEEKLY_DAYS_PRESETS, WEEKDAY_ABBR3, WEEKDAY_FULL, countTrue, daysArrayForCount } from './weeklyDaysMath'
 
 const DEFAULT_WEEKLY_DAYS = [true, true, true, true, true, false, false]
 

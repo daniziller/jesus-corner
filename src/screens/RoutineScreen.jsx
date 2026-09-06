@@ -12,8 +12,6 @@
 import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
-import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
 import { DEFAULT_ROUTINE_MODULES, isDayGoalMet } from '../routine/routineStreak'
 import { computeCurrentWeekDays } from '../routine/weekRings'
 import { getWeeklyDays } from '../routine/weeklyDaysStore'
@@ -32,8 +30,11 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
   const enabled = STEP_ORDER.filter(k => modules.includes(k))
   const doneCount = enabled.filter(k => todayRoutine[k]).length
 
-  const prayerMin = getSavedPrayerMinutes() ?? plan.prayerMinutes ?? 0
-  const reflectionMin = getSavedReflectionMinutes() ?? plan.reflectionMinutes ?? 0
+  // Bloco 4 do redesign: plan.prayerMinutes/reflectionMinutes já vêm do
+  // valor real salvo (stepMinutesStore.js, ver App.jsx/buildSession) — as
+  // duas stores antigas (localStorage, por aparelho) saíram de uso aqui.
+  const prayerMin = plan.prayerMinutes ?? 0
+  const reflectionMin = plan.reflectionMinutes ?? 0
   const readingMin = activePlan.readingMinutes ?? plan.readingMinutes ?? 0
   const stepMin = { prayer: prayerMin, reading: readingMin, reflection: reflectionMin }
   const totalMin = plan.minutesPerDay ?? enabled.reduce((s, k) => s + stepMin[k], 0)

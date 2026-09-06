@@ -56,6 +56,12 @@ export function noteUpdatedAtOf(entry) {
 export function noteSessionTitleOf(entry) {
   return (typeof entry === 'object' && entry?.sessionTitle) || null
 }
+// "Me lembrar às 18h" (quadro 29b, só a frase de aplicação) — intenção
+// real gravada junto da frase; a ENTREGA do aviso (push com o texto do
+// dia) fica pendente, ver comentário em ApplicationStepCard.jsx.
+export function noteReminderRequestedOf(entry) {
+  return (typeof entry === 'object' && !!entry?.reminderRequested) || false
+}
 
 export async function getNotes(_email) {
   const row = await fetchRow()
