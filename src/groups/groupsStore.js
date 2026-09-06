@@ -15,7 +15,7 @@ export async function getMyGroups() {
   if (!userId) return []
   const { data, error } = await supabase
     .from('reading_group_members')
-    .select('group_id, role, reading_groups(id, name, created_at)')
+    .select('group_id, role, reading_groups(id, name, created_at, reading_mode)')
     .eq('user_id', userId)
     .eq('status', 'joined')
   if (error) { console.error('[groupsStore] getMyGroups failed:', error.message); return [] }
@@ -25,7 +25,25 @@ export async function getMyGroups() {
       groupId: row.group_id,
       name: row.reading_groups.name,
       myRole: row.role,
+      readingMode: row.reading_groups.reading_mode ?? 'individual',
     }))
+}
+
+// Quantas pessoas (status 'joined') tem cada grupo — uma consulta só pra
+// todos os grupos de uma vez, usada pela lista de grupos de 24a (mockup
+// mostra "6 pessoas", "128 pessoas"...). RLS já garante que só vê membros
+// de grupos onde a própria pessoa está.
+export async function getGroupMemberCounts(groupIds) {
+  if (!groupIds.length) return {}
+  const { data, error } = await supabase
+    .from('reading_group_members')
+    .select('group_id')
+    .eq('status', 'joined')
+    .in('group_id', groupIds)
+  if (error) { console.error('[groupsStore] getGroupMemberCounts failed:', error.message); return {} }
+  const counts = {}
+  for (const row of data ?? []) counts[row.group_id] = (counts[row.group_id] ?? 0) + 1
+  return counts
 }
 
 // Convites de grupo pendentes (ainda não aceitos/recusados).
@@ -141,10 +159,15 @@ export async function respondToJoinRequest(groupId, userId, accept) {
 // Cria um grupo (e já entra como moderador) via RPC — ver
 // create_reading_group() na migração pra saber por que isso é uma RPC e
 // não dois inserts direto do client.
-export async function createGroup(name) {
-  const { data, error } = await supabase.rpc('create_reading_group', { group_name: name.trim() })
+// `readingMode` — 'individual' (padrão, como sempre foi) ou 'shared'
+// ("um plano só", quadro 24b). Limitação real, documentada na migration
+// 0051: guarda a escolha, mas nenhuma tela ainda sincroniza de fato a
+// leitura de um grupo 'shared' — GroupHomeView.jsx continua usando a
+// sessão de hoje de cada pessoa.
+export async function createGroup(name, readingMode = 'individual') {
+  const { data, error } = await supabase.rpc('create_reading_group', { group_name: name.trim(), p_reading_mode: readingMode })
   if (error) throw new Error(error.message)
-  return { groupId: data?.id, name: data?.name }
+  return { groupId: data?.id, name: data?.name, readingMode: data?.reading_mode }
 }
 
 // Convida um amigo já aceito pra um grupo do qual eu já sou membro.
