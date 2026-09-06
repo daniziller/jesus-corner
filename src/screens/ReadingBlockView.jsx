@@ -905,7 +905,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <div style={styles.browseHeader}>
           {!embedded && (
             <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
-              <AppIcon name="ArrowLeft" size={17} color="var(--bk)" />
+              <AppIcon name="ArrowLeft" size={17} color="var(--bento-ink)" />
             </button>
           )}
           {mode !== 'browse' && (
@@ -1547,7 +1547,7 @@ function InfoPanel({ type, books, chStart, chEnd, lang }) {
 
           {type === 'mapa' && (
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <div style={styles.panelLocationIcon}><AppIcon name={info.location.icon} size={20} color="var(--or)" /></div>
+              <div style={styles.panelLocationIcon}><AppIcon name={info.location.icon} size={20} color="var(--bento-accent)" /></div>
               <div>
                 <p style={styles.panelLocationName}>{info.location.name}</p>
                 <p style={styles.panelText}>{info.location.description}</p>
@@ -2792,20 +2792,20 @@ function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle
       <div
         style={{
           display: 'flex', alignItems: 'center', gap: 8, padding: '10px 2px', userSelect: 'none', cursor: 'pointer',
-          borderBottom: '0.5px solid var(--g1)',
+          borderBottom: '1px solid var(--bento-line)',
         }}
         onClick={handleHeaderClick}
       >
-        <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={15} color={allDone ? 'var(--gr)' : isCurrentBook ? 'var(--or)' : 'var(--g4)'} style={{ flexShrink: 0 }} />
+        <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={15} color={allDone ? 'var(--bento-ink)' : isCurrentBook ? 'var(--bento-accent)' : 'var(--bento-t4)'} style={{ flexShrink: 0 }} />
 
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>{displayName}</p>
-          <p style={{ fontSize: 9.5, fontWeight: 500, color: isCurrentBook ? 'var(--or)' : 'var(--g4)' }}>
+          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 1 }}>{displayName}</p>
+          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 600, color: isCurrentBook ? 'var(--bento-accent)' : 'var(--bento-t4)' }}>
             {doneCount}/{total} {t(isFreePlan ? 'reading.chaptersSuffix' : 'reading.sessionsSuffix', undefined, lang)}{isCurrentBook ? ` · ${t('reading.readingNow', undefined, lang)}` : ''}
           </p>
         </div>
 
-        <AppIcon name="ChevronDown" size={14} color="var(--g4)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
+        <AppIcon name="ChevronDown" size={14} color="var(--bento-t4)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
       </div>
 
       {open && (
@@ -2871,7 +2871,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
         // espaçamento entre linhas já separa uma sessão da outra) — a
         // sessão em destaque ganha só um fundo suave, sem borda pesada nem
         // sombra, pra marcar sem parecer um bloco solto na tela.
-        background: isFeatured ? 'var(--olt)' : 'transparent',
+        background: isFeatured ? 'var(--bento-mark)' : 'transparent',
         borderRadius: 11,
         cursor: 'pointer',
       }}
@@ -2882,34 +2882,34 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
         <div
           style={{
             width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            background: isDone ? 'var(--grad-vivid)' : isBadgeActive ? 'var(--bk)' : isReflection ? '#A855F7' : 'var(--g1)',
+            background: isDone ? 'var(--bento-ink)' : isBadgeActive ? 'var(--bento-ink)' : isReflection ? '#A855F7' : 'var(--bento-line)',
           }}
           onClick={e => { e.stopPropagation(); onToggle(session, !isDone) }}
         >
           {isDone ? (
-            <AppIcon name="Check" size={13} color="white" />
+            <AppIcon name="Check" size={13} color="#fff" />
           ) : isReflection ? (
-            <AppIcon name="PenLine" size={11} color="white" />
+            <AppIcon name="PenLine" size={11} color="#fff" />
           ) : (
-            <span style={{ fontSize: 10, fontWeight: 700, color: isBadgeActive ? 'white' : 'var(--g5)' }}>{isFreePlan ? session.chStart : session.id}</span>
+            <span style={{ fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 700, color: isBadgeActive ? '#fff' : 'var(--bento-t3)' }}>{isFreePlan ? session.chStart : session.id}</span>
           )}
         </div>
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>
+          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 1 }}>
             {isReflection || isFreePlan ? title : `${t('reading.sessionLabel', { n: session.id }, lang)} · ${title}`}
             {/* Ícone de "já tem anotação aqui" — pra não precisar abrir o
                 capítulo de novo só pra descobrir se escreveu algo nele.
                 Ver hasNoteFor em ReadingBlockView (componente pai). */}
             {hasNote && (
               <AppIcon
-                name="StickyNote" size={11} color="var(--or)"
+                name="StickyNote" size={11} color="var(--bento-accent)"
                 style={{ verticalAlign: 'middle', marginLeft: 5, position: 'relative', top: -1 }}
               />
             )}
           </p>
-          <p style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--g5)' }}>
+          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t3)' }}>
             {isReflection
               ? `${passage}${isDone ? ` · ${t('reading.completedSession', undefined, lang)}` : ` · ${t('reading.tapToMark', undefined, lang)}`}`
               : `${passage} · ${chaptersDone}/${chapterCount} ${t('reading.chaptersSuffix', undefined, lang)}`}
@@ -2920,11 +2920,11 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
             embutido; nos outros modos, já em destaque no topo ou toque pra
             destacar. */}
         {isBrowse ? (
-          <AppIcon name="ChevronDown" size={14} color="var(--g4)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
+          <AppIcon name="ChevronDown" size={14} color="var(--bento-t4)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
         ) : isFeatured ? (
-          <span style={{ fontSize: 8.5, fontWeight: 700, color: 'var(--or)', whiteSpace: 'nowrap' }}>{lang === 'en' ? 'FEATURED' : 'EM DESTAQUE'}</span>
+          <span style={{ fontFamily: 'var(--font-bento)', fontSize: 8.5, fontWeight: 800, color: 'var(--bento-accent)', whiteSpace: 'nowrap' }}>{lang === 'en' ? 'FEATURED' : 'EM DESTAQUE'}</span>
         ) : (
-          <AppIcon name="ArrowUp" size={13} color="var(--g4)" />
+          <AppIcon name="ArrowUp" size={13} color="var(--bento-t4)" />
         )}
       </div>
 
@@ -2967,14 +2967,14 @@ const styles = {
   // Cabeçalho compacto da navegação livre (mode 'browse') — substitui o
   // hero grande: sem título/barra de progresso/gradiente, só voltar + nome
   // do livro + as mesmas abas de Contexto/Mapa/Notas/Curiosidades.
-  browseHeader:    { padding: '12px 14px 6px', display: 'flex', flexDirection: 'column', gap: 4 },
-  browseBackBtn:   { width: 32, height: 32, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginBottom: 6 },
-  browseHeaderCycle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1.2, textTransform: 'uppercase' },
-  browseHeaderTitle:{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--bk)', letterSpacing: '-0.2px' },
-  browseHeaderSub: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
+  browseHeader:    { padding: '14px 0 6px', display: 'flex', flexDirection: 'column', gap: 4 },
+  browseBackBtn:   { width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginBottom: 6 },
+  browseHeaderCycle:{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', letterSpacing: 1.2, textTransform: 'uppercase' },
+  browseHeaderTitle:{ fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.4px' },
+  browseHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)' },
   browseTagsRow:   { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 6 },
-  browseTag:       { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '5px 10px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'var(--g5)', cursor: 'pointer' },
-  browseTagActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 4px 12px rgba(157,67,0,.3)' },
+  browseTag:       { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bento-line)', border: 'none', borderRadius: 20, padding: '6px 11px', whiteSpace: 'nowrap', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  browseTagActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
 
   // ── Contexto antes do capítulo (10c, reskin Bento) ──
   contextScreen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
@@ -3095,16 +3095,16 @@ const styles = {
   completeBtn: { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
   completeBtnDone:{ background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
   nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--bk)', boxShadow: 'var(--shadow-premium)' },
-  panel:       { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  panelBookLabel:{ fontSize: 9.5, fontWeight: 700, color: 'var(--or)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
-  panelText:   { fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.55 },
-  contextSections:    { marginTop: 12, paddingTop: 12, borderTop: '0.5px solid var(--g1)', display: 'flex', flexDirection: 'column', gap: 11 },
-  contextSectionTitle:{ fontSize: 11, fontWeight: 700, color: 'var(--bk)', marginBottom: 3 },
-  panelLocationIcon:{ width: 38, height: 38, borderRadius: 11, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  panelLocationName:{ fontSize: 13, fontWeight: 700, color: 'var(--bk)', marginBottom: 2 },
-  panelBullet: { width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', flexShrink: 0, marginTop: 6 },
-  notesTextarea:{ width: '100%', border: '0.5px solid var(--g2)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--g1)' },
-  notesSaveBtn:{ width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
+  panel:       { background: 'var(--bento-card)', borderRadius: 20, padding: 16 },
+  panelBookLabel:{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  panelText:   { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.55 },
+  contextSections:    { marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bento-line)', display: 'flex', flexDirection: 'column', gap: 11 },
+  contextSectionTitle:{ fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 3 },
+  panelLocationIcon:{ width: 38, height: 38, borderRadius: 11, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  panelLocationName:{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 2 },
+  panelBullet: { width: 5, height: 5, borderRadius: '50%', background: 'var(--bento-accent)', flexShrink: 0, marginTop: 6 },
+  notesTextarea:{ width: '100%', border: 'none', borderRadius: 12, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--bento-line)' },
+  notesSaveBtn:{ width: '100%', background: 'var(--bento-accent)', border: 'none', borderRadius: 12, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   chapterChip:    { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
   chapterChipDone:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
   chapterTextBtn:      { background: 'var(--bk)', border: '0.5px solid var(--bk)', color: 'white' },
@@ -3112,19 +3112,21 @@ const styles = {
   reflectionTip:  { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
   reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: '#A855F7', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   bibleTextVersionRow:  { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
-  bibleTextVersionBtn:  { border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 20, padding: '5px 11px', fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  bibleTextVersionBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
-  bibleTextChapter:     { marginBottom: 16, paddingTop: 12, borderTop: '0.5px solid var(--g1)' },
-  // "CAPÍTULO 41" — rótulo de seção do redesign (11px/700 tracking .1em --or).
-  bibleTextChapterLabel:{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--or)', marginBottom: 12 },
-  // Texto bíblico — 19px/1.72 (redesign): a tela mais usada deve ser a mais
-  // silenciosa. Vale pra leitura guiada E pra aba Bíblia.
-  bibleTextBody:        { fontSize: 19, fontWeight: 400, color: 'var(--bk)', lineHeight: 1.72, marginBottom: 18, textWrap: 'pretty' },
-  bibleTextVerseNum:    { fontSize: 11, fontWeight: 700, color: 'var(--or)', verticalAlign: 'super', marginRight: 2 },
-  bibleTextAttribution: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '0.5px solid var(--g1)', fontStyle: 'italic' },
-  // ── Variantes Bento (reskin, tela 4a) dos 4 estilos acima — só a leitura
-  // imersiva usa; a aba Bíblia (5f, ainda não migrada) continua com os de
-  // cima. Valores extraídos do bloco id="4a" do HTML do handoff.
+  bibleTextVersionBtn:  { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  bibleTextVersionBtnActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
+  bibleTextChapter:     { marginBottom: 16, paddingTop: 12, borderTop: '1px solid var(--bento-line)' },
+  // "CAP. 2" — rótulo de seção (reskin Bento: mesmos tokens da variante
+  // imersiva, ver bibleTextChapterLabelBento abaixo).
+  bibleTextChapterLabel:{ fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', marginBottom: 12 },
+  // Texto bíblico — 19px/1.72: a tela mais usada deve ser a mais silenciosa.
+  // Vale pra leitura guiada E pra aba Bíblia (embutida em BookChapterScreen.jsx).
+  bibleTextBody:        { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 500, color: 'var(--bento-ink)', lineHeight: 1.72, marginBottom: 18, textWrap: 'pretty' },
+  bibleTextVerseNum:    { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)', verticalAlign: 'super', marginRight: 2 },
+  bibleTextAttribution: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--bento-line)', fontStyle: 'italic' },
+  // ── Variantes usadas só pela leitura imersiva (mesmos tokens Bento dos 4
+  // estilos acima — a diferença entre elas é só de layout/margem, não mais
+  // de paleta; ver comentário em cada uma). Valores extraídos do bloco
+  // id="4a" do HTML do handoff.
   // Sem a linha divisória/padding do modo antigo: o bloco branco já é o
   // limite do capítulo (quadro 4a).
   bibleTextChapterBento: { marginBottom: 16 },
@@ -3134,9 +3136,9 @@ const styles = {
   bibleTextAttributionBento: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--bento-line)', fontStyle: 'italic' },
   bibleTextBodyBento:   { fontFamily: 'var(--font-bento)', fontSize: 18.5, fontWeight: 500, color: 'var(--bento-ink)', lineHeight: 1.72, margin: '0 0 18px', textWrap: 'pretty' },
   bibleTextVerseNumBento: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)', verticalAlign: 'super' },
-  nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, marginTop: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--grad-primary)', boxShadow: 'var(--shadow-premium)' },
-  chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: '0.5px solid var(--g2)', borderRadius: 12, padding: 10, marginTop: 10, fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', fontFamily: 'var(--font)', background: 'var(--g1)' },
-  chapterDoneBtnActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
+  nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 14, padding: 13, marginTop: 12, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer', background: 'var(--bento-accent)' },
+  chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 11, marginTop: 10, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', background: 'var(--bento-line)' },
+  chapterDoneBtnActive: { background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontWeight: 800 },
   // Versão do botão acima pro topo do capítulo (antes do 1º parágrafo) —
   // marginTop:0 (nada antes dele pra afastar) e um pouco mais de respiro
   // embaixo, já que aqui ele antecede texto corrido, não sucede.
