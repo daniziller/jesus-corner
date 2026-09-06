@@ -1291,6 +1291,36 @@ const styles = {
   bTitle: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
   bSubtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
 
+  // Cabeçalho (título+resumo à esquerda, "+" à direita) e o cartão "sala
+  // aberta agora" — as duas peças de 24a que ficaram sem estilo nenhum
+  // desde sempre (JSX referenciava `styles.aHeader`/`aRoomHero`/etc., mas
+  // não existiam aqui: React só ignora um `style={undefined}`, então tudo
+  // isso caía no padrão cru do navegador — sem erro, sem aviso, só a tela
+  // com cara de quebrada; achado numa varredura visual, não numa mudança
+  // de comportamento).
+  aHeader: { flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 20px 0' },
+  aAddBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+
+  aRoomHero: { borderRadius: 24, background: 'var(--bento-ink)', padding: 18 },
+  aRoomLabelRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 },
+  aRoomDiamond: { width: 8, height: 8, flexShrink: 0, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
+  aRoomLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', margin: 0 },
+  aRoomTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-.3px', color: '#fff', margin: '4px 0 2px' },
+  aRoomStatus: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.55)', margin: '0 0 12px' },
+  aRoomBtn: { width: '100%', height: 42, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+
+  // Atalhos "Criar grupo" / "Entrar com código" (24a), lado a lado — o de
+  // criar em sand (ação principal), o de entrar em branco (secundária);
+  // aTileTitle/aTileSub nascem pensados pro fundo sand e cada chamada do
+  // tile de entrar sobrescreve a cor pra ink/t4 (ver JSX).
+  aCreateTile: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, borderRadius: 18, background: 'var(--bento-sand)', border: 'none', padding: 14, cursor: 'pointer', textAlign: 'left' },
+  aJoinTile: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, borderRadius: 18, background: 'var(--bento-card)', border: 'none', padding: 14, cursor: 'pointer', textAlign: 'left' },
+  aTileTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-sand-ink-strong)', margin: '4px 0 0' },
+  aTileSub: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 500, color: 'var(--bento-sand-ink-mid)', margin: 0 },
+
+  aAddFriendCircle: { width: 34, height: 34, flexShrink: 0, borderRadius: '50%', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  aFriendsCountText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', margin: 0 },
+
   bCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '14px 20px 4px' },
   bCardHeadRow: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 },
   bCardLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
@@ -1360,6 +1390,7 @@ const styles = {
   completeChallengeBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', background: 'rgba(22,163,74,.12)', color: 'var(--gr)', borderRadius: 12, padding: '10px 12px', marginTop: 12, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' },
   cardTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 8 },
   memberRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 2px' },
+  friendName: { flex: 1, fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', fontFamily: 'var(--font)' },
   smallLinkBtn: { border: 'none', background: 'none', color: 'var(--or)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 0 },
   smallLinkBtnDisabled: { color: 'var(--g4)', cursor: 'not-allowed' },
   subTab: { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
