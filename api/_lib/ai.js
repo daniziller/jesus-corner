@@ -546,6 +546,39 @@ ${buildDigestLangInstruction(lang)}`,
   return output
 }
 
+// Resumo semanal em texto (31b, Bloco 13) — diferente de generateWeeklyDigest
+// acima (que resume pra um EMAIL/notificação, tom mais de boletim): este é
+// o texto que a própria tela 31b mostra, mais pessoal e mais específico —
+// abre pelo TEMA que se repetiu (a única "interpretação" que a IA faz, e só
+// com palavras que a pessoa escreveu/marcou), fecha ligando com o que ela
+// cumpriu ou não da aplicação da semana. Mesma regra dura de sempre: nunca
+// inventa versículo nem interpreta a vida da pessoa além do que ela mesma
+// escreveu. Só chamada quando a semana NÃO é em branco (ver isBlankWeek em
+// weeklySummaryMath.js) — semana em branco não gera texto nenhum.
+const WeeklySummarySchema = z.object({
+  openingParagraph: z.string().describe('2-3 frases (no idioma pedido) abrindo pelo TEMA que mais se repetiu nas anotações da semana — cite o(s) livro(s)/capítulo(s) lidos e, se houver, uma frase entre aspas de uma nota real da pessoa. Nunca invente um versículo ou detalhe que não esteja no material fornecido.'),
+  closingParagraph: z.string().describe('1-2 frases (no idioma pedido) ligando o tema com a aplicação pessoal da semana (se houver uma frase de aplicação fornecida) — mencione se ela foi cumprida ou não, usando as palavras da própria pessoa. Se não houver frase de aplicação nenhuma, feche com uma frase breve e concreta sobre a constância da semana (dias cumpridos), sem virar conselho genérico.'),
+  nextWeekQuestion: z.string().describe('Uma pergunta curta (1 frase, no idioma pedido) pra pensar/conversar na semana que vem, nascida do TEMA desta semana (não de um versículo novo) — pessoal, concreta, sem resposta "certa". Ex: se o tema foi espera, algo como "O que muda quando a resposta chegar?"'),
+})
+
+export async function generateWeeklySummaryText({ lang, notesText, applicationLine }) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: WeeklySummarySchema }),
+    prompt: `Você está escrevendo o resumo semanal de um app de leitura devocional da Bíblia, pra tela que a própria pessoa vê no domingo à noite. Tom pastoral e pessoal, olhando de perto pro que ELA viveu — nunca genérico ou motivacional vazio.
+
+Anotações que essa pessoa escreveu essa semana (leitura, reflexões, notas):
+${notesText || '(nenhuma anotação escrita essa semana)'}
+
+Aplicação pessoal da semana (frase escrita pela própria pessoa, e se ela marcou como cumprida):
+${applicationLine || '(nenhuma frase de aplicação essa semana)'}
+
+Com base SÓ no que está acima, escreva o parágrafo de abertura (pelo tema), o parágrafo de fechamento (ligando com a aplicação) e a pergunta pra semana que vem.
+${buildFieldsLangInstruction(lang, 'openingParagraph, closingParagraph e nextWeekQuestion')}`,
+  })
+  return output
+}
+
 // Sugestão de "pergunta da semana" pro Plano do grupo (quadro 22d) — a IA
 // propõe, mas quem publica de verdade é o líder, que sempre revisa e pode
 // editar antes de enviar (ver README, regra "a voz na Comunidade continua
