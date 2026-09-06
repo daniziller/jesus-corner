@@ -2,7 +2,7 @@
 // ADENDO-identidade-e-IA.md). O conteúdo em si vem de api/generate-
 // chapter-context.js (público, cacheado na borda — ver comentário lá);
 // aqui só ficam duas coisas locais ao aparelho: o interruptor "Contexto
-// antes do capítulo" (10f, ainda não implementado — liga por padrão) e
+// antes do capítulo" (10f, AiSettingsScreen.jsx — liga por padrão) e
 // quais capítulos a pessoa já viu o contexto (pra não mostrar de novo
 // toda vez que reabrir o mesmo capítulo).
 const ENABLED_KEY = 'jc_chapter_context_enabled'

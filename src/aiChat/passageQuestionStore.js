@@ -3,7 +3,7 @@
 // livre, histórico salvo no servidor): aqui a pergunta E a resposta ficam
 // só no aparelho (localStorage), agrupadas por capítulo — "Perguntas e
 // respostas salvas em localStorage por padrão", desligável/apagável em
-// Ajustes (10f, ainda não implementado). O ENVIO em si passa pelo servidor
+// Ajustes (10f, AiSettingsScreen.jsx). O ENVIO em si passa pelo servidor
 // (api/ask-about-passage.js), que decide a resposta e confere a citação —
 // aqui só guarda o resultado depois de já verificado.
 import { supabase } from '../lib/supabaseClient'
