@@ -30,6 +30,8 @@ import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
+import AddStudyScreen from './screens/AddStudyScreen'
+import StudyBankScreen from './screens/StudyBankScreen'
 import CreateStudyScreen from './screens/CreateStudyScreen'
 import StudyProposalScreen from './screens/StudyProposalScreen'
 import GroupPlanProposalScreen from './screens/GroupPlanProposalScreen'
@@ -72,6 +74,7 @@ import { resolveActivePlanSessions } from './plan/resolveActivePlan'
 import { getStepMinutes, setStepMinutes as persistStepMinutes } from './plan/stepMinutesStore'
 import { getWeeklyDays, setWeeklyDays as persistWeeklyDays, countTrue } from './routine/weeklyDaysStore'
 import { getThemePlans, saveThemePlan, generateThemePlan } from './themePlans/themePlansStore'
+import { publishStudy, recordStudyUse } from './studies/publicStudiesStore'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
@@ -619,6 +622,10 @@ export default function App() {
   // vive só entre a geração e a decisão em StudyProposalScreen.jsx (22b:
   // "Salvar p/ depois" ou "Começar"). Null fora dessa janela.
   const [generatedStudyPlan, setGeneratedStudyPlan] = useState(null)
+  // Texto digitado no mini-campo de "Criar com a IA" de AddStudyScreen.jsx
+  // (26e) — carregado pro campo de verdade de CreateStudyScreen.jsx (22a)
+  // pra revisar/escolher formato antes de gerar (26e não gera nada sozinho).
+  const [createStudyInitialText, setCreateStudyInitialText] = useState('')
   // Planos do grupo (22d) que EU já aceitei — mesmo motivo de themePlans
   // acima: buildSession precisa saber as sessões do plano de grupo ativo
   // sem esperar um fetch. Convites ainda pendentes (não aceitos/recusados)
@@ -1196,6 +1203,15 @@ export default function App() {
     goToTab('themePlan')
   }
 
+  // "Meus estudos" (4c, Biblioteca/NotesScreen.jsx) — só abre o plano pra
+  // ver/retomar dentro de ThemePlanScreen, sem trocar a leitura de hoje
+  // (isso é openThemePlanToday acima, de "Continuar sessão"/plano recém-gerado).
+  function openThemePlanDetail(planId) {
+    setThemeAutoOpenId(planId)
+    setThemeAutoOpenKeys(null)
+    navigateTo('themePlan')
+  }
+
   // "Adicionar sessões à rotina do dia" logo depois de gerar um plano por
   // tema novo (ver ThemePlanScreen.jsx) — diferente de openThemePlanToday
   // acima, não pula direto pra leitura: torna o plano ativo, grava a
@@ -1245,6 +1261,39 @@ export default function App() {
     setGeneratedStudyPlan({ ...fresh, format: currentPlan.format })
   }
 
+  // "Usar" um pronto (26e) ou um do banco da comunidade (26g) — pula 22a
+  // de vez (não há "pedido" pra revisar, o conteúdo já existe) direto pra
+  // 26f/22b com o conteúdo do banco já carregado. Sem `scope`: os botões
+  // de regenerar/trocar dia não aparecem (mesma regra do formato Livro).
+  function useStudyFromBank(study) {
+    recordStudyUse(study.id).catch(err => console.error('Failed to record study use', err))
+    setGeneratedStudyPlan({ id: study.id, title: study.title, overview: study.overview, format: study.format, passages: study.passages })
+    goToTab('studyProposal')
+  }
+
+  // Publica no banco de estudos (migration 0053) quando 26f escolheu
+  // 'invited'/'public' — chamado DEPOIS de salvar a cópia pessoal (Salvar
+  // p/ depois/Começar), nunca no lugar dela; as duas coisas não se
+  // misturam (ver StudyProposalScreen.jsx). Falha aqui não desfaz a cópia
+  // pessoal já salva — só loga, pra não travar quem só queria começar a
+  // ler por causa de um erro de publicação.
+  async function publishStudyIfShared(plan, shareOptions) {
+    if (!shareOptions) return
+    try {
+      await publishStudy({
+        title: plan.title,
+        overview: plan.overview ?? null,
+        format: plan.format ?? 'thematic',
+        tags: shareOptions.tags,
+        passages: plan.passages,
+        visibility: shareOptions.visibility,
+        inviteeIds: shareOptions.inviteeIds,
+      })
+    } catch (err) {
+      console.error('Failed to publish study to the bank', err)
+    }
+  }
+
   // As passagens que a IA (ou, no formato Livro, o próprio livro escolhido)
   // trouxe podem coincidir com capítulos já lidos antes, fora desse plano
   // — sem desmarcar, o checklist de textos do plano mostraria esses textos
@@ -1262,25 +1311,30 @@ export default function App() {
 
   // "Salvar p/ depois" (22b) — persiste o plano na lista, mas não o torna
   // ativo. Aparece na lista de planos de ThemePlanScreen pra ativar depois.
-  async function saveStudyForLater(plan) {
+  // `shareOptions` (26f, null em 'só eu') publica no banco à parte — ver
+  // publishStudyIfShared.
+  async function saveStudyForLater(plan, shareOptions) {
     if (!authUser) return
     const updated = await saveThemePlan(authUser.email, plan)
     setThemePlans(updated)
     setGeneratedStudyPlan(null)
     offerUnmarkAlreadyRead(plan)
+    await publishStudyIfShared(plan, shareOptions)
     goToTab('routine')
   }
 
   // "Começar hoje/amanhã" (22b) — salva e ativa de uma vez. `startedToday`
   // decide se pula direto pra leitura (ainda não leu nada hoje) ou só
   // ativa e volta pra Meu Plano (leitura de hoje já em andamento — mesma
-  // regra do quadro: "'hoje' aparece se ainda não leu").
-  async function startGeneratedStudy(plan, startedToday) {
+  // regra do quadro: "'hoje' aparece se ainda não leu"). `shareOptions`
+  // como em saveStudyForLater acima.
+  async function startGeneratedStudy(plan, startedToday, shareOptions) {
     if (!authUser) return
     const updated = await saveThemePlan(authUser.email, plan)
     setThemePlans(updated)
     setGeneratedStudyPlan(null)
     offerUnmarkAlreadyRead(plan)
+    await publishStudyIfShared(plan, shareOptions)
     const passages = updated.find(p => p.id === plan.id)?.passages ?? plan.passages
     const keys = passages[0] ? [themeTextKey(passages[0])] : []
     if (startedToday) addThemePlanToRoutine(plan.id, keys)
@@ -2164,12 +2218,31 @@ export default function App() {
     inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} />,
     themePlan: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
-      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('createStudy')} onGoToReflectionFrom={goToReflectionFrom} />,
+      : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} />,
+    // 26e — entrada real de "Adicionar estudo" (pelo botão "Criar" em Meu
+    // Plano/RoutineScreen.jsx): prontos + banco da comunidade não pedem IA
+    // nenhuma, só o cartão "Criar com a IA" lá dentro pede session.hasAI —
+    // por isso esta aba só trava por hasPremium (a rotina inteira já é
+    // hasPremium), não por hasAI.
+    addStudy: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : <AddStudyScreen
+          session={session}
+          onBack={goBack}
+          onUseReadyMade={useStudyFromBank}
+          onCreateWithPrompt={text => { setCreateStudyInitialText(text); navigateTo('createStudy') }}
+          onExploreBank={() => navigateTo('studyBank')}
+          onContinueWithoutStudy={goBack}
+        />,
+    studyBank: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : <StudyBankScreen session={session} onBack={goBack} onUseStudy={useStudyFromBank} />,
     // Etapa 10 (22a/22b) — "Criar estudo" e a proposta gerada, alcançadas
-    // pelo botão "Criar" em Meu Plano (RoutineScreen.jsx).
+    // agora por 26e (AddStudyScreen.jsx) em vez de direto pelo botão
+    // "Criar" (que virou a entrada de 26e — ver addStudy acima).
     createStudy: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
-      : <CreateStudyScreen session={session} onBack={goBack} onGenerated={reviewGeneratedStudy} />,
+      : <CreateStudyScreen session={session} initialText={createStudyInitialText} onBack={goBack} onGenerated={reviewGeneratedStudy} />,
     studyProposal: generatedStudyPlan
       ? <StudyProposalScreen session={session} plan={generatedStudyPlan} onBack={goBack} onRefazer={refazerGeneratedStudy} onSaveForLater={saveStudyForLater} onStart={startGeneratedStudy} />
       : null,
@@ -2269,13 +2342,13 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir.
-  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal'].includes(activeTab) || reflectionBento
 
   return (
     <div className="app-shell">
@@ -2313,7 +2386,7 @@ export default function App() {
             )}
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
-                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} />
+                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} />
               </div>
             )}
             {hasPremium && studiesVisitedRef.current && (

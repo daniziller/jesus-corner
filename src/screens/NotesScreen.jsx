@@ -32,6 +32,9 @@ import { STUDIES } from '../data/studies'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
+import { getThemePlans } from '../themePlans/themePlansStore'
+import { deriveThemeTexts } from '../themePlans/themeTexts'
+import { getMyPublishedStudies, getMyStudyInvites, withdrawStudy, acceptStudyInvite } from '../studies/publicStudiesStore'
 import { getAllPassageQuestions, removePassageQuestion } from '../aiChat/passageQuestionStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -125,7 +128,7 @@ function dateFilterRangeFor(key, customFrom, customTo) {
   return { from: customFrom || null, to: customTo || null }
 }
 
-export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onOpenStudy }) {
+export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onOpenStudy, onOpenThemePlan, onUseBankStudy }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   // Painel de filtros (origem/livro/cor/data) minimizado por padrão — só
@@ -330,6 +333,42 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       })
     return () => { cancelled = true }
   }, [authUser?.email])
+
+  // "Meus estudos" (4c, Bloco 12) — à parte do carregamento de notas acima
+  // (dado/formato bem diferente: planos por tema com `passages`, não
+  // `sessions`, ver themeTexts.js) e do banco de estudos compartilháveis
+  // (migration 0053_public_studies.sql) — os que eu publiquei (com "sair
+  // do banco") e os que amigos me convidaram (com "aceitar").
+  const [myStudiesData, setMyStudiesData] = useState(null)
+
+  function reloadMyStudies() {
+    if (!authUser?.email) { setMyStudiesData(null); return }
+    Promise.all([getThemePlans(authUser.email), getMyPublishedStudies(), getMyStudyInvites()])
+      .then(([themePlans, published, invites]) => setMyStudiesData({ themePlans, published, invites }))
+      .catch(err => console.error('Failed to load my studies', err))
+  }
+
+  useEffect(() => { reloadMyStudies() }, [authUser?.email])
+
+  async function handleWithdrawStudy(studyId) {
+    if (!window.confirm(t('notes.withdrawStudyConfirm', undefined, lang))) return
+    try {
+      await withdrawStudy(studyId)
+      reloadMyStudies()
+    } catch (err) {
+      console.error('Failed to withdraw study', err)
+    }
+  }
+
+  async function handleAcceptStudyInvite(study) {
+    try {
+      await acceptStudyInvite(study.id)
+      reloadMyStudies()
+      onUseBankStudy?.(study)
+    } catch (err) {
+      console.error('Failed to accept study invite', err)
+    }
+  }
 
   function bookLabel(book) {
     return lang === 'en' ? (bookNameEn[book] ?? book) : book
@@ -1021,6 +1060,19 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           </p>
         )}
 
+        {filter === 'study' && !trimmedQuery && myStudiesData && (
+          myStudiesData.themePlans.length + myStudiesData.published.length + myStudiesData.invites.length > 0
+        ) && (
+          <MyStudiesSection
+            lang={lang}
+            data={myStudiesData}
+            activeStudyId={session.activeStudyId}
+            onOpenThemePlan={onOpenThemePlan}
+            onWithdraw={handleWithdrawStudy}
+            onAcceptInvite={handleAcceptStudyInvite}
+          />
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filteredNotes.map(note => {
             // Estudo — card à parte (ícone + título + progresso + seta),
@@ -1186,6 +1238,85 @@ function HighlightQuote({ note, lang }) {
   }, [note.book, note.bookEn, note.chapter, lang, (note.verses ?? []).join(',')])
   if (!quote) return null
   return <p style={styles.highlightQuote}>"{quote}"</p>
+}
+
+// "Meus estudos" (4c, Bloco 12) — planos por tema (22a-d), o que EU
+// publiquei no banco (com "sair do banco") e convites de amigos pra fazer
+// um estudo junto (com "aceitar"). À parte da lista genérica de notas
+// logo abaixo — formato de dado bem diferente (ver comentário no useEffect
+// que carrega isto).
+function MyStudiesSection({ lang, data, activeStudyId, onOpenThemePlan, onWithdraw, onAcceptInvite }) {
+  const { themePlans, published, invites } = data
+  return (
+    <div style={mss.card}>
+      {themePlans.length > 0 && (
+        <>
+          <p style={mss.label}>{t('notes.myStudiesPlansLabel', undefined, lang)}</p>
+          {themePlans.map(plan => {
+            const texts = deriveThemeTexts(plan.passages)
+            return (
+              <button key={plan.id} style={styles.studyRow} onClick={() => onOpenThemePlan?.(plan.id)}>
+                <span style={styles.studyRowIcon}>
+                  <AppIcon name="Sparkles" size={16} color="var(--bento-accent)" />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={styles.studyRowTitle}>{plan.title}</span>
+                  <span style={styles.studyRowProgress}>
+                    {activeStudyId === plan.id ? t('notes.myStudiesActiveTag', undefined, lang) : t('notes.myStudiesDaysCount', { n: texts.length }, lang)}
+                  </span>
+                </span>
+                <span style={styles.studyRowChevron}>›</span>
+              </button>
+            )
+          })}
+        </>
+      )}
+
+      {published.length > 0 && (
+        <>
+          <p style={{ ...mss.label, marginTop: themePlans.length > 0 ? 14 : 0 }}>{t('notes.myStudiesPublishedLabel', undefined, lang)}</p>
+          {published.map(study => (
+            <div key={study.id} style={mss.row}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={mss.rowTitle}>{study.title}</p>
+                <p style={mss.rowSub}>{t(study.visibility === 'public' ? 'notes.myStudiesVisibilityPublic' : 'notes.myStudiesVisibilityInvited', { n: study.usesCount }, lang)}</p>
+              </div>
+              <button type="button" style={mss.withdrawBtn} onClick={() => onWithdraw?.(study.id)}>{t('notes.myStudiesWithdrawBtn', undefined, lang)}</button>
+            </div>
+          ))}
+        </>
+      )}
+
+      {invites.length > 0 && (
+        <>
+          <p style={{ ...mss.label, marginTop: 14 }}>{t('notes.myStudiesInvitesLabel', undefined, lang)}</p>
+          {invites.map(({ status, study }) => (
+            <div key={study.id} style={mss.row}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={mss.rowTitle}>{study.title}</p>
+                <p style={mss.rowSub}>{t('notes.myStudiesInvitedBy', { name: study.authorName }, lang)}</p>
+              </div>
+              {status === 'invited' ? (
+                <button type="button" style={mss.acceptBtn} onClick={() => onAcceptInvite?.(study)}>{t('notes.myStudiesAcceptBtn', undefined, lang)}</button>
+              ) : (
+                <button type="button" style={mss.withdrawBtn} onClick={() => onAcceptInvite?.(study)}>{t('notes.myStudiesContinueBtn', undefined, lang)}</button>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+const mss = {
+  card: { borderRadius: 20, background: 'var(--bento-card)', padding: '14px 16px', margin: '0 0 12px' },
+  label: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 4px' },
+  row: { display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderTop: '1px solid var(--bento-line)' },
+  rowTitle: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  rowSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t4)', margin: 0 },
+  withdrawBtn: { height: 30, padding: '0 12px', flexShrink: 0, borderRadius: 10, border: 'none', background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  acceptBtn: { height: 30, padding: '0 12px', flexShrink: 0, borderRadius: 10, border: 'none', background: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: '#fff', cursor: 'pointer' },
 }
 
 const styles = {

@@ -97,12 +97,13 @@ export default function RoutineScreen({ session, onContinueSession, onNavigate, 
           <p style={styles.subtitle}>{headerParts.join(' · ')}</p>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {session.hasAI && (
-            <button style={styles.createBtn} onClick={() => onNavigate?.('createStudy')}>
-              <span style={styles.createDiamond} />
-              {L('create')}
-            </button>
-          )}
+          {/* 26e (AddStudyScreen) é a entrada de verdade agora — prontos e o
+              banco da comunidade não pedem IA nenhuma, só o cartão "Criar
+              com a IA" ali dentro pede session.hasAI (ver App.jsx). */}
+          <button style={styles.createBtn} onClick={() => onNavigate?.('addStudy')}>
+            <span style={styles.createDiamond} />
+            {L('create')}
+          </button>
           <button style={styles.adjustBtn} onClick={() => onNavigate?.('adjustPlan')}>{L('adjust')}</button>
         </div>
       </div>
