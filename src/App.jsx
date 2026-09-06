@@ -2382,7 +2382,12 @@ export default function App() {
   // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
   // visualmente).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab)
+  // 'profile' entrou nesta lista junto da migração pra Bento do Perfil de
+  // desktop (antes ficava de fora, com o AppHeader antigo por cima da
+  // versão antiga da tela). 'studies' continua de fora de propósito — ver
+  // comentário da Etapa 12 em StudiesScreen.jsx (reskin só de cor, cabeçalho
+  // antigo mantido).
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
