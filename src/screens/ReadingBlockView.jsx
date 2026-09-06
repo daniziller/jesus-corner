@@ -17,6 +17,7 @@ import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
 import { addReadingSeconds } from '../reading/readingTimeStore'
+import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible } from '../groups/chapterRoomStore'
 import { avatarPaletteFor } from './ChapterRoomScreen'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
@@ -298,7 +299,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // Tempo de leitura (painel 12a, "horas de leitura acumulada") — conta só
   // enquanto um texto de capítulo está aberto E a aba está visível; segundos
   // com a aba escondida não entram. Descarrega em lotes de ~30s e ao fechar
-  // (ver src/reading/readingTimeStore.js).
+  // (ver src/reading/readingTimeStore.js). O mesmo lote também vira uma
+  // linha em session_seconds (passo 'reading') — é a fonte de "lendo" em
+  // 30b; sem isso o acumulado de sempre existe mas não dá pra separar por
+  // dia/passo nem calcular sessão média/horário mais comum.
   const readingActive = mode === 'browse'
     ? expandedChapterId != null
     : (openPanel === 'texto' && !!heroSession && heroSession.type !== 'reflection')
@@ -311,7 +315,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       if (typeof document === 'undefined' || document.visibilityState === 'visible') pending += (now - last) / 1000
       last = now
     }
-    const flush = () => { if (pending >= 1) { addReadingSeconds(pending).catch(() => {}); pending = 0 } }
+    const flush = () => {
+      if (pending >= 1) {
+        addReadingSeconds(pending).catch(() => {})
+        logSessionSeconds('reading', pending).catch(() => {})
+        pending = 0
+      }
+    }
     const interval = setInterval(() => { tick(); if (pending >= 30) flush() }, 5000)
     const onVisibility = () => { tick(); if (document.visibilityState !== 'visible') flush() }
     document.addEventListener('visibilitychange', onVisibility)

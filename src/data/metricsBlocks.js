@@ -14,8 +14,10 @@
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from './bibleBlocks.js'
 
 // Junta o nome em pt e en de cada livro a partir de BIBLE_BLOCKS (fonte
-// única), pra este arquivo não ter que repetir os dois idiomas.
-const BOOK_EN = {}
+// única), pra este arquivo não ter que repetir os dois idiomas. Exportado
+// pra MetricsBlocksScreen.jsx mostrar o nome certo em inglês na lista por
+// livro de cada bloco.
+export const BOOK_EN = {}
 for (const block of BIBLE_BLOCKS) {
   block.books.forEach((pt, i) => { BOOK_EN[pt] = block.booksEn[i] })
 }
@@ -62,6 +64,25 @@ export function computeMetricsBlocks(completedSet) {
     }
     const percent = chaptersTotal ? Math.round((chaptersRead / chaptersTotal) * 1000) / 10 : 0
     return { id: block.id, name: block.name, nameEn: block.nameEn, chaptersRead, chaptersTotal, percent }
+  })
+}
+
+// Livros de UM bloco com progresso por livro — usado pelo "toque num
+// bloco" de 30c. Não reaproveita o filtro por bloco de JourneyScreen.jsx
+// (28b) porque aquele usa a divisão de BIBLE_BLOCKS (bibleBlocks.js), que é
+// DIFERENTE desta (ver nota no topo do arquivo — ex: lá Profetas
+// maiores+menores são um bloco só, aqui são dois); em vez de mapear uma
+// divisão pra outra (frágil, sem correspondência 1:1 em todos os casos),
+// 30c expande a lista de livros do PRÓPRIO bloco inline, na mesma tela.
+export function computeMetricsBlockBooks(blockId, completedSet) {
+  const block = METRICS_BLOCKS.find(b => b.id === blockId)
+  if (!block) return []
+  const counts = chaptersByBook()
+  return block.books.map(book => {
+    const total = counts[book] ?? 0
+    let read = 0
+    for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${book}:${ch}`)) read++
+    return { book, chaptersRead: read, chaptersTotal: total, percent: total ? Math.round((read / total) * 1000) / 10 : 0 }
   })
 }
 

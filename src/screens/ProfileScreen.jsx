@@ -319,6 +319,16 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           </button>
         </div>
 
+        {/* "Minhas métricas" (30b, Bloco 7) — acima de conta/preferências
+            (Configurações, logo abaixo), como pede o handoff. */}
+        <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 21, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
+          <SettingsLink
+            icon="BarChart3" iconBg="var(--olt)"
+            label={t('profile.metricsLabel', undefined, session.lang)} sub={t('profile.metricsSub', undefined, session.lang)}
+            onPress={() => onNavigate('metrics')}
+          />
+        </div>
+
         {/* Configurações */}
         <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 21, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
 
