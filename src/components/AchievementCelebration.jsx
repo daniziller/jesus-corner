@@ -31,23 +31,23 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
   },
   card: {
-    width: '100%', maxWidth: 320, background: 'var(--white)', borderRadius: 26,
+    width: '100%', maxWidth: 320, background: 'var(--bento-card)', borderRadius: 26,
     padding: '30px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center',
-    textAlign: 'center', boxShadow: 'var(--shadow-premium)',
+    textAlign: 'center', boxShadow: '0 20px 44px rgba(0,0,0,.18)',
     animation: 'bookOpenIn .26s cubic-bezier(.32,.72,0,1)',
   },
   eyebrow: {
-    fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase',
-    color: 'var(--or)', margin: '0 0 2px',
+    fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase',
+    color: 'var(--bento-accent)', margin: '0 0 2px',
   },
-  title: { fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 800, color: 'var(--bk)', margin: '0 0 6px' },
-  desc: { fontSize: 13, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, margin: '0 0 14px' },
+  title: { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 6px' },
+  desc: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.5, margin: '0 0 14px' },
   xp: {
-    fontSize: 12, fontWeight: 800, color: 'var(--or)', background: 'rgba(157,67,0,.1)',
+    fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-accent)', background: 'var(--bento-mark)',
     borderRadius: 99, padding: '5px 14px', marginBottom: 22,
   },
   btn: {
-    width: '100%', height: 48, borderRadius: 99, border: 'none', background: 'var(--grad-primary)',
-    color: 'white', fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+    width: '100%', height: 48, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
+    color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, cursor: 'pointer',
   },
 }

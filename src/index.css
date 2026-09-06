@@ -608,7 +608,7 @@ html.large-text .app-content-inner {
   padding: 6px 8px 20px;
 }
 .sidebar-logo { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; }
-.sidebar-brand-name { font-size: 15px; font-weight: 900; color: var(--bk); letter-spacing: 0.5px; }
+.sidebar-brand-name { font-family: var(--font-bento); font-size: 15px; font-weight: 800; color: var(--bento-ink); letter-spacing: -0.4px; }
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -624,15 +624,15 @@ html.large-text .app-content-inner {
   border: none;
   background: none;
   cursor: pointer;
-  font-family: var(--font);
+  font-family: var(--font-bento);
   font-size: 13px;
-  font-weight: 600;
-  color: var(--g5);
+  font-weight: 700;
+  color: var(--bento-t3);
   text-align: left;
   transition: background 0.15s, color 0.15s;
 }
-.sidebar-item:hover { background: var(--g1); }
-.sidebar-item.active { background: var(--olt); color: var(--or); font-weight: 700; }
+.sidebar-item:hover { background: var(--bento-line); }
+.sidebar-item.active { background: var(--bento-sand); color: var(--bento-sand-icon); font-weight: 800; }
 .sidebar-profile {
   display: flex;
   align-items: center;
@@ -642,15 +642,15 @@ html.large-text .app-content-inner {
   border: none;
   background: none;
   cursor: pointer;
-  font-family: var(--font);
+  font-family: var(--font-bento);
   text-align: left;
 }
-.sidebar-profile:hover { background: var(--g1); }
+.sidebar-profile:hover { background: var(--bento-line); }
 .sidebar-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--bk);
+  background: var(--bento-ink);
   color: white;
   display: flex;
   align-items: center;
@@ -666,9 +666,10 @@ html.large-text .app-content-inner {
   object-fit: cover;
 }
 .sidebar-username {
+  font-family: var(--font-bento);
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--bk);
+  color: var(--bento-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -741,8 +742,8 @@ html.large-text .app-content-inner {
     width: 248px;
     flex-shrink: 0;
     height: 100vh;
-    background: var(--white);
-    border-right: 0.5px solid var(--g2);
+    background: var(--bento-card);
+    border-right: 1px solid var(--bento-line);
     padding: 22px 16px;
     gap: 8px;
   }

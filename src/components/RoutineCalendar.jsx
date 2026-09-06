@@ -82,7 +82,7 @@ export function LegendDot({ color, label }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       <span style={{ width: 6, height: 6, borderRadius: 2, background: color, flexShrink: 0 }} />
-      <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--g5)' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 600, color: 'var(--bento-t3)' }}>{label}</span>
     </span>
   )
 }
@@ -92,13 +92,13 @@ export function LegendDot({ color, label }) {
 // cima; na aba Rotina entra no próprio card de seção, ver RoutineScreen.jsx).
 const styles = {
   calendarWrap:       {},
-  calendarNavBtn:      { width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  calendarMonthLabel: { fontSize: 12, fontWeight: 700, color: 'var(--bk)', textTransform: 'capitalize' },
+  calendarNavBtn:      { width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  calendarMonthLabel: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)', textTransform: 'capitalize' },
   calendarGrid:       { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' },
-  calendarWeekday:    { fontSize: 9, fontWeight: 700, color: 'var(--g4)', textTransform: 'uppercase', padding: '2px 0' },
+  calendarWeekday:    { fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 700, color: 'var(--bento-t4)', textTransform: 'uppercase', padding: '2px 0' },
   calendarDayCell:    { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2px 0' },
   calendarDayRingWrap:{ position: 'relative', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  calendarDayNum:     { position: 'relative', fontSize: 10, fontWeight: 600, color: 'var(--g6)', borderRadius: '50%', width: 19, height: 19, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  calendarDayNumComplete: { background: 'linear-gradient(135deg, var(--gold), var(--or))', color: 'white', fontWeight: 800 },
-  calendarLegend:      { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--g1)', flexWrap: 'wrap' },
+  calendarDayNum:     { position: 'relative', fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 600, color: 'var(--bento-t2)', borderRadius: '50%', width: 19, height: 19, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  calendarDayNumComplete: { background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontWeight: 800 },
+  calendarLegend:      { display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--bento-line)', flexWrap: 'wrap' },
 }

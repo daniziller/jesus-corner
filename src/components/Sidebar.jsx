@@ -14,13 +14,14 @@ import NotificationBell from './NotificationBell'
 const TAB_IDS = ['home', 'routine', 'journey', 'notes', 'groups']
 const TAB_ICONS = { home: 'Home', journey: 'BookOpen', routine: 'ClipboardList', groups: 'Users', notes: 'Library' }
 
-const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
-const a11yBtnActiveStyle = { background: 'var(--grad-primary)', border: 'none', boxShadow: 'var(--shadow-premium)' }
+const a11yBtnStyle = { width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--bento-line)', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background .15s, border-color .15s' }
+const a11yBtnActiveStyle = { background: 'var(--bento-ink)', border: 'none' }
 
-// Selo com gradiente da marca pra dar mais destaque à aba principal
-// (Bíblia) — mesma ideia do círculo elevado no BottomNav mobile, só sem
-// a elevação (não faz sentido numa lista vertical).
-const sidebarFeaturedIconWrap = { position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', background: 'var(--grad-vivid)', boxShadow: 'var(--shadow-glow)' }
+// Selo de destaque pra aba principal (Bíblia) — mesma ideia do círculo
+// elevado no BottomNav mobile, só sem a elevação (não faz sentido numa
+// lista vertical). Bento não usa gradiente (ver index.css) — laranja
+// sólido, ícone escuro por cima, igual a qualquer outro selo cheio.
+const sidebarFeaturedIconWrap = { position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', background: 'var(--bento-accent)' }
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações
 // no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).
@@ -40,7 +41,7 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
             aria-label={t('a11y.largeTextToggle', undefined, lang)}
             title={t('a11y.largeTextToggle', undefined, lang)}
           >
-            <AppIcon name="Type" size={16} color={largeText ? 'white' : 'var(--g5)'} />
+            <AppIcon name="Type" size={16} color={largeText ? 'white' : 'var(--bento-t3)'} />
           </button>
           <NotificationBell pendingCount={pendingCount} onNavigate={onNavigate} lang={lang} variant="sidebar" />
         </div>
@@ -79,7 +80,7 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
               title={tooltip}
             >
               <span style={featured ? sidebarFeaturedIconWrap : { position: 'relative', display: 'inline-flex' }}>
-                <AppIcon name={TAB_ICONS[id]} size={featured ? 17 : 18} color={featured ? 'white' : active ? 'var(--or)' : 'var(--g4)'} />
+                <AppIcon name={TAB_ICONS[id]} size={featured ? 17 : 18} color={featured ? 'var(--bento-ink)' : active ? 'var(--bento-sand-icon)' : 'var(--bento-t4)'} />
                 {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
               </span>
               <span style={featured ? { fontWeight: 700 } : undefined}>{label}</span>

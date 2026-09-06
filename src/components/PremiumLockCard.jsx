@@ -14,7 +14,7 @@ export default function PremiumLockCard({ lang, onNavigate, title, sub, variant 
   return (
     <div style={styles.card}>
       <div style={styles.iconWrap}>
-        <AppIcon name={ai ? 'Sparkles' : 'Crown'} size={18} color="var(--or)" />
+        <AppIcon name={ai ? 'Sparkles' : 'Crown'} size={18} color="var(--bento-accent)" />
       </div>
       <p style={styles.title}>{title ?? t(ai ? 'billing.lock.aiTitle' : 'billing.lock.premiumTitle', undefined, lang)}</p>
       <p style={styles.sub}>{sub ?? t(ai ? 'billing.lock.aiSub' : 'billing.lock.premiumSub', undefined, lang)}</p>
@@ -26,9 +26,9 @@ export default function PremiumLockCard({ lang, onNavigate, title, sub, variant 
 }
 
 const styles = {
-  card:     { background: 'var(--olt)', border: '0.5px dashed rgba(249,115,22,.4)', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textAlign: 'center' },
-  iconWrap: { width: 36, height: 36, borderRadius: 11, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 3, boxShadow: 'var(--shadow-card)' },
-  title:    { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  sub:      { fontSize: 11, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.5, maxWidth: 260 },
-  btn:      { marginTop: 6, border: 'none', background: 'var(--grad-vivid)', color: 'white', borderRadius: 11, padding: '9px 18px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' },
+  card:     { background: 'var(--bento-sand)', border: 'none', borderRadius: 20, padding: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textAlign: 'center' },
+  iconWrap: { width: 36, height: 36, borderRadius: 12, background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
+  title:    { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-sand-ink-strong)' },
+  sub:      { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-sand-ink-mid)', lineHeight: 1.5, maxWidth: 260 },
+  btn:      { marginTop: 6, border: 'none', background: 'var(--bento-accent)', color: 'var(--bento-ink)', borderRadius: 12, padding: '9px 18px', fontSize: 11.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-bento)' },
 }

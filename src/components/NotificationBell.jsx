@@ -78,7 +78,7 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
   return (
     <div style={{ position: 'relative' }} ref={wrapRef}>
       <button style={bellBtnStyle} onClick={() => setOpen(v => !v)} aria-label={t('notifications.title', undefined, lang)}>
-        <AppIcon name="Bell" size={isHeader ? 20 : 17} color={isHeader ? 'var(--bk)' : 'var(--g5)'} />
+        <AppIcon name="Bell" size={isHeader ? 20 : 17} color={isHeader ? 'var(--bento-ink)' : 'var(--bento-t3)'} />
         {badgeCount > 0 && (
           <span style={isHeader ? { ...styles.bellBadge, top: 6, right: 6 } : styles.bellBadge}>{badgeCount > 9 ? '9+' : badgeCount}</span>
         )}
@@ -97,15 +97,15 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
               <p style={styles.sectionLabel}>{t('notifications.remindersTitle', undefined, lang)}</p>
               {notifications.map(n => (
                 <button key={n.id} style={styles.item} onClick={() => handleNotificationClick(n)}>
-                  <div style={{ ...styles.itemIcon, background: 'var(--olt)' }}>
-                    <AppIcon name={n.type === 'admin_broadcast' ? 'Megaphone' : (n.type === 'weekly_digest' || n.type === 'weekly_summary') ? 'Sparkles' : 'HandHeart'} size={14} color="var(--or)" />
+                  <div style={styles.itemIcon}>
+                    <AppIcon name={n.type === 'admin_broadcast' ? 'Megaphone' : (n.type === 'weekly_digest' || n.type === 'weekly_summary') ? 'Sparkles' : 'HandHeart'} size={14} color="var(--bento-accent)" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={styles.itemText}>
                       <strong>{n.title}</strong> — {n.body}
                     </p>
                   </div>
-                  <AppIcon name="ChevronRight" size={14} color="var(--g4)" />
+                  <AppIcon name="ChevronRight" size={14} color="var(--bento-t4)" />
                 </button>
               ))}
             </div>
@@ -126,20 +126,20 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
                       <strong>{r.name}</strong> {t('groups.friendRequestReceived', undefined, lang)}
                     </p>
                   </div>
-                  <AppIcon name="ChevronRight" size={14} color="var(--g4)" />
+                  <AppIcon name="ChevronRight" size={14} color="var(--bento-t4)" />
                 </button>
               ))}
               {invites.map(inv => (
                 <button key={inv.groupId} style={styles.item} onClick={goToCommunity}>
-                  <div style={{ ...styles.itemIcon, background: 'var(--olt)' }}>
-                    <AppIcon name="Users" size={14} color="var(--or)" />
+                  <div style={styles.itemIcon}>
+                    <AppIcon name="Users" size={14} color="var(--bento-accent)" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={styles.itemText}>
                       <strong>{inv.groupName}</strong> — {t('groups.invitedBy', { name: inv.invitedByName }, lang)}
                     </p>
                   </div>
-                  <AppIcon name="ChevronRight" size={14} color="var(--g4)" />
+                  <AppIcon name="ChevronRight" size={14} color="var(--bento-t4)" />
                 </button>
               ))}
             </div>
@@ -162,17 +162,17 @@ export default function NotificationBell({ pendingCount, onNavigate, lang, varia
 }
 
 const styles = {
-  bellBtn:    { position: 'relative', width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, padding: 0 },
+  bellBtn:    { position: 'relative', width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, padding: 0 },
   bellBtnHeader: { position: 'relative', width: 44, height: 44, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, padding: 0 },
-  bellBadge:  { position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 8, background: 'var(--re)', color: 'white', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '2px solid white' },
-  panel:      { position: 'absolute', width: 320, maxWidth: '85vw', maxHeight: 420, overflowY: 'auto', background: 'white', border: '0.5px solid var(--g2)', borderRadius: 16, boxShadow: '0 12px 30px rgba(0,0,0,.15)', padding: 12, zIndex: 50 },
-  panelTitle: { fontSize: 13, fontWeight: 800, color: 'var(--bk)', marginBottom: 8 },
-  emptyHint:  { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '10px 2px' },
+  bellBadge:  { position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, borderRadius: 8, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', border: '2px solid var(--bento-card)' },
+  panel:      { position: 'absolute', width: 320, maxWidth: '85vw', maxHeight: 420, overflowY: 'auto', background: 'var(--bento-card)', border: '1px solid var(--bento-line)', borderRadius: 20, boxShadow: '0 12px 30px rgba(0,0,0,.15)', padding: 14, zIndex: 50 },
+  panelTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 8 },
+  emptyHint:  { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', padding: '10px 2px' },
   section:    { display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 6 },
-  sectionLabel: { fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.5, textTransform: 'uppercase', margin: '6px 2px 2px' },
-  item:       { display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 'none', background: 'none', borderRadius: 10, padding: '8px 6px', cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'left' },
-  itemIcon:   { width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  itemAvatar: { width: 26, height: 26, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--olt)', fontSize: 11, fontWeight: 800, color: 'var(--or)' },
-  itemText:   { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.4 },
+  sectionLabel: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-t4)', letterSpacing: 0.5, textTransform: 'uppercase', margin: '6px 2px 2px' },
+  item:       { display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 'none', background: 'none', borderRadius: 12, padding: '8px 6px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
+  itemIcon:   { width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bento-mark)' },
+  itemAvatar: { width: 26, height: 26, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bento-sand)', fontSize: 11, fontWeight: 800, color: 'var(--bento-sand-icon)' },
+  itemText:   { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.4 },
   infoItem:   { padding: '8px 6px', cursor: 'default' },
 }

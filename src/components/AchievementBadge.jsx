@@ -79,11 +79,11 @@ export default function AchievementBadge({ icon, tone = 'book', unlocked = true,
           style={{
             position: 'absolute', right: -1, bottom: -1,
             width: Math.round(size * 0.36), height: Math.round(size * 0.36), borderRadius: '50%',
-            background: 'var(--white)', border: '1px solid var(--g2)',
+            background: 'var(--bento-card)', border: '1px solid var(--bento-line)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <AppIcon name="Lock" size={Math.round(size * 0.2)} color="var(--g4)" />
+          <AppIcon name="Lock" size={Math.round(size * 0.2)} color="var(--bento-t4)" />
         </span>
       )}
     </span>
