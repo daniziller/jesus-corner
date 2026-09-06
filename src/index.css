@@ -697,18 +697,6 @@ html.large-text .app-content-inner {
   display: none;
 }
 
-/* ── Abas do Admin (AdminScreen.jsx) — só ícone no mobile, senão os 5
-   botões (Métricas/Usuários/Fale Conosco/Transmissão/Convites) não cabem
-   na largura da moldura e forçam rolagem lateral. */
-.admin-tab-label {
-  display: none;
-}
-@media (min-width: 768px) {
-  .admin-tab-label {
-    display: inline;
-  }
-}
-
 /* ── Folha do Perfil (ProfileSheet.jsx, quadro 19a) — única folha do app
    que fica ACIMA da barra de abas (não some por baixo dela como as
    demais), então não pode usar o mesmo "bottom: 0" das outras. No
@@ -765,6 +753,15 @@ html.large-text .app-content-inner {
   .app-content-inner {
     width: 100%;
     max-width: 900px;
+  }
+  /* Painel admin (23a-d, Bloco 14) — "roda na web em 1280px", mais largo
+     que o resto do app (900px) e com sidebar própria, não a do app (ver
+     .admin-active abaixo/isAdminScreen em App.jsx). */
+  html.admin-active {
+    --max-width: 1280px;
+  }
+  html.admin-active .app-content-inner {
+    max-width: none;
   }
   /* Tela de login/cadastro roda fora do .app-shell (ainda não tem sessão),
      então sem isso os campos esticam até os 1200px de #root nessa faixa —

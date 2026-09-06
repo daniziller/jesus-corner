@@ -53,6 +53,53 @@ function computeRetentionCohort(recurringSubs, minDays, maxDays) {
   }
 }
 
+// Segunda-feira (00:00) da semana em que "d" cai — mesma convenção de
+// mondayOf() em src/routine/routineStreak.js (não importado direto pra não
+// puxar o resto daquele módulo aqui; é só 4 linhas).
+function mondayOf(d) {
+  const day = d.getDay()
+  const diff = (day === 0 ? -6 : 1) - day
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff)
+  monday.setHours(0, 0, 0, 0)
+  return monday
+}
+
+// "Novos assinantes por semana" (23a) — últimas `weeksBack` semanas
+// (mais antiga primeiro), contando subscriptions.created_at por semana.
+function weeklySignupSeries(subs, weeksBack, today = new Date()) {
+  const currentWeekStart = mondayOf(today)
+  const weeks = []
+  for (let i = weeksBack - 1; i >= 0; i--) {
+    const start = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() - i * 7)
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7)
+    const count = subs.filter(s => s.created_at && new Date(s.created_at) >= start && new Date(s.created_at) < end).length
+    weeks.push({ weekStart: start.toISOString().slice(0, 10), count })
+  }
+  return weeks
+}
+
+// Curva de retenção por semana (S0-S7) de UMA coorte de aquisição (quem
+// assinou no mês anterior ao atual) — mesma limitação honesta de
+// computeRetentionCohort acima: só sabemos o status ATUAL, não o histórico
+// dia a dia, então "retido na semana N" é "ainda ativo hoje E já tem pelo
+// menos N semanas de conta" — não "estava ativo exatamente na semana N".
+function computeRetentionByWeek(recurringSubs, today = new Date()) {
+  const firstOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const cohort = recurringSubs.filter(s => {
+    if (!s.created_at) return false
+    const d = new Date(s.created_at)
+    return d >= firstOfLastMonth && d < firstOfThisMonth
+  })
+  const weeks = []
+  for (let w = 0; w <= 7; w++) {
+    const eligible = cohort.filter(s => (today.getTime() - new Date(s.created_at).getTime()) / (7 * 86400000) >= w)
+    const retained = eligible.filter(s => RECURRING_ACTIVE_STATUSES.includes(s.status)).length
+    weeks.push({ week: w, cohortSize: eligible.length, pct: eligible.length > 0 ? Math.round((retained / eligible.length) * 100) : null })
+  }
+  return { cohortMonth: firstOfLastMonth.toISOString().slice(0, 7), weeks }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
 
@@ -63,22 +110,41 @@ export default async function handler(req, res) {
   const days = Number.isFinite(rawDays) && rawDays > 0 ? Math.min(Math.round(rawDays), FUNNEL_WINDOW_DAYS_MAX) : FUNNEL_WINDOW_DAYS_DEFAULT
   const language = req.body?.language === 'pt' || req.body?.language === 'en' ? req.body.language : null
   const windowStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  const now = new Date()
+  const startOfTodayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+  const in48hIso = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString()
 
   let funnelEventsQuery = supabaseAdmin.from('onboarding_events').select('session_id, step').gte('created_at', windowStart)
   if (language) funnelEventsQuery = funnelEventsQuery.eq('language', language)
 
-  const [totalUsersRes, newByDayRes, subsRes, contactTotalRes, contactUnansweredRes, funnelEventsRes] = await Promise.all([
+  const [
+    totalUsersRes, newByDayRes, subsRes, contactTotalRes, contactUnansweredRes, funnelEventsRes,
+    sessionTodayRes, chaptersTodayRes, aiChatsTodayRes, pendingReportsRes,
+    groupsCountRes, groupMembersRes,
+  ] = await Promise.all([
     supabaseAdmin.rpc('admin_total_users'),
     supabaseAdmin.rpc('admin_new_users_by_day', { days_back: 30 }),
-    supabaseAdmin.from('subscriptions').select('user_id, access_type, status, plan, currency, amount_cents, current_period_end, created_at'),
+    supabaseAdmin.from('subscriptions').select('user_id, access_type, status, plan, currency, amount_cents, current_period_end, created_at, updated_at'),
     supabaseAdmin.from('contact_messages').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('contact_messages').select('*', { count: 'exact', head: true }).is('replied_at', null),
     funnelEventsQuery,
+    // DAU (23a) — distinto de session_seconds/chapters_read de HOJE, as
+    // duas tabelas com data real por linha desde o Bloco 7 (ver
+    // 0049_redesign_bloco2_dados.sql) — não existe uma tabela "sessão de
+    // app aberto" à parte, então isto é "fez algo de leitura/oração/
+    // reflexão hoje", um proxy honesto de ativo, não literalmente "abriu o
+    // app".
+    supabaseAdmin.from('session_seconds').select('user_id').gte('data', startOfTodayIso.slice(0, 10)),
+    supabaseAdmin.from('chapters_read').select('user_id').gte('created_at', startOfTodayIso),
+    supabaseAdmin.from('text_ai_chats').select('id', { count: 'exact', head: true }).eq('role', 'user').gte('created_at', startOfTodayIso),
+    supabaseAdmin.from('ai_answer_reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabaseAdmin.from('reading_groups').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('reading_group_members').select('user_id').eq('status', 'joined'),
   ])
 
-  if (totalUsersRes.error || newByDayRes.error || subsRes.error || contactTotalRes.error || contactUnansweredRes.error || funnelEventsRes.error) {
-    const err = totalUsersRes.error || newByDayRes.error || subsRes.error || contactTotalRes.error || contactUnansweredRes.error || funnelEventsRes.error
-    console.error('Failed to load admin metrics:', err.message)
+  const firstError = [totalUsersRes, newByDayRes, subsRes, contactTotalRes, contactUnansweredRes, funnelEventsRes, sessionTodayRes, chaptersTodayRes, aiChatsTodayRes, pendingReportsRes, groupsCountRes, groupMembersRes].find(r => r.error)
+  if (firstError) {
+    console.error('Failed to load admin metrics:', firstError.error.message)
     return res.status(500).json({ error: 'query_failed' })
   }
 
@@ -156,6 +222,28 @@ export default async function handler(req, res) {
   const free = subs.filter(s => s.access_type === 'free' && s.status === 'active').length
   const lifetime = subs.filter(s => s.access_type === 'lifetime' && s.status === 'active').length
 
+  const trialCount = subs.filter(s => s.status === 'trialing').length
+  const trialsExpiringSoon = subs.filter(s => s.status === 'trialing' && s.current_period_end && s.current_period_end <= in48hIso).length
+  const paymentErrorsToday = pastDueSubs.filter(s => s.updated_at && s.updated_at >= startOfTodayIso).length
+
+  // DAU (proxy honesto — ver comentário na consulta acima).
+  const dauSet = new Set([...(sessionTodayRes.data ?? []).map(r => r.user_id), ...(chaptersTodayRes.data ?? []).map(r => r.user_id)])
+
+  const weeklySignups = weeklySignupSeries(subs, 12, now)
+  const retentionByWeek = computeRetentionByWeek(recurringSubs, now)
+
+  // Grupos e igrejas (23a) — "quem está em grupo retém quanto mais" é o
+  // argumento de produto mais importante do painel (ver nota do mockup),
+  // por isso os dois números vêm juntos aqui.
+  const groupMemberIds = new Set((groupMembersRes.data ?? []).map(r => r.user_id))
+  const subscribersInGroup = activeRecurring.filter(s => groupMemberIds.has(s.user_id)).length
+  const pctSubscribersInGroup = activeRecurring.length > 0 ? Math.round((subscribersInGroup / activeRecurring.length) * 100) : 0
+  const retentionInGroup = computeRetentionCohort(recurringSubs.filter(s => groupMemberIds.has(s.user_id)), 30, 90)
+  const retentionSolo = computeRetentionCohort(recurringSubs.filter(s => !groupMemberIds.has(s.user_id)), 30, 90)
+  const groupRetentionMultiplier = retentionInGroup.pct != null && retentionSolo.pct != null && retentionSolo.pct > 0
+    ? Math.round((retentionInGroup.pct / retentionSolo.pct) * 10) / 10
+    : null
+
   return res.status(200).json({
     users: {
       total: totalUsersRes.data ?? 0,
@@ -164,8 +252,11 @@ export default async function handler(req, res) {
     subscriptions: {
       mrrCents: { brl: Math.round(mrrCents.brl), usd: Math.round(mrrCents.usd) },
       activeByPlan,
+      activeTotal: activeRecurring.length,
       free,
       lifetime,
+      trialCount,
+      trialsExpiringSoon,
     },
     contact: {
       total: contactTotalRes.count ?? 0,
@@ -173,7 +264,20 @@ export default async function handler(req, res) {
       answered: (contactTotalRes.count ?? 0) - (contactUnansweredRes.count ?? 0),
     },
     pastDueSubscriptions,
+    paymentErrorsToday,
     retention,
+    retentionByWeek,
+    weeklySignups,
+    dau: dauSet.size,
+    ai: {
+      questionsToday: aiChatsTodayRes.count ?? 0,
+      pendingReports: pendingReportsRes.count ?? 0,
+    },
+    groups: {
+      activeCount: groupsCountRes.count ?? 0,
+      pctSubscribersInGroup,
+      retentionMultiplier: groupRetentionMultiplier,
+    },
     onboardingFunnel: {
       windowDays: days,
       language,
