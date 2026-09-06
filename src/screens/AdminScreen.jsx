@@ -20,9 +20,12 @@ export default function AdminScreen({ session }) {
 
       <div style={styles.body}>
         {/* Título — só no desktop (≥768px), igual Rotina/Início/Progresso.
-            No mobile o Figma pula direto pras abas de métricas. */}
-        <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>
-          <h1 className="page-title">{t('admin.pageTitle', undefined, lang)}</h1>
+            No mobile o Figma pula direto pras abas de métricas. Sem quadro
+            próprio no handoff (ferramenta interna de admin, redesenhada em
+            Bento seguindo a linguagem visual já estabelecida no resto do
+            app, mesmo padrão de GroupsScreen/StudiesScreen). */}
+        <div className="hide-on-mobile" style={{ marginBottom: 4 }}>
+          <h1 style={styles.pageTitle}>{t('admin.pageTitle', undefined, lang)}</h1>
         </div>
         <div style={styles.tabBar}>
           {TABS.map(id => (
@@ -33,7 +36,7 @@ export default function AdminScreen({ session }) {
               aria-label={t(`admin.tab.${id}`, undefined, lang)}
               title={t(`admin.tab.${id}`, undefined, lang)}
             >
-              <AppIcon name={TAB_ICONS[id]} size={14} color={tab === id ? 'white' : 'var(--g5)'} />
+              <AppIcon name={TAB_ICONS[id]} size={14} color={tab === id ? '#fff' : 'var(--bento-t3)'} />
               {/* Rótulo só em telas desktop (≥768px, ver .admin-tab-label no
                   index.css) — no mobile os 5 botões só cabem sem rolar de
                   lado ficando ícone-only, igual a maioria dos bottom tabs. */}
@@ -280,7 +283,7 @@ function UsersTab({ lang }) {
             {results.map(u => (
               <button key={u.id} type="button" style={styles.userResultItem} onClick={() => selectUser(u)}>
                 <span style={{ fontWeight: 700 }}>{u.name ?? u.email}</span>
-                {u.name && <span style={{ color: 'var(--g5)', marginLeft: 6 }}>{u.email}</span>}
+                {u.name && <span style={{ color: 'var(--bento-t3)', marginLeft: 6 }}>{u.email}</span>}
               </button>
             ))}
           </div>
@@ -458,17 +461,17 @@ function ContactTab({ lang }) {
                   placeholder={t('admin.contact.replyPlaceholder', undefined, lang)}
                 />
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn-primary" style={{ flex: 1 }} disabled={sending} onClick={() => submitReply(msg.id)}>
+                  <button style={{ ...styles.primaryBtn, flex: 1 }} disabled={sending} onClick={() => submitReply(msg.id)}>
                     {sending ? t('admin.sending', undefined, lang) : t('admin.contact.sendReplyBtn', undefined, lang)}
                   </button>
-                  <button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }} onClick={() => setReplyingId(null)}>
+                  <button style={{ ...styles.secondaryBtn, width: 'auto', padding: '9px 16px' }} onClick={() => setReplyingId(null)}>
                     {t('admin.cancelBtn', undefined, lang)}
                   </button>
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px', marginTop: 4 }} onClick={() => startReply(msg)}>
+                <button style={{ ...styles.secondaryBtn, width: 'auto', padding: '8px 16px', marginTop: 4 }} onClick={() => startReply(msg)}>
                   {t('admin.contact.replyBtn', undefined, lang)}
                 </button>
                 <button style={styles.deleteBtn} onClick={() => handleDelete(msg)}>
@@ -591,7 +594,7 @@ function ReportsTab({ lang }) {
 
           {r.status === 'pending' ? (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn-secondary" style={{ width: 'auto', padding: '8px 16px', marginTop: 4 }} disabled={busyId === r.id} onClick={() => setStatus(r, 'reviewed')}>
+              <button style={{ ...styles.secondaryBtn, width: 'auto', padding: '8px 16px', marginTop: 4 }} disabled={busyId === r.id} onClick={() => setStatus(r, 'reviewed')}>
                 {R('markReviewed')}
               </button>
               <button style={styles.deleteBtn} disabled={busyId === r.id} onClick={() => setStatus(r, 'dismissed')}>
@@ -599,7 +602,7 @@ function ReportsTab({ lang }) {
               </button>
             </div>
           ) : (
-            <button style={{ ...styles.deleteBtn, alignSelf: 'flex-start', color: 'var(--g5)' }} disabled={busyId === r.id} onClick={() => setStatus(r, 'pending')}>
+            <button style={{ ...styles.deleteBtn, alignSelf: 'flex-start', color: 'var(--bento-t3)' }} disabled={busyId === r.id} onClick={() => setStatus(r, 'pending')}>
               {R('reopen')}
             </button>
           )}
@@ -674,7 +677,7 @@ function RecipientSelector({ lang, mode, setMode, selectedUser, setSelectedUser,
               {results.map(u => (
                 <button key={u.id} type="button" style={styles.userResultItem} onClick={() => { setSelectedUser(u); setResults([]) }}>
                   <span style={{ fontWeight: 700 }}>{u.name ?? u.email}</span>
-                  {u.name && <span style={{ color: 'var(--g5)', marginLeft: 6 }}>{u.email}</span>}
+                  {u.name && <span style={{ color: 'var(--bento-t3)', marginLeft: 6 }}>{u.email}</span>}
                 </button>
               ))}
             </div>
@@ -889,10 +892,10 @@ function BroadcastTab({ lang }) {
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn-secondary" style={{ flex: 1 }} disabled={checking || sending} onClick={handleCheckRecipients}>
+        <button style={{ ...styles.secondaryBtn, flex: 1 }} disabled={checking || sending} onClick={handleCheckRecipients}>
           {checking ? t('admin.loading', undefined, lang) : t('admin.broadcast.checkBtn', undefined, lang)}
         </button>
-        <button className="btn-primary" style={{ flex: 1 }} disabled={sending || checking} onClick={handleSubmit}>
+        <button style={{ ...styles.primaryBtn, flex: 1 }} disabled={sending || checking} onClick={handleSubmit}>
           {sending ? t('admin.sending', undefined, lang) : t('admin.broadcast.sendBtn', undefined, lang)}
         </button>
       </div>
@@ -1024,7 +1027,7 @@ function InvitesTab({ lang }) {
           </p>
         )}
 
-        <button className="btn-primary" disabled={creating || !email.trim()} onClick={handleCreate}>
+        <button style={styles.primaryBtn} disabled={creating || !email.trim()} onClick={handleCreate}>
           {creating ? t('admin.sending', undefined, lang) : t('admin.invites.createBtn', undefined, lang)}
         </button>
       </div>
@@ -1057,83 +1060,88 @@ function InvitesTab({ lang }) {
   )
 }
 
+const FONT = 'var(--font-bento)'
+
 const styles = {
-  body:               { padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', gap: 14 },
-  tabBar:             { display: 'flex', gap: 6, background: 'var(--g1)', borderRadius: 12, padding: 4 },
-  tabBtn:             { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, border: 'none', background: 'none', borderRadius: 9, padding: '9px 6px', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer' },
-  tabBtnActive:       { background: 'var(--bk)', color: 'white' },
+  body:               { padding: '20px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 },
+  pageTitle:          { fontFamily: FONT, fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
+  tabBar:             { display: 'flex', gap: 4, background: 'var(--bento-line)', borderRadius: 14, padding: 4 },
+  tabBtn:             { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, border: 'none', background: 'none', borderRadius: 10, padding: '9px 6px', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  tabBtnActive:       { background: 'var(--bento-ink)', color: '#fff' },
   grid:               { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-  statCard:           { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: '14px 14px', boxShadow: 'var(--shadow-card)' },
-  statCardHighlight:  { background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.2)' },
-  statLabel:          { fontSize: 10.5, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 6px' },
-  statValue:          { fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--bk)', margin: 0, lineHeight: 1.3 },
-  funnelCard:         { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: '16px 16px 14px', boxShadow: 'var(--shadow-card)' },
-  funnelTitle:        { fontSize: 14.5, fontWeight: 800, color: 'var(--bk)', margin: 0 },
-  funnelSubtitle:     { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', margin: '2px 0 12px' },
+  statCard:           { background: 'var(--bento-card)', borderRadius: 20, padding: '14px 14px' },
+  statCardHighlight:  { background: 'var(--bento-sand)' },
+  statLabel:          { fontFamily: FONT, fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 6px' },
+  statValue:          { fontFamily: FONT, fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', margin: 0, lineHeight: 1.3 },
+  funnelCard:         { background: 'var(--bento-card)', borderRadius: 20, padding: '16px 16px 14px' },
+  funnelTitle:        { fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
+  funnelSubtitle:     { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 12px' },
   funnelFilters:      { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 },
   funnelFilterGroup:  { display: 'flex', flexWrap: 'wrap', gap: 6 },
-  funnelFilterBtn:    { padding: '5px 11px', fontSize: 12, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', borderRadius: 8, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  funnelFilterBtnActive: { color: 'white', background: 'var(--grad-primary)', border: 'none' },
+  funnelFilterBtn:    { padding: '5px 11px', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', borderRadius: 8, border: 'none', background: 'var(--bento-line)' },
+  funnelFilterBtnActive: { color: '#fff', background: 'var(--bento-ink)' },
   funnelRows:         { display: 'flex', flexDirection: 'column', gap: 8 },
   funnelRow:          { display: 'grid', gridTemplateColumns: '124px 1fr 44px', alignItems: 'center', gap: 8 },
-  funnelLabel:        { fontSize: 12, fontWeight: 600, color: 'var(--g6)', lineHeight: 1.25 },
-  funnelLabelHighlight: { color: 'var(--or)', fontWeight: 800 },
-  funnelBarTrack:     { height: 8, borderRadius: 5, background: 'var(--g1)', overflow: 'hidden' },
-  funnelBarFill:      { height: '100%', borderRadius: 5, background: 'var(--g4)', minWidth: 3 },
-  funnelBarFillHighlight: { background: 'var(--grad-primary)' },
+  funnelLabel:        { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-t2)', lineHeight: 1.25 },
+  funnelLabelHighlight: { color: 'var(--bento-accent)', fontWeight: 800 },
+  funnelBarTrack:     { height: 8, borderRadius: 5, background: 'var(--bento-line)', overflow: 'hidden' },
+  funnelBarFill:      { height: '100%', borderRadius: 5, background: 'var(--bento-t5)', minWidth: 3 },
+  funnelBarFillHighlight: { background: 'var(--bento-ink)' },
   funnelCountWrap:    { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.15 },
-  funnelCount:        { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  funnelPct:          { fontSize: 10, fontWeight: 600, color: 'var(--g4)' },
+  funnelCount:        { fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)' },
+  funnelPct:          { fontFamily: FONT, fontSize: 10, fontWeight: 600, color: 'var(--bento-t4)' },
   pastDueList:        { display: 'flex', flexDirection: 'column', gap: 2 },
-  pastDueRow:         { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: '0.5px solid var(--g2)', textDecoration: 'none' },
-  pastDueName:        { fontSize: 13, fontWeight: 700, color: 'var(--bk)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  pastDueEmail:       { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  pastDueAmount:      { fontSize: 12.5, fontWeight: 700, color: 'var(--re)', flexShrink: 0 },
-  userDetailCard:     { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: '16px 16px 18px', boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 14 },
+  pastDueRow:         { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: '1px solid var(--bento-line)', textDecoration: 'none' },
+  pastDueName:        { fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  pastDueEmail:       { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  pastDueAmount:      { fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--re)', flexShrink: 0 },
+  userDetailCard:     { background: 'var(--bento-card)', borderRadius: 20, padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 14 },
   userDetailHeader:   { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  userDetailName:     { fontSize: 15.5, fontWeight: 800, color: 'var(--bk)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  userDetailEmail:    { fontSize: 12.5, fontWeight: 500, color: 'var(--g5)', margin: '2px 0 0' },
-  userDetailLangBadge: { fontSize: 10.5, fontWeight: 800, color: 'var(--g5)', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 7, padding: '3px 7px', flexShrink: 0 },
+  userDetailName:     { fontFamily: FONT, fontSize: 15.5, fontWeight: 800, color: 'var(--bento-ink)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  userDetailEmail:    { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
+  userDetailLangBadge: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, color: 'var(--bento-t3)', background: 'var(--bento-line)', borderRadius: 7, padding: '3px 7px', flexShrink: 0 },
   userDetailGrid:     { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
-  userDetailStat:     { background: 'var(--g1)', borderRadius: 12, padding: '9px 11px' },
-  userDetailStatLabel: { fontSize: 10, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 3px' },
-  userDetailStatValue: { fontFamily: 'var(--font-display)', fontSize: 14.5, fontWeight: 800, color: 'var(--bk)', margin: 0 },
+  userDetailStat:     { background: 'var(--bento-line)', borderRadius: 12, padding: '9px 11px' },
+  userDetailStatLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 700, color: 'var(--bento-t3)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 3px' },
+  userDetailStatValue: { fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
   userDetailSection:  { display: 'flex', flexDirection: 'column', gap: 5 },
-  userDetailSectionTitle: { fontSize: 11, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, margin: 0 },
+  userDetailSectionTitle: { fontFamily: FONT, fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)', textTransform: 'uppercase', letterSpacing: 0.3, margin: 0 },
   userDetailSubRow:   { display: 'flex', alignItems: 'center', gap: 8 },
-  userDetailSubDetail: { fontSize: 12.5, fontWeight: 600, color: 'var(--bk)' },
-  userDetailMailBtn:  { textAlign: 'center', width: '100%', border: '0.5px solid var(--g2)', background: 'var(--g1)', borderRadius: 12, padding: 11, fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--bk)', textDecoration: 'none' },
-  statusBadge:        { fontSize: 10.5, fontWeight: 800, borderRadius: 7, padding: '3px 8px', textTransform: 'uppercase', letterSpacing: 0.3 },
+  userDetailSubDetail: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-ink)' },
+  userDetailMailBtn:  { textAlign: 'center', width: '100%', border: 'none', background: 'var(--bento-line)', borderRadius: 12, padding: 11, fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', textDecoration: 'none' },
+  statusBadge:        { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, borderRadius: 7, padding: '3px 8px', textTransform: 'uppercase', letterSpacing: 0.3 },
   statusBadgeGood:    { color: 'var(--gr)', background: 'var(--grl, rgba(34,197,94,.1))' },
   statusBadgeBad:     { color: 'var(--re)', background: 'var(--rel)' },
-  hint:               { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '10px 2px' },
-  errorMsg:           { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
-  resultMsg:          { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 8, padding: '8px 10px' },
-  filterRow:          { display: 'flex', gap: 6 },
-  filterBtn:          { border: '0.5px solid var(--g2)', background: 'white', borderRadius: 9, padding: '7px 14px', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer' },
-  filterBtnActive:    { background: 'var(--bk)', color: 'white', border: '0.5px solid var(--bk)' },
-  deleteBtn:          { border: 'none', background: 'none', borderRadius: 8, padding: '8px 10px', marginTop: 4, fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--re)', cursor: 'pointer' },
-  messageCard:        { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 8 },
+  hint:               { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', padding: '10px 2px' },
+  errorMsg:           { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px' },
+  resultMsg:          { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 8, padding: '8px 10px' },
+  filterRow:          { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  filterBtn:          { border: 'none', background: 'var(--bento-line)', borderRadius: 9, padding: '7px 14px', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  filterBtnActive:    { background: 'var(--bento-ink)', color: '#fff' },
+  deleteBtn:          { border: 'none', background: 'none', borderRadius: 8, padding: '8px 10px', marginTop: 4, fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--re)', cursor: 'pointer' },
+  messageCard:        { background: 'var(--bento-card)', borderRadius: 20, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 },
   messageHeader:      { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  messageName:        { fontSize: 13, fontWeight: 800, color: 'var(--bk)', margin: 0 },
-  messageEmail:       { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', margin: '2px 0 0' },
-  messageBody:        { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' },
-  answeredBadge:      { fontSize: 10, fontWeight: 700, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 },
-  pendingBadge:       { fontSize: 10, fontWeight: 700, color: 'var(--or)', background: 'var(--olt)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 },
-  replyPreview:       { background: 'var(--g1)', borderRadius: 10, padding: 10 },
-  replyPreviewLabel:  { fontSize: 9.5, fontWeight: 700, color: 'var(--g5)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 4px' },
-  replyPreviewBody:   { fontSize: 12, fontWeight: 500, color: 'var(--g6)', margin: 0, whiteSpace: 'pre-wrap' },
+  messageName:        { fontFamily: FONT, fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
+  messageEmail:       { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
+  messageBody:        { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap' },
+  answeredBadge:      { fontFamily: FONT, fontSize: 10, fontWeight: 700, color: 'var(--gr)', background: 'var(--grl)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 },
+  pendingBadge:       { fontFamily: FONT, fontSize: 10, fontWeight: 700, color: 'var(--bento-accent)', background: 'rgba(240,102,43,.12)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 },
+  replyPreview:       { background: 'var(--bento-line)', borderRadius: 10, padding: 10 },
+  replyPreviewLabel:  { fontFamily: FONT, fontSize: 9.5, fontWeight: 700, color: 'var(--bento-t3)', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 4px' },
+  replyPreviewBody:   { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t2)', margin: 0, whiteSpace: 'pre-wrap' },
   replyForm:          { display: 'flex', flexDirection: 'column', gap: 8 },
-  form:               { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 22, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: 'var(--shadow-card)' },
+  form:               { background: 'var(--bento-card)', borderRadius: 22, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 },
   fieldWrap:          { display: 'flex', flexDirection: 'column', gap: 5 },
-  fieldLabel:         { fontSize: 10, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.3, textTransform: 'uppercase' },
-  input:              { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)', boxSizing: 'border-box' },
-  textarea:           { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)', resize: 'vertical', boxSizing: 'border-box' },
+  fieldLabel:         { fontFamily: FONT, fontSize: 10, fontWeight: 800, color: 'var(--bento-t4)', letterSpacing: '.08em', textTransform: 'uppercase' },
+  input:              { width: '100%', border: 'none', borderRadius: 12, padding: '10px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', boxSizing: 'border-box' },
+  textarea:           { width: '100%', border: 'none', borderRadius: 12, padding: '10px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', resize: 'vertical', boxSizing: 'border-box' },
   checkboxRow:        { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' },
-  checkboxLabel:       { fontSize: 12.5, fontWeight: 600, color: 'var(--g6)' },
-  select:             { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '9px 10px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 600, color: 'var(--bk)', outline: 'none', background: 'var(--g1)', boxSizing: 'border-box' },
+  checkboxLabel:       { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-t2)' },
+  select:             { width: '100%', border: 'none', borderRadius: 12, padding: '9px 10px', fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', boxSizing: 'border-box' },
   segmentGrid:        { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 },
-  clearSelectionBtn:  { alignSelf: 'flex-start', border: 'none', background: 'none', fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700, color: 'var(--g5)', cursor: 'pointer', padding: '2px 0' },
-  userResults:        { display: 'flex', flexDirection: 'column', gap: 2, background: 'white', border: '0.5px solid var(--g2)', borderRadius: 10, overflow: 'hidden' },
-  userResultItem:     { textAlign: 'left', border: 'none', background: 'none', padding: '9px 12px', fontFamily: 'var(--font)', fontSize: 12.5, color: 'var(--bk)', cursor: 'pointer' },
+  clearSelectionBtn:  { alignSelf: 'flex-start', border: 'none', background: 'none', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', padding: '2px 0' },
+  userResults:        { display: 'flex', flexDirection: 'column', gap: 2, background: 'var(--bento-card)', borderRadius: 10, overflow: 'hidden' },
+  userResultItem:     { textAlign: 'left', border: 'none', background: 'none', padding: '9px 12px', fontFamily: FONT, fontSize: 12.5, color: 'var(--bento-ink)', cursor: 'pointer' },
+  primaryBtn:         { border: 'none', borderRadius: 12, padding: '10px 16px', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
+  secondaryBtn:       { border: 'none', borderRadius: 12, padding: '10px 16px', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-t3)', background: 'var(--bento-line)', cursor: 'pointer' },
 }
