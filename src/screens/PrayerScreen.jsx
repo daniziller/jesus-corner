@@ -12,11 +12,12 @@
 // 20/30). "+2 min" ao lado do relógio estica só a ETAPA em andamento (não
 // reinicia nada). O chip "Método ACTS ⌄" alterna pra oração livre (26h) —
 // a escolha fica salva no aparelho (prayerMethodStore.js) e Súplica mostra
-// quantos pedidos estão esperando (dado real, ver PrayerRequests).
+// quantos pedidos estão esperando de verdade (25a, ver SupplicationCard —
+// substitui o antigo diário pessoal, ver git history se precisar dele).
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { ACTS_DATA, phaseMinutesFor } from '../components/acts/ActsCard'
-import PrayerRequests from '../components/prayer/PrayerRequests'
-import { getRequests } from '../prayer/prayerStore'
+import SupplicationCard from '../components/prayer/SupplicationCard'
+import { getSupplicationRequests } from '../groups/prayerRequestsStore'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { getPrayerMethod, setPrayerMethod } from '../prayer/prayerMethodStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
@@ -66,14 +67,18 @@ export default function PrayerScreen({ session, authUser, completedSet, stepMinu
   // "+2 min" (26a) — estica só a etapa em andamento, por id, sem afetar as
   // outras nem reiniciar o cronômetro (ver adjustedPhaseMinutes abaixo).
   const [phaseExtraMinutes, setPhaseExtraMinutes] = useState({})
+  // Contagem real de quem espera oração (até 3, ver
+  // get_supplication_requests) — busca uma vez aqui pra alimentar o rótulo
+  // da fileira "Súplica" mesmo antes de tocar nela; SupplicationCard
+  // (montado só quando a etapa em vista É a Súplica) mantém isto
+  // sincronizado depois de qualquer Orei/pedido novo/encerramento.
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const totalMinutes = stepMinutes?.prayer ?? session.plan.prayerMinutes
   const email = authUser?.email
 
   useEffect(() => {
-    if (!email) return
-    getRequests(email).then(list => setPendingRequestsCount(list.filter(r => r.status === 'praying').length)).catch(() => {})
-  }, [email])
+    getSupplicationRequests(3).then(list => setPendingRequestsCount(list.length)).catch(() => {})
+  }, [])
 
   const phaseMinutes = useMemo(() => phaseMinutesFor(totalMinutes), [totalMinutes])
   const adjustedPhaseMinutes = useMemo(
@@ -436,6 +441,18 @@ export default function PrayerScreen({ session, authUser, completedSet, stepMinu
                 </div>
               )}
             </div>
+
+            {/* Esperando oração + Fazer um pedido (25a/25b) — só enquanto a
+                etapa em vista É a Súplica; ver SupplicationCard.jsx. */}
+            {previewPhase.id === 'S' && (
+              <SupplicationCard
+                lang={lang}
+                authUser={authUser}
+                hasAI={session.hasAI}
+                onViewAll={() => onNavigate?.('groups')}
+                onCountChange={setPendingRequestsCount}
+              />
+            )}
           </>
         ) : (
           <>
@@ -480,12 +497,6 @@ export default function PrayerScreen({ session, authUser, completedSet, stepMinu
           onGoStudy={() => onNavigate?.('studies')}
           onGoReflection={() => onNavigate?.('reflection')}
         />
-
-        {/* Pedidos de oração pessoais — fora do quadro 21a, mantidos tal
-            como já existiam (não reskinado por inteiro nesta passada). */}
-        <div style={styles.requestsWrap}>
-          <PrayerRequests authUser={authUser} lang={lang} />
-        </div>
       </div>
 
       {/* Rodapé fixo — sempre ativo, mesmo antes do cronômetro acabar. */}
@@ -564,8 +575,6 @@ const styles = {
   nudgeCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '14px 18px' },
   nudgeLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
   nudgeChip: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', background: 'var(--bento-line)', borderRadius: 99, padding: '9px 12px' },
-
-  requestsWrap: { marginTop: 4 },
 
   footer: { flexShrink: 0, padding: '12px 20px calc(20px + var(--safe-bottom))' },
   finishBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)', boxShadow: '0 10px 26px rgba(240,102,43,.35)' },
