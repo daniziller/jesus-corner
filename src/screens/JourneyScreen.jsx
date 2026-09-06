@@ -1,12 +1,48 @@
 // JourneyScreen.jsx — "Bíblia" (reskin Bento — tela 5f, leitura livre)
 import { useState, useEffect } from 'react'
 import { sessionKeys, computeBookChapterCounts } from '../utils/progress'
+import { computeMetricsBlocks, computeTestamentTotals } from '../data/metricsBlocks'
 import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { formatRelativeTime } from '../utils/time'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 import BookChapterScreen from './BookChapterScreen'
+
+// "Você está em Gênesis 41" (progresso real) ou "Mateus é um bom começo"
+// (zero progresso ainda) — quadro 28a. blocksSubset = os 4 blocos de um
+// testamento (blocks 1–4 = AT, 5–8 = NT), na ordem canônica.
+function testamentStatusLine(blocksSubset, completedSet, bookChapterCounts, lang) {
+  const hasAnyProgress = blocksSubset.some(block => block.books.some(book => {
+    const total = bookChapterCounts[book] ?? 0
+    for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${book}:${ch}`)) return true
+    return false
+  }))
+  if (!hasAnyProgress) {
+    const firstBlock = blocksSubset[0]
+    return { started: false, book: lang === 'en' ? firstBlock.booksEn[0] : firstBlock.books[0] }
+  }
+  for (const block of blocksSubset) {
+    for (let i = 0; i < block.books.length; i++) {
+      const book = block.books[i]
+      const total = bookChapterCounts[book] ?? 0
+      for (let ch = 1; ch <= total; ch++) {
+        if (!completedSet.has(`${book}:${ch}`)) {
+          return { started: true, book: lang === 'en' ? block.booksEn[i] : book, chapter: ch }
+        }
+      }
+    }
+  }
+  // Testamento inteiro já lido — mostra onde ele termina.
+  const lastBlock = blocksSubset[blocksSubset.length - 1]
+  const lastIdx = lastBlock.books.length - 1
+  const lastBook = lastBlock.books[lastIdx]
+  return {
+    started: true,
+    book: lang === 'en' ? lastBlock.booksEn[lastIdx] : lastBook,
+    chapter: bookChapterCounts[lastBook] ?? 0,
+  }
+}
 
 // Remove acentos pra busca não exigir digitar "Êxodo" com acento certo.
 function normalizeSearch(str) {
@@ -27,7 +63,7 @@ function flattenBooks(blocksSubset, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom,
+  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -38,6 +74,21 @@ export default function JourneyScreen({
   // "Novo →"). Volta pro testamento certo sozinho ao voltar de um livro
   // (ver lastViewedBlockId) ou pular pra um vindo de fora da lista.
   const [testament, setTestament] = useState('at')
+  // Bloco 5 do redesign (28a/28b): a aba abre nos DOIS testamentos, do
+  // mesmo tamanho — não mais um cartão só com link "Novo →". Tocar
+  // "Abrir" num deles entra na lista de livros (28b, testamentEntered);
+  // "‹" na lista volta pros dois cartões. Buscar pula os dois estágios
+  // (mesmo comportamento de sempre — ver gridBooks abaixo).
+  const [testamentEntered, setTestamentEntered] = useState(false)
+  // Chips de grupo dentro da lista de livros (28b: "Todos os 39 /
+  // Pentateuco / Históricos / Poéticos / Proféticos") — reseta ao trocar
+  // de testamento ou entrar de novo.
+  const [blockFilter, setBlockFilter] = useState('all')
+  function enterTestament(which) {
+    setTestament(which)
+    setBlockFilter('all')
+    setTestamentEntered(true)
+  }
 
   // Bloco "aberto" (visão de leitura) — null significa visão geral (mapa de
   // blocos). Quando entryMode é 'reading' (ex: botão "Continuar sessão" na
@@ -224,6 +275,7 @@ export default function JourneyScreen({
         completedSet={completedSet}
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}
+        onMarkChaptersManually={onMarkChaptersManually}
         onGoToReflectionFrom={onGoToReflectionFrom}
         onNavigate={onNavigate}
         onBack={closeBook}
@@ -293,7 +345,28 @@ export default function JourneyScreen({
     return { done, total, pct: Math.round((done / total) * 100) }
   }
 
-  const gridBooks = searchResults ?? testamentBooks
+  // Grupos (Pentateuco/Históricos/Poéticos/Proféticos ou Evangelhos/Atos/
+  // Cartas/Apocalipse) dentro do testamento aberto — viram chips em 28b.
+  const groupBlocks = testament === 'at' ? blocks.filter(b => b.id <= 4) : blocks.filter(b => b.id >= 5)
+  const filteredBooks = blockFilter === 'all' ? testamentBooks : testamentBooks.filter(e => e.block.id === blockFilter)
+  const gridBooks = searchResults ?? filteredBooks
+  const showTestamentCards = !testamentEntered && !trimmedQuery
+
+  // Os dois cartões de testamento (28a) — mesmo peso, cada um com anel de
+  // %, quantos capítulos e uma linha de status real (onde você está, ou
+  // sugestão de começo se ainda não leu nada ali). Reaproveita
+  // metricsBlocks.js (Bloco 2) em vez de recalcular a mesma soma.
+  const metricsBlocks = computeMetricsBlocks(completedSet)
+  const { ot: otTotals, nt: ntTotals } = computeTestamentTotals(metricsBlocks)
+  const atBlocksList = blocks.filter(b => b.id <= 4)
+  const ntBlocksList = blocks.filter(b => b.id >= 5)
+  const otStatus = testamentStatusLine(atBlocksList, completedSet, bookChapterCounts, lang)
+  const ntStatus = testamentStatusLine(ntBlocksList, completedSet, bookChapterCounts, lang)
+  // Qual testamento é "onde a pessoa está agora" (cartão escuro, 28a) —
+  // o mesmo livro de session.currentBlock, comparado no idioma certo.
+  const currentBookName = session.currentBlock?.book
+  const activeTestament = currentBookName && atBlocksList.some(b => (lang === 'en' ? b.booksEn : b.books).includes(currentBookName))
+    ? 'at' : 'nt'
 
   return (
     <div style={styles.screen}>
@@ -319,9 +392,137 @@ export default function JourneyScreen({
       </div>
 
       <div style={styles.body2}>
-        {/* Última leitura livre (quadro 5f) — tempo relativo real; some com
-            busca ativa ou se nunca abriu nada por aqui ainda. */}
-        {!trimmedQuery && lastOpenedSession && (
+        {showTestamentCards ? (
+          <>
+            {/* Bíblia (28a) — os dois testamentos, do mesmo tamanho; o
+                escuro é só onde a pessoa está agora (currentBlock), não um
+                "principal" fixo. */}
+            {[
+              { key: 'at', totals: otTotals, status: otStatus, dark: activeTestament === 'at' },
+              { key: 'nt', totals: ntTotals, status: ntStatus, dark: activeTestament === 'nt' },
+            ].map(({ key, totals, status, dark }) => {
+              const blocksList = key === 'at' ? atBlocksList : ntBlocksList
+              const bookCount = blocksList.reduce((s, b) => s + b.books.length, 0)
+              return (
+                <div key={key} style={{ ...styles.testamentTile, background: dark ? 'var(--bento-ink)' : 'var(--bento-card)' }}>
+                  <div style={styles.testamentTileTop}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ ...styles.testamentTileEyebrow, color: dark ? 'rgba(255,255,255,.42)' : 'var(--bento-t4)' }}>
+                        {t('journey.booksCount', { n: bookCount }, lang)}
+                      </p>
+                      <p style={{ ...styles.testamentTileName, color: dark ? '#fff' : 'var(--bento-ink)' }}>
+                        {t(key === 'at' ? 'journey.oldTestament' : 'journey.newTestament', undefined, lang)}
+                      </p>
+                      <p style={{ ...styles.testamentTileSub, color: dark ? 'rgba(255,255,255,.5)' : 'var(--bento-t3)' }}>
+                        {t('journey.chaptersOfTotal', { done: totals.chaptersRead, total: totals.chaptersTotal }, lang)}
+                      </p>
+                    </div>
+                    <div style={{
+                      ...styles.testamentRing,
+                      background: `conic-gradient(var(--bento-accent) 0 ${totals.percent * 3.6}deg, ${dark ? 'rgba(255,255,255,.1)' : 'var(--bento-line)'} ${totals.percent * 3.6}deg 360deg)`,
+                    }}>
+                      <div style={{ ...styles.testamentRingInner, background: dark ? 'var(--bento-ink)' : '#fff' }}>
+                        <span style={{ ...styles.testamentRingPct, color: dark ? '#fff' : 'var(--bento-t3)' }}>{totals.percent}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={styles.testamentTileFoot}>
+                    <span style={{ ...styles.testamentStatusText, color: dark ? 'rgba(255,255,255,.45)' : 'var(--bento-t3)' }}>
+                      {status.started
+                        ? t('journey.youAreAt', { book: status.book, n: status.chapter }, lang)
+                        : t('journey.goodStart', { book: status.book }, lang)}
+                    </span>
+                    <button
+                      style={{ ...styles.testamentOpenBtn, background: dark ? 'var(--bento-accent)' : 'var(--bento-ink)', color: dark ? 'var(--bento-ink)' : '#fff' }}
+                      onClick={() => enterTestament(key)}
+                    >
+                      {t('journey.openBtn', undefined, lang)}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        ) : (
+          <>
+            {/* Livros do testamento (28b) — cabeçalho com voltar (não mais
+                o link "trocar" de 5f) + chips de grupo, filtrando a lista
+                sem esconder o "Todos". */}
+            <div style={styles.bookListHeader}>
+              {!searchResults && (
+                <button style={styles.backChip} onClick={() => setTestamentEntered(false)} aria-label={t('a11y.goBack', undefined, lang)}>
+                  <AppIcon name="ChevronLeft" size={15} strokeWidth={2.4} color="var(--bento-ink)" />
+                </button>
+              )}
+              <span style={styles.testamentLabel}>
+                {searchResults
+                  ? t('journey.searchResultsLabel', undefined, lang)
+                  : t(testament === 'at' ? 'journey.oldTestament' : 'journey.newTestament', undefined, lang)}
+              </span>
+            </div>
+
+            {!searchResults && (
+              <div style={styles.chipsRow}>
+                <button style={{ ...styles.filterChip, ...(blockFilter === 'all' ? styles.filterChipOn : {}) }} onClick={() => setBlockFilter('all')}>
+                  {t('journey.allBooksChip', { n: groupBlocks.reduce((s, b) => s + b.books.length, 0) }, lang)}
+                </button>
+                {groupBlocks.map(b => (
+                  <button
+                    key={b.id}
+                    style={{ ...styles.filterChip, ...(blockFilter === b.id ? styles.filterChipOn : {}) }}
+                    onClick={() => setBlockFilter(b.id)}
+                  >
+                    {lang === 'en' ? b.shortNameEn ?? b.nameEn : b.shortName ?? b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={styles.testamentCard}>
+              {gridBooks.length === 0 ? (
+                <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
+              ) : (
+                <div>
+                  {gridBooks.map((entry, i) => {
+                    const key = `${entry.block.id}:${entry.canonicalName}`
+                    const showSectionHeader = !!searchResults && (i === 0 || entry.block.id !== gridBooks[i - 1].block.id)
+                    const { done, total, pct } = progressFor(entry)
+                    const isLast = i === gridBooks.length - 1
+                    return (
+                      <div key={key}>
+                        {showSectionHeader && (
+                          <p style={{ ...styles.sectionLabel, marginTop: i === 0 ? 0 : 14 }}>
+                            {lang === 'en' ? entry.block.nameEn : entry.block.name}
+                          </p>
+                        )}
+                        <button
+                          style={{ ...styles.bookRow, borderBottom: isLast ? 'none' : '1px solid var(--bento-line)' }}
+                          onClick={() => openBook(entry.block, entry.canonicalName)}
+                        >
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={styles.bookRowName}>{entry.displayName}</span>
+                            <span style={styles.bookRowChapters}>{t('journey.chaptersOfTotal', { done, total }, lang)}</span>
+                          </span>
+                          <span style={styles.bookRowStat}>
+                            <span style={styles.bookRowBarTrack}>
+                              <span style={{ ...styles.bookRowBarFill, width: `${pct}%`, background: pct >= 100 ? 'var(--bento-ink)' : 'var(--bento-accent)' }} />
+                            </span>
+                            <span style={{ ...styles.bookRowPct, color: pct > 0 ? 'var(--bento-accent)' : 'var(--bento-t4)' }}>{pct}%</span>
+                          </span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Última leitura livre (quadro 5f/28a) — tempo relativo real;
+            some com busca ativa, na lista de livros, ou se nunca abriu
+            nada por aqui ainda. */}
+        {showTestamentCards && lastOpenedSession && (
           <button style={styles.lastReadCard} onClick={() => jumpToBook(lastOpenedBlock, lastOpenedSession.book, lastOpenedSession.id, false)}>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={styles.lastReadLabel}>{t('journey.lastFreeReadingLabel', undefined, lang)}</span>
@@ -334,63 +535,9 @@ export default function JourneyScreen({
           </button>
         )}
 
-        {/* Um cartão só com a grade de siglas do testamento (quadro 5f) e um
-            link pra trocar de lado; na busca, a grade mostra só os livros
-            que batem. Tocar numa sigla abre o livro logo abaixo da grade
-            (o mesmo ReadingBlockView embutido de sempre). */}
-        <div style={styles.testamentCard}>
-          <div style={styles.testamentHeader}>
-            <span style={styles.testamentLabel}>
-              {searchResults
-                ? t('journey.searchResultsLabel', undefined, lang)
-                : t(testament === 'at' ? 'journey.oldTestament' : 'journey.newTestament', undefined, lang)}
-            </span>
-            {!searchResults && (
-              <button style={styles.testamentSwitchBtn} onClick={() => setTestament(v => (v === 'at' ? 'nt' : 'at'))}>
-                {t(testament === 'at' ? 'journey.newTestamentShort' : 'journey.oldTestamentShort', undefined, lang)}
-              </button>
-            )}
-          </div>
-          {gridBooks.length === 0 ? (
-            <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
-          ) : (
-            <div>
-              {gridBooks.map((entry, i) => {
-                const key = `${entry.block.id}:${entry.canonicalName}`
-                // Cabeçalho de seção (Pentateuco, Históricos…) só quando não
-                // é busca — livros vêm em ordem canônica, então um novo
-                // bloco = uma seção nova. Na busca, fica uma lista só, sem
-                // subdividir (os resultados já cruzam seções).
-                const showSectionHeader = !searchResults && (i === 0 || entry.block.id !== gridBooks[i - 1].block.id)
-                const { done, total, pct } = progressFor(entry)
-                const isLast = i === gridBooks.length - 1
-                return (
-                  <div key={key}>
-                    {showSectionHeader && (
-                      <p style={{ ...styles.sectionLabel, marginTop: i === 0 ? 0 : 14 }}>
-                        {lang === 'en' ? entry.block.nameEn : entry.block.name}
-                      </p>
-                    )}
-                    <button
-                      style={{ ...styles.bookRow, borderBottom: isLast ? 'none' : '1px solid var(--bento-line)' }}
-                      onClick={() => openBook(entry.block, entry.canonicalName)}
-                    >
-                      <span style={styles.bookRowName}>{entry.displayName}</span>
-                      <span style={styles.bookRowBarTrack}>
-                        <span style={{ ...styles.bookRowBarFill, width: `${pct}%`, background: pct >= 100 ? 'var(--bento-ink)' : 'var(--bento-accent)' }} />
-                      </span>
-                      <span style={styles.bookRowCount}>{total || ''}</span>
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
         {/* Atalho de volta pra sessão estruturada do dia — as "duas portas
             para o mesmo texto" do quadro 5f. */}
-        {!trimmedQuery && onContinueSession && (
+        {showTestamentCards && onContinueSession && (
           <button style={styles.todaySessionCard} onClick={onContinueSession}>
             <span style={styles.todaySessionIcon}>
               <AppIcon name="BookOpen" size={16} strokeWidth={1.9} color="var(--bento-accent)" />
@@ -425,18 +572,42 @@ const styles = {
   lastReadTime:     { display: 'block', fontSize: 12, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-sand-label)' },
   lastReadOpenBtn:  { flexShrink: 0, height: 44, padding: '0 18px', borderRadius: 16, background: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', fontSize: 13, fontWeight: 800, lineHeight: 1, color: 'var(--bento-sand)' },
 
+  // Os dois cartões de testamento (28a) — mesmo tamanho, o escuro é só
+  // onde a pessoa está agora.
+  testamentTile: { borderRadius: 26, padding: 22, display: 'flex', flexDirection: 'column' },
+  testamentTileTop: { display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 16 },
+  testamentTileEyebrow: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 8px' },
+  testamentTileName: { fontFamily: 'var(--font-bento)', fontSize: 25, fontWeight: 800, lineHeight: 1.05, letterSpacing: '-1px', margin: '0 0 6px' },
+  testamentTileSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.3, margin: 0 },
+  testamentRing: { flexShrink: 0, width: 62, height: 62, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  testamentRingInner: { width: 50, height: 50, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  testamentRingPct: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800 },
+  testamentTileFoot: { display: 'flex', alignItems: 'center', gap: 10 },
+  testamentStatusText: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 },
+  testamentOpenBtn: { flexShrink: 0, height: 36, padding: '0 16px', borderRadius: 13, border: 'none', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer' },
+
+  // Lista de livros de um testamento (28b) — cabeçalho com voltar + chips
+  // de grupo, no lugar do link "trocar" de 5f.
+  bookListHeader: { display: 'flex', alignItems: 'center', gap: 10 },
+  backChip: { width: 30, height: 30, flexShrink: 0, borderRadius: 10, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  chipsRow: { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  filterChip: { border: 'none', background: 'var(--bento-card)', borderRadius: 99, padding: '9px 12px', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', whiteSpace: 'nowrap' },
+  filterChipOn: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
+
   testamentCard:   { background: 'var(--bento-card)', borderRadius: 24, padding: 20 },
   testamentHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px' },
   testamentLabel:  { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
   testamentSwitchBtn: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)', padding: 0 },
-  // Cabeçalho de seção (Pentateuco, Históricos…) e linha de livro — quadro
-  // 5f atualizado: nome completo + barra fina de progresso + total de
-  // capítulos, em vez da grade de siglas de antes.
+  // Cabeçalho de seção (Pentateuco, Históricos…) e linha de livro (28b):
+  // nome + "N de M capítulos" à esquerda, barra fina + % à direita.
   sectionLabel: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 2px' },
-  bookRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, height: 48, border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' },
-  bookRowName: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)' },
-  bookRowBarTrack: { width: 56, height: 4, borderRadius: 99, background: 'var(--bento-line)', flexShrink: 0, overflow: 'hidden' },
-  bookRowBarFill: { display: 'block', height: 4, borderRadius: 99 },
+  bookRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, height: 62, border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' },
+  bookRowName: { display: 'block', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', marginBottom: 4 },
+  bookRowChapters: { display: 'block', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, lineHeight: 1, color: 'var(--bento-t3)' },
+  bookRowStat: { flexShrink: 0, width: 62, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 },
+  bookRowBarTrack: { width: 62, height: 5, borderRadius: 99, background: 'var(--bento-line)', flexShrink: 0, overflow: 'hidden' },
+  bookRowBarFill: { display: 'block', height: 5, borderRadius: 99 },
+  bookRowPct: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1 },
   bookRowCount: { width: 34, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t4)' },
 
   todaySessionCard:  { width: '100%', borderRadius: 24, background: 'rgba(255,255,255,.6)', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },

@@ -49,6 +49,7 @@ import AdminScreen from './screens/AdminScreen'
 import HandsFreeScreen from './screens/HandsFreeScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
+import { markChaptersManually, unmarkChaptersManually } from './bible/manualChapterMarks'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
 import { levelFor, levelProgress } from './utils/levels'
 import { isAtLeast } from './utils/age'
@@ -1773,6 +1774,25 @@ export default function App() {
     }
   }
 
+  // Marcação livre de capítulo (28c, "Marcar lidos") — quem já leu antes
+  // do app marca capítulos à mão. Conta pro progresso (%) e pode disparar
+  // conquista de livro concluído, mas NUNCA marca a rotina do dia, o
+  // "último texto lido" nem avança o fluxo guiado — é dado de mapa, não de
+  // hábito (mesma distinção do quadro: "progresso e hábito continuam
+  // separados"). done=true marca todos os `chapters`; done=false desmarca.
+  function markChaptersManuallyFor(book, chapters, done) {
+    if (!authUser || chapters.length === 0) return
+    const keys = chapters.map(ch => `${book}:${ch}`)
+    const newlyDoneKeys = done ? keys.filter(k => !completedSet.has(k)) : []
+    const nextSet = new Set(completedSet)
+    keys.forEach(k => done ? nextSet.add(k) : nextSet.delete(k))
+    if (done && hasPremium) detectAndLogMilestones(completedSet, nextSet)
+    setCompletedSet(nextSet)
+    const persist = done ? markChaptersManually(book, chapters) : unmarkChaptersManually(book, chapters)
+    persist.catch(err => console.error('Failed to persist manual chapter marks', err))
+    recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
+  }
+
   if (!bootstrapped) {
     return (
       <>
@@ -1994,7 +2014,7 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onDetailOpenChange={setGroupsDetailOpen} />,
