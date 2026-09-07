@@ -1,19 +1,22 @@
-// ProgressScreen.jsx — "Sua caminhada" (redesign 1f, reskin Bento — tela 5b)
+// ProgressScreen.jsx — "Sua caminhada" (redesign 1f, reskin Bento).
 //
-// Dois placares, não sete: constância (semanal) e caminhada pela Bíblia
-// (bloco/livro atual). Nível e XP viram consequência silenciosa, revelada
-// discretamente no fim da tela — Conquistas saem da grade permanente e
-// passam a aparecer só no instante em que são ganhas (ver
-// AchievementCelebration.jsx, disparada pelo App.jsx). Entra por "Sua
-// caminhada" na Home, não por aba própria (ver comentário no HTML do
-// handoff) — a barra continua com Biblioteca no lugar de Progresso.
+// Tela `5b` do pacote de design — status SUPERSEDIDA pelo pacote novo
+// (rodadas 24-32, ver design_handoff_jesus_corner/PROMPT-PARA-CLAUDE-CODE.md
+// seção 3.3): 30b (MetricsScreen.jsx) + 30c (MetricsBlocksScreen.jsx) já
+// existem e cobrem o mesmo conteúdo com mais fidelidade ao design atual.
+// Ainda alcançável por "Sua caminhada" na Home — decidir se apaga ou
+// redireciona pra 30b fica pro bloco de Métricas (Bloco 7), pra não misturar
+// com a varredura de identidade (Bloco 1). Dois placares, não sete:
+// constância (semanal) e caminhada pela Bíblia (bloco/livro atual). Nível,
+// XP e conquistas saíram daqui na varredura de identidade (Bloco 1,
+// FLUXO-DO-APP.md seção 11) — não existe mais grade nem badge de conquista
+// em lugar nenhum do app.
 import { t as translate } from '../i18n'
-import PremiumLockCard from '../components/PremiumLockCard'
 import { pickActiveBlock, computeBookChapterCounts } from '../utils/progress'
 import { computeRecentWeeksStatus } from '../routine/routineStreak'
 
 export default function ProgressScreen({ session, blocks, sessionsByBlock, onNavigate }) {
-  const { lang, hasPremium, weeklyGoalDays, weeksInGoal, dailyRoutine } = session
+  const { lang, weeklyGoalDays, weeksInGoal, dailyRoutine } = session
   const L = (k, vars) => translate(`progress.${k}`, vars, lang)
 
   // "Desde {mês}" — dado real (o dia mais antigo com algo registrado na
@@ -117,25 +120,6 @@ export default function ProgressScreen({ session, blocks, sessionsByBlock, onNav
           </p>
         </div>
 
-        {/* Nível — consequência silenciosa, só pra quem já desbloqueou XP/
-            conquistas (Premium). Sem grade de conquistas: elas agora só
-            aparecem no instante em que são ganhas (ver App.jsx). */}
-        {hasPremium ? (
-          <div style={styles.levelCard}>
-            <span style={styles.levelBadge}>{session.level.level}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={styles.levelTitle}>{session.level.title}</p>
-              <p style={styles.levelSub}>
-                {session.nextLevel
-                  ? L('levelXpShort', { level: session.level.level, n: session.xpForNext.toLocaleString(locale) })
-                  : L('maxLevel')}
-              </p>
-            </div>
-            <span style={styles.levelChevron}>›</span>
-          </div>
-        ) : (
-          <PremiumLockCard lang={lang} onNavigate={onNavigate} variant="premium" />
-        )}
       </div>
     </div>
   )
@@ -181,17 +165,4 @@ const styles = {
   blockRowPct: { width: 36, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   blockRowPctTodo: { color: 'var(--bento-t6)', fontWeight: 600 },
   bibleFooter: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t5)', margin: '18px 0 0' },
-
-  levelCard: {
-    background: 'var(--bento-sand)', borderRadius: 24, padding: '18px 20px',
-    display: 'flex', alignItems: 'center', gap: 14,
-  },
-  levelBadge: {
-    width: 36, height: 36, flexShrink: 0, borderRadius: 12, background: 'var(--bento-sand-icon)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, lineHeight: '36px', color: 'var(--bento-sand)',
-  },
-  levelTitle: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-sand-ink-strong)', margin: '0 0 3px' },
-  levelSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-sand-label)', margin: 0 },
-  levelChevron: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-sand-label)', flexShrink: 0 },
 }

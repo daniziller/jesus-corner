@@ -289,14 +289,8 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
               {profile?.bio && <p style={s.bioDisplay}>{profile.bio}</p>}
               <div style={{ display: 'flex', gap: 20, marginTop: 14 }}>
                 <StatItem value={`${session.biblePercent}%`} label={L('bibleLabel')} />
-                {session.hasPremium ? (
-                  <>
-                    <StatItem value={session.level.level} label={L('levelLabel')} />
-                    <StatItem value={friendsCount} label={L('friendsLabel')} />
-                  </>
-                ) : (
-                  <StatItem value={session.chaptersRead} label={t('home.chaptersLabel', undefined, lang)} />
-                )}
+                <StatItem value={session.chaptersRead} label={t('home.chaptersLabel', undefined, lang)} />
+                {session.hasPremium && <StatItem value={friendsCount} label={L('friendsLabel')} />}
               </div>
             </div>
           )}
