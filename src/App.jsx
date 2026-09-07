@@ -23,6 +23,8 @@ import PrayerScreen from './screens/PrayerScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
 import AdjustPlanScreen from './screens/AdjustPlanScreen'
+import ReadingOrganizeScreen from './screens/ReadingOrganizeScreen'
+import StudyOrganizeScreen from './screens/StudyOrganizeScreen'
 import ChooseStartScreen from './screens/ChooseStartScreen'
 import ExistingProgressScreen from './screens/ExistingProgressScreen'
 import AiSettingsScreen from './screens/AiSettingsScreen'
@@ -1979,6 +1981,25 @@ export default function App() {
     recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
   }
 
+  // "Escolher" em 35i (Onde começar) — turno 35, Bloco 1. Diferente do
+  // "Trocar plano" antigo (applyStartChoice, ChooseStartScreen/28d): aqui
+  // não existe reordenar testamento nem plano alternativo, só marcar como
+  // lido tudo que vem ANTES do capítulo escolhido na ordem atual da leitura
+  // contínua (bibleOrderStore.js) — o mesmo princípio de "marcação manual"
+  // que 28c já usa (chapters_read, origem='manual'), só que em lote pra
+  // vários livros de uma vez. O capítulo escolhido em diante fica por ler.
+  function applyReadingStartPosition(bookOrder, book, chapter) {
+    for (const b of bookOrder) {
+      if (b === book) {
+        const before = Array.from({ length: chapter - 1 }, (_, i) => i + 1)
+        if (before.length) markChaptersManuallyFor(b, before, true)
+        break
+      }
+      const total = bookChapterCounts[b] ?? 0
+      if (total > 0) markChaptersManuallyFor(b, Array.from({ length: total }, (_, i) => i + 1), true)
+    }
+  }
+
   if (!bootstrapped) {
     return (
       <>
@@ -2168,8 +2189,18 @@ export default function App() {
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
+    // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;
+    // "onde começar/ordem/ritmo" e "estudo atual/banco/dias" saíram pras
+    // telas próprias readingOrganize (35i) e studyOrganize (35j) abaixo.
     adjustPlan: hasPremium
-      ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} activeAltPlan={activeAltPlan} onToggleRoutineModule={toggleRoutineModule} weeklyDays={weeklyDays} onSaveWeeklyDays={saveWeeklyDays} onNavigate={navigateTo} onBack={goBack} />
+      ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} onToggleRoutineModule={toggleRoutineModule} bookChapterCounts={bookChapterCounts} onNavigate={navigateTo} onBack={goBack} />
+      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    readingOrganize: hasPremium
+      ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
+      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    studyOrganize: hasPremium
+      ? <StudyOrganizeScreen session={session} onEndStudy={() => selectActiveStudy(null)} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // "Onde começar" (28d/28e, Bloco 6) — "Trocar plano" em Ajustar meu
     // plano (5a). chooseStartExisting nunca é alcançada por navegação
@@ -2352,7 +2383,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
     || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
@@ -2361,7 +2392,7 @@ export default function App() {
   // roda fora do chrome do app inteiro (ver .admin-active em index.css).
   // 'contact'/'applicationPhrases'/'inductiveMethod' também saem sozinhas
   // (tela de utilidade cheia, sem rodapé de rotina).
-  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
   const isAdminScreen = activeTab === 'admin'
 
   return (
