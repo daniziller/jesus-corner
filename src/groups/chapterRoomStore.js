@@ -2,6 +2,7 @@
 // migration 0045. Uma sala por (grupo, livro, capítulo): pergunta da semana
 // do moderador, respostas de quem já leu, reação única "Amém".
 import { supabase } from '../lib/supabaseClient'
+import { resolveAvatarUrl } from '../profile/profileStore'
 
 async function getUserId() {
   const { data } = await supabase.auth.getUser()
@@ -14,6 +15,22 @@ export async function getRoomStats(groupId, book, chapter) {
   if (error) { console.error('[chapterRoomStore] stats failed:', error.message); return { members: 0, completed: 0, posts: 0 } }
   const row = Array.isArray(data) ? data[0] : data
   return { members: row?.members ?? 0, completed: row?.completed ?? 0, posts: row?.posts ?? 0 }
+}
+
+// Quem já leu o capítulo de hoje, com nome/avatar (quadro 24a — fileira de
+// avatares do card "Sala aberta agora", ver migration 0056). Diferente de
+// getRoomStats acima: aqui é IDENTIDADE, não só contagem — mas ser do
+// mesmo grupo já expõe o nome de qualquer membro pra qualquer colega (ver
+// getGroupDetail em groupsStore.js), então isso não é mais exposição do
+// que o próprio roster do grupo já é.
+export async function getRoomMembers(groupId, book, chapter) {
+  const { data, error } = await supabase.rpc('group_chapter_room_members', { target_group_id: groupId, target_book: book, target_chapter: chapter })
+  if (error) { console.error('[chapterRoomStore] members failed:', error.message); return [] }
+  return Promise.all((data ?? []).map(async row => ({
+    userId: row.user_id,
+    name: row.name ?? '',
+    avatarUrl: await resolveAvatarUrl(row.avatar_url),
+  })))
 }
 
 export async function getRoomQuestion(groupId, book, chapter) {
