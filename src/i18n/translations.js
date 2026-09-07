@@ -595,6 +595,11 @@ export const STRINGS = {
       // caber ali; seeAll é o quadrado "+N" de estouro.
       addFriendShort: 'Adicionar',
       seeAll: 'Ver',
+      // Lupa do cabeçalho de 24a — filtra "Seus grupos" pelo nome.
+      searchGroups: 'Buscar grupos',
+      searchClose: 'Fechar busca',
+      searchGroupsPlaceholder: 'Nome do grupo',
+      searchNoResults: 'Nenhum grupo com esse nome.',
       friendEmailPlaceholder: 'Email do seu amigo',
       addFriendHint: 'Se essa pessoa ainda não tiver uma conta no Jesus\' Corner, ela vai receber um e-mail de convite pra se cadastrar.',
       send: 'Enviar',
@@ -2926,6 +2931,10 @@ export const STRINGS = {
       addFriend: 'Add friend',
       addFriendShort: 'Add',
       seeAll: 'See',
+      searchGroups: 'Search groups',
+      searchClose: 'Close search',
+      searchGroupsPlaceholder: 'Group name',
+      searchNoResults: 'No group with that name.',
       friendEmailPlaceholder: "Your friend's email",
       addFriendHint: "If this person doesn't have a Jesus' Corner account yet, they'll receive an email invitation to sign up.",
       send: 'Send',
