@@ -133,7 +133,7 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
           agora (condicional), seus grupos, criar/entrar e amigos. Antes
           disso abria direto numa lista simples sem quadro próprio no
           handoff; 24a é uma adição posterior que formaliza essa entrada. */}
-      <div className={`master-pane${detailOpen ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
+      <div className={`master-pane${detailOpen ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%', background: 'var(--bento-bg)' }}>
         <div style={styles.aHeader}>
           <div>
             <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
