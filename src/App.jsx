@@ -2308,13 +2308,19 @@ export default function App() {
   // e é lá que continuam o sino e o ajuste de tamanho de texto. Perfil não
   // é mais uma dessas — virou a folha ProfileSheet (19a), aberta pelo
   // avatar (Home e o próprio AppHeader) por cima de qualquer tela, sem
-  // navegar de aba. 'groups' só entra quando um grupo está aberto de fato
-  // (groupsDetailOpen — o painel 5d, que tem cabeçalho próprio); a lista
-  // de vários grupos, sem quadro no redesign,
-  // continua usando o AppHeader antigo, como sempre usou — só o painel de
-  // dentro de um grupo tinha o AppHeader antigo empilhado por cima do
-  // cabeçalho novo (achado numa auditoria, nunca chegou a ser notado
-  // visualmente).
+  // navegar de aba. 'groups' SEMPRE entra aqui, aberto num grupo ou não —
+  // achado corrigido em 2026-09-07: o comentário antigo aqui dizia que a
+  // LISTA de grupos "não tem quadro no redesign" e por isso mantinha o
+  // AppHeader antigo por cima; isso datava de antes do pacote novo
+  // (rodadas 24-32) chegar — 24a é exatamente essa lista, tela canônica
+  // própria, sem logotipo/sino/avatar nenhum por cima (só "Comunidade" +
+  // contagem + busca + "+"). GroupsScreen.jsx já tinha o cabeçalho certo
+  // (aHeader/bTitle, mesmo padding-top 22px das telas sem AppHeader) desde
+  // a leva anterior — só a condição aqui é que nunca deixava ele aparecer
+  // sozinho; ficava sempre com o AppHeader antigo empilhado em cima
+  // (visível na aba Comunidade tanto com quanto sem grupo aberto, nunca
+  // notado porque a varredura de identidade olhou tokens de cor, não
+  // esse tipo de duplicação estrutural).
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
   // 'profile' entrou nesta lista junto da migração pra Bento do Perfil de
   // desktop (antes ficava de fora, com o AppHeader antigo por cima da
@@ -2329,8 +2335,8 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab)
-    || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups'].includes(activeTab)
+    || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
