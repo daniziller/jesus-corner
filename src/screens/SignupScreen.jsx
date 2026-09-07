@@ -63,10 +63,11 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
       // Migra o progresso feito sem conta neste aparelho (leitura/plano já
       // guardados em localStorage). Sem linha de convidado não faz nada.
       // Falha aqui não pode travar o cadastro — o pior caso é reler.
-      // A conta acabou de ser criada agora mesmo — sem conflito real,
-      // migra a linha de convidado inteira (ver migrateGuestRow em
-      // userDataStore.js).
-      await migrateGuestRow({ freshAccount: true }).catch(err => console.error('Failed to migrate guest progress', err))
+      // migrateGuestRow() sempre faz "servidor vence" (só preenche campo
+      // vazio, nunca troca um valor que a conta já tinha) — numa conta que
+      // acabou de nascer isso já migra tudo, porque a conta ainda não tem
+      // nada de verdade pra "vencer" (ver userDataStore.js).
+      await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
       clearGuestInviteState()
       markHasAuthenticated()
 

@@ -770,10 +770,16 @@ export default function App() {
         // Sessão real encontrada com progresso de convidado ainda por
         // migrar (ex: voltando do redirect de confirmação de email depois
         // de ler como convidado e só então cadastrar) — mesma função que
-        // SignupScreen chama no caminho comum (cadastro recém-criado, sem
-        // conflito real — freshAccount:true), só que aqui cobre o caminho
-        // que passa por fora dele. Sem progresso de convidado, não faz nada.
-        await migrateGuestRow({ freshAccount: true }).catch(err => console.error('Failed to migrate guest progress', err))
+        // SignupScreen chama no caminho comum. Sem progresso de convidado,
+        // não faz nada. migrateGuestRow() sempre faz "servidor vence" —
+        // nunca sobrescreve um campo que a conta já tinha, mesmo aqui: este
+        // branch roda em QUALQUER carregamento do app com sessão real +
+        // resto de convidado no aparelho, não só logo após um cadastro de
+        // verdade (não dá pra saber diferenciar isso só pelo momento da
+        // chamada) — ver o comentário de migrateGuestRow em
+        // userDataStore.js pra a perda de dado real que essa distinção
+        // causou numa conta em produção.
+        await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
         // Bloco 2 do redesign — session_seconds/chapters_read (tabelas à
         // parte de user_data) têm sua própria migração de convidado, ver
         // src/backend/guestTableStore.js.
@@ -1489,12 +1495,11 @@ export default function App() {
   async function handleAuthenticated(user) {
     // migrateGuestRow() só migra de verdade quando há sessão real — no
     // "login" sintético do convidado (sem sessão nenhuma) não faz nada, é
-    // seguro chamar sempre (ver src/backend/userDataStore.js). freshAccount
-    // fica no padrão (false) aqui de propósito: este é o caminho de LOGIN,
-    // que cobre quem entra numa conta JÁ existente depois de ter lido um
-    // pouco como convidado no mesmo dispositivo — "servidor vence" pros
-    // campos que competem, pra não trocar o progresso real da conta pelas
-    // migalhas do convidado.
+    // seguro chamar sempre (ver src/backend/userDataStore.js). Sempre
+    // "servidor vence" pros campos que competem, pra não trocar o progresso
+    // real da conta pelas migalhas do convidado — inclusive aqui, no
+    // caminho de LOGIN, que cobre quem entra numa conta JÁ existente depois
+    // de ter lido um pouco como convidado no mesmo dispositivo.
     await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
     await migrateGuestExtraTables().catch(err => console.error('Failed to migrate guest extra tables', err))
     clearGuestInviteState()
