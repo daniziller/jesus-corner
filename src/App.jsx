@@ -65,6 +65,9 @@ import { DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, D
 import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
+import { getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode, getCustomBookOrder, resolveBookOrder, resolveNextChapter } from './reading/bibleOrderStore'
+import { getStepDays } from './routine/stepDaysStore'
+import { resumeDateKey } from './studies/activeStudyMath'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
@@ -647,6 +650,14 @@ export default function App() {
   // leitura (planId acima).
   const [routineModules, setRoutineModulesState] = useState(DEFAULT_ROUTINE_MODULES)
   const [activeStudyId, setActiveStudyIdState] = useState(null)
+  // Ordem da leitura contínua da Bíblia (turno 35, 35i) — 'canonical' e
+  // 'chronological' são espelhadas em activeAltPlan (ver saveBibleOrderMode
+  // mais abaixo), reusando o mecanismo de plano cronológico alternativo que
+  // já existia (mesmo completedSet, nunca reseta progresso — só 'custom'
+  // ("Minha ordem") ainda não tem essa ponte: afeta o que 35c/35i MOSTRAM,
+  // mas "Ler agora" ainda abre a ordem canônica de verdade até uma leva
+  // futura — decisão registrada, não um esquecimento).
+  const [bibleOrderMode, setBibleOrderModeState] = useState('canonical')
   const [prayerStats, setPrayerStats] = useState(DEFAULT_PRAYER_STATS)
   // De onde veio a última sessão de leitura marcada como concluída antes de
   // ir pra Reflexão (ver ReadingBlockView.jsx/onGoToReflection) — só o
@@ -802,7 +813,7 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -814,6 +825,7 @@ export default function App() {
         getDailyRoutine(),
         getRoutineModules(user.email),
         getActiveStudyId(user.email),
+        getBibleOrderMode(),
         getPrayerStats(user.email),
         getMyActiveChallenges(),
         getPendingSocialCount(),
@@ -857,6 +869,7 @@ export default function App() {
       setDailyRoutine(routine)
       setRoutineModulesState(userRoutineModules)
       setActiveStudyIdState(userActiveStudyId)
+      setBibleOrderModeState(userBibleOrderMode)
       setPrayerStats(stats)
       setActiveChallenges(challenges)
       setPendingSocialCount(pendingSocial)
@@ -1506,7 +1519,7 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -1519,6 +1532,7 @@ export default function App() {
       getDailyRoutine(),
       getRoutineModules(user.email),
       getActiveStudyId(user.email),
+      getBibleOrderMode(),
       getMyActiveChallenges(),
       getPendingSocialCount(),
       getMyProfile(),
@@ -1551,6 +1565,7 @@ export default function App() {
     setDailyRoutine(routine)
     setRoutineModulesState(userRoutineModules)
     setActiveStudyIdState(userActiveStudyId)
+    setBibleOrderModeState(userBibleOrderMode)
     setActiveChallenges(challenges)
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
@@ -1578,11 +1593,12 @@ export default function App() {
     setReadingOrderState('ot_first')
     setWeeklyGoalDaysState(DEFAULT_WEEKLY_GOAL_DAYS)
     setWeeklyDaysState([true, true, true, true, true, false, false])
-    setStepMinutesState({ prayer: null, reading: null, reflection: null })
+    setStepMinutesState({ prayer: null, reading: null, study: null, reflection: null })
     setActiveAltPlanState(null)
     setThemePlans([])
     setRoutineModulesState(DEFAULT_ROUTINE_MODULES)
     setActiveStudyIdState(null)
+    setBibleOrderModeState('canonical')
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
     setPendingSocialCount(0)
@@ -1642,12 +1658,36 @@ export default function App() {
     }
   }
 
-  // "Retomar já" (quadro 22c) — volta pro plano fixo (Gênesis…), largando
-  // o estudo/cronológico ativo. Passa o MESMO planId já em uso (não muda
-  // de ritmo, só desliga o activeAltPlan) — selectActivePlan({type:'fixed'})
-  // é o mecanismo de sempre pra isso.
+  // "Retomar já" (quadro 22c/35b) — volta pro plano principal, largando o
+  // estudo/cronológico ativo. Respeita a ordem de leitura escolhida em 35i
+  // (bibleOrderMode): se for cronológica, "voltar" é voltar pro cronológico,
+  // não resetar pra canônica sem avisar.
   function resumeFixedPlan() {
+    if (bibleOrderMode === 'chronological') {
+      selectActivePlan({ type: 'chrono', paceId: planId === 'none' ? 'standard' : planId })
+      return
+    }
     selectActivePlan({ type: 'fixed', id: planId })
+  }
+
+  // Ordem da leitura contínua da Bíblia (35i) — turno 35. 'canonical' e
+  // 'chronological' espelham em activeAltPlan (reusa o mecanismo de plano
+  // cronológico alternativo que já existia — mesmo completedSet, nunca
+  // reseta progresso, ver deriveChronoProgress); só troca de verdade a
+  // sessão de "Ler agora" quando NÃO há um estudo (tema/grupo) pausando o
+  // plano principal no momento — trocar a ordem enquanto um estudo está
+  // ativo só vale pra quando ele acabar. 'custom' ("Minha ordem") ainda não
+  // tem essa ponte — ver comentário no useState de bibleOrderMode acima.
+  function saveBibleOrderMode(mode) {
+    setBibleOrderModeState(mode)
+    persistBibleOrderMode(mode).catch(err => console.error('Failed to persist bible order mode', err))
+    const noStudyPausing = !activeAltPlan || activeAltPlan.type === 'chrono' || activeAltPlan.type === 'fixed'
+    if (!noStudyPausing) return
+    if (mode === 'chronological') {
+      selectActivePlan({ type: 'chrono', paceId: planId === 'none' ? 'standard' : planId })
+    } else if (activeAltPlan?.type === 'chrono') {
+      selectActivePlan({ type: 'fixed', id: planId })
+    }
   }
 
   // "Onde começar" (28d, Bloco 6) — troca o plano fixo pra começar num
@@ -1891,10 +1931,38 @@ export default function App() {
 
   // Qual Estudo guiado está ativo (ver activeStudyStore.js) — passar null
   // limpa a escolha (ex: apagar/trocar de estudo).
-  function selectActiveStudy(studyId) {
+  // Ativar um estudo pausa o plano principal (35b/35j) — guarda onde a
+  // leitura contínua parou (mesmo resolvedor de 35i, ver bibleOrderMath.js)
+  // e quando o estudo termina (soma os dias do PRÓPRIO estudo, não os da
+  // Bíblia — ver activeStudyMath.js). `totalDays` vem de quem chama
+  // (StudiesScreen.jsx conhece o estudo inteiro); null desativa.
+  async function selectActiveStudy(studyId, totalDays = 0) {
     if (!authUser) return
     setActiveStudyIdState(studyId)
-    persistActiveStudyId(authUser.email, studyId).catch(err => console.error('Failed to persist active study', err))
+    if (!studyId) {
+      persistActiveStudyId(authUser.email, null).catch(err => console.error('Failed to persist active study', err))
+      return
+    }
+    let pause
+    try {
+      const [customOrder, studyDays] = await Promise.all([getCustomBookOrder(), getStepDays()])
+      const order = resolveBookOrder(bibleOrderMode, customOrder)
+      const position = resolveNextChapter(completedSet, order, bookChapterCounts)
+      const resumesAt = resumeDateKey(new Date(), studyDays.study, totalDays)
+      pause = position ? { book: position.book, chapter: position.chapter, resumesAt } : { resumesAt }
+    } catch (err) {
+      console.error('Failed to compute study pause point', err)
+    }
+    persistActiveStudyId(authUser.email, studyId, pause).catch(err => console.error('Failed to persist active study', err))
+  }
+
+  // "Ler agora" em Meu Plano (35b) quando o passo de hoje é o Estudo ativo —
+  // mesmo mecanismo que a Biblioteca já usa pra abrir um estudo específico
+  // (ver libraryOpenStudyId/NotesScreen.jsx).
+  function openActiveStudy() {
+    if (!activeStudyId) return
+    setLibraryOpenStudyId(activeStudyId)
+    goToTab('studies')
   }
 
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
@@ -2186,8 +2254,11 @@ export default function App() {
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage}
     />,
+    // Turno 35, Bloco 2 (handoff-meu-plano-35/) — 35a/35b substituem a 4b
+    // por inteiro: rotina do dia consumindo o modelo novo (step_days,
+    // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
     routine: hasPremium
-      ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
+      ? <RoutineScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onContinueSession={continueToday} onOpenActiveStudy={openActiveStudy} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;
@@ -2197,7 +2268,7 @@ export default function App() {
       ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} onToggleRoutineModule={toggleRoutineModule} bookChapterCounts={bookChapterCounts} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     readingOrganize: hasPremium
-      ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
+      ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} onSaveBibleOrderMode={saveBibleOrderMode} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     studyOrganize: hasPremium
       ? <StudyOrganizeScreen session={session} onEndStudy={() => selectActiveStudy(null)} onNavigate={navigateTo} onBack={goBack} />

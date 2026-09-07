@@ -311,7 +311,7 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
                   isActiveStudy={activeStudyId === study.id}
                   onOpen={() => setOpenStudyId(study.id)}
                   onDelete={aiStudies.some(s => s.id === study.id) ? () => handleDeleteStudy(study) : null}
-                  onSetActive={() => onSelectActiveStudy?.(activeStudyId === study.id ? null : study.id)}
+                  onSetActive={() => onSelectActiveStudy?.(activeStudyId === study.id ? null : study.id, study.sessions?.length ?? 0)}
                 />
               ))}
             </>
@@ -373,7 +373,7 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
                   isActiveStudy={activeStudyId === study.id}
                   onOpen={() => setOpenStudyId(study.id)}
                   onDelete={() => handleDeleteStudy(study)}
-                  onSetActive={() => onSelectActiveStudy?.(activeStudyId === study.id ? null : study.id)}
+                  onSetActive={() => onSelectActiveStudy?.(activeStudyId === study.id ? null : study.id, study.sessions?.length ?? 0)}
                 />
               ))}
             </>

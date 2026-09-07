@@ -2,7 +2,7 @@
 // (getStepDays/setStepDays, em stepDaysStore.js, fazem I/O — verificados
 // manualmente no navegador, não aqui). Roda com:
 // node scripts/test-step-days.mjs
-import { resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal } from '../src/routine/stepDaysMath.js'
+import { resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal, computeWeekPillStates } from '../src/routine/stepDaysMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -62,6 +62,12 @@ const goalMonday = computeStepWeekGoal(routine, resolved, active, monday)
 check('segunda sozinha: 1 dia cumprido de 6 marcados', goalMonday, { doneCount: 1, markedCount: 6 })
 const goalTuesday = computeStepWeekGoal(routine, resolved, active, tuesday)
 check('até terça: ainda 1 cumprido (terça não fechou reflexão)', goalTuesday, { doneCount: 1, markedCount: 6 })
+
+// computeWeekPillStates — as 7 pílulas de "Esta semana" (35a). "Hoje" é
+// terça, ainda não cumprida (falta reflexão) -> 'today', não 'upcoming'.
+// Domingo sem nada marcado -> 'rest'. Nenhum estado de "perdido" existe.
+const pillStates = computeWeekPillStates(routine, resolved, active, tuesday)
+check('estados da semana: seg cumprida, ter=hoje, qua–sáb por vir, dom descanso', pillStates, ['done', 'today', 'upcoming', 'upcoming', 'upcoming', 'upcoming', 'rest'])
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)
