@@ -127,7 +127,7 @@ function Radio({ on }) {
 
 const s = {
   backdrop: { position: 'fixed', inset: 0, zIndex: 140, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
-  sheet: { width: '100%', maxWidth: 'var(--max-width)', maxHeight: '88vh', background: 'var(--bento-bg)', borderRadius: '34px 34px 0 0', boxShadow: '0 -18px 40px rgba(0,0,0,.18)', display: 'flex', flexDirection: 'column' },
+  sheet: { width: '100%', maxWidth: 'var(--max-width)', maxHeight: '88vh', background: 'var(--bento-bg)', borderRadius: '34px 34px 0 0', display: 'flex', flexDirection: 'column' },
   handleWrap: { flex: 'none', display: 'flex', justifyContent: 'center', padding: '14px 0 0' },
   handle: { width: 44, height: 5, borderRadius: 99, background: 'var(--bento-t6)' },
   header: { flex: 'none', padding: '18px 22px 0' },

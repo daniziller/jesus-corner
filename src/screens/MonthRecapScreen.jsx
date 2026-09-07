@@ -89,7 +89,7 @@ export default function MonthRecapScreen({ recap, lang, nextBook, bookLabel, onC
           <div style={s.glow} />
           <div style={s.brandRow}>
             {/* Marca discreta: tile no mesmo preto do cartão, com anel de 1.5px (quadro 17b). */}
-            <BrandMark size={30} variant="default" style={{ boxShadow: '0 0 0 1.5px rgba(255,255,255,.12)', borderRadius: 10 }} />
+            <BrandMark size={30} variant="default" style={{ outline: '1.5px solid rgba(255,255,255,.12)', borderRadius: 10 }} />
             <BrandLogo size={13} onDark letterSpacing="-.4px" />
           </div>
           <p style={s.month}>{monthLabel(recap.month, lang)}</p>

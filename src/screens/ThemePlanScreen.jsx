@@ -177,7 +177,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
                     <span style={s.chevron}>›</span>
                   </button>
                   <button style={s.deleteBtn} onClick={() => handleDelete(plan)} aria-label={L('deleteAction')}>
-                    <AppIcon name="Trash2" size={13} color="var(--re)" />
+                    <AppIcon name="Trash2" size={13} color="#DC2626" />
                   </button>
                 </div>
               )

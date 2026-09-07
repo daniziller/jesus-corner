@@ -1326,11 +1326,11 @@ const styles = {
   searchRow:      { display: 'flex', gap: 8 },
   searchInputWrap:{ flex: 1, minWidth: 0, height: 46, display: 'flex', alignItems: 'center', gap: 10, border: 'none', borderRadius: 16, padding: '0 16px', background: 'var(--bento-card)' },
   searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1, color: 'var(--bento-ink)' },
-  searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 6px 16px rgba(162,28,175,.3)' },
+  searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#A21CAF' },
   aiActiveRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-4px 2px 0' },
   aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: '#A21CAF' },
   aiClearBtn:     { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', padding: '2px 4px' },
-  aiErrorText:    { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--re, #DC2626)', margin: '-4px 2px 0' },
+  aiErrorText:    { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: '#DC2626', margin: '-4px 2px 0' },
   filtersToggleBtn:  { display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: 'var(--bento-card)', borderRadius: 13, padding: '10px 12px', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t2)' },
   filtersToggleLabel:{ flexShrink: 0 },
   filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
@@ -1347,8 +1347,10 @@ const styles = {
   colorFilterRow:      { display: 'flex', alignItems: 'center', gap: 8, margin: '-2px 2px 0' },
   colorFilterAllBtn:   { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
   colorFilterAllBtnActive: { background: 'var(--bento-ink)', color: '#fff' },
-  colorSwatchBtn:      { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', boxShadow: '0 0 0 1px var(--bento-line)' },
-  colorSwatchBtnActive:{ border: '2px solid #fff', boxShadow: '0 0 0 2px var(--bento-ink)' },
+  colorSwatchBtn:      { width: 26, height: 26, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer' },
+  // Seleção em dois anéis (branco + tinta) sem usar box-shadow — outline
+  // (que não conta como sombra) faz o mesmo efeito de "anel afastado".
+  colorSwatchBtnActive:{ border: '2px solid #fff', outline: '2px solid var(--bento-ink)', outlineOffset: 0 },
   dateFilterRow:   { display: 'flex', gap: 6, flexWrap: 'wrap', margin: '-2px 2px 0' },
   dateFilterChip:  { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
   dateFilterChipActive: { background: 'var(--bento-ink)', color: '#fff' },
@@ -1376,7 +1378,7 @@ const styles = {
 
   fab: {
     position: 'absolute', right: 20, bottom: 96, width: 56, height: 56, borderRadius: 20,
-    border: 'none', background: 'var(--bento-accent)', boxShadow: '0 10px 26px rgba(240,102,43,.4)',
+    border: 'none', background: 'var(--bento-accent)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
   },
   sheetBackdrop: {

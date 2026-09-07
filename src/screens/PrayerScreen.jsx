@@ -577,6 +577,6 @@ const styles = {
   nudgeChip: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', background: 'var(--bento-line)', borderRadius: 99, padding: '9px 12px' },
 
   footer: { flexShrink: 0, padding: '12px 20px calc(20px + var(--safe-bottom))' },
-  finishBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)', boxShadow: '0 10px 26px rgba(240,102,43,.35)' },
+  finishBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
   finishArrow: { fontSize: 15, fontWeight: 700 },
 }

@@ -13,7 +13,7 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onOpe
             style={styles.backBtn} onClick={onBack}
             aria-label={t('a11y.goBack', undefined, lang)} title={t('a11y.goBack', undefined, lang)}
           >
-            <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />
+            <AppIcon name="ArrowLeft" size={19} color="var(--bento-ink)" />
           </button>
         )}
         <div style={styles.brand} onClick={() => onNavigate?.('home')}>
@@ -30,7 +30,7 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onOpe
           aria-label={t('a11y.largeTextToggle', undefined, lang)}
           title={t('a11y.largeTextToggle', undefined, lang)}
         >
-          <AppIcon name="Type" size={20} color={largeText ? 'var(--brand-deep)' : 'var(--bk)'} />
+          <AppIcon name="Type" size={20} color={largeText ? 'var(--bento-accent)' : 'var(--bento-ink)'} />
         </button>
         <NotificationBell pendingCount={pendingCount} onNavigate={onNavigate} lang={lang} variant="header" />
         <div style={styles.avatarSlot}>
@@ -39,7 +39,7 @@ export default function AppHeader({ avatarInitials, avatarUrl, onNavigate, onOpe
               ? <img src={avatarUrl} alt="" style={styles.avatarImg} />
               : avatarInitials
                 ? <span style={styles.avatarInitials}>{avatarInitials}</span>
-                : <AppIcon name="User" size={12} color="var(--white)" />}
+                : <AppIcon name="User" size={12} color="#fff" />}
           </div>
         </div>
       </div>
@@ -59,12 +59,12 @@ const styles = {
   backBtn:    { width: 34, height: 34, marginLeft: -6, border: 'none', background: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, borderRadius: '50%' },
   brand:      { display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', minWidth: 0 },
   logo:       { width: 32, height: 32, borderRadius: 8, flexShrink: 0 },
-  brandName:  { fontSize: 18, fontWeight: 700, lineHeight: '28px', color: 'var(--bk)', letterSpacing: -0.45, whiteSpace: 'nowrap' },
+  brandName:  { fontSize: 18, fontWeight: 700, lineHeight: '28px', color: 'var(--bento-ink)', letterSpacing: -0.45, whiteSpace: 'nowrap' },
   actions:    { display: 'flex', alignItems: 'center', gap: 8 },
   iconBtn:    { width: 44, height: 44, border: 'none', background: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'opacity .15s' },
   iconBtnActive: { opacity: 1 },
   avatarSlot: { width: 40, height: 32, paddingLeft: 8, flexShrink: 0, boxSizing: 'border-box' },
-  avatar:     { width: 32, height: 32, borderRadius: '50%', background: 'var(--brand-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden' },
-  avatarInitials: { fontSize: 11, fontWeight: 800, color: 'var(--white)' },
+  avatar:     { width: 32, height: 32, borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden' },
+  avatarInitials: { fontSize: 11, fontWeight: 800, color: '#fff' },
   avatarImg:  { width: '100%', height: '100%', objectFit: 'cover' },
 }

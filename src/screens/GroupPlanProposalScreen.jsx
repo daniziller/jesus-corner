@@ -184,7 +184,7 @@ const s = {
   infoLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
   infoValue: { fontFamily: FONT, fontSize: 13, fontWeight: 600, color: 'var(--bento-t2)', margin: 0 },
 
-  errorText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--re)', margin: 0, textAlign: 'center' },
+  errorText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#DC2626', margin: 0, textAlign: 'center' },
 
   footer: { flexShrink: 0, padding: '12px 20px calc(20px + var(--safe-bottom))' },
   sendBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer' },

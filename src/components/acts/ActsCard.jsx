@@ -1,6 +1,3 @@
-import { useState } from 'react'
-import { currentLanguage } from '../../i18n'
-
 const ACTS_DATA = [
   {
     id: 'A',
@@ -56,10 +53,10 @@ const ACTS_DATA = [
     letterColor: '#B91C1C',
     borderColor: 'rgba(220,38,38,.4)',
     stepBg: '#FFF1F2',
-    dotColor: 'var(--re)',
+    dotColor: '#DC2626',
     glow: 'rgba(220,38,38,.28)',
     verseBg: '#FFF1F2',
-    verseBorder: 'var(--re)',
+    verseBorder: '#DC2626',
     verseRefColor: '#B91C1C',
     description: {
       pt: 'Com humildade, traga diante de Deus os pecados da semana — em pensamento, palavra ou ação.',
@@ -94,10 +91,10 @@ const ACTS_DATA = [
     letterColor: '#15803D',
     borderColor: 'rgba(22,163,74,.4)',
     stepBg: '#F0FDF4',
-    dotColor: 'var(--gr)',
+    dotColor: '#16A34A',
     glow: 'rgba(22,163,74,.28)',
     verseBg: '#F0FDF4',
-    verseBorder: 'var(--gr)',
+    verseBorder: '#16A34A',
     verseRefColor: '#15803D',
     description: {
       pt: 'Aqui você agradece pelo que Deus <b>fez</b> — bênçãos concretas da sua vida.',
@@ -193,89 +190,6 @@ export function phaseMinutesFor(totalMinutes) {
   const result = [...floors]
   for (let k = 0; k < remainder; k++) result[byFractionDesc[k].i] += 1
   return result
-}
-
-// `open`/`onToggle` são opcionais — se não vierem, o card controla o próprio
-// estado (comportamento original). O PrayerScreen passa os dois pra poder
-// auto-expandir o card do trecho ACTS em andamento conforme o cronômetro
-// avança, sem perder a possibilidade de abrir manualmente outro card.
-// `minutes`, se vier, sobrescreve data.duration/durationMin no badge — é
-// como o PrayerScreen mostra a duração certa pro plano ativo (ver
-// ACTS_DURATIONS) sem precisar de 2 cópias inteiras de ACTS_DATA.
-export default function ActsCard({ data, open: openProp, onToggle, minutes }) {
-  const [openState, setOpenState] = useState(false)
-  const isControlled = openProp !== undefined
-  const open = isControlled ? openProp : openState
-  const lang = currentLanguage()
-  const pick = (field) => field[lang] ?? field.pt
-
-  function handleToggle() {
-    if (isControlled) onToggle?.()
-    else setOpenState(v => !v)
-  }
-
-  return (
-    <div
-      style={{
-        background: 'var(--white)',
-        border: `0.5px solid ${open ? data.borderColor : 'var(--g1)'}`,
-        borderRadius: 16,
-        overflow: 'hidden',
-        boxShadow: open ? `0 10px 24px ${data.glow}` : 'var(--shadow-card)',
-        cursor: 'pointer',
-        transition: 'border-color .2s, box-shadow .2s',
-      }}
-      onClick={handleToggle}
-    >
-      {/* Header */}
-      <div style={{ padding: 13, display: 'flex', alignItems: 'center', gap: 11, userSelect: 'none' }}>
-        <div style={{ width: 40, height: 40, borderRadius: 11, background: data.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 20, fontWeight: 900, color: data.letterColor, lineHeight: 1 }}>{data.letter}</span>
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--bk)', marginBottom: 1 }}>{pick(data.title)}</div>
-          <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--g5)' }}>{pick(data.subtitle)}</div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: data.letterColor }}>{minutes != null ? `${minutes} min` : pick(data.duration)}</span>
-          <span style={{ fontSize: 13, color: 'var(--g4)', fontWeight: 600, display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .3s' }}>∨</span>
-        </div>
-      </div>
-
-      {/* Body expansível */}
-      {open && (
-        <div style={{ padding: '0 13px 13px' }} onClick={e => e.stopPropagation()}>
-          <div style={{ height: 0.5, background: 'var(--g2)', marginBottom: 12 }} />
-
-          {/* Descrição */}
-          <p
-            style={{ fontSize: 12.5, fontWeight: 500, color: '#1C1C1E', lineHeight: 1.65, marginBottom: 11 }}
-            dangerouslySetInnerHTML={{ __html: pick(data.description) }}
-          />
-
-          {/* Passos */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {pick(data.steps).map((step, i) => (
-              <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', padding: '9px 11px', borderRadius: 9, background: data.stepBg }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: data.dotColor, flexShrink: 0, marginTop: 4 }} />
-                <p style={{ fontSize: 12.5, fontWeight: 500, color: '#1C1C1E', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: step }} />
-              </div>
-            ))}
-          </div>
-
-          {/* Versículo */}
-          <div style={{ borderRadius: 9, padding: '10px 12px', marginTop: 10, borderLeft: `3px solid ${data.verseBorder}`, background: data.verseBg }}>
-            <p style={{ fontSize: 12.5, fontWeight: 500, color: '#1C1C1E', fontStyle: 'italic', lineHeight: 1.55, marginBottom: 4 }}>
-              {pick(data.verse)}
-            </p>
-            <span style={{ fontSize: 10, fontWeight: 700, color: data.verseRefColor, letterSpacing: 0.3 }}>
-              {pick(data.verseRef)}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
 
 export { ACTS_DATA }

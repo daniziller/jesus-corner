@@ -361,13 +361,6 @@ html.large-text .app-content-inner {
   opacity: 0;
   animation: fadeUpIn .5s cubic-bezier(.2,.8,.2,1) forwards;
 }
-@keyframes ctaGlowPulse {
-  0%, 100% { box-shadow: 0 10px 28px rgba(157,67,0,.35); }
-  50%      { box-shadow: 0 10px 40px rgba(157,67,0,.65); }
-}
-.welcome-cta-pulse {
-  animation: ctaGlowPulse 2.2s ease-in-out infinite;
-}
 /* Prévia do passo em destaque na tela de boas-vindas — o texto troca a
    cada ciclo (controlado em JS, junto com o chip em destaque), e essa
    animação só dá uma leve entrada pro texto novo. */

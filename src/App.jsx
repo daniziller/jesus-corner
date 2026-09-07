@@ -2482,9 +2482,9 @@ export default function App() {
 function MinAgeRestricted({ lang }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
-      <AppIcon name="Lock" size={30} color="var(--g4)" />
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('groups.minAgeRestrictedTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('groups.minAgeRestrictedSub', undefined, lang)}</p>
+      <AppIcon name="Lock" size={30} color="var(--bento-t4)" />
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-t3)' }}>{t('groups.minAgeRestrictedTitle', undefined, lang)}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t4)', maxWidth: 260 }}>{t('groups.minAgeRestrictedSub', undefined, lang)}</p>
     </div>
   )
 }
@@ -2499,12 +2499,12 @@ function PremiumRequired({ feature, lang, onNavigate }) {
   const key = ['routine', 'groups', 'handsFree', 'ai'].includes(feature) ? feature : 'generic'
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
-      <AppIcon name={key === 'ai' ? 'Sparkles' : 'Crown'} size={30} color="var(--or)" />
-      <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--bk)' }}>{t(`billing.premiumRequired.${key}.title`, undefined, lang)}</p>
-      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', maxWidth: 280, lineHeight: 1.5 }}>{t(`billing.premiumRequired.${key}.sub`, undefined, lang)}</p>
+      <AppIcon name={key === 'ai' ? 'Sparkles' : 'Crown'} size={30} color="var(--bento-accent)" />
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)' }}>{t(`billing.premiumRequired.${key}.title`, undefined, lang)}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', maxWidth: 280, lineHeight: 1.5 }}>{t(`billing.premiumRequired.${key}.sub`, undefined, lang)}</p>
       <button
         onClick={() => onNavigate?.('upgrade')}
-        style={{ marginTop: 4, border: 'none', background: 'var(--grad-vivid)', color: 'white', borderRadius: 12, padding: '10px 20px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' }}
+        style={{ marginTop: 4, border: 'none', background: 'var(--bento-accent)', color: 'var(--bento-ink)', borderRadius: 12, padding: '10px 20px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}
       >
         {t('billing.premiumRequired.cta', undefined, lang)}
       </button>
