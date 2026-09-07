@@ -590,6 +590,11 @@ export const STRINGS = {
       // grupo/plano, cartão à parte).
       pendingRequestsCount: '{n} pedidos',
       addFriend: 'Adicionar amigo',
+      // Rótulos curtos dos quadrados de amigo em 24a (avatar + nome
+      // embaixo, maxWidth 60px) — addFriend acima é longo demais pra
+      // caber ali; seeAll é o quadrado "+N" de estouro.
+      addFriendShort: 'Adicionar',
+      seeAll: 'Ver',
       friendEmailPlaceholder: 'Email do seu amigo',
       addFriendHint: 'Se essa pessoa ainda não tiver uma conta no Jesus\' Corner, ela vai receber um e-mail de convite pra se cadastrar.',
       send: 'Enviar',
@@ -2919,6 +2924,8 @@ export const STRINGS = {
       myFriendsTitle: 'My friends',
       pendingRequestsCount: '{n} requests',
       addFriend: 'Add friend',
+      addFriendShort: 'Add',
+      seeAll: 'See',
       friendEmailPlaceholder: "Your friend's email",
       addFriendHint: "If this person doesn't have a Jesus' Corner account yet, they'll receive an email invitation to sign up.",
       send: 'Send',

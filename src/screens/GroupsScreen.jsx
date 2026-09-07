@@ -54,7 +54,9 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [friendActivity, setFriendActivity] = useState([])
-  const [friendsCount, setFriendsCount] = useState(0)
+  // Lista inteira (não só a contagem) — o cartão "Amigos" (24a) mostra os
+  // 3 primeiros em quadrados próprios (avatar + nome), não um número solto.
+  const [friends, setFriends] = useState([])
   const [pendingFriendsCount, setPendingFriendsCount] = useState(0)
   // "Sala aberta agora" (24a) — simplificação deliberada, documentada: olha
   // só o PRIMEIRO grupo (a maioria tem poucos), não "o grupo com mais gente
@@ -75,7 +77,7 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
     }).catch(err => console.error('Failed to load groups', err))
     getPendingGroupInvites().then(setGroupInvites).catch(err => console.error('Failed to load group invites', err))
     getFriendsActivity(20).then(setFriendActivity).catch(err => console.error('Failed to load friend activity', err))
-    getFriends().then(f => setFriendsCount(f.length)).catch(() => {})
+    getFriends().then(setFriends).catch(() => {})
     getPendingRequests().then(p => setPendingFriendsCount(p.length)).catch(() => {})
   }, [reloadKey])
 
@@ -88,9 +90,10 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
   }, [featuredGroup?.groupId, hasTodayReading, todaySession?.book, todaySession?.chStart])
 
   // Avisa o shell (App.jsx) se uma tela interna está aberta (um grupo ou
-  // Adicionar amigos) — só elas têm cabeçalho Bento próprio (5d/24c); a
-  // lista (24a) continua dependendo do AppHeader antigo, sem quadro no
-  // redesign original (24a é uma adição posterior do handoff).
+  // Adicionar amigos) — 5d/24c têm cabeçalho Bento próprio; a lista (24a)
+  // também tem o seu (aHeader/bTitle abaixo) — 'groups' está sempre no
+  // bentoScreen do App.jsx desde a correção do cabeçalho duplicado
+  // (2026-09-07), então o AppHeader antigo não aparece nunca mais aqui.
   const detailOpen = !!openGroupId || friendsOpen
   useEffect(() => {
     onDetailOpenChange?.(detailOpen)
@@ -134,7 +137,7 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
         <div style={styles.aHeader}>
           <div>
             <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
-            <p style={styles.bSubtitle}>{t('groups.communitySummary', { groups: myGroups.length, friends: friendsCount }, lang)}</p>
+            <p style={styles.bSubtitle}>{t('groups.communitySummary', { groups: myGroups.length, friends: friends.length }, lang)}</p>
           </div>
           <button type="button" style={styles.aAddBtn} onClick={() => setCreateSheetOpen(true)} aria-label={t('groups.createGroup', undefined, lang)}>
             <AppIcon name="Plus" size={16} strokeWidth={2.2} color="var(--bento-accent)" />
@@ -201,7 +204,7 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
           )}
 
           <GroupsListSection groups={myGroups} memberCounts={memberCounts} lang={lang} onOpen={setOpenGroupId} onCreateTap={() => setCreateSheetOpen(true)} onReload={reload} />
-          <FriendsPreviewCard lang={lang} friendsCount={friendsCount} pendingCount={pendingFriendsCount} onOpen={() => setFriendsOpen(true)} />
+          <FriendsPreviewCard lang={lang} friends={friends} pendingCount={pendingFriendsCount} onOpen={() => setFriendsOpen(true)} />
 
           <div style={styles.bCard}>
             <p style={styles.bCardLabel}>{t('groups.activityTitle', undefined, lang)}</p>
@@ -356,22 +359,46 @@ function GroupsListSection({ groups, memberCounts, lang, onOpen, onCreateTap, on
   )
 }
 
-// Cartão condensado "Amigos" (24a) — avatar row + pedidos pendentes;
-// substitui a antiga FriendsSection embutida, que agora mora inteira em
-// AddFriendsScreen.jsx (24c), aberta ao tocar aqui.
-function FriendsPreviewCard({ lang, friendsCount, pendingCount, onOpen }) {
+// Cartão "Amigos" (24a) — cada amigo em seu próprio quadrado (avatar +
+// nome), mesmo padrão visual da grade cheia de AddFriendsScreen.jsx (24c,
+// friendGridItem/friendGridAvatar/friendGridName), só que com no máximo 3
+// pra caber numa fileira, mais um quadrado "+N · Ver" pro resto — igual
+// ao quadro (Adicionar, Marina, Thiago, Ana, +9 Ver). Substitui a antiga
+// FriendsSection embutida, que agora mora inteira em AddFriendsScreen.jsx
+// (24c), aberta ao tocar em qualquer quadrado aqui.
+const FRIENDS_PREVIEW_MAX = 3
+function FriendsPreviewCard({ lang, friends, pendingCount, onOpen }) {
+  const shown = friends.slice(0, FRIENDS_PREVIEW_MAX)
+  const restCount = friends.length - shown.length
   return (
-    <button type="button" style={styles.bCard} onClick={onOpen}>
+    <div style={styles.bCard}>
       <div style={styles.bCardHeadRow}>
         <p style={styles.bCardLabel}>{t('groups.myFriendsTitle', undefined, lang)}</p>
         {pendingCount > 0 && <span style={{ ...styles.bCardCount, background: 'none', color: 'var(--bento-accent)' }}>{t('groups.pendingRequestsCount', { n: pendingCount }, lang)}</span>}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={styles.aAddFriendCircle}><AppIcon name="Plus" size={15} strokeWidth={2.2} color="var(--bento-t3)" /></div>
-        <p style={styles.aFriendsCountText}>{t(friendsCount === 1 ? 'groups.friendsCountOne' : 'groups.friendsCountMany', { n: friendsCount }, lang)}</p>
-        <span style={{ ...styles.bChevron, marginLeft: 'auto' }}>›</span>
+      <div style={styles.friendsPreviewGrid}>
+        <button type="button" style={styles.friendsPreviewItem} onClick={onOpen}>
+          <span style={{ ...styles.friendsPreviewAvatar, ...styles.friendsPreviewAddAvatar }}>
+            <AppIcon name="Plus" size={15} strokeWidth={2.2} color="var(--bento-t3)" />
+          </span>
+          <span style={styles.friendsPreviewName}>{t('groups.addFriendShort', undefined, lang)}</span>
+        </button>
+        {shown.map(f => (
+          <button type="button" key={f.friendshipId} style={styles.friendsPreviewItem} onClick={onOpen}>
+            <span style={styles.friendsPreviewAvatar}>
+              {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} /> : avatarInitialsOf(f.name)}
+            </span>
+            <span style={styles.friendsPreviewName}>{f.name}</span>
+          </button>
+        ))}
+        {restCount > 0 && (
+          <button type="button" style={styles.friendsPreviewItem} onClick={onOpen}>
+            <span style={{ ...styles.friendsPreviewAvatar, ...styles.friendsPreviewMoreAvatar }}>+{restCount}</span>
+            <span style={styles.friendsPreviewName}>{t('groups.seeAll', undefined, lang)}</span>
+          </button>
+        )}
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -1318,8 +1345,15 @@ const styles = {
   aTileTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-sand-ink-strong)', margin: '4px 0 0' },
   aTileSub: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 500, color: 'var(--bento-sand-ink-mid)', margin: 0 },
 
-  aAddFriendCircle: { width: 34, height: 34, flexShrink: 0, borderRadius: '50%', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  aFriendsCountText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', margin: 0 },
+  // Grade de amigos do cartão "Amigos" (24a) — mesmo padrão visual de
+  // friendGridItem/friendGridAvatar/friendGridName em AddFriendsScreen.jsx
+  // (24c), só que sem o grid de 4 colunas (aqui é 1 fileira só).
+  friendsPreviewGrid: { display: 'flex', gap: 14, marginTop: 6, overflowX: 'auto' },
+  friendsPreviewItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 },
+  friendsPreviewAvatar: { width: 44, height: 44, borderRadius: 15, background: 'var(--bento-line)', color: 'var(--bento-t3)', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, lineHeight: '44px', textAlign: 'center', overflow: 'hidden' },
+  friendsPreviewAddAvatar: { background: 'var(--bento-bg)', border: '1.5px dashed var(--bento-t5)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  friendsPreviewMoreAvatar: { background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)' },
+  friendsPreviewName: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t3)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 56 },
 
   bCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '14px 20px 4px' },
   bCardHeadRow: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 },
