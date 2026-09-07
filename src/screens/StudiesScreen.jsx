@@ -225,8 +225,8 @@ export default function StudiesScreen({ session, authUser, blocks, sessionsByBlo
         {/* Título + subtítulo — só no desktop (≥768px), igual
             Rotina/Início/Progresso. No mobile o Figma não tem esse
             cabeçalho (Estudos só tem frame desktop, sem referência mobile). */}
-        <div className="page-header hide-on-mobile" style={{ padding: 0, marginBottom: 4 }}>
-          <h1 className="page-title">{t('studies.pageTitle', undefined, lang)}</h1>
+        <div className="hide-on-mobile" style={styles.topHeader}>
+          <h1 style={styles.pageTitle}>{t('studies.pageTitle', undefined, lang)}</h1>
           <p style={{ ...styles.pageSubtitle, padding: 0, marginTop: 4, marginBottom: 0 }}>{t('studies.pageSubtitle', undefined, lang)}</p>
         </div>
 
@@ -432,8 +432,8 @@ function StudiesEmptyState({ lang }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
       <AppIcon name="GraduationCap" size={30} color="var(--bento-t4)" />
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--bento-t5)' }}>{t('studies.emptyStateTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', maxWidth: 260 }}>{t('studies.emptyStateSub', undefined, lang)}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-t5)' }}>{t('studies.emptyStateTitle', undefined, lang)}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', maxWidth: 260 }}>{t('studies.emptyStateSub', undefined, lang)}</p>
     </div>
   )
 }
@@ -511,11 +511,11 @@ function StudyDetail({ study, lang, completedSet, bookLabel, onOpenSession, onNa
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={styles.detailHeader}>
         <button onClick={onBack} style={styles.backBtn} aria-label="back">
           <AppIcon name="ArrowLeft" size={19} color="var(--bento-ink)" />
         </button>
-        <h1 className="page-title">{title}</h1>
+        <h1 style={styles.detailTitle}>{title}</h1>
       </div>
 
       <div style={{ padding: '4px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -536,7 +536,7 @@ function StudyDetail({ study, lang, completedSet, bookLabel, onOpenSession, onNa
               <div style={{ ...styles.sessionIcon, background: done ? 'var(--bento-accent)' : 'var(--bento-line)' }}>
                 {done
                   ? <AppIcon name="Check" size={15} color="white" />
-                  : (isInductive ? <AppIcon name="Search" size={14} color="var(--bento-t5)" /> : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--bento-t5)' }}>{s.id}</span>)}
+                  : (isInductive ? <AppIcon name="Search" size={14} color="var(--bento-t5)" /> : <span style={{ fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t5)' }}>{s.id}</span>)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={styles.sessionTitle}>{sTitle}</p>
@@ -559,11 +559,11 @@ function SessionView({ study, studySession, lang, isDone, onToggleDone, onBack }
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={styles.detailHeader}>
         <button onClick={onBack} style={styles.backBtn} aria-label="back">
           <AppIcon name="ArrowLeft" size={19} color="var(--bento-ink)" />
         </button>
-        <h1 className="page-title">{title}</h1>
+        <h1 style={styles.detailTitle}>{title}</h1>
       </div>
 
       <div style={{ padding: '4px 14px 4px' }}>
@@ -648,11 +648,11 @@ function InductiveSessionView({ study, studySession, lang, bookLabel, isDone, on
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={styles.detailHeader}>
         <button onClick={onBack} style={styles.backBtn} aria-label="back">
           <AppIcon name="ArrowLeft" size={19} color="var(--bento-ink)" />
         </button>
-        <h1 className="page-title">{passageTitle}</h1>
+        <h1 style={styles.detailTitle}>{passageTitle}</h1>
         <button style={styles.sessionDeleteBtn} onClick={handleDelete} aria-label={t('studies.inductiveDeleteSessionAction', undefined, lang)}>
           <AppIcon name="Trash2" size={15} color="#DC2626" />
         </button>
@@ -734,56 +734,66 @@ function InductiveField({ label, hint, placeholder, value, onChange, rows = 4 })
 }
 
 const styles = {
-  pageSubtitle: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t5)', padding: '14px 14px 0', marginBottom: 8 },
+  // Cabeçalho de topo (só desktop, ver hide-on-mobile acima) e cabeçalho
+  // de sub-tela com seta de voltar — StudiesScreen ficou de fora do
+  // bentoScreen do App.jsx (Etapa 12 antiga: "reskin só de cor, cabeçalho
+  // antigo mantido"); migrados na varredura de identidade do Bloco 12
+  // pra Manrope/tokens --bento-* (antes usavam .page-header/.page-title,
+  // que ainda puxavam --font-display/--bk do index.css).
+  topHeader:    { padding: 0, marginBottom: 4 },
+  pageTitle:    { fontFamily: 'var(--font-bento)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--bento-ink)', margin: 0 },
+  pageSubtitle: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t5)', padding: '14px 14px 0', marginBottom: 8 },
+  detailHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 4px' },
+  detailTitle:  { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
   backBtn:      { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--bento-line)', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   studyCard:    { background: 'var(--bento-card)', border: 'none', borderRadius: 22, padding: 14, cursor: 'pointer' },
   studyCardActive: { border: '0.5px solid var(--bento-accent)' },
   studyIcon:    { width: 44, height: 44, borderRadius: 13, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  studyTitle:   { fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 3, letterSpacing: '-0.2px' },
-  studySubtitle:{ fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t5)', lineHeight: 1.5 },
-  studyMeta:    { fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t5)' },
-  studyCta:     { fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)' },
+  studyTitle:   { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 3, letterSpacing: '-0.2px' },
+  studySubtitle:{ fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t5)', lineHeight: 1.5 },
+  studyMeta:    { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t5)' },
+  studyCta:     { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)' },
   studyStarBtn: { width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   studyDeleteBtn:{ width: 28, height: 28, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   studyBadgeRow: { display: 'flex', gap: 6, flexWrap: 'wrap', margin: '-1px 0 4px' },
-  inductiveBadge: { fontSize: 9, fontWeight: 800, color: '#7C3AED', background: 'rgba(124,58,237,.12)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
-  currentStudyBadge: { fontSize: 9, fontWeight: 800, color: 'var(--gold-deep, #9D7A1F)', background: 'rgba(201,154,74,.15)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
-  recommendHint: { fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', lineHeight: 1.5, margin: '8px 2px 0' },
+  inductiveBadge: { fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 800, color: '#7C3AED', background: 'rgba(124,58,237,.12)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
+  currentStudyBadge: { fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 800, color: 'var(--gold-deep, #9D7A1F)', background: 'rgba(201,154,74,.15)', borderRadius: 6, padding: '2px 6px', letterSpacing: 0.3, textTransform: 'uppercase', flexShrink: 0 },
+  recommendHint: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', lineHeight: 1.5, margin: '8px 2px 0' },
   sessionRow:   { display: 'flex', alignItems: 'center', gap: 11, background: 'var(--bento-card)', border: 'none', borderRadius: 19, padding: 12, cursor: 'pointer' },
   sessionIcon:  { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  sessionTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 2 },
-  sessionSub:   { fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t5)' },
+  sessionTitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 2 },
+  sessionSub:   { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t5)' },
   sessionDeleteBtn: { width: 32, height: 32, borderRadius: 10, border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  doneBadge:    { fontSize: 9, fontWeight: 700, color: 'var(--bento-accent)', whiteSpace: 'nowrap' },
+  doneBadge:    { fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 700, color: 'var(--bento-accent)', whiteSpace: 'nowrap' },
   hero:         { background: 'var(--bento-accent)', borderRadius: 18, padding: 16 },
   heroPassage:  { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'white', letterSpacing: '-0.2px' },
   panel:        { background: 'var(--bento-card)', border: 'none', borderRadius: 20, padding: 14 },
-  panelLabel:   { fontSize: 9.5, fontWeight: 700, color: 'var(--bento-accent)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
-  panelText:    { fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.6 },
-  qNumber:      { width: 20, height: 20, borderRadius: '50%', background: 'var(--bento-accent)', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  panelLabel:   { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 700, color: 'var(--bento-accent)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  panelText:    { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.6 },
+  qNumber:      { fontFamily: 'var(--font-bento)', width: 20, height: 20, borderRadius: '50%', background: 'var(--bento-accent)', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   completeBtn:      { width: '100%', background: 'var(--bento-ink)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   completeBtnDone:  { background: 'var(--bento-line)', color: 'var(--bento-t5)', boxShadow: 'none', border: '0.5px solid var(--bento-line)' },
 
   newStudyBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
   createCard:    { background: 'var(--bento-card)', border: 'none', borderRadius: 20, padding: 14 },
-  createLabel:   { fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t5)', marginBottom: 6 },
+  createLabel:   { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t5)', marginBottom: 6 },
   themeInput:    { width: '100%', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: '#fff' },
   scopeInput:    { width: '100%', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: '#fff', resize: 'none' },
-  errorText:     { fontSize: 11, fontWeight: 600, color: '#DC2626', marginTop: 8 },
+  errorText:     { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: '#DC2626', marginTop: 8 },
   generateBtn:   { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
   cancelBtn:     { border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '11px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'var(--bento-t5)', cursor: 'pointer', background: 'var(--bento-line)' },
-  generatingHint:{ fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
+  generatingHint:{ fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
 
   // Estudo indutivo
   inductiveNewBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#7C3AED' },
-  inductiveIntro:   { fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t5)', lineHeight: 1.5 },
-  inductiveSuggestHint: { fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', lineHeight: 1.5, marginTop: 8 },
+  inductiveIntro:   { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t5)', lineHeight: 1.5 },
+  inductiveSuggestHint: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', lineHeight: 1.5, marginTop: 8 },
   inductiveCreateBtn: { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#7C3AED' },
   readPassageBtn: { display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid rgba(157,67,0,.25)', background: 'var(--bento-sand)', borderRadius: 13, padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  inductiveFieldHint: { fontSize: 11, fontWeight: 500, color: 'var(--bento-t5)', lineHeight: 1.5, marginBottom: 8 },
+  inductiveFieldHint: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t5)', lineHeight: 1.5, marginBottom: 8 },
   inductiveTextarea: { width: '100%', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, background: '#fff' },
   inductiveSaveBtn: { width: '100%', background: '#7C3AED', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  savedHint:      { fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', textAlign: 'center', marginTop: 8 },
+  savedHint:      { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', textAlign: 'center', marginTop: 8 },
   methodLinkBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: '0.5px solid rgba(124,58,237,.25)', background: 'rgba(124,58,237,.08)', borderRadius: 13, padding: '9px 12px', fontSize: 11.5, fontWeight: 700, color: '#7C3AED', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
 
   // Abas Estudo Indutivo / Estudos Guiados

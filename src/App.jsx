@@ -2320,9 +2320,15 @@ export default function App() {
   // desktop (antes ficava de fora, com o AppHeader antigo por cima da
   // versão antiga da tela); 'contact'/'applicationPhrases'/'inductiveMethod'/
   // 'themePlan' entraram junto da migração dessas telas — cada uma tem
-  // cabeçalho Bento próprio agora. 'studies' continua de fora de
-  // propósito — ver comentário da Etapa 12 em StudiesScreen.jsx (reskin só
-  // de cor, cabeçalho antigo mantido).
+  // cabeçalho Bento próprio agora. 'studies' continua de fora DE PROPÓSITO
+  // (o pacote de design nunca teve um quadro mobile pra Estudos — só
+  // desktop), então o AppHeader compacto (já corrigido pra --bento-*)
+  // segue cobrindo o mobile igual antes; o que era identidade antiga de
+  // verdade — o próprio cabeçalho de página (.page-header/.page-title,
+  // --font-display/--bk) e a fonte de quase todo o corpo da tela
+  // (nenhum estilo de texto declarava fontFamily, então herdava --font do
+  // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
+  // StudiesScreen.jsx na varredura de identidade do Bloco 12.
   const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab)
     || reflectionBento || (activeTab === 'groups' && groupsDetailOpen)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
