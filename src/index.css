@@ -46,7 +46,6 @@
 
   /* Semânticas */
   --gr: #16A34A;
-  --grl: #F0FDF4;
   --re: #DC2626;
   --rel: #FFF1F2;
 
@@ -417,38 +416,6 @@ html.large-text .app-content-inner {
 @media (prefers-reduced-motion: reduce) {
   .rb-context-skeleton { animation: none; opacity: 0.6; }
 }
-
-/* ── Progress bar ── */
-.progress-bar {
-  height: 3px;
-  background: var(--g2);
-  border-radius: 99px;
-  overflow: hidden;
-}
-.progress-bar-fill {
-  height: 100%;
-  background: var(--or);
-  border-radius: 99px;
-  transition: width 0.6s ease;
-}
-
-/* ── Badges ── */
-.badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
-  display: inline-block;
-  letter-spacing: 0.3px;
-}
-.badge-orange {
-  color: var(--or);
-  background: var(--olt);
-  border: 0.5px solid rgba(157,67,0,.3);
-}
-.badge-green { background: var(--grl); color: var(--gr); }
-.badge-active { background: rgba(157,67,0,.15); color: var(--or); }
-.badge-locked { background: var(--g1); color: var(--g4); }
 
 /* ── Botões ──
    Um só sinal de "toque aqui" no app inteiro: --grad-primary (laranja).
