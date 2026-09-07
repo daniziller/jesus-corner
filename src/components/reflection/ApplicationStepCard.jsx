@@ -1,8 +1,11 @@
 // ApplicationStepCard.jsx — o passo "Aplicar" refeito (quadro 29b), o
 // último de qualquer um dos dois fluxos de Reflexão (manual ou com IA):
 // uma frase no imperativo sobre o que fazer HOJE com a leitura — não mais
-// uma pergunta aberta. Vira o card "Sua aplicação de ontem" da Home no dia
-// seguinte (ver HomeDashboard.jsx/applicationPhraseStore.js).
+// uma pergunta aberta. Fica salva no histórico do dia (NotesScreen.jsx) e,
+// se for a primeira ou a pessoa confirmar a troca, fixada como a frase
+// atual (ver applicationPhraseStore.js) — o card "Sua aplicação de ontem"
+// que existia na Home (HomeDashboard.jsx) saiu de cena em 2026-09-07,
+// quando a Home voltou a ser sempre o quadro 3c.
 //
 // "Me ajuda a escrever" (só com IA — session.hasAI) reaproveita o mesmo
 // endpoint de compose-reflection (compose-reflection-draft) que já existe

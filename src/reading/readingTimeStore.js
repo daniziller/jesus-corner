@@ -1,5 +1,5 @@
-// Tempo de leitura acumulado (segundos) — "horas de leitura acumulada" do
-// painel do Início (quadro 12a, ver HomeDashboard.jsx). O leitor imersivo
+// Tempo de leitura acumulado (segundos) — usado pela Retrospectiva do mês
+// (17b, ver ensureSnapshotAndGetDueRecap em App.jsx). O leitor imersivo
 // soma o tempo em que o texto está aberto com a aba visível
 // (useReadingTimer em ReadingBlockView.jsx) e descarrega aqui em lotes.
 // Vive na linha de dados da pessoa (user_data.reading_seconds, migration

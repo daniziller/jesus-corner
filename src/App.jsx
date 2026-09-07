@@ -75,7 +75,6 @@ import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { getReadingSeconds } from './reading/readingTimeStore'
-import HomeDashboard, { shouldShowDashboard } from './screens/HomeDashboard'
 import ChapterRoomScreen from './screens/ChapterRoomScreen'
 import RoutineCompleteScreen from './screens/RoutineCompleteScreen'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
@@ -470,10 +469,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('admin-active', activeTab === 'admin')
   }, [activeTab])
-  // Tempo de leitura acumulado (segundos) — "horas de leitura" do painel
-  // 12a. Relido sempre que a Home volta a ficar ativa, porque quem soma é o
-  // leitor (ver useReadingTimer em ReadingBlockView.jsx), em lotes.
-  const [readingSeconds, setReadingSeconds] = useState(0)
   // Leitura social (17a–17c): grupos da pessoa (o botão "Grupo" do leitor usa
   // o primeiro), a sala de capítulo aberta e a retrospectiva do mês devida.
   const [myGroups, setMyGroups] = useState([])
@@ -491,11 +486,6 @@ export default function App() {
     if (!authUser?.email) { setWeeklySummaries([]); return }
     getWeeklySummaries().then(setWeeklySummaries).catch(err => console.error('Failed to load weekly summaries', err))
   }, [authUser?.email])
-  useEffect(() => {
-    if (activeTab !== 'home' || !authUser) return
-    getReadingSeconds().then(setReadingSeconds).catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, authUser])
   // Pilha de abas visitadas — alimenta o botão "Voltar" global (header/
   // sidebar, ver goBack abaixo), pra sempre devolver a pessoa pra página
   // que ela estava antes, não importa por qual tela do app ela veio. Toda
@@ -1574,7 +1564,6 @@ export default function App() {
     setMyAvatarUrl(null)
     setSubscription(null)
     setIsAdmin(false)
-    setReadingSeconds(0)
     setMyGroups([])
     setGroupPlans([])
     setPendingGroupPlanInvites([])
@@ -2149,12 +2138,15 @@ export default function App() {
   }
 
   const screens = {
-    // Regra do quadro 12a: nos primeiros 7 dias, e sempre que o painel
-    // estiver zerado, a Home é 3c; o painel só entra depois da primeira
-    // semana cumprida (ver shouldShowDashboard).
-    home: shouldShowDashboard(session)
-      ? <HomeDashboard session={session} authUser={authUser} readingSeconds={readingSeconds} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} onOpenBiblePassage={openBiblePassage} />
-      : <HomeScreen    session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />,
+    // Decisão de produto de 2026-09-07: a Home é sempre o quadro 3c (a
+    // Daniela pediu explicitamente pra ela ficar igual ao screenshot,
+    // "quadros que estão" — ação, Sequência/Bíblia, Esta semana, Versículo
+    // do dia — em toda conta, não só nos primeiros 7 dias). O painel
+    // 29a/30a (HomeDashboard.jsx: "Onde você está", "Aplicação de ontem",
+    // "Constância" em card escuro, "Aplicações cumpridas", link de
+    // métricas completas) saiu de cena — removido, não só desligado, pra
+    // não deixar código morto (zero outro import de HomeDashboard.jsx).
+    home: <HomeScreen session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />,
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
