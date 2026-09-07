@@ -17,6 +17,8 @@ import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
 import { addReadingSeconds } from '../reading/readingTimeStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
+import { getReadingClockPrefs } from '../reading/readingClockPrefsStore'
+import { addReadingPaceSession } from '../reading/readingPaceStore'
 import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible } from '../groups/chapterRoomStore'
 import { avatarPaletteFor } from './ChapterRoomScreen'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
@@ -258,23 +260,129 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     return () => el.removeEventListener('scroll', onScroll)
   }, [immersive, heroSession?.id])
 
-  // Relógio do passo (26b, "6:20" ao lado da barra) — segundos desde que
-  // ESTA sessão de leitura guiada começou; zera a cada capítulo, diferente
+  // Relógio do passo — segundos desde que ESTA sessão de leitura começou;
+  // zera a cada capítulo (exceto ao avançar por "Continuar lendo", 35g, que
+  // deixa o relógio correndo — ver keepClockOnNextSessionChange), diferente
   // do acumulado de sempre em readingTimeStore.js (esse continua contando
   // pro painel de métricas, sem relação com este). Só conta com a aba
   // visível, mesmo cuidado do efeito de tempo de leitura logo abaixo.
   const [stepElapsedSeconds, setStepElapsedSeconds] = useState(0)
+
+  // Relógio de leitura (turno 35, Bloco 3 — 35f/35g). Só existe pro plano
+  // fixo (a Bíblia contínua, em qualquer ORDEM — canônica ou cronológica,
+  // ver bibleOrderMode/35i: cronológica também espelha em
+  // activePlan.kind==='chrono', mesma leitura contínua, só noutra fila) —
+  // plano por tema/grupo já tem sua própria tela — e nunca na reflexão de
+  // fechamento de livro. "Mostrar na leitura"
+  // (35c/readingClockPrefsStore.js) decide se aparece.
+  const [readingClockPrefs, setReadingClockPrefsState] = useState(null)
+  useEffect(() => { getReadingClockPrefs().then(setReadingClockPrefsState).catch(() => {}) }, [])
+  const showReadingClock = immersive && ['fixed', 'chrono'].includes(session.activePlan?.kind) && heroSession.type !== 'reflection' && !!readingClockPrefs?.showOnReading
+  const targetClockSeconds = Math.max(0, (session.plan.readingMinutes ?? 0) * 60)
+
+  const [clockPaused, setClockPaused] = useState(false)
+  const clockPausedRef = useRef(false)
+  useEffect(() => { clockPausedRef.current = clockPaused }, [clockPaused])
+  const [hasZeroed, setHasZeroed] = useState(false)
+  const [zeroFlash, setZeroFlash] = useState(false)
+  const [timeUpSheetOpen, setTimeUpSheetOpen] = useState(false)
+  // "Continuar lendo" (35g) avança de sessão sem reiniciar o relógio — o
+  // efeito abaixo só zera stepElapsedSeconds quando a troca de heroSession
+  // NÃO veio desse fluxo (ver handleContinueReading).
+  const keepClockOnNextSessionChange = useRef(false)
+
   useEffect(() => {
-    if (!guidedReading) return
-    setStepElapsedSeconds(0)
+    if (!showReadingClock) return
+    if (!keepClockOnNextSessionChange.current) {
+      setStepElapsedSeconds(0)
+      setHasZeroed(false)
+      setClockPaused(false)
+    }
+    keepClockOnNextSessionChange.current = false
     const interval = setInterval(() => {
+      if (clockPausedRef.current) return
       if (typeof document === 'undefined' || document.visibilityState === 'visible') {
         setStepElapsedSeconds(s => s + 1)
       }
     }, 1000)
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guidedReading, heroSession?.id])
+  }, [showReadingClock, heroSession?.id])
+
+  // Ao zerar: toque discreto (haptic + pisca uma vez) e passa a contar pra
+  // cima — nunca bloqueia nem fecha a leitura (HANDOFF, 35f).
+  useEffect(() => {
+    if (!showReadingClock || hasZeroed || targetClockSeconds <= 0) return
+    if (stepElapsedSeconds < targetClockSeconds) return
+    setHasZeroed(true)
+    if (readingClockPrefs?.warnAtZero) {
+      navigator.vibrate?.(200)
+      setZeroFlash(true)
+      setTimeout(() => setZeroFlash(false), 700)
+    }
+  }, [stepElapsedSeconds, showReadingClock, hasZeroed, targetClockSeconds, readingClockPrefs])
+
+  const clockDisplaySeconds = hasZeroed ? Math.max(0, stepElapsedSeconds - targetClockSeconds) : Math.max(0, targetClockSeconds - stepElapsedSeconds)
+
+  // Ritmo aprendido (35i) — cada trecho concluído (por "Concluir" ou por
+  // "Continuar lendo" em 35g) vira uma amostra de palavras/minuto. Sessões
+  // curtas demais (<30s ativos) não entram — não são leitura de verdade.
+  function recordPaceSampleIfNeeded() {
+    if (!showReadingClock || stepElapsedSeconds < 30 || !heroSession.words) return
+    const wordsPerMinute = Math.round((heroSession.words / stepElapsedSeconds) * 60)
+    if (wordsPerMinute > 0) {
+      addReadingPaceSession({ wordsPerMinute, activeSeconds: stepElapsedSeconds, at: new Date().toISOString() }).catch(() => {})
+    }
+  }
+
+  // "Concluir" (rodapé) — 35g só entra no meio quando sobrou tempo de
+  // verdade E a preferência "perguntar se quero continuar" está ligada;
+  // do contrário, fecha o passo direto (comportamento de sempre).
+  function handleConcludePress() {
+    if (showReadingClock && !hasZeroed && readingClockPrefs?.askToContinue) {
+      setTimeUpSheetOpen(true)
+      return
+    }
+    finishReadingStep()
+  }
+
+  // Fecha o passo de verdade (marca feito, vai pra Reflexão) — quem chama
+  // já gravou a amostra de ritmo antes, se for o caso (ver
+  // handleConcludePress/handleContinueReading), pra nunca gravar 2x.
+  function goToReflectionAfterReading() {
+    if (heroSession.status !== 'done') onToggleSession(heroSession, true)
+    if (onGoToReflection) onGoToReflection(heroSession)
+    else onNavigate?.('reflection')
+  }
+
+  function finishReadingStep() {
+    recordPaceSampleIfNeeded()
+    goToReflectionAfterReading()
+  }
+
+  // "Continuar lendo" (35g) — fecha o trecho atual, mas em vez de ir pra
+  // Reflexão segue pro próximo trecho da MESMA leitura, com o relógio
+  // correndo sem reiniciar (keepClockOnNextSessionChange). Sem próximo
+  // trecho (fim do plano), cai no mesmo caminho de "Finalizar por aqui".
+  function handleContinueReading() {
+    setTimeUpSheetOpen(false)
+    recordPaceSampleIfNeeded()
+    const next = getNextSessionFor(heroSession)
+    if (!next) { goToReflectionAfterReading(); return }
+    if (heroSession.status !== 'done') onToggleSession(heroSession, true)
+    keepClockOnNextSessionChange.current = true
+    featureSession(next)
+  }
+
+  function handleFinishHere() {
+    setTimeUpSheetOpen(false)
+    finishReadingStep()
+  }
+
+  // Só calculado quando a folha 35g está de fato aberta — getNextSessionFor
+  // percorre a lista de sessões, sem custo pra chamar sempre, mas não tem
+  // por que fazer isso em toda renderização.
+  const nextSessionForTimeUp = timeUpSheetOpen ? getNextSessionFor(heroSession) : null
 
   // "Último texto lido" — grava o capítulo que a pessoa está lendo agora,
   // em QUALQUER modo, pro card "Continue sua leitura" da Home reabrir
@@ -803,79 +911,54 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <GuidedFlowBanner guided={guidedReading} lang={lang} onExit={onExitGuided} />
       )}
       {immersive ? (
-        // Cabeçalho (identidade Bento, tela 4a) — some ao rolar pra baixo,
-        // volta ao rolar pra cima (readerHeaderHidden). Fica fixo no topo.
-        <div style={{
-          ...(guidedReading ? styles.readerHeaderGuided : styles.readerHeader),
-          transform: readerHeaderHidden ? 'translateY(-100%)' : 'none',
-        }}>
-          {guidedReading ? (
-            // Cabeçalho da Leitura dentro do fluxo guiado (26b) — igual ao
-            // de Oração/Reflexão (26a/26c): seta + pílula escura "Leitura ·
-            // N de 3" + pílula clara com o tempo do passo. Antes a Leitura
-            // era o único passo sem esse cabeçalho (nota do handoff). 2ª
-            // linha nova: o chip de capítulo/seletor de sempre + a barra
-            // fina de progresso do CAPÍTULO (não do tempo) + o relógio do
-            // passo — os dois só existem numa sessão de leitura de
-            // verdade, não na reflexão de fim de livro. Sem os ícones de
-            // Ferramentas (duplicavam o botão do rodapé) nem o botão
-            // "Grupo" (o design de 26b não reserva espaço pra ele aqui;
-            // continua acessível pela aba Bíblia fora do fluxo guiado).
-            <>
-              <div style={styles.guidedStepRow}>
-                <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
-                  <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-                </button>
-                <div style={styles.guidedStepPill}>
-                  <span style={styles.guidedStepPillText}>{t('home.routineReading', undefined, lang)}</span>
-                  <span style={styles.guidedStepPillCount}>{t('guided.stepOf', { n: guidedReading.idx + 1, total: guidedReading.total }, lang)}</span>
+        // Cabeçalho (identidade Bento, tela 4a; relógio turno 35/35f) —
+        // some ao rolar pra baixo, volta ao rolar pra cima
+        // (readerHeaderHidden). Fica fixo no topo. Turno 35, Bloco 3: este
+        // é o ÚNICO cabeçalho da Leitura agora, inclusive dentro do fluxo
+        // guiado da Rotina — 35f não tem a faixa "Agora · Passo N de 3"
+        // (essa informação já mora no cartão da Rotina/Meu Plano); o
+        // encadeamento pro próximo passo ao concluir continua funcionando
+        // igual (decisão tomada com a autora ao montar este bloco).
+        <>
+          <div style={{
+            ...styles.readerHeader,
+            transform: readerHeaderHidden ? 'translateY(-100%)' : 'none',
+          }}>
+            <div style={styles.readerHeaderLeft}>
+              <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
+                <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+              </button>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {/* Chip escuro (quadro 4a) — abre o seletor de capítulo
+                      (18b), a mesma folha escura da IA mas sem losango (aqui
+                      não é a máquina falando). Só tocável numa sessão de
+                      leitura de verdade — a reflexão de fechamento de livro
+                      não tem capítulo pra escolher numa grade de números. */}
+                  {heroSession.type === 'reflection' ? (
+                    <div style={styles.readerChapterChip}><span style={styles.readerChapterChipText}>{heroTitle}</span></div>
+                  ) : (
+                    <button style={styles.readerChapterChip} onClick={() => setChapterPickerOpen(true)}>
+                      <span style={styles.readerChapterChipText}>{heroTitle}</span>
+                      <AppIcon name="ChevronUp" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
+                    </button>
+                  )}
                 </div>
-                <button style={styles.guidedTimePill} onClick={() => onNavigate?.('adjustPlan')}>
-                  <span style={styles.guidedTimePillText}>{t('routine.minShort', { n: session.activePlan.readingMinutes ?? session.plan.readingMinutes ?? 0 }, lang)}</span>
-                  <AppIcon name="ChevronDown" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
-                </button>
+                <p style={styles.readerHeaderSub}>{readerHeaderSub}</p>
               </div>
-              {heroSession.type !== 'reflection' && (
-                <div style={styles.guidedChapterRow}>
-                  <button style={styles.guidedChapterChip} onClick={() => setChapterPickerOpen(true)}>
-                    <span style={styles.guidedChapterChipText}>{heroTitle}</span>
-                    <AppIcon name="ChevronDown" size={10} strokeWidth={2.8} color="var(--bento-accent)" />
-                  </button>
-                  <div style={styles.guidedChapterBarTrack}><div style={{ ...styles.guidedChapterBarFill, width: `${chapterProgressPct}%` }} /></div>
-                  <span style={styles.guidedChapterClock}>{formatClock(stepElapsedSeconds)}</span>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div style={styles.readerHeaderLeft}>
-                <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
-                  <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-                </button>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {/* Chip escuro (quadro 4a) — abre o seletor de capítulo
-                        (18b), a mesma folha escura da IA mas sem losango (aqui
-                        não é a máquina falando). Só tocável numa sessão de
-                        leitura de verdade — a reflexão de fechamento de livro
-                        não tem capítulo pra escolher numa grade de números. */}
-                    {heroSession.type === 'reflection' ? (
-                      <div style={styles.readerChapterChip}><span style={styles.readerChapterChipText}>{heroTitle}</span></div>
-                    ) : (
-                      <button style={styles.readerChapterChip} onClick={() => setChapterPickerOpen(true)}>
-                        <span style={styles.readerChapterChipText}>{heroTitle}</span>
-                        <AppIcon name="ChevronUp" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
-                      </button>
-                    )}
-                  </div>
-                  <p style={styles.readerHeaderSub}>{readerHeaderSub}</p>
-                </div>
-              </div>
-              {/* Dois ícones por fidelidade visual à 4a (ondas + menu) — os
-                  dois abrem Ferramentas, a mesma única ação que o cabeçalho
-                  já tinha; não inventamos uma 2ª funcionalidade nova
-                  (decisão tomada com a autora antes de implementar esta
-                  tela). */}
+            </div>
+            {showReadingClock ? (
+              // Pílula do relógio (35f) — toca pra pausar/retomar; ao zerar
+              // passa a contar pra cima, discreto, nunca bloqueia a leitura.
+              <button
+                style={{ ...styles.clockPill, ...(zeroFlash ? styles.clockPillFlash : {}) }}
+                onClick={() => setClockPaused(p => !p)}
+                aria-label={clockPaused ? t('reading.clockResume', undefined, lang) : t('reading.clockPause', undefined, lang)}
+              >
+                <AppIcon name={clockPaused ? 'Play' : 'Timer'} size={13} strokeWidth={2.4} color="var(--bento-accent)" />
+                <span style={{ ...styles.clockPillText, ...(hasZeroed ? styles.clockPillTextOvertime : {}) }}>{formatClock(clockDisplaySeconds)}</span>
+              </button>
+            ) : (
               <div style={styles.readerHeaderRight}>
                 {/* Botão "Grupo" (quadro 17c) — abre a sala do capítulo (17a). */}
                 {myGroup && heroSession.type !== 'reflection' && (
@@ -890,6 +973,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                     <span style={styles.groupBtnText}>{t('room.groupBtn', undefined, lang)}</span>
                   </button>
                 )}
+                {/* Dois ícones por fidelidade visual à 4a (ondas + menu) —
+                    os dois abrem Ferramentas, a mesma única ação que o
+                    cabeçalho já tinha; não inventamos uma 2ª
+                    funcionalidade nova (decisão tomada com a autora antes
+                    de implementar esta tela). */}
                 <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
                   <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
                 </button>
@@ -897,9 +985,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                   <AppIcon name="MoreVertical" size={16} color="var(--bento-ink)" />
                 </button>
               </div>
-            </>
+            )}
+          </div>
+          {showReadingClock && !readerHeaderHidden && (
+            <div style={styles.clockElapsedTrack}>
+              <div style={{ ...styles.clockElapsedFill, width: `${targetClockSeconds > 0 ? Math.min(100, Math.round((stepElapsedSeconds / targetClockSeconds) * 100)) : 0}%` }} />
+            </div>
           )}
-        </div>
+        </>
       ) : (
         <div style={styles.browseHeader}>
           {!embedded && (
@@ -1320,19 +1413,23 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                 <ToolboxIcon />
                 {t('reading.toolsBtn', undefined, lang)}
               </button>
-              <button
-                style={styles.readerDoneBtn}
-                onClick={() => {
-                  if (heroSession.status !== 'done') onToggleSession(heroSession, true)
-                  if (onGoToReflection) onGoToReflection(heroSession)
-                  else onNavigate?.('reflection')
-                }}
-              >
+              <button style={styles.readerDoneBtn} onClick={handleConcludePress}>
                 <AppIcon name="Check" size={16} strokeWidth={2.6} color="var(--bento-ink)" />
                 {t('reading.finishShort', undefined, lang)}
               </button>
             </div>
           </div>,
+          document.body,
+        )}
+        {timeUpSheetOpen && createPortal(
+          <TimeUpSheet
+            lang={lang}
+            remainingSeconds={targetClockSeconds > stepElapsedSeconds ? targetClockSeconds - stepElapsedSeconds : 0}
+            finishedTitle={heroTitle}
+            nextTitle={nextSessionForTimeUp ? (lang === 'en' ? nextSessionForTimeUp.titleEn : nextSessionForTimeUp.title) : null}
+            onContinue={handleContinueReading}
+            onFinishHere={handleFinishHere}
+          />,
           document.body,
         )}
         <ToolsSheet
@@ -2088,6 +2185,68 @@ function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
 // mostrar o versículo certo, funciona não importa onde a leitura estava
 // parada quando a pergunta foi feita.
 //
+// TimeUpSheet (turno 35, Bloco 3 — 35g) — folha por cima da leitura,
+// disparada pelo "Concluir" quando sobrou tempo no relógio (35f) e a
+// preferência "perguntar se quero continuar" está ligada. Sem botão de
+// fechar/overlay clicável de propósito — a pessoa escolhe uma das duas
+// ações, não "cancela" (as duas fecham a folha; não existe um terceiro
+// caminho "deixa pra lá", ver HANDOFF-35-meu-plano.md, 35g).
+function TimeUpSheet({ lang, remainingSeconds, finishedTitle, nextTitle, onContinue, onFinishHere }) {
+  const L = (k, vars) => t(`reading.${k}`, vars, lang)
+  return (
+    <div style={sheetStyles.overlay}>
+      <div style={sheetStyles.sheet}>
+        <div style={sheetStyles.grabber} />
+        <div style={sheetStyles.labelRow}>
+          <span style={sheetStyles.diamond} />
+          <p style={sheetStyles.label}>{L('timeUpLabel', { time: formatClock(remainingSeconds) })}</p>
+        </div>
+        <p style={sheetStyles.title}>{L('timeUpTitle', { title: finishedTitle })}</p>
+        <p style={sheetStyles.question}>{L('timeUpQuestion')}</p>
+
+        <button style={sheetStyles.continueCard} onClick={onContinue}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={sheetStyles.continueTitle}>{L('continueReading')}</p>
+            <p style={sheetStyles.continueSub}>{nextTitle ? L('continueReadingSub', { next: nextTitle }) : L('continueReadingSubEnd')}</p>
+          </div>
+          <AppIcon name="ArrowRight" size={17} color="var(--bento-accent)" />
+        </button>
+
+        <button style={sheetStyles.finishCard} onClick={onFinishHere}>
+          <p style={sheetStyles.finishTitle}>{L('finishHere')}</p>
+          <p style={sheetStyles.finishSub}>{L('finishHereSub')}</p>
+        </button>
+
+        <p style={sheetStyles.footerNote}>{L('timeUpFooter')}</p>
+      </div>
+    </div>
+  )
+}
+
+const sheetStyles = {
+  overlay: { position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'flex-end', background: 'rgba(0,0,0,.35)' },
+  sheet: { width: '100%', background: 'var(--bento-bg)', borderRadius: '28px 28px 0 0', padding: '10px 20px calc(24px + var(--safe-bottom))' },
+  grabber: { width: 36, height: 4, borderRadius: 99, background: 'var(--bento-line)', margin: '0 auto 18px' },
+  labelRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
+  diamond: { width: 9, height: 9, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  label: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  title: { fontFamily: 'var(--font-bento)', fontSize: 20, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 8px' },
+  question: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: '0 0 20px' },
+  continueCard: {
+    display: 'flex', alignItems: 'center', gap: 14, width: '100%', border: 'none', borderRadius: 24,
+    background: 'var(--bento-ink)', padding: '18px 20px', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-bento)', marginBottom: 10,
+  },
+  continueTitle: { fontSize: 16, fontWeight: 800, color: '#fff', margin: '0 0 4px' },
+  continueSub: { fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'rgba(255,255,255,.6)', margin: 0 },
+  finishCard: {
+    display: 'block', width: '100%', border: 'none', borderRadius: 24, background: 'var(--bento-card)',
+    padding: '18px 20px', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-bento)', marginBottom: 16,
+  },
+  finishTitle: { fontSize: 16, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 4px' },
+  finishSub: { fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: 0 },
+  footerNote: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t4)', margin: 0 },
+}
+
 // state: { status: 'loading'|'ready'|'error', ref, question, answer?, error? }
 // ref: { book, bookEn, chapter, verseStart, verseEnd }.
 function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
@@ -2922,30 +3081,19 @@ const styles = {
     padding: '20px 20px 14px', background: 'var(--bento-bg)',
     transition: 'transform .2s ease-out',
   },
-  // Cabeçalho da Leitura no fluxo guiado (26b) — mesma base fixa/sticky de
-  // readerHeader, mas em coluna (2 linhas: passo+tempo, depois
-  // capítulo+progresso+relógio) em vez de uma linha só com space-between.
-  readerHeaderGuided: {
-    position: 'sticky', top: 0, zIndex: 20,
-    display: 'flex', flexDirection: 'column', gap: 10,
-    padding: '20px 20px 12px', background: 'var(--bento-bg)',
-    transition: 'transform .2s ease-out',
+  // Pílula do relógio de leitura (turno 35, 35f) — substitui os ícones de
+  // Ferramentas no cabeçalho quando o relógio está ativo (a folha de
+  // Ferramentas continua acessível pelo botão do rodapé).
+  clockPill: {
+    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, height: 34,
+    border: 'none', borderRadius: 12, background: 'var(--bento-ink)', padding: '0 12px', cursor: 'pointer',
+    transition: 'background .15s',
   },
-  guidedStepRow: { display: 'flex', alignItems: 'center', gap: 10 },
-  guidedStepPill: { flex: 1, minWidth: 0, height: 34, borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px' },
-  guidedStepPillText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  guidedStepPillCount: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.45)', flexShrink: 0 },
-  guidedTimePill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', cursor: 'pointer' },
-  guidedTimePillText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)' },
-  guidedChapterRow: { display: 'flex', alignItems: 'center', gap: 8 },
-  guidedChapterChip: {
-    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, height: 32,
-    border: 'none', borderRadius: 11, background: 'var(--bento-ink)', padding: '0 12px 0 14px', cursor: 'pointer',
-  },
-  guidedChapterChipText: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap' },
-  guidedChapterBarTrack: { flex: 1, height: 6, borderRadius: 99, background: '#DDD5CC', overflow: 'hidden' },
-  guidedChapterBarFill: { height: 6, borderRadius: 99, background: 'var(--bento-accent)' },
-  guidedChapterClock: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)' },
+  clockPillFlash: { background: 'var(--bento-accent)' },
+  clockPillText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' },
+  clockPillTextOvertime: { color: '#8B8279' },
+  clockElapsedTrack: { height: 4, background: 'rgba(0,0,0,.07)', flexShrink: 0 },
+  clockElapsedFill: { height: '100%', background: 'var(--bento-accent)', transition: 'width 1s linear' },
   readerHeaderLeft: { display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 },
   readerHeaderRight: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
   readerIconBtn: {
