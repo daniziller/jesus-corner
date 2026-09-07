@@ -16,15 +16,15 @@ import CreateGroupSheet from '../components/CreateGroupSheet'
 import { createChallenge, getChallengesForGroup, getChallengeLeaderboard, completeChallenge } from '../groups/challengesStore'
 import { getComments, postComment, deleteComment, toggleCommentLike, setCommentPinned } from '../groups/commentsStore'
 import { getFriendProfile, getFriendProgressSummary } from '../profile/profileStore'
-import { logActivity, getFriendsActivity } from '../activity/activityStore'
+import { logActivity } from '../activity/activityStore'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import {
   getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest, togglePraying,
 } from '../groups/prayerRequestsStore'
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
-import { getRoomStats, getRoomMembers } from '../groups/chapterRoomStore'
+import { getRoomStats } from '../groups/chapterRoomStore'
+import { getGroupMessagesSummary } from '../groups/messagesStore'
 import { formatRelativeTime } from '../utils/time'
-import ActivityFeedItem from '../components/ActivityFeedItem'
 
 // Todos os 66 livros (pt/en), na mesma ordem/nomes usados em completed_keys
 // — reaproveitado do mesmo dado que já alimenta a Jornada, pra montar o
@@ -44,7 +44,7 @@ function formatDate(iso, lang) {
   return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR')
 }
 
-export default function GroupsScreen({ session, authUser, pendingGroupPlanInvites, onRespondGroupPlanInvite, onSocialChange, onOpenGroupRoom, onDetailOpenChange }) {
+export default function GroupsScreen({ session, authUser, pendingGroupPlanInvites, onRespondGroupPlanInvite, onSocialChange, onOpenGroupRoom, onOpenMessages, onOpenProfile, entryTarget, onEntryTargetConsumed, onDetailOpenChange }) {
   const { lang, todaySession } = session
   const [myGroups, setMyGroups] = useState([])
   const [memberCounts, setMemberCounts] = useState({})
@@ -53,27 +53,20 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
   const [friendsOpen, setFriendsOpen] = useState(false)
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
-  const [friendActivity, setFriendActivity] = useState([])
-  // Lista inteira (não só a contagem) — o cartão "Amigos" (24a) mostra os
+  // Lista inteira (não só a contagem) — o cartão "Amigos" (33a) mostra os
   // 3 primeiros em quadrados próprios (avatar + nome), não um número solto.
   const [friends, setFriends] = useState([])
   const [pendingFriendsCount, setPendingFriendsCount] = useState(0)
-  // "Sala aberta agora" (24a) — simplificação deliberada, documentada: olha
-  // só o PRIMEIRO grupo (a maioria tem poucos), não "o grupo com mais gente
-  // em atraso" que o handoff sugere como alternativa — isso exigiria
-  // agregar atraso de todo mundo em todo grupo, um cálculo bem mais caro só
-  // pra um cartão que já é opcional por natureza.
-  const [featuredRoomStats, setFeaturedRoomStats] = useState(null)
-  // Fileira de avatares "quem já leu hoje" do card escuro (24a) — só do
-  // grupo em destaque, mesma simplificação do featuredRoomStats acima.
-  const [featuredRoomMembers, setFeaturedRoomMembers] = useState([])
-  // Selo laranja "N mensagens novas" na linha de CADA grupo (24a) — ao
-  // contrário do card escuro (só o grupo em destaque), aqui é por grupo
-  // mesmo, porque a linha existe pra cada um. "Novas" = todas as
-  // mensagens da sala de hoje (a sala nasce e morre no dia do capítulo —
-  // não existe cursor de "já vi" separado, ver group_chapter_room_stats).
-  const [roomStatsByGroup, setRoomStatsByGroup] = useState({})
-  // Filtro de "Seus grupos" (24a, ícone de lupa no cabeçalho) — client-side
+  // Resumo de mensagens por grupo (33a: selo por linha em "Seus grupos" +
+  // soma pro sino do cabeçalho junto com pendingFriendsCount; 33b lê a
+  // lista completa por conta própria, ver messagesStore.js) — substitui o
+  // "Sala aberta agora"/roomStatsByGroup de antes: o quadro novo tirou o
+  // card escuro do topo e trocou o selo "hoje só" por mensagens de
+  // verdade (sala de capítulo + pedidos de oração + discussão, ver
+  // migration 0057), então cobre TODO grupo com coisa nova, não só o que
+  // tem sala aberta hoje.
+  const [messagesSummary, setMessagesSummary] = useState([])
+  // Filtro de "Seus grupos" (33a, ícone de lupa no cabeçalho) — client-side
   // sobre myGroups, que já está todo carregado; achar amigos novos
   // continua sendo o buscador de AddFriendsScreen.jsx (24c), não este.
   const [groupsSearchOpen, setGroupsSearchOpen] = useState(false)
@@ -90,31 +83,14 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
       if (groups.length) getGroupMemberCounts(groups.map(g => g.groupId)).then(setMemberCounts).catch(() => {})
     }).catch(err => console.error('Failed to load groups', err))
     getPendingGroupInvites().then(setGroupInvites).catch(err => console.error('Failed to load group invites', err))
-    getFriendsActivity(20).then(setFriendActivity).catch(err => console.error('Failed to load friend activity', err))
     getFriends().then(setFriends).catch(() => {})
     getPendingRequests().then(p => setPendingFriendsCount(p.length)).catch(() => {})
+    getGroupMessagesSummary().then(setMessagesSummary).catch(() => {})
   }, [reloadKey])
 
-  const hasTodayReading = !!(todaySession && !todaySession.needsThemePick && todaySession.type !== 'reflection' && todaySession.book)
-  const featuredGroup = myGroups[0] ?? null
-  useEffect(() => {
-    if (!featuredGroup || !hasTodayReading) { setFeaturedRoomStats(null); setFeaturedRoomMembers([]); return }
-    getRoomStats(featuredGroup.groupId, todaySession.book, todaySession.chStart)
-      .then(setFeaturedRoomStats).catch(() => setFeaturedRoomStats(null))
-    getRoomMembers(featuredGroup.groupId, todaySession.book, todaySession.chStart)
-      .then(setFeaturedRoomMembers).catch(() => setFeaturedRoomMembers([]))
-  }, [featuredGroup?.groupId, hasTodayReading, todaySession?.book, todaySession?.chStart])
-
-  // Selo "N mensagens novas" por linha (24a) — uma chamada de
-  // group_chapter_room_stats por grupo (a pessoa costuma ter poucos).
-  useEffect(() => {
-    if (!hasTodayReading || !myGroups.length) { setRoomStatsByGroup({}); return }
-    let cancelled = false
-    Promise.all(myGroups.map(g =>
-      getRoomStats(g.groupId, todaySession.book, todaySession.chStart).then(stats => [g.groupId, stats])
-    )).then(pairs => { if (!cancelled) setRoomStatsByGroup(Object.fromEntries(pairs)) })
-    return () => { cancelled = true }
-  }, [myGroups, hasTodayReading, todaySession?.book, todaySession?.chStart])
+  const messagesSummaryByGroup = Object.fromEntries(messagesSummary.map(s => [s.groupId, s]))
+  const unreadMessagesTotal = messagesSummary.reduce((sum, s) => sum + s.unreadCount, 0)
+  const bellBadgeCount = unreadMessagesTotal + pendingFriendsCount
 
   // Avisa o shell (App.jsx) se uma tela interna está aberta (um grupo ou
   // Adicionar amigos) — 5d/24c têm cabeçalho Bento próprio; a lista (24a)
@@ -129,6 +105,18 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
   }, [detailOpen])
 
   const openGroup = myGroups.find(g => g.groupId === openGroupId) ?? null
+
+  // Chegando de 33b ("Ver" num item de mensagem/pedido de amizade) — abre
+  // direto no grupo certo ou em Adicionar amigos, mesmo padrão de
+  // browseJumpTarget em JourneyScreen.jsx/App.jsx. Só roda quando o alvo
+  // muda de verdade (App.jsx zera pra null depois de consumido).
+  useEffect(() => {
+    if (!entryTarget) return
+    if (entryTarget.type === 'group') setOpenGroupId(entryTarget.groupId)
+    else if (entryTarget.type === 'friends') setFriendsOpen(true)
+    onEntryTargetConsumed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryTarget])
 
   async function handleCreateGroup(name, readingMode) {
     const created = await createGroup(name, readingMode)
@@ -156,16 +144,14 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
 
   return (
     <div className="master-detail">
-      {/* Master = quadro 24a (Bloco 10): home da Comunidade — sala aberta
-          agora (condicional), seus grupos, criar/entrar e amigos. Antes
-          disso abria direto numa lista simples sem quadro próprio no
-          handoff; 24a é uma adição posterior que formaliza essa entrada. */}
+      {/* Master = quadro 33a (substitui 24a, ver handoff-comunidade-33/):
+          cabeçalho sem subtítulo, cartão de perfil, seus grupos, amigos,
+          criar/entrar. "Sala aberta agora" saiu daqui de propósito — volta
+          como linha do grupo (selo de mensagens abaixo) e como notificação
+          em 33b (sino no cabeçalho, onOpenMessages). */}
       <div className={`master-pane${detailOpen ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%', background: 'var(--bento-bg)' }}>
         <div style={styles.aHeader}>
-          <div>
-            <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
-            <p style={styles.bSubtitle}>{t('groups.communitySummary', { groups: myGroups.length, friends: friends.length }, lang)}</p>
-          </div>
+          <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button" style={styles.aSearchBtn}
@@ -174,12 +160,16 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
             >
               <AppIcon name={groupsSearchOpen ? 'X' : 'Search'} size={15} strokeWidth={2.2} color="var(--bento-ink)" />
             </button>
+            <button type="button" style={styles.aBellBtn} onClick={() => onOpenMessages?.()} aria-label={t('groups.messagesTitle', undefined, lang)}>
+              <AppIcon name="Bell" size={16} strokeWidth={1.9} color="var(--bento-ink)" />
+              {bellBadgeCount > 0 && <span style={styles.aBellBadge}>{bellBadgeCount > 99 ? '99+' : bellBadgeCount}</span>}
+            </button>
             <button type="button" style={styles.aAddBtn} onClick={() => setCreateSheetOpen(true)} aria-label={t('groups.createGroup', undefined, lang)}>
               <AppIcon name="Plus" size={16} strokeWidth={2.2} color="var(--bento-accent)" />
             </button>
           </div>
         </div>
-        {/* Busca de "Seus grupos" (24a, ícone de lupa) — filtra a lista
+        {/* Busca de "Seus grupos" (33a, ícone de lupa) — filtra a lista
             abaixo pelo nome, client-side; achar gente/grupo NOVO continua
             sendo Criar grupo/Entrar com código/Adicionar amigo. */}
         {groupsSearchOpen && (
@@ -195,35 +185,9 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
           </div>
         )}
         <div style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {hasTodayReading && featuredGroup && featuredRoomStats && featuredRoomStats.completed > 0 && (
-            <div style={styles.aRoomHero}>
-              <div style={styles.aRoomLabelRow}>
-                <span style={styles.aRoomDiamond} />
-                <p style={styles.aRoomLabel}>{t('groups.roomOpenNow', undefined, lang)}</p>
-              </div>
-              <p style={styles.aRoomTitle}>{featuredGroup.name} · {lang === 'en' ? todaySession.bookEn : todaySession.book} {todaySession.chStart}</p>
-              {featuredRoomMembers.length > 0 && (
-                <div style={styles.aRoomAvatarRow}>
-                  {featuredRoomMembers.slice(0, 3).map((m, i) => (
-                    <span key={m.userId} style={{ ...styles.aRoomAvatar, marginLeft: i === 0 ? 0 : -9 }}>
-                      {m.avatarUrl ? <img src={m.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} /> : avatarInitialsOf(m.name)}
-                    </span>
-                  ))}
-                  {featuredRoomMembers.length > 3 && (
-                    <span style={{ ...styles.aRoomAvatar, ...styles.aRoomAvatarMore, marginLeft: -9 }}>+{featuredRoomMembers.length - 3}</span>
-                  )}
-                </div>
-              )}
-              <p style={styles.aRoomStatus}>{t('groups.homeReadStatus', { done: featuredRoomStats.completed, total: featuredRoomStats.members }, lang)}</p>
-              <button
-                type="button" style={styles.aRoomBtn}
-                onClick={() => onOpenGroupRoom?.({ group: { groupId: featuredGroup.groupId, name: featuredGroup.name }, book: todaySession.book, bookEn: todaySession.bookEn, chapter: todaySession.chStart })}
-              >
-                <span>{t('groups.enterRoom', undefined, lang)}</span>
-                <span style={{ fontWeight: 700 }}>→</span>
-              </button>
-            </div>
-          )}
+          <ProfileSummaryCard session={session} authUser={authUser} myGroupsCount={myGroups.length} friendsCount={friends.length} lang={lang} onOpenProfile={onOpenProfile} />
+
+          {myGroups.length === 0 && <CreateOrJoinTiles lang={lang} onCreateTap={() => setCreateSheetOpen(true)} onReload={reload} />}
 
           {pendingCount > 0 && (
             <div style={styles.bCard}>
@@ -266,21 +230,10 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
             </div>
           )}
 
-          <GroupsListSection groups={myGroups} memberCounts={memberCounts} roomStatsByGroup={roomStatsByGroup} search={groupsSearch} lang={lang} onOpen={setOpenGroupId} onCreateTap={() => setCreateSheetOpen(true)} onReload={reload} />
+          <GroupsListSection groups={myGroups} memberCounts={memberCounts} messagesSummaryByGroup={messagesSummaryByGroup} search={groupsSearch} lang={lang} onOpen={setOpenGroupId} />
           <FriendsPreviewCard lang={lang} friends={friends} pendingCount={pendingFriendsCount} onOpen={() => setFriendsOpen(true)} />
 
-          <div style={styles.bCard}>
-            <p style={styles.bCardLabel}>{t('groups.activityTitle', undefined, lang)}</p>
-            {friendActivity.length === 0 ? (
-              <p style={styles.bEmptyHint}>{t('groups.activityEmpty', undefined, lang)}</p>
-            ) : (
-              friendActivity.map((a, i) => (
-                <div key={a.id} style={{ paddingTop: i > 0 ? 10 : 0, marginTop: i > 0 ? 10 : 0, borderTop: i > 0 ? '1px solid var(--bento-line)' : 'none' }}>
-                  <ActivityFeedItem activity={a} lang={lang} />
-                </div>
-              ))
-            )}
-          </div>
+          {myGroups.length > 0 && <CreateOrJoinTiles lang={lang} onCreateTap={() => setCreateSheetOpen(true)} onReload={reload} />}
         </div>
       </div>
 
@@ -323,10 +276,81 @@ function GroupsEmptyState({ lang }) {
   )
 }
 
-/* ── Lista de grupos + criar grupo + entrar com código ── */
-function GroupsListSection({ groups, memberCounts, roomStatsByGroup, search, lang, onOpen, onCreateTap, onReload }) {
-  const clean = search.trim().toLowerCase()
-  const shownGroups = clean ? groups.filter(g => g.name.toLowerCase().includes(clean)) : groups
+// Cartão escuro de perfil (33a, topo da tela) — três números que são "os
+// da comunidade, não os da leitura" (grupos/amigos/% lido), como o próprio
+// handoff explica na nota de rodapé do quadro. "Desde {mês}" reaproveita
+// EXATAMENTE o cálculo que já existia em ProgressScreen.jsx (5b) — dia
+// mais antigo registrado na rotina — pra não inventar uma segunda fonte
+// pra "quando a pessoa começou". A pílula de posição usa
+// session.lastReadPosition (onde a pessoa REALMENTE parou — ver
+// lastReadPositionStore.js), caindo pra currentBlock (próximo pendente)
+// só quando ainda não existe nenhuma leitura salva.
+function ProfileSummaryCard({ session, authUser, myGroupsCount, friendsCount, lang, onOpenProfile }) {
+  const { avatarInitials, dailyRoutine, weeklyGoalDays, weeksInGoal, lastReadPosition, currentBlock, biblePercent } = session
+  const fullName = (authUser?.name ?? '').trim() || session.userName
+  const locale = lang === 'en' ? 'en' : 'pt-BR'
+
+  const earliestKey = Object.keys(dailyRoutine ?? {}).sort()[0]
+  const sinceLabel = (() => {
+    if (!earliestKey) return null
+    const [y, m] = earliestKey.split('-').map(Number)
+    const monthName = new Date(y, m - 1, 1).toLocaleDateString(locale, { month: 'long' })
+    return t('groups.profileSince', { month: lang === 'en' ? monthName : monthName.toLowerCase(), n: weeklyGoalDays ?? 5 }, lang)
+  })()
+
+  const positionBook = lastReadPosition?.book ?? currentBlock?.book ?? null
+  const positionChapter = lastReadPosition?.chapter ?? currentBlock?.chapter ?? null
+  const positionLabel = positionBook && positionChapter ? `${positionBook} ${positionChapter}` : null
+
+  const biblePercentLabel = (biblePercent ?? 0).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
+
+  return (
+    <div style={styles.pCard}>
+      <div style={styles.pIdentityRow}>
+        <span style={styles.pAvatar}>{avatarInitials}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={styles.pName}>{fullName}</p>
+          {sinceLabel && <p style={styles.pSince}>{sinceLabel}</p>}
+          <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
+            {!!weeksInGoal && <span style={styles.pPillGoal}>{t('groups.profileWeeksInGoal', { n: weeksInGoal }, lang)}</span>}
+            {positionLabel && <span style={styles.pPillPosition}>{positionLabel}</span>}
+          </div>
+        </div>
+        <button type="button" style={styles.pEditBtn} onClick={() => onOpenProfile?.()} aria-label={t('groups.myProfileBtn', undefined, lang)}>
+          <AppIcon name="Pencil" size={14} color="#fff" />
+        </button>
+      </div>
+
+      <div style={styles.pStatsRow}>
+        <div style={styles.pStatItem}>
+          <p style={styles.pStatValue}>{myGroupsCount}</p>
+          <p style={styles.pStatLabel}>{t('groups.profileGroupsLabel', undefined, lang)}</p>
+        </div>
+        <div style={{ ...styles.pStatItem, ...styles.pStatItemDivided }}>
+          <p style={styles.pStatValue}>{friendsCount}</p>
+          <p style={styles.pStatLabel}>{t('groups.profileFriendsLabel', undefined, lang)}</p>
+        </div>
+        <div style={{ ...styles.pStatItem, ...styles.pStatItemDivided }}>
+          <p style={styles.pStatValue}>{biblePercentLabel}</p>
+          <p style={styles.pStatLabel}>{t('groups.profileBibleReadLabel', undefined, lang)}</p>
+        </div>
+      </div>
+
+      <div style={styles.pFooter}>
+        <p style={styles.pFooterNote}>{t('groups.profilePrivacyNote', undefined, lang)}</p>
+        <button type="button" style={styles.pFooterBtn} onClick={() => onOpenProfile?.()}>{t('groups.myProfileBtn', undefined, lang)}</button>
+      </div>
+    </div>
+  )
+}
+
+// "Criar grupo" / "Entrar com código" (33a) — bloco próprio, separado da
+// lista de grupos (antes vivia dentro de GroupsListSection); o handoff
+// pede ele LOGO ABAIXO DO PERFIL quando a pessoa não tem grupo nenhum
+// ainda, e no fim de tudo (depois de Amigos) no caso normal — por isso o
+// componente é usado duas vezes em posições diferentes no JSX do pai, uma
+// só ativa por vez (ver myGroups.length no return de GroupsScreen).
+function CreateOrJoinTiles({ lang, onCreateTap, onReload }) {
   const [joining, setJoining] = useState(false)
   const [code, setCode] = useState('')
   const [joinLoading, setJoinLoading] = useState(false)
@@ -360,44 +384,6 @@ function GroupsListSection({ groups, memberCounts, roomStatsByGroup, search, lan
 
   return (
     <>
-      <div style={styles.bCard}>
-        <div style={styles.bCardHeadRow}>
-          <p style={styles.bCardLabel}>{t('groups.myGroupsTitle', undefined, lang)}</p>
-        </div>
-        {groups.length === 0 ? (
-          <p style={styles.bEmptyHint}>{t('groups.noGroupsYet', undefined, lang)}</p>
-        ) : shownGroups.length === 0 ? (
-          <p style={styles.bEmptyHint}>{t('groups.searchNoResults', undefined, lang)}</p>
-        ) : (
-          shownGroups.map((g, i) => {
-            // Selo laranja "N mensagens novas" (24a) — só quando a sala de
-            // hoje deste grupo já tem alguém que leu E pelo menos 1
-            // mensagem; senão a seta normal de "abrir grupo".
-            const stats = roomStatsByGroup[g.groupId]
-            const unread = stats && stats.completed > 0 ? stats.posts : 0
-            return (
-              <button
-                key={g.groupId}
-                style={{ ...styles.bLinkRow, borderBottom: i === shownGroups.length - 1 ? 'none' : '1px solid var(--bento-line)' }}
-                onClick={() => onOpen(g.groupId)}
-              >
-                <span style={{ ...styles.bAvatarCircle, borderRadius: 12, ...(unread > 0 ? styles.bAvatarCircleActive : {}) }}>{avatarInitialsOf(g.name)}</span>
-                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                  <p style={styles.bMemberName}>{g.name}</p>
-                  <p style={styles.bMemberSub}>
-                    {t(memberCounts[g.groupId] === 1 ? 'groups.memberCountOne' : 'groups.memberCountMany', { n: memberCounts[g.groupId] ?? 0 }, lang)}
-                    {g.myRole === 'moderator' ? ` · ${t('groups.youAreModerator', undefined, lang)}` : ''}
-                  </p>
-                </div>
-                {unread > 0 ? <span style={styles.bUnreadBadge}>{unread}</span> : <span style={styles.bChevron}>›</span>}
-              </button>
-            )
-          })
-        )}
-      </div>
-
-      {/* Criar grupo / Entrar com código (24a) — os dois atalhos de entrada
-          que antes viviam só como ícones no cabeçalho do card acima. */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="button" style={styles.aCreateTile} onClick={onCreateTap}>
           <AppIcon name="Plus" size={17} strokeWidth={2} color="var(--bento-sand-icon)" />
@@ -430,6 +416,60 @@ function GroupsListSection({ groups, memberCounts, roomStatsByGroup, search, lan
       {joinError && <p style={styles.bErrorText}>{joinError}</p>}
       {joinSuccess && <p style={styles.bEmptyHint}>{joinSuccess}</p>}
     </>
+  )
+}
+
+// Lista "Seus grupos" (33a) — selo laranja de mensagens novas por linha
+// (messagesSummaryByGroup, ver migration 0057 — substitui o selo antigo
+// que só olhava a sala de hoje). Mais de GROUPS_SHOWN_MAX grupos: mostra
+// só os primeiros + "Ver todos" expande o resto na hora, sem tela nova —
+// o handoff pede o link mas não descreve uma tela de lista completa
+// própria, e todo grupo já carrega de uma vez (não tem por que buscar de
+// novo, só revelar).
+const GROUPS_SHOWN_MAX = 4
+function GroupsListSection({ groups, memberCounts, messagesSummaryByGroup, search, lang, onOpen }) {
+  const [showAll, setShowAll] = useState(false)
+  const clean = search.trim().toLowerCase()
+  const filtered = clean ? groups.filter(g => g.name.toLowerCase().includes(clean)) : groups
+  const shownGroups = (showAll || clean) ? filtered : filtered.slice(0, GROUPS_SHOWN_MAX)
+
+  return (
+    <div style={styles.bCard}>
+      <div style={styles.bCardHeadRow}>
+        <p style={styles.bCardLabel}>{t('groups.myGroupsTitle', undefined, lang)}</p>
+        {groups.length > GROUPS_SHOWN_MAX && (
+          <button type="button" style={styles.aSeeAllLink} onClick={() => setShowAll(v => !v)}>
+            {t(showAll ? 'groups.showLess' : 'groups.seeAllGroups', undefined, lang)}
+          </button>
+        )}
+      </div>
+      {groups.length === 0 ? (
+        <p style={styles.bEmptyHint}>{t('groups.noGroupsYet', undefined, lang)}</p>
+      ) : shownGroups.length === 0 ? (
+        <p style={styles.bEmptyHint}>{t('groups.searchNoResults', undefined, lang)}</p>
+      ) : (
+        shownGroups.map((g, i) => {
+          const unread = messagesSummaryByGroup[g.groupId]?.unreadCount ?? 0
+          return (
+            <button
+              key={g.groupId}
+              style={{ ...styles.bLinkRow, borderBottom: i === shownGroups.length - 1 ? 'none' : '1px solid var(--bento-line)' }}
+              onClick={() => onOpen(g.groupId)}
+            >
+              <span style={{ ...styles.bAvatarCircle, borderRadius: 12, ...(unread > 0 ? styles.bAvatarCircleActive : {}) }}>{avatarInitialsOf(g.name)}</span>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <p style={styles.bMemberName}>{g.name}</p>
+                <p style={styles.bMemberSub}>
+                  {t(memberCounts[g.groupId] === 1 ? 'groups.memberCountOne' : 'groups.memberCountMany', { n: memberCounts[g.groupId] ?? 0 }, lang)}
+                  {g.myRole === 'moderator' ? ` · ${t('groups.youAreModerator', undefined, lang)}` : ''}
+                </p>
+              </div>
+              {unread > 0 ? <span style={styles.bUnreadBadge}>{unread}</span> : <span style={styles.bChevron}>›</span>}
+            </button>
+          )
+        })
+      )}
+    </div>
   )
 }
 
@@ -1388,40 +1428,47 @@ const styles = {
   // visual de GroupAdminScreen.jsx (quadro 19c): cartões brancos
   // arredondados-24, rótulo uppercase pequeno, avatar circular, "vê tudo"
   // como botão de texto.
-  bHeader: { flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '22px 20px 0' },
   bTitle: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
-  bSubtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
 
-  // Cabeçalho (título+resumo à esquerda, "+" à direita) e o cartão "sala
-  // aberta agora" — as duas peças de 24a que ficaram sem estilo nenhum
-  // desde sempre (JSX referenciava `styles.aHeader`/`aRoomHero`/etc., mas
-  // não existiam aqui: React só ignora um `style={undefined}`, então tudo
-  // isso caía no padrão cru do navegador — sem erro, sem aviso, só a tela
-  // com cara de quebrada; achado numa varredura visual, não numa mudança
-  // de comportamento).
-  aHeader: { flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 20px 0' },
-  // 24a: "+" é o único botão escuro do cabeçalho (ícone laranja em cima de
+  // Cabeçalho (33a) — só o título "Comunidade" à esquerda (a linha "N
+  // grupos · N amigos" saiu, foi pro cartão de perfil) e três botões de
+  // 34px à direita (busca/sino/+).
+  aHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 20px 0' },
+  // 33a: "+" é o único botão escuro do cabeçalho (ícone laranja em cima de
   // --bento-ink) — não o cinza/areia que estava aqui antes (achado na
   // mesma auditoria de cor de fundo).
   aAddBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   aSearchBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  // Sino (33a) — entre a lupa e o "+"; badge no canto, mesma pílula
+  // laranja/tinta de sempre. Abre 33b (Mensagens), não um painel dropdown
+  // (esse já existe em NotificationBell.jsx, é outra tela/outro uso — não
+  // reaproveitado aqui de propósito, os dois não coexistem: 'groups' está
+  // sempre no bentoScreen, então o AppHeader/Sidebar com o sino antigo
+  // nunca aparece por cima desta tela).
+  aBellBtn: { position: 'relative', width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  aBellBadge: { position: 'absolute', top: -4, right: -4, height: 19, minWidth: 19, padding: '0 5px', borderRadius: 99, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   aSearchInput: { width: '100%', height: 42, borderRadius: 14, border: 'none', background: 'var(--bento-card)', padding: '0 14px', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-ink)', outline: 'none', boxSizing: 'border-box' },
+  aSeeAllLink: { border: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
 
-  aRoomHero: { borderRadius: 24, background: 'var(--bento-ink)', padding: 18 },
-  aRoomLabelRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 },
-  aRoomDiamond: { width: 8, height: 8, flexShrink: 0, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
-  aRoomLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)', margin: 0 },
-  aRoomTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, letterSpacing: '-.3px', color: '#fff', margin: '4px 0 2px' },
-  // Fileira de avatares "quem já leu hoje" (24a) — círculos sobrepostos,
-  // mesmo visual de sempre pra roster de gente (grupos/amigos), só que
-  // menor (24px) pra caber numa linha dentro do card escuro.
-  aRoomAvatarRow: { display: 'flex', alignItems: 'center', margin: '6px 0 10px' },
-  aRoomAvatar: { width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--bento-ink)', boxSizing: 'border-box', background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)', fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 800, lineHeight: '20px', textAlign: 'center', overflow: 'hidden' },
-  aRoomAvatarMore: { background: 'rgba(255,255,255,.14)', color: '#fff' },
-  aRoomStatus: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.55)', margin: '0 0 12px' },
-  aRoomBtn: { width: '100%', height: 42, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  // Cartão escuro de perfil (33a) — substitui "Sala aberta agora" no topo.
+  pCard: { borderRadius: 26, background: 'var(--bento-ink)', padding: '18px 20px' },
+  pIdentityRow: { display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 },
+  pAvatar: { width: 56, height: 56, flexShrink: 0, borderRadius: 19, background: 'var(--bento-accent)', color: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 18, fontWeight: 800 },
+  pName: { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.5px', color: '#fff', margin: 0 },
+  pSince: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: '2px 0 0' },
+  pPillGoal: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', background: 'rgba(240,102,43,.16)', borderRadius: 99, padding: '5px 8px' },
+  pPillPosition: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.6)', background: 'rgba(255,255,255,.09)', borderRadius: 99, padding: '5px 8px' },
+  pEditBtn: { width: 30, height: 30, flexShrink: 0, borderRadius: 11, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  pStatsRow: { display: 'flex', marginBottom: 12 },
+  pStatItem: { flex: 1 },
+  pStatItemDivided: { paddingLeft: 14, borderLeft: '1px solid rgba(255,255,255,.1)', marginLeft: 0 },
+  pStatValue: { fontFamily: 'var(--font-bento)', fontSize: 23, fontWeight: 800, letterSpacing: '-1px', lineHeight: 1, color: '#fff', margin: '0 0 3px' },
+  pStatLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.45)', margin: 0 },
+  pFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,.1)' },
+  pFooterNote: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, lineHeight: 1.35, color: 'rgba(255,255,255,.5)', margin: 0 },
+  pFooterBtn: { flexShrink: 0, height: 30, padding: '0 12px', borderRadius: 11, border: 'none', background: 'rgba(255,255,255,.1)', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: '#fff', cursor: 'pointer' },
 
-  // Atalhos "Criar grupo" / "Entrar com código" (24a), lado a lado — o de
+  // Atalhos "Criar grupo" / "Entrar com código" (33a), lado a lado — o de
   // criar em sand (ação principal), o de entrar em branco (secundária);
   // aTileTitle/aTileSub nascem pensados pro fundo sand e cada chamada do
   // tile de entrar sobrescreve a cor pra ink/t4 (ver JSX).
