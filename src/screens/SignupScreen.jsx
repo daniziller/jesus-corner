@@ -1,12 +1,17 @@
-// SignupScreen.jsx — Criar conta, depois de já ter lido (quadro 13c).
+// SignupScreen.jsx — Criar conta (quadro 13c).
 //
-// Aparece pela primeira vez quando a pessoa termina a primeira leitura como
-// convidada (ver o gate em App.jsx e src/onboarding/guestInviteStore.js) e
-// também pelo "Criar conta" da tela de entrar (13b). O cartão areia mostra o
-// que vai para a conta — é o argumento, e só funciona porque a pessoa já
-// leu. Consentimento e idade mínima ficam aqui, não antes da leitura.
-// "Continuar sem conta" nunca desaparece: o progresso já está salvo neste
-// aparelho (userDataStore.js), a conta só o leva para outros.
+// Aparece logo depois do onboarding (App.jsx, finishOnboarding) e também
+// pelo "Criar conta" da tela de entrar (13b). O cartão areia mostra o que
+// vai para a conta (plano montado, e capítulos já lidos quando existirem —
+// ver `chaptersRead`). Consentimento e idade mínima ficam aqui.
+//
+// Decisão de produto de 2026-09-07: ninguém usa o app sem criar conta —
+// saiu o "Continuar sem conta" que existia aqui (e o convite a cadastrar
+// depois de já ter lido algumas coisas como convidado, que dependia dele).
+// O progresso feito no onboarding antes do cadastro (plano, ritmo, dias da
+// semana) ainda é salvo localmente enquanto não existe sessão — migra pra
+// dentro da conta na hora do cadastro (migrateGuestRow(), sempre "servidor
+// vence", ver userDataStore.js), só não tem mais como "continuar sem".
 import { useState, useEffect, useRef } from 'react'
 import { signup, resendConfirmationEmail, isValidPassword } from '../auth/authStore'
 import { markHasAuthenticated } from '../auth/hasAuthKey'
@@ -27,7 +32,7 @@ import { AccountShell, AccountField, AccountPasswordField, AccountPrimaryButton,
 
 const RESEND_COOLDOWN = 60
 
-export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated, onBack, onContinueWithoutAccount, onGoLogin }) {
+export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated, onBack, onGoLogin }) {
   const lang = getAppLanguage() ?? 'pt'
   const L = (k, vars) => t(`account.${k}`, vars, lang)
   const plan = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
@@ -164,7 +169,11 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
   const footer = (
     <>
       <AccountPrimaryButton label={loading ? t('auth.loading', undefined, lang) : L('signupBtn')} onClick={submit} disabled={loading} style={{ margin: '0 0 14px' }} />
-      <button type="button" style={{ ...ui.footLink, fontWeight: 700 }} onClick={onContinueWithoutAccount}>{L('continueWithoutAccount')}</button>
+      {/* "Continuar sem conta" saiu em 2026-09-07 (cadastro é obrigatório) —
+          no lugar, "Já tenho conta" pra quem caiu aqui por engano já tendo
+          uma (mesmo link que o botão "Cadastrar" da tela de entrar usa pro
+          caminho inverso). */}
+      {onGoLogin && <button type="button" style={{ ...ui.footLink, fontWeight: 700 }} onClick={onGoLogin}>{t('auth.alreadyHaveAccount', undefined, lang)}</button>}
     </>
   )
 

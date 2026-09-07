@@ -14,10 +14,9 @@ import { AccountPasswordField, AccountPrimaryButton, AccountError, FONT, ui } fr
 export { HAS_AUTH_KEY }
 
 // `onBack` — botão de voltar das telas de conta (13b/13c/13d) quando não há
-// tela anterior dentro daqui (leva de volta às boas-vindas, ver App.jsx);
-// `onContinueWithoutAccount` — "Continuar sem conta" do 13c, segue lendo
-// como convidado. `planId`/`chaptersRead` alimentam o cartão areia do 13c.
-export default function AuthScreen({ onAuthenticated, initialMode, onBack, onContinueWithoutAccount, planId, chaptersRead = 0 }) {
+// tela anterior dentro daqui (leva de volta às boas-vindas, ver App.jsx).
+// `planId`/`chaptersRead` alimentam o cartão areia do 13c.
+export default function AuthScreen({ onAuthenticated, initialMode, onBack, planId, chaptersRead = 0 }) {
   // Abre sempre no login (13b): quem nunca autenticou neste aparelho nem
   // chega aqui — vê as boas-vindas e o onboarding (ver App.jsx). O
   // onboarding antigo (11 páginas + cadastro) saiu com o redesign.
@@ -76,7 +75,6 @@ export default function AuthScreen({ onAuthenticated, initialMode, onBack, onCon
         planId={planId}
         onAuthenticated={handleAuthenticated}
         onBack={() => setMode('login')}
-        onContinueWithoutAccount={onContinueWithoutAccount}
         onGoLogin={() => setMode('login')}
       />
     )
