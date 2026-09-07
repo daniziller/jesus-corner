@@ -13,6 +13,7 @@
 // parâmetros `email` que sobrevivem nas stores antigas existem só pra manter
 // a mesma assinatura de chamada das telas, sem uso real.
 import { supabase } from '../lib/supabaseClient'
+import { computeGuestMergePatch } from './guestMergeMath'
 
 // Exportada (Bloco 2 do redesign) pra que as tabelas novas fora de
 // user_data (session_seconds, chapters_read — ver src/backend/
@@ -63,48 +64,35 @@ export function hasGuestRow() {
 // chamado sem sessão (ex: o próprio boot do modo convidado) não faz nada,
 // então é seguro chamar sem se preocupar em distinguir os dois casos.
 //
-// `freshAccount` decide COMO migrar, e existe pra corrigir um bug real:
-// antes, esta função sempre sobrescrevia a linha da conta inteira com a do
-// convidado ("local vence" sempre) — inofensivo logo após um cadastro (a
-// conta é nova, não tem nada pra perder), mas destrutivo no login: alguém
-// com uma conta ANTIGA que testa o app sem entrar, num aparelho novo, e só
-// depois faz login, teria o próprio progresso trocado pelas poucas migalhas
-// do convidado. A regra certa (já documentada em guestTableStore.js pras
-// tabelas irmãs session_seconds/chapters_read) é "servidor vence" pros
-// campos que competem entre si — completed_keys e weekly_days acima de
-// tudo.
-//   - freshAccount = true (cadastro, ou o redirect de confirmação de
-//     e-mail que fecha o mesmo cadastro por fora — ver os dois pontos de
-//     chamada): a conta acabou de nascer, não existe conflito de verdade,
-//     copia a linha do convidado inteira, sem checar nada.
-//   - freshAccount = false (padrão, login): só preenche campos que a conta
-//     AINDA NÃO TINHA (nulo, ou array/objeto vazio) — nunca troca um valor
-//     que a conta já tinha antes de logar neste aparelho.
-// Limitação conhecida e aceitável: o primeiro login via Google/Apple de
-// alguém que NUNCA tinha conta também cria a conta na hora, mas passa pelo
-// caminho de login (freshAccount=false) — campos com valor-padrão
-// não-vazio (plan_id='standard', weekly_days de seg a sex) podem não herdar
-// a escolha exata do convidado nesse caso específico; completed_keys/
-// daily_routine/notes (o que realmente importa) continuam migrando normal,
-// porque começam vazios em qualquer conta nova.
-export async function migrateGuestRow({ freshAccount = false } = {}) {
+// SEMPRE "servidor vence" (ver computeGuestMergePatch em guestMergeMath.js)
+// — um campo do convidado só entra se o campo da conta estiver vazio.
+// NUNCA existiu um jeito seguro de saber, só pelo momento em que esta
+// função é chamada, se a conta "acabou de nascer" — havia antes um parâmetro
+// `freshAccount` que, quando true, sobrescrevia a linha inteira sem checar
+// nada, pensado só pro cadastro. Na prática, QUALQUER carregamento do app
+// com uma sessão real ativa E um resto de progresso de convidado no mesmo
+// aparelho (ex: alguém testou como convidado nesse navegador antes, ou
+// depois, de fazer login numa conta ANTIGA) passava pelo mesmo caminho —
+// e apagou de verdade meses de `daily_routine` de uma conta real em
+// produção (2026-09-07), porque não havia nenhuma checagem entre "a conta é
+// nova" e "existe sessão + resto de convidado". Corrigido removendo esse
+// parâmetro: a fusão agora é sempre a mesma, pra toda conta, sem exceção —
+// só preenche o que a conta ainda não tinha, nunca troca o que já é real.
+// Efeito colateral aceitável (e já era assim antes pro caminho de login):
+// um cadastro cujo gatilho no banco já cria `plan_id`/`weekly_days` com um
+// valor padrão não-vazio pode não herdar a escolha exata feita no
+// onboarding como convidado nesses dois campos específicos —
+// completed_keys/daily_routine/notes (o que realmente importa) continuam
+// migrando normal, porque começam vazios em qualquer conta nova de
+// verdade.
+export async function migrateGuestRow() {
   const guest = getGuestRow()
   if (!guest) return
   const userId = await getUserId()
   if (!userId) return
   const { updated_at, ...guestPatch } = guest
-  let patch = guestPatch
-  if (!freshAccount) {
-    const serverRow = await fetchRow()
-    patch = {}
-    for (const [key, guestValue] of Object.entries(guestPatch)) {
-      const serverValue = serverRow?.[key]
-      const isEmpty = serverValue == null
-        || (Array.isArray(serverValue) && serverValue.length === 0)
-        || (typeof serverValue === 'object' && !Array.isArray(serverValue) && Object.keys(serverValue).length === 0)
-      if (isEmpty) patch[key] = guestValue
-    }
-  }
+  const serverRow = await fetchRow()
+  const patch = computeGuestMergePatch(guestPatch, serverRow)
   if (Object.keys(patch).length > 0) await updateRow(patch)
   try { localStorage.removeItem(GUEST_KEY) } catch { /* ignora */ }
 }
