@@ -14,9 +14,9 @@ import SignupScreen from './screens/SignupScreen'
 import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
 import { needsConsentRefresh } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
-import { hasGuestRow, migrateGuestRow } from './backend/userDataStore'
+import { migrateGuestRow } from './backend/userDataStore'
 import { migrateGuestExtraTables } from './backend/guestTableStore'
-import { getGuestInviteThreshold, dismissGuestInvite, clearGuestInviteState } from './onboarding/guestInviteStore'
+import { clearGuestInviteState } from './onboarding/guestInviteStore'
 import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
@@ -397,14 +397,19 @@ export default function App() {
   // autenticou aqui (sem isso, cairia sempre nas boas-vindas do convidado,
   // mesmo pra quem já tem conta).
   const [authScreenForced, setAuthScreenForced] = useState(false)
-  // Botão de voltar do login (13b) / "Continuar sem conta" (13c) num
-  // dispositivo que já autenticou antes: em vez de cair de novo no login,
-  // mostra as boas-vindas e deixa seguir como convidado.
+  // Botão de voltar do login (13b) num dispositivo que já autenticou antes:
+  // em vez de cair de novo no login, mostra as boas-vindas de novo.
   const [loginDismissed, setLoginDismissed] = useState(false)
   // Boas-vindas (13a) — a capa do app pra quem nunca autenticou neste
   // dispositivo. "Começar a ler" segue pro onboarding de 7 telas
   // (OnboardingFlow, 15a–15e); "Já tenho conta" vai pro login.
   const [welcomeDone, setWelcomeDone] = useState(false)
+  // Onboarding concluído, esperando o cadastro (obrigatório desde
+  // 2026-09-07 — ver finishOnboarding) — guarda as respostas só pra
+  // alimentar o cartão "o que vai pra conta" do SignupScreen (chaptersRead,
+  // planId); o progresso de verdade já foi salvo na linha local de
+  // convidado por finishOnboarding, antes deste estado ser setado.
+  const [pendingSignupAnswers, setPendingSignupAnswers] = useState(null)
   // Reflexão com perguntas geradas (10d) na tela — ReflectionScreen avisa
   // (onAiFlowChange) pra o shell tirar cabeçalho e barra, como no quadro.
   const [reflectionAiActive, setReflectionAiActive] = useState(false)
@@ -756,16 +761,16 @@ export default function App() {
             setAppLanguageState(detected)
           }
         }
-        // Sem sessão real, mas este dispositivo já tem progresso de
-        // convidado (redesign 1g/etapa 7 — ver userDataStore.js) — retoma
-        // direto no meio do app em vez de mostrar a pergunta de ritmo de
-        // novo. Sem progresso nenhum ainda, o render mais abaixo mostra
-        // OnboardingFlow (as perguntas do onboarding, antes de ler).
-        if (!hasGuestRow()) {
-          if (!cancelled) setBootstrapped(true)
-          return
-        }
-        user = buildGuestUser()
+        // Sem sessão real — decisão de produto de 2026-09-07: ninguém lê
+        // sem conta, nem quem já tinha um resto de progresso de convidado
+        // salvo neste aparelho de antes desta mudança (redesign 1g/etapa 7,
+        // encerrado — ver App.jsx no PR que apagou o modo convidado). O
+        // render mais abaixo mostra Boas-vindas → Onboarding → Cadastro; o
+        // progresso local antigo (se existir) migra pra dentro da conta
+        // assim que ela for criada (migrateGuestRow(), sempre "servidor
+        // vence" — ver userDataStore.js), sem se perder.
+        if (!cancelled) setBootstrapped(true)
+        return
       } else {
         // Sessão real encontrada com progresso de convidado ainda por
         // migrar (ex: voltando do redirect de confirmação de email depois
@@ -1411,26 +1416,14 @@ export default function App() {
     setSubscription(sub)
   }
 
-  // "Autenticado" sintético pro modo convidado (redesign 1g/etapa 7) — sem
-  // sessão real nenhuma no Supabase, então id/email ficam null (nenhuma
-  // store usa esses campos de verdade, ver comentário em
-  // src/backend/userDataStore.js). Idioma vem da preferência de dispositivo
-  // já resolvida no bootstrap (appLanguage), não do navigator.language
-  // direto — mesma fonte que a tela de login usaria de qualquer forma.
-  function buildGuestUser() {
-    const lang = getAppLanguage() ?? 'pt'
-    // Nome só de exibição (Sidebar/Perfil) — o formulário de criar conta
-    // (SignupScreen.jsx) pede o nome de verdade nessa hora.
-    return { id: null, email: null, name: lang === 'en' ? 'Guest' : 'Convidado', language: lang, birthdate: null, isGuest: true }
-  }
-
   // Chamado pelo botão final do onboarding (15e, OnboardingFlow) — grava as
   // respostas na linha local de convidado (setSelectedPlanId e cia. escrevem
-  // nela em vez do backend real, ver userDataStore.js) e entra direto na
-  // leitura de hoje, que pra um convidado novo (completedSet vazio) é sempre
-  // o começo do livro escolhido — por isso é seguro chamar continueToday()
-  // logo em seguida, mesmo lendo `blocks`/`sessionsByBlock` de um render que
-  // ainda não viu o plano recém-escolhido.
+  // nela em vez do backend real, ver userDataStore.js, enquanto não existe
+  // sessão) e manda pro cadastro (SignupScreen) em vez de liberar a leitura
+  // direto. Decisão de produto de 2026-09-07: ninguém lê sem criar conta —
+  // o onboarding só recolhe as preferências, a conta é obrigatória logo em
+  // seguida. O que foi salvo aqui migra pra dentro da conta assim que o
+  // cadastro terminar (migrateGuestRow(), sempre "servidor vence").
   //
   // Bloco 8 do redesign: antes esta função gravava oração/reflexão nas
   // stores antigas (prayerDurationStore/reflectionDurationStore, só
@@ -1439,7 +1432,7 @@ export default function App() {
   // aparelhos) e weekly_days (quais dias, não só quantos). Ficar gravando
   // nos dois lugares antigos deixava Meu Plano/Oração/Reflexão sem ver o que
   // a pessoa respondeu no onboarding assim que ela criasse conta de verdade.
-  async function startGuestReading(answers) {
+  async function finishOnboarding(answers) {
     await setSelectedPlanId(null, answers.planId)
     // Cada passo do 15f é independente agora — zerar Oração ou Reflexão
     // desliga só aquele passo (Leitura nunca zera, é a única obrigatória).
@@ -1468,8 +1461,12 @@ export default function App() {
     // O lembrete (15c) só vira inscrição push com uma conta de verdade —
     // fica pendente até o primeiro login (ver applyPendingReminder).
     savePendingReminder(answers.reminder)
-    await handleAuthenticated(buildGuestUser())
-    continueToday()
+    // Sincroniza o estado local de plano AGORA — sem sessão nenhuma ainda,
+    // o próximo bootstrap (que recarregaria isso do banco) só roda depois
+    // do cadastro; SignupScreen usa `planId` pra montar o cartão "o que vai
+    // pra conta".
+    setPlanId(answers.planId)
+    setPendingSignupAnswers(answers)
   }
 
   // Horário escolhido no onboarding, aplicado assim que existe usuário real
@@ -2002,17 +1999,17 @@ export default function App() {
         </>
       )
     }
-    // Redesign 1g/etapa 7 — quem já autenticou neste dispositivo alguma vez
-    // (ou pediu "Já tenho conta" no meio do fluxo de convidado) vai direto
-    // pro login de sempre. Quem nunca autenticou aqui vê a pergunta única
-    // do onboarding (OnboardingFlow) em vez do cadastro — só entra em contato
-    // com conta/senha/consentimento depois de já ter lido algo (ver
-    // SignupScreen mais abaixo, no gate pós-bootstrapped).
+    // Redesign 1g/etapa 7, encerrado em 2026-09-07 — ninguém lê sem conta
+    // mais. Quem já autenticou neste dispositivo alguma vez (ou pediu "Já
+    // tenho conta") vai direto pro login de sempre. Quem nunca autenticou
+    // aqui vê Boas-vindas → Onboarding (recolhe as preferências) → Cadastro
+    // (obrigatório, ver pendingSignupAnswers/finishOnboarding) — sem opção
+    // de pular pra dentro do app sem criar conta em nenhum dos dois casos.
     if (authScreenForced || (!loginDismissed && typeof localStorage !== 'undefined' && localStorage.getItem(HAS_AUTH_KEY))) {
-      // authScreenForced sempre quer dizer "já tenho conta" (veio de um
-      // link explícito no fluxo de convidado) — força login mesmo se este
-      // dispositivo específico nunca autenticou aqui (nesse caso, sem o
-      // initialMode, AuthScreen cairia no onboarding antigo por padrão).
+      // authScreenForced sempre quer dizer "já tenho conta" — força login
+      // mesmo se este dispositivo específico nunca autenticou aqui (nesse
+      // caso, sem o initialMode, AuthScreen cairia no onboarding antigo por
+      // padrão).
       return (
         <>
           <AuthScreen
@@ -2020,7 +2017,6 @@ export default function App() {
             initialMode={authScreenForced ? 'login' : undefined}
             planId={planId}
             onBack={() => { setAuthScreenForced(false); setLoginDismissed(true) }}
-            onContinueWithoutAccount={() => { setAuthScreenForced(false); setLoginDismissed(true) }}
           />
           <Analytics />
         </>
@@ -2034,9 +2030,23 @@ export default function App() {
         </>
       )
     }
+    if (pendingSignupAnswers) {
+      return (
+        <>
+          <SignupScreen
+            chaptersRead={0}
+            planId={pendingSignupAnswers.planId}
+            onAuthenticated={handleAuthenticated}
+            onBack={() => setPendingSignupAnswers(null)}
+            onGoLogin={() => { setAuthScreenForced(true); setPendingSignupAnswers(null) }}
+          />
+          <Analytics />
+        </>
+      )
+    }
     return (
       <>
-        <OnboardingFlow onFinish={startGuestReading} onBack={() => setWelcomeDone(false)} />
+        <OnboardingFlow onFinish={finishOnboarding} onBack={() => setWelcomeDone(false)} />
         <Analytics />
       </>
     )
@@ -2050,28 +2060,6 @@ export default function App() {
         <ConsentRefreshScreen
           onAccepted={() => setConsentRefreshNeeded(false)}
           onDeclined={handleLogout}
-        />
-        <Analytics />
-      </>
-    )
-  }
-
-  // Criar conta depois de já ter lido (quadro 13c) — aparece depois da 1ª
-  // leitura concluída em modo convidado, e de novo a cada duas leituras se
-  // a pessoa continuar sem conta (ver src/onboarding/guestInviteStore.js).
-  // Tela cheia: mostra o que vai para a conta; "Continuar sem conta" (e o
-  // voltar) só adiam o convite, nada do progresso se perde.
-  if (authUser.isGuest && completedSet.size >= getGuestInviteThreshold()) {
-    const dismiss = () => { dismissGuestInvite(completedSet.size); goToTab('home') }
-    return (
-      <>
-        <SignupScreen
-          chaptersRead={completedSet.size}
-          planId={planId}
-          onAuthenticated={handleAuthenticated}
-          onBack={dismiss}
-          onContinueWithoutAccount={dismiss}
-          onGoLogin={() => { setAuthScreenForced(true); setAuthUser(null) }}
         />
         <Analytics />
       </>
