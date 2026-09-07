@@ -19,5 +19,12 @@ export function getTodayUpliftingVerse(lang, date = new Date()) {
   return {
     text: lang === 'en' ? v.textEn : v.textPt,
     ref: `${book} ${v.chapter}:${v.verse}`,
+    // Cru (nome canônico em pt/en, capítulo, nº do versículo) — pro botão
+    // "salvar" da Home (34a) poder gravar como marcação (highlightsStore.js)
+    // sem precisar reconstruir isso a partir da string `ref`.
+    bookPt: v.book,
+    bookEn: v.bookEn,
+    chapter: v.chapter,
+    verseNum: v.verse,
   }
 }

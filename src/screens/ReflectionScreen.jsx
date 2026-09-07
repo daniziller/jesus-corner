@@ -536,7 +536,7 @@ export default function ReflectionScreen({ session, authUser, completedSet, step
           <div style={styles.routineCompleteCard}>
             <p style={styles.routineCompleteTitle}>{t('reflection.routineCompleteTitle', undefined, lang)}</p>
             {guided && <p style={styles.guidedAutoHint}>{t('guided.finishingAuto', undefined, lang)}</p>}
-            <button style={styles.nextStepBtn} onClick={() => onNavigate?.('stats')}>
+            <button style={styles.nextStepBtn} onClick={() => onNavigate?.('metrics')}>
               {t('reflection.goToProgress', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
             </button>
           </div>

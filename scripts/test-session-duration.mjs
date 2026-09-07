@@ -2,7 +2,7 @@
 // persona única do ADENDO-TURNOS-24-32.md: "9 h 05 no app (2 h 05 orando,
 // 5 h 40 lendo, 1 h 20 refletindo)". Roda com:
 // node scripts/test-session-duration.mjs
-import { totalsByStep, totalsByDay, averageSessionSeconds } from '../src/metrics/sessionDurationMath.js'
+import { totalsByStep, totalsByDay, totalsForDay, averageSessionSeconds } from '../src/metrics/sessionDurationMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -49,6 +49,12 @@ check('dia mais longo é 30/08 (45+100+20 min)', byDay['2026-08-30'], (45 + 100 
 const avg = averageSessionSeconds(rows)
 const expectedAvg = Math.round(Object.values(byDay).reduce((s, v) => s + v, 0) / 4)
 check('sessão média == soma dos dias / dias com sessão', avg, expectedAvg)
+
+const day30 = totalsForDay(rows, '2026-08-30')
+check('totalsForDay 30/08: orando 45min', day30.prayer, 45 * 60)
+check('totalsForDay 30/08: lendo 100min', day30.reading, 100 * 60)
+check('totalsForDay 30/08: refletindo 20min', day30.reflection, 20 * 60)
+check('totalsForDay dia sem sessão nenhuma', totalsForDay(rows, '2026-08-27').prayer, 0)
 
 // sinceDate filtra corretamente.
 const sinceLater = totalsByStep(rows, '2026-08-28')

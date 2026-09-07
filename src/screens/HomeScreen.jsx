@@ -1,34 +1,51 @@
-// HomeScreen.jsx — Início (redesign 1a, reskin Bento — tela 3c)
+// HomeScreen.jsx — Hoje (rodada 34, handoff-hoje-34/HANDOFF-34a-hoje.md),
+// rota `/`. Substitui TODAS as versões anteriores de Início — a 3c antiga
+// (ação única) e o painel de métricas (HomeDashboard.jsx, apagado em
+// 2026-09-07 quando a Home virou sempre 3c) já tinham saído; esta rodada
+// troca a própria 3c pelo quadro novo. Ordem dos blocos, fixa (handoff:
+// "ação → alimento → informação → o que espera", não reordenar): plano de
+// hoje → versículo do dia → aplicação de ontem → esta semana (com tempo
+// por passo) → dois quadrados (mensagens/métricas) → resumo da semana →
+// barra de abas (fora deste arquivo, App.jsx).
 //
-// A Home é uma tela de UMA decisão: continuar a leitura de hoje. Em ordem:
-// saudação+avatar → cartão da ação principal (o único --bento-ink da tela,
-// com o passo atual do dia) → Sequência/Bíblia (dois números grandes) →
-// Esta semana (grade de dias) → Versículo do dia. Métricas completas (anel
-// de %, AT/NT, níveis, conquistas, metas, feed de amigos) ficam em
-// Progresso — ver design_handoff_jesus_corner/README.md.
-//
-// Fora do escopo deste reskin: o botão redondo de "modo mãos-livres" que
-// existia ao lado do CTA saiu — o mockup 3c não o mostra no cartão de ação
-// (só o botão "Continuar leitura →"); o atalho continua acessível pela aba
-// Bíblia e pelo card "Modo mãos-livres" em Meu Plano.
-
+// Os quatro dados que não existiam em lugar nenhum do código antes desta
+// rodada (frase de aplicação com estado "cumpri", versículo do trecho em
+// leitura, resumo de continuidade, tempo real do dia) ganharam módulos
+// próprios em vez de serem inventados aqui: applicationPhraseStore.js
+// (getWeekApplicationStatus/markPinnedApplicationFulfilled),
+// home/homeVerseStore.js (getHomeVerse/getContinuityExcerpt),
+// metrics/sessionDurationStore.js (totalsForDay, novo). "Sua caminhada"
+// (ProgressScreen.jsx) saiu de vez — já estava supersedida por Métricas
+// (MetricsScreen.jsx, 30b), que é pra onde o quadrado "Minhas métricas"
+// desta tela leva.
+import { useEffect, useState } from 'react'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import PremiumLockCard from '../components/PremiumLockCard'
-import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
-import { computeCurrentWeekDays, WEEKDAY_LETTERS } from '../routine/weekRings'
-import { isDayGoalMet, DEFAULT_ROUTINE_MODULES } from '../routine/routineStreak'
-import { getSavedPrayerMinutes } from '../prayer/prayerDurationStore'
-import { getSavedReflectionMinutes } from '../reflection/reflectionDurationStore'
+import TimePerStepSheet from '../components/TimePerStepSheet'
+import { DEFAULT_ROUTINE_MODULES, mondayOf } from '../routine/routineStreak'
+import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
+import { isStepEnabled } from '../plan/stepMinutesStore'
+import { getAllSessions } from '../metrics/sessionDurationStore'
+import { totalsByStep, totalsForDay } from '../metrics/sessionDurationMath'
+import { splitHoursMinutes } from '../metrics/metricsSummary'
+import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
+import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
+import { getGroupMessagesSummary } from '../groups/messagesStore'
+import { getHomeVerse, getContinuityExcerpt } from '../home/homeVerseStore'
+import { saveHighlight } from '../highlights/highlightsStore'
+import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
+import { dateKey } from '../utils/dateKey'
 
-// Passos que o "cartão da ação" resume (Estudo fica de fora, igual ao fluxo
-// guiado — ver GUIDED_STEPS em App.jsx).
-const CARD_STEPS = ['prayer', 'reading', 'reflection']
+const STEPS = ['prayer', 'reading', 'reflection']
+// Mesmo padrão de weeklyDaysStore.js (getWeeklyDays) — enquanto o prop
+// ainda não chegou/carregou, assume o padrão de 5 dias (seg-sex).
+const DEFAULT_WEEKLY_DAYS = [true, true, true, true, true, false, false]
 
 function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
-// "Terça, 2 de setembro" / "Tuesday, September 2" — dia de semana curto,
-// primeira letra maiúscula.
+// "Terça, 2 de setembro" / "Tuesday, September 2" — mesmo formato de
+// sempre (3c), a base da linha "{dia da semana}, {D} de {mês} · {tipo do
+// dia}" do quadro 34a.
 export function formatToday(lang) {
   const raw = new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -37,89 +54,278 @@ export function formatToday(lang) {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-// Saudação por horário: manhã / tarde / noite — puramente local ao
-// aparelho, sem depender de fuso salvo em lugar nenhum.
 export function greetingFor(lang, name) {
   const h = new Date().getHours()
   const key = h < 12 ? 'greetingMorning' : h < 18 ? 'greetingAfternoon' : 'greetingEvening'
   return translate(`home.${key}`, { name }, lang)
 }
 
-export default function HomeScreen({ session, authUser, onContinueSession, onNavigate, onStartGuided, onOpenProfile }) {
+// Segunda=0 … domingo=6 — mesma convenção de weekly_days/DAY_KEYS
+// (routine/weeklyDaysMath.js), só que a partir de Date.getDay() (0=domingo).
+function weekdayIndexMonday(date) {
+  return (date.getDay() + 6) % 7
+}
+
+export default function HomeScreen({
+  session, authUser, completedSet, weeklyDays,
+  onContinueSession, onNavigate, onStartGuided, onOpenProfile,
+  onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries,
+}) {
   const {
-    lang, hasPremium, userName, avatarInitials, todaySession, weeksInGoal,
-    biblePercent, chaptersRead, totalChapters,
-    dailyRoutine, todayRoutine, routineModules, plan, activePlan,
-    weeklyGoalDays, weekGoalDaysMet,
+    lang, userName, avatarInitials, todaySession,
+    routineModules, plan, todayRoutine, dailyRoutine,
+    lastReadPosition, biblePercent, weeksInGoal,
   } = session
   const L = (k, vars) => translate(`home.${k}`, vars, lang)
+  const email = authUser?.email
 
-  const verse = getTodayUpliftingVerse(lang)
+  // ── Dados que só existem via I/O (rede/Supabase) — um flag de
+  // carregando só (nunca um spinner de tela cheia, ver handoff: "Esqueleto
+  // dos blocos... nunca spinner"), preenchido em paralelo. Cada busca trata
+  // a própria falha (RPC ainda sem migration, rede fora) devolvendo um
+  // default seguro — uma falha isolada nunca derruba a tela inteira.
+  const [loading, setLoading] = useState(true)
+  const [sessionRows, setSessionRows] = useState([])
+  const [pinnedEntry, setPinnedEntry] = useState(null)
+  const [weekAppStatus, setWeekAppStatus] = useState({ total: 0, fulfilled: 0 })
+  const [messagesSummary, setMessagesSummary] = useState([])
+  const [verse, setVerse] = useState(null)
+  const [continuityExcerpt, setContinuityExcerpt] = useState(null)
+  const [timeSheetOpen, setTimeSheetOpen] = useState(false)
+  const [verseSaved, setVerseSaved] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    const chapterForVerse = !todaySession.needsThemePick && todaySession.type !== 'reflection'
+      ? { book: todaySession.book, chapter: todaySession.chStart }
+      : null
+    // getAllSessions/getPinnedApplicationEntry/getWeekApplicationStatus
+    // funcionam pra convidado também (guestTableStore.js/userDataStore.js
+    // resolvem local vs. Supabase por dentro — ver comentário de cada um);
+    // só getGroupMessagesSummary exige conta de verdade (chama RPC direto),
+    // e ela mesma já trata a falha (console.error + []), então nem precisa
+    // de guarda aqui — uma falha isolada não derruba o resto da tela.
+    Promise.allSettled([
+      getAllSessions(),
+      getPinnedApplicationEntry(email),
+      getWeekApplicationStatus(email),
+      getGroupMessagesSummary(),
+      chapterForVerse ? getHomeVerse({ ...chapterForVerse, lang }) : Promise.resolve(null),
+      lastReadPosition ? getContinuityExcerpt(lastReadPosition.book, lastReadPosition.chapter, lang) : Promise.resolve(null),
+    ]).then(([rows, pinned, weekStatus, msgSummary, homeVerse, excerpt]) => {
+      if (!alive) return
+      if (rows.status === 'fulfilled') setSessionRows(rows.value)
+      if (pinned.status === 'fulfilled') setPinnedEntry(pinned.value)
+      if (weekStatus.status === 'fulfilled') setWeekAppStatus(weekStatus.value)
+      if (msgSummary.status === 'fulfilled') setMessagesSummary(msgSummary.value)
+      if (homeVerse.status === 'fulfilled') setVerse(homeVerse.value)
+      if (excerpt.status === 'fulfilled') setContinuityExcerpt(excerpt.value)
+      setLoading(false)
+    })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, todaySession.book, todaySession.chStart, lastReadPosition?.book, lastReadPosition?.chapter, lang])
+
+  const verseData = verse ?? { text: '', ref: '', version: null }
   const dateLabel = formatToday(lang)
   const greeting = greetingFor(lang, userName)
 
-  // ── Cartão da ação principal ──
-  // O passo "de agora" é o primeiro passo ligado ainda não feito hoje (cai
-  // em 'reading' quando tudo já foi feito — a Leitura é a âncora da Home).
-  const enabledSteps = CARD_STEPS.filter(s => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s))
-  const stepDone = {
-    prayer: !!todayRoutine.prayer,
-    reading: !!todayRoutine.reading,
-    reflection: !!todayRoutine.reflection,
+  useEffect(() => { setVerseSaved(false) }, [verseData.ref])
+
+  // "Salvar" o versículo do dia (bloco 3) — grava como marcação
+  // (highlightsStore.js, mesmo mecanismo da Bíblia/Notas), sem anotação
+  // própria (texto vazio, só o realce) — reaproveita a infra que já
+  // existe em vez de criar uma tabela nova só pra isto.
+  async function handleSaveVerse() {
+    if (verseSaved || !verseData.bookPt || !verseData.chapter || !verseData.verseNum) return
+    setVerseSaved(true)
+    try {
+      await saveHighlight(email, {
+        id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        book: verseData.bookPt, bookEn: verseData.bookEn, chapter: verseData.chapter,
+        verses: [verseData.verseNum], text: '', color: DEFAULT_HIGHLIGHT_COLOR,
+        createdAt: new Date().toISOString(), date: todayKeyStr, sessionMode: 'browse',
+      })
+    } catch (err) {
+      console.error('Failed to save verse of the day as highlight', err)
+    }
   }
-  const currentStepKey = enabledSteps.find(s => !stepDone[s]) ?? 'reading'
-  const currentIndex = Math.max(0, enabledSteps.indexOf(currentStepKey))
-  const isReadingStep = currentStepKey === 'reading'
 
-  const prayerMin = getSavedPrayerMinutes() ?? plan.prayerMinutes ?? 0
-  const reflectionMin = getSavedReflectionMinutes() ?? plan.reflectionMinutes ?? 0
-  const readingMin = activePlan.readingMinutes ?? plan.readingMinutes ?? 0
-  const stepMinMap = { prayer: prayerMin, reading: readingMin, reflection: reflectionMin }
-  const currentMin = stepMinMap[currentStepKey]
+  // "Compartilhar" (bloco 3) — Web Share API quando disponível (celular),
+  // clipboard como alternativa (desktop/navegadores sem suporte). Sem
+  // backend nenhum: não está em "Dados que isto exige".
+  async function handleShareVerse() {
+    const shareText = `"${verseData.text}" — ${verseData.ref}`
+    try {
+      if (navigator.share) await navigator.share({ text: shareText })
+      else await navigator.clipboard.writeText(shareText)
+    } catch (err) {
+      if (err?.name !== 'AbortError') console.error('Failed to share verse of the day', err)
+    }
+  }
 
-  const stepLabel = translate('routine.nowStepOf', { i: currentIndex + 1, total: enabledSteps.length }, lang)
+  // ── Bloco 2 — SEU PLANO DE HOJE ──
+  const enabledSteps = STEPS.filter(s => {
+    const inRoutine = (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s)
+    const minutesMap = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
+    return inRoutine && isStepEnabled(minutesMap[s])
+  })
+  const minutesFor = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
+  const totalPlanMin = enabledSteps.reduce((sum, s) => sum + (minutesFor[s] || 0), 0)
+  const allDoneToday = enabledSteps.length > 0 && enabledSteps.every(s => !!todayRoutine[s])
+  const todayKeyStr = dateKey()
+  const mondayKeyStr = dateKey(mondayOf(new Date()))
+  const todayWeekdayIdx = weekdayIndexMonday(new Date())
+  const activeWeeklyDays = Array.isArray(weeklyDays) && weeklyDays.length === 7 ? weeklyDays : DEFAULT_WEEKLY_DAYS
+  const isRestDay = !activeWeeklyDays[todayWeekdayIdx]
 
-  const started = todaySession.progress > 0
-  const cardTitle = todaySession.needsThemePick
-    ? todaySession.title
-    : isReadingStep ? todaySession.title : translate(`home.routine${cap(currentStepKey)}`, undefined, lang)
-  const startLabel = todaySession.needsThemePick
-    ? translate('themePlan.chooseTodayCta', undefined, lang)
-    : isReadingStep
-      ? L(started ? 'continueReading' : 'beginReading')
-      : translate(`routine.start_${currentStepKey}`, undefined, lang)
+  const planState = session.hasNoPlan ? 'noPlan' : allDoneToday ? 'done' : isRestDay ? 'rest' : 'normal'
 
-  function handleStart() {
+  function handleStartRoutine() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
-    if (hasPremium && onStartGuided) onStartGuided()
-    else onContinueSession?.()
+    onStartGuided?.()
+  }
+  function handleOnlyRead() {
+    if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
+    onContinueSession?.()
   }
 
-  // ── Esta semana (constância semanal, etapa 4) ──
-  // O dia conta pra meta quando a LEITURA foi concluída — Oração e
-  // Reflexão somam qualidade, não obrigação (ver isDayGoalMet). Um dia
-  // perdido não zera nada: é sempre "X de 7 dias esta semana", nunca uma
-  // sequência que quebra.
-  const weekDays = computeCurrentWeekDays(dailyRoutine ?? {})
-  const letters = WEEKDAY_LETTERS[lang] ?? WEEKDAY_LETTERS.pt
-  const daysMet = weekGoalDaysMet ?? 0
-  const goalDays = weeklyGoalDays ?? 5
+  // Continuidade — "Ontem às 6:48 você parou em: '...'" (só quando existe
+  // um último texto lido de verdade — sem isso, a linha simplesmente não
+  // aparece, nunca um texto inventado). O dia (Hoje/Ontem/dia da semana) é
+  // calculado a partir de readAt real, não fixado em "Ontem" — a cópia do
+  // handoff usa "Ontem" como exemplo mais comum, mas o dado é real.
+  function continuityDayWord(readAtIso) {
+    const readDate = new Date(readAtIso)
+    const diffDays = Math.round((new Date(dateKey()) - new Date(dateKey(readDate))) / 86400000)
+    if (diffDays <= 0) return L('continuityToday')
+    if (diffDays === 1) return L('continuityYesterday')
+    return readDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'long' })
+  }
+  const continuityHour = lastReadPosition?.readAt
+    ? new Date(lastReadPosition.readAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: 'numeric', minute: '2-digit' })
+    : null
+  const continuityLine = (lastReadPosition && continuityHour)
+    ? L('continuityLine', { day: continuityDayWord(lastReadPosition.readAt), hour: continuityHour })
+      + (continuityExcerpt ? ' ' + L('continuityExcerpt', { text: continuityExcerpt }) : '')
+    : null
 
-  const pctLabel = biblePercent.toLocaleString(lang === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: 1 }) + '%'
-  const chaptersLabel = translate('home.chaptersOfShort', {
-    done: chaptersRead.toLocaleString(lang === 'en' ? 'en' : 'pt-BR'),
-    total: totalChapters.toLocaleString(lang === 'en' ? 'en' : 'pt-BR'),
-  }, lang)
+  // "{capítulo} lido" (estado concluído) — o que a pessoa ACABOU de ler,
+  // não o que vem a seguir (por essa altura, session.todaySession já
+  // avançou pro PRÓXIMO capítulo pendente — ver findCurrentReadingSession
+  // em App.jsx). lastReadPosition é o ponteiro certo pra "o que foi lido".
+  const completedChapterLabel = lastReadPosition ? `${lastReadPosition.book} ${lastReadPosition.chapter}` : todaySession.title
+  const todayRealTotals = totalsForDay(sessionRows, todayKeyStr)
+  const todayRealMinutes = Math.round((todayRealTotals.prayer + todayRealTotals.reading + todayRealTotals.reflection) / 60)
+
+  // ── Bloco 4 — SUA APLICAÇÃO DE ONTEM ──
+  // Estado especial de "rotina cumprida": se a Reflexão de HOJE já
+  // escreveu uma frase nova, ela sobe pro 2º lugar em bloco escuro (a
+  // frase de ontem, já tratada, sai de cena) — sem botão "Cumpri" ainda
+  // (só volta amanhã, ver applyStep.pendingNote).
+  const todayApplicationKey = `application:${todayKeyStr}`
+  const wroteApplicationToday = pinnedEntry?.key === todayApplicationKey
+  // Respeita a preferência de mostrar/esconder o card (Perfil → ProfileSheet,
+  // por dispositivo — ver applicationCardVisibilityStore.js, pré-existente
+  // à rodada 34, não inventada aqui).
+  const showApplicationCard = !!pinnedEntry?.text && getShowApplicationCard()
+
+  async function handleFulfillApplication() {
+    if (!pinnedEntry?.key || pinnedEntry.fulfilled) return
+    setPinnedEntry(prev => prev ? { ...prev, fulfilled: true } : prev)
+    // Só soma na contagem semanal se a frase em si foi ESCRITA nesta
+    // semana (mesmo critério de getWeekApplicationStatus/mondayOf) — uma
+    // frase de semana passada, ainda fixada por falta de uma nova, pode
+    // ser marcada cumprida sem contar como "1 de 1" numa semana que não é
+    // a dela (bug encontrado testando: sem essa checagem, a Home mostrava
+    // "1 de 1" por um instante e voltava pra "0 de 0" ao recarregar).
+    if (pinnedEntry.date && pinnedEntry.date >= mondayKeyStr && pinnedEntry.date <= todayKeyStr) {
+      setWeekAppStatus(prev => ({ total: Math.max(prev.total, 1), fulfilled: prev.fulfilled + 1 }))
+    }
+    try {
+      await markPinnedApplicationFulfilled(email, pinnedEntry)
+    } catch (err) {
+      console.error('Failed to mark application phrase as fulfilled', err)
+    }
+  }
+
+  // ── Bloco 5 — ESTA SEMANA ──
+  // "primeiros 7 dias": conta a partir da 1ª entrada real em dailyRoutine
+  // (mesmo earliestKey de ProgressScreen.jsx/GroupsScreen.jsx — dado real,
+  // nunca um contador de conta inventado). Sem nenhum dia registrado
+  // ainda, cai no mesmo estado (nada pra mostrar de qualquer jeito).
+  const earliestKey = Object.keys(dailyRoutine ?? {}).sort()[0]
+  const daysSinceFirst = earliestKey ? Math.floor((new Date(dateKey()) - new Date(earliestKey)) / 86400000) : -1
+  const isFirstWeek = daysSinceFirst < 7
+
+  const monday = mondayOf(new Date())
+  const markedDayIdxs = activeWeeklyDays.map((on, i) => on ? i : null).filter(i => i !== null)
+  const weekDayCells = markedDayIdxs.map(i => {
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
+    const key = dateKey(d)
+    const isToday = key === todayKeyStr
+    const isFuture = key > todayKeyStr
+    const done = !isFuture && !!dailyRoutine?.[key]?.reading
+    return { key, isToday, isFuture, done, weekdayIdx: i }
+  })
+  const daysMetThisWeek = weekDayCells.filter(c => c.done).length
+  const weekTotals = totalsByStep(sessionRows, dateKey(monday))
+  const weekTotalSeconds = weekTotals.prayer + weekTotals.reading + weekTotals.reflection
+  const weekdayAbbr = WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt
+  const weekdayFull = WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt
+
+  // ── Bloco 6 — dois quadrados ──
+  const unreadMessagesTotal = messagesSummary.reduce((sum, g) => sum + (g.unreadCount || 0), 0)
+  const messageGroupNames = messagesSummary.filter(g => g.unreadCount > 0).map(g => g.groupName)
+  function joinNames(names) {
+    if (names.length <= 1) return names[0] ?? ''
+    const sep = lang === 'en' ? ' and ' : ' e '
+    return `${names.slice(0, -1).join(', ')}${sep}${names[names.length - 1]}`
+  }
+  const totalHM = splitHoursMinutes(sessionRows.reduce((sum, r) => sum + r.segundos, 0))
+  const biblePctLabel = biblePercent.toLocaleString(lang === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: 1 }) + '%'
+
+  // ── Bloco 7 — SUA SEMANA (resumo) ──
+  const latestSummary = (weeklySummaries ?? [])[0]
+  const showWeekSummaryCard = latestSummary && !latestSummary.seen
+
+  const initialStepMinutes = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
+
+  if (loading) {
+    return (
+      <div style={styles.screen}>
+        <div style={styles.header}>
+          <div>
+            <p style={styles.greeting}>{greeting}</p>
+            <p style={styles.date}>{dateLabel}</p>
+          </div>
+          <button style={styles.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
+            {avatarInitials}
+          </button>
+        </div>
+        <div style={styles.body}>
+          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 210 }} />
+          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 130 }} />
+          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 110 }} />
+          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 180 }} />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
+            <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
+          </div>
+          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 90 }} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={styles.screen}>
       <div style={styles.header}>
         <div>
           <p style={styles.greeting}>{greeting}</p>
-          <p style={styles.date}>{dateLabel}</p>
+          <p style={styles.date}>{dateLabel} · {planState === 'done' ? L('dayTypeDone') : planState === 'rest' ? L('dayTypeRest') : L('dayTypeReading')}</p>
         </div>
-        {/* O avatar abre a folha do Perfil (19a) por cima da Home, sem
-            navegar de aba — ver ProfileSheet.jsx/profileOpen em App.jsx. */}
         <button style={styles.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
           {avatarInitials}
         </button>
@@ -127,162 +333,380 @@ export default function HomeScreen({ session, authUser, onContinueSession, onNav
 
       <div style={styles.body}>
 
-      {/* Cartão da ação principal — único fundo --bento-ink da tela. */}
-      <div style={styles.actionCard}>
-        <div style={styles.actionHead}>
-          <p style={styles.actionLabel}>{stepLabel}</p>
-          {!todaySession.needsThemePick && !!currentMin && (
-            <span style={styles.actionMin}>{translate('routine.minShort', { n: currentMin }, lang)}</span>
+        {/* Bloco 2 — SEU PLANO DE HOJE. */}
+        <div style={{ ...styles.planCard, ...(planState === 'done' ? styles.planCardDone : {}) }}>
+          <div style={styles.planHead}>
+            <p style={{ ...styles.planLabel, ...(planState === 'done' ? styles.planLabelDone : {}) }}>
+              {planState === 'done' ? L('planDoneLabel') : L('planLabel')}
+            </p>
+            {planState === 'normal' && totalPlanMin > 0 && (
+              <span style={styles.planMin}>{L('minShort', { n: totalPlanMin })}</span>
+            )}
+          </div>
+
+          {planState === 'noPlan' && (
+            <>
+              <p style={styles.planTitle}>{L('noPlanTitle')}</p>
+              <button style={styles.startBtn} onClick={() => onNavigate?.('chooseStart')}>
+                <span style={styles.startBtnText}>{L('noPlanCta')}</span>
+                <span style={styles.startBtnArrow}>→</span>
+              </button>
+            </>
+          )}
+
+          {planState === 'rest' && (
+            <>
+              <p style={styles.planTitle}>{L('restTitle')}</p>
+              <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={handleOnlyRead}>
+                <span style={styles.onlyReadBtnText}>{L('onlyRead')}</span>
+              </button>
+            </>
+          )}
+
+          {planState === 'done' && (
+            <>
+              <p style={styles.planTitleDone}>{L('doneTitle', { chapter: completedChapterLabel, n: todayRealMinutes })}</p>
+              {enabledSteps.length > 0 && (
+                <div style={styles.tilesRow}>
+                  {enabledSteps.map(s => (
+                    <div key={s} style={styles.tileDone}>
+                      <p style={styles.tileValueDone}>
+                        {Math.round((todayRealTotals[s] || 0) / 60)}<span style={styles.tileUnitDone}>{L('minUnit')}</span>
+                      </p>
+                      <p style={styles.tileLabelDone}>{L(`step${cap(s)}`)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p style={styles.nextUpLine}>{L('nextUp', { title: todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title })}</p>
+              <div style={styles.doneBtnRow}>
+                <button style={styles.extraChapterBtn} onClick={handleOnlyRead}>{L('extraChapter')}</button>
+                <button style={styles.seeInGroupBtn} onClick={() => onNavigate?.('groups')}>{L('seeInGroup')}</button>
+              </div>
+            </>
+          )}
+
+          {planState === 'normal' && (
+            <>
+              <p style={styles.planTitle}>{todaySession.title}</p>
+              {continuityLine && <p style={styles.continuityLine}>{continuityLine}</p>}
+
+              {enabledSteps.length > 0 && (
+                <div style={styles.tilesRow}>
+                  {enabledSteps.map(s => (
+                    <button key={s} style={styles.tile} onClick={() => setTimeSheetOpen(true)}>
+                      <p style={styles.tileValue}>
+                        {minutesFor[s]}<span style={styles.tileUnit}>{L('minUnit')}</span>
+                      </p>
+                      <p style={styles.tileLabel}>{L(`step${cap(s)}`)}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div style={styles.btnRow}>
+                <button style={styles.startBtn} onClick={handleStartRoutine}>
+                  <span style={styles.startBtnText}>{L('startNow')}</span>
+                  <span style={styles.startBtnArrow}>→</span>
+                </button>
+                <button style={styles.onlyReadBtn} onClick={handleOnlyRead}>
+                  <span style={styles.onlyReadBtnText}>{L('onlyRead')}</span>
+                </button>
+              </div>
+            </>
           )}
         </div>
-        <p style={styles.actionTitle}>{cardTitle}</p>
-        <button style={styles.startBtn} onClick={handleStart}>
-          <span style={styles.startBtnText}>{startLabel}</span>
-          <span style={styles.startBtnArrow}>→</span>
-        </button>
-      </div>
 
-      {/* Sequência / Bíblia — dois números grandes (mesma fonte de dado do
-          card de constância e da barra de % em Progresso). Tocar em qualquer
-          um abre "Sua caminhada" (5b) — o quadro 5b diz que ela "entra por
-          Sua caminhada no Início", e estes dois cartões são o resumo dela. */}
-      <div style={styles.statsRow}>
-        <button style={styles.statCard} onClick={() => onNavigate?.('stats')}>
-          <p style={styles.statLabel}>{L('sequenceLabel')}</p>
-          <p style={{ ...styles.statNumber, color: 'var(--bento-ink)' }}>{weeksInGoal}</p>
-          <p style={{ ...styles.statSub, color: 'var(--bento-t3)' }}>{translate('progress.weeksInGoal', undefined, lang)}</p>
-        </button>
-        <button style={{ ...styles.statCard, background: 'var(--bento-sand)' }} onClick={() => onNavigate?.('stats')}>
-          <p style={{ ...styles.statLabel, color: 'var(--bento-sand-label)' }}>{translate('nav.journey', undefined, lang)}</p>
-          <p style={{ ...styles.statNumber, color: 'var(--bento-sand-icon)' }}>{pctLabel}</p>
-          <p style={{ ...styles.statSub, color: 'var(--bento-sand-label)' }}>{chaptersLabel}</p>
-        </button>
-      </div>
-
-      {/* Esta semana */}
-      <div style={styles.weekCard}>
-        <div style={styles.weekHead}>
-          <p style={styles.weekLabel}>{translate('routine.weekSectionLabel', undefined, lang)}</p>
-          <p style={styles.weekCount}>
-            <span style={styles.weekCountStrong}>
-              {translate(daysMet === 1 ? 'routine.weekCompletedOfOne' : 'routine.weekCompletedOfMany', { n: daysMet }, lang)}
-            </span>{' '}
-            {translate('routine.weekCompletedOfSuffix', { total: goalDays }, lang)}
-          </p>
+        {/* Bloco 3 — VERSÍCULO DO DIA. */}
+        <div style={styles.verseCard}>
+          <div style={styles.verseHead}>
+            <p style={styles.verseLabel}>{L('verseOfDay')}</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={styles.verseIconBtn} aria-label={L(verseSaved ? 'verseSaved' : 'saveVerse')} onClick={handleSaveVerse}>
+                <AppIcon name="BookMarked" size={13} color={verseSaved ? 'var(--bento-accent)' : 'var(--bento-t2)'} strokeWidth={2} />
+              </button>
+              <button style={styles.verseIconBtn} aria-label={L('shareVerse')} onClick={handleShareVerse}>
+                <AppIcon name="Share2" size={13} color="var(--bento-t2)" strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+          <p style={styles.verseText}>&ldquo;{verseData.text}&rdquo;</p>
+          <p style={styles.verseRef}>{verseData.ref}{verseData.version ? ` · ${verseData.version}` : ''}</p>
         </div>
-        <div style={styles.weekGrid}>
-          {weekDays.map((d, i) => {
-            const done = !d.isFuture && isDayGoalMet(d)
-            const state = done ? 'done' : d.isToday ? 'today' : 'other'
-            return (
-              <div key={d.key} style={styles.weekDayCol}>
-                <span style={{ ...styles.weekDaySquare, ...styles.weekDaySquare_[state] }}>
-                  {state === 'done' && <AppIcon name="Check" size={15} color="var(--bento-ink)" strokeWidth={2.8} />}
+
+        {/* Bloco 4 — SUA APLICAÇÃO DE ONTEM. */}
+        {showApplicationCard && (
+          <div style={{ ...styles.applyCard, ...(wroteApplicationToday ? styles.applyCardDark : {}) }}>
+            <div style={styles.applyHead}>
+              <p style={{ ...styles.applyLabel, ...(wroteApplicationToday ? styles.applyLabelDark : {}) }}>{L('applyLabel')}</p>
+              {!wroteApplicationToday && (
+                <button style={styles.applyChangeBtn} onClick={() => onNavigate?.('applicationPhrases')}>{L('applyChange')}</button>
+              )}
+            </div>
+            <p style={{ ...styles.applyText, ...(wroteApplicationToday ? styles.applyTextDark : {}) }}>{pinnedEntry.text}</p>
+            {wroteApplicationToday ? (
+              <p style={styles.applyPendingNote}>{L('applyPendingNote')}</p>
+            ) : (
+              <div style={styles.applyFootRow}>
+                <button
+                  style={{ ...styles.fulfillBtn, ...(pinnedEntry.fulfilled ? styles.fulfillBtnDone : {}) }}
+                  onClick={handleFulfillApplication}
+                  disabled={pinnedEntry.fulfilled}
+                >
+                  {pinnedEntry.fulfilled ? L('fulfilledDone') : L('fulfillBtn')}
+                </button>
+                <span style={styles.applyWeekCount}>
+                  {L(weekAppStatus.total === 1 ? 'applyWeekCountOne' : 'applyWeekCountMany', { done: weekAppStatus.fulfilled, total: weekAppStatus.total })}
                 </span>
-                <span style={{ ...styles.weekDayLetter, ...styles.weekDayLetter_[state] }}>{letters[i]}</span>
               </div>
-            )
-          })}
-        </div>
+            )}
+          </div>
+        )}
+
+        {/* Bloco 5 — ESTA SEMANA. */}
+        {isFirstWeek ? (
+          <div style={styles.firstWeekCard}>
+            <p style={styles.firstWeekText}>{L('firstWeekNote')}</p>
+          </div>
+        ) : (
+          <div style={styles.weekCard}>
+            <div style={styles.weekHead}>
+              <p style={styles.weekLabel}>{L('weekLabel')}</p>
+              <p style={styles.weekCount}>
+                <span style={styles.weekCountStrong}>{daysMetThisWeek}</span> {L('ofDaysSuffix', { total: markedDayIdxs.length })}
+              </p>
+            </div>
+            <div style={styles.weekGridRow}>
+              <div style={styles.weekGrid}>
+                {weekDayCells.map(c => {
+                  const state = c.done ? 'done' : c.isToday ? 'today' : 'other'
+                  return (
+                    <div key={c.key} style={styles.weekDayCol}>
+                      <span style={{ ...styles.weekDaySquare, ...styles.weekDaySquare_[state] }}>
+                        {state === 'done' && <AppIcon name="Check" size={14} color="var(--bento-ink)" strokeWidth={2.8} />}
+                        {state === 'today' && <span style={styles.weekTodayDot} />}
+                      </span>
+                      <span style={{ ...styles.weekDayLetter, ...styles.weekDayLetter_[state] }}>{weekdayAbbr[c.weekdayIdx]}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <p style={styles.weekNote}>{L('weekNote', { day: weekdayFull[todayWeekdayIdx] })}</p>
+            </div>
+
+            {enabledSteps.length > 0 && (
+              <div style={styles.weekTimeRow}>
+                {STEPS.filter(s => enabledSteps.includes(s)).map(s => (
+                  <div key={s} style={styles.weekTimeCol}>
+                    <p style={styles.weekTimeValue}>{Math.round((weekTotals[s] || 0) / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
+                    <p style={styles.weekTimeLabel}>{L(`step${cap(s)}`)}</p>
+                  </div>
+                ))}
+                <div style={{ ...styles.weekTimeCol, alignItems: 'flex-end', textAlign: 'right' }}>
+                  <p style={styles.weekTimeValue}>{Math.round(weekTotalSeconds / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
+                  <p style={styles.weekTimeLabel}>{L('inTotal')}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bloco 6 — dois quadrados. */}
+        {!isFirstWeek && (
+          <div style={styles.squaresRow}>
+            {unreadMessagesTotal > 0 && (
+              <button style={styles.squareDark} onClick={() => onNavigate?.('groupMessages')}>
+                <div style={styles.squareTopRow}>
+                  <AppIcon name="Users" size={16} color="rgba(255,255,255,.55)" strokeWidth={2} />
+                  <span style={styles.squareBadge}>{unreadMessagesTotal > 99 ? '99+' : unreadMessagesTotal}</span>
+                </div>
+                <div>
+                  <p style={styles.squareTitleDark}>{L('newMessages')}</p>
+                  <p style={styles.squareSubDark}>{joinNames(messageGroupNames)}</p>
+                </div>
+              </button>
+            )}
+            <button style={{ ...styles.squareLight, ...(unreadMessagesTotal > 0 ? {} : { flex: '1 1 100%' }) }} onClick={() => onNavigate?.('metrics')}>
+              <div style={styles.squareTopRow}>
+                <AppIcon name="BarChart3" size={16} color="var(--bento-t3)" strokeWidth={2} />
+                <span style={styles.squarePctLight}>{biblePctLabel}</span>
+              </div>
+              <div>
+                <p style={styles.squareTitleLight}>{L('myMetrics')}</p>
+                <p style={styles.squareSubLight}>{L('metricsSummaryLine', { hours: totalHM.h, weeks: weeksInGoal })}</p>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Bloco 7 — SUA SEMANA (resumo). */}
+        {showWeekSummaryCard && (
+          <div style={styles.recapCard}>
+            <p style={styles.recapLabel}>{L('recapLabel')}</p>
+            <div style={styles.recapRow}>
+              <p style={styles.recapText}>{L('recapReady', { period: recapPeriodLabel(latestSummary, lang) })}</p>
+              <button style={styles.recapBtn} onClick={() => onOpenWeeklySummary?.(latestSummary.weekKey)}>{L('recapRead')}</button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Versículo do dia. */}
-      <div style={styles.verseCard}>
-        <p style={styles.verseLabel}>{L('verseOfDay')}</p>
-        <p style={styles.verseText}>"{verse.text}"</p>
-        <p style={styles.verseRef}>{verse.ref}</p>
-      </div>
-
-      {!hasPremium && (
-        <div style={{ marginTop: 20 }}>
-          <PremiumLockCard lang={lang} onNavigate={onNavigate} variant="premium" />
-        </div>
-      )}
-      </div>
+      <TimePerStepSheet
+        open={timeSheetOpen}
+        onClose={() => setTimeSheetOpen(false)}
+        initialMinutes={initialStepMinutes}
+        completedSet={completedSet}
+        onSave={onSaveStepMinutes}
+        lang={lang}
+      />
     </div>
   )
 }
 
+// "25 a 31 de agosto" — mesmo formato de weekRangeLabel
+// (recap/weeklySummaryMath.js), reimplementado igual aqui só pra não puxar
+// o módulo inteiro do resumo semanal (que também carrega chaptersRangeLabel
+// etc., sem uso nesta tela) por uma função só.
+function recapPeriodLabel(summary, lang) {
+  const [sy, sm, sd] = summary.startKey.split('-').map(Number)
+  const [ey, em, ed] = summary.endKey.split('-').map(Number)
+  const start = new Date(sy, sm - 1, sd)
+  const end = new Date(ey, em - 1, ed)
+  const locale = lang === 'en' ? 'en-US' : 'pt-BR'
+  if (sy === ey && sm === em) {
+    const month = end.toLocaleDateString(locale, { month: 'long' })
+    return lang === 'en' ? `${sd}–${ed} ${month}` : `${sd} a ${ed} de ${month}`
+  }
+  const startLabel = start.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+  const endLabel = end.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
+  return lang === 'en' ? `${startLabel} – ${endLabel}` : `${startLabel} a ${endLabel}`
+}
+
+const FONT = 'var(--font-bento)'
 const styles = {
-  // Medidas do quadro 3c: cabeçalho com padding 22px 20px 0; conteúdo
-  // 20px abaixo dele, blocos empilhados com gap 12.
-  screen: {
-    background: 'var(--bento-bg)',
-    height: '100%',
-    overflowY: 'auto',
-    WebkitOverflowScrolling: 'touch',
-    display: 'flex',
-    flexDirection: 'column',
-  },
+  screen: { background: 'var(--bento-bg)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column' },
   header: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 20px 0' },
   body: { padding: '20px 20px calc(var(--nav-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 12 },
-  greeting: { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0 },
-  date: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
+  greeting: { fontFamily: FONT, fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  date: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t2)', margin: '4px 0 0' },
   avatar: {
-    width: 36, height: 36, flexShrink: 0, borderRadius: 14, border: 'none', padding: 0, background: 'var(--bento-ink)',
+    width: 38, height: 38, flexShrink: 0, borderRadius: 13, border: 'none', padding: 0, background: 'var(--bento-accent)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-    fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, lineHeight: '36px', color: 'var(--bento-bg)',
+    fontFamily: FONT, fontSize: 12, fontWeight: 800, lineHeight: '38px', color: 'var(--bento-ink)',
   },
 
-  actionCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 24, color: '#fff' },
-  actionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 18px' },
-  actionLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
-    textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0,
-  },
-  actionMin: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1, color: 'rgba(255,255,255,.5)' },
-  actionTitle: {
-    fontFamily: 'var(--font-bento)', fontSize: 32, fontWeight: 800, letterSpacing: '-1.2px',
-    lineHeight: 1.05, margin: '0 0 20px',
-  },
-  startBtn: {
-    width: '100%', height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    cursor: 'pointer', fontFamily: 'var(--font-bento)',
-  },
-  startBtnText: { fontSize: 15.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
-  startBtnArrow: { fontSize: 15, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
+  skeletonBlock: { borderRadius: 24, background: 'var(--bento-line)' },
 
-  statsRow: { display: 'flex', gap: 12 },
-  statCard: { flex: 1, minWidth: 0, borderRadius: 24, border: 'none', background: 'var(--bento-card)', padding: 20, textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  statLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
-    textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 14px',
-  },
-  statNumber: { fontFamily: 'var(--font-bento)', fontSize: 34, fontWeight: 800, lineHeight: 1, letterSpacing: '-1.4px', margin: '0 0 4px' },
-  statSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, margin: 0 },
+  // Bloco 2.
+  planCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 20 },
+  planCardDone: { background: 'var(--bento-sand)' },
+  planHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  planLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
+  planLabelDone: { color: 'var(--bento-sand-label)' },
+  planMin: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.42)' },
+  planTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
+  planTitleDone: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.7px', color: 'var(--bento-sand-ink-strong)', margin: '0 0 14px' },
+  continuityLine: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
 
-  weekCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
-  weekHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 16px' },
-  weekLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
-    textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0,
-  },
-  weekCount: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t3)', margin: 0 },
+  tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
+  tile: { flex: 1, minWidth: 0, border: 'none', cursor: 'pointer', borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', textAlign: 'left', fontFamily: FONT },
+  tileValue: { fontSize: 15, fontWeight: 800, color: '#fff', margin: '0 0 2px', lineHeight: 1.1 },
+  tileUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
+  tileLabel: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', margin: 0 },
+  tileDone: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(122,74,30,.1)', padding: '11px 12px' },
+  tileValueDone: { fontSize: 15, fontWeight: 800, color: 'var(--bento-sand-ink-strong)', margin: '0 0 2px', lineHeight: 1.1 },
+  tileUnitDone: { fontSize: 10, fontWeight: 600, color: 'var(--bento-sand-ink-mid)' },
+  tileLabelDone: { fontSize: 10, fontWeight: 600, color: 'var(--bento-sand-ink-mid)', margin: 0 },
+
+  btnRow: { display: 'flex', gap: 8 },
+  startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },
+  startBtnText: { fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
+  startBtnArrow: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
+  onlyReadBtn: { height: 48, padding: '0 16px', borderRadius: 16, border: 'none', background: 'rgba(255,255,255,.08)', cursor: 'pointer', fontFamily: FONT },
+  onlyReadBtnText: { fontSize: 12.5, fontWeight: 700, color: '#fff' },
+
+  nextUpLine: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-sand-ink-mid)', margin: '0 0 14px' },
+  doneBtnRow: { display: 'flex', gap: 8 },
+  extraChapterBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, cursor: 'pointer' },
+  seeInGroupBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'rgba(122,74,30,.12)', color: 'var(--bento-sand-ink-strong)', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' },
+
+  // Bloco 3.
+  verseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px' },
+  verseHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  verseLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
+  verseIconBtn: { width: 28, height: 28, borderRadius: 10, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  verseText: { fontFamily: FONT, fontStyle: 'italic', fontWeight: 500, fontSize: 16.5, lineHeight: 1.5, color: 'var(--bento-ink)', textWrap: 'pretty', margin: '0 0 8px' },
+  verseRef: { fontFamily: FONT, fontSize: 11.5, fontWeight: 800, color: 'var(--bento-accent)', margin: 0 },
+
+  // Bloco 4.
+  applyCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '16px 20px' },
+  applyCardDark: { background: 'var(--bento-ink)' },
+  applyHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  applyLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: 0 },
+  applyLabelDark: { color: 'rgba(255,255,255,.42)' },
+  applyChangeBtn: { border: 'none', background: 'none', padding: 0, fontFamily: FONT, fontSize: 10.5, fontWeight: 700, color: 'var(--bento-sand-ink-mid)', cursor: 'pointer' },
+  applyText: { fontFamily: FONT, fontSize: 15, fontWeight: 700, lineHeight: 1.45, color: 'var(--bento-sand-ink-strong)', margin: '0 0 14px' },
+  applyTextDark: { color: '#fff' },
+  applyPendingNote: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', margin: 0 },
+  applyFootRow: { display: 'flex', alignItems: 'center', gap: 10 },
+  fulfillBtn: { height: 34, padding: '0 14px', borderRadius: 12, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: 'pointer' },
+  fulfillBtnDone: { opacity: 0.6, cursor: 'default' },
+  applyWeekCount: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-sand-ink)' },
+
+  // Bloco 5.
+  firstWeekCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px' },
+  firstWeekText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-t2)', margin: 0, textAlign: 'center' },
+
+  weekCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 20px' },
+  weekHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 },
+  weekLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  weekCount: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-t2)', margin: 0 },
   weekCountStrong: { fontWeight: 800, color: 'var(--bento-ink)' },
-  weekGrid: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  weekDayCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
-  weekDaySquare: { width: 34, height: 34, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' },
+  weekGridRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
+  weekGrid: { display: 'flex', gap: 8, flexShrink: 0 },
+  weekDayCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
+  weekDaySquare: { width: 30, height: 30, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' },
   weekDaySquare_: {
     done: { background: 'var(--bento-accent)' },
-    today: { border: '2px dashed var(--bento-accent)' },
-    other: { background: 'var(--bento-line)' },
+    today: { background: 'var(--bento-ink)' },
+    other: { background: 'var(--bento-bg)' },
   },
-  weekDayLetter: { fontFamily: 'var(--font-bento)', fontSize: 10, lineHeight: 1 },
+  weekTodayDot: { width: 6, height: 6, borderRadius: 99, background: 'var(--bento-accent)' },
+  weekDayLetter: { fontFamily: FONT, fontSize: 9.5, lineHeight: 1 },
   weekDayLetter_: {
     done: { fontWeight: 800, color: 'var(--bento-ink)' },
-    today: { fontWeight: 800, color: 'var(--bento-accent)' },
-    other: { fontWeight: 600, color: 'var(--bento-t5)' },
+    today: { fontWeight: 800, color: 'var(--bento-ink)' },
+    other: { fontWeight: 700, color: 'var(--bento-t2)' },
   },
+  weekNote: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 11.5, fontWeight: 600, lineHeight: 1.35, color: 'var(--bento-t2)', margin: 0 },
+  weekTimeRow: { display: 'flex', gap: 10, borderTop: '1px solid var(--bento-line)', marginTop: 14, paddingTop: 12 },
+  weekTimeCol: { flex: 1, minWidth: 0 },
+  weekTimeValue: { fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  weekTimeUnit: { fontSize: 10, fontWeight: 600, color: 'var(--bento-t2)' },
+  weekTimeLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 600, color: 'var(--bento-t2)', margin: 0 },
 
-  verseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
-  verseLabel: {
-    fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.12em',
-    textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px',
+  // Bloco 6.
+  squaresRow: { display: 'flex', gap: 10 },
+  squareDark: {
+    flex: 1, minWidth: 0, minHeight: 132, borderRadius: 24, background: 'var(--bento-ink)', border: 'none', cursor: 'pointer',
+    padding: 18, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'left', fontFamily: FONT,
   },
-  verseText: {
-    fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 600, lineHeight: 1.55,
-    color: 'var(--bento-ink)', textWrap: 'pretty', margin: '0 0 8px',
+  squareLight: {
+    flex: 1, minWidth: 0, minHeight: 132, borderRadius: 24, background: 'var(--bento-card)', border: 'none', cursor: 'pointer',
+    padding: 18, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'left', fontFamily: FONT,
   },
-  verseRef: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-accent)', margin: 0 },
+  squareTopRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  squareBadge: { minWidth: 20, height: 20, padding: '0 6px', borderRadius: 99, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 10.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  squarePctLight: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)' },
+  squareTitleDark: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.15, color: '#fff', margin: '0 0 4px' },
+  squareSubDark: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  squareTitleLight: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.15, color: 'var(--bento-ink)', margin: '0 0 4px' },
+  squareSubLight: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t2)', margin: 0 },
+
+  // Bloco 7.
+  recapCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '14px 20px' },
+  recapLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 6px' },
+  recapRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  recapText: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 14, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-sand-ink-strong)', margin: 0 },
+  recapBtn: { flexShrink: 0, height: 36, padding: '0 14px', borderRadius: 13, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: 'pointer' },
 }

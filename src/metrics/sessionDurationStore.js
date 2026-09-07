@@ -16,7 +16,7 @@
 // scripts/test-session-duration.mjs.
 import { insertRow, selectRows } from '../backend/guestTableStore'
 
-export { totalsByStep, totalsByDay, averageSessionSeconds } from './sessionDurationMath'
+export { totalsByStep, totalsByDay, totalsForDay, averageSessionSeconds } from './sessionDurationMath'
 
 const TABLE = 'session_seconds'
 const PASSOS = ['prayer', 'reading', 'reflection']

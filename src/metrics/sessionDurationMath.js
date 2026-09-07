@@ -27,6 +27,14 @@ export function totalsByDay(rows, sinceDate = null) {
   return sumBy(filtered, r => r.data)
 }
 
+// { prayer, reading, reflection } de UM dia só (dayKeyStr, formato
+// YYYY-MM-DD) — usado pela Home (34a) pra "rotina cumprida" ("{capítulo}
+// lido · {N} min", a linha dos tempos REAIS daquele dia, diferente dos
+// minutos CONFIGURADOS que os tiles mostram antes de a rotina ser feita).
+export function totalsForDay(rows, dayKeyStr) {
+  return totalsByStep(rows.filter(r => r.data === dayKeyStr))
+}
+
 // Sessão média em segundos — só conta dias com pelo menos uma sessão, não
 // divide pelos dias do período inteiro (um período de 30 dias com 10 dias
 // de leitura tem "sessão média" sobre esses 10, não sobre 30).
