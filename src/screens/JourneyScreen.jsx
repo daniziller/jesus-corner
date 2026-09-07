@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { sessionKeys, computeBookChapterCounts } from '../utils/progress'
 import { computeMetricsBlocks, computeTestamentTotals } from '../data/metricsBlocks'
-import { getLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { formatRelativeTime } from '../utils/time'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -285,21 +284,15 @@ export default function JourneyScreen({
     )
   }
 
-  // Último capítulo aberto na navegação livre (ver ReadingBlockView.jsx,
-  // mode 'browse') — lido direto do localStorage a cada render (não num
-  // useState) porque essa tela não desmonta ao entrar/sair de um bloco (só
-  // troca de branch aqui embaixo), então um valor lido só na 1a montagem
-  // ficaria desatualizado depois de ler um novo capítulo e voltar.
-  const lastOpened = getLastOpenedChapter()
-  const lastOpenedSession = lastOpened ? browseSessionsByBlock[lastOpened.blockId]?.find(s => s.id === lastOpened.sessionId) : null
-  const lastOpenedBlock = lastOpened ? blocks.find(b => b.id === lastOpened.blockId) : null
-
-  // "Último texto lido" (pedido direto, 2026-09-07) — diferente do card
-  // acima: lastReadPositionStore.js (session.lastReadPosition) grava em
-  // QUALQUER modo de leitura, guiado (Rotina) OU livre, não só navegação
-  // livre. É o "onde parei de verdade", mesmo que seja outro livro/bloco
-  // que não o da sessão de hoje do plano — por isso resolve o bloco a
-  // partir do LIVRO salvo (b.books.includes), não de um blockId gravado.
+  // "Último texto lido" (pedido direto, 2026-09-07) — lastReadPositionStore.js
+  // (session.lastReadPosition) grava em QUALQUER modo de leitura, guiado
+  // (Rotina) OU livre. É o "onde parei de verdade", mesmo que seja outro
+  // livro/bloco que não o da sessão de hoje do plano — por isso resolve o
+  // bloco a partir do LIVRO salvo (b.books.includes), não de um blockId
+  // gravado. Existia um card irmão aqui, "Última leitura livre"
+  // (lastOpenedChapterStore.js), que só cobria navegação livre — removido
+  // em 2026-09-07 por ficar redundante depois deste (batiam quase sempre
+  // no mesmo capítulo; a diferença nunca compensou ter os dois).
   const lastReadPos = session.lastReadPosition
   const lastReadBlock = lastReadPos ? blocks.find(b => b.books.includes(lastReadPos.book)) : null
   const lastReadSession = lastReadBlock
@@ -552,21 +545,6 @@ export default function JourneyScreen({
           </button>
         )}
 
-        {/* Última leitura livre (quadro 5f/28a) — tempo relativo real;
-            some com busca ativa, na lista de livros, ou se nunca abriu
-            nada por aqui ainda. */}
-        {showTestamentCards && lastOpenedSession && (
-          <button style={styles.lastReadCard} onClick={() => jumpToBook(lastOpenedBlock, lastOpenedSession.book, lastOpenedSession.id, false)}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={styles.lastReadLabel}>{t('journey.lastFreeReadingLabel', undefined, lang)}</span>
-              <span style={styles.lastReadTitle}>
-                {(lang === 'en' ? lastOpenedSession.bookEn : lastOpenedSession.book)} {lastOpenedSession.chStart}
-              </span>
-              {lastOpened?.at && <span style={styles.lastReadTime}>{formatRelativeTime(lastOpened.at, lang)}</span>}
-            </span>
-            <span style={styles.lastReadOpenBtn}>{t('journey.openBtn', undefined, lang)}</span>
-          </button>
-        )}
 
         {/* Atalho de volta pra sessão estruturada do dia — as "duas portas
             para o mesmo texto" do quadro 5f. */}

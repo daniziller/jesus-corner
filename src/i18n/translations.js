@@ -204,10 +204,9 @@ export const STRINGS = {
       // retomar a última leitura livre, e voltar pra sessão estruturada
       // do dia a partir da navegação livre.
       freeReadingSubtitle: 'Leia à vontade — isto não mexe no seu plano.',
-      lastFreeReadingLabel: 'Última leitura livre',
-      // Diferente do rótulo acima: cobre QUALQUER modo de leitura (guiado
-      // ou livre), não só navegação livre pela aba Bíblia — ver
-      // lastReadPos/lastReadSession em JourneyScreen.jsx.
+      // lastFreeReadingLabel ("Última leitura livre") saiu em 2026-09-07 —
+      // ficou redundante com o rótulo abaixo, que cobre QUALQUER modo de
+      // leitura (guiado ou livre), não só navegação livre pela aba Bíblia.
       lastReadTextLabel: 'Último texto lido',
       openBtn: 'Abrir',
       todaySessionCta: 'Ler pela sessão de hoje',
@@ -2596,7 +2595,6 @@ export const STRINGS = {
       goToToday: "Go to today's reading",
       continueReading: 'Continue reading',
       freeReadingSubtitle: "Read freely — this doesn't affect your plan.",
-      lastFreeReadingLabel: 'Last free reading',
       lastReadTextLabel: 'Last text read',
       openBtn: 'Open',
       todaySessionCta: "Read today's session",
