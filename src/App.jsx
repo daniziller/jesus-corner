@@ -39,6 +39,7 @@ import GroupPlanReaderScreen from './screens/GroupPlanReaderScreen'
 import ChronologicalPlanScreen from './screens/ChronologicalPlanScreen'
 import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
+import MessagesScreen from './screens/MessagesScreen'
 import StudiesScreen from './screens/StudiesScreen'
 import InductiveMethodScreen from './screens/InductiveMethodScreen'
 import ProgressScreen from './screens/ProgressScreen'
@@ -659,6 +660,10 @@ export default function App() {
   // reaproveitado), pra JourneyScreen.jsx sempre detectar a mudança mesmo
   // quando o alvo é o mesmo capítulo de antes.
   const [browseJumpTarget, setBrowseJumpTarget] = useState(null)
+  // Pular de 33b (Mensagens) pra um grupo específico ou pra Adicionar
+  // amigos (24c) dentro da Comunidade — mesmo padrão de browseJumpTarget
+  // acima: GroupsScreen.jsx consome e limpa sozinho (useEffect).
+  const [groupsEntryTarget, setGroupsEntryTarget] = useState(null)
   // Acessibilidade: "texto grande" — por dispositivo, ver src/utils/textScaleStore.js
   // e a regra html.large-text .app-content-inner { zoom } em index.css.
   const [largeText, setLargeText] = useState(getLargeTextEnabled)
@@ -2211,7 +2216,13 @@ export default function App() {
     journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
-      : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onDetailOpenChange={setGroupsDetailOpen} />,
+      : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
+    // Caixa de mensagens (33b) — página própria, aberta pelo sino de 33a;
+    // "Ver" num grupo/pedido de amizade volta pra Comunidade (groups) já
+    // no lugar certo, via groupsEntryTarget acima.
+    groupMessages: !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
+      : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
+      : <MessagesScreen session={session} authUser={authUser} blocks={blocks} onBack={goBack} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenGroup={groupId => { setGroupsEntryTarget({ type: 'group', groupId }); goToTab('groups') }} onOpenFriends={() => { setGroupsEntryTarget({ type: 'friends' }); goToTab('groups') }} onOpenBiblePassage={openBiblePassage} />,
     stats:   <ProgressScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} onNavigate={navigateTo} />,
     // "Minhas métricas" (30b/30c, Bloco 7) — Perfil (19a). Não tem gate de
     // hasPremium: é a mesma info de "progresso básico" que ProgressScreen/
@@ -2327,7 +2338,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
     || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
@@ -2336,7 +2347,7 @@ export default function App() {
   // roda fora do chrome do app inteiro (ver .admin-active em index.css).
   // 'contact'/'applicationPhrases'/'inductiveMethod' também saem sozinhas
   // (tela de utilidade cheia, sem rodapé de rotina).
-  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
   const isAdminScreen = activeTab === 'admin'
 
   return (

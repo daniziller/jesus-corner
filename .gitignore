@@ -43,3 +43,4 @@ android-twa/*.idsig
 # máquina, regenerado a qualquer momento com `supabase link`.
 supabase/.temp/
 design_handoff_jesus_corner/
+handoff-comunidade-33/

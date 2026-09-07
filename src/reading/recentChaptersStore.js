@@ -1,6 +1,6 @@
 // Últimos capítulos abertos na navegação livre pela Bíblia (mode 'browse'
 // em ReadingBlockView.jsx) — por dispositivo, mesmo padrão de
-// lastOpenedChapterStore.js, mas guarda uma LISTA (mais recente primeiro,
+// lastReadPositionStore.js, mas guarda uma LISTA (mais recente primeiro,
 // sem repetir capítulo), não só o último. Alimenta os cards estilo
 // "stories" pra voltar rápido a um dos últimos lidos, tanto na tela
 // inicial da aba Bíblia (JourneyScreen.jsx) quanto dentro de um livro já

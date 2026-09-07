@@ -14,7 +14,6 @@ import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { computeBookChapterCounts } from '../utils/progress'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
-import { setLastOpenedChapter } from '../reading/lastOpenedChapterStore'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
 import { addReadingSeconds } from '../reading/readingTimeStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
@@ -121,12 +120,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
 
   // Lembra o último capítulo aberto na navegação livre (mode 'browse') —
   // só aqui, não no fluxo guiado da Rotina/Plano (mode 'session'), que já
-  // tem seu próprio "onde parei" (a sessão "current" do plano). Alimenta o
-  // botão "Continuar leitura" (lastOpenedChapterStore) e os cards de
-  // "lidos recentemente" (recentChaptersStore) — mesmo gatilho pros dois.
+  // tem seu próprio "onde parei" (a sessão "current" do plano). Alimenta os
+  // cards de "lidos recentemente" (recentChaptersStore) — lastOpenedChapterStore
+  // (o "Continuar leitura" irmão) saiu em 2026-09-07, redundante com
+  // "Último texto lido" (lastReadPositionStore, grava nos dois modos).
   useEffect(() => {
     if (mode === 'browse' && expandedChapterId != null) {
-      setLastOpenedChapter(block.id, expandedChapterId)
       const openedSession = sessions.find(s => s.id === expandedChapterId)
       if (openedSession) {
         setRecentChapters(addRecentChapter({

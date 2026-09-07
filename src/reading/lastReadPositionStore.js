@@ -1,11 +1,10 @@
 // "Último texto lido" (livro:capítulo) — em QUALQUER modo de leitura:
 // navegação livre pela aba Bíblia (mode 'browse') OU fluxo guiado da
-// Rotina (mode 'session'). Por dispositivo (localStorage), mesmo padrão de
-// lastOpenedChapterStore.js — mas guarda { book, chapter } (independente
-// de plano) em vez de { blockId, sessionId }, e serve a outro propósito:
-// alimentar o card "Continue sua leitura" da Home, que sempre reabre o
-// último capítulo que a pessoa estava lendo (ver findCurrentReadingSession
-// em src/App.jsx), não a próxima sessão pendente na ordem do plano.
+// Rotina (mode 'session'). Por dispositivo (localStorage) — guarda
+// { book, chapter } (independente de plano), não { blockId, sessionId }.
+// Alimenta o card "Último texto lido" da aba Bíblia (JourneyScreen.jsx) e
+// findCurrentReadingSession (src/App.jsx), que reabre o último capítulo
+// que a pessoa estava lendo — não a próxima sessão pendente do plano.
 const KEY = 'jc_last_read_position'
 
 export function getLastReadPosition() {
