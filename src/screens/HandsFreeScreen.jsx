@@ -357,7 +357,7 @@ export default function HandsFreeScreen({ session, onExit, onMarkRoutineStep, on
           <span style={styles.doneIcon}><AppIcon name="Check" size={34} color="white" /></span>
           <p style={styles.bigLabel}>{L('doneTitle')}</p>
           <p style={styles.sub}>{L('doneBody')}</p>
-          <button style={styles.primaryBtn} onClick={() => onNavigate?.('stats')}>{L('seeProgress')}</button>
+          <button style={styles.primaryBtn} onClick={() => onNavigate?.('metrics')}>{L('seeProgress')}</button>
           <button style={styles.exitBtn} onClick={handleExit}>{L('finish')}</button>
         </div>
       </div>

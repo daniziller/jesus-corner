@@ -42,7 +42,6 @@ import GroupsScreen from './screens/GroupsScreen'
 import MessagesScreen from './screens/MessagesScreen'
 import StudiesScreen from './screens/StudiesScreen'
 import InductiveMethodScreen from './screens/InductiveMethodScreen'
-import ProgressScreen from './screens/ProgressScreen'
 import MetricsScreen from './screens/MetricsScreen'
 import MetricsBlocksScreen from './screens/MetricsBlocksScreen'
 import ProfileScreen from './screens/ProfileScreen'
@@ -83,7 +82,7 @@ import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRec
 import WeeklySummaryNumbersScreen from './screens/WeeklySummaryNumbersScreen'
 import WeeklySummaryTextScreen from './screens/WeeklySummaryTextScreen'
 import WeeklySummaryPrayerGroupScreen from './screens/WeeklySummaryPrayerGroupScreen'
-import { getWeeklySummaries } from './recap/weeklySummaryStore'
+import { getWeeklySummaries, markWeeklySummarySeen } from './recap/weeklySummaryStore'
 import { renderRecapImage, shareRecapImage } from './recap/recapImage'
 import { getHighlights } from './highlights/highlightsStore'
 import { saveNote, getNotes } from './notes/notesStore'
@@ -487,6 +486,23 @@ export default function App() {
     if (!authUser?.email) { setWeeklySummaries([]); return }
     getWeeklySummaries().then(setWeeklySummaries).catch(err => console.error('Failed to load weekly summaries', err))
   }, [authUser?.email])
+
+  // "SUA SEMANA" (Home, 34a) — único ponto de entrada real das 3 telas de
+  // resumo semanal até agora (weeklySummaryNumbers/Text/PrayerGroup
+  // existiam desde o Bloco 13, mas nenhuma tela navegava até elas — ver
+  // handoff-hoje-34). Marca vista na hora (a Home some com o cartão assim
+  // que a pessoa toca "Ler", não só depois de voltar) — otimista, com
+  // fallback pro estado anterior se a gravação falhar.
+  function openWeeklySummaryFromHome(weekKey) {
+    setWeekSummaryIndex(0)
+    goToTab('weeklySummaryNumbers')
+    const previous = weeklySummaries
+    setWeeklySummaries(prev => prev.map(s => s.weekKey === weekKey ? { ...s, seen: true } : s))
+    markWeeklySummarySeen(weekKey).catch(err => {
+      console.error('Failed to mark weekly summary as seen', err)
+      setWeeklySummaries(previous)
+    })
+  }
   // Pilha de abas visitadas — alimenta o botão "Voltar" global (header/
   // sidebar, ver goBack abaixo), pra sempre devolver a pessoa pra página
   // que ela estava antes, não importa por qual tela do app ela veio. Toda
@@ -2143,15 +2159,18 @@ export default function App() {
   }
 
   const screens = {
-    // Decisão de produto de 2026-09-07: a Home é sempre o quadro 3c (a
-    // Daniela pediu explicitamente pra ela ficar igual ao screenshot,
-    // "quadros que estão" — ação, Sequência/Bíblia, Esta semana, Versículo
-    // do dia — em toda conta, não só nos primeiros 7 dias). O painel
-    // 29a/30a (HomeDashboard.jsx: "Onde você está", "Aplicação de ontem",
-    // "Constância" em card escuro, "Aplicações cumpridas", link de
-    // métricas completas) saiu de cena — removido, não só desligado, pra
-    // não deixar código morto (zero outro import de HomeDashboard.jsx).
-    home: <HomeScreen session={session} authUser={authUser} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)} />,
+    // Rodada 34 (2026-09-07, handoff-hoje-34/HANDOFF-34a-hoje.md) — Hoje
+    // reescrita de novo: plano de hoje → versículo → aplicação de ontem →
+    // esta semana (com tempo por passo) → mensagens/métricas → resumo da
+    // semana. Substitui de vez a 3c (decisão anterior, mesmo dia) — a 3c
+    // era mais simples que este quadro, não o contrário, então não houve
+    // conflito entre as duas decisões, só uma sequência.
+    home: <HomeScreen
+      session={session} authUser={authUser} completedSet={completedSet} weeklyDays={weeklyDays}
+      weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
+      onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)}
+      onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
+    />,
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
@@ -2223,11 +2242,12 @@ export default function App() {
     groupMessages: !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <MessagesScreen session={session} authUser={authUser} blocks={blocks} onBack={goBack} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenGroup={groupId => { setGroupsEntryTarget({ type: 'group', groupId }); goToTab('groups') }} onOpenFriends={() => { setGroupsEntryTarget({ type: 'friends' }); goToTab('groups') }} onOpenBiblePassage={openBiblePassage} />,
-    stats:   <ProgressScreen session={session} blocks={blocks} sessionsByBlock={sessionsByBlock} onNavigate={navigateTo} />,
-    // "Minhas métricas" (30b/30c, Bloco 7) — Perfil (19a). Não tem gate de
-    // hasPremium: é a mesma info de "progresso básico" que ProgressScreen/
-    // stats (acima) já mostra sem trava, só reorganizada e com tempo por
-    // passo (que ProgressScreen não tinha).
+    // "Minhas métricas" (30b/30c, Bloco 7) — quadrado "Minhas métricas" da
+    // Home (34a) e Perfil (19a). Não tem gate de hasPremium: é a mesma
+    // info de "progresso básico". "Sua caminhada" (ProgressScreen.jsx, aba
+    // `stats`) saiu de vez em 2026-09-07 (rodada 34) — já estava
+    // supersedida por esta tela, e o handoff pede pra apagar qualquer
+    // "Progresso"/"Sua caminhada" que ainda existisse.
     metrics: <MetricsScreen session={session} completedSet={completedSet} sessionsByBlock={sessionsByBlock} stepMinutes={stepMinutes} hasWeeklySummary={weeklySummaries.length > 0} onNavigate={navigateTo} onBack={goBack} />,
     metricsBlocks: <MetricsBlocksScreen session={session} completedSet={completedSet} onBack={goBack} />,
     // Sala do capítulo (17a) — aberta pelo botão "Grupo" da leitura (17c).
@@ -2338,7 +2358,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'stats', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
     || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
