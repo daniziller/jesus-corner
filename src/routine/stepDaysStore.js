@@ -6,7 +6,7 @@
 import { fetchRow, updateRow } from '../backend/userDataStore'
 import { resolveStepDays, STEP_KEYS } from './stepDaysMath'
 
-export { STEP_KEYS, resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal } from './stepDaysMath'
+export { STEP_KEYS, resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal, computeWeekPillStates } from './stepDaysMath'
 
 // { prayer, reading, study, reflection } — cada um um array de 7 booleanos,
 // já com o fallback pro weekly_days de sempre aplicado (nunca devolve

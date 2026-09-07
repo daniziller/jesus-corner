@@ -73,3 +73,23 @@ export function computeStepWeekGoal(dailyRoutine, resolvedStepDays, activeSteps,
   }
   return { doneCount, markedCount }
 }
+
+// Estado de cada uma das 7 pílulas do cartão "Esta semana" (35a) — 'done'
+// (cumprido), 'today' (hoje, ainda não cumprido), 'upcoming' (marcado, não
+// cumprido — vale tanto pro futuro quanto pra um dia passado perdido: "um
+// dia perdido não zera nada" nunca vira um estado visual de culpa) e 'rest'
+// (nada marcado nesse dia). `done` tem prioridade sobre `today` — se hoje já
+// foi cumprido, mostra cumprido, não "ainda hoje".
+export function computeWeekPillStates(dailyRoutine, resolvedStepDays, activeSteps, today = new Date()) {
+  const monday = mondayOf(today)
+  const todayIdx = (today.getDay() + 6) % 7
+  const states = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
+    const scheduled = stepsScheduledForWeekday(resolvedStepDays, activeSteps, i)
+    if (scheduled.length === 0) { states.push('rest'); continue }
+    if (isStepDayFulfilled(dailyRoutine?.[dateKey(d)], scheduled)) { states.push('done'); continue }
+    states.push(i === todayIdx ? 'today' : 'upcoming')
+  }
+  return states
+}

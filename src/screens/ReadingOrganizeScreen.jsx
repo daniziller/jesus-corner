@@ -15,7 +15,7 @@ import AppIcon from '../icons/AppIcon'
 import WeekdayChipRow from '../components/WeekdayChipRow'
 import { splitBold } from '../utils/boldSubstring'
 import { getStepDays, setStepDays as persistStepDays } from '../routine/stepDaysStore'
-import { getBibleOrderMode, setBibleOrderMode, getCustomBookOrder, setCustomBookOrder, resolveBookOrder, canonicalBookOrder, resolveNextChapter } from '../reading/bibleOrderStore'
+import { getCustomBookOrder, setCustomBookOrder, resolveBookOrder, canonicalBookOrder, resolveNextChapter } from '../reading/bibleOrderStore'
 import { getReadingPaceSessions, getUseLearnedPace, setUseLearnedPace } from '../reading/readingPaceStore'
 import { estimateReadingPace, earlyReadingPace, chaptersPerSession } from '../reading/readingPaceMath'
 import { computeProjection, totalBibleChapters } from '../plan/readingProjection'
@@ -31,13 +31,12 @@ function renderBold(text, boldPart) {
   )
 }
 
-export default function ReadingOrganizeScreen({ session, completedSet, blocks, bookChapterCounts, stepMinutes, onSetStartPosition, onNavigate, onBack }) {
+export default function ReadingOrganizeScreen({ session, completedSet, blocks, bookChapterCounts, stepMinutes, bibleOrderMode: orderMode, onSaveBibleOrderMode, onSetStartPosition, onNavigate, onBack }) {
   const { lang, plan } = session
   const readingMinutes = stepMinutes?.reading ?? plan.readingMinutes ?? 15
   const L = (k, vars) => t(`readingOrganize.${k}`, vars, lang)
 
   const [stepDays, setStepDaysState] = useState(null)
-  const [orderMode, setOrderMode] = useState('canonical')
   const [customOrder, setCustomOrderState] = useState(null)
   const [position, setPosition] = useState(null)
   const [paceSessions, setPaceSessions] = useState([])
@@ -49,10 +48,9 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
     getStepDays().then(setStepDaysState).catch(() => {})
     getReadingPaceSessions().then(setPaceSessions).catch(() => {})
     getUseLearnedPace().then(setUseLearnedPaceState).catch(() => {})
-    Promise.all([getBibleOrderMode(), getCustomBookOrder()]).then(([mode, custom]) => {
-      setOrderMode(mode)
+    getCustomBookOrder().then(custom => {
       setCustomOrderState(custom ?? canonicalBookOrder())
-      setPosition(resolveNextChapter(completedSet, resolveBookOrder(mode, custom), bookChapterCounts))
+      setPosition(resolveNextChapter(completedSet, resolveBookOrder(orderMode, custom), bookChapterCounts))
     }).catch(() => {})
   }, [])
 
@@ -60,9 +58,11 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
     setPosition(resolveNextChapter(completedSet, resolveBookOrder(mode, custom), bookChapterCounts))
   }
 
+  // Ordem canônica/cronológica espelha em activeAltPlan (ver
+  // saveBibleOrderMode em App.jsx) — por isso quem escreve é o pai, não
+  // esta tela direto na store.
   function chooseOrder(mode) {
-    setOrderMode(mode)
-    setBibleOrderMode(mode).catch(err => console.error('Failed to persist bible order mode', err))
+    onSaveBibleOrderMode?.(mode)
     refreshPosition(mode, customOrder)
   }
 
