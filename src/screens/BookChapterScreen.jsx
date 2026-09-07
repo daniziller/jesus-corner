@@ -160,7 +160,15 @@ export default function BookChapterScreen({
                 : L('chaptersReadOf', { total, done: doneCount })}
             </p>
           </div>
-          <div style={{ ...s.ring, background: `conic-gradient(var(--bento-accent) 0 ${pct * 3.6}deg, rgba(255,255,255,.1) ${pct * 3.6}deg 360deg)` }}>
+          <div style={s.ring}>
+            {/* Anel de progresso em SVG (círculo + stroke-dasharray) — não
+                conic-gradient: a varredura de identidade (Bloco 1) baniu
+                todo `gradient` do app, então nem o sólido de 1 cor conta. */}
+            <svg width="58" height="58" viewBox="0 0 58 58" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
+              <circle cx="29" cy="29" r="26" fill="none" stroke="rgba(255,255,255,.1)" strokeWidth="6" />
+              <circle cx="29" cy="29" r="26" fill="none" stroke="var(--bento-accent)" strokeWidth="6" strokeLinecap="round"
+                strokeDasharray={`${(pct / 100) * 163.36} 163.36`} />
+            </svg>
             <div style={s.ringInner}><span style={s.ringPct}>{pct}%</span></div>
           </div>
         </div>
@@ -270,8 +278,8 @@ const s = {
   heroLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 8px' },
   heroTitle: { fontFamily: 'var(--font-bento)', fontSize: 30, fontWeight: 800, letterSpacing: '-1.3px', color: '#fff', margin: '0 0 8px' },
   heroSub: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0 },
-  ring: { flexShrink: 0, width: 58, height: 58, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  ringInner: { width: 46, height: 46, borderRadius: 99, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  ring: { position: 'relative', flexShrink: 0, width: 58, height: 58, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  ringInner: { position: 'relative', width: 46, height: 46, borderRadius: 99, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   ringPct: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: '#fff' },
 
   quickRow: { display: 'flex', gap: 8 },

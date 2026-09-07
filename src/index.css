@@ -46,7 +46,6 @@
 
   /* Semânticas */
   --gr: #16A34A;
-  --grl: #F0FDF4;
   --re: #DC2626;
   --rel: #FFF1F2;
 
@@ -87,12 +86,6 @@
      branco + sombra sutil original, coerente com o design system do Figma. */
   --card-bg: #F6F3F2;
   --card-border: 1px solid #E5E2E1;
-
-  /* Card de destaque laranja suave (streak, sessões restantes, plano atual
-     etc.) — o mesmo gradiente estava reimplementado com stops levemente
-     diferentes (FFDDB8/FFE4CC/FFE0BE) em cada tela; agora é um token só. */
-  --card-highlight-bg: linear-gradient(135deg,#FFF3E8,#FFE0BE);
-  --card-highlight-border: 0.5px solid rgba(157,67,0,.25);
 
   /* Layout */
   /* Barra inferior Bento (quadros 3c/4b/4c/5b/5f): 76px, sem raio/sombra. */
@@ -361,13 +354,6 @@ html.large-text .app-content-inner {
   opacity: 0;
   animation: fadeUpIn .5s cubic-bezier(.2,.8,.2,1) forwards;
 }
-@keyframes ctaGlowPulse {
-  0%, 100% { box-shadow: 0 10px 28px rgba(157,67,0,.35); }
-  50%      { box-shadow: 0 10px 40px rgba(157,67,0,.65); }
-}
-.welcome-cta-pulse {
-  animation: ctaGlowPulse 2.2s ease-in-out infinite;
-}
 /* Prévia do passo em destaque na tela de boas-vindas — o texto troca a
    cada ciclo (controlado em JS, junto com o chip em destaque), e essa
    animação só dá uma leve entrada pro texto novo. */
@@ -424,38 +410,6 @@ html.large-text .app-content-inner {
 @media (prefers-reduced-motion: reduce) {
   .rb-context-skeleton { animation: none; opacity: 0.6; }
 }
-
-/* ── Progress bar ── */
-.progress-bar {
-  height: 3px;
-  background: var(--g2);
-  border-radius: 99px;
-  overflow: hidden;
-}
-.progress-bar-fill {
-  height: 100%;
-  background: var(--or);
-  border-radius: 99px;
-  transition: width 0.6s ease;
-}
-
-/* ── Badges ── */
-.badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
-  display: inline-block;
-  letter-spacing: 0.3px;
-}
-.badge-orange {
-  color: var(--or);
-  background: var(--olt);
-  border: 0.5px solid rgba(157,67,0,.3);
-}
-.badge-green { background: var(--grl); color: var(--gr); }
-.badge-active { background: rgba(157,67,0,.15); color: var(--or); }
-.badge-locked { background: var(--g1); color: var(--g4); }
 
 /* ── Botões ──
    Um só sinal de "toque aqui" no app inteiro: --grad-primary (laranja).

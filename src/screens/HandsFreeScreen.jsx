@@ -329,7 +329,7 @@ export default function HandsFreeScreen({ session, onExit, onMarkRoutineStep, on
     return (
       <div style={styles.wrap}>
         <div style={styles.center}>
-          <span style={styles.introIcon}><AppIcon name="HandHeart" size={30} color="white" /></span>
+          <span style={styles.introIcon}><AppIcon name="HandHeart" size={30} color="var(--bento-ink)" /></span>
           <p style={styles.bigLabel}>{L('introTitle')}</p>
           <p style={styles.sub}>{L('introBody')}</p>
           <div style={styles.stepPreviewRow}>
@@ -418,13 +418,13 @@ export default function HandsFreeScreen({ session, onExit, onMarkRoutineStep, on
 }
 
 const styles = {
-  wrap: { position: 'relative', height: '100%', background: 'var(--bk-hero)', color: 'white', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
+  wrap: { position: 'relative', height: '100%', background: 'var(--bento-ink)', color: 'white', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
   center: { minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 14, padding: '52px 24px 110px' },
   closeBtn: { position: 'absolute', top: 14, right: 14, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
-  introIcon: { width: 64, height: 64, borderRadius: 20, background: 'var(--grad-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' },
-  doneIcon: { width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#22C55E,var(--gr))', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  runIcon: { width: 76, height: 76, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(0,0,0,.35)' },
-  bigLabel: { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px' },
+  introIcon: { width: 64, height: 64, borderRadius: 20, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  doneIcon: { width: 64, height: 64, borderRadius: '50%', background: '#1E8E4F', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  runIcon: { width: 76, height: 76, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  bigLabel: { fontFamily: 'var(--font-bento)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px' },
   sub: { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.72)', lineHeight: 1.5, maxWidth: 320 },
   est: { fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.6)' },
   tip: { fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.5)', lineHeight: 1.5, maxWidth: 300, marginTop: 4 },
@@ -432,14 +432,14 @@ const styles = {
   stepChip: { display: 'inline-flex', alignItems: 'center', gap: 6, border: '1.5px solid', borderRadius: 20, padding: '6px 12px', fontSize: 12, fontWeight: 700 },
   stepDots: { display: 'flex', gap: 8, marginBottom: 4 },
   stepDot: { width: 8, height: 8, borderRadius: '50%' },
-  runStep: { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 },
+  runStep: { fontFamily: 'var(--font-bento)', fontSize: 20, fontWeight: 800 },
   runStatus: { fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.8)', minHeight: 18 },
-  timer: { fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 300, letterSpacing: 3, fontVariantNumeric: 'tabular-nums', margin: '2px 0' },
+  timer: { fontFamily: 'var(--font-bento)', fontSize: 44, fontWeight: 300, letterSpacing: 3, fontVariantNumeric: 'tabular-nums', margin: '2px 0' },
   progressTrack: { width: '100%', maxWidth: 320, height: 5, background: 'rgba(255,255,255,.15)', borderRadius: 99, overflow: 'hidden' },
   progressFill: { height: '100%', background: 'white', borderRadius: 99, transition: 'width .5s ease' },
   controls: { display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' },
-  ctrlBtn: { display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 24, padding: '12px 22px', background: 'var(--grad-primary)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' },
-  ctrlBtnGhost: { display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none', borderRadius: 24, padding: '12px 18px', background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.8)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' },
-  primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 26, padding: '14px 28px', background: 'var(--grad-primary)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)', marginTop: 6 },
-  exitBtn: { border: 'none', background: 'none', color: 'rgba(255,255,255,.6)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 8 },
+  ctrlBtn: { display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 24, padding: '12px 22px', background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-bento)' },
+  ctrlBtnGhost: { display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none', borderRadius: 24, padding: '12px 18px', background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.8)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-bento)' },
+  primaryBtn: { display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 26, padding: '14px 28px', background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-bento)', marginTop: 6 },
+  exitBtn: { border: 'none', background: 'none', color: 'rgba(255,255,255,.6)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-bento)', padding: 8 },
 }

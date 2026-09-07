@@ -48,7 +48,7 @@ export default function RoutineStepSwitcher({ session, activeStep, onGoPrayer, o
               ...styles.dot,
               background: isActive || done ? color : 'var(--bento-line)',
               border: isActive ? `2.5px solid ${color}` : '2.5px solid transparent',
-              boxShadow: isActive ? '0 0 0 2.5px var(--bento-bg)' : 'none',
+              outline: isActive ? '2.5px solid var(--bento-bg)' : 'none',
               cursor: isActive ? 'default' : 'pointer',
             }}
           >

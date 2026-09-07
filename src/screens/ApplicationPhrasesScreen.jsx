@@ -159,7 +159,7 @@ export default function ApplicationPhrasesScreen({ session, authUser, onBack }) 
                       style={s.cardActionBtn} onClick={() => deletePhrase(phrase)}
                       aria-label={t('applicationPhrases.deleteAction', undefined, lang)} disabled={isBusy}
                     >
-                      <AppIcon name="Trash2" size={13} color="var(--re)" />
+                      <AppIcon name="Trash2" size={13} color="#DC2626" />
                     </button>
                   </span>
                 )}

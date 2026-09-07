@@ -482,7 +482,7 @@ function StudyCard({ study, lang, completedSet, isActiveStudy, onOpen, onDelete,
             onClick={e => { e.stopPropagation(); onDelete() }}
             aria-label={t('studies.deleteAction', undefined, lang)}
           >
-            <AppIcon name="Trash2" size={13} color="var(--re)" />
+            <AppIcon name="Trash2" size={13} color="#DC2626" />
           </button>
         )}
       </div>
@@ -654,7 +654,7 @@ function InductiveSessionView({ study, studySession, lang, bookLabel, isDone, on
         </button>
         <h1 className="page-title">{passageTitle}</h1>
         <button style={styles.sessionDeleteBtn} onClick={handleDelete} aria-label={t('studies.inductiveDeleteSessionAction', undefined, lang)}>
-          <AppIcon name="Trash2" size={15} color="var(--re)" />
+          <AppIcon name="Trash2" size={15} color="#DC2626" />
         </button>
       </div>
 
@@ -764,18 +764,18 @@ const styles = {
   completeBtn:      { width: '100%', background: 'var(--bento-ink)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   completeBtnDone:  { background: 'var(--bento-line)', color: 'var(--bento-t5)', boxShadow: 'none', border: '0.5px solid var(--bento-line)' },
 
-  newStudyBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: 'linear-gradient(135deg, #C026D4 0%, #86198F 100%)', boxShadow: '0 10px 24px rgba(162,28,175,.3)' },
+  newStudyBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
   createCard:    { background: 'var(--bento-card)', border: 'none', borderRadius: 20, padding: 14 },
   createLabel:   { fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t5)', marginBottom: 6 },
   themeInput:    { width: '100%', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: '#fff' },
   scopeInput:    { width: '100%', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: '#fff', resize: 'none' },
-  errorText:     { fontSize: 11, fontWeight: 600, color: 'var(--re, #DC2626)', marginTop: 8 },
+  errorText:     { fontSize: 11, fontWeight: 600, color: '#DC2626', marginTop: 8 },
   generateBtn:   { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
   cancelBtn:     { border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '11px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'var(--bento-t5)', cursor: 'pointer', background: 'var(--bento-line)' },
   generatingHint:{ fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
 
   // Estudo indutivo
-  inductiveNewBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#7C3AED', boxShadow: '0 10px 24px rgba(124,58,237,.3)' },
+  inductiveNewBtn:  { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#7C3AED' },
   inductiveIntro:   { fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t5)', lineHeight: 1.5 },
   inductiveSuggestHint: { fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', lineHeight: 1.5, marginTop: 8 },
   inductiveCreateBtn: { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#7C3AED' },

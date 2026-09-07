@@ -54,7 +54,7 @@ export default function Sidebar({ activeTab, onNavigate, onBack, canGoBack, avat
       {canGoBack && (
         <button className="sidebar-item" onClick={onBack} style={{ marginBottom: 2 }}>
           <span style={{ position: 'relative', display: 'inline-flex' }}>
-            <AppIcon name="ArrowLeft" size={18} color="var(--g4)" />
+            <AppIcon name="ArrowLeft" size={18} color="var(--bento-t4)" />
           </span>
           <span>{t('a11y.goBack', undefined, lang)}</span>
         </button>

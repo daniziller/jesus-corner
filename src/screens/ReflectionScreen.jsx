@@ -825,7 +825,7 @@ const rStyles = {
   dotsRow: { borderRadius: 20, background: 'rgba(255,255,255,.6)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 },
   dot: { width: 26, height: 5, borderRadius: 99 },
   dotsNote: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)' },
-  errorText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: 'var(--re, #DC2626)', margin: 0, textAlign: 'center' },
+  errorText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, color: '#DC2626', margin: 0, textAlign: 'center' },
   footer: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10 },
   peekBtn: { flexShrink: 0, width: 54, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   primaryBtn: { height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer' },

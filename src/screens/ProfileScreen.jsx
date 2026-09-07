@@ -289,14 +289,8 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
               {profile?.bio && <p style={s.bioDisplay}>{profile.bio}</p>}
               <div style={{ display: 'flex', gap: 20, marginTop: 14 }}>
                 <StatItem value={`${session.biblePercent}%`} label={L('bibleLabel')} />
-                {session.hasPremium ? (
-                  <>
-                    <StatItem value={session.level.level} label={L('levelLabel')} />
-                    <StatItem value={friendsCount} label={L('friendsLabel')} />
-                  </>
-                ) : (
-                  <StatItem value={session.chaptersRead} label={t('home.chaptersLabel', undefined, lang)} />
-                )}
+                <StatItem value={session.chaptersRead} label={t('home.chaptersLabel', undefined, lang)} />
+                {session.hasPremium && <StatItem value={friendsCount} label={L('friendsLabel')} />}
               </div>
             </div>
           )}
@@ -427,7 +421,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
           <Row icon="Instagram" label={L('instagramLabel')} sub={L('instagramSub')} onPress={() => window.open('https://www.instagram.com/jesuscorner.app/', '_blank', 'noopener,noreferrer')} />
           <Row icon="Download" label={L('exportDataLabel')} sub={L('exportDataSub')} onPress={handleExport} />
           <Row icon="LogOut" label={L('logoutLabel')} sub={L('logoutSub')} onPress={onLogout} />
-          <Row icon="Trash2" iconColor="var(--re)" label={L('deleteAccountLabel')} sub={L('deleteAccountSub')} onPress={() => setDeleteOpen(true)} last />
+          <Row icon="Trash2" iconColor="#DC2626" label={L('deleteAccountLabel')} sub={L('deleteAccountSub')} onPress={() => setDeleteOpen(true)} last />
         </div>
 
         {exportState === 'loading' && <p style={s.hintText}>{L('exportDataLoading')}</p>}
@@ -578,7 +572,7 @@ function DeleteAccountDialog({ lang, email, hasStoreSubscription, onCancel, onDe
             {L('deleteAccountCancel')}
           </button>
           <button
-            type="button" style={{ ...s.primarySmallBtn, background: 'var(--re)', opacity: matches && !busy ? 1 : 0.45 }}
+            type="button" style={{ ...s.primarySmallBtn, background: '#DC2626', opacity: matches && !busy ? 1 : 0.45 }}
             onClick={confirm} disabled={!matches || busy}
           >
             {busy ? L('deleteAccountDeleting') : L('deleteAccountConfirm')}
@@ -707,7 +701,7 @@ const s = {
   toggleSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.6)', margin: '2px 0 0', lineHeight: 1.4 },
   primarySmallBtn: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
   secondarySmallBtn: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,.12)', cursor: 'pointer' },
-  errorText: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--re)', margin: 0 },
+  errorText: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: '#DC2626', margin: 0 },
   wheelHighlight: { position: 'absolute', top: WHEEL_ITEM_HEIGHT, left: '50%', transform: 'translateX(-50%)', width: 130, height: WHEEL_ITEM_HEIGHT, background: 'var(--bento-line)', borderRadius: 8, pointerEvents: 'none' },
   chip: { textAlign: 'center', padding: '9px 8px', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', borderRadius: 10, border: 'none', background: 'var(--bento-line)' },
   chipActive: { color: '#fff', background: 'var(--bento-ink)' },

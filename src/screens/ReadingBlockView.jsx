@@ -972,26 +972,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       {!embedded && mode === 'browse' && isDesktop && (
         <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
       )}
-      {mode !== 'browse' && !immersive && (
-        <>
-          {/* Marcação capítulo a capítulo da sessão em destaque — só no
-              fluxo guiado antigo; a leitura imersiva (1b) marca o capítulo
-              no fim do texto e conclui a sessão pelo rodapé. */}
-          {heroSession.type !== 'reflection' && (
-            <div style={{ padding: '0 14px 4px' }}>
-              <ChapterChecklist
-                session={heroSession}
-                completedSet={completedSet}
-                onToggleChapter={onToggleChapter}
-                lang={lang}
-                textOpen={openPanel === 'texto'}
-                onToggleText={() => setOpenPanel(p => (p === 'texto' ? null : 'texto'))}
-                highlights={highlights}
-              />
-            </div>
-          )}
-        </>
-      )}
+      {/* A marcação capítulo a capítulo do fluxo guiado antigo (ChapterChecklist,
+          mode!=='browse' && !immersive) foi removida na varredura de
+          identidade (Bloco 1) pelo mesmo motivo do bloco completeBtn/
+          nextStepBtn acima: essa combinação nunca ocorre de verdade. */}
 
       {/* Seletor pra pular direto pra Oração/Reflexão sem voltar pra aba
           Rotina — só no fluxo guiado de tela cheia (a leitura livre não é
@@ -1078,27 +1062,14 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         </div>
       )}
 
-      {/* Marcar/desmarcar a sessão em destaque — fluxo guiado antigo. Na
-          leitura imersiva (1b) isso é o botão "Concluir leitura" do rodapé
-          fixo (ver readerFooter, mais abaixo). */}
-      {mode !== 'browse' && !immersive && (
-        <div style={{ padding: '0 14px 4px' }}>
-          <button
-            style={{ ...styles.completeBtn, ...(heroSession.status === 'done' ? styles.completeBtnDone : {}) }}
-            onClick={() => onToggleSession(heroSession, heroSession.status !== 'done')}
-          >
-            {heroSession.status === 'done' ? t('reading.markUndone', undefined, lang) : t('reading.markDone', undefined, lang)}
-          </button>
-        </div>
-      )}
-
-      {mode !== 'browse' && !immersive && heroSession.status === 'done' && (
-        <div style={{ padding: '0 14px 4px' }}>
-          <button style={styles.nextStepBtn} onClick={() => (onGoToReflection ? onGoToReflection(heroSession) : onNavigate?.('reflection'))}>
-            {t('routine.goToReflection', undefined, lang)} <AppIcon name="ChevronRight" size={15} />
-          </button>
-        </div>
-      )}
+      {/* O antigo botão "Marcar/desmarcar sessão" + "Ir para a reflexão"
+          (fluxo guiado pré-Bento, mode!=='browse' && !immersive) foi
+          removido daqui na varredura de identidade (Bloco 1): essa
+          combinação nunca ocorre de fato — todo mode==='session' passa por
+          embedded===false, o que já torna immersive true (ver definição de
+          `immersive` no topo do componente) — então o bloco nunca
+          renderizava. Na leitura imersiva de verdade isso é o botão
+          "Concluir leitura" do rodapé fixo (ver readerFooter, mais abaixo). */}
     </>
   )
 
@@ -1171,7 +1142,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             Premium + IA. */}
         {hasPremium && (
           <button type="button" style={{ ...styles.highlightFab, ...(hasAI ? {} : { bottom: 'calc(var(--nav-height) + 16px)' }) }} onClick={openHighlightList} aria-label={t('reading.tagHighlight', undefined, lang)}>
-            <AppIcon name="Pencil" size={19} color="white" />
+            <AppIcon name="Pencil" size={19} color="var(--bento-ink)" />
           </button>
         )}
         {hasAI && (
@@ -1197,7 +1168,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               {t('reading.tagAskAi', undefined, lang)}
             </span>
             <button type="button" style={styles.aiChatOverlayClose} onClick={() => setAiChatOpen(false)} aria-label={t('aiChat.close', undefined, lang)}>
-              <AppIcon name="X" size={16} color="var(--g5)" />
+              <AppIcon name="X" size={16} color="var(--bento-t3)" />
             </button>
           </div>
           <div style={styles.aiChatOverlayBody}>
@@ -1244,11 +1215,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           <div style={styles.highlightListSheetWindow} onClick={e => e.stopPropagation()}>
             <div style={styles.aiChatOverlayHeader}>
               <span style={styles.aiChatOverlayTitle}>
-                <span style={{ ...styles.aiChatOverlayIcon, background: 'var(--olt)' }}><AppIcon name="Pencil" size={14} color="var(--brand-deep)" /></span>
+                <span style={{ ...styles.aiChatOverlayIcon, background: 'var(--bento-mark)' }}><AppIcon name="Pencil" size={14} color="var(--bento-accent)" /></span>
                 {t('reading.tagHighlight', undefined, lang)}
               </span>
               <button type="button" style={styles.aiChatOverlayClose} onClick={cancelHighlightCompose} aria-label={t('aiChat.close', undefined, lang)}>
-                <AppIcon name="X" size={16} color="var(--g5)" />
+                <AppIcon name="X" size={16} color="var(--bento-t3)" />
               </button>
             </div>
             <div style={styles.aiChatOverlayBody}>
@@ -1447,63 +1418,6 @@ function ToolboxIcon() {
     <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--bento-ink)" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
       <path d="M4 4h12M4 4v9l6 3 6-3V4" />
     </svg>
-  )
-}
-
-// Fileira de capítulos clicáveis de uma sessão — usada no destaque (sempre
-// visível). O botão "Texto" (quando informado) entra como 1o item da
-// fileira, junto dos capítulos que ele exibe.
-function ChapterChips({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText, highlights }) {
-  const chapters = []
-  for (let ch = session.chStart; ch <= session.chEnd; ch++) chapters.push(ch)
-  const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
-
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-      {onToggleText && (
-        <button
-          style={{ ...styles.chapterChip, ...styles.chapterTextBtn, ...(textOpen ? styles.chapterTextBtnActive : {}) }}
-          onClick={e => { e.stopPropagation(); onToggleText() }}
-        >
-          <AppIcon name="Scroll" size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />
-          {t('reading.tagText', undefined, lang)}
-        </button>
-      )}
-      {chapters.map(ch => {
-        const done = completedSet.has(`${session.book}:${ch}`)
-        // Ponto dourado — não tenta bater com a cor de nenhum grifo
-        // específico (um capítulo pode ter vários, de cores diferentes) —
-        // só avisa que esse capítulo tem algum trecho marcado, sem
-        // precisar abrir o texto pra descobrir.
-        const hasHighlight = highlights?.some(h => !h.hidden && h.book === session.book && h.chapter === ch)
-        return (
-          <button
-            key={ch}
-            style={{ ...styles.chapterChip, ...(done ? styles.chapterChipDone : {}), position: 'relative' }}
-            onClick={e => { e.stopPropagation(); onToggleChapter(session, ch, !done) }}
-          >
-            {done ? '✓ ' : ''}{chLabel} {ch}
-            {hasHighlight && <span style={styles.chapterChipDot} />}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-function ChapterChecklist({ session, completedSet, onToggleChapter, lang, textOpen, onToggleText, highlights }) {
-  const chapters = []
-  for (let ch = session.chStart; ch <= session.chEnd; ch++) chapters.push(ch)
-  const doneCount = chapters.filter(ch => completedSet.has(`${session.book}:${ch}`)).length
-
-  return (
-    <div style={styles.panel}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-        <p style={{ ...styles.panelBookLabel, marginBottom: 0 }}>{t('reading.chaptersOfSession', undefined, lang)}</p>
-        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--g5)' }}>{t('reading.chaptersReadCount', { done: doneCount, total: chapters.length }, lang)}</span>
-      </div>
-      <ChapterChips session={session} completedSet={completedSet} onToggleChapter={onToggleChapter} lang={lang} textOpen={textOpen} onToggleText={onToggleText} highlights={highlights} />
-    </div>
   )
 }
 
@@ -2159,7 +2073,7 @@ function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
         onClick={e => e.stopPropagation()}
       >
         <button type="button" style={styles.highlightPopupClose} onClick={onClose} aria-label={t('aiChat.close', undefined, lang)}>
-          <AppIcon name="X" size={13} color="var(--g5)" />
+          <AppIcon name="X" size={13} color="var(--bento-t3)" />
         </button>
         {children}
       </div>
@@ -2706,7 +2620,7 @@ function AiChatPanel({ session, lang }) {
           disabled={sending || atLimit}
         />
         <button style={styles.aiChatSendBtn} onClick={handleSend} disabled={sending || atLimit || !text.trim()}>
-          <AppIcon name="ArrowUp" size={16} color="white" />
+          <AppIcon name="ArrowUp" size={16} color="var(--bento-ink)" />
         </button>
       </div>
 
@@ -2963,7 +2877,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
 }
 
 const styles = {
-  heroTagDot:  { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--or)', marginLeft: 5 },
+  heroTagDot:  { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--bento-accent)', marginLeft: 5 },
   // Cabeçalho compacto da navegação livre (mode 'browse') — substitui o
   // hero grande: sem título/barra de progresso/gradiente, só voltar + nome
   // do livro + as mesmas abas de Contexto/Mapa/Notas/Curiosidades.
@@ -3055,7 +2969,7 @@ const styles = {
     position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
     width: '100%', maxWidth: 'min(var(--max-width), 560px)', zIndex: 90,
     padding: '0 20px calc(12px + var(--safe-bottom))',
-    background: 'linear-gradient(to top, var(--bento-bg) 72%, rgba(237,232,226,0))',
+    background: 'var(--bento-bg)',
     display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12,
   },
   readerFooterRow: { display: 'flex', gap: 10 },
@@ -3092,9 +3006,6 @@ const styles = {
     padding: '14px 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)',
     fontSize: 13.5, fontWeight: 800, color: 'var(--bento-accent)',
   },
-  completeBtn: { width: '100%', background: 'var(--grad-primary)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-premium)' },
-  completeBtnDone:{ background: 'var(--g1)', color: 'var(--g5)', boxShadow: 'none', border: '0.5px solid var(--g2)' },
-  nextStepBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font)', color: 'white', cursor: 'pointer', background: 'var(--bk)', boxShadow: 'var(--shadow-premium)' },
   panel:       { background: 'var(--bento-card)', borderRadius: 20, padding: 16 },
   panelBookLabel:{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   panelText:   { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.55 },
@@ -3105,11 +3016,7 @@ const styles = {
   panelBullet: { width: 5, height: 5, borderRadius: '50%', background: 'var(--bento-accent)', flexShrink: 0, marginTop: 6 },
   notesTextarea:{ width: '100%', border: 'none', borderRadius: 12, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--bento-line)' },
   notesSaveBtn:{ width: '100%', background: 'var(--bento-accent)', border: 'none', borderRadius: 12, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
-  chapterChip:    { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  chapterChipDone:{ background: 'var(--grad-vivid)', border: '0.5px solid transparent', color: 'white', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
-  chapterTextBtn:      { background: 'var(--bk)', border: '0.5px solid var(--bk)', color: 'white' },
-  chapterTextBtnActive:{ background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: '0 3px 8px rgba(157,67,0,.3)' },
-  reflectionTip:  { background: 'linear-gradient(135deg,#F3E8FF,#E1CBFF)', border: '0.5px dashed rgba(168,85,247,.4)', borderRadius: 11, padding: 11, fontSize: 12.5, fontWeight: 500, color: '#6B21A8', lineHeight: 1.5 },
+  reflectionTip:  { background: 'var(--bento-sand)', borderRadius: 11, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-sand-ink)', lineHeight: 1.5 },
   reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: '#A855F7', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   bibleTextVersionRow:  { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   bibleTextVersionBtn:  { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
@@ -3144,25 +3051,20 @@ const styles = {
   // embaixo, já que aqui ele antecede texto corrido, não sucede.
   chapterDoneBtnTop:    { marginTop: 0, marginBottom: 16 },
 
-  // Marcação de trechos específicos (versículo a versículo) — ver
-  // src/highlights/highlightsStore.js. Mesma família de tom do resto do
-  // app pra "destaque" (--gold), não o marrom/laranja de marca (--or),
-  // pra não confundir com "capítulo lido" (chapterChipDone já usa --grad-vivid).
-  chapterChipDot:  { position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: 'var(--gold)', border: '1.5px solid var(--card-bg)' },
   verseTapTarget:  { cursor: 'pointer' },
   verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
   // Variante Bento (10a) — trecho selecionado enquanto o menu de seleção
   // está aberto na leitura imersiva; visualmente distinto de um grifo já
   // salvo (--bento-mark), que é permanente.
-  verseSelectedBento: { background: 'var(--bento-select)', borderRadius: 4, boxShadow: '0 0 0 1.5px var(--bento-select-border)' },
+  verseSelectedBento: { background: 'var(--bento-select)', borderRadius: 4, outline: '1.5px solid var(--bento-select-border)' },
   verseAnnotatedUnderline: { textDecorationLine: 'underline', textDecorationColor: 'rgba(0,0,0,.38)', textDecorationThickness: 1.5, textUnderlineOffset: 3 },
-  highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--brand-deep)', display: 'flex', alignItems: 'center' },
-  highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: 'var(--re)', cursor: 'pointer' },
-  highlightListTitle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.4, textTransform: 'uppercase', margin: '2px 0 0' },
-  highlightListItem:{ width: '100%', textAlign: 'left', background: 'var(--olt)', border: '0.5px solid var(--gold-soft)', borderRadius: 12, padding: '9px 11px', cursor: 'pointer', fontFamily: 'var(--font)', display: 'flex', flexDirection: 'column', gap: 2 },
+  highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--bento-accent)', display: 'flex', alignItems: 'center' },
+  highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEE2E2', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: '#DC2626', cursor: 'pointer' },
+  highlightListTitle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--bento-t4)', letterSpacing: 0.4, textTransform: 'uppercase', margin: '2px 0 0' },
+  highlightListItem:{ width: '100%', textAlign: 'left', background: 'var(--bento-mark)', border: '0.5px solid var(--gold-soft)', borderRadius: 12, padding: '9px 11px', cursor: 'pointer', fontFamily: 'var(--font-bento)', display: 'flex', flexDirection: 'column', gap: 2 },
   highlightListRefRow: { display: 'flex', alignItems: 'center', gap: 5 },
-  highlightListRef: { fontSize: 9.5, fontWeight: 700, color: 'var(--brand-deep)' },
-  highlightListText:{ fontSize: 11.5, fontWeight: 500, color: 'var(--bk)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  highlightListRef: { fontSize: 9.5, fontWeight: 700, color: 'var(--bento-accent)' },
+  highlightListText:{ fontSize: 11.5, fontWeight: 500, color: 'var(--bento-ink)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
   // Bolinha de cor — mesma cor sólida (swatch) usada nos seletores, só
   // pequena, pra identificar de relance a cor de cada grifo salvo na lista.
   highlightColorDot: { width: 9, height: 9, borderRadius: '50%', flexShrink: 0 },
@@ -3170,23 +3072,23 @@ const styles = {
   // círculos maiores, mais fáceis de tocar, já que é a interação principal
   // dessa etapa.
   colorSwatchPickRow: { display: 'flex', gap: 12, justifyContent: 'center', padding: '4px 0 2px' },
-  colorSwatch: { width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, boxShadow: '0 2px 6px rgba(0,0,0,.15)', flexShrink: 0 },
+  colorSwatch: { width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 },
   // Anel indicando a cor JÁ ativa (reabrindo um grifo existente) — mesmo
   // espírito do colorSwatchSmallActive do editor completo, só num círculo
-  // maior.
-  colorSwatchActive: { boxShadow: '0 0 0 2.5px var(--bk), 0 2px 6px rgba(0,0,0,.15)' },
+  // maior. outline (não box-shadow) pro anel ficar afastado do círculo.
+  colorSwatchActive: { outline: '2.5px solid var(--bento-ink)', outlineOffset: 2 },
   // Seletor de cor PEQUENO (dentro do editor/composer, pra trocar a cor sem
   // sair da tela de escrever) — mais discreto, um círculo com contorno
   // marca qual está selecionada agora.
   colorSwatchSmallRow: { display: 'flex', gap: 8 },
   colorSwatchSmall: { width: 22, height: 22, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', padding: 0, flexShrink: 0 },
-  colorSwatchSmallActive: { border: '2px solid var(--bk)', boxShadow: '0 0 0 2px white inset' },
-  highlightAddNoteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--bk)', cursor: 'pointer', fontFamily: 'var(--font)' },
+  colorSwatchSmallActive: { border: '2px solid #fff', outline: '2px solid var(--bento-ink)' },
+  highlightAddNoteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: 'var(--bento-line)', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   // Trecho de verdade sendo grifado, mostrado dentro do editor — pra pessoa
   // lembrar do que está falando sem precisar sair pra conferir (pedido
   // explícito: "deixar o texto visível pra saber sobre o que está
   // anotando"). Itálico + aspas, mesmo espírito de uma citação.
-  highlightPreviewText: { fontSize: 12, fontWeight: 500, fontStyle: 'italic', color: 'var(--g6)', lineHeight: 1.45, background: 'var(--g1)', borderRadius: 10, padding: '8px 10px', margin: 0 },
+  highlightPreviewText: { fontSize: 12, fontWeight: 500, fontStyle: 'italic', color: 'var(--bento-t2)', lineHeight: 1.45, background: 'var(--bento-line)', borderRadius: 10, padding: '8px 10px', margin: 0 },
 
   // Chat com IA sobre o texto (ver AiChatPanel) — flutua por cima da
   // leitura (ver aiChatOverlay* mais abaixo) em vez de abrir um card
@@ -3195,18 +3097,18 @@ const styles = {
   // do app (--grad-primary pra "eu"/usuário, --g1 neutro pra IA), nada de
   // paleta nova.
   aiChatBody:      { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 },
-  aiChatScopeNote: { fontSize: 10.5, fontWeight: 500, color: 'var(--g5)', lineHeight: 1.4, margin: '0 0 10px', paddingBottom: 10, borderBottom: '0.5px solid var(--g1)', flexShrink: 0 },
+  aiChatScopeNote: { fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.4, margin: '0 0 10px', paddingBottom: 10, borderBottom: '0.5px solid var(--bento-line)', flexShrink: 0 },
   aiChatList:      { display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto', marginBottom: 10 },
-  aiChatEmptyHint: { fontSize: 12, fontWeight: 500, color: 'var(--g5)', textAlign: 'center', padding: '14px 4px' },
+  aiChatEmptyHint: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '14px 4px' },
   aiChatBubble:    { maxWidth: '85%', padding: '9px 12px', borderRadius: 14, fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
-  aiChatBubbleUser:{ alignSelf: 'flex-end', background: 'var(--grad-primary)', color: 'white', borderBottomRightRadius: 4 },
-  aiChatBubbleAi:  { alignSelf: 'flex-start', background: 'var(--g1)', color: 'var(--bk)', borderBottomLeftRadius: 4 },
-  aiChatBubbleTyping: { color: 'var(--g5)', fontStyle: 'italic' },
+  aiChatBubbleUser:{ alignSelf: 'flex-end', background: 'var(--bento-accent)', color: 'var(--bento-ink)', borderBottomRightRadius: 4 },
+  aiChatBubbleAi:  { alignSelf: 'flex-start', background: 'var(--bento-line)', color: 'var(--bento-ink)', borderBottomLeftRadius: 4 },
+  aiChatBubbleTyping: { color: 'var(--bento-t3)', fontStyle: 'italic' },
   aiChatInputRow:  { display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 },
-  aiChatInput:     { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 20, padding: '10px 14px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none', background: 'var(--g1)' },
-  aiChatSendBtn:   { width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: 'var(--shadow-premium)' },
-  errorText:       { fontSize: 11.5, fontWeight: 600, color: 'var(--re)', marginBottom: 8, flexShrink: 0 },
-  aiChatLimitCounter: { fontSize: 10, fontWeight: 500, color: 'var(--g4)', textAlign: 'right', margin: '5px 2px 0', flexShrink: 0 },
+  aiChatInput:     { flex: 1, border: '0.5px solid var(--bento-line)', borderRadius: 20, padding: '10px 14px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)' },
+  aiChatSendBtn:   { width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  errorText:       { fontSize: 11.5, fontWeight: 600, color: '#DC2626', marginBottom: 8, flexShrink: 0 },
+  aiChatLimitCounter: { fontSize: 10, fontWeight: 500, color: 'var(--bento-t4)', textAlign: 'right', margin: '5px 2px 0', flexShrink: 0 },
 
   // Botão flutuante do chat com IA — sempre visível enquanto lendo, atalho
   // pra mesma aba "Perguntar à IA" (ver openAiChat). Wrap com o mesmo
@@ -3216,13 +3118,13 @@ const styles = {
   // Cor roxa (#A21CAF) — mesmo tom já usado em todo recurso de IA do app
   // (ThemePlanScreen.jsx), pra sinalizar "isso é IA" de forma consistente.
   aiFabWrap: { position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'var(--max-width)', zIndex: 90, pointerEvents: 'none' },
-  aiFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: '#A21CAF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(162,28,175,.4)', pointerEvents: 'auto' },
+  aiFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: '#A21CAF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', pointerEvents: 'auto' },
   // Lápis de grifar — mesmo FAB, empilhado em cima do da IA (mesmo `right`,
   // `bottom` maior em 52px do botão + 12px de respiro). Cor dourada/marrom
-  // (var(--brand-deep)), mesmo tom já usado em highlightBoxLabel, pra
+  // (var(--bento-accent)), mesmo tom já usado em highlightBoxLabel, pra
   // sinalizar "isso é sobre marcar o texto" — cor diferente da roxa da IA,
   // mesmo formato/tamanho.
-  highlightFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px + 64px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: 'var(--brand-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(157,67,0,.4)', pointerEvents: 'auto' },
+  highlightFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px + 64px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', pointerEvents: 'auto' },
 
   // Janela flutuante do chat — "nuvem" pedida: aparece por cima da leitura
   // (ancorada embaixo, tipo bandeja de mensagens), sem tirar a pessoa da
@@ -3231,30 +3133,30 @@ const styles = {
   // sobre zoom quebrar position:fixed dentro de .app-content-inner quando
   // "texto grande" está ligado).
   aiChatOverlayBackdrop: { position: 'fixed', inset: 0, background: 'rgba(18,18,18,.32)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
-  aiChatOverlayWindow: { width: '100%', maxWidth: 'var(--max-width)', height: '72vh', maxHeight: 640, background: 'var(--white)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(0,0,0,.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  aiChatOverlayHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '0.5px solid var(--g1)', flexShrink: 0 },
-  aiChatOverlayTitle: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--bk)' },
+  aiChatOverlayWindow: { width: '100%', maxWidth: 'var(--max-width)', height: '72vh', maxHeight: 640, background: '#fff', borderRadius: '24px 24px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  aiChatOverlayHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '0.5px solid var(--bento-line)', flexShrink: 0 },
+  aiChatOverlayTitle: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)' },
   aiChatOverlayIcon: { width: 28, height: 28, borderRadius: 9, background: '#FAE8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  aiChatOverlayClose: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  aiChatOverlayClose: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   aiChatOverlayBody: { flex: 1, minHeight: 0, padding: '12px 16px', display: 'flex', flexDirection: 'column' },
 
   // Folha do FAB (lista de grifos já feitos, sem versículo específico pra
   // ancorar) — mesma família visual de aiChatOverlayWindow, só mais baixa
   // ("não tão grande" vale pra ela também, ver plano) em vez da altura
   // fixa de 72vh usada pelo chat de IA.
-  highlightListSheetWindow: { width: '100%', maxWidth: 'var(--max-width)', height: 'auto', maxHeight: '52vh', background: 'var(--white)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 40px rgba(0,0,0,.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  highlightListSheetWindow: { width: '100%', maxWidth: 'var(--max-width)', height: 'auto', maxHeight: '52vh', background: '#fff', borderRadius: '24px 24px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
 
   // Popup ancorado (ver AnchoredHighlightPopup) — fecha via listener no
   // document (não uma camada cobrindo a tela, ver handleOutsideClick), pra
   // deixar passar toque num outro versículo (soma à seleção) e gestos de
   // rolagem, sem escurecer nada (o versículo grifado precisa continuar
   // visível, diferente de aiChatOverlayBackdrop).
-  highlightPopup: { position: 'fixed', zIndex: 201, width: 252, maxWidth: 'calc(100vw - 20px)', maxHeight: '46vh', overflowY: 'auto', background: 'var(--white)', borderRadius: 16, boxShadow: '0 12px 32px rgba(0,0,0,.22), 0 0 0 0.5px rgba(0,0,0,.06)', padding: '14px 14px 12px' },
-  highlightPopupClose: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  highlightPopup: { position: 'fixed', zIndex: 201, width: 252, maxWidth: 'calc(100vw - 20px)', maxHeight: '46vh', overflowY: 'auto', background: '#fff', borderRadius: 16, padding: '14px 14px 12px' },
+  highlightPopupClose: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 
   // ── Menu de seleção da IA (10a, reskin Bento) ──
   selectionMenuWrap: { position: 'fixed', zIndex: 201, width: 322, maxWidth: 'calc(100vw - 20px)', display: 'flex', flexDirection: 'column', gap: 8 },
-  selectionMenuBar: { display: 'flex', gap: 4, background: 'var(--bento-ink)', borderRadius: 20, padding: 8, boxShadow: '0 12px 30px rgba(0,0,0,.32)' },
+  selectionMenuBar: { display: 'flex', gap: 4, background: 'var(--bento-ink)', borderRadius: 20, padding: 8 },
   selectionMenuBtn: { flex: 1, height: 56, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer' },
   selectionMenuBtnGhost: { flex: 1, height: 56, borderRadius: 14, border: 'none', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' },
   selectionMenuDiamondWrap: { display: 'flex' },
@@ -3262,7 +3164,7 @@ const styles = {
   selectionMenuSwatch: { width: 14, height: 9, borderRadius: 2, background: 'var(--bento-mark)' },
   selectionMenuBtnLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   selectionMenuBtnGhostLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.72)' },
-  selectionQuestionBar: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-ink)', borderRadius: 18, padding: '6px 6px 6px 16px', boxShadow: '0 12px 30px rgba(0,0,0,.32)' },
+  selectionQuestionBar: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-ink)', borderRadius: 18, padding: '6px 6px 6px 16px' },
   selectionQuestionInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'white', padding: '10px 0' },
   selectionQuestionSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   // Mesma geometria do readerFooter (que ele substitui enquanto o menu
@@ -3291,7 +3193,6 @@ const styles = {
   passageSheetBody: {
     flex: 1, minHeight: 0, marginTop: -20, borderRadius: '34px 34px 0 0', background: 'var(--bento-ink)',
     padding: '20px 20px 18px', display: 'flex', flexDirection: 'column', overflowY: 'auto',
-    boxShadow: '0 -18px 44px rgba(0,0,0,.3)',
   },
   passageSheetHandle: { width: 44, height: 5, borderRadius: 99, background: 'rgba(255,255,255,.22)', margin: '0 auto 20px', flexShrink: 0 },
   passageSheetHeader: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 18px', flexShrink: 0 },

@@ -317,7 +317,7 @@ const s = {
   friendsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, borderRadius: 24, background: 'var(--bento-card)', padding: 18 },
   friendGridItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', padding: 0, cursor: 'pointer' },
   friendGridAvatar: { width: 48, height: 48, borderRadius: 16, background: 'var(--bento-line)', color: 'var(--bento-t3)', fontFamily: FONT, fontSize: 13, fontWeight: 800, lineHeight: '48px', textAlign: 'center', overflow: 'hidden' },
-  friendGridAvatarActive: { boxShadow: '0 0 0 2px var(--bento-accent)' },
+  friendGridAvatarActive: { outline: '2px solid var(--bento-accent)' },
   friendGridName: { fontFamily: FONT, fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t3)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 60 },
 
   privacyNote: { fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-t4)', margin: '2px 0 0' },

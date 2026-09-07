@@ -250,9 +250,9 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
 function GroupsEmptyState({ lang }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
-      <AppIcon name="Users" size={30} color="var(--g4)" />
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('groups.emptyStateTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('groups.emptyStateSub', undefined, lang)}</p>
+      <AppIcon name="Users" size={30} color="var(--bento-t4)" />
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-t3)' }}>{t('groups.emptyStateTitle', undefined, lang)}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', maxWidth: 260 }}>{t('groups.emptyStateSub', undefined, lang)}</p>
     </div>
   )
 }
@@ -565,11 +565,11 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
 
   return (
     <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={styles.detailHeader}>
         <button onClick={() => setView('home')} style={styles.backBtn} aria-label="back">
-          <AppIcon name="ArrowLeft" size={19} color="var(--bk)" />
+          <AppIcon name="ArrowLeft" size={19} color="var(--bento-ink)" />
         </button>
-        <h1 className="page-title">{groupName}</h1>
+        <h1 style={styles.detailTitle}>{groupName}</h1>
       </div>
 
       <div style={{ padding: '0 14px 4px', display: 'flex', gap: 8 }}>
@@ -824,7 +824,7 @@ function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange,
           {members.map(m => (
             <div key={m.userId} style={styles.memberRow}>
               <span style={styles.friendName}>{m.name}</span>
-              {m.role === 'moderator' && <span className="badge badge-orange">{t('groups.moderatorBadge', undefined, lang)}</span>}
+              {m.role === 'moderator' && <span style={styles.badgeModerator}>{t('groups.moderatorBadge', undefined, lang)}</span>}
               {isModerator && m.userId !== authUser?.id && (
                 <button style={styles.smallLinkBtn} onClick={() => handlePromote(m.userId, m.role)}>
                   {m.role === 'moderator' ? t('groups.demote', undefined, lang) : t('groups.promote', undefined, lang)}
@@ -859,7 +859,7 @@ function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange,
       {proposing ? (
         <ProposeChallengeForm groupId={groupId} lang={lang} onDone={() => { setProposing(false); reload() }} onCancel={() => setProposing(false)} />
       ) : (
-        <button className="btn-secondary" onClick={() => setProposing(true)}>{t('groups.proposeChallenge', undefined, lang)}</button>
+        <button style={styles.secondaryBtn} onClick={() => setProposing(true)}>{t('groups.proposeChallenge', undefined, lang)}</button>
       )}
 
       {pastChallenges.length > 0 && (
@@ -892,7 +892,7 @@ function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange,
           <button style={{ ...styles.smallLinkBtn, marginTop: 8 }} onClick={() => setInviting(false)}>{t('groups.cancel', undefined, lang)}</button>
         </div>
       ) : (
-        <button className="btn-secondary" onClick={() => setInviting(true)}>{t('groups.inviteFriendTitle', undefined, lang)}</button>
+        <button style={styles.secondaryBtn} onClick={() => setInviting(true)}>{t('groups.inviteFriendTitle', undefined, lang)}</button>
       )}
 
       <button style={styles.leaveBtn} onClick={onLeave}>{t('groups.leaveGroup', undefined, lang)}</button>
@@ -1009,10 +1009,10 @@ function ProposeChallengeForm({ groupId, lang, onDone, onCancel }) {
       {error && <p style={styles.error}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn-primary" onClick={submit} disabled={loading}>
+        <button style={styles.primaryBtn} onClick={submit} disabled={loading}>
           {loading ? t('groups.loading', undefined, lang) : t('groups.startChallenge', undefined, lang)}
         </button>
-        <button className="btn-secondary" onClick={onCancel}>{t('groups.cancel', undefined, lang)}</button>
+        <button style={styles.secondaryBtn} onClick={onCancel}>{t('groups.cancel', undefined, lang)}</button>
       </div>
     </div>
   )
@@ -1027,7 +1027,7 @@ function ChallengeCard({ challenge, leaderboard, lang, ended, isModerator, onCom
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
         <p style={styles.cardTitle}>{challenge.name || challenge.books.join(', ')}</p>
         {ended && (
-          <span className="badge badge-locked">
+          <span style={styles.badgeEnded}>
             {t(challenge.manuallyCompleted ? 'groups.challengeCompleted' : 'groups.challengeEnded', undefined, lang)}
           </span>
         )}
@@ -1044,10 +1044,10 @@ function ChallengeCard({ challenge, leaderboard, lang, ended, isModerator, onCom
             <div key={p.userId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={styles.rankNumber}>{i + 1}</span>
               <span style={{ ...styles.friendName, flex: 'none', width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              <div style={{ flex: 1, height: 6, background: 'var(--g1)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: 'var(--grad-vivid)', borderRadius: 99, width: `${pct}%` }} />
+              <div style={{ flex: 1, height: 6, background: 'var(--bento-line)', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: 'var(--bento-accent)', borderRadius: 99, width: `${pct}%` }} />
               </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--g5)', width: 32, textAlign: 'right' }}>{pct}%</span>
+              <span style={{ fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 700, color: 'var(--bento-t3)', width: 32, textAlign: 'right' }}>{pct}%</span>
             </div>
           )
         })}
@@ -1128,14 +1128,14 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span style={styles.commentAuthor}>
             {c.authorName}
-            {authorIsModerator && <span className="badge badge-orange" style={{ marginLeft: 6 }}>{t('groups.moderatorBadge', undefined, lang)}</span>}
+            {authorIsModerator && <span style={{ ...styles.badgeModerator, marginLeft: 6 }}>{t('groups.moderatorBadge', undefined, lang)}</span>}
           </span>
           <span style={styles.commentDate}>{formatDate(c.createdAt, lang)}</span>
         </div>
         <p style={styles.commentBody}>{c.body}</p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
           <button style={{ ...styles.likeBtn, ...(c.likedByMe ? styles.likeBtnActive : {}) }} onClick={() => handleLike(c)}>
-            <AppIcon name="Heart" size={13} color={c.likedByMe ? 'var(--or)' : 'var(--g4)'} /> {c.likeCount}
+            <AppIcon name="Heart" size={13} color={c.likedByMe ? 'var(--bento-accent)' : 'var(--bento-t4)'} /> {c.likeCount}
           </button>
           {isModerator && (
             <button
@@ -1165,7 +1165,7 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
           onChange={e => setBody(e.target.value)}
           rows={3}
         />
-        <button type="submit" className="btn-primary" disabled={posting}>
+        <button type="submit" style={styles.primaryBtn} disabled={posting}>
           {posting ? t('groups.loading', undefined, lang) : t('groups.postComment', undefined, lang)}
         </button>
       </form>
@@ -1229,7 +1229,7 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
+      <button type="button" style={styles.primaryBtn} onClick={() => setAddOpen(true)}>
         {t('groups.postPrayerRequest', undefined, lang)}
       </button>
 
@@ -1251,7 +1251,7 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
                     <button style={styles.smallLinkBtn} onClick={() => handleClose(r.id)}>{t('prayer.closeRequestBtn', undefined, lang)}</button>
                   ) : (
                     <button style={{ ...styles.prayingBtn, ...(r.prayingByMe ? styles.prayingBtnActive : {}) }} onClick={() => handleTogglePraying(r)}>
-                      <AppIcon name="HandHeart" size={13} color={r.prayingByMe ? 'var(--or)' : 'var(--g4)'} /> {t('groups.homePrayedCount', { n: r.prayCount }, lang)}
+                      <AppIcon name="HandHeart" size={13} color={r.prayingByMe ? 'var(--bento-accent)' : 'var(--bento-t4)'} /> {t('groups.homePrayedCount', { n: r.prayCount }, lang)}
                     </button>
                   )}
                   {canDelete && (
@@ -1339,82 +1339,59 @@ const styles = {
   bChevron: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
 
   bEmptyHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '14px 4px' },
-  bErrorText: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--re)', margin: '0 0 8px' },
+  bErrorText: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: '#DC2626', margin: '0 0 8px' },
   bInviteSentMsg: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-accent)', margin: '0 0 8px' },
   bAddFriendHint: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.5, margin: '0 0 10px' },
   bFieldInput: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 14px', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)' },
   bPrimarySmallBtn: { flexShrink: 0, border: 'none', borderRadius: 12, padding: '11px 16px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
 
-  bFriendsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 12, padding: '8px 0 12px' },
-  bFriendGridItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  bFriendAvatarCircle: { width: 48, height: 48, borderRadius: 99, background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, overflow: 'hidden' },
-  bFriendAvatarCircleActive: { boxShadow: '0 0 0 2px var(--bento-accent)' },
-  bFriendGridName: { fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t2)', maxWidth: 64, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-
   bFriendPanel: { borderRadius: 20, background: 'var(--bento-line)', padding: '14px 16px', marginBottom: 12 },
   bFriendOfFriendTitle: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
   bFriendOfFriendRow: { display: 'flex', alignItems: 'center', gap: 8 },
   bFriendOfFriendAdded: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t4)' },
-  bUnfriendLink: { display: 'block', marginTop: 10, border: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--re)', cursor: 'pointer' },
+  bUnfriendLink: { display: 'block', marginTop: 10, border: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: '#DC2626', cursor: 'pointer' },
 
-  input: { flex: 1, border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', outline: 'none' },
-  textarea: { width: '100%', border: '0.5px solid var(--g2)', borderRadius: 10, padding: '10px 12px', fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 500, color: 'var(--bk)', resize: 'none', outline: 'none', lineHeight: 1.5 },
-  error: { fontSize: 12.5, fontWeight: 600, color: 'var(--re)', background: 'var(--rel)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
-  inviteSentMsg: { fontSize: 12.5, fontWeight: 600, color: 'var(--gr)', background: 'rgba(22,163,74,.12)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 },
-  addFriendHint: { fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', lineHeight: 1.5, marginBottom: 10 },
-  emptyHint: { fontSize: 12.5, fontWeight: 500, color: 'var(--g4)', padding: '4px 2px' },
-  backBtn: { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--g2)', background: 'var(--g1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  inviteCard: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 10, boxShadow: 'var(--shadow-card)' },
-  inviteTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)' },
-  inviteSub: { fontSize: 11.5, fontWeight: 500, color: 'var(--g5)' },
-  acceptBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(22,163,74,.12)', color: 'var(--gr)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  declineBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'var(--g1)', color: 'var(--g4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  groupCard: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 12, boxShadow: 'var(--shadow-card)', cursor: 'pointer', fontFamily: 'var(--font)', width: '100%' },
-  groupIcon: { width: 38, height: 38, borderRadius: 11, background: 'var(--olt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  groupName: { fontSize: 13, fontWeight: 700, color: 'var(--bk)' },
-  groupRoleTag: { fontSize: 9.5, fontWeight: 600, color: 'var(--or)', marginTop: 2 },
-  friendsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 12 },
-  friendGridItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', padding: 0 },
-  friendAvatarCircle: { width: 52, height: 52, borderRadius: '50%', background: 'var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 800, color: 'var(--g5)', flexShrink: 0, overflow: 'hidden', border: '2px solid transparent' },
-  friendAvatarCircleActive: { border: '2px solid var(--or)' },
-  friendGridName: { fontSize: 10.5, fontWeight: 600, color: 'var(--g6)', textAlign: 'center', maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  friendProfileCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 16, padding: 12, marginTop: 4 },
-  friendAvatar: { width: 38, height: 38, borderRadius: '50%', background: 'var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: 'var(--g5)', flexShrink: 0, overflow: 'hidden' },
-  unfriendLink: { border: 'none', background: 'none', color: 'var(--re)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 0, marginTop: 10 },
-  friendOfFriendTitle: { fontSize: 10, fontWeight: 700, color: 'var(--g4)', letterSpacing: 0.3, textTransform: 'uppercase' },
-  friendOfFriendRow: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--g1)', borderRadius: 10, padding: '6px 8px' },
-  friendOfFriendAvatar: { width: 26, height: 26, borderRadius: '50%', background: 'var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--g5)', flexShrink: 0, overflow: 'hidden' },
-  friendOfFriendAdded: { fontSize: 10, fontWeight: 700, color: 'var(--g4)' },
-  card: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 20, padding: 14, boxShadow: 'var(--shadow-card)' },
-  cardEnded: { background: 'var(--g1)', boxShadow: 'none', opacity: 0.75 },
-  completeChallengeBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', background: 'rgba(22,163,74,.12)', color: 'var(--gr)', borderRadius: 12, padding: '10px 12px', marginTop: 12, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' },
-  cardTitle: { fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', marginBottom: 8 },
+  input: { flex: 1, border: 'none', borderRadius: 12, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)' },
+  textarea: { width: '100%', border: 'none', borderRadius: 12, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, background: 'var(--bento-line)' },
+  error: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 600, color: '#DC2626', background: '#FEE2E2', borderRadius: 12, padding: '8px 10px', marginBottom: 8 },
+  emptyHint: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', padding: '4px 2px' },
+  backBtn: { width: 32, height: 32, borderRadius: 10, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  card: { background: 'var(--bento-card)', borderRadius: 20, padding: 14 },
+  cardEnded: { background: 'var(--bento-line)', opacity: 0.75 },
+  completeChallengeBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', background: 'rgba(30,142,79,.12)', color: '#1E8E4F', borderRadius: 12, padding: '10px 12px', marginTop: 12, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  cardTitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 8 },
   memberRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 2px' },
-  friendName: { flex: 1, fontSize: 12.5, fontWeight: 700, color: 'var(--bk)', fontFamily: 'var(--font)' },
-  smallLinkBtn: { border: 'none', background: 'none', color: 'var(--or)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 0 },
-  smallLinkBtnDisabled: { color: 'var(--g4)', cursor: 'not-allowed' },
-  subTab: { flex: 1, textAlign: 'center', padding: '9px 4px', fontSize: 11.5, fontWeight: 700, color: 'var(--g4)', cursor: 'pointer', borderRadius: 9, border: '0.5px solid var(--g2)', background: 'var(--g1)', fontFamily: 'var(--font)' },
-  subTabActive: { color: 'white', background: 'var(--grad-primary)', border: '0.5px solid transparent', boxShadow: 'var(--shadow-glow)' },
-  blockLabel: { fontSize: 9, fontWeight: 700, color: 'var(--g5)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 },
-  bookChip: { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '5px 10px', fontSize: 10.5, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer' },
-  bookChipActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white' },
-  durationChip: { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 20, padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--g6)', cursor: 'pointer' },
-  durationChipActive: { background: 'var(--grad-primary)', border: '0.5px solid transparent', color: 'white' },
-  challengeMeta: { fontSize: 10, fontWeight: 500, color: 'var(--g5)' },
-  challengeBooks: { fontSize: 10.5, fontWeight: 600, color: 'var(--or)', marginBottom: 6 },
-  challengeDesc: { fontSize: 12.5, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginBottom: 6 },
-  rankNumber: { width: 18, fontSize: 11, fontWeight: 800, color: 'var(--g4)', flexShrink: 0 },
-  leaveBtn: { background: 'var(--rel)', border: '0.5px solid rgba(220,38,38,.2)', borderRadius: 12, padding: 11, fontSize: 12, fontWeight: 700, color: 'var(--re)', cursor: 'pointer', fontFamily: 'var(--font)' },
-  commentCard: { background: 'var(--card-bg)', border: 'var(--card-border)', borderRadius: 18, padding: 12, boxShadow: 'var(--shadow-card)' },
-  commentCardModerator: { background: 'var(--g1)', border: '0.5px solid var(--g2)' },
-  pinnedSectionTitle: { fontSize: 10, fontWeight: 800, color: 'var(--g5)', letterSpacing: 0.5, textTransform: 'uppercase' },
-  commentAuthor: { fontSize: 11.5, fontWeight: 700, color: 'var(--bk)' },
-  commentDate: { fontSize: 9.5, fontWeight: 500, color: 'var(--g4)' },
-  commentBody: { fontSize: 12, fontWeight: 500, color: 'var(--g6)', lineHeight: 1.5, marginTop: 4 },
-  likeBtn: { display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', color: 'var(--g5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 0 },
-  likeBtnActive: { color: 'var(--or)' },
-  prayingBtn: { display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', color: 'var(--g5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', padding: 0 },
-  prayingBtnActive: { color: 'var(--or)' },
+  friendName: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)' },
+  smallLinkBtn: { border: 'none', background: 'none', color: 'var(--bento-accent)', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 },
+  smallLinkBtnDisabled: { color: 'var(--bento-t4)', cursor: 'not-allowed' },
+  subTab: { flex: 1, textAlign: 'center', padding: '9px 4px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'var(--bento-line)' },
+  subTabActive: { color: '#fff', background: 'var(--bento-ink)', fontWeight: 800 },
+  blockLabel: { fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 700, color: 'var(--bento-t3)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 },
+  bookChip: { background: 'var(--bento-line)', border: 'none', borderRadius: 20, padding: '5px 10px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
+  bookChipActive: { background: 'var(--bento-ink)', color: '#fff' },
+  durationChip: { background: 'var(--bento-line)', border: 'none', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
+  durationChipActive: { background: 'var(--bento-ink)', color: '#fff' },
+  challengeMeta: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 500, color: 'var(--bento-t3)' },
+  challengeBooks: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 600, color: 'var(--bento-accent)', marginBottom: 6 },
+  challengeDesc: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.5, marginBottom: 6 },
+  rankNumber: { width: 18, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-t4)', flexShrink: 0 },
+  leaveBtn: { background: '#FEE2E2', border: 'none', borderRadius: 12, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: '#DC2626', cursor: 'pointer' },
+  commentCard: { background: 'var(--bento-card)', borderRadius: 18, padding: 12 },
+  commentCardModerator: { background: 'var(--bento-line)' },
+  pinnedSectionTitle: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, color: 'var(--bento-t3)', letterSpacing: 0.5, textTransform: 'uppercase' },
+  commentAuthor: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-ink)' },
+  commentDate: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t4)' },
+  commentBody: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.5, marginTop: 4 },
+  likeBtn: { display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', color: 'var(--bento-t3)', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 },
+  likeBtnActive: { color: 'var(--bento-accent)' },
+  prayingBtn: { display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', color: 'var(--bento-t3)', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 },
+  prayingBtnActive: { color: 'var(--bento-accent)' },
+  badgeModerator: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, color: 'var(--bento-accent)', background: 'var(--bento-mark)', borderRadius: 20, padding: '2px 8px', display: 'inline-block', letterSpacing: '.02em' },
+  badgeEnded: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 700, color: 'var(--bento-t3)', background: 'var(--bento-line)', borderRadius: 20, padding: '2px 8px', display: 'inline-block', letterSpacing: '.02em' },
+  detailHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 4px' },
+  detailTitle: { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
+  primaryBtn: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: 'var(--bento-accent)', borderRadius: 14, padding: 13, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', border: 'none', cursor: 'pointer' },
+  secondaryBtn: { background: 'var(--bento-line)', borderRadius: 12, padding: '10px 16px', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', border: 'none', cursor: 'pointer' },
 
   // Quadro 5d — painel único do grupo (GroupHomeView).
   homeWrap: { display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bento-bg)' },

@@ -56,14 +56,10 @@ import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './
 import { markChaptersManually, unmarkChaptersManually } from './bible/manualChapterMarks'
 import { logChaptersRead } from './bible/chapterReadLog'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
-import { levelFor, levelProgress } from './utils/levels'
 import { isAtLeast } from './utils/age'
-import { computeUnlockedAchievements } from './utils/achievements'
-import { getSeenAchievements, markAchievementsSeen, ensureSeeded } from './achievements/seenAchievementsStore'
-import AchievementCelebration from './components/AchievementCelebration'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
-import { computeRoutineXpBonus, DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, DEFAULT_WEEKLY_GOAL_DAYS } from './routine/routineStreak'
+import { DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, DEFAULT_WEEKLY_GOAL_DAYS } from './routine/routineStreak'
 import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
@@ -234,27 +230,11 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   const chapterSpan = currentSession.type === 'reflection' ? 0 : currentSession.chEnd - currentSession.chStart + 1
   const chapterWord = lang === 'en' ? (chapterSpan === 1 ? 'chapter' : 'chapters') : (chapterSpan === 1 ? 'capítulo' : 'capítulos')
 
-  // Gamificação: XP vem de 2 fontes somadas aqui — leitura (capítulos,
-  // livros, blocos concluídos, computeGamificationStats, com teto natural:
-  // a Bíblia acaba) e Oração/Reflexão do dia + bônus de rotina completa
-  // (computeRoutineXpBonus, SEM teto — cresce a cada dia de uso). Cada
-  // fonte fica pura/isolada no seu próprio arquivo; a soma acontece só
-  // aqui. (Uma 3ª fonte existiu — Metas batidas, routine/goals.js — mas
-  // era inteiramente baseada em sequência de dias corridos, sem nenhuma
-  // tela mostrando essas metas; removida junto com a sequência, decisão
-  // da autora.)
+  // computeGamificationStats devolve capítulos/livros/blocos concluídos —
+  // dado real, usado em Métricas e na Home. O campo `xp` que ela também
+  // calcula (e o sistema de XP/nível/conquistas que crescia em cima dele)
+  // saiu na varredura de identidade (Bloco 1, FLUXO-DO-APP.md seção 11).
   const gami = computeGamificationStats(completedSet, sessionsByBlock, blocks)
-  const routineXpBonus = computeRoutineXpBonus(dailyRoutine, routineModules)
-  const achievements = computeUnlockedAchievements({
-    ...gami,
-    ...prayerStats,
-    biblePercent: overall.biblePercent,
-    blockDone: id => blocks.find(b => b.id === id)?.status === 'done',
-  }, lang)
-  const achievementsXpBonus = achievements.reduce((sum, a) => sum + (a.unlocked ? (a.xp ?? 0) : 0), 0)
-  const xp = gami.xp + routineXpBonus + achievementsXpBonus
-  const level = levelFor(xp, lang)
-  const progressToNext = levelProgress(xp, lang)
 
   const displayTitle = lang === 'en' ? currentSession.titleEn : currentSession.title
   const displayPassage = lang === 'en' ? currentSession.passageEn : currentSession.passage
@@ -311,13 +291,6 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     totalChapters: gami.totalChapters,
     booksCompleted: gami.booksCompleted,
     totalBooks: gami.totalBooks,
-    xp,
-    level,
-    nextLevel: progressToNext.next,
-    levelPercent: progressToNext.percent,
-    xpForNext: progressToNext.xpForNext,
-    achievements,
-    achievementsXp: achievementsXpBonus,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     // "Sem plano" (28d) — a pessoa escolheu não ter um trecho do dia pra
     // Leitura; ela lê e marca livre pela aba Bíblia (28c). Home/Meu Plano
@@ -556,35 +529,6 @@ export default function App() {
   // advanceGuided) precisam ler a sessão de hoje sem depender da ordem em
   // que são declaradas (session só é montada bem mais abaixo, no render).
   const sessionRef = useRef(null)
-  // Folha de celebração de conquista recém-desbloqueada (redesign 1f/etapa 5,
-  // ver AchievementCelebration.jsx) — Progresso não mostra mais uma grade
-  // permanente, então isto é a única forma de saber que ganhou uma. Lida de
-  // `sessionRef` (não de `session`, que só existe mais abaixo, depois dos
-  // retornos antecipados de bootstrap/login/consentimento) e roda a cada
-  // render; internamente é barato (1 leitura de localStorage) depois da
-  // primeira vez. `celebratingIdRef` evita reabrir a mesma folha enquanto ela
-  // já está na tela, mesmo com `session.achievements` sendo um array novo a
-  // cada render.
-  const [celebratingAchievement, setCelebratingAchievement] = useState(null)
-  const celebratingIdRef = useRef(null)
-  useEffect(() => {
-    const s = sessionRef.current
-    if (!s || !s.hasPremium) return
-    const unlockedIds = s.achievements.filter(a => a.unlocked).map(a => a.id)
-    ensureSeeded(unlockedIds)
-    if (celebratingIdRef.current) return
-    const seen = getSeenAchievements()
-    const nextId = unlockedIds.find(id => !seen.has(id))
-    if (nextId) {
-      celebratingIdRef.current = nextId
-      setCelebratingAchievement(s.achievements.find(a => a.id === nextId))
-    }
-  })
-  function dismissAchievementCelebration() {
-    if (celebratingIdRef.current) markAchievementsSeen([celebratingIdRef.current])
-    celebratingIdRef.current = null
-    setCelebratingAchievement(null)
-  }
   // Oração e Reflexão têm cronômetro rodando de verdade (setInterval, wake
   // lock) — se a tela desmontasse ao trocar de aba, como as outras, o
   // cronômetro perderia todo o progresso (useState/useRef voltam do zero ao
@@ -1876,11 +1820,10 @@ export default function App() {
   }
 
   // Detecta, comparando o completedSet antes/depois de uma ação, se algum
-  // livro acabou de ser concluído ou se o nível subiu — e registra cada
-  // marco no feed de atividade dos amigos (ver src/activity/activityStore.js).
-  // Nível é calculado só no client (src/utils/levels.js), então a detecção
-  // também precisa ser aqui — não dá pra fazer isso num trigger do banco sem
-  // duplicar a fórmula de XP/nível em SQL.
+  // livro acabou de ser concluído — e registra o marco no feed de atividade
+  // dos amigos (ver src/activity/activityStore.js). O marco de "subiu de
+  // nível" saiu daqui na varredura de identidade (Bloco 1, FLUXO-DO-APP.md
+  // seção 11) — XP/nível não existem mais em lugar nenhum do app.
   function detectAndLogMilestones(prevSet, nextSet) {
     const prevBooks = computeCompletedBooks(prevSet, sessionsByBlock)
     const nextBooks = computeCompletedBooks(nextSet, sessionsByBlock)
@@ -1888,15 +1831,6 @@ export default function App() {
       if (!prevBooks.has(book)) {
         logActivity('book_completed', { book }).catch(err => console.error('Failed to log activity', err))
       }
-    }
-
-    const { blocks: nextBlocks } = deriveProgress(nextSet, planId, readingOrder, stepMinutes.reading)
-    const prevXp = computeGamificationStats(prevSet, sessionsByBlock, blocks).xp
-    const nextXp = computeGamificationStats(nextSet, sessionsByBlock, nextBlocks).xp
-    const prevLevelNum = levelFor(prevXp).level
-    const nextLevelNum = levelFor(nextXp).level
-    if (nextLevelNum > prevLevelNum) {
-      logActivity('level_up', { level: nextLevelNum }).catch(err => console.error('Failed to log activity', err))
     }
   }
 
@@ -2470,7 +2404,6 @@ export default function App() {
         onSelectPace={selectPlan}
         onProfileUpdated={handleProfileUpdated}
       />
-      <AchievementCelebration achievement={celebratingAchievement} lang={session.lang} onClose={dismissAchievementCelebration} />
       <Analytics />
     </div>
   )
@@ -2482,9 +2415,9 @@ export default function App() {
 function MinAgeRestricted({ lang }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
-      <AppIcon name="Lock" size={30} color="var(--g4)" />
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--g5)' }}>{t('groups.minAgeRestrictedTitle', undefined, lang)}</p>
-      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g4)', maxWidth: 260 }}>{t('groups.minAgeRestrictedSub', undefined, lang)}</p>
+      <AppIcon name="Lock" size={30} color="var(--bento-t4)" />
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-t3)' }}>{t('groups.minAgeRestrictedTitle', undefined, lang)}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t4)', maxWidth: 260 }}>{t('groups.minAgeRestrictedSub', undefined, lang)}</p>
     </div>
   )
 }
@@ -2499,12 +2432,12 @@ function PremiumRequired({ feature, lang, onNavigate }) {
   const key = ['routine', 'groups', 'handsFree', 'ai'].includes(feature) ? feature : 'generic'
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
-      <AppIcon name={key === 'ai' ? 'Sparkles' : 'Crown'} size={30} color="var(--or)" />
-      <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--bk)' }}>{t(`billing.premiumRequired.${key}.title`, undefined, lang)}</p>
-      <p style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--g5)', maxWidth: 280, lineHeight: 1.5 }}>{t(`billing.premiumRequired.${key}.sub`, undefined, lang)}</p>
+      <AppIcon name={key === 'ai' ? 'Sparkles' : 'Crown'} size={30} color="var(--bento-accent)" />
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)' }}>{t(`billing.premiumRequired.${key}.title`, undefined, lang)}</p>
+      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', maxWidth: 280, lineHeight: 1.5 }}>{t(`billing.premiumRequired.${key}.sub`, undefined, lang)}</p>
       <button
         onClick={() => onNavigate?.('upgrade')}
-        style={{ marginTop: 4, border: 'none', background: 'var(--grad-vivid)', color: 'white', borderRadius: 12, padding: '10px 20px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', boxShadow: 'var(--shadow-glow)' }}
+        style={{ marginTop: 4, border: 'none', background: 'var(--bento-accent)', color: 'var(--bento-ink)', borderRadius: 12, padding: '10px 20px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, cursor: 'pointer' }}
       >
         {t('billing.premiumRequired.cta', undefined, lang)}
       </button>

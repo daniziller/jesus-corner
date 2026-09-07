@@ -417,10 +417,14 @@ export default function JourneyScreen({
                         {t('journey.chaptersOfTotal', { done: totals.chaptersRead, total: totals.chaptersTotal }, lang)}
                       </p>
                     </div>
-                    <div style={{
-                      ...styles.testamentRing,
-                      background: `conic-gradient(var(--bento-accent) 0 ${totals.percent * 3.6}deg, ${dark ? 'rgba(255,255,255,.1)' : 'var(--bento-line)'} ${totals.percent * 3.6}deg 360deg)`,
-                    }}>
+                    <div style={styles.testamentRing}>
+                      {/* Anel de progresso em SVG — não conic-gradient, ver
+                          o mesmo ajuste em BookChapterScreen.jsx (Bloco 1). */}
+                      <svg width="62" height="62" viewBox="0 0 62 62" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
+                        <circle cx="31" cy="31" r="28" fill="none" stroke={dark ? 'rgba(255,255,255,.1)' : 'var(--bento-line)'} strokeWidth="6" />
+                        <circle cx="31" cy="31" r="28" fill="none" stroke="var(--bento-accent)" strokeWidth="6" strokeLinecap="round"
+                          strokeDasharray={`${(totals.percent / 100) * 175.93} 175.93`} />
+                      </svg>
                       <div style={{ ...styles.testamentRingInner, background: dark ? 'var(--bento-ink)' : '#fff' }}>
                         <span style={{ ...styles.testamentRingPct, color: dark ? '#fff' : 'var(--bento-t3)' }}>{totals.percent}%</span>
                       </div>
@@ -579,8 +583,8 @@ const styles = {
   testamentTileEyebrow: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 8px' },
   testamentTileName: { fontFamily: 'var(--font-bento)', fontSize: 25, fontWeight: 800, lineHeight: 1.05, letterSpacing: '-1px', margin: '0 0 6px' },
   testamentTileSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.3, margin: 0 },
-  testamentRing: { flexShrink: 0, width: 62, height: 62, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  testamentRingInner: { width: 50, height: 50, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  testamentRing: { position: 'relative', flexShrink: 0, width: 62, height: 62, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  testamentRingInner: { position: 'relative', width: 50, height: 50, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   testamentRingPct: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800 },
   testamentTileFoot: { display: 'flex', alignItems: 'center', gap: 10 },
   testamentStatusText: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 },
