@@ -2163,6 +2163,7 @@ export default function App() {
       weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
       onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)}
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
+      onOpenBiblePassage={openBiblePassage}
     />,
     routine: hasPremium
       ? <RoutineScreen session={session} onContinueSession={continueToday} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />

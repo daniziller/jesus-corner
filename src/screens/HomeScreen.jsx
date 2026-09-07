@@ -32,6 +32,7 @@ import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekAppli
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
 import { getHomeVerse, getContinuityExcerpt } from '../home/homeVerseStore'
+import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { dateKey } from '../utils/dateKey'
@@ -69,7 +70,7 @@ function weekdayIndexMonday(date) {
 export default function HomeScreen({
   session, authUser, completedSet, weeklyDays,
   onContinueSession, onNavigate, onStartGuided, onOpenProfile,
-  onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries,
+  onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -93,6 +94,7 @@ export default function HomeScreen({
   const [continuityExcerpt, setContinuityExcerpt] = useState(null)
   const [timeSheetOpen, setTimeSheetOpen] = useState(false)
   const [verseSaved, setVerseSaved] = useState(false)
+  const [sharingVerse, setSharingVerse] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -152,17 +154,34 @@ export default function HomeScreen({
     }
   }
 
-  // "Compartilhar" (bloco 3) — Web Share API quando disponível (celular),
-  // clipboard como alternativa (desktop/navegadores sem suporte). Sem
-  // backend nenhum: não está em "Dados que isto exige".
+  // "Compartilhar" (bloco 3) — gera uma imagem no formato do Instagram
+  // Stories (1080×1920, com a marca e o @ do app) e abre o seletor nativo
+  // de compartilhamento (home/verseShareImage.js) — é o que faz o
+  // Instagram oferecer "Adicionar aos stories" no próprio seletor, não tem
+  // API própria acessível de dentro de um PWA. Mesmo mecanismo já usado
+  // pela retrospectiva do mês (recap/recapImage.js), só que vertical.
   async function handleShareVerse() {
-    const shareText = `"${verseData.text}" — ${verseData.ref}`
+    if (sharingVerse) return
+    setSharingVerse(true)
     try {
-      if (navigator.share) await navigator.share({ text: shareText })
-      else await navigator.clipboard.writeText(shareText)
-    } catch (err) {
-      if (err?.name !== 'AbortError') console.error('Failed to share verse of the day', err)
+      const blob = await renderVerseShareImage({
+        text: verseData.text, ref: verseData.ref, version: verseData.version, brandText: "Jesus' Corner",
+      }).catch(err => { console.error('Failed to render verse share image', err); return null })
+      await shareVerseImage(blob, { title: L('verseOfDay'), text: `"${verseData.text}" — ${verseData.ref}` })
+    } finally {
+      setSharingVerse(false)
     }
+  }
+
+  // "Ir para o texto" (bloco 3) — toca no versículo, abre o capítulo na
+  // aba Bíblia (mesma função já usada por NotesScreen/StudiesScreen/
+  // InductiveMethodScreen pra deep-link num livro:capítulo específico —
+  // ver openBiblePassage em App.jsx). Sem-efeito silencioso se o capítulo
+  // não existir em nenhum bloco (não deveria acontecer, mas mesma postura
+  // defensiva dos outros chamadores).
+  function handleOpenVerseText() {
+    if (!verseData.bookPt || !verseData.chapter) return
+    onOpenBiblePassage?.(verseData.bookPt, verseData.chapter)
   }
 
   // ── Bloco 2 — SEU PLANO DE HOJE ──
@@ -419,13 +438,18 @@ export default function HomeScreen({
               <button style={styles.verseIconBtn} aria-label={L(verseSaved ? 'verseSaved' : 'saveVerse')} onClick={handleSaveVerse}>
                 <AppIcon name="BookMarked" size={13} color={verseSaved ? 'var(--bento-accent)' : 'var(--bento-t2)'} strokeWidth={2} />
               </button>
-              <button style={styles.verseIconBtn} aria-label={L('shareVerse')} onClick={handleShareVerse}>
+              <button style={styles.verseIconBtn} aria-label={L('shareVerse')} onClick={handleShareVerse} disabled={sharingVerse}>
                 <AppIcon name="Share2" size={13} color="var(--bento-t2)" strokeWidth={2} />
               </button>
             </div>
           </div>
-          <p style={styles.verseText}>&ldquo;{verseData.text}&rdquo;</p>
-          <p style={styles.verseRef}>{verseData.ref}{verseData.version ? ` · ${verseData.version}` : ''}</p>
+          {/* Toca no texto pra abrir o capítulo na aba Bíblia — mesmo
+              padrão dos tiles do plano de hoje (tocar abre algo, sem
+              chrome visual extra pra não fugir do layout do 34a.png). */}
+          <button style={styles.verseTextBtn} onClick={handleOpenVerseText} aria-label={L('openVerseText')}>
+            <p style={styles.verseText}>&ldquo;{verseData.text}&rdquo;</p>
+            <p style={styles.verseRef}>{verseData.ref}{verseData.version ? ` · ${verseData.version}` : ''}</p>
+          </button>
         </div>
 
         {/* Bloco 4 — SUA APLICAÇÃO DE ONTEM. */}
@@ -628,6 +652,7 @@ const styles = {
   verseHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   verseLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
   verseIconBtn: { width: 28, height: 28, borderRadius: 10, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  verseTextBtn: { display: 'block', width: '100%', border: 'none', background: 'none', padding: 0, margin: 0, textAlign: 'left', cursor: 'pointer' },
   verseText: { fontFamily: FONT, fontStyle: 'italic', fontWeight: 500, fontSize: 16.5, lineHeight: 1.5, color: 'var(--bento-ink)', textWrap: 'pretty', margin: '0 0 8px' },
   verseRef: { fontFamily: FONT, fontSize: 11.5, fontWeight: 800, color: 'var(--bento-accent)', margin: 0 },
 
