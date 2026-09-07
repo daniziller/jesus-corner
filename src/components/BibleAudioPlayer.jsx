@@ -164,7 +164,7 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
     <div style={styles.wrap}>
       <div style={styles.row}>
         <button style={styles.playBtn} onClick={handlePlayPause} aria-label={L('play')}>
-          <AppIcon name={playIcon} size={18} color="white" />
+          <AppIcon name={playIcon} size={18} color="var(--bento-ink)" fill={playIcon === 'Play' ? 'var(--bento-ink)' : 'none'} />
         </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -187,7 +187,7 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
 
         {isBusy && (
           <button style={styles.stopBtn} onClick={stopPlayback} aria-label={L('stop')}>
-            <AppIcon name="X" size={15} color="var(--g5)" />
+            <AppIcon name="X" size={15} color="var(--bento-t3)" />
           </button>
         )}
       </div>
@@ -202,16 +202,19 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
 }
 
 const styles = {
-  wrap: { background: 'var(--g1)', border: '0.5px solid var(--g2)', borderRadius: 14, padding: '10px 12px', margin: '2px 6px 10px', display: 'flex', flexDirection: 'column', gap: 8 },
+  // Player de áudio da navegação livre (aba Bíblia, embutido abaixo do
+  // capítulo aberto) — reskin Bento: sem gradiente (play sólido em ink
+  // sobre laranja, como o compacto acima), tokens --bento-*.
+  wrap: { background: 'var(--bento-card)', borderRadius: 16, padding: '12px 14px', margin: '2px 0 10px', display: 'flex', flexDirection: 'column', gap: 8 },
   row: { display: 'flex', alignItems: 'center', gap: 10 },
-  playBtn: { width: 38, height: 38, borderRadius: '50%', border: 'none', flexShrink: 0, background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-glow)' },
-  title: { fontSize: 12, fontWeight: 700, color: 'var(--bk)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  modeSel: { display: 'inline-flex', gap: 4, background: 'var(--g2)', borderRadius: 9, padding: 3, marginTop: 4 },
-  modeBtn: { border: 'none', background: 'transparent', color: 'var(--g5)', fontSize: 10.5, fontWeight: 700, fontFamily: 'var(--font)', padding: '4px 9px', borderRadius: 7, cursor: 'pointer' },
-  modeBtnActive: { background: 'var(--white)', color: 'var(--bk)', boxShadow: '0 1px 3px rgba(0,0,0,.12)' },
-  stopBtn: { width: 30, height: 30, borderRadius: '50%', border: '0.5px solid var(--g2)', background: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  track: { width: '100%', height: 4, background: 'var(--g2)', borderRadius: 99, overflow: 'hidden' },
-  fill: { height: '100%', background: 'var(--grad-primary)', borderRadius: 99, transition: 'width .4s ease' },
+  playBtn: { width: 38, height: 38, borderRadius: '50%', border: 'none', flexShrink: 0, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  title: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  modeSel: { display: 'inline-flex', gap: 4, background: 'var(--bento-line)', borderRadius: 9, padding: 3, marginTop: 6 },
+  modeBtn: { border: 'none', background: 'transparent', color: 'var(--bento-t3)', fontSize: 10.5, fontWeight: 700, fontFamily: 'var(--font-bento)', padding: '4px 9px', borderRadius: 7, cursor: 'pointer' },
+  modeBtnActive: { background: '#fff', color: 'var(--bento-ink)', fontWeight: 800 },
+  stopBtn: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  track: { width: '100%', height: 4, background: 'var(--bento-line)', borderRadius: 99, overflow: 'hidden' },
+  fill: { height: '100%', background: 'var(--bento-accent)', borderRadius: 99, transition: 'width .4s ease' },
 
   // Bloco de áudio da leitura imersiva (reskin Bento, tela 4a) — só usado
   // ali (ver ReadingBlockView.jsx), então reskinado direto sem variante à
