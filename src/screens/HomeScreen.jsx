@@ -251,14 +251,9 @@ export default function HomeScreen({
   }
 
   // ── Bloco 5 — ESTA SEMANA ──
-  // "primeiros 7 dias": conta a partir da 1ª entrada real em dailyRoutine
-  // (mesmo earliestKey de ProgressScreen.jsx/GroupsScreen.jsx — dado real,
-  // nunca um contador de conta inventado). Sem nenhum dia registrado
-  // ainda, cai no mesmo estado (nada pra mostrar de qualquer jeito).
-  const earliestKey = Object.keys(dailyRoutine ?? {}).sort()[0]
-  const daysSinceFirst = earliestKey ? Math.floor((new Date(dateKey()) - new Date(earliestKey)) / 86400000) : -1
-  const isFirstWeek = daysSinceFirst < 7
-
+  // Pedido explícito da Daniela (2026-09-07, comparando com screens/34a.png):
+  // o bloco fica sempre na tela, com o dado real que existir (mesmo que seja
+  // zero) — sem estado "primeiros 7 dias" escondendo o quadro inteiro.
   const monday = mondayOf(new Date())
   const markedDayIdxs = activeWeeklyDays.map((on, i) => on ? i : null).filter(i => i !== null)
   const weekDayCells = markedDayIdxs.map(i => {
@@ -288,7 +283,6 @@ export default function HomeScreen({
 
   // ── Bloco 7 — SUA SEMANA (resumo) ──
   const latestSummary = (weeklySummaries ?? [])[0]
-  const showWeekSummaryCard = latestSummary && !latestSummary.seen
 
   const initialStepMinutes = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
 
@@ -464,91 +458,90 @@ export default function HomeScreen({
         )}
 
         {/* Bloco 5 — ESTA SEMANA. */}
-        {isFirstWeek ? (
-          <div style={styles.firstWeekCard}>
-            <p style={styles.firstWeekText}>{L('firstWeekNote')}</p>
+        <div style={styles.weekCard}>
+          <div style={styles.weekHead}>
+            <p style={styles.weekLabel}>{L('weekLabel')}</p>
+            <p style={styles.weekCount}>
+              <span style={styles.weekCountStrong}>{daysMetThisWeek}</span> {L('ofDaysSuffix', { total: markedDayIdxs.length })}
+            </p>
           </div>
-        ) : (
-          <div style={styles.weekCard}>
-            <div style={styles.weekHead}>
-              <p style={styles.weekLabel}>{L('weekLabel')}</p>
-              <p style={styles.weekCount}>
-                <span style={styles.weekCountStrong}>{daysMetThisWeek}</span> {L('ofDaysSuffix', { total: markedDayIdxs.length })}
-              </p>
-            </div>
-            <div style={styles.weekGridRow}>
-              <div style={styles.weekGrid}>
-                {weekDayCells.map(c => {
-                  const state = c.done ? 'done' : c.isToday ? 'today' : 'other'
-                  return (
-                    <div key={c.key} style={styles.weekDayCol}>
-                      <span style={{ ...styles.weekDaySquare, ...styles.weekDaySquare_[state] }}>
-                        {state === 'done' && <AppIcon name="Check" size={14} color="var(--bento-ink)" strokeWidth={2.8} />}
-                        {state === 'today' && <span style={styles.weekTodayDot} />}
-                      </span>
-                      <span style={{ ...styles.weekDayLetter, ...styles.weekDayLetter_[state] }}>{weekdayAbbr[c.weekdayIdx]}</span>
-                    </div>
-                  )
-                })}
-              </div>
-              <p style={styles.weekNote}>{L('weekNote', { day: weekdayFull[todayWeekdayIdx] })}</p>
-            </div>
-
-            {enabledSteps.length > 0 && (
-              <div style={styles.weekTimeRow}>
-                {STEPS.filter(s => enabledSteps.includes(s)).map(s => (
-                  <div key={s} style={styles.weekTimeCol}>
-                    <p style={styles.weekTimeValue}>{Math.round((weekTotals[s] || 0) / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
-                    <p style={styles.weekTimeLabel}>{L(`step${cap(s)}`)}</p>
+          <div style={styles.weekGridRow}>
+            <div style={styles.weekGrid}>
+              {weekDayCells.map(c => {
+                const state = c.done ? 'done' : c.isToday ? 'today' : 'other'
+                return (
+                  <div key={c.key} style={styles.weekDayCol}>
+                    <span style={{ ...styles.weekDaySquare, ...styles.weekDaySquare_[state] }}>
+                      {state === 'done' && <AppIcon name="Check" size={14} color="var(--bento-ink)" strokeWidth={2.8} />}
+                      {state === 'today' && <span style={styles.weekTodayDot} />}
+                    </span>
+                    <span style={{ ...styles.weekDayLetter, ...styles.weekDayLetter_[state] }}>{weekdayAbbr[c.weekdayIdx]}</span>
                   </div>
-                ))}
-                <div style={{ ...styles.weekTimeCol, alignItems: 'flex-end', textAlign: 'right' }}>
-                  <p style={styles.weekTimeValue}>{Math.round(weekTotalSeconds / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
-                  <p style={styles.weekTimeLabel}>{L('inTotal')}</p>
-                </div>
-              </div>
-            )}
+                )
+              })}
+            </div>
+            <p style={styles.weekNote}>{L('weekNote', { day: weekdayFull[todayWeekdayIdx] })}</p>
           </div>
-        )}
 
-        {/* Bloco 6 — dois quadrados. */}
-        {!isFirstWeek && (
-          <div style={styles.squaresRow}>
-            {unreadMessagesTotal > 0 && (
-              <button style={styles.squareDark} onClick={() => onNavigate?.('groupMessages')}>
-                <div style={styles.squareTopRow}>
-                  <AppIcon name="Users" size={16} color="rgba(255,255,255,.55)" strokeWidth={2} />
-                  <span style={styles.squareBadge}>{unreadMessagesTotal > 99 ? '99+' : unreadMessagesTotal}</span>
+          {enabledSteps.length > 0 && (
+            <div style={styles.weekTimeRow}>
+              {STEPS.filter(s => enabledSteps.includes(s)).map(s => (
+                <div key={s} style={styles.weekTimeCol}>
+                  <p style={styles.weekTimeValue}>{Math.round((weekTotals[s] || 0) / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
+                  <p style={styles.weekTimeLabel}>{L(`step${cap(s)}`)}</p>
                 </div>
-                <div>
-                  <p style={styles.squareTitleDark}>{L('newMessages')}</p>
-                  <p style={styles.squareSubDark}>{joinNames(messageGroupNames)}</p>
-                </div>
-              </button>
-            )}
-            <button style={{ ...styles.squareLight, ...(unreadMessagesTotal > 0 ? {} : { flex: '1 1 100%' }) }} onClick={() => onNavigate?.('metrics')}>
-              <div style={styles.squareTopRow}>
-                <AppIcon name="BarChart3" size={16} color="var(--bento-t3)" strokeWidth={2} />
-                <span style={styles.squarePctLight}>{biblePctLabel}</span>
+              ))}
+              <div style={{ ...styles.weekTimeCol, alignItems: 'flex-end', textAlign: 'right' }}>
+                <p style={styles.weekTimeValue}>{Math.round(weekTotalSeconds / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
+                <p style={styles.weekTimeLabel}>{L('inTotal')}</p>
               </div>
-              <div>
-                <p style={styles.squareTitleLight}>{L('myMetrics')}</p>
-                <p style={styles.squareSubLight}>{L('metricsSummaryLine', { hours: totalHM.h, weeks: weeksInGoal })}</p>
-              </div>
-            </button>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
-        {/* Bloco 7 — SUA SEMANA (resumo). */}
-        {showWeekSummaryCard && (
-          <div style={styles.recapCard}>
-            <p style={styles.recapLabel}>{L('recapLabel')}</p>
+        {/* Bloco 6 — dois quadrados. Pedido explícito da Daniela: os dois
+            quadrados ficam sempre na tela (mesmo padrão do Bloco 5 acima) —
+            "Mensagens novas" com badge/nomes só quando há de verdade algo
+            não lido (nunca um "0" fingido), "Minhas métricas" sempre com o
+            dado real (mesmo que seja 0%/0h). */}
+        <div style={styles.squaresRow}>
+          <button style={styles.squareDark} onClick={() => onNavigate?.('groupMessages')}>
+            <div style={styles.squareTopRow}>
+              <AppIcon name="Users" size={16} color="rgba(255,255,255,.55)" strokeWidth={2} />
+              {unreadMessagesTotal > 0 && <span style={styles.squareBadge}>{unreadMessagesTotal > 99 ? '99+' : unreadMessagesTotal}</span>}
+            </div>
+            <div>
+              <p style={styles.squareTitleDark}>{L('newMessages')}</p>
+              <p style={styles.squareSubDark}>{unreadMessagesTotal > 0 ? joinNames(messageGroupNames) : L('noNewMessages')}</p>
+            </div>
+          </button>
+          <button style={styles.squareLight} onClick={() => onNavigate?.('metrics')}>
+            <div style={styles.squareTopRow}>
+              <AppIcon name="BarChart3" size={16} color="var(--bento-t3)" strokeWidth={2} />
+              <span style={styles.squarePctLight}>{biblePctLabel}</span>
+            </div>
+            <div>
+              <p style={styles.squareTitleLight}>{L('myMetrics')}</p>
+              <p style={styles.squareSubLight}>{L('metricsSummaryLine', { hours: totalHM.h, weeks: weeksInGoal })}</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Bloco 7 — SUA SEMANA (resumo). Sempre visível — antes do 1º
+            resumo gerado (cron de domingo à noite) mostra um aviso honesto
+            em vez de fingir um resumo pronto; depois, mostra sempre (não
+            só "não lido ainda") com o botão "Ler" sempre disponível. */}
+        <div style={styles.recapCard}>
+          <p style={styles.recapLabel}>{L('recapLabel')}</p>
+          {latestSummary ? (
             <div style={styles.recapRow}>
               <p style={styles.recapText}>{L('recapReady', { period: recapPeriodLabel(latestSummary, lang) })}</p>
               <button style={styles.recapBtn} onClick={() => onOpenWeeklySummary?.(latestSummary.weekKey)}>{L('recapRead')}</button>
             </div>
-          </div>
-        )}
+          ) : (
+            <p style={styles.recapPendingText}>{L('recapPending')}</p>
+          )}
+        </div>
       </div>
 
       <TimePerStepSheet
@@ -654,9 +647,6 @@ const styles = {
   applyWeekCount: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-sand-ink)' },
 
   // Bloco 5.
-  firstWeekCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px' },
-  firstWeekText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-t2)', margin: 0, textAlign: 'center' },
-
   weekCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 20px' },
   weekHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 },
   weekLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
@@ -709,4 +699,5 @@ const styles = {
   recapRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   recapText: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 14, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-sand-ink-strong)', margin: 0 },
   recapBtn: { flexShrink: 0, height: 36, padding: '0 14px', borderRadius: 13, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: 'pointer' },
+  recapPendingText: { fontFamily: FONT, fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-sand-ink)', margin: 0 },
 }
