@@ -205,6 +205,10 @@ export const STRINGS = {
       // do dia a partir da navegação livre.
       freeReadingSubtitle: 'Leia à vontade — isto não mexe no seu plano.',
       lastFreeReadingLabel: 'Última leitura livre',
+      // Diferente do rótulo acima: cobre QUALQUER modo de leitura (guiado
+      // ou livre), não só navegação livre pela aba Bíblia — ver
+      // lastReadPos/lastReadSession em JourneyScreen.jsx.
+      lastReadTextLabel: 'Último texto lido',
       openBtn: 'Abrir',
       todaySessionCta: 'Ler pela sessão de hoje',
       countsInPlan: 'conta no plano',
@@ -2593,6 +2597,7 @@ export const STRINGS = {
       continueReading: 'Continue reading',
       freeReadingSubtitle: "Read freely — this doesn't affect your plan.",
       lastFreeReadingLabel: 'Last free reading',
+      lastReadTextLabel: 'Last text read',
       openBtn: 'Open',
       todaySessionCta: "Read today's session",
       countsInPlan: 'counts toward your plan',
