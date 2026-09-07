@@ -294,6 +294,18 @@ export default function JourneyScreen({
   const lastOpenedSession = lastOpened ? browseSessionsByBlock[lastOpened.blockId]?.find(s => s.id === lastOpened.sessionId) : null
   const lastOpenedBlock = lastOpened ? blocks.find(b => b.id === lastOpened.blockId) : null
 
+  // "Último texto lido" (pedido direto, 2026-09-07) — diferente do card
+  // acima: lastReadPositionStore.js (session.lastReadPosition) grava em
+  // QUALQUER modo de leitura, guiado (Rotina) OU livre, não só navegação
+  // livre. É o "onde parei de verdade", mesmo que seja outro livro/bloco
+  // que não o da sessão de hoje do plano — por isso resolve o bloco a
+  // partir do LIVRO salvo (b.books.includes), não de um blockId gravado.
+  const lastReadPos = session.lastReadPosition
+  const lastReadBlock = lastReadPos ? blocks.find(b => b.books.includes(lastReadPos.book)) : null
+  const lastReadSession = lastReadBlock
+    ? (browseSessionsByBlock[lastReadBlock.id] ?? []).find(s => s.book === lastReadPos.book && s.chStart <= lastReadPos.chapter && s.chEnd >= lastReadPos.chapter)
+    : null
+
   // Busca (quadro 5f: "Livro, capítulo ou versículo") — o texto filtra os
   // livros pelo nome; um número no fim ("Gênesis 41", "Sl 23") é o capítulo:
   // com um livro só batendo, Enter abre direto nesse capítulo.
@@ -521,6 +533,23 @@ export default function JourneyScreen({
               )}
             </div>
           </>
+        )}
+
+        {/* Último texto lido (pedido direto, 2026-09-07) — qualquer modo
+            (guiado ou livre), pode ser um livro/capítulo diferente da
+            sessão de hoje do plano; é por isso que existe separado do
+            card de baixo, que só cobre navegação livre. */}
+        {showTestamentCards && lastReadSession && (
+          <button style={styles.lastReadCard} onClick={() => jumpToBook(lastReadBlock, lastReadPos.book, lastReadSession.id, true)}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={styles.lastReadLabel}>{t('journey.lastReadTextLabel', undefined, lang)}</span>
+              <span style={styles.lastReadTitle}>
+                {(lang === 'en' && lastReadSession.bookEn ? lastReadSession.bookEn : lastReadPos.book)} {lastReadPos.chapter}
+              </span>
+              {lastReadPos.readAt && <span style={styles.lastReadTime}>{formatRelativeTime(lastReadPos.readAt, lang)}</span>}
+            </span>
+            <span style={styles.lastReadOpenBtn}>{t('journey.openBtn', undefined, lang)}</span>
+          </button>
         )}
 
         {/* Última leitura livre (quadro 5f/28a) — tempo relativo real;
