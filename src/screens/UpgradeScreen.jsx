@@ -32,7 +32,6 @@ const COMPARE = [
   { key: 'basicProgress', tier: 'free' },
   { key: 'voice', tier: 'premium' },
   { key: 'guided', tier: 'premium' },
-  { key: 'achievements', tier: 'premium' },
   { key: 'chrono', tier: 'premium' },
   { key: 'community', tier: 'premium' },
   { key: 'ai', tier: 'premium_ai' },

@@ -87,12 +87,6 @@
   --card-bg: #F6F3F2;
   --card-border: 1px solid #E5E2E1;
 
-  /* Card de destaque laranja suave (streak, sessões restantes, plano atual
-     etc.) — o mesmo gradiente estava reimplementado com stops levemente
-     diferentes (FFDDB8/FFE4CC/FFE0BE) em cada tela; agora é um token só. */
-  --card-highlight-bg: linear-gradient(135deg,#FFF3E8,#FFE0BE);
-  --card-highlight-border: 0.5px solid rgba(157,67,0,.25);
-
   /* Layout */
   /* Barra inferior Bento (quadros 3c/4b/4c/5b/5f): 76px, sem raio/sombra. */
   --nav-height: 76px;

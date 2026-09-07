@@ -1345,12 +1345,6 @@ const styles = {
   bFieldInput: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 14px', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)' },
   bPrimarySmallBtn: { flexShrink: 0, border: 'none', borderRadius: 12, padding: '11px 16px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
 
-  bFriendsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 12, padding: '8px 0 12px' },
-  bFriendGridItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  bFriendAvatarCircle: { width: 48, height: 48, borderRadius: 99, background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, overflow: 'hidden' },
-  bFriendAvatarCircleActive: { boxShadow: '0 0 0 2px var(--bento-accent)' },
-  bFriendGridName: { fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t2)', maxWidth: 64, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-
   bFriendPanel: { borderRadius: 20, background: 'var(--bento-line)', padding: '14px 16px', marginBottom: 12 },
   bFriendOfFriendTitle: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
   bFriendOfFriendRow: { display: 'flex', alignItems: 'center', gap: 8 },
