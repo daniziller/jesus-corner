@@ -69,7 +69,7 @@ function weekdayIndexMonday(date) {
 
 export default function HomeScreen({
   session, authUser, completedSet, weeklyDays,
-  onContinueSession, onNavigate, onStartGuided, onOpenProfile,
+  onContinueSession, onNavigate, onOpenProfile,
   onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage,
 }) {
   const {
@@ -201,10 +201,6 @@ export default function HomeScreen({
 
   const planState = session.hasNoPlan ? 'noPlan' : allDoneToday ? 'done' : isRestDay ? 'rest' : 'normal'
 
-  function handleStartRoutine() {
-    if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
-    onStartGuided?.()
-  }
   function handleOnlyRead() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
     onContinueSession?.()
@@ -418,8 +414,12 @@ export default function HomeScreen({
               )}
 
               <div style={styles.btnRow}>
-                <button style={styles.startBtn} onClick={handleStartRoutine}>
-                  <span style={styles.startBtnText}>{L('startNow')}</span>
+                {/* Pedido explícito da Daniela (2026-09-07): este botão não
+                    inicia mais a rotina guiada direto da Home — só leva
+                    pra aba Meu Plano, onde o início da rotina guiada já
+                    vive (ver RoutineScreen.jsx). */}
+                <button style={styles.startBtn} onClick={() => onNavigate?.('routine')}>
+                  <span style={styles.startBtnText}>{L('goToMyPlan')}</span>
                   <span style={styles.startBtnArrow}>→</span>
                 </button>
                 <button style={styles.onlyReadBtn} onClick={handleOnlyRead}>

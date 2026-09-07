@@ -2161,7 +2161,7 @@ export default function App() {
     home: <HomeScreen
       session={session} authUser={authUser} completedSet={completedSet} weeklyDays={weeklyDays}
       weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
-      onStartGuided={startGuidedRoutine} onOpenProfile={() => setProfileOpen(true)}
+      onOpenProfile={() => setProfileOpen(true)}
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage}
     />,
