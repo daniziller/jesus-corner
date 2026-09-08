@@ -8,6 +8,11 @@ import { t } from '../i18n'
 
 function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
+// Rótulo do botão primário por passo seguinte — Oração nunca é o próximo
+// (é o passo desta própria tela), então só leitura/estudo/reflexão têm
+// entrada; goToReadingBtn é o fallback se algo inesperado chegar aqui.
+const GO_TO_BTN_KEY = { reading: 'goToReadingBtn', study: 'goToStudyBtn', reflection: 'goToReflectionBtn' }
+
 export default function BlessingScreen({ session, stepMinutes, onContinueSession, onNavigate, onFinishDay, onBackToPlan }) {
   const { lang, userName, todaySession, hasNoPlan } = session
   const L = (k, vars) => t(`blessing.${k}`, vars, lang)
@@ -63,7 +68,13 @@ export default function BlessingScreen({ session, stepMinutes, onContinueSession
           </div>
         )}
         <button style={styles.primaryBtn} onClick={handlePrimary}>
-          <span>{nextStepKey ? L('goToReadingBtn') : L('finishDayBtn')}</span>
+          {/* HANDOFF: "o botão vira 'Terminar o dia'... muda apenas o
+              nome e o próximo passo" — o próximo passo nem sempre é
+              Leitura (pode ser Estudo, num dia de estudo ativo, ou
+              Reflexão, se Leitura já tiver sido feita antes da Oração);
+              cada passo tem seu próprio rótulo por causa da concordância
+              de gênero do artigo ("a leitura"/"o estudo"/"a reflexão"). */}
+          <span>{nextStepKey ? L(GO_TO_BTN_KEY[nextStepKey] ?? 'goToReadingBtn') : L('finishDayBtn')}</span>
           <span style={styles.primaryArrow}>→</span>
         </button>
         <button style={styles.backLink} onClick={onBackToPlan}>{L('backToPlanLink')}</button>
