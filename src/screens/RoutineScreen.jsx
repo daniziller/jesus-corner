@@ -18,6 +18,8 @@ import AppIcon from '../icons/AppIcon'
 import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeekPillStates } from '../routine/stepDaysStore'
 import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
+import { getReflectionMethod } from '../reflection/reflectionMethodStore'
+import { STEP_ORDER, orderStepsWithOff, statusFor, metaKindFor } from '../routine/planTodayRows'
 import { getActiveStudy } from '../studies/activeStudyStore'
 import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
@@ -27,12 +29,20 @@ import { computeProjection } from '../plan/readingProjection'
 import { getUseLearnedPace } from '../reading/readingPaceStore'
 import { formatWeekdayDate } from '../utils/weekdayDateLabel'
 
-const STEP_ORDER = ['prayer', 'reading', 'study', 'reflection']
-
 function joinNames(names, lang) {
   if (names.length <= 1) return names[0] ?? ''
   const sep = lang === 'en' ? ' and ' : ' e '
   return `${names.slice(0, -1).join(', ')}${sep}${names[names.length - 1]}`
+}
+
+// "10 de setembro" (atualização 35a/35b) — dia + mês, sem dia da semana e
+// sem ano (diferente de formatWeekdayDate, usado no cartão "Retomar já"
+// logo abaixo, que já tem o dia da semana no quadro).
+function formatMonthDay(iso, lang) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long' })
 }
 
 export default function RoutineScreen({ session, completedSet, stepMinutes, onContinueSession, onOpenActiveStudy, onNavigate, onStartGuided, onResumeFixedPlan }) {
@@ -53,6 +63,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
 
   const [stepDays, setStepDaysState] = useState(null)
   const [prayerMethod, setPrayerMethodState] = useState('acts')
+  const [reflectionMethod, setReflectionMethodState] = useState('questions')
   const [pausedStudy, setPausedStudy] = useState(null)
   const [activeStudy, setActiveStudy] = useState(null) // { title, passage, dayDone, dayTotal, trailDone, trailTotal }
   const [useLearnedPace, setUseLearnedPaceState] = useState(false)
@@ -61,6 +72,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   useEffect(() => {
     getStepDays().then(setStepDaysState).catch(() => {})
     setPrayerMethodState(getPrayerMethod())
+    setReflectionMethodState(getReflectionMethod())
     getUseLearnedPace().then(setUseLearnedPaceState).catch(() => {})
   }, [])
 
@@ -113,21 +125,77 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   const stepTitle = k => t(`home.routine${k[0].toUpperCase()}${k.slice(1)}`, undefined, lang)
   const weekdayName = fullNames[todayIdx]
 
-  function doneSubFor(key) {
+  // Atualização 35a/35b (atualizacao-35-meu-plano/) — lista única com TODOS
+  // os passos canônicos (Oração→Leitura→Estudo→Reflexão), não só os de
+  // hoje: os que não caem hoje (ou foram substituídos por um Estudo ativo,
+  // ver regra de substituição no topo do arquivo) vão pro fim, "desligados".
+  // Ordem/status/"de onde vem a meta" são lógica pura, testada à parte em
+  // src/routine/planTodayRows.js — aqui só se traduz pro texto final.
+  const { orderedKeys, offSteps } = orderStepsWithOff(todaysSteps)
+  const noPlanReading = hasNoPlan && !activeStudyId
+
+  function doneAtLine(gender, key) {
     const at = todayRoutine[`${key}At`]
     const d = at ? new Date(at) : null
-    const mins = minutesForStep(key)
-    const methodPrefix = key === 'prayer' ? `${prayerMethod === 'acts' ? L('methodActs') : L('methodFree')} · ` : ''
-    if (!d || Number.isNaN(d.getTime())) return `${methodPrefix}${L('doneSub', { n: mins })}`
+    if (!d || Number.isNaN(d.getTime())) return L(gender === 'masc' ? 'doneMasc' : 'doneFem')
     const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-    return `${methodPrefix}${L('doneSubAt', { n: mins, time })}`
+    return L(gender === 'masc' ? 'doneAtMasc' : 'doneAtFem', { time })
   }
 
-  function pendingSubFor(key) {
+  // Meta de "a fazer" quando não há descrição própria pro passo (Oração e
+  // Estudo sem estudo ativo não têm exemplo no quadro) — encadeamento
+  // antigo, sem repetir os minutos (já aparecem na coluna à direita agora).
+  function chainAfterMeta(key) {
     const idx = todaysSteps.indexOf(key)
     const prev = todaysSteps[idx - 1]
-    const after = prev ? L(`after${prev[0].toUpperCase()}${prev.slice(1)}`) : null
-    return after ? L('pendingSub', { n: minutesForStep(key), after }) : L('minShort', { n: minutesForStep(key) })
+    return prev ? L(`after${prev[0].toUpperCase()}${prev.slice(1)}`) : ''
+  }
+
+  // Linha "meta" de cada passo na lista — o metaKind (de onde vem a
+  // informação) é lógica pura testada em planTodayRows.js; aqui só se
+  // traduz cada kind pro texto final.
+  function metaFor(key, status) {
+    const kind = metaKindFor(key, status, {
+      activeStudyId, pausedStudyHasBook: !!pausedStudy?.pausedAtBook, hasNoPlan, reflectionMethod,
+    })
+    switch (kind) {
+      case 'pausedUntil':
+        return L('pausedUntilRow', { book: pausedStudy.pausedAtBook, date: formatMonthDay(pausedStudy.resumesAt, lang) })
+      case 'notToday':
+        return L('notTodayStep', { step: stepTitle(key).toLowerCase() })
+      case 'prayerDone':
+        return `${prayerMethod === 'acts' ? L('methodActs') : L('methodFree')} · ${doneAtLine('fem', key)}`
+      case 'prayerMethod':
+        return `${prayerMethod === 'acts' ? L('methodActs') : L('methodFree')} · ${prayerMethod === 'acts' ? L('methodActsSub') : L('methodFreeSubPrayer')}`
+      case 'doneFem':
+        return doneAtLine('fem', key)
+      case 'doneMasc':
+        return doneAtLine('masc', key)
+      case 'noPlanReading':
+        return L('noPlanReadingSub')
+      case 'readingResume':
+        return L('readingResumeSubtitle', { title: todaySession?.title ?? '' })
+      case 'studyProgress':
+        return `${activeStudy?.title ?? ''} · ${L('dayXofY', { n: (activeStudy?.dayDone ?? 0) + 1, total: activeStudy?.dayTotal ?? 1 })}`
+      case 'studyQuestion':
+        return L('studyQuestionNote')
+      case 'reflectionFree':
+        return L('reflectionFreeNote')
+      case 'reflectionQuestions':
+        return L('reflectionPendingQuestions')
+      case 'chainAfter':
+      default:
+        return chainAfterMeta(key)
+    }
+  }
+
+  // Detalhe da linha do botão único do dia ("Agora: Leitura · Gênesis 41 ·
+  // 15 min") — só Leitura e Estudo (com estudo ativo) têm uma referência
+  // própria pra mostrar; Oração e Reflexão ficam só com o nome + minutos.
+  function ctaDetailFor(key) {
+    if (key === 'reading') return noPlanReading ? null : (todaySession?.title ?? null)
+    if (key === 'study' && activeStudyId) return activeStudy?.passage || null
+    return null
   }
 
   // Passo ATUAL (ainda não feito) — encadeia a partir dele (ver
@@ -197,7 +265,8 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
           </button>
         </div>
 
-        {/* Bloco da rotina — resumo de tempos + os passos, um bloco só. */}
+        {/* Bloco da rotina (atualização 35a/35b) — resumo do dia + lista
+            única com TODOS os passos canônicos + um botão só pro dia. */}
         <div style={styles.routineBlock}>
           <div style={styles.routineHead}>
             <p style={styles.routineHeadLabel}>{L('planTodayLabel')}</p>
@@ -207,89 +276,74 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
             </div>
           </div>
 
-          {todaysSteps.length > 0 && (
-            <div style={styles.timeStrip}>
-              {todaysSteps.map((k, i) => (
-                <div key={k} style={{ ...styles.timeCol, borderLeft: i > 0 ? '1px solid var(--bento-line)' : 'none' }}>
-                  <p style={styles.timeColLabel}>{stepTitle(k)}</p>
-                  <p style={styles.timeColMin}><span style={styles.timeColNum}>{minutesForStep(k)}</span> {t('routine.min', undefined, lang)}</p>
-                </div>
-              ))}
-            </div>
+          <div style={styles.stepsList}>
+            {orderedKeys.map((k, i) => {
+              const status = statusFor(k, { offSteps, todayRoutine, currentKey })
+              const isStudyNow = status === 'now' && k === 'study' && activeStudyId
+              const title = isStudyNow ? (activeStudy?.passage || stepTitle(k)) : stepTitle(k)
+              const meta = metaFor(k, status)
+              const trail = isStudyNow && activeStudy?.dayTotal > 1 ? { done: activeStudy.dayDone, total: activeStudy.dayTotal } : null
+              const rowStyle = {
+                ...styles.stepRow,
+                cursor: status === 'done' ? 'pointer' : 'default',
+                ...(i < orderedKeys.length - 1 ? { borderBottom: '1px solid var(--bento-line)' } : null),
+              }
+              // Nenhum passo tem botão de ação próprio (README) — a única
+              // exceção é reabrir um passo JÁ FEITO pra rever, como sempre
+              // (não é "recomeçar a cadeia", só consulta).
+              const RowTag = status === 'done' ? 'button' : 'div'
+              return (
+                <RowTag key={k} style={rowStyle} {...(status === 'done' ? { onClick: () => openDoneStep(k) } : null)}>
+                  <span style={{
+                    ...styles.stepIconBase,
+                    ...(status === 'done' ? styles.stepIconDone : status === 'now' ? styles.stepIconNow : status === 'off' ? styles.stepIconOff : styles.stepIconPending),
+                  }}>
+                    {status === 'done' && <AppIcon name="Check" size={15} strokeWidth={2.6} color="var(--bento-sand)" />}
+                    {status === 'now' && <AppIcon name="Play" size={13} color="var(--bento-ink)" fill="var(--bento-ink)" />}
+                    {status === 'pending' && <span style={styles.stepDot} />}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={styles.stepNameRow}>
+                      <p style={{ ...styles.stepName, ...(status === 'off' ? styles.stepNameOff : null) }}>{title}</p>
+                      {status === 'now' && <span style={styles.nowPill}>{L('nowPill')}</span>}
+                    </div>
+                    {meta && <p style={styles.stepMeta}>{meta}</p>}
+                    {trail && (
+                      <div style={styles.stepTrailRow}>
+                        {Array.from({ length: trail.total }, (_, ti) => (
+                          <span key={ti} style={{ ...styles.stepTrailSeg, background: ti < trail.done ? 'var(--bento-accent)' : 'var(--bento-line)' }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={styles.stepMinCol}>
+                    {status === 'off'
+                      ? <span style={styles.stepMinOff}>—</span>
+                      : <span style={styles.stepMinNum}>{minutesForStep(k)}<span style={styles.stepMinUnit}> {L('min')}</span></span>}
+                  </div>
+                </RowTag>
+              )
+            })}
+          </div>
+
+          {/* Um botão só pro dia — abre o passo da vez e emenda os
+              seguintes na ordem (nenhum passo tem botão próprio). */}
+          {currentKey && (
+            <button style={styles.startCta} onClick={() => startStep(currentKey)}>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <p style={styles.startCtaTitle}>{doneCount > 0 ? L('continuePlanBtn') : L('startPlanBtn')}</p>
+                <p style={styles.startCtaSub}>
+                  {L('nowPrefix')}: {stepTitle(currentKey)}{ctaDetailFor(currentKey) ? ` · ${ctaDetailFor(currentKey)}` : ''} · {L('minShort', { n: minutesForStep(currentKey) })}
+                </p>
+              </div>
+              <span style={styles.startCtaArrow}><AppIcon name="ArrowRight" size={18} color="var(--bento-ink)" /></span>
+            </button>
           )}
 
           <button style={styles.adjustBtn} onClick={() => onNavigate?.('adjustPlan')}>
             <AppIcon name="SlidersHorizontal" size={14} strokeWidth={2.2} color="var(--bento-ink)" />
             {L('adjustTitle')}
           </button>
-
-          {todaysSteps.length === 0 && (
-            <p style={styles.restNote}>{L('restDayToday')}</p>
-          )}
-
-          {todaysSteps.map(k => {
-            const done = !!todayRoutine[k]
-            const isCurrent = k === currentKey
-            const noPlanReading = hasNoPlan && k === 'reading' && !activeStudyId
-            if (done) {
-              return (
-                <button key={k} style={styles.doneCard} onClick={() => openDoneStep(k)}>
-                  <span style={styles.doneIcon}><AppIcon name="Check" size={15} color="var(--bento-sand)" /></span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={styles.doneTitle}>{stepTitle(k)}</p>
-                    <p style={styles.doneSub}>{doneSubFor(k)}</p>
-                  </div>
-                </button>
-              )
-            }
-            if (isCurrent) {
-              const isStudyNow = k === 'study' && activeStudyId
-              const title = isStudyNow ? (activeStudy?.passage || stepTitle(k)) : stepTitle(k)
-              const subtitle = noPlanReading
-                ? L('noPlanReadingSub')
-                : k === 'reading' ? L('readingResumeSubtitle', { title: todaySession?.title ?? '' })
-                : k === 'reflection' && activeStudyId ? L('studyQuestionNote')
-                : null
-              return (
-                <div key={k} style={styles.currentCard}>
-                  <div style={styles.currentHead}>
-                    <div style={styles.currentHeadLeft}>
-                      {isStudyNow && <span style={styles.studyDiamond} />}
-                      <p style={styles.currentLabel}>{L('nowStepOf', { i: todaysSteps.indexOf(k) + 1, total: todaysSteps.length })}</p>
-                    </div>
-                    {!noPlanReading && <span style={styles.currentTime}>{L('minShort', { n: minutesForStep(k) })}</span>}
-                  </div>
-                  {isStudyNow && (
-                    <p style={styles.studyDayLine}>{L('studyDayOf', { n: (activeStudy?.dayDone ?? 0) + 1, total: activeStudy?.dayTotal ?? 1 })}</p>
-                  )}
-                  <p style={styles.currentTitle}>{title}</p>
-                  {isStudyNow ? (
-                    <p style={styles.currentSubtitle}>{activeStudy?.title}</p>
-                  ) : subtitle && <p style={styles.currentSubtitle}>{subtitle}</p>}
-                  {isStudyNow && activeStudy?.dayTotal > 1 && (
-                    <div style={styles.studyBarRow}>
-                      {Array.from({ length: activeStudy.dayTotal }, (_, i) => (
-                        <span key={i} style={{ ...styles.studyBarSeg, background: i < activeStudy.dayDone ? 'var(--bento-accent)' : 'rgba(255,255,255,.14)' }} />
-                      ))}
-                    </div>
-                  )}
-                  <button style={styles.currentBtn} onClick={() => startStep(k)}>
-                    <span style={styles.currentBtnText}>{noPlanReading ? L('noPlanReadingBtn') : L(k === 'study' ? 'start_study' : `start_${k}`)}</span>
-                    <span style={styles.currentBtnArrow}>→</span>
-                  </button>
-                </div>
-              )
-            }
-            return (
-              <div key={k} style={styles.pendingCard}>
-                <span style={styles.pendingDot} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.pendingTitle}>{stepTitle(k)}</p>
-                  <p style={styles.pendingSub}>{noPlanReading ? L('noPlanReadingSub') : pendingSubFor(k)}</p>
-                </div>
-              </div>
-            )
-          })}
         </div>
 
         {/* Estudo pausando o plano principal (35b) — "Retomar já" acaba o
@@ -430,48 +484,44 @@ const styles = {
   totalPillNum: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff' },
   totalPillUnit: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.55)' },
 
-  timeStrip: { borderRadius: 20, background: 'var(--bento-card)', padding: '16px 0', display: 'flex' },
-  timeCol: { flex: 1, minWidth: 0, textAlign: 'center', padding: '0 4px' },
-  timeColLabel: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
-  timeColMin: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t4)', margin: 0 },
-  timeColNum: { fontSize: 24, fontWeight: 800, letterSpacing: '-1px', color: 'var(--bento-ink)' },
+  // Lista única dos passos (substitui a faixa de tempos + os 3 cartões
+  // soltos do modelo antigo — atualizacao-35-meu-plano/README.md).
+  stepsList: { borderRadius: 24, background: 'var(--bento-card)', overflow: 'hidden' },
+  stepRow: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', border: 'none', background: 'none', padding: '16px 18px', fontFamily: 'var(--font-bento)', textAlign: 'left', cursor: 'default' },
+  stepIconBase: { width: 32, height: 32, flexShrink: 0, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' },
+  stepIconDone: { background: 'var(--bento-sand-icon)' },
+  stepIconNow: { background: 'var(--bento-accent)' },
+  stepIconPending: { background: 'var(--bento-line)' },
+  stepIconOff: { border: '2px dashed var(--bento-divider)' },
+  stepDot: { width: 8, height: 8, borderRadius: '50%', background: 'var(--bento-t5)' },
+  stepNameRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 },
+  stepName: { fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1.2, margin: 0 },
+  stepNameOff: { color: 'var(--bento-t3)' },
+  nowPill: { flexShrink: 0, height: 20, padding: '0 8px', borderRadius: 99, background: 'rgba(240,102,43,.18)', display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--bento-now-text)' },
+  stepMeta: { fontSize: 11, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.3, margin: 0 },
+  stepTrailRow: { display: 'flex', gap: 3, marginTop: 7 },
+  stepTrailSeg: { flex: 1, height: 4, borderRadius: 99 },
+  stepMinCol: { flexShrink: 0, textAlign: 'right' },
+  stepMinNum: { fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
+  stepMinUnit: { fontSize: 11, fontWeight: 700, color: 'var(--bento-t4)' },
+  stepMinOff: { fontSize: 15, fontWeight: 800, color: 'var(--bento-t5)' },
+
+  // Botão único do dia — abre o passo da vez, emenda os seguintes.
+  startCta: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', border: 'none', background: 'var(--bento-ink)', borderRadius: 24, padding: '18px 18px 18px 20px', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
+  startCtaTitle: { fontSize: 18, fontWeight: 800, letterSpacing: '-.4px', color: '#fff', lineHeight: 1.2, margin: '0 0 4px' },
+  startCtaSub: { fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', lineHeight: 1.3, margin: 0 },
+  startCtaArrow: { width: 44, height: 44, flexShrink: 0, borderRadius: 15, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
   adjustBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 42, borderRadius: 15,
     border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer',
   },
-  restNote: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', margin: '4px 0' },
-
-  doneCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: 'var(--bento-sand)', border: 'none', borderRadius: 24, padding: '18px 20px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
-  doneIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  doneTitle: { fontSize: 15.5, fontWeight: 800, color: 'var(--bento-sand-ink-strong)', lineHeight: 1.2, margin: '0 0 3px' },
-  doneSub: { fontSize: 12, fontWeight: 500, color: 'var(--bento-sand-label)', lineHeight: 1.2, margin: 0 },
-
-  currentCard: { background: 'var(--bento-ink)', borderRadius: 28, padding: 24, color: 'white' },
-  currentHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 16px' },
-  currentHeadLeft: { display: 'flex', alignItems: 'center', gap: 8 },
-  currentLabel: { fontSize: 11, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
-  currentTime: { fontSize: 11.5, fontWeight: 600, lineHeight: 1, color: 'rgba(255,255,255,.5)' },
-  currentTitle: { fontSize: 27, fontWeight: 800, letterSpacing: '-1px', lineHeight: 1.1, margin: '0 0 6px' },
-  currentSubtitle: { fontSize: 13.5, fontWeight: 500, lineHeight: 1.4, color: 'rgba(255,255,255,.55)', margin: '0 0 20px' },
-  currentBtn: { height: 52, width: '100%', borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  currentBtnText: { fontSize: 15.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
-  currentBtnArrow: { fontSize: 15, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
-  studyDiamond: { width: 9, height: 9, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  studyDayLine: { fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 8px' },
-  studyBarRow: { display: 'flex', gap: 4, margin: '0 0 18px' },
-  studyBarSeg: { flex: 1, height: 5, borderRadius: 99 },
 
   pausedCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', border: 'none', background: 'var(--bento-card)', borderRadius: 24, padding: '16px 20px', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-bento)' },
   pausedIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   pausedTitle: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1.2, margin: '0 0 3px' },
   pausedSub: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.2, margin: 0 },
   pausedResumeLabel: { flexShrink: 0, fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)' },
-
-  pendingCard: { display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,.6)', borderRadius: 24, padding: '18px 20px' },
-  pendingDot: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: '2px dashed var(--bento-pending-border)', boxSizing: 'border-box' },
-  pendingTitle: { fontSize: 15.5, fontWeight: 800, color: 'var(--bento-t3)', lineHeight: 1.2, margin: '0 0 3px' },
-  pendingSub: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t4-soft)', lineHeight: 1.2, margin: 0 },
 
   handsFreeCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: 'var(--bento-card)', borderRadius: 24, padding: '18px 20px', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   handsFreeIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
