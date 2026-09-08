@@ -574,18 +574,21 @@ export default function HomeScreen({
               <p style={styles.planTitle}>{planTitleText}</p>
               {planSubtitleText && <p style={styles.continuityLine}>{planSubtitleText}</p>}
 
+              {/* README (fluxo de 34a): "quadros de tempo ► 35c Ajustar
+                  meu plano" — cada tile abre o ajuste de tempo/dias do
+                  passo, mesmo destino pros quatro. */}
               <div style={{ ...styles.tilesRow, ...(activeStepsToday.length >= 4 ? styles.tilesGrid4 : null) }}>
                 {activeStepsToday.map(k => {
                   const on = todaysSteps.includes(k)
                   const detail = tileDetailFor(k, on)
                   return (
-                    <div key={k} style={styles.tile}>
+                    <button key={k} type="button" style={styles.tile} onClick={() => onNavigate?.('adjustPlan')}>
                       <p style={styles.tileTop}>
                         {on ? <>{minutesForStep(k)}<span style={styles.tileTopUnit}> min</span></> : L('tileDayOff')}
                       </p>
                       <p style={styles.tileStepName}>{stepTitle(k)}</p>
                       {detail && <p style={styles.tileDetail}>{detail}</p>}
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -828,7 +831,7 @@ const styles = {
   // "desligado hoje" vira "dia off" no lugar do número.
   tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
   tilesGrid4: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
-  tile: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', boxSizing: 'border-box' },
+  tile: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', boxSizing: 'border-box', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: FONT },
   tileTop: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: '#fff', margin: 0 },
   tileTopUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
   tileStepName: { fontFamily: FONT, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.02em', color: 'rgba(255,255,255,.55)', margin: '2px 0 0' },
