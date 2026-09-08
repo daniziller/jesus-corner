@@ -1094,6 +1094,32 @@ export const STRINGS = {
       finishDayBtn: 'Terminar o dia',
       backToPlanLink: 'Voltar ao meu plano',
     },
+    // 37e (pacote 36-37, Bloco 3) — fecho da leitura, entre "Concluir" e a
+    // Reflexão. Cabeçalho segue o PNG, não o texto do handoff (divergiam —
+    // ela escolheu o PNG: "Antes de refletir" + "N min lidos", sem "passo
+    // N de M"). Tese/momentos/fio da história/oração vêm de
+    // api/generate-reading-summary.js; marcações/anotações vêm dos
+    // highlights de hoje (highlightsStore.js).
+    readingSummary: {
+      pageTitle: 'Antes de refletir',
+      minutesRead: '{n} min lidos',
+      loading: 'Preparando o resumo do capítulo...',
+      thesisLabel: 'O capítulo em uma frase',
+      momentsLabel: 'Os três momentos',
+      threadLabel: 'O fio da história:',
+      showsLabel: 'O que o capítulo mostra',
+      aboutGodLabel: 'Sobre Deus',
+      aboutCharacterLabel: 'Sobre {name}',
+      markedLabel: 'O que você marcou hoje',
+      markedCountOne: '{n} trecho',
+      markedCountMany: '{n} trechos',
+      notesLabel: 'Suas anotações',
+      editBtn: 'Editar',
+      prayerLabel: 'Uma oração antes de refletir',
+      prayerHint: 'Leia devagar, ou ore com as suas palavras.',
+      beginReflectionBtn: 'Começar a reflexão',
+      seeChapterAgainBtn: 'Ver o capítulo outra vez',
+    },
     // Bento 21c — fechamento do dia, tela inteiramente escura (como 13a e
     // 15e). Nunca fala de "sequência" — a meta é semanal, e um dia perdido
     // não aparece aqui (README §18). Aberta pelo fim da rotina guiada
@@ -3680,6 +3706,26 @@ export const STRINGS = {
       goToReadingBtn: 'Go to reading',
       finishDayBtn: 'Finish the day',
       backToPlanLink: 'Back to my plan',
+    },
+    readingSummary: {
+      pageTitle: 'Before you reflect',
+      minutesRead: '{n} min read',
+      loading: 'Preparing the chapter summary...',
+      thesisLabel: 'The chapter in one sentence',
+      momentsLabel: 'The three moments',
+      threadLabel: 'The thread of the story:',
+      showsLabel: 'What the chapter shows',
+      aboutGodLabel: 'About God',
+      aboutCharacterLabel: 'About {name}',
+      markedLabel: 'What you marked today',
+      markedCountOne: '{n} passage',
+      markedCountMany: '{n} passages',
+      notesLabel: 'Your notes',
+      editBtn: 'Edit',
+      prayerLabel: 'A prayer before you reflect',
+      prayerHint: 'Read it slowly, or pray in your own words.',
+      beginReflectionBtn: 'Begin reflecting',
+      seeChapterAgainBtn: 'See the chapter again',
     },
     routineComplete: {
       title: 'Routine done. {n} minutes.',

@@ -121,7 +121,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}
         onBack={() => setActivePlanId(null)}
-        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'themePlan', planId: activePlan.id, keys: [themeTextKey(heroSession)] })}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'themePlan', planId: activePlan.id, keys: [themeTextKey(heroSession)], book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
       />
     )
   }

@@ -243,7 +243,7 @@ export default function JourneyScreen({
         initialSessionId={initialSessionId}
         initialTextOpen={initialTextOpen}
         onBack={closeBlock}
-        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, type: heroSession.type })}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
         onJumpToChapter={openRecentChapter}
         onExitGuided={onExitGuided}
         onOpenGroupRoom={onOpenGroupRoom}
