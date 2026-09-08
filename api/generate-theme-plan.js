@@ -14,6 +14,7 @@
 // — este endpoint não persiste nada, só gera.
 import { createClient } from '@supabase/supabase-js'
 import { findThemePassages } from './_lib/ai.js'
+import { ALLOWED_STUDY_DAYS } from '../src/studies/studyDurationOptions.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { isAdminEmail } from './_lib/adminAuth.js'
 import { BIBLE_BLOCKS, WORDS_PER_MINUTE, PLANS } from '../src/data/bibleBlocks.js'
@@ -136,16 +137,22 @@ export default async function handler(req, res) {
     }
   }
 
-  // Quadro 22a: só um campo de texto livre (o assunto) — não existe mais
-  // título digitado à parte; a IA propõe o título junto com o resto (ver
-  // ThemePassagesSchema em api/_lib/ai.js).
-  const { scope, paceId, lang } = req.body ?? {}
+  // Quadro 22a/35d: só um campo de texto livre (o assunto) — não existe
+  // mais título digitado à parte; a IA propõe o título junto com o resto
+  // (ver buildThemePassagesSchema em api/_lib/ai.js). `days` (turno 35,
+  // 35d "Duração") é quantos dias o plano tem — a proposta final (35e)
+  // mostra uma linha por dia, então o schema da IA mira nesse número.
+  const { scope, paceId, lang, days } = req.body ?? {}
   const cleanScope = (scope ?? '').trim()
   if (!cleanScope || cleanScope.length > MAX_SCOPE_LENGTH) {
     return res.status(400).json({ error: 'invalid_scope' })
   }
   if (!ALLOWED_PACE_IDS.includes(paceId)) {
     return res.status(400).json({ error: 'invalid_pace' })
+  }
+  const cleanDays = ALLOWED_STUDY_DAYS.includes(days) ? days : null
+  if (!cleanDays) {
+    return res.status(400).json({ error: 'invalid_days' })
   }
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const folder = BIBLE_VERSIONS[cleanLang][0].folder
@@ -157,7 +164,7 @@ export default async function handler(req, res) {
 
   let passages, overview, aiTitle
   try {
-    const aiResult = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords)
+    const aiResult = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords, cleanDays)
     passages = aiResult.passages
     overview = (aiResult.overview ?? '').trim()
     // Cap defensivo — a IA já recebe a instrução de ser curta, mas isso
@@ -233,6 +240,11 @@ export default async function handler(req, res) {
     overview,
     lang: cleanLang,
     createdAt: new Date().toISOString(),
+    // `days` pedido (35d) — pode ser maior que passages.length de verdade
+    // (ver comentário em buildThemePassagesSchema, api/_lib/ai.js: um tema
+    // estreito às vezes não sustenta o número pedido; o cliente (35e)
+    // mostra o total REAL, nunca finge o pedido original).
+    days: cleanDays,
     passages: texts,
   }
 
