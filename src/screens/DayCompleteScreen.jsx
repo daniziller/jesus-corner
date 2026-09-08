@@ -66,6 +66,8 @@ export default function DayCompleteScreen({ session, authUser, steps, readingSes
       timeToday: L('timeTodayLabel'),
       weeksInGoal: L('weeksInGoalLabel'),
       whereInBible: L('whereInBibleLabel'),
+      day: L('dayLabel'),
+      myPhraseToday: L('myPhraseTodayLabel'),
     },
   }), [dayNumber, dateLabel, userName, titleWithName, titleWithoutName, phrase, minutes, totalSeconds, weeksInGoal, percentRead, chapterShort, lang])
 

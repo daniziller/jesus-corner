@@ -1271,6 +1271,8 @@ export const STRINGS = {
       timeTodayLabel: 'Tempo com Deus hoje',
       weeksInGoalLabel: 'Semanas cumprindo a meta',
       whereInBibleLabel: 'Onde estou na Bíblia',
+      dayLabel: 'Dia',
+      myPhraseTodayLabel: 'Minha frase de hoje',
     },
     handsFree: {
       introTitle: 'Modo mãos-livres',
@@ -3961,6 +3963,8 @@ export const STRINGS = {
       timeTodayLabel: 'Time with God today',
       weeksInGoalLabel: 'Weeks hitting the goal',
       whereInBibleLabel: 'Where I am in the Bible',
+      dayLabel: 'Day',
+      myPhraseTodayLabel: "Today's phrase",
     },
     handsFree: {
       introTitle: 'Hands-free mode',

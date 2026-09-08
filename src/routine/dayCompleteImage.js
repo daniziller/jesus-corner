@@ -37,7 +37,12 @@ function wrap(ctx, text, maxWidth) {
 // data: { dayNumber, dateLabel (já formatado, "terça, 2 de setembro"),
 //   name, chapterLabel (ou null — vira "Li X hoje" sem o nome), phrase
 //   (ou null), minutes: {prayer,reading,reflection} (segundos reais),
-//   totalMinutes, weeksInGoal, percentRead (0-100), percentReadChapter }.
+//   totalMinutes, weeksInGoal, percentRead (0-100), percentReadChapter,
+//   labels: { ..., day, myPhraseToday } }. `labels` já chega traduzida de
+//   DayCompleteScreen.jsx — nenhum texto fica preso em português aqui
+//   dentro (achado na conferência do handoff-app-completo: "DIA N" e
+//   "MINHA FRASE DE HOJE" eram os 2 únicos literais fixos do arquivo,
+//   saindo sempre em pt mesmo pra quem usa o app em inglês).
 // include: { phrase, times, whereInBible, name } — chips de 37c; qualquer
 // um desligado fecha o espaço (não deixa buraco), mesma regra do quadro.
 export async function renderDayCompleteImage(data, include) {
@@ -60,7 +65,7 @@ export async function renderDayCompleteImage(data, include) {
   ctx.textBaseline = 'top'
   ctx.font = font(800, 34); ctx.fillStyle = ACCENT
   ctx.letterSpacing = '3px'
-  ctx.fillText(`DIA ${data.dayNumber} · ${data.dateLabel.toUpperCase()}`, PAD, y)
+  ctx.fillText(`${data.labels.day.toUpperCase()} ${data.dayNumber} · ${data.dateLabel.toUpperCase()}`, PAD, y)
   ctx.letterSpacing = '0px'
   y += 74
 
@@ -84,7 +89,7 @@ export async function renderDayCompleteImage(data, include) {
     let py = y + cardPad
     ctx.font = font(800, 26); ctx.fillStyle = ACCENT
     ctx.letterSpacing = '2px'
-    ctx.fillText('MINHA FRASE DE HOJE', PAD + cardPad, py)
+    ctx.fillText(data.labels.myPhraseToday.toUpperCase(), PAD + cardPad, py)
     ctx.letterSpacing = '0px'
     py += 48
     ctx.font = font(500, 40, true); ctx.fillStyle = '#fff'
