@@ -56,9 +56,10 @@ export function noteUpdatedAtOf(entry) {
 export function noteSessionTitleOf(entry) {
   return (typeof entry === 'object' && entry?.sessionTitle) || null
 }
-// "Me lembrar às 18h" (quadro 29b, só a frase de aplicação) — intenção
-// real gravada junto da frase; a ENTREGA do aviso (push com o texto do
-// dia) fica pendente, ver comentário em ApplicationStepCard.jsx.
+// "Me lembrar às 18h" (quadro antigo 29b, só a frase de aplicação) —
+// intenção gravada junto da frase num campo que ainda existe no dado,
+// mas não tem mais controle de UI pra ligar (saiu do pacote 36-37/37a,
+// que não mostra esse toggle) nem entrega de aviso implementada.
 export function noteReminderRequestedOf(entry) {
   return (typeof entry === 'object' && !!entry?.reminderRequested) || false
 }

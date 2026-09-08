@@ -9,7 +9,6 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { getAskEnabled, setAskEnabled, getResponseTone, setResponseTone } from '../aiChat/aiPreferencesStore'
 import { getChapterContextEnabled, setChapterContextEnabled } from '../aiChat/chapterContextStore'
-import { getReflectionQuestionsEnabled, setReflectionQuestionsEnabled, clearAllReflections } from '../aiChat/reflectionQuestionsStore'
 import { getSaveQuestionsEnabled, setSaveQuestionsEnabled, clearAllPassageQuestions } from '../aiChat/passageQuestionStore'
 import { getGroupNoticeEnabled, setGroupNoticeEnabled } from '../groups/groupNoticeStore'
 import { getMyGroups } from '../groups/groupsStore'
@@ -29,7 +28,6 @@ export default function AiSettingsScreen({ session, onBack }) {
   // mesmo padrão de AdjustPlanScreen.jsx pros próprios campos dela.
   const [askOn, setAskOn] = useState(getAskEnabled)
   const [contextOn, setContextOn] = useState(getChapterContextEnabled)
-  const [reflectionOn, setReflectionOn] = useState(getReflectionQuestionsEnabled)
   const [tone, setTone] = useState(getResponseTone)
   const [saveOn, setSaveOn] = useState(getSaveQuestionsEnabled)
   // "Aviso do grupo" (quadro 10f): só aparece pra quem está num grupo, nasce
@@ -53,16 +51,12 @@ export default function AiSettingsScreen({ session, onBack }) {
 
   function toggleAsk() { setAskEnabled(!askOn); setAskOn(!askOn) }
   function toggleContext() { setChapterContextEnabled(!contextOn); setContextOn(!contextOn) }
-  function toggleReflection() { setReflectionQuestionsEnabled(!reflectionOn); setReflectionOn(!reflectionOn) }
   function toggleSave() { setSaveQuestionsEnabled(!saveOn); setSaveOn(!saveOn) }
   function chooseTone(id) { setResponseTone(id); setTone(id) }
 
-  // Uma ação só, os dois stores (10a/10b e 10d são "minhas perguntas" pra
-  // quem usa — ver comentário em reflectionQuestionsStore.js).
   function clearQuestions() {
     if (!window.confirm(L('clearConfirm'))) return
     clearAllPassageQuestions()
-    clearAllReflections()
   }
 
   return (
@@ -83,8 +77,7 @@ export default function AiSettingsScreen({ session, onBack }) {
       <div style={styles.body}>
         <div style={styles.card}>
           <ToggleRow label={L('askLabel')} sub={L('askSub')} value={askOn} onChange={toggleAsk} />
-          <ToggleRow label={L('contextLabel')} sub={L('contextSub')} value={contextOn} onChange={toggleContext} />
-          <ToggleRow label={L('reflectionLabel')} sub={L('reflectionSub')} value={reflectionOn} onChange={toggleReflection} last={!inGroup} noBorder={!inGroup} />
+          <ToggleRow label={L('contextLabel')} sub={L('contextSub')} value={contextOn} onChange={toggleContext} last={!inGroup} noBorder={!inGroup} />
           {inGroup && (
             <ToggleRow label={L('groupNoticeLabel')} sub={L('groupNoticeSub')} value={groupNoticeOn} onChange={toggleGroupNotice} last noBorder />
           )}
