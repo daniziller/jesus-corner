@@ -11,6 +11,9 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 import BookChapterScreen from './BookChapterScreen'
+import SearchResultsScreen from './SearchResultsScreen'
+import ThemeAsStudyScreen from './ThemeAsStudyScreen'
+import { getThemeById } from '../bible/themes'
 
 // "Você está em Gênesis 41" (progresso real) ou "Mateus é um bom começo"
 // (zero progresso ainda) — quadro 28a. blocksSubset = os 4 blocos de um
@@ -71,10 +74,15 @@ function sectionLabelFor(block, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom, onPastRootChange,
+  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
+  // 39k (Bloco 6) — string quando a busca de verdade está aberta (Enter no
+  // campo acima), null quando não. 39l (themeOpenId) empilha POR CIMA de
+  // 39k (não substitui: "‹" de 39l volta pra 39k com a mesma busca).
+  const [searchOpen, setSearchOpen] = useState(null)
+  const [themeOpenId, setThemeOpenId] = useState(null)
   // Seletor de versão (39b/39c cabeçalho, regra 3 da aba inteira: "vale
   // pra aba toda"). Só 1 versão por idioma hoje — ver BibleVersionChip.jsx.
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
@@ -135,6 +143,9 @@ export default function JourneyScreen({
   const [expandedBookKey, setExpandedBookKey] = useState(null)
   const [expandedInitialSessionId, setExpandedInitialSessionId] = useState(null)
   const [expandedInitialTextOpen, setExpandedInitialTextOpen] = useState(false)
+  // 39k/39l (Bloco 6): tocar um cartão de busca/tema chega aqui já com um
+  // versículo pra focar — ver initialFocusVerse em ReadingBlockView.jsx.
+  const [expandedInitialFocusVerse, setExpandedInitialFocusVerse] = useState(null)
 
   // "Barra de abas fixa só em 39a" — avisa App.jsx assim que a navegação
   // livre sai da raiz (39b, 39c, ou a leitura embutida dentro de 39c),
@@ -165,11 +176,26 @@ export default function JourneyScreen({
   // (jumpToBook abaixo). Guarda o bloco real (não um id sintético) pra
   // manter compatível o "onde parei"/"lidos recentemente" (lastOpenedChapterStore/
   // recentChaptersStore, gravados por ReadingBlockView.jsx usando block.id).
-  function expandBook(block, bookName, sessionIdToFeature, textOpen) {
+  function expandBook(block, bookName, sessionIdToFeature, textOpen, focusVerse) {
     setExpandedBookKey(`${block.id}:${bookName}`)
     setExpandedInitialSessionId(sessionIdToFeature)
     setExpandedInitialTextOpen(textOpen)
+    setExpandedInitialFocusVerse(focusVerse ?? null)
     setLastViewedBlockId(block.id)
+  }
+
+  // Abre um capítulo/versículo específico vindo de FORA da navegação livre
+  // normal (39k/39l, Bloco 6: cartão de versículo/trecho) — acha o bloco a
+  // partir do NOME do livro (`blocks` já é a lista fixa de sempre) e cai
+  // direto na leitura, no capítulo certo, com o versículo em foco.
+  function openChapterFromSearch(book, chapter, verse) {
+    const block = blocks.find(b => b.books.includes(book))
+    if (!block) return
+    const sessions = browseSessionsByBlock[block.id] ?? []
+    const target = sessions.find(sn => sn.book === book && sn.chStart <= chapter && chapter <= sn.chEnd)
+    setSearchOpen(null)
+    setThemeOpenId(null)
+    expandBook(block, book, target?.id ?? null, true, verse != null ? { chapter, verse } : null)
   }
 
   // Pulo pra um livro vindo de FORA da lista de livros visível agora
@@ -228,6 +254,7 @@ export default function JourneyScreen({
     setLastViewedBlockId(expandedBookKey ? Number(expandedBookKey.split(':')[0]) : lastViewedBlockId)
     setExpandedBookKey(null)
     setExpandedInitialSessionId(null)
+    setExpandedInitialFocusVerse(null)
   }
 
   // Toque direto numa sigla de livro (grade de 5f ou busca) — navega pra
@@ -303,6 +330,39 @@ export default function JourneyScreen({
         onBack={closeBook}
         initialSessionId={expandedInitialSessionId}
         initialTextOpen={expandedInitialTextOpen}
+        initialFocusVerse={expandedInitialFocusVerse}
+      />
+    )
+  }
+
+  // 39l empilha por cima de 39k (não substitui) — "‹" de 39l volta pra 39k
+  // com a MESMA busca; "‹" de 39k volta pro mapa/lista de livros de sempre.
+  if (themeOpenId != null) {
+    const theme = getThemeById(themeOpenId)
+    if (theme) {
+      return (
+        <ThemeAsStudyScreen
+          session={session}
+          theme={theme}
+          completedSet={completedSet}
+          onBack={() => setThemeOpenId(null)}
+          onOpenChapter={openChapterFromSearch}
+          onBuildStudy={onBuildThemeStudy}
+        />
+      )
+    }
+  }
+  if (searchOpen != null) {
+    return (
+      <SearchResultsScreen
+        session={session}
+        initialQuery={searchOpen}
+        sessionsByBlock={browseSessionsByBlock}
+        completedSet={completedSet}
+        onBack={() => { setSearchOpen(null); setSearchQuery('') }}
+        onOpenChapter={openChapterFromSearch}
+        onOpenBook={(block, bookName) => { setSearchOpen(null); setSearchQuery(''); openBook(block, bookName) }}
+        onOpenTheme={id => setThemeOpenId(id)}
       />
     )
   }
@@ -322,11 +382,11 @@ export default function JourneyScreen({
     ? `${freeReadWhen.day === 'today' ? t('journey.whenToday', undefined, lang) : freeReadWhen.day === 'yesterday' ? t('journey.whenYesterday', undefined, lang) : freeReadWhen.day} ${t(`journey.whenPeriod${freeReadWhen.period === 'morning' ? 'Morning' : freeReadWhen.period === 'afternoon' ? 'Afternoon' : 'Evening'}`, undefined, lang)}`
     : ''
 
-  // Busca (39a → 39k) — o campo é só visual neste bloco: a busca de
-  // verdade (índice de texto, palpite de referência, temas) é o Bloco 6
-  // desta leva (39k/39l). Até lá, digitar/Enter não navega pra lugar
-  // nenhum — nem essa tela nem 39b filtram mais por texto livre (o filtro
-  // por texto saiu; os chips de seção continuam).
+  // Busca (39a → 39k, Bloco 6) — Enter aqui abre SearchResultsScreen (ver
+  // searchOpen acima) com a busca de verdade (índice de texto, palpite de
+  // referência, temas). O campo em 39a nunca filtrou a lista de livros por
+  // texto (só os chips de seção fazem isso) — `trimmedQuery` só alimenta o
+  // Enter.
   const trimmedQuery = searchQuery.trim()
 
   const atBooks = flattenBooks(blocks.filter(b => b.id <= 4), lang)
@@ -385,7 +445,7 @@ export default function JourneyScreen({
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (trimmedQuery) setSearchOpen(trimmedQuery) } }}
             placeholder={t('journey.searchPlaceholder', undefined, lang)}
             style={styles.searchInput}
           />
@@ -484,11 +544,9 @@ export default function JourneyScreen({
                 antigo 28b: cabeçalho com contagem real + seletor de
                 versão (novo, mora aqui porque "vale pra aba inteira"),
                 chips SEMPRE visíveis (não somem ao buscar — a busca por
-                texto livre saiu daqui, é o Bloco 6/39k desta leva; até
-                lá o campo de 39a não navega pra lugar nenhum, ver
-                comentário em openSearchTarget), e cabeçalho de seção
-                SEMPRE aparecendo (antes só aparecia filtrando por busca —
-                o quadro pede sempre). */}
+                texto livre saiu daqui pro Bloco 6/39k, ver trimmedQuery
+                acima), e cabeçalho de seção SEMPRE aparecendo (antes só
+                aparecia filtrando por busca — o quadro pede sempre). */}
             <div style={styles.bookListHeader}>
               <button style={styles.backChip} onClick={() => setTestamentEntered(false)} aria-label={t('a11y.goBack', undefined, lang)}>
                 <AppIcon name="ChevronLeft" size={15} strokeWidth={2.4} color="var(--bento-ink)" />

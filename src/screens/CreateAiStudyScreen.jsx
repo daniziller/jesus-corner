@@ -17,7 +17,7 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { buildBookPlan, allBooksFlat } from '../themePlans/bookPlan'
 import { buildGroupPlan } from '../groups/groupBookPlan'
-import { ALLOWED_STUDY_DAYS, DEFAULT_STUDY_DAYS } from '../studies/studyDurationOptions'
+import { CREATE_STUDY_DURATION_CHIPS, DEFAULT_STUDY_DAYS } from '../studies/studyDurationOptions'
 
 const FONT = 'var(--font-bento)'
 const MAX_SCOPE_LENGTH = 200
@@ -200,7 +200,7 @@ export default function CreateAiStudyScreen({ session, initialText = '', onBack,
               <span style={s.durationValue}>{L('durationDays', { n: days })}</span>
             </div>
             <div style={s.durationRow}>
-              {ALLOWED_STUDY_DAYS.map(n => (
+              {CREATE_STUDY_DURATION_CHIPS.map(n => (
                 <button key={n} style={{ ...s.durationChip, ...(days === n ? s.durationChipOn : {}) }} onClick={() => setDays(n)}>
                   {n}
                 </button>
