@@ -17,11 +17,13 @@ import { splitBold } from '../utils/boldSubstring'
 import { getStepDays, setStepDays as persistStepDays } from '../routine/stepDaysStore'
 import { getCustomBookOrder, setCustomBookOrder, resolveBookOrder, canonicalBookOrder, resolveNextChapter } from '../reading/bibleOrderStore'
 import { getReadingPaceSessions, getUseLearnedPace, setUseLearnedPace } from '../reading/readingPaceStore'
-import { estimateReadingPace, earlyReadingPace, chaptersPerSession } from '../reading/readingPaceMath'
+import { estimateReadingPace, earlyReadingPace, chaptersPerSession, previewPaceBlock } from '../reading/readingPaceMath'
 import { computeProjection, totalBibleChapters } from '../plan/readingProjection'
 import { BIBLE_TOTAL_WORDS } from '../data/bibleBlocks'
+import { getChapterWords } from '../data/chapterWordCounts'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
+import { bookNameFor } from '../utils/progress'
 
 const AVG_WORDS_PER_CHAPTER = BIBLE_TOTAL_WORDS / totalBibleChapters()
 
@@ -87,7 +89,13 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
   // comparar ritmos entre si sem depender de quanto a pessoa configurou.
   // "Hoje daria X em Y min" usa os minutos REAIS configurados pra leitura.
   const chaptersFor15 = chaptersPerSession(pace.wordsPerMinute, 15, AVG_WORDS_PER_CHAPTER)
-  const chaptersToday = chaptersPerSession(pace.wordsPerMinute, readingMinutes, AVG_WORDS_PER_CHAPTER)
+  // "Hoje daria Gênesis 41–42 em 15 min" (35i) — o bloco de VERDADE que o
+  // ritmo monta a partir de onde a pessoa está, não uma contagem abstrata
+  // (ver previewPaceBlock, mesma regra de tolerância de 15% do HANDOFF).
+  const todayBlock = position ? previewPaceBlock(getChapterWords(position.book), position.chapter, pace.wordsPerMinute, readingMinutes) : null
+  const todayBlockLabel = todayBlock
+    ? `${bookNameFor(position.book, lang)} ${todayBlock.chStart === todayBlock.chEnd ? todayBlock.chStart : `${todayBlock.chStart}–${todayBlock.chEnd}`}`
+    : ''
 
   const versionId = getSelectedVersionId(lang)
   const version = findBibleVersion(versionId)
@@ -205,7 +213,7 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ ...styles.rowTitle, color: '#fff' }}>{L('paceToggleTitle')}</p>
               <p style={{ ...styles.rowSub, color: 'rgba(255,255,255,.5)' }}>
-                {useLearnedPace ? L('paceToggleOnSub', { chapters: chaptersToday, min: readingMinutes }) : L('paceToggleOffSub')}
+                {useLearnedPace ? L('paceToggleOnSub', { block: todayBlockLabel, min: readingMinutes }) : L('paceToggleOffSub')}
               </p>
             </div>
             <button

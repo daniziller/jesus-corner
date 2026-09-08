@@ -63,3 +63,29 @@ export function chaptersPerSession(wordsPerMinute, minutesPerDay, avgWordsPerCha
 export function pushPaceSession(sessions, sample) {
   return [sample, ...(sessions ?? [])].slice(0, MOVING_WINDOW)
 }
+
+// "Hoje daria Gênesis 41–42 em 15 min" (35i, interruptor "Montar os blocos
+// pelo meu ritmo") — o bloco de capítulos que o ritmo de verdade monta a
+// partir de ONDE a pessoa está, não uma contagem abstrata
+// (chaptersPerSession acima já cobria "1,4 capítulo", mas o quadro pede o
+// intervalo de capítulos em si). Mesma regra de "Montagem do bloco" do
+// HANDOFF: maior conjunto de capítulos consecutivos, a partir de chStart,
+// cujo tempo estimado caiba em minutesPerDay + 15% de tolerância — nunca
+// corta um capítulo ao meio, e um capítulo sozinho que já estoura o tempo
+// vira o bloco inteiro do dia. Nunca cruza pro livro seguinte (mesma regra
+// de buildBookSessions em data/dynamicSessions.js) — para no último
+// capítulo do livro se o ritmo desse pra mais.
+export function previewPaceBlock(chapterWords, chStart, wordsPerMinute, minutesPerDay) {
+  const targetWords = wordsPerMinute * minutesPerDay * 1.15
+  const lastChapter = chapterWords.length
+  if (!lastChapter || chStart > lastChapter) return null
+  let chEnd = chStart
+  let sum = chapterWords[chStart - 1] ?? 0
+  for (let ch = chStart + 1; ch <= lastChapter; ch++) {
+    const next = sum + chapterWords[ch - 1]
+    if (next > targetWords) break
+    sum = next
+    chEnd = ch
+  }
+  return { chStart, chEnd }
+}

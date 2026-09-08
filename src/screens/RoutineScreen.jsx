@@ -246,7 +246,12 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
             {orderedKeys.map((k, i) => {
               const status = statusFor(k, { offSteps, todayRoutine, currentKey })
               const isStudyNow = status === 'now' && k === 'study' && activeStudyId
-              const title = isStudyNow ? (activeStudy?.passage || stepTitle(k)) : stepTitle(k)
+              // 35b: o nome da linha continua "Estudo" (nunca vira a
+              // referência) — mesmo padrão de Leitura, que também não troca
+              // "Leitura" pelo capítulo. A referência mora na meta
+              // (buildRowMeta → "Ansiedade · dia 2 de 7") e no botão único
+              // do dia (ctaDetailFor → "Agora: Estudo · Filipenses 4:4-9").
+              const title = stepTitle(k)
               const meta = metaFor(k, status)
               const trail = isStudyNow && activeStudy?.dayTotal > 1 ? { done: activeStudy.dayDone, total: activeStudy.dayTotal } : null
               const rowStyle = {
