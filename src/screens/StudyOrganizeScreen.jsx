@@ -19,6 +19,7 @@ import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { getStudyFinishPrefs, setStudyFinishPrefs } from '../studies/studyFinishPrefsStore'
+import { naturalDayListSentence } from '../routine/weeklyDaysMath'
 
 function weeksLabel(totalDays, daysPerWeek, lang) {
   const L = (k, vars) => t(`studyOrganize.${k}`, vars, lang)
@@ -62,7 +63,9 @@ export default function StudyOrganizeScreen({ session, onEndStudy, onNavigate, o
   }, [activeStudyId])
 
   const daysPerWeek = stepDays ? stepDays.study.filter(Boolean).length : 0
-  const studyDaysAbbr = stepDays ? abbr.filter((_, i) => stepDays.study[i]).join(', ') : ''
+  // "Seg, qua e sex voltam a ser leitura contínua" — frase, não rótulo
+  // (ver naturalDayListSentence, diferente do join simples usado em 35c/35i).
+  const studyDaysAbbr = stepDays ? naturalDayListSentence(stepDays.study, abbr, lang) : ''
 
   function sourceLabel() {
     if (source === 'ai') return t('studyOrganize.createdByAi', undefined, lang) || ''

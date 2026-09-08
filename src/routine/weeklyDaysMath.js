@@ -28,6 +28,23 @@ export const WEEKDAY_FULL = {
   en: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
 }
 
+// "Seg, qua e sex" (35j: "Seg, qua e sex voltam a ser leitura contínua") —
+// lista de dias como FRASE, não como rótulo compacto. Diferente do simples
+// `abbr.filter(...).join(', ')` usado em rótulos curtos como "ter, qui,
+// sáb" (35c/35i, ver readingSummary/dayBlockLabel) — que nunca capitaliza
+// e nunca usa "e", porque ali é só uma etiqueta, não o sujeito de uma
+// frase. Em português, só a 1ª abreviação mantém a maiúscula (o resto é
+// substantivo comum no meio da frase); em inglês as abreviações de dia
+// ficam sempre capitalizadas, então não abaixa o caso.
+export function naturalDayListSentence(days, abbr, lang) {
+  const picked = abbr.filter((_, i) => days[i])
+  if (picked.length === 0) return ''
+  const items = lang === 'en' ? picked : picked.map((d, i) => (i === 0 ? d : d.toLowerCase()))
+  if (items.length === 1) return items[0]
+  const conj = lang === 'en' ? 'and' : 'e'
+  return `${items.slice(0, -1).join(', ')} ${conj} ${items[items.length - 1]}`
+}
+
 // "Ritmo da semana" (5a/26d) — só escolhe QUANTOS dias (3 a 7), não QUAIS;
 // vira um array de 7 booleanos usando os presets de cima quando existe um
 // exato (3/4/5/7), ou o padrão "de segunda pra cá, sem domingo" pra 6 (o
