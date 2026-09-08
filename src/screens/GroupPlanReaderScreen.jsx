@@ -35,7 +35,7 @@ export default function GroupPlanReaderScreen({ session, authUser, completedSet,
       onToggleSession={onToggleSession}
       onToggleChapter={onToggleChapter}
       onBack={onBack}
-      onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'groupPlanReader', planId: plan.id, keys: [themeTextKey(heroSession)] })}
+      onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'groupPlanReader', planId: plan.id, keys: [themeTextKey(heroSession)], book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
     />
   )
 }

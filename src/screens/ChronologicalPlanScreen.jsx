@@ -63,7 +63,7 @@ export default function ChronologicalPlanScreen({
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}
         onBack={() => setActiveMovementId(null)}
-        onGoToReflection={() => onGoToReflectionFrom?.({ tab: 'chronologicalPlan', movementId: activeMovementId })}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'chronologicalPlan', movementId: activeMovementId, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
       />
     )
   }

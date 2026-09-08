@@ -22,6 +22,7 @@ import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import PrayerRequestsScreen from './screens/PrayerRequestsScreen'
 import BlessingScreen from './screens/BlessingScreen'
+import ReadingSummaryScreen from './screens/ReadingSummaryScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
 import AdjustPlanScreen from './screens/AdjustPlanScreen'
@@ -1534,12 +1535,26 @@ export default function App() {
     goToTab('chronologicalPlan')
   }
 
-  // "Ir para Reflexão" a partir de uma sessão de leitura recém-concluída
-  // (ver ReadingBlockView.jsx/onGoToReflection, chamado por JourneyScreen/
-  // ThemePlanScreen/ChronologicalPlanScreen) — guarda COMO voltar exatamente
-  // pra essa sessão antes de trocar de aba (ver backToLastReadSession).
+  // "Concluir"/"Finalizar por aqui" numa sessão de leitura (ver
+  // ReadingBlockView.jsx/onGoToReflection, chamado por JourneyScreen/
+  // ThemePlanScreen/ChronologicalPlanScreen/GroupPlanReaderScreen/
+  // BookChapterScreen — todos só encapam ReadingBlockView, então este é o
+  // ÚNICO ponto de saída da leitura) — guarda COMO voltar exatamente pra
+  // essa sessão (ver backToLastReadSession) e abre 37e (pacote 36-37,
+  // ReadingSummaryScreen) ANTES da Reflexão, não mais direto nela. Mesmo
+  // padrão arquitetural de 36f (Oração também passa por uma tela de
+  // transição própria antes do próximo passo, em vez de pular direto).
+  // Marcar via checkbox solto (toggleChapter/toggleSession, sem passar por
+  // "Concluir") continua indo direto — o handoff só pede 37e nesses dois
+  // gatilhos específicos.
   function goToReflectionFrom(descriptor) {
     setLastReadSession(descriptor)
+    goToTab('readingSummary')
+  }
+
+  // Botão "Começar a reflexão" de 37e — o que goToReflectionFrom fazia
+  // direto antes desta tela existir.
+  function beginReflectionFromSummary() {
     goToTab('reflection')
   }
 
@@ -2338,16 +2353,16 @@ export default function App() {
   // Bento) precisa pra ancorar as perguntas — diferente de
   // session.todaySession, que já pode ter avançado pro PRÓXIMO capítulo
   // assim que este foi marcado como lido (ver findCurrentReadingSession).
-  // Vem direto no descriptor (ver onGoToReflectionFrom em JourneyScreen.jsx)
+  // Vem direto no descriptor (ver onGoToReflectionFrom em JourneyScreen.jsx
+  // e nos outros 4 lugares que montam o mesmo formato — pacote 36-37,
+  // 37e, precisou de book/chStart/chEnd em TODOS eles, não só 'journey')
   // em vez de resolvido aqui por blockId+sessionId — sessionId sozinho é
   // AMBÍGUO (sessionsByBlock do plano fixo e browseSessionsByBlock da
   // navegação livre numeram sessões independentemente dentro do mesmo
   // bloco, então o mesmo id pode existir com book/chapter diferentes nos
-  // dois; só quem monta o descriptor sabe de qual dos dois veio). Só
-  // existe pra 'journey' — plano por tema/cronológico caem no fluxo antigo
-  // da Reflexão, sem perguntas geradas (ver ReflectionScreen.jsx).
-  const lastReadChapterInfo = (lastReadSession?.tab === 'journey' && lastReadSession.type !== 'reflection' && lastReadSession.book)
-    ? { book: lastReadSession.book, bookEn: lastReadSession.bookEn, chStart: lastReadSession.chStart, chEnd: lastReadSession.chEnd }
+  // dois; só quem monta o descriptor sabe de qual dos dois veio).
+  const lastReadChapterInfo = (lastReadSession?.type !== 'reflection' && lastReadSession?.book)
+    ? { book: lastReadSession.book, bookEn: lastReadSession.bookEn, chStart: lastReadSession.chStart, chEnd: lastReadSession.chEnd, words: lastReadSession.words }
     : null
 
   // Próximo livro depois do atual, na ordem do plano — "Próximo: Êxodo."
@@ -2567,6 +2582,10 @@ export default function App() {
     // dentro de Meu Plano: fica fora de navHidden de propósito (barra de
     // abas continua fixa no rodapé, ver handoff).
     prayerRequests: <PrayerRequestsScreen session={session} authUser={authUser} onBack={goBack} />,
+    // Pacote 36-37, 37e — fecho da leitura, sempre entre "Concluir"/
+    // "Finalizar por aqui" (ReadingBlockView.jsx) e a Reflexão (ver
+    // goToReflectionFrom/beginReflectionFromSummary acima).
+    readingSummary: <ReadingSummaryScreen session={session} authUser={authUser} descriptor={lastReadSession} onBeginReflection={beginReflectionFromSummary} onBackToReading={backToLastReadSession} />,
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
@@ -2628,7 +2647,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
     || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
@@ -2642,7 +2661,7 @@ export default function App() {
   // diferente de 35d/35e (createAiStudy/studyProposalNew), que têm botão
   // primário fixo no rodapé no lugar da barra, como o antigo createStudy/
   // studyProposal já tinham.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'routineComplete', 'language', 'groupAdmin', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'routineComplete', 'language', 'groupAdmin', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
   const isAdminScreen = activeTab === 'admin'
 
   return (

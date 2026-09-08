@@ -475,6 +475,52 @@ ${buildFieldsLangInstruction(lang, 'questions')}`,
   return output
 }
 
+// Fecho da leitura (37e, pacote 36-37) — usado por
+// api/generate-reading-summary.js. Mesmo espírito de cache compartilhado
+// de generateChapterContext/generateReflectionQuestions: o conteúdo é
+// igual pra quem lê o mesmo trecho, cacheado por book+chStart+chEnd+lang.
+// Cada "momento" vem com chapter/verseStart/verseEnd EXPLÍCITOS (não uma
+// faixa em texto livre) de propósito — é o que permite
+// api/generate-reading-summary.js conferir contra o texto real da versão
+// do usuário antes de mostrar (mesmo espírito de verifyCitation em
+// api/ask-about-passage.js): se a faixa não existir de verdade no
+// capítulo, a resposta inteira é descartada, nunca sai meio-verificada.
+const ReadingSummarySchema = z.object({
+  thesis: z.string().describe('Uma frase (no idioma pedido) resumindo a tese central do trecho lido — o que MUDA ou se resolve nele, não uma descrição genérica do conteúdo.'),
+  moments: z.array(z.object({
+    label: z.string().describe('Nome curto do momento (2-4 palavras, no idioma pedido), ex: "Os sonhos".'),
+    chapter: z.number().int().describe('O número do capítulo (dentro da faixa lida) onde este momento acontece.'),
+    verseStart: z.number().int().min(1).describe('Primeiro versículo deste momento, dentro do capítulo acima.'),
+    verseEnd: z.number().int().min(1).describe('Último versículo deste momento (igual a verseStart se for um só).'),
+    text: z.string().describe('Uma frase (no idioma pedido) descrevendo o que acontece nesse momento especificamente.'),
+  })).length(3).describe('Exatamente 3 momentos, em ordem cronológica dentro do trecho, cobrindo do início ao fim do que foi lido (sem sobrepor faixas de versículo).'),
+  threadOfStory: z.string().describe('Uma frase (no idioma pedido) ligando este trecho ao que veio ANTES e ao que vem DEPOIS na história bíblica mais ampla — o que faz a Bíblia parecer uma coisa só, não capítulos soltos. Pode citar o capítulo anterior/seguinte por nome.'),
+  aboutGod: z.string().describe('Uma frase (no idioma pedido) sobre o que este trecho revela especificamente sobre o caráter/ação de Deus — ancorada no texto, não genérica.'),
+  characterName: z.string().describe('O nome (no idioma pedido) do personagem humano central deste trecho — quem protagoniza a ação.'),
+  aboutCharacter: z.string().describe('Uma frase (no idioma pedido) sobre o que este trecho revela sobre esse personagem — seu caráter, escolha ou transformação neste momento específico da história dele.'),
+  prayer: z.string().describe('Uma oração curta (3-4 frases, no idioma pedido, segunda pessoa — falando COM Deus, não sobre o trecho), nascida do que foi lido (cite o tema/situação do trecho), preparando a pessoa pra refletir em seguida. Nunca genérica a ponto de servir pra qualquer capítulo.'),
+})
+
+export async function generateReadingSummary({ book, chStart, chEnd, chapterText, bookInfo, lang }) {
+  const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
+  const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: ReadingSummarySchema }),
+    prompt: `Você é um guia devocional. Uma pessoa acabou de terminar de ler ${book} ${range} num app de leitura bíblica e vai ver um fecho antes de refletir — um resumo pra fixar o que leu, não uma nova explicação.
+
+Visão geral do livro: ${overview}
+
+Texto completo que a pessoa acabou de ler (capítulo(s) ${range} de ${book}):
+"${chapterText}"
+
+Gere o fecho da leitura. Regra inegociável: cada "momento" precisa apontar pra versículos DE VERDADE dentro do texto acima (chapter/verseStart/verseEnd corretos) — nunca invente uma faixa.
+
+${buildFieldsLangInstruction(lang, 'thesis, moments, threadOfStory, aboutGod, characterName, aboutCharacter, prayer')}`,
+  })
+  return output
+}
+
 // Sugestões de pergunta sobre o trecho selecionado (menu "Perguntar", tela
 // 10a do redesign Bento — ver ADENDO: "até três sugestões de pergunta
 // geradas para aquele trecho... as sugestões mudam com o trecho"). Mesmo
