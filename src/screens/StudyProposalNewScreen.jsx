@@ -19,12 +19,6 @@ import AppIcon from '../icons/AppIcon'
 
 const FONT = 'var(--font-bento)'
 
-function addDaysLabel(n, lang) {
-  const d = new Date()
-  d.setDate(d.getDate() + n)
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
-}
-
 export default function StudyProposalNewScreen({ session, plan, mode = 'generate', onBack, onRefazer, onSwapDay, onSaveForLater, onStart }) {
   const lang = session.lang
   const L = (k, vars) => t(`studyProposal.${k}`, vars, lang)
@@ -40,8 +34,15 @@ export default function StudyProposalNewScreen({ session, plan, mode = 'generate
   const canRegenerate = mode === 'generate' && !!plan.scope
 
   const startedToday = session.todaySession?.progress > 0
-  const pausedBook = session.todaySession?.book ?? null
-  const pausedChapter = session.todaySession?.chStart ?? null
+  // "Enquanto isso" (35e) — achado conferindo Hoje contra Meu Plano
+  // (handoff-app-completo, 34b/34c): trilhas independentes, não existe
+  // mais "a leitura pausa até o estudo acabar" (o quadro original do
+  // pacote ainda mostra esse texto — "Gênesis pausa em 41..." —, mas ele
+  // é anterior à decisão "34b/34c vencem — Meu Plano perde a pausa", que
+  // tirou pausedAtBook/resumesAt de vez, ver activeStudyStore.js). O
+  // aviso agora só tranquiliza que a leitura contínua não muda, sem
+  // inventar uma data de retorno que não existe mais.
+  const hasReadingPlan = !session.hasNoPlan
 
   async function handleSwap(index) {
     if (!canRegenerate || swappingIndex != null) return
@@ -141,12 +142,10 @@ export default function StudyProposalNewScreen({ session, plan, mode = 'generate
           <p style={s.verifiedText}>{passages.length === 1 ? L('verifiedLineOne') : L('verifiedLineMany', { n: passages.length })}</p>
         </div>
 
-        {mode === 'generate' && pausedBook && pausedChapter && (
+        {mode === 'generate' && hasReadingPlan && (
           <div style={s.sandCard}>
             <p style={s.sandLabel}>{L('meanwhileLabel')}</p>
-            <p style={s.sandText}>
-              {L('meanwhileText', { book: pausedBook, chapter: pausedChapter, date: addDaysLabel(passages.length, lang) })}
-            </p>
+            <p style={s.sandText}>{L('meanwhileTextIndependent')}</p>
           </div>
         )}
       </div>

@@ -1669,7 +1669,7 @@ export const STRINGS = {
       authorTeam: 'Feito pela equipe',
       authorBy: 'por {author}',
       followersCount: '{n} pessoas seguindo',
-      trustNote: 'Estudo do banco público é revisado antes de entrar, e todo trecho citado é conferido contra o texto da versão do usuário.',
+      trustNote: 'Estudo do banco público é revisado antes de entrar, e todo trecho citado é conferido contra o texto da sua versão.',
       emptyResults: 'Nada encontrado com esse termo.',
     },
     createStudy: {
@@ -1693,6 +1693,13 @@ export const STRINGS = {
       formatGroupSub: 'só admin',
       bookPickerLabel: 'Escolha o livro',
       replaceNote: 'Enquanto durar, substitui a leitura do dia. Seu plano atual fica pausado e volta sozinho no fim.',
+      // 35d (CreateAiStudyScreen.jsx) — trilhas independentes: o estudo
+      // novo não substitui nem pausa a leitura contínua, os dois têm dias
+      // próprios (mesmo motivo de studyProposal.meanwhileTextIndependent,
+      // handoff-app-completo). Chave própria — replaceNote acima segue
+      // valendo pro fluxo antigo (CreateStudyScreen.jsx/theme_plans, que
+      // ainda pausa de verdade).
+      replaceNoteIndependent: 'O estudo ganha seus próprios dias — sua leitura contínua da Bíblia segue sem mudar, nos dias dela.',
       errorSubscription: 'Isso precisa do Premium + IA.',
       errorLimit: 'Você já criou o máximo de estudos este mês.',
       errorGeneric: 'Não deu pra montar o estudo agora. Tenta de novo em instantes.',
@@ -1738,6 +1745,12 @@ export const STRINGS = {
       themeLabel: 'Tema',
       meanwhileLabel: 'Enquanto isso',
       meanwhileText: '{book} pausa em {chapter} e volta em {date}. Sua meta da semana continua contando.',
+      // 35e (StudyProposalNewScreen.jsx) — trilhas independentes: ativar
+      // este estudo não pausa mais a leitura contínua (ver comentário no
+      // componente). Chave própria, não reaproveita meanwhileText acima
+      // (StudyProposalScreen.jsx, fluxo antigo de theme_plans, que ainda
+      // pausa de verdade e continua precisando da frase com data).
+      meanwhileTextIndependent: 'Sua Bíblia contínua segue nos dias dela, sem pausar — Leitura e Estudo podem cair no mesmo dia.',
       saveForLaterBtn: 'Salvar p/ depois',
       startTodayBtn: 'Começar hoje',
       startTomorrowBtn: 'Começar amanhã',
@@ -1746,21 +1759,6 @@ export const STRINGS = {
       verifiedLineMany: 'Os {n} trechos foram conferidos no texto da sua versão antes de aparecer aqui.',
     },
     // Bento 26g — banco de estudos públicos, busca por tema.
-    studyBank: {
-      title: 'Estudos da comunidade',
-      searchPlaceholder: 'Tema, livro ou situação',
-      heroLabel: 'Mais feito em {theme}',
-      studyMeta: '{n} dias · {author} · {uses} pessoas fizeram',
-      useThisBtn: 'Usar este',
-      resultsInTag: 'Em {theme} · {n} estudos',
-      resultsAll: 'Estudos da comunidade',
-      sortByUses: 'mais usados',
-      sortByRecent: 'mais recentes',
-      useBtn: 'Usar',
-      emptyTitle: 'Nada encontrado ainda',
-      emptySub: 'Tente outro tema ou palavra.',
-      notFoundHint: 'Não achou? Crie o seu e escolha se ele entra aqui.',
-    },
     // Folha genérica de escolher amigos (primeiro uso: "Fazer junto com", 26f).
     friendPicker: {
       title: 'Escolher amigos',
@@ -4386,6 +4384,7 @@ export const STRINGS = {
       formatGroupSub: 'admin only',
       bookPickerLabel: 'Choose the book',
       replaceNote: "While it lasts, it replaces today's reading. Your current plan is paused and comes back on its own at the end.",
+      replaceNoteIndependent: 'The study gets its own days — your continuous Bible reading keeps going on its own, unchanged.',
       errorSubscription: 'This needs Premium + AI.',
       errorLimit: "You've already created the max studies this month.",
       errorGeneric: "Couldn't build the study right now. Try again in a moment.",
@@ -4428,27 +4427,13 @@ export const STRINGS = {
       themeLabel: 'Topic',
       meanwhileLabel: 'Meanwhile',
       meanwhileText: '{book} pauses at {chapter} and comes back on {date}. Your weekly goal keeps counting.',
+      meanwhileTextIndependent: 'Your continuous Bible keeps its own days — Reading and Study can land on the same day.',
       saveForLaterBtn: 'Save for later',
       startTodayBtn: 'Start today',
       startTomorrowBtn: 'Start tomorrow',
       previewStartBtn: 'Start',
       verifiedLineOne: 'The passage was checked against your version’s text before showing up here.',
       verifiedLineMany: 'The {n} passages were checked against your version’s text before showing up here.',
-    },
-    studyBank: {
-      title: 'Community studies',
-      searchPlaceholder: 'Topic, book, or situation',
-      heroLabel: 'Most done in {theme}',
-      studyMeta: '{n} days · {author} · {uses} people did this',
-      useThisBtn: 'Use this one',
-      resultsInTag: 'In {theme} · {n} studies',
-      resultsAll: 'Community studies',
-      sortByUses: 'most used',
-      sortByRecent: 'most recent',
-      useBtn: 'Use',
-      emptyTitle: 'Nothing found yet',
-      emptySub: 'Try another topic or word.',
-      notFoundHint: "Didn't find it? Create your own and choose if it goes in here.",
     },
     friendPicker: {
       title: 'Choose friends',
