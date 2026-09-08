@@ -15,6 +15,15 @@ import AppIcon from '../icons/AppIcon'
 
 const CHIP_KEYS = ['phrase', 'times', 'whereInBible', 'name']
 
+// "Três passos feitos" (37c) — o quadro escreve por extenso o número de
+// passos (nunca mais que 4: Oração/Leitura/Estudo/Reflexão), diferente dos
+// outros números da mesma frase ("18ª semana"), que ficam em algarismo.
+// Maiúscula porque é sempre a 1ª palavra da frase.
+const STEP_COUNT_WORDS = {
+  pt: { 0: 'Nenhum', 1: 'Um', 2: 'Dois', 3: 'Três', 4: 'Quatro' },
+  en: { 0: 'No', 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four' },
+}
+
 export default function DayCompleteScreen({ session, authUser, steps, readingSession, onBack }) {
   const { lang, userName, dailyRoutine, weeksInGoal, biblePercent } = session
   const L = (k, vars) => t(`dayComplete.${k}`, vars, lang)
@@ -57,6 +66,8 @@ export default function DayCompleteScreen({ session, authUser, steps, readingSes
       timeToday: L('timeTodayLabel'),
       weeksInGoal: L('weeksInGoalLabel'),
       whereInBible: L('whereInBibleLabel'),
+      day: L('dayLabel'),
+      myPhraseToday: L('myPhraseTodayLabel'),
     },
   }), [dayNumber, dateLabel, userName, titleWithName, titleWithoutName, phrase, minutes, totalSeconds, weeksInGoal, percentRead, chapterShort, lang])
 
@@ -95,7 +106,9 @@ export default function DayCompleteScreen({ session, authUser, steps, readingSes
     }
   }
 
-  const contextLine = L(steps?.length === 1 ? 'contextLineOne' : 'contextLineMany', { n: steps?.length ?? 0, weeks: weeksInGoal ?? 0 })
+  const stepCount = steps?.length ?? 0
+  const stepCountWord = (STEP_COUNT_WORDS[lang] ?? STEP_COUNT_WORDS.pt)[stepCount] ?? String(stepCount)
+  const contextLine = L(stepCount === 1 ? 'contextLineOne' : 'contextLineMany', { n: stepCountWord, weeks: weeksInGoal ?? 0 })
 
   return (
     <div style={styles.screen}>
