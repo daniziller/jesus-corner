@@ -7,6 +7,12 @@
 // que já devolve a contagem pronta, nunca as linhas de
 // group_prayer_intentions em si. Sem comentários — o design novo proíbe
 // ("Ninguém pode comentar — só orar"); ver a migration pro porquê.
+//
+// Bloco 2 do pacote 36-37 (migration 0059_prayer_request_response.sql)
+// acrescenta o ciclo de resposta ("Como Deus respondeu?", 36e) e vira
+// "Orei por isso" de toggle em marca-por-dia — em TODO lugar que usa
+// group_prayer_intentions, inclusive aqui (markPraying substitui o antigo
+// togglePraying; não existe mais "desmarcar" pelo client).
 import { supabase } from '../lib/supabaseClient'
 
 async function getUserId() {
@@ -104,31 +110,60 @@ export async function composePrayerRequestDraft({ text, lang }) {
   return body.request
 }
 
-// "Orei" — checa o estado atual e alterna, igual a uma curtida. A RLS de
+// "Orei por isso" — marca O DIA, não o clique (migration 0059): insere a
+// linha de hoje e pronto, repetir no mesmo dia não faz nada (conflito de
+// chave ignorado). Sem "desmarcar" — uma vez orado, fica orado. A RLS de
 // group_prayer_intentions só deixa ver a PRÓPRIA linha (nunca a de outra
-// pessoa), então este select nunca vaza identidade de ninguém.
-export async function togglePraying(requestId) {
+// pessoa), então isto nunca vaza identidade de ninguém.
+export async function markPraying(requestId) {
   const userId = await getUserId()
   if (!userId) return
-  const { data: existing, error: fetchError } = await supabase
+  const { error } = await supabase
     .from('group_prayer_intentions')
-    .select('prayer_request_id')
-    .eq('prayer_request_id', requestId)
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (fetchError) { console.error('[prayerRequestsStore] togglePraying fetch failed:', fetchError.message); return }
+    .upsert(
+      { prayer_request_id: requestId, user_id: userId, prayed_date: new Date().toISOString().slice(0, 10) },
+      { onConflict: 'prayer_request_id,user_id,prayed_date', ignoreDuplicates: true },
+    )
+  if (error) console.error('[prayerRequestsStore] mark praying failed:', error.message)
+}
 
-  if (existing) {
-    const { error } = await supabase
-      .from('group_prayer_intentions')
-      .delete()
-      .eq('prayer_request_id', requestId)
-      .eq('user_id', userId)
-    if (error) console.error('[prayerRequestsStore] unmark praying failed:', error.message)
-  } else {
-    const { error } = await supabase
-      .from('group_prayer_intentions')
-      .insert({ prayer_request_id: requestId, user_id: userId })
-    if (error) console.error('[prayerRequestsStore] mark praying failed:', error.message)
+function mapMyRequestRow(row) {
+  return {
+    id: row.id,
+    body: row.body,
+    scope: row.scope,
+    groupId: row.group_id,
+    groupName: row.group_name ?? '',
+    isMine: !!row.is_mine,
+    status: row.status,
+    resposta: row.resposta,
+    notaResposta: row.nota_resposta,
+    createdAt: row.created_at,
+    respondidoEm: row.respondido_em,
+    prayCount: Number(row.pray_count ?? 0),
+    diasOrados: Number(row.days_prayed ?? 0),
+    prayedToday: !!row.already_prayed_today,
   }
+}
+
+// Pedidos de oração da rotina (36d, pacote 36-37) — os seus, de qualquer
+// status (Ativos e Respondidos), + os abertos de quem está num grupo seu
+// (somem da lista assim que o autor arquiva; a resposta é dele, não sua).
+export async function getMyPrayerRequests(maxN = 100) {
+  const { data, error } = await supabase.rpc('get_my_prayer_requests', { max_n: maxN })
+  if (error) { console.error('[prayerRequestsStore] getMyPrayerRequests failed:', error.message); return [] }
+  return (data ?? []).map(mapMyRequestRow)
+}
+
+// Arquivar com resposta (36e) — só o autor. "Espere" não arquiva nada
+// (devolve pro Ativos sem zerar o contador de dias): não chama o
+// servidor, só fecha a folha — ver ArchivePrayerRequestSheet.jsx.
+export async function archivePrayerRequest(requestId, response, note = '') {
+  if (response === 'espere') return
+  const { error } = await supabase.rpc('archive_prayer_request', {
+    target_request_id: requestId,
+    response,
+    note: note.trim() || null,
+  })
+  if (error) throw new Error(error.message)
 }

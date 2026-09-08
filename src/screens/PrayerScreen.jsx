@@ -15,11 +15,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { PRAYER_STAGES } from '../prayer/prayerStages'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
-import { getPrayerRequestsFeed } from '../groups/prayerRequestsStore'
+import { getMyPrayerRequests, markPraying } from '../groups/prayerRequestsStore'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import PrayerRequestCard from '../components/prayer/PrayerRequestCard'
 
 function fmt(s) {
   const m = Math.floor(s / 60).toString().padStart(2, '0')
@@ -65,19 +66,22 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
   const [freeNote, setFreeNote] = useState('')
   const [justZeroed, setJustZeroed] = useState(false)
 
-  const [requestCounts, setRequestCounts] = useState(null)
-
+  // Pedidos de oração (36d, Bloco 2) — na etapa Súplica do ACTS a
+  // linha-resumo vira a própria lista (ver isSuplica mais abaixo, no JSX);
+  // nas outras etapas/oração livre continua só a linha-resumo → 36d.
+  const [requests, setRequests] = useState([])
   useEffect(() => {
-    // Contagem pra linha "Pedidos de oração" — ainda usa o modelo de dados
-    // ANTIGO (scope/status, ver groups/prayerRequestsStore.js) como uma
-    // aproximação: "ativos" = não encerrados, "do seu grupo" = com
-    // group_id. O Bloco 2 (36d/36e) traz o modelo de verdade (dias_orados,
-    // status ativo/respondido, resposta) e esta conta é substituída.
-    getPrayerRequestsFeed(null).then(list => {
-      const active = list.filter(r => r.status !== 'closed')
-      setRequestCounts({ active: active.length, group: active.filter(r => r.groupId).length })
-    }).catch(() => setRequestCounts({ active: 0, group: 0 }))
+    getMyPrayerRequests().then(setRequests).catch(() => setRequests([]))
   }, [])
+  const activeRequests = requests.filter(r => r.status !== 'closed')
+  const requestCounts = { active: activeRequests.length, group: activeRequests.filter(r => !r.isMine).length }
+
+  function handlePray(request) {
+    setRequests(prev => prev.map(r => r.id === request.id
+      ? { ...r, prayedToday: true, prayCount: r.isMine ? r.prayCount : r.prayCount + 1, diasOrados: r.isMine ? r.diasOrados + 1 : r.diasOrados }
+      : r))
+    markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
+  }
 
   const intervalRef = useRef(null)
   const startedAtRef = useRef(null)
@@ -188,6 +192,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
   const stage = PRAYER_STAGES[currentStageIdx]
   const stageTitle = stage.title[lang] ?? stage.title.pt
   const isLastStage = currentStageIdx === PRAYER_STAGES.length - 1
+  const isSuplica = method === 'acts' && stage.id === 'suplica'
   const stageLocalElapsed = method === 'acts' ? elapsed - stageElapsedBefore : 0
   const stageRemaining = method === 'acts' ? Math.round(stageDurations[currentStageIdx] - stageLocalElapsed) : 0
   const stageOvertime = stageRemaining < 0
@@ -293,22 +298,41 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
           </>
         )}
 
-        {/* Pedidos de oração — linha navegável (36d chega no Bloco 2; por
-            ora, mostra a contagem, sem toque pra não abrir uma tela que
-            ainda não existe). */}
-        <div style={styles.requestsRow}>
-          <span style={styles.requestsIcon}><AppIcon name="Heart" size={16} color="var(--bento-sand-icon)" /></span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={styles.requestsTitle}>{L('requestsRowTitle')}</p>
-            {requestCounts && (
+        {/* Pedidos de oração — linha navegável → 36d (PrayerRequestsScreen).
+            Na etapa Súplica do ACTS a linha vira a própria lista, dentro
+            da etapa (handoff: "esta linha vira a própria lista de
+            pedidos") — mesmo cartão de 36d, sem folha de arquivar aqui
+            (arquivar precisa da tela cheia, não faz sentido no meio da
+            oração; quem quiser, entra em 36d pelo link "Ver todos"). */}
+        {isSuplica ? (
+          <div style={styles.inlineRequests}>
+            <div style={styles.inlineRequestsHeader}>
+              <p style={styles.helpLabel}>{t('prayerRequests.headerTitle', undefined, lang)}</p>
+              <button style={styles.inlineSeeAll} onClick={() => onNavigate?.('prayerRequests')}>{t('prayerRequests.newBtn', undefined, lang)}</button>
+            </div>
+            {activeRequests.length === 0 ? (
+              <p style={styles.requestsSub}>{t('prayerRequests.emptyActive', undefined, lang)}</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {activeRequests.map(r => (
+                  <PrayerRequestCard key={r.id} request={r} lang={lang} onPray={handlePray} onArchive={() => onNavigate?.('prayerRequests')} />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <button type="button" style={styles.requestsRow} onClick={() => onNavigate?.('prayerRequests')}>
+            <span style={styles.requestsIcon}><AppIcon name="Heart" size={16} color="var(--bento-sand-icon)" /></span>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <p style={styles.requestsTitle}>{L('requestsRowTitle')}</p>
               <p style={styles.requestsSub}>
                 {L(requestCounts.active === 1 ? 'requestsCountActiveOne' : 'requestsCountActiveMany', { n: requestCounts.active })}
                 {requestCounts.group > 0 ? ` · ${L(requestCounts.group === 1 ? 'requestsCountGroupOne' : 'requestsCountGroupMany', { n: requestCounts.group })}` : ''}
               </p>
-            )}
-          </div>
-          <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
-        </div>
+            </div>
+            <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
+          </button>
+        )}
       </div>
 
       <div style={styles.footer}>
@@ -375,10 +399,14 @@ const styles = {
   freeTrack: { width: '100%', height: 6, borderRadius: 99, background: 'rgba(255,255,255,.14)' },
   freeFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
 
-  requestsRow: { display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bento-card)', borderRadius: 22, padding: '16px 18px' },
+  requestsRow: { width: '100%', boxSizing: 'border-box', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bento-card)', borderRadius: 22, padding: '16px 18px' },
   requestsIcon: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   requestsTitle: { fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 2px' },
   requestsSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+
+  inlineRequests: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 },
+  inlineRequestsHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  inlineSeeAll: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)' },
 
   footer: { flexShrink: 0, display: 'flex', gap: 10, padding: '12px 20px calc(20px + var(--safe-bottom))' },
   skipBtn: { flexShrink: 0, height: 54, padding: '0 18px', borderRadius: 18, border: 'none', background: 'var(--bento-card)', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },

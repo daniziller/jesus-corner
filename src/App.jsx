@@ -20,6 +20,7 @@ import { clearGuestInviteState } from './onboarding/guestInviteStore'
 import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
+import PrayerRequestsScreen from './screens/PrayerRequestsScreen'
 import BlessingScreen from './screens/BlessingScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
@@ -919,7 +920,7 @@ export default function App() {
     if (lockedTabs.includes(tab)) { goToTab('upgrade'); return }
     // Sair do modo guiado se a pessoa navegar explicitamente pra fora do
     // fluxo (Oração/Leitura/Reflexão) — ex: tocar em Início ou Comunidade.
-    if (guidedFlowRef.current && !['prayer', 'blessing', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
+    if (guidedFlowRef.current && !['prayer', 'prayerRequests', 'blessing', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
       setGuidedFlow(null)
     }
     if (tab === 'journey') setJourneyEntryMode('overview')
@@ -2562,6 +2563,10 @@ export default function App() {
       onContinueSession={continueToday} onNavigate={navigateTo}
       onFinishDay={finishDayFromBlessing} onBackToPlan={backToPlanFromBlessing}
     />,
+    // Pacote 36-37, 36d — "Pedidos de oração" (linha em 36b/36c). Push
+    // dentro de Meu Plano: fica fora de navHidden de propósito (barra de
+    // abas continua fixa no rodapé, ver handoff).
+    prayerRequests: <PrayerRequestsScreen session={session} authUser={authUser} onBack={goBack} />,
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
@@ -2623,7 +2628,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
     || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o

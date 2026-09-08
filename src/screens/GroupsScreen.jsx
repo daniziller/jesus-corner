@@ -19,7 +19,7 @@ import { getFriendProfile, getFriendProgressSummary } from '../profile/profileSt
 import { logActivity } from '../activity/activityStore'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import {
-  getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest, togglePraying,
+  getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest, markPraying,
 } from '../groups/prayerRequestsStore'
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
 import { getRoomStats } from '../groups/chapterRoomStore'
@@ -787,9 +787,11 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
 
   function handlePray(e) {
     e.stopPropagation()
-    if (!latestPrayer || latestPrayer.isMine) return
-    setLatestPrayer(p => ({ ...p, prayingByMe: !p.prayingByMe, prayCount: p.prayCount + (p.prayingByMe ? -1 : 1) }))
-    togglePraying(latestPrayer.id).catch(err => console.error('Failed to toggle praying', err))
+    // "Orei por isso" marca o dia, não o clique (migration 0059) — uma vez
+    // marcado hoje, o toque não faz mais nada até o dia virar.
+    if (!latestPrayer || latestPrayer.isMine || latestPrayer.prayingByMe) return
+    setLatestPrayer(p => ({ ...p, prayingByMe: true, prayCount: p.prayCount + 1 }))
+    markPraying(latestPrayer.id).catch(err => console.error('Failed to mark praying', err))
   }
 
   const AVATAR_PALETTE = [
@@ -1360,12 +1362,14 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
     closePrayerRequest(requestId).catch(err => console.error('Failed to close prayer request', err))
   }
 
-  function handleTogglePraying(request) {
-    // otimista: atualiza local antes de esperar o servidor
+  function handleMarkPraying(request) {
+    // "Orei por isso" marca o dia, não o clique (migration 0059) — sem
+    // desmarcar; otimista: atualiza local antes de esperar o servidor.
+    if (request.prayingByMe) return
     setRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayingByMe: !r.prayingByMe, prayCount: r.prayCount + (r.prayingByMe ? -1 : 1) }
+      ? { ...r, prayingByMe: true, prayCount: r.prayCount + 1 }
       : r))
-    togglePraying(request.id).catch(err => console.error('Failed to toggle praying', err))
+    markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
   }
 
   return (
@@ -1391,7 +1395,7 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
                   {r.isMine ? (
                     <button style={styles.smallLinkBtn} onClick={() => handleClose(r.id)}>{t('prayer.closeRequestBtn', undefined, lang)}</button>
                   ) : (
-                    <button style={{ ...styles.prayingBtn, ...(r.prayingByMe ? styles.prayingBtnActive : {}) }} onClick={() => handleTogglePraying(r)}>
+                    <button style={{ ...styles.prayingBtn, ...(r.prayingByMe ? styles.prayingBtnActive : {}) }} onClick={() => handleMarkPraying(r)} disabled={r.prayingByMe}>
                       <AppIcon name="HandHeart" size={13} color={r.prayingByMe ? 'var(--bento-accent)' : 'var(--bento-t4)'} /> {t('groups.homePrayedCount', { n: r.prayCount }, lang)}
                     </button>
                   )}
