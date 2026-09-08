@@ -19,7 +19,7 @@ import { STAT_THEMES } from '../utils/statThemes'
 const TYPE_ICON = { book_completed: 'BookMarked', joined_group: 'Users' }
 const TYPE_THEME = {
   book_completed: STAT_THEMES.orange,
-  joined_group:   STAT_THEMES.green,
+  joined_group:   STAT_THEMES.sand,
 }
 
 function activityText(activity, lang) {
