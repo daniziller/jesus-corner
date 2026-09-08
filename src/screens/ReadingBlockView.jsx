@@ -51,7 +51,7 @@ function formatClock(totalSeconds) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
   const { lang, hasPremium, hasAI } = session
   const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
   // Leitura imersiva (redesign 1b) — leitura guiada de tela cheia: cabeçalho
@@ -615,7 +615,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // junto do FAB/janela da IA — BibleTextPanel só recebe de volta o
   // essencial pra pintar o texto (`highlightSelection`, pra sublinhar o
   // que está selecionado) e dois callbacks de toque/seleção.
-  const [highlightSelection, setHighlightSelection] = useState(null) // { chapter, verses: Set<number> } | null
+  // `initialFocusVerse` (39k/39l, Bloco 6: chegar aqui vindo de um cartão
+  // de busca/tema) só preenche a seleção inicial — nunca abre a folha
+  // (selectionMenuOpen continua false), pra dar o "mesmo realce de 39e,
+  // sem abrir a folha" que o quadro de 39l pede: reaproveita o MESMO
+  // destaque visual que uma seleção em andamento já usa (ver isSelected em
+  // BibleTextPanel), sem duplicar um estilo "em foco" à parte.
+  const [highlightSelection, setHighlightSelection] = useState(() => (
+    initialFocusVerse ? { chapter: initialFocusVerse.chapter, verses: new Set([initialFocusVerse.verse]) } : null
+  )) // { chapter, verses: Set<number> } | null
   const [highlightEditingId, setHighlightEditingId] = useState(null)
   // Liga quando "Anotar" (39e) é tocado — vira a tela cheia de 39f (ver o
   // early return logo no início do corpo da função). Fica ligado até
@@ -1279,6 +1287,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
                   onToggleChapter={onToggleChapter}
                   highlights={highlights}
                   highlightSelection={highlightSelection}
+                  focusVerseRequest={initialFocusVerse}
                   onVerseNumberClick={handleHighlightVerseClick}
                   onTextSelectionRange={handleHighlightTextRange}
                   groupMarks={immersive && myGroup && groupLayerOn ? groupMarks : null}
@@ -2422,7 +2431,7 @@ function groupIntoParagraphs(chapter) {
   return paragraphs
 }
 
-function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, onVerseNumberClick, onTextSelectionRange, immersive = false, groupMarks = null, versionId: versionIdProp, onChangeVersion: onChangeVersionProp }) {
+function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, focusVerseRequest, onVerseNumberClick, onTextSelectionRange, immersive = false, groupMarks = null, versionId: versionIdProp, onChangeVersion: onChangeVersionProp }) {
   // Chip da camada do grupo aberto (mostra nomes/notas de quem compartilhou).
   const [openMark, setOpenMark] = useState(null)
   const bookKey = lang === 'en' ? session.bookEn : session.book
@@ -2455,6 +2464,18 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
       .catch(() => { if (!cancelled) setState({ status: 'error', chapters: null }) })
     return () => { cancelled = true }
   }, [versionId, bookKey])
+
+  // Rola até o versículo pedido (39k/39l, Bloco 6) assim que o texto do
+  // capítulo carrega — só 1x (focusVerseRequest não muda depois da
+  // abertura; ver initialFocusVerse em ReadingBlockView.jsx). O realce em
+  // si já vem de fora (highlightSelection inicial, ver mesmo comentário) —
+  // este efeito só cuida de rolar até lá.
+  useEffect(() => {
+    if (!focusVerseRequest || state.status !== 'ready') return
+    const el = textRef.current?.querySelector(`[data-chapter="${focusVerseRequest.chapter}"] [data-verse="${focusVerseRequest.verse}"]`)
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status])
 
   // Selecionar um trecho arrastando o dedo/mouse (como se fosse copiar)
   // também grifa — além de tocar no número do versículo (ver onClick do

@@ -37,7 +37,7 @@ export default function BookChapterScreen({
   session, authUser, block, bookName, displayName,
   sessionsByBlock, browseSessionsByBlock, completedSet,
   onToggleSession, onToggleChapter, onMarkChaptersManually, onGoToReflectionFrom, onNavigate,
-  onBack, initialSessionId, initialTextOpen,
+  onBack, initialSessionId, initialTextOpen, initialFocusVerse,
 }) {
   const { lang } = session
   const L = (k, vars) => t(`bookChapters.${k}`, vars, lang)
@@ -45,6 +45,9 @@ export default function BookChapterScreen({
 
   const [openSessionId, setOpenSessionId] = useState(initialSessionId ?? null)
   const [openTextOpen, setOpenTextOpen] = useState(!!initialTextOpen)
+  // 39k/39l (Bloco 6): tocar um cartão de busca/tema chega aqui já com um
+  // versículo pra focar — ver initialFocusVerse em ReadingBlockView.jsx.
+  const [openFocusVerse, setOpenFocusVerse] = useState(initialFocusVerse ?? null)
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
 
   const total = computeBookChapterCounts(sessionsByBlock)[bookName] ?? 0
@@ -82,6 +85,7 @@ export default function BookChapterScreen({
     if (!target) return
     setOpenSessionId(target.id)
     setOpenTextOpen(true)
+    setOpenFocusVerse(null)
   }
 
   // Segurar marca/desmarca sem abrir e sem diálogo (regra 2 da aba) —
@@ -157,7 +161,8 @@ export default function BookChapterScreen({
         onToggleChapter={onToggleChapter}
         initialSessionId={openSessionId}
         initialTextOpen
-        onBack={() => { setOpenSessionId(null); setOpenTextOpen(false) }}
+        initialFocusVerse={openFocusVerse}
+        onBack={() => { setOpenSessionId(null); setOpenTextOpen(false); setOpenFocusVerse(null) }}
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
       />
     )
