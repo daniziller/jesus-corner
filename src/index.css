@@ -142,6 +142,9 @@
      concluído — pedido dela: parar de trocar pra --bento-sand nesse
      estado, usar cinza com detalhes em preto/branco/laranja em vez disso. */
   --bento-slate: #66625A;
+  /* Texto da pílula "AGORA" na lista de passos de Meu Plano (atualização
+     35a/35b) — sobre rgba(240,102,43,.18), não existia token pra isso. */
+  --bento-now-text: #A63C0F;
   --font-bento: 'Manrope', sans-serif;
 }
 
