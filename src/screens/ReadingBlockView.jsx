@@ -20,12 +20,17 @@ import { addReadingSeconds } from '../reading/readingTimeStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { getReadingClockPrefs } from '../reading/readingClockPrefsStore'
 import { addReadingPaceSession } from '../reading/readingPaceStore'
-import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible } from '../groups/chapterRoomStore'
+import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible, postToRoom } from '../groups/chapterRoomStore'
+import { getGroupMemberCounts } from '../groups/groupsStore'
+import { collectTagVocabulary } from '../notes/noteTags'
 import { avatarPaletteFor } from './ChapterRoomScreen'
+import { avatarInitialsOf } from '../utils/avatarInitials'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
 import { verseSelectionLabel } from '../bible/verseSelectionLabel'
+import { getLastCopyFormat, setLastCopyFormat } from '../bible/copyFormatPrefs'
+import { formatCopyText } from '../bible/formatCopyText'
 import { useIsDesktop } from '../utils/useIsDesktop'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -498,7 +503,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // openPanel virava null (não voltava pra 'texto'), e o texto que a
   // pessoa estava lendo sumia da tela sozinho.
   const [aiChatOpen, setAiChatOpen] = useState(false)
-  const [highlightPanelOpen, setHighlightPanelOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [hasSavedNote, setHasSavedNote] = useState(false)
   // Mapa INTEIRO de anotações (não só a da sessão em destaque) — é o que
@@ -562,12 +566,16 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // persiste em segundo plano. sessionMode ('session'|'browse') é o que
   // decide se esse highlight aparece na Reflexão do dia (ver
   // ReflectionScreen.jsx) — só os feitos durante uma sessão guiada contam.
-  function handleSaveHighlight(book, bookEn, chapter, verses, text, color) {
+  // tags/sharedGroupIds opcionais (39f, pacote 39) — quem chama sem elas
+  // (chooseQuickColor, HighlightComposer antigo) continua criando/editando
+  // sem etiqueta nem grupo nenhum, como sempre.
+  function handleSaveHighlight(book, bookEn, chapter, verses, text, color, tags = [], sharedGroupIds = []) {
     const highlight = {
       id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       book, bookEn, chapter, verses,
       text: text.trim(),
       color: color ?? DEFAULT_HIGHLIGHT_COLOR,
+      tags, sharedGroupIds,
       createdAt: new Date().toISOString(),
       date: dateKey(),
       sessionMode: mode === 'session' ? 'session' : 'browse',
@@ -579,9 +587,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     return highlight.id
   }
 
-  function handleUpdateHighlightText(id, text, color) {
-    setHighlights(prev => prev.map(h => h.id === id ? { ...h, text, color: color ?? h.color } : h))
-    updateHighlightText(authUser?.email, id, text, color).catch(err => {
+  function handleUpdateHighlightText(id, text, color, tags, sharedGroupIds) {
+    setHighlights(prev => prev.map(h => h.id === id ? { ...h, text, color: color ?? h.color, tags: tags ?? h.tags ?? [], sharedGroupIds: sharedGroupIds ?? h.sharedGroupIds ?? [] } : h))
+    updateHighlightText(authUser?.email, id, text, color, tags, sharedGroupIds).catch(err => {
       console.error('Failed to update highlight', err)
     })
   }
@@ -608,28 +616,24 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // que está selecionado) e dois callbacks de toque/seleção.
   const [highlightSelection, setHighlightSelection] = useState(null) // { chapter, verses: Set<number> } | null
   const [highlightEditingId, setHighlightEditingId] = useState(null)
-  // Uma seleção NOVA (ainda não salva) sempre abre na etapa de escolher cor
-  // primeiro (círculos), não direto na anotação — só vira a etapa de
-  // escrever quando a pessoa toca em "Adicionar anotação" (ver
-  // startAnnotating). Editar um grifo já salvo pula direto pro editor
-  // completo (não passa pela etapa de cor sozinha), então não usa este
-  // estado — ver HighlightComposer.
+  // Liga quando "Anotar" (39e) é tocado — vira a tela cheia de 39f (ver o
+  // early return logo no início do corpo da função). Fica ligado até
+  // "Salvar" ou "voltar", nos dois casos (seleção nova ou grifo já salvo
+  // reaberto).
   const [wantsToAnnotate, setWantsToAnnotate] = useState(false)
   // Retângulo (coordenadas de tela, de getBoundingClientRect) de onde a
   // pessoa tocou o número do versículo ou terminou de selecionar um
-  // trecho — usado só pra ancorar o popup pequeno perto do toque (ver
-  // HighlightPopup mais abaixo). Fica null quando a entrada foi pelo FAB
-  // de lápis sem nada selecionado (sem um alvo específico na tela pra
-  // ancorar) — nesse caso o painel some direto na folha de sempre.
+  // trecho — usado só pra ancorar a folha de 39e perto do toque (ver
+  // VerseActionsSheet).
   const [highlightAnchorRect, setHighlightAnchorRect] = useState(null)
-  // Menu de seleção da IA (10a, reskin Bento) — só na leitura imersiva.
-  // Selecionar um trecho aqui abre ESTE menu primeiro (Perguntar/Marcar/
-  // Nota/Copiar) em vez de já cair na etapa de escolher cor do grifo
-  // (highlightPanelOpen); "Marcar"/"Nota" dali em diante seguem pro MESMO
-  // fluxo de sempre (ver openMarkFromMenu/openNoteFromMenu abaixo). Fora do
-  // modo imersivo, nada muda — vai direto pro grifo, como sempre foi (essa
-  // tela ainda não migrou pro menu novo).
+  // Folha do versículo selecionado (39e, reskin Bento) — só na leitura
+  // imersiva (35f/39d). Selecionar um trecho abre esta folha (ver
+  // VerseActionsSheet, handleHighlightVerseClick/handleHighlightTextRange).
   const [selectionMenuOpen, setSelectionMenuOpen] = useState(false)
+  // "Copiar" (39e) abre 39g em vez de copiar na hora — troca o conteúdo
+  // da mesma folha (mesmo padrão do estado "asking" dentro de
+  // VerseActionsSheet), sem empilhar uma segunda folha por cima.
+  const [copySheetOpen, setCopySheetOpen] = useState(false)
   // Resposta da IA sobre o trecho selecionado (10b) — null | {status:
   // 'loading'|'ready'|'error', ...}. Guarda a referência (book/chapter/
   // verses) separada da resposta em si, pra "Perguntar outra coisa" poder
@@ -679,13 +683,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       setHighlightSelection(null)
       setWantsToAnnotate(false)
       setHighlightAnchorRect(rect ?? null)
-      // Turno 39, Bloco 3 (39e): reabrir um grifo já salvo agora também
-      // passa pela folha nova na leitura imersiva — antes caía sempre no
-      // popup antigo (highlightPanelOpen), mesmo em 35f/39d, sem essa
-      // ressalva; "segurar um versículo abre 39e" vale pra QUALQUER
-      // versículo, marcado ou não.
-      if (immersive) setSelectionMenuOpen(true)
-      else setHighlightPanelOpen(true)
+      // "Segurar um versículo abre 39e" vale pra QUALQUER versículo,
+      // marcado ou não.
+      setSelectionMenuOpen(true)
       return
     }
     setHighlightEditingId(null)
@@ -701,10 +701,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     }
     setHighlightSelection(next)
     setHighlightAnchorRect(next ? (rect ?? null) : null)
-    // Imersivo (10a, reskin Bento): seleção nova abre o menu de ações
-    // primeiro, não já a etapa de cor — ver selectionMenuOpen acima.
-    if (immersive) setSelectionMenuOpen(Boolean(next))
-    else setHighlightPanelOpen(Boolean(next))
+    setSelectionMenuOpen(Boolean(next))
   }
 
   // Seleção de texto "de verdade" (arrastar o dedo/mouse como se fosse
@@ -718,8 +715,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setHighlightSelection({ chapter: ch, verses })
     setWantsToAnnotate(false)
     setHighlightAnchorRect(rect ?? null)
-    if (immersive) setSelectionMenuOpen(true)
-    else setHighlightPanelOpen(true)
+    setSelectionMenuOpen(true)
   }
 
   // Turno 39, Bloco 3 (39e): "o versículo em foco" agora vem de duas
@@ -737,10 +733,8 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     return null
   }
 
-  // "Copiar" (39e) — busca o texto real dos versículos (mesma fonte que o
-  // texto na tela, ver fetchBookText) e copia formatado com a referência,
-  // tipo "Gênesis 41:2-3 (NVT) — ...". Interino: o formato de verdade (3
-  // opções + pré-visualização + confirmação ~3s) é 39g, Bloco 4.
+  // Texto real dos versículos em foco (mesma fonte que o texto na tela,
+  // ver fetchBookText) — base de Copiar (39g) e Compartilhar (39e).
   async function fetchVerseTargetText() {
     const target = currentVerseTarget()
     if (!target) return null
@@ -751,19 +745,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     const text = target.verses.map(v => chapterData?.verses?.[String(v)]).filter(Boolean).join(' ')
     const ref = `${lang === 'en' ? heroSession.bookEn : heroSession.book} ${target.chapter}:${formatVerseRanges(target.verses)}`
     return text ? { text, ref } : null
-  }
-
-  async function copySelectionFromMenu() {
-    try {
-      const found = await fetchVerseTargetText()
-      if (found) await navigator.clipboard?.writeText(`${found.text} (${found.ref})`)
-    } catch (err) {
-      console.error('Failed to copy selected passage', err)
-    } finally {
-      setSelectionMenuOpen(false)
-      setHighlightSelection(null)
-      setHighlightAnchorRect(null)
-    }
   }
 
   // "Compartilhar" (39e) — interino: texto simples via Web Share API (ou
@@ -852,38 +833,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     }
   }
 
-  function startAnnotating() {
-    setWantsToAnnotate(true)
-  }
-
-  function submitNewHighlight(text, color) {
-    if (!highlightSelection || !text.trim()) return
-    handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text, color)
-    setHighlightSelection(null)
-    setWantsToAnnotate(false)
-    setHighlightAnchorRect(null)
-    setHighlightPanelOpen(false)
-  }
-
-  // Sem exigir texto (diferente de submitNewHighlight) — editar um grifo já
-  // salvo pode ser só pra trocar a cor, sem mexer na anotação (que pode
-  // continuar vazia, se nunca teve uma).
-  function submitHighlightEdit(text, color) {
-    if (!highlightEditingId) return
-    handleUpdateHighlightText(highlightEditingId, text, color)
-    setHighlightEditingId(null)
-    setWantsToAnnotate(false)
-    setHighlightAnchorRect(null)
-    setHighlightPanelOpen(false)
-  }
-
   function removeEditingHighlight() {
     if (!highlightEditingId) return
     handleHideHighlight(highlightEditingId)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
     setHighlightAnchorRect(null)
-    setHighlightPanelOpen(false)
   }
 
   function cancelHighlightCompose() {
@@ -891,12 +846,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
     setHighlightAnchorRect(null)
-    setHighlightPanelOpen(false)
   }
 
-  // Fechos da folha de 39e (VerseActionsSheet) — ela usa selectionMenuOpen
-  // (não highlightPanelOpen, esse é da folha antiga), então precisa dos
-  // seus próprios encerramentos:
+  // Fechos da folha de 39e (VerseActionsSheet):
   // - "x" da tarja Marcar texto: remove o grifo se já existe um (a cor foi
   //   escolhida antes), ou só cancela a seleção se ainda não tinha nenhum
   //   grifo salvo (nada pra remover ainda).
@@ -905,39 +857,73 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     if (highlightEditingId) removeEditingHighlight()
     else cancelHighlightCompose()
     setSelectionMenuOpen(false)
+    setCopySheetOpen(false)
   }
   function handleSheetClose() {
     cancelHighlightCompose()
     setSelectionMenuOpen(false)
+    setCopySheetOpen(false)
   }
-  // "Anotar" (39e) — pula pro editor completo de sempre (citação + texto +
-  // etiquetas ainda não existem, isso é 39f, Bloco 4); aqui só troca de
-  // folha: fecha 39e, abre o editor já em wantsToAnnotate.
+  // "Anotar" (39e) — fecha a folha e liga wantsToAnnotate: o próprio
+  // componente troca pra tela cheia de 39f (ver o `if` logo no topo do
+  // corpo desta função, antes do `return` de sempre — mesmo padrão de
+  // BookChapterScreen.jsx pra 39d no Bloco 2).
   function startAnnotatingFromSheet() {
     setSelectionMenuOpen(false)
     setWantsToAnnotate(true)
-    setHighlightPanelOpen(true)
+  }
+  // "Copiar" (39e) — não copia mais na hora: troca o conteúdo da mesma
+  // folha pra 39g (formato + pré-visualização real). "Copiar" (39g) — de
+  // volta pra 39e, mantendo o versículo em foco.
+  function openCopySheet() {
+    setCopySheetOpen(true)
+  }
+  function closeCopySheet() {
+    setCopySheetOpen(false)
+  }
+  // "Copiar" (39g, ação de verdade) — o formato final vai pro
+  // clipboard, com a versão sempre junto quando a referência entra
+  // (ver formatCopyText); lembra o formato pra próxima vez.
+  async function copyWithFormat(format) {
+    try {
+      const found = await fetchVerseTargetText()
+      if (found) {
+        const versionShort = findBibleVersion(getSelectedVersionId(lang))?.short ?? ''
+        await navigator.clipboard?.writeText(formatCopyText(format, found.text, found.ref, versionShort))
+      }
+    } catch (err) {
+      console.error('Failed to copy with format', err)
+    }
+    setLastCopyFormat(format)
   }
 
-  // Tocar num grifo já salvo, dentro da lista da janela flutuante (estado
-  // vazio, sem seleção em andamento) — abre ele pra ver/editar/apagar, sem
-  // precisar fechar a janela e caçar o versículo de novo na lista.
-  function editExistingHighlight(id) {
-    setHighlightSelection(null)
-    setHighlightEditingId(id)
-    setWantsToAnnotate(false)
-    setHighlightAnchorRect(null) // veio da lista (sem versículo específico na tela) — fica na folha
-  }
-
-  // FAB de lápis, sem nada selecionado — sempre a lista de grifos já
-  // feitos (folha no rodapé, sem âncora), nunca um resquício de seleção/
-  // edição de uma interação anterior.
-  function openHighlightList() {
+  // "Salvar" (39f) — cria/atualiza o grifo com texto+etiquetas (a cor não
+  // muda aqui, já foi escolhida em 39e — omitida, os dois helpers acima
+  // preservam/usam o padrão sozinhos), e publica em quem foi escolhido
+  // (postToRoom, sala do capítulo de cada grupo — 17a) quando
+  // "Compartilhar em um grupo" está ligado E há texto de verdade
+  // (publicar uma nota vazia num grupo não diz nada pra ninguém; a
+  // marcação em si já fica salva na Biblioteca do jeito que for). "Só o
+  // texto da nota e o versículo vão; etiquetas ficam com você" (HANDOFF)
+  // — por isso as tags nunca entram no post do grupo.
+  function submitAnnotation(text, tags, groupIds, quote) {
+    if (highlightEditingId) {
+      handleUpdateHighlightText(highlightEditingId, text, undefined, tags, groupIds)
+    } else if (highlightSelection) {
+      handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text, undefined, tags, groupIds)
+    }
+    if (groupIds.length && text.trim() && quote) {
+      const chapter = highlightSelection?.chapter ?? highlights?.find(h => h.id === highlightEditingId)?.chapter
+      for (const groupId of groupIds) {
+        postToRoom(groupId, heroSession.book, chapter, text, quote).catch(err => {
+          console.error('Failed to share note to group', groupId, err)
+        })
+      }
+    }
     setHighlightSelection(null)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
     setHighlightAnchorRect(null)
-    setHighlightPanelOpen(true)
   }
 
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
@@ -1346,6 +1332,27 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     )
   }
 
+  // "Anotar" (39e → 39f, Bloco 4) — mesmo padrão do contextGate acima e de
+  // BookChapterScreen.jsx pra 39d: o próprio componente troca o que
+  // retorna, sem rota nova em App.jsx. "voltar"/"Salvar" (onBack/onSave)
+  // fecham 39f e voltam direto pra leitura.
+  if (wantsToAnnotate && (highlightSelection || highlightEditingId)) {
+    return (
+      <VerseAnnotateScreen
+        lang={lang}
+        chLabel={chLabel}
+        heroBook={heroSession.book}
+        heroBookEn={heroSession.bookEn}
+        selection={highlightSelection}
+        editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
+        myGroups={session.myGroups ?? []}
+        tagVocabulary={collectTagVocabulary(highlights)}
+        onBack={cancelHighlightCompose}
+        onSave={submitAnnotation}
+      />
+    )
+  }
+
   return (
     <>
     {/* Portal pro <body> — não pro fluxo normal: .app-content-inner ganha
@@ -1356,28 +1363,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         árvore, o mesmo truque de centralização de .bottom-nav
         (left:50%+translateX(-50%) dentro de max-width:var(--max-width))
         funciona igual. */}
-    {/* FAB de grifo/IA — na leitura imersiva (1b) some: o grifo continua no
-        toque do versículo e a IA vira um item da folha Ferramentas, pra não
-        brigar com o rodapé fixo. */}
-    {!immersive && heroSession.type !== 'reflection' && (mode !== 'browse' || expandedChapterId != null) && (hasPremium || hasAI) && createPortal(
-      <div style={styles.aiFabWrap}>
-        {/* Lápis em cima do robô da IA — mesmo FAB flutuante, mesma coluna,
-            só empilhado (ver styles.highlightFab: mesmo `right`, `bottom`
-            maior). Grifar/anotar exige Premium; perguntar à IA exige
-            Premium + IA. */}
-        {hasPremium && (
-          <button type="button" style={{ ...styles.highlightFab, ...(hasAI ? {} : { bottom: 'calc(var(--nav-height) + 16px)' }) }} onClick={openHighlightList} aria-label={t('reading.tagHighlight', undefined, lang)}>
-            <AppIcon name="Pencil" size={19} color="var(--bento-ink)" />
-          </button>
-        )}
-        {hasAI && (
-          <button type="button" style={styles.aiFab} onClick={openAiChat} aria-label={t('reading.tagAskAi', undefined, lang)}>
-            <AppIcon name="HelpCircle" size={22} color="white" />
-          </button>
-        )}
-      </div>,
-      document.body
-    )}
+    {/* FAB de grifo/IA (pré-Bento) removido no Bloco 4 (39f): já era
+        `!immersive`-gated (sem chamador vivo desde que immersive passou a
+        valer sempre, ver Bloco 2) e seu botão de lápis chamava
+        openHighlightList, também removido — a lista de grifos existentes
+        sem seleção nenhuma não tem tela própria no pacote 39. A IA segue
+        acessível via Ferramentas (ver extra={hasAI ? ... openAiChat()}
+        mais abaixo). */}
     {/* Chat flutua por cima da leitura (mesmo motivo do portal acima) — a
         pessoa nunca sai de onde estava; fecha com o X ou tocando fora, e
         volta pra exatamente a mesma posição de rolagem de antes. Estado
@@ -1403,95 +1395,41 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       </div>,
       document.body
     )}
-    {/* Grifar/anotar — dois jeitos de mostrar o mesmo HighlightComposer:
-        um popup pequeno ANCORADO perto de onde a pessoa tocou o
-        versículo/selecionou um trecho (highlightAnchorRect preenchido —
-        ver handleHighlightVerseClick/handleHighlightTextRange), deixando
-        o próprio versículo visível por trás; ou a folha de sempre no
-        rodapé — usada tanto sem âncora nenhuma (FAB de lápis tocado sem
-        nada selecionado, pra navegar a lista de grifos já feitos) quanto
-        assim que `wantsToAnnotate` liga (etapa de ESCREVER a anotação):
-        essa etapa cresce bem mais que a de cor (citação + textarea), e
-        ancorada perto do toque original ela às vezes ia parar perto do
-        topo da tela, quase saindo da área visível — no rodapé sempre cabe
-        inteira, com espaço de sobra pra rolar se precisar. */}
-    {highlightPanelOpen && heroSession.type !== 'reflection' && (
-      highlightAnchorRect && !wantsToAnnotate ? (
-        <AnchoredHighlightPopup anchorRect={highlightAnchorRect} onClose={cancelHighlightCompose} lang={lang}>
-          <HighlightComposer
-            lang={lang}
-            chLabel={chLabel}
-            heroBook={heroSession.book}
-            heroBookEn={heroSession.bookEn}
-            selection={highlightSelection}
-            wantsToAnnotate={wantsToAnnotate}
-            editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
-            existingHighlights={highlightsInHero}
-            onQuickColor={chooseQuickColor}
-            onWantsToAnnotate={startAnnotating}
-            onSaveNew={submitNewHighlight}
-            onSaveEdit={submitHighlightEdit}
-            onDelete={removeEditingHighlight}
-            onEditExisting={editExistingHighlight}
-          />
-        </AnchoredHighlightPopup>
-      ) : createPortal(
-        <div style={styles.aiChatOverlayBackdrop} onClick={cancelHighlightCompose}>
-          <div style={styles.highlightListSheetWindow} onClick={e => e.stopPropagation()}>
-            <div style={styles.aiChatOverlayHeader}>
-              <span style={styles.aiChatOverlayTitle}>
-                <span style={{ ...styles.aiChatOverlayIcon, background: 'var(--bento-mark)' }}><AppIcon name="Pencil" size={14} color="var(--bento-accent)" /></span>
-                {t('reading.tagHighlight', undefined, lang)}
-              </span>
-              <button type="button" style={styles.aiChatOverlayClose} onClick={cancelHighlightCompose} aria-label={t('aiChat.close', undefined, lang)}>
-                <AppIcon name="X" size={16} color="var(--bento-t3)" />
-              </button>
-            </div>
-            <div style={styles.aiChatOverlayBody}>
-              <HighlightComposer
-                lang={lang}
-                chLabel={chLabel}
-                heroBook={heroSession.book}
-                heroBookEn={heroSession.bookEn}
-                selection={highlightSelection}
-                wantsToAnnotate={wantsToAnnotate}
-                editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
-                existingHighlights={highlightsInHero}
-                onQuickColor={chooseQuickColor}
-                onWantsToAnnotate={startAnnotating}
-                onSaveNew={submitNewHighlight}
-                onSaveEdit={submitHighlightEdit}
-                onDelete={removeEditingHighlight}
-                onEditExisting={editExistingHighlight}
-              />
-            </div>
-          </div>
-        </div>,
-        document.body
-      )
-    )}
     {/* Folha do versículo selecionado (39e, pacote 39) — só imersivo, ver
         selectionMenuOpen acima. Sobe sobre a leitura, que fica visível e
         escurecida atrás; vale igual na leitura do plano (35f) e na livre
-        (39d). */}
+        (39d). "Copiar" troca pra 39g (VerseCopySheet) dentro da mesma
+        folha — mutuamente exclusivas, nunca as duas montadas juntas. */}
     {selectionMenuOpen && (
-      <VerseActionsSheet
-        lang={lang}
-        hasAI={hasAI && getAskEnabled()}
-        chLabel={chLabel}
-        heroBook={heroSession.book}
-        heroBookEn={heroSession.bookEn}
-        selection={highlightSelection}
-        editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
-        passageRef={selectionRef}
-        onClose={handleSheetClose}
-        onChooseColor={chooseQuickColor}
-        onRemove={handleSheetRemove}
-        onAnnotate={startAnnotatingFromSheet}
-        onCopy={copySelectionFromMenu}
-        onShare={shareSelection}
-        onAsk={askAboutSelection}
-      />
+      copySheetOpen ? (
+        <VerseCopySheet
+          lang={lang}
+          heroBook={heroSession.book}
+          heroBookEn={heroSession.bookEn}
+          selection={highlightSelection}
+          editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
+          onClose={handleSheetClose}
+          onCopy={copyWithFormat}
+        />
+      ) : (
+        <VerseActionsSheet
+          lang={lang}
+          hasAI={hasAI && getAskEnabled()}
+          chLabel={chLabel}
+          heroBook={heroSession.book}
+          heroBookEn={heroSession.bookEn}
+          selection={highlightSelection}
+          editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
+          passageRef={selectionRef}
+          onClose={handleSheetClose}
+          onChooseColor={chooseQuickColor}
+          onRemove={handleSheetRemove}
+          onAnnotate={startAnnotatingFromSheet}
+          onCopy={openCopySheet}
+          onShare={shareSelection}
+          onAsk={askAboutSelection}
+        />
+      )
     )}
     {/* Resposta da IA sobre o trecho (10b, reskin Bento) — folha cobrindo
         ~75% da tela, o versículo em questão continua visível acima dela. */}
@@ -1657,6 +1595,227 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     )}
     </>
   )
+}
+
+// Anotar o versículo (39f, pacote 39) — TELA CHEIA (não folha, ao contrário
+// de 39e/39g), aberta a partir de "Anotar" em 39e (ver o early return de
+// wantsToAnnotate acima). Cor do grifo não muda aqui — já foi escolhida em
+// 39e; esta tela cuida só de texto, etiqueta (uma só — "a ativa em
+// preto", singular no HANDOFF) e compartilhar em grupo (esse sim,
+// seleção múltipla). "Salvar"/"voltar" fecham 39f e voltam direto pra
+// leitura, nunca pra 39e (a escolha de cor já foi feita, reabrir a folha
+// de cor não faria sentido).
+function VerseAnnotateScreen({
+  lang, chLabel, heroBook, heroBookEn, selection, editingHighlight,
+  myGroups, tagVocabulary, onBack, onSave,
+}) {
+  const L = (k, vars) => t(`reading.${k}`, vars, lang)
+  const [text, setText] = useState(editingHighlight?.text ?? '')
+  const [tag, setTag] = useState(editingHighlight?.tags?.[0] ?? null)
+  const [addingTag, setAddingTag] = useState(false)
+  const [newTagText, setNewTagText] = useState('')
+  const [shareOn, setShareOn] = useState((editingHighlight?.sharedGroupIds?.length ?? 0) > 0)
+  const [selectedGroupIds, setSelectedGroupIds] = useState(editingHighlight?.sharedGroupIds ?? [])
+  const [memberCounts, setMemberCounts] = useState({})
+
+  useEffect(() => {
+    if (!myGroups?.length) return
+    let cancelled = false
+    getGroupMemberCounts(myGroups.map(g => g.groupId)).then(counts => { if (!cancelled) setMemberCounts(counts) }).catch(() => {})
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const chapter = editingHighlight?.chapter ?? selection?.chapter
+  const verses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
+  const versesKey = verses.join(',')
+  const refText = `${lang === 'en' ? heroBookEn : heroBook} ${chapter}:${formatVerseRanges(verses)}`
+  const versionShort = findBibleVersion(getSelectedVersionId(lang))?.short ?? ''
+
+  // Texto de verdade do(s) versículo(s) — a pessoa vê sobre o que está
+  // anotando sem precisar lembrar (mesmo motivo/fonte de HighlightComposer
+  // antes dele, ver fetchBookText).
+  const [quoteText, setQuoteText] = useState('')
+  useEffect(() => {
+    if (!chapter || !versesKey) { setQuoteText(''); return }
+    let cancelled = false
+    const versionId = getSelectedVersionId(lang)
+    const bookKey = lang === 'en' ? heroBookEn : heroBook
+    fetchBookText(versionId, bookKey).then(chapters => {
+      if (cancelled) return
+      const chapterData = chapters[String(chapter)]
+      if (!chapterData) { setQuoteText(''); return }
+      setQuoteText(versesKey.split(',').map(v => chapterData.verses[v] ?? '').join(' ').replace(/\n/g, ' '))
+    }).catch(() => { if (!cancelled) setQuoteText('') })
+    return () => { cancelled = true }
+  }, [lang, heroBook, heroBookEn, chapter, versesKey])
+
+  function toggleTag(name) {
+    setTag(cur => cur === name ? null : name)
+    setAddingTag(false)
+  }
+  function confirmNewTag() {
+    const clean = newTagText.trim()
+    if (clean) setTag(clean)
+    setNewTagText('')
+    setAddingTag(false)
+  }
+  function toggleGroup(id) {
+    setSelectedGroupIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+  function handleSave() {
+    const tags = tag ? [tag] : []
+    const groupIds = shareOn ? selectedGroupIds : []
+    const quote = quoteText ? { text: quoteText, ref: `${refText} (${versionShort})` } : null
+    onSave(text, tags, groupIds, quote)
+  }
+
+  // A etiqueta desta nota pode ser uma recém-digitada, ainda fora do
+  // vocabulário — some na lista de chips mesmo assim (some some de volta
+  // se a pessoa trocar de etiqueta antes de salvar, sem problema).
+  const allTags = tag && !tagVocabulary.includes(tag) ? [...tagVocabulary, tag] : tagVocabulary
+
+  return (
+    <div style={{ height: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column' }}>
+      <div style={annotateStyles.header}>
+        <button style={annotateStyles.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={annotateStyles.headerTitle}>{L('annotateTitle')}</p>
+          <p style={annotateStyles.headerSub}>{refText}</p>
+        </div>
+        <button style={annotateStyles.saveBtn} onClick={handleSave}>{L('annotateSave')}</button>
+      </div>
+
+      <div style={annotateStyles.body}>
+        <div style={annotateStyles.quoteCard}>
+          {quoteText && <p style={annotateStyles.quoteText}>“{quoteText}”</p>}
+          <p style={annotateStyles.quoteRef}>{refText} · {versionShort}</p>
+        </div>
+
+        <div style={annotateStyles.card}>
+          <div style={annotateStyles.cardHeaderRow}>
+            <p style={annotateStyles.cardLabel}>{L('yourNoteLabel')}</p>
+            <p style={annotateStyles.optionalLabel}>{L('optional')}</p>
+          </div>
+          <textarea
+            style={annotateStyles.textarea}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder={L('notePlaceholderVerse')}
+          />
+        </div>
+
+        <div style={annotateStyles.card}>
+          <p style={annotateStyles.cardLabel}>{L('tagsLabel')}</p>
+          <div style={annotateStyles.tagsRow}>
+            {allTags.map(name => (
+              <button key={name} type="button" style={{ ...annotateStyles.tagChip, ...(tag === name ? annotateStyles.tagChipActive : {}) }} onClick={() => toggleTag(name)}>
+                {name}
+              </button>
+            ))}
+            {addingTag ? (
+              <input
+                autoFocus type="text" style={annotateStyles.tagInput} value={newTagText}
+                onChange={e => setNewTagText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmNewTag(); if (e.key === 'Escape') { setAddingTag(false); setNewTagText('') } }}
+                onBlur={confirmNewTag}
+                placeholder={L('newTagPlaceholder')}
+                maxLength={24}
+              />
+            ) : (
+              <button type="button" style={annotateStyles.tagChip} onClick={() => setAddingTag(true)}>{L('newTagChip')}</button>
+            )}
+          </div>
+        </div>
+
+        {myGroups?.length > 0 && (
+          <div style={annotateStyles.card}>
+            <div style={annotateStyles.shareRow}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={annotateStyles.shareTitle}>{L('shareInGroupTitle')}</p>
+                <p style={annotateStyles.shareSub}>{shareOn ? L('shareInGroupOnSub') : L('shareInGroupOffSub')}</p>
+              </div>
+              <button role="switch" aria-checked={shareOn} onClick={() => setShareOn(v => !v)}
+                style={{ ...annotateStyles.toggle, background: shareOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: shareOn ? 'flex-end' : 'flex-start' }}>
+                <span style={{ ...annotateStyles.toggleThumb, background: shareOn ? 'var(--bento-accent)' : '#fff' }} />
+              </button>
+            </div>
+            {shareOn && (
+              <>
+                <p style={annotateStyles.whichGroupsLabel}>{L('whichGroupsLabel')}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {myGroups.map(g => {
+                    const on = selectedGroupIds.includes(g.groupId)
+                    const palette = avatarPaletteFor(g.groupId)
+                    const n = memberCounts[g.groupId] ?? 0
+                    return (
+                      <button key={g.groupId} type="button" style={{ ...annotateStyles.groupRow, ...(on ? annotateStyles.groupRowActive : {}) }} onClick={() => toggleGroup(g.groupId)}>
+                        <span style={{ ...annotateStyles.groupAvatar, background: palette.bg, color: palette.fg }}>{avatarInitialsOf(g.name)}</span>
+                        <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                          <span style={{ ...annotateStyles.groupName, color: on ? '#fff' : 'var(--bento-ink)' }}>{g.name}</span>
+                          <span style={{ ...annotateStyles.groupCount, color: on ? 'rgba(255,255,255,.6)' : 'var(--bento-t3)', display: 'block' }}>
+                            {L(n === 1 ? 'groupMemberOne' : 'groupMemberMany', { n })}
+                          </span>
+                        </span>
+                        {on ? <AppIcon name="Check" size={16} color="var(--bento-accent)" /> : <span style={annotateStyles.groupCheckboxEmpty} />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            <p style={annotateStyles.shareFooterNote}>{L('shareGroupFooterNote')}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const annotateStyles = {
+  header: { display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', flexShrink: 0 },
+  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
+  headerSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
+  saveBtn: { flexShrink: 0, height: 40, padding: '0 18px', borderRadius: 14, border: 'none', background: 'var(--bento-accent)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)' },
+  body: { flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 20px calc(24px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 14 },
+  // Filete #7A4A1E === var(--bento-sand-icon), já o hex exato do HANDOFF.
+  quoteCard: { background: 'var(--bento-sand)', borderRadius: 22, padding: '18px 20px', borderLeft: '3px solid var(--bento-sand-icon)' },
+  quoteText: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.5, color: 'var(--bento-sand-ink-strong)', margin: '0 0 8px' },
+  quoteRef: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-sand-ink)', margin: 0 },
+  card: { background: 'var(--bento-card)', borderRadius: 22, padding: '18px 20px' },
+  cardHeaderRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  cardLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  optionalLabel: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  textarea: {
+    width: '100%', minHeight: 170, border: 'none', outline: 'none', resize: 'none', background: 'var(--bento-line)', borderRadius: 18,
+    padding: '14px 16px', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1.55, color: 'var(--bento-ink)',
+  },
+  tagsRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  tagChip: { height: 36, padding: '0 16px', borderRadius: 99, border: 'none', background: 'var(--bento-line)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
+  tagChipActive: { background: 'var(--bento-ink)', color: '#fff' },
+  tagInput: {
+    height: 36, minWidth: 90, padding: '0 14px', borderRadius: 99, border: '1.5px solid var(--bento-line)', outline: 'none',
+    fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', background: '#fff',
+  },
+  shareRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  shareTitle: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 3px' },
+  shareSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  toggle: { flexShrink: 0, width: 46, height: 28, borderRadius: 99, border: 'none', padding: '0 3px', display: 'flex', alignItems: 'center', cursor: 'pointer' },
+  toggleThumb: { width: 22, height: 22, borderRadius: 99 },
+  whichGroupsLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '16px 0 10px' },
+  groupRow: {
+    display: 'flex', alignItems: 'center', gap: 12, width: '100%', height: 62, borderRadius: 18, border: 'none', background: 'var(--bento-line)',
+    padding: '0 14px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left',
+  },
+  groupRowActive: { background: 'var(--bento-ink)' },
+  groupAvatar: { width: 34, height: 34, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 800 },
+  groupName: { display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 2 },
+  groupCount: { fontSize: 12, fontWeight: 500 },
+  groupCheckboxEmpty: { width: 20, height: 20, flexShrink: 0, borderRadius: 7, border: '1.5px solid var(--bento-t5)' },
+  shareFooterNote: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t4)', margin: '16px 0 0' },
 }
 
 // Ícone do botão "Ferramentas" do rodapé imersivo (quadro 4a) — o traçado
@@ -2241,103 +2400,113 @@ function VerseActionsSheet({
   )
 }
 
-// Popup pequeno, ancorado perto de onde a pessoa tocou o versículo (ou
-// terminou de selecionar um trecho) — diferente do chat de IA/da folha de
-// grifos salvos (sempre no rodapé, com fundo escuro cobrindo a tela), aqui
-// o pedido foi manter o próprio versículo visível por trás/ao redor do
-// popup. Por isso: sem fundo escuro (só uma camada TRANSPARENTE pra
-// capturar o toque de fora e fechar) e posição calculada a partir do
-// retângulo âncora, não fixa no rodapé.
-//
-// Mede o próprio tamanho depois de montar (useLayoutEffect roda antes da
-// pintura, então não pisca na posição errada) porque o conteúdo muda de
-// tamanho conforme a etapa (círculos de cor → editor com textarea), e o
-// tamanho final só se sabe depois de renderizado.
-function AnchoredHighlightPopup({ anchorRect, onClose, lang, children }) {
-  const popupRef = useRef(null)
-  const [pos, setPos] = useState(null) // { top, left } | null (ainda não medido)
+// Copiar (39g, pacote 39) — folha sobre a leitura, mesma família visual
+// de 39e (dentro do MESMO backdrop escurecido — ver o call site: 39e e
+// 39g nunca aparecem juntas, uma troca a outra). "Copiar não é um toque
+// cego: a folha mostra exatamente o que vai ser colado" — cada formato
+// já com a pré-visualização do texto real, a versão sempre junto quando
+// a referência entra. Busca o próprio texto (não recebe pronto) porque
+// pode ser aberta reabrindo um grifo salvo, sem seleção nova nenhuma.
+function VerseCopySheet({ lang, heroBook, heroBookEn, selection, editingHighlight, onClose, onCopy }) {
+  const L = (k, vars) => t(`reading.${k}`, vars, lang)
+  const [format, setFormat] = useState(getLastCopyFormat)
+  const [copied, setCopied] = useState(false)
+  const [quoteText, setQuoteText] = useState('')
 
-  useLayoutEffect(() => {
-    const el = popupRef.current
-    if (!el || !anchorRect) return
-    function reposition() {
-      // window.visualViewport, quando existe, reflete a área REALMENTE
-      // visível (exclui o teclado virtual aberto) — sem ele (Safari mais
-      // antigo etc.) cai pro innerWidth/innerHeight de sempre.
-      const vv = window.visualViewport
-      const vw = vv?.width ?? window.innerWidth
-      const vh = vv?.height ?? window.innerHeight
-      const vLeft = vv?.offsetLeft ?? 0
-      const vTop = vv?.offsetTop ?? 0
-      const rect = el.getBoundingClientRect()
-      const margin = 10
+  const chapter = editingHighlight?.chapter ?? selection?.chapter
+  const verses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
+  const versesKey = verses.join(',')
+  const refText = `${lang === 'en' ? heroBookEn : heroBook} ${chapter}:${formatVerseRanges(verses)}`
+  const versionShort = findBibleVersion(getSelectedVersionId(lang))?.short ?? ''
 
-      let left = anchorRect.left + (anchorRect.width - rect.width) / 2
-      left = Math.min(Math.max(left, vLeft + margin), vLeft + vw - rect.width - margin)
-
-      // Prefere abrir embaixo do alvo; sem espaço (perto do rodapé da tela
-      // ou do teclado), vira pra cima dele.
-      let top = anchorRect.bottom + 8
-      if (top + rect.height > vTop + vh - margin) {
-        top = anchorRect.top - rect.height - 8
-      }
-      top = Math.min(Math.max(top, vTop + margin), vTop + vh - rect.height - margin)
-
-      setPos({ top, left })
-    }
-    reposition()
-    window.visualViewport?.addEventListener('resize', reposition)
-    window.addEventListener('resize', reposition)
-    return () => {
-      window.visualViewport?.removeEventListener('resize', reposition)
-      window.removeEventListener('resize', reposition)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anchorRect, children])
-
-  // Fecha ao tocar fora do popup — MAS deixa passar toques num OUTRO
-  // versículo (elemento com data-verse): esses precisam continuar chegando
-  // no onClick de cada <span> (ver handleVerseTap/handleHighlightVerseClick
-  // em BibleTextPanel/ReadingBlockView), que já sabe somar esse versículo à
-  // seleção em andamento — é assim que a pessoa marca mais de um versículo
-  // de uma vez, tocando um a um. Uma camada catcher cobrindo a tela inteira
-  // (como antes) capturaria esses toques ANTES de chegarem no versículo,
-  // fechando o popup em vez de estender a seleção — por isso não existe
-  // mais uma div catcher aqui, só este listener no document (não intercepta
-  // nada, só observa). Também não fecha mais ao ROLAR a tela (existia antes
-  // uma versão que fechava): rolar é exatamente como a pessoa alcança um
-  // versículo mais distante pra somar à seleção em andamento — fechar aí
-  // perderia a seleção bem no meio do gesto. O popup (position:fixed) só
-  // fica visualmente "parado" enquanto a lista rola por baixo dele; ao
-  // tocar um novo versículo ele pula pra perto do toque de novo.
   useEffect(() => {
-    function handleOutsideClick(e) {
-      if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
-      if (e.target instanceof Element && e.target.closest('[data-verse]')) return
-      onClose()
-    }
-    document.addEventListener('click', handleOutsideClick, true)
-    return () => document.removeEventListener('click', handleOutsideClick, true)
-  }, [onClose])
+    if (!chapter || !versesKey) { setQuoteText(''); return }
+    let cancelled = false
+    const versionId = getSelectedVersionId(lang)
+    const bookKey = lang === 'en' ? heroBookEn : heroBook
+    fetchBookText(versionId, bookKey).then(chapters => {
+      if (cancelled) return
+      const chapterData = chapters[String(chapter)]
+      if (!chapterData) { setQuoteText(''); return }
+      setQuoteText(versesKey.split(',').map(v => chapterData.verses[v] ?? '').join(' ').replace(/\n/g, ' '))
+    }).catch(() => { if (!cancelled) setQuoteText('') })
+    return () => { cancelled = true }
+  }, [lang, heroBook, heroBookEn, chapter, versesKey])
+
+  // ~3s e a confirmação some sozinha; a folha inteira fecha junto
+  // ("confirma e fecha", README) — sem botão de fechar próprio, o
+  // resultado da ação É o encerramento.
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(onClose, 3000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [copied])
+
+  function handleCopyPress() {
+    onCopy(format)
+    setCopied(true)
+  }
+
+  const FORMATS = [
+    { id: 'full', label: L('copyFormatFull'), preview: quoteText ? formatCopyText('full', quoteText, refText, versionShort) : '' },
+    { id: 'textOnly', label: L('copyFormatTextOnly'), preview: quoteText ? formatCopyText('textOnly', quoteText, refText, versionShort) : '' },
+    { id: 'refOnly', label: L('copyFormatRefOnly'), preview: formatCopyText('refOnly', quoteText, refText, versionShort) },
+  ]
 
   return createPortal(
-    <>
-      <div
-        ref={popupRef}
-        style={{
-          ...styles.highlightPopup,
-          ...(pos ? { top: pos.top, left: pos.left, visibility: 'visible' } : { top: -9999, left: -9999, visibility: 'hidden' }),
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <button type="button" style={styles.highlightPopupClose} onClick={onClose} aria-label={t('aiChat.close', undefined, lang)}>
-          <AppIcon name="X" size={13} color="var(--bento-t3)" />
+    <div style={styles.verseSheetBackdrop} onClick={onClose}>
+      <div style={styles.verseSheet} onClick={e => e.stopPropagation()}>
+        <div style={styles.verseSheetHandleWrap}><div style={styles.verseSheetHandle} /></div>
+        <p style={copyStyles.title}>{L('copyTitle')}</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+          {FORMATS.map(f => {
+            const active = format === f.id
+            return (
+              <button key={f.id} type="button" style={{ ...copyStyles.formatCard, ...(active ? copyStyles.formatCardActive : {}) }} onClick={() => setFormat(f.id)}>
+                <div style={copyStyles.formatHeaderRow}>
+                  <span style={{ ...copyStyles.formatLabel, color: active ? 'var(--bento-accent)' : 'var(--bento-t4)' }}>{f.label}</span>
+                  {active && <AppIcon name="Check" size={15} strokeWidth={2.6} color="var(--bento-accent)" />}
+                </div>
+                <p style={{ ...copyStyles.formatPreview, color: active ? '#fff' : 'var(--bento-ink)' }}>{f.preview}</p>
+              </button>
+            )
+          })}
+        </div>
+
+        <button type="button" style={copyStyles.copyBtn} onClick={handleCopyPress}>
+          <AppIcon name="Copy" size={16} strokeWidth={2.2} color="var(--bento-ink)" />
+          {L('copyBtn')}
         </button>
-        {children}
+
+        {copied && (
+          <div style={copyStyles.confirmPill}>
+            <AppIcon name="Check" size={15} strokeWidth={2.6} color="var(--bento-accent)" />
+            {L('copiedConfirm')}
+          </div>
+        )}
       </div>
-    </>,
-    document.body
+    </div>,
+    document.body,
   )
+}
+
+const copyStyles = {
+  title: { fontFamily: 'var(--font-bento)', fontSize: 20, fontWeight: 800, color: 'var(--bento-ink)', margin: '4px 0 18px' },
+  formatCard: { width: '100%', textAlign: 'left', borderRadius: 20, border: 'none', background: '#fff', padding: '14px 16px', cursor: 'pointer' },
+  formatCardActive: { background: 'var(--bento-ink)' },
+  formatHeaderRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  formatLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' },
+  formatPreview: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.45, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  copyBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 54, borderRadius: 18, border: 'none',
+    background: 'var(--bento-accent)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)',
+  },
+  confirmPill: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 48, borderRadius: 16, marginTop: 10,
+    background: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: '#fff',
+  },
 }
 
 // Folha de resposta da IA sobre o trecho (10b, reskin Bento) — cobre ~75%
@@ -2624,183 +2793,6 @@ function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
       </div>
     </div>,
     document.body,
-  )
-}
-
-// Corpo da janela flutuante de grifo (ver highlightPanelOpen no componente
-// principal) — quatro estados possíveis:
-// 1. `editingHighlight` preenchido: editor completo (cor + anotação) de um
-//    grifo já salvo, com opção de apagar.
-// 2. `selection` preenchida e `wantsToAnnotate` false: ETAPA DE COR —
-//    círculos grandes pra grifar na hora (sem escrever nada) + botão
-//    "Adicionar anotação", que leva pro editor completo (estado 3).
-// 3. `selection` preenchida e `wantsToAnnotate` true: editor completo de um
-//    grifo NOVO (mesma UI do 1, só que salva em vez de atualizar).
-// 4. Nenhum dos dois (FAB de lápis tocado sem nada selecionado): dica de
-//    como grifar + lista dos grifos já feitos nesta sessão, cada um
-//    tocável pra cair direto no estado 1.
-function HighlightComposer({
-  lang, chLabel, heroBook, heroBookEn, selection, wantsToAnnotate, editingHighlight, existingHighlights,
-  onQuickColor, onWantsToAnnotate, onSaveNew, onSaveEdit, onDelete, onEditExisting,
-}) {
-  const isEditing = Boolean(editingHighlight)
-  // wantsToAnnotate é o único portão pro editor completo — inclusive
-  // reabrir um versículo JÁ grifado passa primeiro pela etapa de cor
-  // (com a cor atual já marcada, ver colorSwatchPickRow abaixo), só
-  // revelando a anotação salva quando a pessoa toca o lápis de novo.
-  const showComposer = wantsToAnnotate
-
-  const [text, setText] = useState(editingHighlight?.text ?? '')
-  const [color, setColor] = useState(editingHighlight?.color ?? DEFAULT_HIGHLIGHT_COLOR)
-
-  // Troca de alvo (editar outro grifo da lista, uma seleção nova chegar, ou
-  // avançar da etapa de cor pra de anotação) enquanto a janela já está
-  // aberta — reidrata texto/cor do zero, senão ficaria mostrando o
-  // rascunho do alvo anterior.
-  useEffect(() => {
-    setText(editingHighlight?.text ?? '')
-    setColor(editingHighlight?.color ?? DEFAULT_HIGHLIGHT_COLOR)
-  }, [editingHighlight?.id, selection?.chapter, wantsToAnnotate])
-
-  // Texto de VERDADE do(s) versículo(s) sendo grifado(s) — pedido
-  // explícito: a pessoa precisa ver sobre o que está anotando, não só a
-  // referência ("Cap. 6:9-13"). Busca via o mesmo fetchBookText de
-  // BibleTextPanel (cache em memória por versão+livro — chamar de novo
-  // aqui não repete a rede se aquele painel já carregou o mesmo livro).
-  const previewBook = editingHighlight?.book ?? heroBook
-  const previewBookEn = editingHighlight?.bookEn ?? heroBookEn
-  const previewChapter = editingHighlight?.chapter ?? selection?.chapter
-  const previewVerses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
-  const previewVersesKey = previewVerses.join(',')
-  const [previewText, setPreviewText] = useState('')
-  useEffect(() => {
-    if (!showComposer || !previewChapter || !previewVersesKey) { setPreviewText(''); return }
-    let cancelled = false
-    const versionId = getSelectedVersionId(lang)
-    const bookKey = lang === 'en' ? previewBookEn : previewBook
-    fetchBookText(versionId, bookKey).then(chapters => {
-      if (cancelled) return
-      const chapterData = chapters[String(previewChapter)]
-      if (!chapterData) { setPreviewText(''); return }
-      const joined = previewVersesKey.split(',').map(v => chapterData.verses[v] ?? '').join(' ').replace(/\n/g, ' ')
-      setPreviewText(joined)
-    }).catch(() => { if (!cancelled) setPreviewText('') })
-    return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showComposer, previewBook, previewBookEn, previewChapter, previewVersesKey, lang])
-
-  if (!selection && !editingHighlight) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <p style={styles.aiChatScopeNote}>{t('reading.highlightEmptyHint', undefined, lang)}</p>
-        {existingHighlights?.length > 0 && (
-          <>
-            <p style={styles.highlightListTitle}>{t('reading.highlightYourNotes', undefined, lang)}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
-              {existingHighlights.map(h => (
-                <button key={h.id} style={styles.highlightListItem} onClick={() => onEditExisting(h.id)}>
-                  <span style={styles.highlightListRefRow}>
-                    <span style={{ ...styles.highlightColorDot, background: HIGHLIGHT_COLORS.find(c => c.id === h.color)?.swatch ?? HIGHLIGHT_COLORS[0].swatch }} />
-                    <span style={styles.highlightListRef}>{chLabel} {h.chapter}:{formatVerseRanges(h.verses)}</span>
-                  </span>
-                  <span style={styles.highlightListText}>{h.text || t('reading.highlightNoNoteYet', undefined, lang)}</span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    )
-  }
-
-  // Etapa de cor — seleção nova, ainda sem decidir anotar (estado 2). Bem
-  // enxuta de propósito (retângulo pequeno, ancorado perto do toque, ver
-  // AnchoredHighlightPopup): sem repetir a citação do versículo aqui — ele
-  // já está visível na tela, por trás/ao redor do próprio popup.
-  if (!showComposer) {
-    const pickLabel = isEditing
-      ? `${chLabel} ${editingHighlight.chapter}:${formatVerseRanges(editingHighlight.verses)}`
-      : t('reading.markVerses', { n: selection.verses.size }, lang)
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <p style={styles.highlightBoxLabel}>
-          <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-          {pickLabel}
-        </p>
-        <div style={styles.colorSwatchPickRow}>
-          {HIGHLIGHT_COLORS.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onQuickColor(c.id)}
-              aria-label={t(c.labelKey, undefined, lang)}
-              style={{ ...styles.colorSwatch, background: c.swatch, ...(isEditing && editingHighlight.color === c.id ? styles.colorSwatchActive : {}) }}
-            />
-          ))}
-        </div>
-        <button style={styles.highlightAddNoteBtn} onClick={onWantsToAnnotate}>
-          <AppIcon name="PenLine" size={14} /> {t('reading.highlightAddNote', undefined, lang)}
-        </button>
-      </div>
-    )
-  }
-
-  // Editor completo — grifo novo (com anotação) ou editando um já salvo.
-  // Aqui SIM mostra a citação do trecho (pedido explícito: saber sobre o
-  // que está anotando) — o popup já cresceu um pouco pra caber isso mais
-  // a textarea, então pode estar cobrindo o próprio versículo na tela.
-  const countLabel = editingHighlight
-    ? `${chLabel} ${editingHighlight.chapter}:${formatVerseRanges(editingHighlight.verses)}`
-    : `${chLabel} ${selection.chapter}:${formatVerseRanges([...selection.verses])}`
-
-  return (
-    // flex:1 + minHeight:0 + overflowY:auto: dentro da folha (altura
-    // travada em 52vh, ver highlightListSheetWindow), sem isso o conteúdo
-    // (citação + cor + textarea + Salvar) só cresce naturalmente e o
-    // overflow:hidden do avô esconde o que não coube — inclusive o botão
-    // Salvar, sem jeito nenhum de rolar até ele. Com isso, é este bloco
-    // (não a folha inteira) que rola quando o texto grande deixa tudo alto
-    // demais pra caber de uma vez.
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto' }}>
-      <p style={styles.highlightBoxLabel}>
-        <AppIcon name="Highlighter" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-        {countLabel}
-      </p>
-      {previewText && <p style={styles.highlightPreviewText}>“{previewText}”</p>}
-      <div style={styles.colorSwatchSmallRow}>
-        {HIGHLIGHT_COLORS.map(c => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setColor(c.id)}
-            aria-label={t(c.labelKey, undefined, lang)}
-            style={{ ...styles.colorSwatchSmall, background: c.swatch, ...(color === c.id ? styles.colorSwatchSmallActive : {}) }}
-          />
-        ))}
-      </div>
-      <textarea
-        style={{ ...styles.notesTextarea, marginBottom: 0, maxHeight: 130, overflowY: 'auto' }}
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder={t('reading.highlightNotePlaceholder', undefined, lang)}
-        rows={3}
-        autoFocus
-      />
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button
-          style={{ ...styles.notesSaveBtn, width: 'auto', flex: 1, marginBottom: 0 }}
-          onClick={() => (editingHighlight ? onSaveEdit(text, color) : onSaveNew(text, color))}
-          disabled={!editingHighlight && !text.trim()}
-        >
-          {t('reading.highlightSave', undefined, lang)}
-        </button>
-        {editingHighlight && (
-          <button style={styles.highlightDeleteBtn} onClick={onDelete} aria-label={t('reading.highlightDelete', undefined, lang)}>
-            <AppIcon name="Trash2" size={13} />
-          </button>
-        )}
-      </div>
-    </div>
   )
 }
 
@@ -3392,37 +3384,6 @@ const styles = {
   // trocou o azul antigo (--bento-select) no Bloco 3.
   verseSelectedBento: { background: '#FFE3C9', borderRadius: 4, outline: '2px solid var(--bento-accent)' },
   verseAnnotatedUnderline: { textDecorationLine: 'underline', textDecorationColor: 'rgba(0,0,0,.38)', textDecorationThickness: 1.5, textUnderlineOffset: 3 },
-  highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--bento-accent)', display: 'flex', alignItems: 'center' },
-  highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEE2E2', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: '#DC2626', cursor: 'pointer' },
-  highlightListTitle:{ fontSize: 9.5, fontWeight: 700, color: 'var(--bento-t4)', letterSpacing: 0.4, textTransform: 'uppercase', margin: '2px 0 0' },
-  highlightListItem:{ width: '100%', textAlign: 'left', background: 'var(--bento-mark)', border: '0.5px solid var(--gold-soft)', borderRadius: 12, padding: '9px 11px', cursor: 'pointer', fontFamily: 'var(--font-bento)', display: 'flex', flexDirection: 'column', gap: 2 },
-  highlightListRefRow: { display: 'flex', alignItems: 'center', gap: 5 },
-  highlightListRef: { fontSize: 9.5, fontWeight: 700, color: 'var(--bento-accent)' },
-  highlightListText:{ fontSize: 11.5, fontWeight: 500, color: 'var(--bento-ink)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
-  // Bolinha de cor — mesma cor sólida (swatch) usada nos seletores, só
-  // pequena, pra identificar de relance a cor de cada grifo salvo na lista.
-  highlightColorDot: { width: 9, height: 9, borderRadius: '50%', flexShrink: 0 },
-  // Seletor de cor GRANDE (etapa 1, escolher rápido sem escrever nada) —
-  // círculos maiores, mais fáceis de tocar, já que é a interação principal
-  // dessa etapa.
-  colorSwatchPickRow: { display: 'flex', gap: 12, justifyContent: 'center', padding: '4px 0 2px' },
-  colorSwatch: { width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 },
-  // Anel indicando a cor JÁ ativa (reabrindo um grifo existente) — mesmo
-  // espírito do colorSwatchSmallActive do editor completo, só num círculo
-  // maior. outline (não box-shadow) pro anel ficar afastado do círculo.
-  colorSwatchActive: { outline: '2.5px solid var(--bento-ink)', outlineOffset: 2 },
-  // Seletor de cor PEQUENO (dentro do editor/composer, pra trocar a cor sem
-  // sair da tela de escrever) — mais discreto, um círculo com contorno
-  // marca qual está selecionada agora.
-  colorSwatchSmallRow: { display: 'flex', gap: 8 },
-  colorSwatchSmall: { width: 22, height: 22, borderRadius: '50%', border: '2px solid transparent', cursor: 'pointer', padding: 0, flexShrink: 0 },
-  colorSwatchSmallActive: { border: '2px solid #fff', outline: '2px solid var(--bento-ink)' },
-  highlightAddNoteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', background: 'var(--bento-line)', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: 10, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
-  // Trecho de verdade sendo grifado, mostrado dentro do editor — pra pessoa
-  // lembrar do que está falando sem precisar sair pra conferir (pedido
-  // explícito: "deixar o texto visível pra saber sobre o que está
-  // anotando"). Itálico + aspas, mesmo espírito de uma citação.
-  highlightPreviewText: { fontSize: 12, fontWeight: 500, fontStyle: 'italic', color: 'var(--bento-t2)', lineHeight: 1.45, background: 'var(--bento-line)', borderRadius: 10, padding: '8px 10px', margin: 0 },
 
   // Chat com IA sobre o texto (ver AiChatPanel) — flutua por cima da
   // leitura (ver aiChatOverlay* mais abaixo) em vez de abrir um card
@@ -3444,22 +3405,6 @@ const styles = {
   errorText:       { fontSize: 11.5, fontWeight: 600, color: '#DC2626', marginBottom: 8, flexShrink: 0 },
   aiChatLimitCounter: { fontSize: 10, fontWeight: 500, color: 'var(--bento-t4)', textAlign: 'right', margin: '5px 2px 0', flexShrink: 0 },
 
-  // Botão flutuante do chat com IA — sempre visível enquanto lendo, atalho
-  // pra mesma aba "Perguntar à IA" (ver openAiChat). Wrap com o mesmo
-  // truque de centralização de .bottom-nav (left:50%+translateX(-50%)
-  // dentro de max-width:var(--max-width)) pra ficar alinhado com a coluna
-  // real do app em telas largas, não colado na borda física da janela.
-  // Cor roxa (#A21CAF) — mesmo tom já usado em todo recurso de IA do app
-  // (ThemePlanScreen.jsx), pra sinalizar "isso é IA" de forma consistente.
-  aiFabWrap: { position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'var(--max-width)', zIndex: 90, pointerEvents: 'none' },
-  aiFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: '#A21CAF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', pointerEvents: 'auto' },
-  // Lápis de grifar — mesmo FAB, empilhado em cima do da IA (mesmo `right`,
-  // `bottom` maior em 52px do botão + 12px de respiro). Cor dourada/marrom
-  // (var(--bento-accent)), mesmo tom já usado em highlightBoxLabel, pra
-  // sinalizar "isso é sobre marcar o texto" — cor diferente da roxa da IA,
-  // mesmo formato/tamanho.
-  highlightFab: { position: 'absolute', right: 16, bottom: 'calc(var(--nav-height) + 16px + 64px)', width: 52, height: 52, borderRadius: '50%', border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', pointerEvents: 'auto' },
-
   // Janela flutuante do chat — "nuvem" pedida: aparece por cima da leitura
   // (ancorada embaixo, tipo bandeja de mensagens), sem tirar a pessoa da
   // posição de rolagem em que estava. Mesmo truque de centralização de
@@ -3473,20 +3418,6 @@ const styles = {
   aiChatOverlayIcon: { width: 28, height: 28, borderRadius: 9, background: '#FAE8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   aiChatOverlayClose: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   aiChatOverlayBody: { flex: 1, minHeight: 0, padding: '12px 16px', display: 'flex', flexDirection: 'column' },
-
-  // Folha do FAB (lista de grifos já feitos, sem versículo específico pra
-  // ancorar) — mesma família visual de aiChatOverlayWindow, só mais baixa
-  // ("não tão grande" vale pra ela também, ver plano) em vez da altura
-  // fixa de 72vh usada pelo chat de IA.
-  highlightListSheetWindow: { width: '100%', maxWidth: 'var(--max-width)', height: 'auto', maxHeight: '52vh', background: '#fff', borderRadius: '24px 24px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-
-  // Popup ancorado (ver AnchoredHighlightPopup) — fecha via listener no
-  // document (não uma camada cobrindo a tela, ver handleOutsideClick), pra
-  // deixar passar toque num outro versículo (soma à seleção) e gestos de
-  // rolagem, sem escurecer nada (o versículo grifado precisa continuar
-  // visível, diferente de aiChatOverlayBackdrop).
-  highlightPopup: { position: 'fixed', zIndex: 201, width: 252, maxWidth: 'calc(100vw - 20px)', maxHeight: '46vh', overflowY: 'auto', background: '#fff', borderRadius: 16, padding: '14px 14px 12px' },
-  highlightPopupClose: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 
   // ── Folha do versículo selecionado (39e, pacote 39) ──
   // Hex exatos do HANDOFF: escurecido rgba(26,23,20,.45), alça #D6CFC7,

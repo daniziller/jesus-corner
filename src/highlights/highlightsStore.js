@@ -22,10 +22,19 @@ export function saveHighlight(_email, highlight) {
   })
 }
 
-export function updateHighlightText(_email, id, text, color) {
+// tags/sharedGroupIds opcionais (39f, pacote 39) — omitidos, preservam o
+// que já existia (mesmo padrão de `color`); os dois chamadores antigos
+// (NotesScreen.jsx, edição só do texto) continuam funcionando sem mudar
+// nada.
+export function updateHighlightText(_email, id, text, color, tags, sharedGroupIds) {
   return withRowLock(async () => {
     const current = await getHighlights(_email)
-    const next = current.map(h => h.id === id ? { ...h, text, color: color ?? h.color, updatedAt: new Date().toISOString() } : h)
+    const next = current.map(h => h.id === id ? {
+      ...h, text, color: color ?? h.color,
+      tags: tags ?? h.tags ?? [],
+      sharedGroupIds: sharedGroupIds ?? h.sharedGroupIds ?? [],
+      updatedAt: new Date().toISOString(),
+    } : h)
     const updated = await updateRow({ highlights: next })
     return updated?.highlights ?? next
   })
