@@ -37,7 +37,7 @@ const HOURS = Array.from({ length: 24 }, (_, h) => h)
 const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5)
 
 export default function ProfileSheet({
-  open, session, authUser, subscription, isAdmin, largeText, onToggleLargeText,
+  open, session, authUser, subscription, isAdmin, fontSizePt,
   onNavigate, onClose, onLogout, onResetProgress, onChangeReadingOrder, onSelectPace, onProfileUpdated,
 }) {
   const [notifications, setNotifications] = useState(false)
@@ -334,9 +334,8 @@ export default function ProfileSheet({
               <Row label={L('aiSettingsLabel')} sub={L('aiSettingsSub')} onPress={() => go('aiSettings')} />
             )}
             <Row
-              label={L('appearanceLabel')} sub={largeText ? L('appearanceSubOn') : L('appearanceSubOff')}
-              onPress={onToggleLargeText}
-              right={<Switch value={!!largeText} onChange={onToggleLargeText} />}
+              label={L('appearanceLabel')} sub={L('appearanceSubValue', { n: fontSizePt })}
+              onPress={() => go('appearance')}
               last
             />
           </div>

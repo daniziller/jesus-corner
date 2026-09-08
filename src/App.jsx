@@ -53,6 +53,7 @@ import MetricsBlocksScreen from './screens/MetricsBlocksScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import ProfileSheet from './screens/ProfileSheet'
 import LanguageSettingsScreen from './screens/LanguageSettingsScreen'
+import AppearanceScreen from './screens/AppearanceScreen'
 import GroupAdminScreen from './screens/GroupAdminScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
@@ -100,7 +101,7 @@ import { saveNote, getNotes } from './notes/notesStore'
 import { getLastReadPosition, setLastReadPosition } from './reading/lastReadPositionStore'
 import { PLANS } from './data/bibleBlocks'
 import { getAppLanguage, setAppLanguage } from './i18n/appLanguageStore'
-import { getLargeTextEnabled, setLargeTextEnabled } from './utils/textScaleStore'
+import { getFontSizePt, setFontSizePt, zoomForFontSize, FONT_SIZE_STEPS, DEFAULT_FONT_SIZE_PT } from './utils/textScaleStore'
 import { detectLanguageFromIp } from './i18n/detectLanguage'
 import { t } from './i18n'
 import { getMyActiveChallenges, recordChallengeProgress } from './groups/challengesStore'
@@ -668,20 +669,27 @@ export default function App() {
   // amigos (24c) dentro da Comunidade — mesmo padrão de browseJumpTarget
   // acima: GroupsScreen.jsx consome e limpa sozinho (useEffect).
   const [groupsEntryTarget, setGroupsEntryTarget] = useState(null)
-  // Acessibilidade: "texto grande" — por dispositivo, ver src/utils/textScaleStore.js
-  // e a regra html.large-text .app-content-inner { zoom } em index.css.
-  const [largeText, setLargeText] = useState(getLargeTextEnabled)
+  // Acessibilidade: tamanho do texto — por dispositivo (19a, "Aparência e
+  // texto"), ver src/utils/textScaleStore.js e a regra .app-content-inner
+  // { zoom: var(--text-zoom) } em index.css.
+  const [fontSizePt, setFontSizePtState] = useState(getFontSizePt)
 
   useEffect(() => {
-    document.documentElement.classList.toggle('large-text', largeText)
-  }, [largeText])
+    document.documentElement.style.setProperty('--text-zoom', String(zoomForFontSize(fontSizePt)))
+  }, [fontSizePt])
 
+  function changeFontSizePt(pt) {
+    setFontSizePtState(pt)
+    setFontSizePt(pt)
+  }
+
+  // Atalho rápido do "T" no cabeçalho/barra lateral (AppHeader.jsx/
+  // Sidebar.jsx) — alterna entre o tamanho padrão e um "grande" (20pt),
+  // mesmo espírito do liga/desliga antigo; o controle fino (os 5 tamanhos)
+  // mora só em 19a.
+  const largeText = fontSizePt > DEFAULT_FONT_SIZE_PT
   function toggleLargeText() {
-    setLargeText(prev => {
-      const next = !prev
-      setLargeTextEnabled(next)
-      return next
-    })
+    changeFontSizePt(largeText ? DEFAULT_FONT_SIZE_PT : 20)
   }
 
   const { blocks, sessionsByBlock } = useMemo(
@@ -2617,6 +2625,11 @@ export default function App() {
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onSelectPace={selectPlan} onProfileUpdated={handleProfileUpdated} />,
     // Bento 19b — Idioma e versão da Bíblia, alcançada pela folha do Perfil.
     language: <LanguageSettingsScreen session={session} authUser={authUser} onBack={goBack} onChangeLanguage={changeLanguage} />,
+    // 19a, "Aparência e texto" — só o tamanho do texto é um seletor de
+    // verdade (5 passos); "Claro" é informativo (ver comentário no
+    // próprio arquivo, mesma "Regra Zero" de LanguageSettingsScreen.jsx
+    // pra versão da Bíblia: o app não tem modo escuro pra escolher).
+    appearance: <AppearanceScreen session={session} fontSizePt={fontSizePt} onChangeFontSizePt={changeFontSizePt} onBack={goBack} />,
     // Bento 19c — Administração do grupo, alcançada pela folha do Perfil.
     groupAdmin: <GroupAdminScreen session={session} authUser={authUser} onBack={goBack} onNavigate={navigateTo} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
     // Chave só existe pra quem é admin — evita montar (e disparar as
@@ -2669,7 +2682,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -2682,7 +2695,7 @@ export default function App() {
   // diferente de 35d/35e (createAiStudy/studyProposalNew), que têm botão
   // primário fixo no rodapé no lugar da barra, como o antigo createStudy/
   // studyProposal já tinham.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (
@@ -2744,8 +2757,7 @@ export default function App() {
         authUser={authUser}
         subscription={subscription}
         isAdmin={isAdmin}
-        largeText={largeText}
-        onToggleLargeText={toggleLargeText}
+        fontSizePt={fontSizePt}
         onNavigate={navigateTo}
         onClose={() => setProfileOpen(false)}
         onLogout={handleLogout}
