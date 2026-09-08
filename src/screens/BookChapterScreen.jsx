@@ -37,7 +37,7 @@ export default function BookChapterScreen({
   session, authUser, block, bookName, displayName,
   sessionsByBlock, browseSessionsByBlock, completedSet,
   onToggleSession, onToggleChapter, onMarkChaptersManually, onGoToReflectionFrom, onNavigate,
-  onBack, initialSessionId, initialTextOpen, initialFocusVerse,
+  onBack, initialSessionId, initialTextOpen, initialFocusVerse, initialOpenSermonNote, onOpenGroupRoom,
 }) {
   const { lang } = session
   const L = (k, vars) => t(`bookChapters.${k}`, vars, lang)
@@ -48,6 +48,9 @@ export default function BookChapterScreen({
   // 39k/39l (Bloco 6): tocar um cartão de busca/tema chega aqui já com um
   // versículo pra focar — ver initialFocusVerse em ReadingBlockView.jsx.
   const [openFocusVerse, setOpenFocusVerse] = useState(initialFocusVerse ?? null)
+  // "Anotar uma pregação" (34a/34d, handoff-app-completo) — mesmo padrão
+  // de openFocusVerse acima, mas pra abrir a folha de sermão flutuante.
+  const [openSermonNote] = useState(!!initialOpenSermonNote)
   const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
 
   const total = computeBookChapterCounts(sessionsByBlock)[bookName] ?? 0
@@ -162,6 +165,8 @@ export default function BookChapterScreen({
         initialSessionId={openSessionId}
         initialTextOpen
         initialFocusVerse={openFocusVerse}
+        autoOpenSermonNote={openSermonNote}
+        onOpenGroupRoom={onOpenGroupRoom}
         onBack={() => { setOpenSessionId(null); setOpenTextOpen(false); setOpenFocusVerse(null) }}
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
       />

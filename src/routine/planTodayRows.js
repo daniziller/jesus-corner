@@ -41,12 +41,11 @@ export function statusFor(key, { offSteps, todayRoutine, currentKey }) {
 // mostra um tipo de informação diferente no quadro (35a/35b): horário
 // quando feito, posição/pergunta quando é a vez, motivo quando está fora
 // de hoje. Quem chama traduz o metaKind pro texto final (ver buildRowMeta
-// abaixo).
-export function metaKindFor(key, status, { activeStudyId, pausedStudyHasBook, hasNoPlan, reflectionMethod }) {
-  if (status === 'off') {
-    if (key === 'reading' && activeStudyId && pausedStudyHasBook) return 'pausedUntil'
-    return 'notToday'
-  }
+// abaixo). Trilhas independentes (handoff-app-completo): Leitura e Estudo
+// têm dias próprios e nunca se "pausam" um pelo outro — um passo fora de
+// hoje é sempre só "não é dia dele", não importa qual.
+export function metaKindFor(key, status, { activeStudyId, hasNoPlan, reflectionMethod }) {
+  if (status === 'off') return 'notToday'
   if (key === 'prayer') return status === 'done' ? 'prayerDone' : 'prayerMethod'
   if (key === 'reading') {
     if (status === 'done') return 'doneFem'
@@ -63,16 +62,6 @@ export function metaKindFor(key, status, { activeStudyId, pausedStudyHasBook, ha
   if (status === 'done') return 'doneFem'
   if (activeStudyId) return 'studyQuestion'
   return reflectionMethod === 'free' ? 'reflectionFree' : 'reflectionQuestions'
-}
-
-// "10 de setembro" — dia + mês, sem dia da semana e sem ano (diferente de
-// formatWeekdayDate/utils/weekdayDateLabel.js, usado no cartão "Retomar
-// já", que já tem o dia da semana no quadro).
-export function formatMonthDay(iso, lang) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long' })
 }
 
 function doneAtLine(gender, key, todayRoutine, L) {
@@ -105,11 +94,9 @@ function chainAfterMeta(key, todaysSteps, L) {
 // nome bonito do passo mora em home.routineXxx, não em routine.*, então
 // vem de fora em vez de L() tentar adivinhar o namespace certo.
 export function buildRowMeta(key, status, ctx, L) {
-  const { activeStudyId, pausedStudy, hasNoPlan, reflectionMethod, prayerMethod, todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle } = ctx
-  const kind = metaKindFor(key, status, { activeStudyId, pausedStudyHasBook: !!pausedStudy?.pausedAtBook, hasNoPlan, reflectionMethod })
+  const { activeStudyId, hasNoPlan, reflectionMethod, prayerMethod, todayRoutine, todaySession, activeStudy, todaysSteps, stepTitle } = ctx
+  const kind = metaKindFor(key, status, { activeStudyId, hasNoPlan, reflectionMethod })
   switch (kind) {
-    case 'pausedUntil':
-      return L('pausedUntilRow', { book: pausedStudy.pausedAtBook, date: formatMonthDay(pausedStudy.resumesAt, lang) })
     case 'notToday':
       return L('notTodayStep', { step: stepTitle(key).toLowerCase() })
     case 'prayerDone':

@@ -4,14 +4,15 @@
 // de hoje agora nasce do modelo de passos com dias/minutos próprios do
 // Bloco 1 (step_days/stepMinutesStore, ver AdjustPlanScreen.jsx).
 //
-// Regra de substituição (35b) — decidida comparando os dois quadros lado a
-// lado (mesmo dia de exemplo, terça, dia de leitura em 35a): quando há um
-// Estudo ATIVO (session.activeStudyId), ele troca de lugar com a Leitura
-// EM QUALQUER DIA que ela apareceria — não é o dia próprio do Estudo
-// (stepDays.study) que manda aqui. stepDays.study só governa o modelo
-// "independente" (Estudo como passo comum, coexistindo com Leitura em dias
-// separados, sem um estudo específico "ativo") — ver HANDOFF-35-meu-
-// plano.md, "Dias por trilha — regra geral" vs. a seção de 35b.
+// Trilhas independentes (handoff-app-completo, achado conferindo Hoje
+// contra Meu Plano — 34b/34c venceram sobre o modelo antigo de 35b):
+// Bíblia e Estudo têm dias próprios (stepDays.reading/stepDays.study) e
+// podem coincidir no mesmo dia — leitura primeiro, estudo depois (mesma
+// ordem de STEP_ORDER). Não existe mais "Estudo ativo substitui a Leitura
+// no dia dela" nem "leitura pausa até o estudo acabar" — ver
+// activeStudyStore.js. `study` entra em `activeSteps` sempre que a pessoa
+// ligou o passo genérico "Estudo" em 35c (routineModules) OU tem um estudo
+// específico ativo (activeStudyId) sem nunca ter mexido nesse toggle.
 import { useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -20,14 +21,12 @@ import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
 import { STEP_ORDER, orderStepsWithOff, statusFor, buildRowMeta } from '../routine/planTodayRows'
-import { getActiveStudy } from '../studies/activeStudyStore'
 import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { computeProjection } from '../plan/readingProjection'
 import { getUseLearnedPace } from '../reading/readingPaceStore'
-import { formatWeekdayDate } from '../utils/weekdayDateLabel'
 
 function joinNames(names, lang) {
   if (names.length <= 1) return names[0] ?? ''
@@ -35,7 +34,7 @@ function joinNames(names, lang) {
   return `${names.slice(0, -1).join(', ')}${sep}${names[names.length - 1]}`
 }
 
-export default function RoutineScreen({ session, completedSet, stepMinutes, onContinueSession, onOpenActiveStudy, onNavigate, onStartGuided, onResumeFixedPlan }) {
+export default function RoutineScreen({ session, completedSet, stepMinutes, onContinueSession, onOpenActiveStudy, onNavigate, onStartGuided }) {
   const { lang, plan, routineModules, activeStudyId, dailyRoutine, todayRoutine, todaySession, currentBlock, biblePercent, chaptersRead, totalChapters, hasNoPlan } = session
   const L = (k, vars) => t(`routine.${k}`, vars, lang)
   const abbr = WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt
@@ -54,7 +53,6 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   const [stepDays, setStepDaysState] = useState(null)
   const [prayerMethod, setPrayerMethodState] = useState('acts')
   const [reflectionMethod, setReflectionMethodState] = useState('questions')
-  const [pausedStudy, setPausedStudy] = useState(null)
   const [activeStudy, setActiveStudy] = useState(null) // { title, passage, dayDone, dayTotal, trailDone, trailTotal }
   const [useLearnedPace, setUseLearnedPaceState] = useState(false)
   const [myStudiesSummary, setMyStudiesSummary] = useState(null)
@@ -67,9 +65,8 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   }, [])
 
   useEffect(() => {
-    if (!activeStudyId) { setActiveStudy(null); setPausedStudy(null); return }
-    Promise.all([getActiveStudy(), getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([active, ai, inductive, doneSet]) => {
-      setPausedStudy(active)
+    if (!activeStudyId) { setActiveStudy(null); return }
+    Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
       const study = [...STUDIES, ...ai, ...inductive].find(s => s.id === activeStudyId)
       if (!study) return
       const total = study.sessions?.length ?? 0
@@ -97,15 +94,12 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
     }).catch(() => {})
   }, [activeStudyId])
 
-  const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
-  const scheduledToday = stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
-  // Regra de substituição (ver comentário do topo do arquivo).
-  const todaysSteps = activeStudyId
-    ? [...new Set(scheduledToday.map(k => (k === 'reading' ? 'study' : k)))]
-    : scheduledToday
+  // 'study' entra mesmo sem o toggle de 35c ligado quando há um estudo
+  // específico ativo (ver comentário do topo do arquivo).
+  const activeSteps = STEP_ORDER.filter(k => (k === 'study' ? (enabled.has('study') || !!activeStudyId) : enabled.has(k)))
+  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
 
   function minutesForStep(key) {
-    if (key === 'study' && activeStudyId) return minutes.reading
     return minutes[key]
   }
   const totalMin = todaysSteps.reduce((s, k) => s + (minutesForStep(k) ?? 0), 0)
@@ -117,9 +111,8 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
 
   // Atualização 35a/35b (atualizacao-35-meu-plano/) — lista única com TODOS
   // os passos canônicos (Oração→Leitura→Estudo→Reflexão), não só os de
-  // hoje: os que não caem hoje (ou foram substituídos por um Estudo ativo,
-  // ver regra de substituição no topo do arquivo) vão pro fim, "desligados".
-  // Ordem/status/"de onde vem a meta" são lógica pura, testada à parte em
+  // hoje: os que não caem hoje vão pro fim, "desligados". Ordem/status/"de
+  // onde vem a meta" são lógica pura, testada à parte em
   // src/routine/planTodayRows.js — aqui só se traduz pro texto final.
   const { orderedKeys, offSteps } = orderStepsWithOff(todaysSteps)
   const noPlanReading = hasNoPlan && !activeStudyId
@@ -129,7 +122,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   // plano de hoje" nunca mostrarem frases diferentes pro mesmo passo/estado.
   function metaFor(key, status) {
     return buildRowMeta(key, status, {
-      activeStudyId, pausedStudy, hasNoPlan, reflectionMethod, prayerMethod,
+      activeStudyId, hasNoPlan, reflectionMethod, prayerMethod,
       todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle,
     }, L)
   }
@@ -203,8 +196,8 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   }
 
   function todayStepsLine() {
-    if (scheduledToday.length === 0) return L('restDayToday')
-    const names = scheduledToday.map(k => stepTitle(k).toLowerCase())
+    if (todaysSteps.length === 0) return L('restDayToday')
+    const names = todaysSteps.map(k => stepTitle(k).toLowerCase())
     return L('todayIsLabel', { weekday: weekdayName, steps: joinNames(names, lang) })
   }
 
@@ -315,20 +308,6 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
           </button>
         </div>
 
-        {/* Estudo pausando o plano principal (35b) — "Retomar já" acaba o
-            estudo num toque só, sem diálogo de confirmação (o próprio toque
-            já é a confirmação — HANDOFF: "sem diálogo de culpa"). */}
-        {activeStudyId && pausedStudy?.pausedAtBook && (
-          <button style={styles.pausedCard} onClick={onResumeFixedPlan}>
-            <span style={styles.pausedIcon}><AppIcon name="Pause" size={14} color="var(--bento-t3)" /></span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={styles.pausedTitle}>{L('pausedTitleChapter', { book: pausedStudy.pausedAtBook, chapter: pausedStudy.pausedAtChapter })}</p>
-              <p style={styles.pausedSub}>{L('pausedResumeDate', { date: formatWeekdayDate(pausedStudy.resumesAt, lang) })}</p>
-            </div>
-            <span style={styles.pausedResumeLabel}>{L('pausedResume')}</span>
-          </button>
-        )}
-
         {!activeStudyId && (
           <button style={styles.handsFreeCard} onClick={() => onNavigate?.('handsFree')}>
             <span style={styles.handsFreeIcon}><AppIcon name="AudioLines" size={16} color="var(--bento-accent)" /></span>
@@ -377,7 +356,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
                 </div>
               ))}
             </div>
-            <p style={styles.myPlanHint}>{todayStepsLine()}{scheduledToday.length > 0 ? ` ${restDaysLine()}` : ''}</p>
+            <p style={styles.myPlanHint}>{todayStepsLine()}{todaysSteps.length > 0 ? ` ${restDaysLine()}` : ''}</p>
 
             <div style={styles.myPlanDivider} />
 
@@ -485,12 +464,6 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 42, borderRadius: 15,
     border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer',
   },
-
-  pausedCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', border: 'none', background: 'var(--bento-card)', borderRadius: 24, padding: '16px 20px', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-bento)' },
-  pausedIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  pausedTitle: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1.2, margin: '0 0 3px' },
-  pausedSub: { fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.2, margin: 0 },
-  pausedResumeLabel: { flexShrink: 0, fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)' },
 
   handsFreeCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: 'var(--bento-card)', borderRadius: 24, padding: '18px 20px', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   handsFreeIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },

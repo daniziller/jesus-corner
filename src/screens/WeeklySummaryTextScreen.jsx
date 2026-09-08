@@ -11,6 +11,47 @@ import { weekRangeLabel, chaptersRangeLabel } from '../recap/weeklySummaryMath'
 
 const FONT = 'var(--font-bento)'
 
+// "Gênesis 40 e 41 · ver todas" (31b, "O que você anotou") — o app só
+// manda `ref` como STRING pronta por nota ("Livro N" ou "Livro N–M", ver
+// collectWeekNotes em api/send-weekly-digest.js), sem book/capítulo cru;
+// pra juntar as até 3 notas da semana numa frase só, reconstrói livro +
+// capítulos a partir do texto do ref (separa pelo último espaço) e junta
+// os capítulos por livro numa lista natural ("40 e 41"). Nota sem ref
+// (reflexão diária) não entra na conta — some da frase, não quebra.
+function parseNoteRef(ref) {
+  if (!ref) return null
+  const lastSpace = ref.lastIndexOf(' ')
+  if (lastSpace === -1) return null
+  const book = ref.slice(0, lastSpace)
+  const chPart = ref.slice(lastSpace + 1)
+  const bounds = chPart.split('–').map(Number)
+  if (bounds.some(Number.isNaN)) return null
+  const [start, end = start] = bounds
+  return { book, chapters: Array.from({ length: end - start + 1 }, (_, i) => start + i) }
+}
+
+function joinChapterList(nums, lang) {
+  const strs = nums.map(String)
+  if (strs.length <= 1) return strs[0] ?? ''
+  const sep = lang === 'en' ? ' and ' : ' e '
+  return `${strs.slice(0, -1).join(', ')}${sep}${strs[strs.length - 1]}`
+}
+
+function noteSourceLine(noteQuotes, lang) {
+  const byBook = new Map()
+  for (const q of noteQuotes) {
+    const parsed = parseNoteRef(q.ref)
+    if (!parsed) continue
+    const set = byBook.get(parsed.book) ?? new Set()
+    parsed.chapters.forEach(c => set.add(c))
+    byBook.set(parsed.book, set)
+  }
+  if (byBook.size === 0) return null
+  return [...byBook.entries()]
+    .map(([book, chSet]) => `${book} ${joinChapterList([...chSet].sort((a, b) => a - b), lang)}`)
+    .join(', ')
+}
+
 export default function WeeklySummaryTextScreen({ session, summaries, selectedIndex, onSelectWeek, onBack, onOpenPrayerGroup, onOpenLibrary }) {
   const lang = session.lang
   const L = (k, vars) => t(`weeklySummary.${k}`, vars, lang)
@@ -84,7 +125,9 @@ export default function WeeklySummaryTextScreen({ session, summaries, selectedIn
               </div>
             ))}
             {onOpenLibrary && (
-              <button type="button" style={s.viewAllBtn} onClick={onOpenLibrary}>{L('viewAllNotesBtn')}</button>
+              <button type="button" style={s.viewAllBtn} onClick={onOpenLibrary}>
+                {noteSourceLine(current.noteQuotes, lang) ? `${noteSourceLine(current.noteQuotes, lang)} · ${L('viewAllNotesBtn')}` : L('viewAllNotesBtn')}
+              </button>
             )}
           </div>
         )}
