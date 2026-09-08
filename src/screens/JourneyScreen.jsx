@@ -1131,7 +1131,7 @@ const styles = {
   sermonMiniPill: {
     flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, height: 52, padding: '0 16px 0 14px',
     borderRadius: 18, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', textAlign: 'left',
-    fontFamily: 'var(--font-bento)', pointerEvents: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,.22)',
+    fontFamily: 'var(--font-bento)', pointerEvents: 'auto',
   },
   sermonMiniDot: { width: 7, height: 7, borderRadius: '50%', background: 'var(--bento-accent)', flexShrink: 0 },
   sermonMiniTitle: { display: 'block', fontSize: 13, fontWeight: 800, lineHeight: 1.2, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
@@ -1142,7 +1142,7 @@ const styles = {
   sermonFab: {
     position: 'fixed', right: 20, bottom: 'calc(var(--safe-bottom) + 16px)', zIndex: 199, touchAction: 'none',
     width: 52, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab', boxShadow: '0 8px 24px rgba(0,0,0,.22)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab',
   },
   sermonFabBadge: {
     position: 'absolute', top: -5, right: -5, minWidth: 20, height: 20, padding: '0 5px', borderRadius: 99, background: 'var(--bento-ink)',

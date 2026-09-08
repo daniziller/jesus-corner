@@ -856,7 +856,7 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
           </div>
           {latestPrayer === undefined ? null : latestPrayer ? (
             <>
-              <p style={styles.prayerQuote}>"{latestPrayer.body}" — {latestPrayer.anonymous ? t('prayer.anonymousLabel', undefined, lang) : latestPrayer.authorName}</p>
+              <p style={styles.prayerQuote}>"{latestPrayer.body}" — {latestPrayer.anonymous ? t('groups.anonymousAuthor', undefined, lang) : latestPrayer.authorName}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {!latestPrayer.isMine && (
                   <button style={styles.prayBtn} onClick={handlePray}>{t('groups.homePrayBtn', undefined, lang)}</button>
@@ -1357,7 +1357,7 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
   }
 
   function handleClose(requestId) {
-    if (!window.confirm(t('prayer.closeRequestConfirm', undefined, lang))) return
+    if (!window.confirm(t('groups.closeRequestConfirm', undefined, lang))) return
     setRequests(prev => prev.filter(r => r.id !== requestId))
     closePrayerRequest(requestId).catch(err => console.error('Failed to close prayer request', err))
   }
@@ -1387,13 +1387,13 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
             return (
               <div key={r.id} style={styles.commentCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={styles.commentAuthor}>{r.anonymous ? t('prayer.anonymousLabel', undefined, lang) : r.authorName}</span>
+                  <span style={styles.commentAuthor}>{r.anonymous ? t('groups.anonymousAuthor', undefined, lang) : r.authorName}</span>
                   <span style={styles.commentDate}>{formatDate(r.createdAt, lang)}</span>
                 </div>
                 <p style={styles.commentBody}>{r.body}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
                   {r.isMine ? (
-                    <button style={styles.smallLinkBtn} onClick={() => handleClose(r.id)}>{t('prayer.closeRequestBtn', undefined, lang)}</button>
+                    <button style={styles.smallLinkBtn} onClick={() => handleClose(r.id)}>{t('groups.closeRequestBtn', undefined, lang)}</button>
                   ) : (
                     <button style={{ ...styles.prayingBtn, ...(r.prayingByMe ? styles.prayingBtnActive : {}) }} onClick={() => handleMarkPraying(r)} disabled={r.prayingByMe}>
                       <AppIcon name="HandHeart" size={13} color={r.prayingByMe ? 'var(--bento-accent)' : 'var(--bento-t4)'} /> {t('groups.homePrayedCount', { n: r.prayCount }, lang)}
