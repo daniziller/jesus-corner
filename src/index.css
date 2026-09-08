@@ -138,6 +138,10 @@
   --bento-card-soft: #FBF9F7;
   /* Texto sobre a seleção azul (--bento-select) no recorte 14c. */
   --bento-select-ink: #3A4A5C;
+  /* Cinza do card "Seu plano de hoje" (Home) quando o plano do dia já foi
+     concluído — pedido dela: parar de trocar pra --bento-sand nesse
+     estado, usar cinza com detalhes em preto/branco/laranja em vez disso. */
+  --bento-slate: #66625A;
   --font-bento: 'Manrope', sans-serif;
 }
 

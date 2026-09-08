@@ -616,13 +616,16 @@ const styles = {
 
   // Bloco 2.
   planCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 20 },
-  planCardDone: { background: 'var(--bento-sand)' },
+  // Antes trocava pra --bento-sand (bege) quando o plano do dia estava
+  // concluído — ela não gostou. Agora é --bento-slate (cinza), com
+  // detalhes em preto/branco/laranja abaixo, em vez do bege/marrom antigo.
+  planCardDone: { background: 'var(--bento-slate)' },
   planHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   planLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
-  planLabelDone: { color: 'var(--bento-sand-label)' },
+  planLabelDone: { color: 'var(--bento-accent)' },
   planMin: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.42)' },
   planTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
-  planTitleDone: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.7px', color: 'var(--bento-sand-ink-strong)', margin: '0 0 14px' },
+  planTitleDone: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.7px', color: '#fff', margin: '0 0 14px' },
   continuityLine: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
 
   tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
@@ -630,10 +633,10 @@ const styles = {
   tileValue: { fontSize: 15, fontWeight: 800, color: '#fff', margin: '0 0 2px', lineHeight: 1.1 },
   tileUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
   tileLabel: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', margin: 0 },
-  tileDone: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(122,74,30,.1)', padding: '11px 12px' },
-  tileValueDone: { fontSize: 15, fontWeight: 800, color: 'var(--bento-sand-ink-strong)', margin: '0 0 2px', lineHeight: 1.1 },
-  tileUnitDone: { fontSize: 10, fontWeight: 600, color: 'var(--bento-sand-ink-mid)' },
-  tileLabelDone: { fontSize: 10, fontWeight: 600, color: 'var(--bento-sand-ink-mid)', margin: 0 },
+  tileDone: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(0,0,0,.2)', padding: '11px 12px' },
+  tileValueDone: { fontSize: 15, fontWeight: 800, color: '#fff', margin: '0 0 2px', lineHeight: 1.1 },
+  tileUnitDone: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)' },
+  tileLabelDone: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', margin: 0 },
 
   btnRow: { display: 'flex', gap: 8 },
   startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },
@@ -642,10 +645,10 @@ const styles = {
   onlyReadBtn: { height: 48, padding: '0 16px', borderRadius: 16, border: 'none', background: 'rgba(255,255,255,.08)', cursor: 'pointer', fontFamily: FONT },
   onlyReadBtnText: { fontSize: 12.5, fontWeight: 700, color: '#fff' },
 
-  nextUpLine: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-sand-ink-mid)', margin: '0 0 14px' },
+  nextUpLine: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.55)', margin: '0 0 14px' },
   doneBtnRow: { display: 'flex', gap: 8 },
-  extraChapterBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, cursor: 'pointer' },
-  seeInGroupBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'rgba(122,74,30,.12)', color: 'var(--bento-sand-ink-strong)', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' },
+  extraChapterBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, cursor: 'pointer' },
+  seeInGroupBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'rgba(255,255,255,.12)', color: '#fff', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' },
 
   // Bloco 3.
   verseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px' },
