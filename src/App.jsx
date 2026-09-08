@@ -70,7 +70,8 @@ import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
 import { getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode } from './reading/bibleOrderStore'
-import { getStepDays, stepsScheduledForWeekday } from './routine/stepDaysStore'
+import { getStepDays, stepsScheduledForWeekday, nextScheduledWeekday } from './routine/stepDaysStore'
+import { WEEKDAY_FULL } from './routine/weeklyDaysMath'
 import { STEP_ORDER } from './routine/planTodayRows'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
@@ -2378,14 +2379,26 @@ export default function App() {
     ? { book: lastReadSession.book, bookEn: lastReadSession.bookEn, chStart: lastReadSession.chStart, chEnd: lastReadSession.chEnd, words: lastReadSession.words }
     : null
 
-  // Próximo livro depois do atual, na ordem do plano — "Próximo: Êxodo."
+  // Próximo livro depois do atual, na ordem do plano — "Próximo: Êxodo, a
+  // partir de quarta." (17b: o quadro sempre inclui quando a leitura
+  // contínua volta a cair, mesmo cálculo de nextScheduledWeekday já usado
+  // no tile "Volta {dia}" do Hoje). O "a partir de {dia}" já vem pronto
+  // dentro do nome — os dois lugares que interpolam {book} (o cartão e a
+  // imagem compartilhável) não precisam saber desse detalhe.
   const orderedSessions = blocks.flatMap(b => sessionsByBlock[b.id] ?? [])
   const bookEnFor = book => orderedSessions.find(x => x.book === book)?.bookEn ?? null
   const nextBookLabel = (() => {
     const cur = session.currentBlock?.book
     const idx = orderedSessions.findIndex(x => x.book === cur)
     const nxt = idx >= 0 ? orderedSessions.slice(idx).find(x => x.book !== cur && x.type !== 'reflection') : null
-    return nxt ? (session.lang === 'en' ? (nxt.bookEn || nxt.book) : nxt.book) : null
+    if (!nxt) return null
+    const name = session.lang === 'en' ? (nxt.bookEn || nxt.book) : nxt.book
+    const todayIdx = (new Date().getDay() + 6) % 7
+    const readingDays = stepDays?.reading
+    const weekdayIdx = readingDays ? nextScheduledWeekday(readingDays, todayIdx) : null
+    if (weekdayIdx == null) return name
+    const weekday = (WEEKDAY_FULL[session.lang] ?? WEEKDAY_FULL.pt)[weekdayIdx]
+    return t('recap.nextBookFromWeekday', { book: name, weekday }, session.lang)
   })()
   function closeRecap() {
     if (monthRecap) markRecapShown(monthRecap.month).catch(() => {})

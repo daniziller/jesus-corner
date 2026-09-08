@@ -2500,6 +2500,11 @@ export const STRINGS = {
       applications: 'aplicações cumpridas',
       topVerse: 'O versículo que você mais voltou',
       next: 'Próximo: {book}.',
+      // "Êxodo, a partir de quarta" (17b) — o {book} de `next` já vem
+      // pronto com isso embutido (ver nextBookLabel, App.jsx), pra não
+      // duplicar o template "Próximo: ..." nos dois lugares que o usam
+      // (cartão e imagem compartilhável).
+      nextBookFromWeekday: '{book}, a partir de {weekday}',
       save: 'Guardar na Biblioteca',
       saved: 'Guardado',
       share: 'Compartilhar',
@@ -5120,6 +5125,7 @@ export const STRINGS = {
       applications: 'applications fulfilled',
       topVerse: 'The verse you came back to most',
       next: 'Next: {book}.',
+      nextBookFromWeekday: '{book}, starting {weekday}',
       save: 'Save to Library',
       saved: 'Saved',
       share: 'Share',
