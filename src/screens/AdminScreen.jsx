@@ -82,7 +82,7 @@ export default function AdminScreen({ session }) {
           {activeNav?.built ? (
             <>
               {section === 'overview' && <OverviewSection lang={lang} onNavigate={setSection} />}
-              {section === 'users' && <UsersSection lang={lang} />}
+              {section === 'users' && <UsersSection lang={lang} onNavigate={setSection} />}
               {section === 'ai' && <AiSection lang={lang} />}
               {section === 'messages' && <MessagesSection lang={lang} />}
               {section === 'invites' && <InvitesSection lang={lang} />}
@@ -164,8 +164,37 @@ function OverviewSection({ lang, onNavigate }) {
   if (!metrics) return <div style={styles.sectionBody}><p style={styles.hint}>{t('admin.loading', undefined, lang)}</p></div>
 
   const { users, subscriptions, contact, pastDueSubscriptions, paymentErrorsToday, retentionByWeek, weeklySignups, dau, ai, groups, onboardingFunnel } = metrics
-  const activeMonthly = subscriptions.activeByPlan.brl.monthly + subscriptions.activeByPlan.usd.monthly
-  const activeAnnual = subscriptions.activeByPlan.brl.annual + subscriptions.activeByPlan.usd.annual
+
+  // "Exportar" (23a) — os números já estão na mão (mesmo `metrics` que
+  // preenche a tela toda), então isto é um CSV de verdade, não um botão
+  // decorativo: uma linha por número do topo, mais o funil e a retenção por
+  // coorte. Sem endpoint novo — tudo client-side, igual o resto da tela.
+  function handleExport() {
+    const rows = [
+      ['metrica', 'valor'],
+      ['assinantes_ativos', subscriptions.activeTotal],
+      ['mrr_brl', (subscriptions.mrrCents.brl / 100).toFixed(2)],
+      ['mrr_usd', (subscriptions.mrrCents.usd / 100).toFixed(2)],
+      ['dau', dau],
+      ['em_trial', subscriptions.trialCount],
+      ['trials_vencem_48h', subscriptions.trialsExpiringSoon],
+      ['grupos_ativos', groups.activeCount],
+      ['pct_assinantes_em_grupo', groups.pctSubscribersInGroup],
+      ['ia_perguntas_hoje', ai.questionsToday],
+      ['ia_respostas_reportadas', ai.pendingReports],
+      ['pagamentos_com_erro_hoje', paymentErrorsToday],
+      ...onboardingFunnel.steps.map(s => [`funil_${s.step}`, s.count]),
+      ['funil_assinaram', onboardingFunnel.subscribed],
+    ]
+    const csv = rows.map(r => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `jesus-corner-admin-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
   const dauPct = users.total > 0 ? Math.round((dau / users.total) * 100) : 0
   const maxWeeklySignup = Math.max(1, ...weeklySignups.map(w => w.count))
 
@@ -177,16 +206,22 @@ function OverviewSection({ lang, onNavigate }) {
 
   return (
     <div style={styles.sectionBody}>
-      <SectionHeader title={t('admin.section.overview.title', undefined, lang)} subtitle={overviewDateLabel(lang)} />
+      <SectionHeader
+        title={t('admin.section.overview.title', undefined, lang)}
+        subtitle={overviewDateLabel(lang)}
+        right={<button type="button" className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }} onClick={handleExport}>{t('admin.overview.exportBtn', undefined, lang)}</button>}
+      />
 
       <div style={styles.grid12}>
         <div style={{ gridColumn: 'span 3' }}>
           <div style={styles.darkStatCard}>
             <p style={styles.darkStatLabel}>{t('admin.overview.activeSubscribers', undefined, lang)}</p>
             <p style={styles.darkStatValue}>{subscriptions.activeTotal}</p>
-            <p style={styles.darkStatSub}>{t('admin.metric.monthly', undefined, lang) === 'mensal'
-              ? `${activeMonthly} ${t('admin.metric.monthly', undefined, lang)} · ${activeAnnual} ${t('admin.metric.annual', undefined, lang)}`
-              : `${activeMonthly} ${t('admin.metric.monthly', undefined, lang)} · ${activeAnnual} ${t('admin.metric.annual', undefined, lang)}`}</p>
+            <p style={styles.darkStatSub}>
+              {subscriptions.newActivePct30d != null
+                ? t('admin.overview.activeGrowth', { count: subscriptions.newActiveIn30d, pct: subscriptions.newActivePct30d }, lang)
+                : t('admin.overview.activeGrowthNoPct', { count: subscriptions.newActiveIn30d }, lang)}
+            </p>
           </div>
         </div>
         <div style={{ gridColumn: 'span 3' }}>
@@ -229,6 +264,11 @@ function OverviewSection({ lang, onNavigate }) {
           <div style={styles.whiteCard}>
             <div style={styles.cardHeaderRow}>
               <p style={styles.cardKicker}>{t('admin.funnel.title', undefined, lang)}</p>
+              {/* Leva pra 'Onboarding' na nav lateral — hoje é a tela honesta
+                  de "ainda não construída" (ver NAV_SECTIONS), porque o
+                  detalhe completo do funil não existe como página própria
+                  nesta leva; o resumo aqui já é o dado real. */}
+              <button type="button" style={styles.cardHeaderLink} onClick={() => onNavigate('onboarding')}>{t('admin.overview.viewDetail', undefined, lang)}</button>
             </div>
             <div style={styles.funnelFilters}>
               <div style={styles.funnelFilterGroup}>
@@ -303,7 +343,13 @@ function OverviewSection({ lang, onNavigate }) {
         </div>
         <div style={{ gridColumn: 'span 4' }}>
           <div style={styles.whiteCard}>
-            <p style={styles.cardKicker}>{t('admin.overview.groupsTitle', undefined, lang)}</p>
+            <div style={styles.cardHeaderRow}>
+              <p style={{ ...styles.cardKicker, margin: 0 }}>{t('admin.overview.groupsTitle', undefined, lang)}</p>
+              {/* Leva pra 'Grupos e igrejas' na nav — mesma honestidade do
+                  link do funil acima: hoje é a tela de "ainda não
+                  construída", os 3 números aqui já são o dado real. */}
+              <button type="button" style={styles.cardHeaderLink} onClick={() => onNavigate('groups')}>{t('admin.overview.viewAll', undefined, lang)}</button>
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <div style={styles.groupStatChip}>
                 <p style={styles.groupStatValue}>{groups.activeCount}</p>
@@ -359,7 +405,7 @@ function FunnelRow({ label, count, pct, highlight }) {
 // Mantém o fluxo de busca (não a tabela paginada com coluna de grupo/CSV/
 // impersonar/desativar do mockup — decisão do Bloco 14: sem infra de
 // paginação completa nem ação de sessão-como-outro-usuário nesta leva).
-function UsersSection({ lang }) {
+function UsersSection({ lang, onNavigate }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
@@ -394,7 +440,11 @@ function UsersSection({ lang }) {
 
   return (
     <div style={styles.sectionBody}>
-      <SectionHeader title={t('admin.section.users.title', undefined, lang)} subtitle={t('admin.section.users.subtitle', undefined, lang)} />
+      <SectionHeader
+        title={t('admin.section.users.title', undefined, lang)}
+        subtitle={t('admin.section.users.subtitle', undefined, lang)}
+        right={<button type="button" className="btn-primary" style={{ width: 'auto', padding: '9px 16px' }} onClick={() => onNavigate('messages')}>{t('admin.users.sendMessageBtn', undefined, lang)}</button>}
+      />
       <div style={styles.twoPane}>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={styles.searchBar}>
@@ -1188,6 +1238,7 @@ const styles = {
   cardKicker:         { font: '800 10.5px/1 var(--font-bento)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
   darkKicker:         { font: '800 10px/1 var(--font-bento)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
   cardHeaderAside:    { font: '700 11.5px/1 var(--font-bento)', color: 'var(--bento-t3)' },
+  cardHeaderLink:     { border: 'none', background: 'none', padding: 0, cursor: 'pointer', font: '700 11.5px/1 var(--font-bento)', color: 'var(--bento-accent)' },
   barsRow:            { display: 'flex', alignItems: 'flex-end', gap: 5, height: 100 },
   diamondDot:         { width: 9, height: 9, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
   darkActionRow:      { marginTop: 12, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, background: 'rgba(240,102,43,.16)', padding: '10px 12px', border: 'none', cursor: 'pointer', font: '700 12px/1 var(--font-bento)', color: 'var(--bento-accent)' },

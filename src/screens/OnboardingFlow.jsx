@@ -17,7 +17,7 @@
 // número) ou ficar em 5 (27a substitui 15d, já que uma escolha de dias
 // específicos cobre uma contagem de dias sozinha). Ficou em 5 — decisão já
 // tomada antes deste bloco.
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import AppIcon from '../icons/AppIcon'
@@ -27,6 +27,7 @@ import WeeklyDaysPicker from '../components/WeeklyDaysPicker'
 import { deriveProgress, computeBookChapterCounts } from '../utils/progress'
 import { computeProjection, formatYearsMonths } from '../plan/readingProjection'
 import { countTrue, WEEKLY_DAYS_PRESETS } from '../routine/weeklyDaysStore'
+import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import {
   PAINS, REMINDERS, demoFor, planIdFor, formatClock,
   STEP_MINUTES_DEFAULT, STEP_MINUTES_STEP, STEP_MINUTES_MIN, STEP_MINUTES_MAX,
@@ -70,6 +71,16 @@ export default function OnboardingFlow({ onFinish, onBack }) {
   const step = STEPS[stepIdx]
   const next = () => setStepIdx(i => Math.min(i + 1, STEPS.length - 1))
   const back = () => (stepIdx === 0 ? onBack() : setStepIdx(i => i - 1))
+
+  // Funil de onboarding do admin (23a) — reinstrumentado aqui porque o
+  // funil antigo (api/admin/metrics.js) apontava pros passos do wizard de
+  // 6 perguntas que este arquivo substituiu (ver Nota obrigatória do
+  // handoff acima); nada mais gravava evento nenhum desde então, então o
+  // funil ficava mostrando zero pra quase tudo. Um evento por passo visto
+  // (nome do passo = chave do evento, ver STEPS acima e o whitelist em
+  // api/track-onboarding-event.js) — sessão anônima, best-effort, nunca
+  // trava o onboarding.
+  useEffect(() => { trackOnboardingEvent(step) }, [step])
 
   // Estrutura da Bíblia (blocos/livros/capítulos) — dado estrutural, não
   // progresso; completedSet vazio e planId 'standard' aqui não mudam essa

@@ -13,13 +13,21 @@ import { listAllUsers } from '../_lib/adminUsers.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-// Ordem de exibição do funil — bate com STEPS de OnboardingWizard em
-// src/screens/AuthScreen.jsx, mais os dois eventos que acontecem dentro do
-// passo de cadastro sem trocar de "step" (ver trackOnboardingEvent ali).
-const FUNNEL_STEPS = [
-  'name', 'valueIntro', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup',
-  'signup_completed', 'checkout_started',
-]
+// Ordem de exibição do funil (23a mostra só os 5 primeiros, ver
+// AdminScreen.jsx) — os 5 marcos reais do fluxo atual: boas-vindas
+// (src/screens/WelcomeScreen.jsx) → terminou as 5 perguntas do onboarding
+// (OnboardingFlow.jsx, passo 'result') → chegou no cadastro → criou conta
+// (SignupScreen.jsx) → iniciou uma compra (UpgradeScreen.jsx). "Assinaram"
+// (6ª linha do quadro) não é um evento de sessão, vem de
+// subscriptions.created_at logo abaixo.
+//
+// Trocado em 2026-09-08: a lista antiga (name/valueIntro/features/
+// prayerTime/firstTimeReading/readingPlan/reflectionTime/preview) descrevia
+// o wizard de 6 perguntas que OnboardingFlow.jsx substituiu — a conta virou
+// obrigatória antes de ler (2026-09-07), então a própria ordem do funil
+// mudou: "criar conta" agora vem ANTES de qualquer leitura, não depois. Sem
+// evento gravado desde a troca, o funil ficava mostrando quase só zero.
+const FUNNEL_STEPS = ['welcome', 'result', 'signup', 'signup_completed', 'checkout_started']
 const FUNNEL_WINDOW_DAYS_DEFAULT = 30
 const FUNNEL_WINDOW_DAYS_MAX = 3650 // ~10 anos, cobre "todo o período" sem query sem limite
 
@@ -210,6 +218,19 @@ export default async function handler(req, res) {
 
   const activeRecurring = recurringSubs.filter(s => RECURRING_ACTIVE_STATUSES.includes(s.status))
 
+  // Crescimento de 30 dias (23a, linha embaixo de "Assinantes ativos") —
+  // fixo em 30 dias sempre, igual weeklySignupSeries, não segue o filtro
+  // `days` do funil (mesma regra do comentário no topo do arquivo: os
+  // cards de topo não filtram). "Novas" = criadas nos últimos 30 dias E
+  // ainda ativas hoje — não é crescimento líquido (não desconta quem
+  // cancelou no período), mas é honesto: todo mundo contado aqui está
+  // mesmo ativo agora.
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+  const newActiveIn30d = activeRecurring.filter(s => s.created_at && new Date(s.created_at).getTime() >= Date.now() - THIRTY_DAYS_MS).length
+  const newActivePct30d = activeRecurring.length > newActiveIn30d
+    ? Math.round((newActiveIn30d / (activeRecurring.length - newActiveIn30d)) * 1000) / 10
+    : null
+
   const mrrCents = { brl: 0, usd: 0 }
   const activeByPlan = { brl: { monthly: 0, annual: 0 }, usd: { monthly: 0, annual: 0 } }
   for (const sub of activeRecurring) {
@@ -253,6 +274,8 @@ export default async function handler(req, res) {
       mrrCents: { brl: Math.round(mrrCents.brl), usd: Math.round(mrrCents.usd) },
       activeByPlan,
       activeTotal: activeRecurring.length,
+      newActiveIn30d,
+      newActivePct30d,
       free,
       lifetime,
       trialCount,

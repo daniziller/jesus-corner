@@ -23,6 +23,7 @@ import { STORE_TIERS, getStoreTier, GOOGLE_PLAY_SUBSCRIPTION_ID } from '../billi
 import { resolveEntitlement } from '../billing/entitlement'
 import { formatAmount } from '../billing/formatAmount'
 import { redeemInviteCode } from '../invites/inviteStore'
+import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 
 // Comparativo curto — o que cada tier entrega. `tier` marca a partir de
 // qual nível o item está incluído.
@@ -127,6 +128,9 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
     if (submitting) return
     setSubmitting(true)
     setError('')
+    // Funil do admin (23a) — "Iniciou trial"/checkout, mesmo passo que o
+    // onboarding usa (ver OnboardingFlow.jsx), best-effort.
+    trackOnboardingEvent('checkout_started')
     try {
       if (storeContext === 'google_play') {
         await startPlayBillingPurchase({ sku: GOOGLE_PLAY_SUBSCRIPTION_ID, basePlanId: storeTier.googlePlayBasePlan })
