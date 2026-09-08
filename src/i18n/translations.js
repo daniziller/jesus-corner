@@ -247,7 +247,7 @@ export const STRINGS = {
       sortBiblical: 'Ordem bíblica',
       sortAlpha: 'A-Z',
       recentlyReadTitle: 'Lidos recentemente',
-      searchPlaceholder: 'Livro, capítulo ou versículo',
+      searchPlaceholder: 'Livro, capítulo ou palavra',
       searchResultsLabel: 'Resultados',
       searchNoResults: 'Nenhum livro encontrado pra "{query}".',
       inProgressBadge: 'Em andamento',
@@ -260,23 +260,28 @@ export const STRINGS = {
       readingMinLabel: '~{n} min de leitura',
       goToToday: 'Ir para a leitura de hoje',
       continueReading: 'Continuar leitura',
-      // Reskin Bento (5f) — cabeçalho enxuto (sem o hero de progresso
-      // geral, que já mora em Início/Progresso) e os dois cartões novos:
-      // retomar a última leitura livre, e voltar pra sessão estruturada
-      // do dia a partir da navegação livre.
-      freeReadingSubtitle: 'Leia à vontade — isto não mexe no seu plano.',
-      // lastFreeReadingLabel ("Última leitura livre") saiu em 2026-09-07 —
-      // ficou redundante com o rótulo abaixo, que cobre QUALQUER modo de
-      // leitura (guiado ou livre), não só navegação livre pela aba Bíblia.
-      lastReadTextLabel: 'Último texto lido',
+      // 39a (pacote 39) — cabeçalho com o progresso TOTAL (soma dos 8
+      // blocos, os mesmos usados pelos anéis de Antigo/Novo abaixo).
+      totalProgress: '{done} de {total} capítulos · {pct}% lidos',
+      // "Continuar a leitura livre" (39a, bloco 3) — usa
+      // freeReadingPositionStore.js (só a aba Bíblia), não mais o
+      // lastReadTextLabel antigo (esse cobria qualquer modo — segue vivo
+      // só no Início, ver HomeScreen.jsx).
+      continueFreeReadingLabel: 'Continuar a leitura livre',
+      whenToday: 'hoje',
+      whenYesterday: 'ontem',
+      whenPeriodMorning: 'de manhã',
+      whenPeriodAfternoon: 'à tarde',
+      whenPeriodEvening: 'à noite',
+      verseLabel: 'versículo {n}',
       openBtn: 'Abrir',
       todaySessionCta: 'Ler pela sessão de hoje',
-      countsInPlan: 'conta no plano',
+      countsInPlan: 'com o relógio, conta no plano',
       newTestamentShort: 'Novo →',
       oldTestamentShort: '← Antigo',
-      // Bloco 5 do redesign (28a/28b) — os dois testamentos do mesmo
-      // tamanho, cada um com status real (onde você está, ou sugestão de
-      // começo), e a lista de livros com chips de grupo.
+      // 39a/39b (pacote 39) — os dois testamentos do mesmo tamanho, cada
+      // um com status real (onde você está, ou sugestão de começo), e a
+      // lista de livros com chips de seção.
       booksCount: '{n} livros',
       chaptersOfTotal: '{done} de {total} capítulos',
       youAreAt: 'Você está em {book} {n}',
@@ -387,26 +392,26 @@ export const STRINGS = {
       preset_weekdays: 'Dias úteis',
       preset_everyDay: 'Todos',
     },
+    // 39c (pacote 39) — grade de capítulos + marcação livre. Substitui por
+    // inteiro o modo "Marcando" antigo (18b/28c/32a): segurar marca na
+    // hora, sem diálogo, sem rascunho pra salvar depois.
     bookChapters: {
-      bookPosition: '{block} · {n}º livro',
-      chaptersReadOf: '{total} capítulos · {done} lidos',
+      bookPosition: '{block} · {n} capítulos',
+      chaptersOf: '{done} de {total} capítulos',
+      appReadOne: '{n} lido no app',
+      appReadMany: '{n} lidos no app',
+      manualOne: '{n} marcado por você antes dele',
+      manualMany: '{n} marcados por você antes dele',
       chaptersLabel: 'Capítulos',
-      legendRead: 'lido',
-      legendCurrent: 'atual',
-      continueBtn: 'Continuar em {ref}',
-      // Modo "Marcando" (quadro 28c) — marcação livre de capítulo.
-      markReadLabel: 'Marcar lidos',
-      markingLabel: 'Marcando',
-      pendingOne: '1 marcado agora, ainda não salvo',
-      pendingMany: '{n} marcados agora, ainda não salvos',
-      markUpTo: 'Marcar 1 a {n}',
-      markWholeBook: 'Marcar todo o livro',
-      unmarkAll: 'Desmarcar tudo',
-      tapToMark: 'Toque para marcar',
-      legendUnread: 'por ler',
-      discardAria: 'Descartar marcações',
-      saveOne: 'Salvar 1 capítulo',
-      saveMany: 'Salvar {n} capítulos',
+      gridInstruction: 'toque abre · segure marca',
+      legendRead: 'lido no app',
+      legendManual: 'marcado à mão',
+      legendNext: 'próximo',
+      markWholeBookTitle: 'Marcar o livro inteiro como lido',
+      markWholeBookSub: 'Para quem já leu {book} antes do app',
+      markBtn: 'Marcar',
+      startPlanTitle: 'Começar meu plano aqui',
+      startPlanSub: 'Faz de {book} o ponto de partida',
     },
     // Bento 18b — seletor de capítulo aberto pelo chip do cabeçalho da
     // Leitura (4a). Mesma folha escura de 10b, mas sem losango: aqui não é
@@ -2945,7 +2950,7 @@ export const STRINGS = {
       sortBiblical: 'Biblical order',
       sortAlpha: 'A-Z',
       recentlyReadTitle: 'Recently read',
-      searchPlaceholder: 'Book, chapter or verse',
+      searchPlaceholder: 'Book, chapter or word',
       searchResultsLabel: 'Results',
       searchNoResults: 'No book found for "{query}".',
       inProgressBadge: 'In progress',
@@ -2958,11 +2963,17 @@ export const STRINGS = {
       readingMinLabel: '~{n} min reading',
       goToToday: "Go to today's reading",
       continueReading: 'Continue reading',
-      freeReadingSubtitle: "Read freely — this doesn't affect your plan.",
-      lastReadTextLabel: 'Last text read',
+      totalProgress: '{done} of {total} chapters · {pct}% read',
+      continueFreeReadingLabel: 'Continue free reading',
+      whenToday: 'today',
+      whenYesterday: 'yesterday',
+      whenPeriodMorning: 'in the morning',
+      whenPeriodAfternoon: 'in the afternoon',
+      whenPeriodEvening: 'in the evening',
+      verseLabel: 'verse {n}',
       openBtn: 'Open',
       todaySessionCta: "Read today's session",
-      countsInPlan: 'counts toward your plan',
+      countsInPlan: 'with the timer, counts toward your plan',
       newTestamentShort: 'New →',
       oldTestamentShort: '← Old',
       booksCount: '{n} books',
@@ -3065,24 +3076,22 @@ export const STRINGS = {
       preset_everyDay: 'Every day',
     },
     bookChapters: {
-      bookPosition: '{block} · Book {n}',
-      chaptersReadOf: '{total} chapters · {done} read',
+      bookPosition: '{block} · {n} chapters',
+      chaptersOf: '{done} of {total} chapters',
+      appReadOne: '{n} read in the app',
+      appReadMany: '{n} read in the app',
+      manualOne: '{n} marked by you before it',
+      manualMany: '{n} marked by you before it',
       chaptersLabel: 'Chapters',
-      legendRead: 'read',
-      legendCurrent: 'current',
-      continueBtn: 'Continue in {ref}',
-      markReadLabel: 'Mark as read',
-      markingLabel: 'Marking',
-      pendingOne: '1 marked now, not saved yet',
-      pendingMany: '{n} marked now, not saved yet',
-      markUpTo: 'Mark 1 to {n}',
-      markWholeBook: 'Mark whole book',
-      unmarkAll: 'Unmark all',
-      tapToMark: 'Tap to mark',
-      legendUnread: 'unread',
-      discardAria: 'Discard marks',
-      saveOne: 'Save 1 chapter',
-      saveMany: 'Save {n} chapters',
+      gridInstruction: 'tap opens · hold marks',
+      legendRead: 'read in the app',
+      legendManual: 'marked by hand',
+      legendNext: 'next',
+      markWholeBookTitle: 'Mark the whole book as read',
+      markWholeBookSub: "For anyone who already read {book} before the app",
+      markBtn: 'Mark',
+      startPlanTitle: 'Start my plan here',
+      startPlanSub: 'Make {book} the starting point',
     },
     chapterPicker: {
       switchBook: 'switch book',
