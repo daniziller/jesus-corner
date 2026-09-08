@@ -446,6 +446,10 @@ export const STRINGS = {
       finishShort: 'Concluir',
       markChapterDone: 'Marcar capítulo {n} como lido',
       chapterMarkedDone: 'Capítulo {n} lido',
+      // 39d — leitura livre (turno 39, Bloco 2): a tarja e o botão do
+      // rodapé que a diferenciam da leitura do plano (35f).
+      freeReadingTag: 'Leitura livre · não conta no plano',
+      markAsReadShort: 'Marcar como lido',
       // Turno 35, Bloco 3 — relógio de leitura (35f) e "terminou antes do
       // tempo" (35g).
       clockPause: 'Pausar',
@@ -3120,6 +3124,8 @@ export const STRINGS = {
       finishShort: 'Finish',
       markChapterDone: 'Mark chapter {n} as read',
       chapterMarkedDone: 'Chapter {n} read',
+      freeReadingTag: 'Free reading · not part of the plan',
+      markAsReadShort: 'Mark as read',
       clockPause: 'Pause',
       clockResume: 'Resume',
       timeUpLabel: '{time} left on the clock',
