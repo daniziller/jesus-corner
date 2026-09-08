@@ -1,21 +1,26 @@
 // Contexto antes do capítulo — tela 10c do redesign Bento (ver
-// design_handoff_jesus_corner/ADENDO-identidade-e-IA.md). Diferente de
+// design_handoff_jesus_corner/ADENDO-identidade-e-IA.md) e o botão
+// "Relembre onde a história parou" (turno 39, follow-up). Diferente de
 // api/ask-about-passage.js (por usuário, autenticado, com limite diário):
 // isto é GET, público e sem limite — o conteúdo é igual pra todo mundo que
 // abre o mesmo capítulo (implicação técnica 6 do adendo: "podem ser
-// gerados uma vez por capítulo e cacheados"). Em vez de uma tabela própria
-// pra cache, o cache é o CDN da Vercel — Cache-Control abaixo faz a
-// primeira pessoa a abrir um capítulo pagar a geração; todas as próximas
-// (qualquer usuário) recebem a resposta direto da borda, sem esta function
-// nem rodar de novo. O conteúdo em si (um resumo bíblico, sem nada
-// sensível) não perde nada por ficar público — quem decide se a TELA
-// aparece é o cliente (session.hasAI + o toggle de 10f).
+// gerados uma vez por capítulo e cacheados").
+//
+// Cache de verdade: chapter_contexts (migration 0060) — consulta ANTES de
+// gerar; só chama a IA na primeira vez que alguém abre um capítulo+idioma,
+// pra sempre (sem TTL). O Cache-Control abaixo continua além disso, como
+// uma segunda camada (borda da Vercel) — mais rápido que a consulta ao
+// banco pros capítulos mais lidos, mas quem garante "nunca gera duas
+// vezes" é a tabela, não o CDN.
+import { createClient } from '@supabase/supabase-js'
 import { generateChapterContext } from './_lib/ai.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks.js'
 import { slugify } from '../src/utils/slugify.js'
+
+const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 const APP_URL = 'https://app.jesuscorner.app'
 
@@ -72,6 +77,20 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'invalid_chapter' })
   }
 
+  // Cache de verdade primeiro — a IMENSA maioria das chamadas cai aqui
+  // depois da primeira pessoa a abrir este capítulo+idioma; nem toca no
+  // texto bíblico nem na IA.
+  const { data: cached, error: cacheErr } = await supabaseAdmin
+    .from('chapter_contexts')
+    .select('context')
+    .eq('book', book).eq('chapter', chapterNum).eq('lang', cleanLang)
+    .maybeSingle()
+  if (cacheErr) console.error('[generate-chapter-context] cache lookup failed:', cacheErr.message)
+  if (cached?.context) {
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=2592000, stale-while-revalidate=86400')
+    return res.status(200).json({ ok: true, context: cached.context })
+  }
+
   const bookNameForFolder = cleanLang === 'en' ? (bookEn || BOOK_EN_BY_PT[book] || book) : book
   const versions = BIBLE_VERSIONS[cleanLang] ?? BIBLE_VERSIONS.pt
   const folder = versions[0].folder
@@ -92,10 +111,17 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: 'ai_generation_failed' })
   }
 
-  // Cacheado na borda por um bom tempo (conteúdo estável pro mesmo
-  // capítulo) mas com stale-while-revalidate — se um dia o prompt mudar
-  // pra melhor, a próxima geração já reflete, sem precisar invalidar nada
-  // manualmente.
+  // Grava pra nunca mais gerar este capítulo+idioma de novo — best-effort:
+  // se a escrita falhar (ex: outra requisição simultânea já gravou a
+  // mesma linha primeiro, esbarra no unique), a resposta desta chamada
+  // sai normalmente do mesmo jeito; a próxima simplesmente acha no cache.
+  supabaseAdmin.from('chapter_contexts').insert({ book, chapter: chapterNum, lang: cleanLang, context })
+    .then(({ error }) => { if (error) console.error('[generate-chapter-context] cache write failed:', error.message) })
+
+  // Segunda camada, na borda da Vercel — mais rápido que a consulta ao
+  // banco pros capítulos mais lidos; quem garante "nunca gera duas vezes"
+  // é a tabela acima, não isto (esse cache pode expirar/ser purgado sem
+  // problema).
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=2592000, stale-while-revalidate=86400')
   return res.status(200).json({ ok: true, context })
 }
