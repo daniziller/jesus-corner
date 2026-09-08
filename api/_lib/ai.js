@@ -66,8 +66,8 @@ function buildReplyLangInstruction(lang) {
 
 // Genérica por trás de buildReplyLangInstruction acima — usada direto por
 // funções com mais de um campo de texto (generateChapterContext,
-// generateReflectionQuestions, composeReflection), pra não fingir que
-// "reply" é o nome do campo quando não é.
+// generateReflectionQuestionPair, generateReadingSummary), pra não fingir
+// que "reply" é o nome do campo quando não é.
 function buildFieldsLangInstruction(lang, fields) {
   return lang === 'en'
     ? `Write the ${fields} field(s) in English.`
@@ -445,30 +445,35 @@ ${buildFieldsLangInstruction(lang, 'recap, whoAppears, chapterThread, watchFor')
   return output
 }
 
-// Perguntas de reflexão geradas (tela 10d do redesign Bento) — usado por
-// api/generate-reflection-questions.js. Mesmo espírito de cache
-// compartilhado de generateChapterContext acima: as PERGUNTAS são iguais
-// pra todos que leram o mesmo capítulo (cacheadas por book+chStart+chEnd+
-// lang); só as RESPOSTAS de cada pessoa são individuais (ver
-// composeReflection abaixo, que é por usuário e não cacheado).
-const ReflectionQuestionsSchema = z.object({
-  questions: z.array(z.string()).length(3).describe('Exatamente 3 perguntas curtas (uma frase cada, no idioma pedido), ancoradas no capítulo lido, cada uma respondível em 1-2 frases. A PRIMEIRA liga um evento/tema específico do texto à vida da pessoa hoje (aplicação pessoal, não genérica — "o que você está esperando agora?" e não "o que Deus falou com você?"). As outras duas aprofundam a reflexão sobre o que o texto revela.'),
+// Perguntas 1 e 2 da Reflexão (37a, pacote 36-37) — usado por
+// api/generate-reflection-question-pair.js. Diferente da versão antiga
+// (3 perguntas, cacheadas por capítulo, iguais pra todo mundo): o quadro
+// pede "Trocar perguntas" devolvendo um par NOVO a cada toque, então isto
+// é POR USUÁRIO e não cacheado, ao contrário de generateChapterContext/
+// generateReadingSummary — a pergunta 3 (fixa, "o que você vai fazer com
+// isso amanhã") nunca
+// passa por aqui, mora só no client (ReflectionScreen.jsx).
+const ReflectionQuestionPairSchema = z.object({
+  questions: z.array(z.string()).length(2).describe('Exatamente 2 perguntas curtas (uma frase cada, no idioma pedido), ancoradas no capítulo lido e citando um evento/detalhe específico do texto (nunca genéricas a ponto de servir pra qualquer capítulo), cada uma respondível em 1-2 frases — perguntas de diário, não um ensaio.'),
 })
 
-export async function generateReflectionQuestions({ book, chStart, chEnd, chapterText, bookInfo, lang }) {
+export async function generateReflectionQuestionPair({ book, chStart, chEnd, chapterText, bookInfo, lang, avoidQuestions }) {
   const overview = bookInfo?.contextOverview ?? bookInfo?.context ?? ''
   const range = chStart === chEnd ? `${chStart}` : `${chStart}–${chEnd}`
+  const avoidNote = avoidQuestions?.length
+    ? `\nJá foram mostradas estas perguntas — gere duas DIFERENTES delas:\n${avoidQuestions.map(q => `- ${q}`).join('\n')}\n`
+    : ''
   const { output } = await generateText({
     model: MODEL,
-    output: Output.object({ schema: ReflectionQuestionsSchema }),
+    output: Output.object({ schema: ReflectionQuestionPairSchema }),
     prompt: `Você é um guia de reflexão devocional. Uma pessoa acabou de ler ${book} ${range} num app de leitura bíblica e vai refletir sobre o que leu.
 
 Visão geral do livro: ${overview}
 
 Texto que a pessoa acabou de ler:
 "${chapterText}"
-
-Gere as 3 perguntas de reflexão. Nunca peça uma resposta longa — são perguntas de diário, não um ensaio.
+${avoidNote}
+Gere as 2 perguntas de reflexão.
 
 ${buildFieldsLangInstruction(lang, 'questions')}`,
   })
@@ -477,8 +482,8 @@ ${buildFieldsLangInstruction(lang, 'questions')}`,
 
 // Fecho da leitura (37e, pacote 36-37) — usado por
 // api/generate-reading-summary.js. Mesmo espírito de cache compartilhado
-// de generateChapterContext/generateReflectionQuestions: o conteúdo é
-// igual pra quem lê o mesmo trecho, cacheado por book+chStart+chEnd+lang.
+// de generateChapterContext acima: o conteúdo é igual pra quem lê o mesmo
+// trecho, cacheado por book+chStart+chEnd+lang.
 // Cada "momento" vem com chapter/verseStart/verseEnd EXPLÍCITOS (não uma
 // faixa em texto livre) de propósito — é o que permite
 // api/generate-reading-summary.js conferir contra o texto real da versão
@@ -548,33 +553,10 @@ ${buildFieldsLangInstruction(lang, 'questions')}`,
   return output
 }
 
-// Junta as 3 respostas da pessoa (tela 10d) num parágrafo de diário — ESTA
-// chamada é por usuário (não compartilhada/cacheada, ao contrário das duas
-// acima), porque depende do que a própria pessoa escreveu. O usuário
-// aprova o resultado antes de salvar (ver ReflectionScreen.jsx) — isto só
-// gera o rascunho.
-const ComposeReflectionSchema = z.object({
-  paragraph: z.string().describe('Um parágrafo (3-5 frases, no idioma pedido), em primeira pessoa, como se a PRÓPRIA pessoa tivesse escrito uma entrada de diário — junte as respostas dela num texto corrido e natural, preservando o sentido e o tom que ela usou. Não invente detalhes que ela não escreveu, e não adicione uma conclusão piedosa genérica que ela não sugeriu.'),
-})
-
-export async function composeReflection({ book, chapter, qa, lang }) {
-  const qaText = qa.map((pair, i) => `${i + 1}. Pergunta: ${pair.question}\n   Resposta: ${pair.answer}`).join('\n')
-  const { output } = await generateText({
-    model: MODEL,
-    output: Output.object({ schema: ComposeReflectionSchema }),
-    prompt: `Uma pessoa refletiu sobre ${book} ${chapter} respondendo 3 perguntas curtas. Junte as respostas dela num parágrafo de diário coeso, em primeira pessoa, como se ela mesma tivesse escrito direto:
-
-${qaText}
-
-${buildFieldsLangInstruction(lang, 'paragraph')}`,
-  })
-  return output
-}
-
 // "Escrever com ajuda" (tela 25b) — transforma um desabafo longo num
-// pedido de oração de até 240 caracteres, em primeira pessoa. Igual a
-// composeReflection: só gera o rascunho, a pessoa aprova (ou edita) antes
-// de publicar — nunca automático, nunca salva sozinho.
+// pedido de oração de até 240 caracteres, em primeira pessoa. Só gera o
+// rascunho — a pessoa aprova (ou edita) antes de publicar; nunca
+// automático, nunca salva sozinho.
 const ComposePrayerRequestSchema = z.object({
   request: z.string().max(240).describe('O pedido de oração reescrito como UMA frase curta (até 240 caracteres), em primeira pessoa, no idioma pedido — preserva o assunto e o sentimento real do desabafo original, sem inventar detalhes nem adicionar uma conclusão piedosa que a pessoa não escreveu.'),
 })

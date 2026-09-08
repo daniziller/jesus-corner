@@ -322,7 +322,7 @@ export default function HomeScreen({
   // Estado especial de "rotina cumprida": se a Reflexão de HOJE já
   // escreveu uma frase nova, ela sobe pro 2º lugar em bloco escuro (a
   // frase de ontem, já tratada, sai de cena) — sem botão "Cumpri" ainda
-  // (só volta amanhã, ver applyStep.pendingNote).
+  // (só volta amanhã).
   const todayApplicationKey = `application:${todayKeyStr}`
   const wroteApplicationToday = pinnedEntry?.key === todayApplicationKey
   // Respeita a preferência de mostrar/esconder o card (Perfil → ProfileSheet,
