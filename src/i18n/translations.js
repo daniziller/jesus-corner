@@ -915,7 +915,6 @@ export const STRINGS = {
     },
     activity: {
       bookCompleted: '{name} concluiu {book}',
-      levelUp: '{name} subiu pro Nível {level} · {title}',
       joinedGroup: '{name} entrou no grupo {groupName}',
       homeTitle: 'Atividade dos amigos',
       homeEmpty: 'Nada por aqui ainda — convide amigos e acompanhe o progresso deles.',
@@ -3647,7 +3646,6 @@ export const STRINGS = {
     },
     activity: {
       bookCompleted: '{name} finished {book}',
-      levelUp: '{name} reached Level {level} · {title}',
       joinedGroup: '{name} joined the group {groupName}',
       homeTitle: 'Friends activity',
       homeEmpty: 'Nothing here yet — invite friends and follow their progress.',
