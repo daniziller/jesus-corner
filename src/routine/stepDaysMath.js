@@ -43,6 +43,21 @@ export function markedWeekdayUnion(resolvedStepDays, activeSteps) {
   return Array.from({ length: 7 }, (_, i) => stepsScheduledForWeekday(resolvedStepDays, activeSteps, i).length > 0)
 }
 
+// Próximo dia da semana (a partir de AMANHÃ, dando a volta) em que um único
+// passo específico (ex: `stepDays.reading`) está marcado — "Volta quinta ·
+// Gênesis 43" no tile "off" de 34c (Hoje, Bloco 4): quando Leitura não cai
+// hoje (substituída pelo Estudo, ou só desligada nesse dia), o tile precisa
+// dizer QUANDO ela volta. null se o passo não tem nenhum dia marcado (a
+// pessoa desligou esse passo de vez de todos os dias — não deveria
+// acontecer com um passo ativo, mas mais seguro que um índice inválido).
+export function nextScheduledWeekday(oneStepDays, fromWeekdayIndex) {
+  for (let step = 1; step <= 7; step++) {
+    const idx = (fromWeekdayIndex + step) % 7
+    if (oneStepDays?.[idx]) return idx
+  }
+  return null
+}
+
 export function countMarkedWeekdays(resolvedStepDays, activeSteps) {
   return markedWeekdayUnion(resolvedStepDays, activeSteps).filter(Boolean).length
 }

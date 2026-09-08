@@ -146,6 +146,10 @@ export default function JourneyScreen({
   // 39k/39l (Bloco 6): tocar um cartão de busca/tema chega aqui já com um
   // versículo pra focar — ver initialFocusVerse em ReadingBlockView.jsx.
   const [expandedInitialFocusVerse, setExpandedInitialFocusVerse] = useState(null)
+  // "Anotar uma pregação" (Home, 34a/handoff-app-completo) — chega aqui já
+  // pedindo pra abrir a folha de sermão flutuante (34d) — ver
+  // autoOpenSermonNote em ReadingBlockView.jsx.
+  const [expandedInitialOpenSermonNote, setExpandedInitialOpenSermonNote] = useState(false)
 
   // "Barra de abas fixa só em 39a" — avisa App.jsx assim que a navegação
   // livre sai da raiz (39b, 39c, ou a leitura embutida dentro de 39c),
@@ -176,11 +180,12 @@ export default function JourneyScreen({
   // (jumpToBook abaixo). Guarda o bloco real (não um id sintético) pra
   // manter compatível o "onde parei"/"lidos recentemente" (lastOpenedChapterStore/
   // recentChaptersStore, gravados por ReadingBlockView.jsx usando block.id).
-  function expandBook(block, bookName, sessionIdToFeature, textOpen, focusVerse) {
+  function expandBook(block, bookName, sessionIdToFeature, textOpen, focusVerse, openSermonNote) {
     setExpandedBookKey(`${block.id}:${bookName}`)
     setExpandedInitialSessionId(sessionIdToFeature)
     setExpandedInitialTextOpen(textOpen)
     setExpandedInitialFocusVerse(focusVerse ?? null)
+    setExpandedInitialOpenSermonNote(!!openSermonNote)
     setLastViewedBlockId(block.id)
   }
 
@@ -201,19 +206,19 @@ export default function JourneyScreen({
   // Pulo pra um livro vindo de FORA da lista de livros visível agora
   // ("Continuar leitura", card de "lido recentemente") — limpa a busca
   // (a tela do livro, 18a, não depende da lista continuar visível).
-  function jumpToBook(block, bookName, sessionIdToFeature, textOpen) {
+  function jumpToBook(block, bookName, sessionIdToFeature, textOpen, openSermonNote) {
     setSearchQuery('')
-    expandBook(block, bookName, sessionIdToFeature, textOpen)
+    expandBook(block, bookName, sessionIdToFeature, textOpen, null, openSermonNote)
   }
 
   // Tocar um card de "lido recentemente" (RecentChaptersRow) — diferente de
   // abrir um livro do zero, aqui já cai lendo o capítulo exato, sem passar
   // pela lista de números primeiro (ver initialTextOpen acima).
-  function openRecentChapter(blockId, sessionId) {
+  function openRecentChapter(blockId, sessionId, openSermonNote) {
     const block = blocks.find(b => b.id === blockId)
     const targetSession = browseSessionsByBlock[blockId]?.find(s => s.id === sessionId)
     if (!block || !targetSession) return
-    jumpToBook(block, targetSession.book, sessionId, true)
+    jumpToBook(block, targetSession.book, sessionId, true, openSermonNote)
   }
 
   // Link "ir pro texto" de uma anotação de sermão (ver App.jsx/
@@ -223,9 +228,10 @@ export default function JourneyScreen({
   // isso, o pedido ficava "pendente" pra sempre e essa tela pulava pro
   // mesmo capítulo de novo em TODA montagem futura (qualquer visita à aba
   // Bíblia depois de usar o link uma vez, não só via botão Voltar).
+  // openSermonNote (34a/34d) pede pra já cair com a folha de sermão aberta.
   useEffect(() => {
     if (browseJumpTarget) {
-      openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+      openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId, browseJumpTarget.openSermonNote)
       onBrowseJumpConsumed?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -331,6 +337,8 @@ export default function JourneyScreen({
         initialSessionId={expandedInitialSessionId}
         initialTextOpen={expandedInitialTextOpen}
         initialFocusVerse={expandedInitialFocusVerse}
+        initialOpenSermonNote={expandedInitialOpenSermonNote}
+        onOpenGroupRoom={onOpenGroupRoom}
       />
     )
   }

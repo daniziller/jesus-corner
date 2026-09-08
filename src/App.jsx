@@ -70,10 +70,9 @@ import { DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, D
 import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
-import { getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode, getCustomBookOrder, resolveBookOrder, resolveNextChapter } from './reading/bibleOrderStore'
+import { getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode } from './reading/bibleOrderStore'
 import { getStepDays, stepsScheduledForWeekday } from './routine/stepDaysStore'
 import { STEP_ORDER } from './routine/planTodayRows'
-import { resumeDateKey } from './studies/activeStudyMath'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
@@ -1221,6 +1220,25 @@ export default function App() {
     goToTab('journey')
   }
 
+  // "Anotar uma pregação" (Home, handoff-app-completo, 34a) — mesmo link
+  // "ir pro texto" de sempre (acima), só que pro capítulo de HOJE (ou o
+  // último lido, sem plano de hoje de verdade) e já com a folha de sermão
+  // nova (34d) aberta — sinalizado dentro do próprio browseJumpTarget
+  // (openSermonNote: true), consumido em JourneyScreen → BookChapterScreen
+  // → ReadingBlockView (ver autoOpenSermonNote lá).
+  function openSermonNoteFromHome() {
+    const readingNow = !session.todaySession?.needsThemePick && session.todaySession?.type !== 'reflection'
+    const book = readingNow ? session.todaySession.book : (session.lastReadPosition?.book ?? session.currentBlock?.book)
+    const chapter = readingNow ? session.todaySession.chStart : (session.lastReadPosition?.chapter ?? session.currentBlock?.chapter)
+    const block = book ? blocks.find(b => b.books.includes(book)) : null
+    const targetSession = block ? (browseSessionsByBlock[block.id] ?? []).find(
+      s => s.book === book && s.chStart <= chapter && s.chEnd >= chapter
+    ) : null
+    if (!block || !targetSession) { goToTab('journey'); return }
+    setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id, openSermonNote: true })
+    goToTab('journey')
+  }
+
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
   // — abre direto na leitura dele, sem passar pela lista de ThemePlanScreen.
   // Mostra o plano INTEIRO (sem restringir aos textos de hoje) — é um jeito
@@ -1834,18 +1852,6 @@ export default function App() {
     }
   }
 
-  // "Retomar já" (quadro 22c/35b) — volta pro plano principal, largando o
-  // estudo/cronológico ativo. Respeita a ordem de leitura escolhida em 35i
-  // (bibleOrderMode): se for cronológica, "voltar" é voltar pro cronológico,
-  // não resetar pra canônica sem avisar.
-  function resumeFixedPlan() {
-    if (bibleOrderMode === 'chronological') {
-      selectActivePlan({ type: 'chrono', paceId: planId === 'none' ? 'standard' : planId })
-      return
-    }
-    selectActivePlan({ type: 'fixed', id: planId })
-  }
-
   // Ordem da leitura contínua da Bíblia (35i) — turno 35. 'canonical' e
   // 'chronological' espelham em activeAltPlan (reusa o mecanismo de plano
   // cronológico alternativo que já existia — mesmo completedSet, nunca
@@ -2106,30 +2112,18 @@ export default function App() {
   }
 
   // Qual Estudo guiado está ativo (ver activeStudyStore.js) — passar null
-  // limpa a escolha (ex: apagar/trocar de estudo).
-  // Ativar um estudo pausa o plano principal (35b/35j) — guarda onde a
-  // leitura contínua parou (mesmo resolvedor de 35i, ver bibleOrderMath.js)
-  // e quando o estudo termina (soma os dias do PRÓPRIO estudo, não os da
-  // Bíblia — ver activeStudyMath.js). `totalDays` vem de quem chama
-  // (StudiesScreen.jsx conhece o estudo inteiro); null desativa.
+  // limpa a escolha (ex: encerrar/trocar de estudo, ver StudyOrganizeScreen.
+  // jsx "Encerrar"). Trilhas independentes (handoff-app-completo, achado
+  // conferindo Hoje contra Meu Plano): ativar um estudo NÃO pausa mais a
+  // leitura contínua — Bíblia e Estudo têm dias próprios e podem coincidir
+  // no mesmo dia (antes pausava até uma data de fim calculada; esse
+  // cálculo saiu, junto com activeStudyMath.js). `totalDays` (a duração do
+  // estudo) segue chegando de quem chama, mas não é mais usado aqui —
+  // mantido no parâmetro só pra não quebrar quem já passa.
   async function selectActiveStudy(studyId, totalDays = 0) {
     if (!authUser) return
     setActiveStudyIdState(studyId)
-    if (!studyId) {
-      persistActiveStudyId(authUser.email, null).catch(err => console.error('Failed to persist active study', err))
-      return
-    }
-    let pause
-    try {
-      const [customOrder, studyDays] = await Promise.all([getCustomBookOrder(), getStepDays()])
-      const order = resolveBookOrder(bibleOrderMode, customOrder)
-      const position = resolveNextChapter(completedSet, order, bookChapterCounts)
-      const resumesAt = resumeDateKey(new Date(), studyDays.study, totalDays)
-      pause = position ? { book: position.book, chapter: position.chapter, resumesAt } : { resumesAt }
-    } catch (err) {
-      console.error('Failed to compute study pause point', err)
-    }
-    persistActiveStudyId(authUser.email, studyId, pause).catch(err => console.error('Failed to persist active study', err))
+    persistActiveStudyId(authUser.email, studyId).catch(err => console.error('Failed to persist active study', err))
   }
 
   // "Ler agora" em Meu Plano (35b) quando o passo de hoje é o Estudo ativo —
@@ -2434,13 +2428,13 @@ export default function App() {
       weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
       onOpenProfile={() => setProfileOpen(true)}
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
-      onOpenBiblePassage={openBiblePassage}
+      onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
     />,
     // Turno 35, Bloco 2 (handoff-meu-plano-35/) — 35a/35b substituem a 4b
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
     // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
     routine: hasPremium
-      ? <RoutineScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onContinueSession={continueToday} onOpenActiveStudy={openActiveStudy} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onResumeFixedPlan={resumeFixedPlan} />
+      ? <RoutineScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onContinueSession={continueToday} onOpenActiveStudy={openActiveStudy} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;

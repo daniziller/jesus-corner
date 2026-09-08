@@ -40,7 +40,7 @@ import { getStepDays, stepsScheduledForWeekday } from '../routine/stepDaysStore'
 import { STEP_ORDER, statusFor, buildRowMeta, featuredStepsFor } from '../routine/planTodayRows'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
-import { getActiveStudy } from '../studies/activeStudyStore'
+import { nextScheduledWeekday } from '../routine/stepDaysStore'
 import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
@@ -79,7 +79,7 @@ function weekdayIndexMonday(date) {
 export default function HomeScreen({
   session, authUser, completedSet, weeklyDays, stepMinutes,
   onContinueSession, onNavigate, onOpenProfile,
-  onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage,
+  onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -115,7 +115,6 @@ export default function HomeScreen({
   const [prayerMethod, setPrayerMethodState] = useState('acts')
   const [reflectionMethod, setReflectionMethodState] = useState('questions')
   const [activeStudy, setActiveStudy] = useState(null)
-  const [pausedStudy, setPausedStudy] = useState(null)
 
   useEffect(() => {
     getStepDays().then(setStepDaysState).catch(() => {})
@@ -124,9 +123,8 @@ export default function HomeScreen({
   }, [])
 
   useEffect(() => {
-    if (!activeStudyId) { setActiveStudy(null); setPausedStudy(null); return }
-    Promise.all([getActiveStudy(), getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([active, ai, inductive, doneSet]) => {
-      setPausedStudy(active)
+    if (!activeStudyId) { setActiveStudy(null); return }
+    Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
       const study = [...STUDIES, ...ai, ...inductive].find(s => s.id === activeStudyId)
       if (!study) return
       const total = study.sessions?.length ?? 0
@@ -244,30 +242,31 @@ export default function HomeScreen({
   const activeWeeklyDays = Array.isArray(weeklyDays) && weeklyDays.length === 7 ? weeklyDays : DEFAULT_WEEKLY_DAYS
 
   // 2026-09-08 — "Seu plano de hoje" passa a usar o MESMO modelo de dias
-  // por passo de Meu Plano (stepDays + substituição leitura↔estudo), em
-  // vez do STEPS fixo [oração,leitura,reflexão] antigo (que não sabia de
-  // Estudo nem de dias por passo, e usava um weeklyDays só pra "descanso").
-  // Mesma regra de substituição de RoutineScreen.jsx: com um Estudo ativo,
-  // ele troca de lugar com a Leitura no dia em que ela cairia.
-  const activeStepsToday = STEP_ORDER.filter(k => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(k))
-  const scheduledToday = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx) : []
-  const todaysSteps = activeStudyId
-    ? [...new Set(scheduledToday.map(k => (k === 'reading' ? 'study' : k)))]
-    : scheduledToday
+  // por passo de Meu Plano (stepDays), em vez do STEPS fixo
+  // [oração,leitura,reflexão] antigo (que não sabia de Estudo nem de dias
+  // por passo, e usava um weeklyDays só pra "descanso"). Trilhas
+  // independentes (handoff-app-completo, 34b/34c venceram sobre a
+  // substituição antiga): Leitura e Estudo têm dias próprios e podem cair
+  // no mesmo dia — 'study' entra nos passos ativos sempre que a pessoa
+  // ligou o toggle genérico "Estudo" (routineModules) OU tem um estudo
+  // específico ativo, mesma regra de RoutineScreen.jsx.
+  const routineModulesSet = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
+  const activeStepsToday = STEP_ORDER.filter(k => (k === 'study' ? (routineModulesSet.has('study') || !!activeStudyId) : routineModulesSet.has(k)))
+  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx) : []
 
-  function minutesForStep(key) {
-    if (key === 'study' && activeStudyId) return stepMinutes?.reading ?? plan.readingMinutes
-    if (key === 'study') return stepMinutes?.study ?? 15
-    return minutesFor[key]
+  const stepMinutesAll = {
+    prayer: minutesFor.prayer, reading: minutesFor.reading,
+    study: stepMinutes?.study ?? 15, reflection: minutesFor.reflection,
   }
+  function minutesForStep(key) { return stepMinutesAll[key] }
   const totalPlanMin = todaysSteps.reduce((sum, k) => sum + (minutesForStep(k) || 0), 0)
   const currentKey = todaysSteps.find(k => !todayRoutine[k]) ?? null
   const allDoneToday = todaysSteps.length > 0 && !currentKey
 
-  // Passos "principais" de hoje — lógica pura testada em
-  // src/routine/planTodayRows.js (featuredStepsFor). No mais das vezes é
-  // só 1 passo; os dois (Leitura+Estudo) aparecem juntos quando o modelo
-  // independente marca os dois pro mesmo dia.
+  // Passos "principais" de hoje, só pro estado "rotina cumprida" (lista de
+  // linhas já feitas — nenhum quadro mostra esse estado pro grid de
+  // tiles novo, então a lista antiga fica só aqui; lógica pura testada em
+  // src/routine/planTodayRows.js).
   const featuredSteps = featuredStepsFor(todaysSteps)
 
   const planState = session.hasNoPlan ? 'noPlan' : todaysSteps.length === 0 ? 'dayOff' : 'normal'
@@ -276,7 +275,7 @@ export default function HomeScreen({
 
   function metaFor(key, status) {
     return buildRowMeta(key, status, {
-      activeStudyId, pausedStudy, hasNoPlan: session.hasNoPlan, reflectionMethod, prayerMethod,
+      activeStudyId, hasNoPlan: session.hasNoPlan, reflectionMethod, prayerMethod,
       todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle,
     }, R)
   }
@@ -296,6 +295,69 @@ export default function HomeScreen({
   function handleOnlyRead() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
     onContinueSession?.()
+  }
+
+  // ── Bloco 2, quadro novo (34a/34b/34c) — título grande, subtítulo de
+  // continuidade e a grade de tiles (um por passo ATIVO, ligado ou
+  // "desligado hoje" — nenhum tile some, ver 34c). Só entra quando o dia
+  // NÃO está com a rotina inteira cumprida (esse estado mantém a lista
+  // antiga acima, sem quadro de referência próprio — ver comentário mais
+  // abaixo, junto do JSX).
+  const readingChapterLabel = todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title
+  const readingToday = todaysSteps.includes('reading')
+  const studyToday = todaysSteps.includes('study')
+  const studyTitleDay = activeStudy ? `${activeStudy.title} · ${R('dayXofY', { n: activeStudy.dayDone + 1, total: activeStudy.dayTotal })}` : stepTitle('study')
+
+  const planTitleText = readingToday && studyToday
+    ? L('planTitleBoth', { chapter: readingChapterLabel })
+    : readingToday
+      ? readingChapterLabel
+      : studyToday
+        ? studyTitleDay
+        : (todaysSteps.length > 0 ? joinNames(todaysSteps.map(k => stepTitle(k))) : '')
+
+  // "Volta {dia}" — dia da semana em que um passo OFF hoje volta a cair,
+  // a partir de stepDays[passo] (ver nextScheduledWeekday, stepDaysMath.js).
+  function nextWeekdayLabel(key) {
+    const days = stepDays?.[key]
+    if (!days) return null
+    const idx = nextScheduledWeekday(days, todayWeekdayIdx)
+    return idx == null ? null : weekdayFull[idx]
+  }
+
+  const planSubtitleText = readingToday
+    ? continuityLine
+    : (studyToday && activeStepsToday.includes('reading') && nextWeekdayLabel('reading'))
+      ? L('planSubtitleStudyOnly', { weekday: nextWeekdayLabel('reading'), ref: readingChapterLabel })
+      : null
+
+  // Detalhe (3ª linha) de cada tile — sempre presente (pedido dela,
+  // 2026-09-08: "sempre com a 3ª linha"), mesmo nos 3 tiles de 34a (o
+  // quadro de referência só não mostra por acaso, com todos os passos
+  // ligados hoje). Reflexão sempre "Três perguntas do dia" e Estudo
+  // sempre "{título} · dia N de M" — mesmo com estudo ativo mostrando
+  // passagem em 34c, ela escolheu padronizar no formato de 34b pros dois.
+  function tileDetailFor(key, on) {
+    if (key === 'prayer') {
+      if (on) return prayerMethod === 'acts' ? L('tilePrayerActs') : L('tilePrayerFree')
+      const wd = nextWeekdayLabel('prayer')
+      return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
+    }
+    if (key === 'reading') {
+      if (on) return `${readingChapterLabel} · ${L('tileBibleContinuous')}`
+      const wd = nextWeekdayLabel('reading')
+      return wd ? L('tileVoltaWeekdayRef', { weekday: wd, ref: readingChapterLabel }) : null
+    }
+    if (key === 'study') {
+      if (on) return activeStudy ? studyTitleDay : null
+      const wd = nextWeekdayLabel('study')
+      if (!wd) return null
+      return activeStudy ? L('tileVoltaWeekdayRef', { weekday: wd, ref: activeStudy.title }) : L('tileVoltaWeekday', { weekday: wd })
+    }
+    // reflection
+    if (on) return L('tileReflectionOn')
+    const wd = nextWeekdayLabel('reflection')
+    return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
   }
 
   // Continuidade — "Ontem às 6:48 você parou em: '...'" (só quando existe
@@ -417,7 +479,7 @@ export default function HomeScreen({
       <div style={styles.header}>
         <div>
           <p style={styles.greeting}>{greeting}</p>
-          <p style={styles.date}>{dateLabel} · {planState === 'normal' && allDoneToday ? L('dayTypeDone') : planState === 'dayOff' ? L('dayTypeRest') : L('dayTypeReading')}</p>
+          <p style={styles.date}>{dateLabel}</p>
         </div>
         <button style={styles.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
           {avatarInitials}
@@ -462,15 +524,15 @@ export default function HomeScreen({
             </>
           )}
 
-          {planState === 'normal' && (
+          {/* Rotina cumprida — nenhum quadro do pacote mostra esse estado
+              pro grid de tiles novo (34a/34b/34c só mostram o dia em
+              andamento), então mantém a lista de linhas antiga aqui,
+              já com HANDOFF-34-hoje.md ("Estados da mesma tela") sem
+              nenhuma imagem contradizendo. */}
+          {planState === 'normal' && allDoneToday && (
             <>
               {continuityLine && featuredSteps.includes('reading') && <p style={styles.continuityLine}>{continuityLine}</p>}
 
-              {/* Uma linha por passo "principal" de hoje — normalmente só
-                  Leitura OU Estudo; os dois juntos quando o modelo
-                  independente marca os dois pro mesmo dia (pedido dela,
-                  2026-09-08); Oração/Reflexão só quando nenhum dos dois
-                  cai hoje. */}
               <div style={styles.stepRowsCol}>
                 {featuredSteps.map(k => {
                   const status = statusFor(k, { offSteps: [], todayRoutine, currentKey })
@@ -493,29 +555,45 @@ export default function HomeScreen({
                 })}
               </div>
 
-              {allDoneToday ? (
-                <>
-                  <p style={styles.nextUpLine}>{L('nextUp', { title: todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title })}</p>
-                  <div style={styles.doneBtnRow}>
-                    <button style={styles.extraChapterBtn} onClick={handleOnlyRead}>{L('extraChapter')}</button>
-                    <button style={styles.seeInGroupBtn} onClick={() => onNavigate?.('groups')}>{L('seeInGroup')}</button>
-                  </div>
-                </>
-              ) : (
-                <div style={styles.btnRow}>
-                  {/* Pedido explícito da Daniela (2026-09-07): este botão não
-                      inicia mais a rotina guiada direto da Home — só leva
-                      pra aba Meu Plano, onde o início da rotina guiada já
-                      vive (ver RoutineScreen.jsx). */}
-                  <button style={styles.startBtn} onClick={() => onNavigate?.('routine')}>
-                    <span style={styles.startBtnText}>{L('goToMyPlan')}</span>
-                    <span style={styles.startBtnArrow}>→</span>
-                  </button>
-                  <button style={styles.onlyReadBtn} onClick={handleOnlyRead}>
-                    <span style={styles.onlyReadBtnText}>{L('onlyRead')}</span>
-                  </button>
-                </div>
-              )}
+              <p style={styles.nextUpLine}>{L('nextUp', { title: todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title })}</p>
+              <div style={styles.doneBtnRow}>
+                <button style={styles.extraChapterBtn} onClick={handleOnlyRead}>{L('extraChapter')}</button>
+                <button style={styles.seeInGroupBtn} onClick={() => onNavigate?.('groups')}>{L('seeInGroup')}</button>
+              </div>
+            </>
+          )}
+
+          {/* Dia em andamento (34a/34b/34c) — título grande (capítulo, ou
+              capítulo + estudo, ou estudo sozinho quando a Leitura não cai
+              hoje), subtítulo de continuidade, e a grade de tiles: um por
+              passo ATIVO, sempre 3 linhas, nunca some (passo fora de hoje
+              vira "dia off" + "Volta {dia}"). Um botão só, "Ir para meu
+              plano" — nenhum PNG mostra "Começar agora"/"Só ler" mais. */}
+          {planState === 'normal' && !allDoneToday && (
+            <>
+              <p style={styles.planTitle}>{planTitleText}</p>
+              {planSubtitleText && <p style={styles.continuityLine}>{planSubtitleText}</p>}
+
+              <div style={{ ...styles.tilesRow, ...(activeStepsToday.length >= 4 ? styles.tilesGrid4 : null) }}>
+                {activeStepsToday.map(k => {
+                  const on = todaysSteps.includes(k)
+                  const detail = tileDetailFor(k, on)
+                  return (
+                    <div key={k} style={styles.tile}>
+                      <p style={styles.tileTop}>
+                        {on ? <>{minutesForStep(k)}<span style={styles.tileTopUnit}> min</span></> : L('tileDayOff')}
+                      </p>
+                      <p style={styles.tileStepName}>{stepTitle(k)}</p>
+                      {detail && <p style={styles.tileDetail}>{detail}</p>}
+                    </div>
+                  )
+                })}
+              </div>
+
+              <button style={{ ...styles.startBtn, width: '100%' }} onClick={() => onNavigate?.('routine')}>
+                <span style={styles.startBtnText}>{L('goToMyPlan')}</span>
+                <span style={styles.startBtnArrow}>→</span>
+              </button>
             </>
           )}
         </div>
@@ -641,6 +719,19 @@ export default function HomeScreen({
           </button>
         </div>
 
+        {/* Bloco 6.5 — atalho pra anotação de sermão flutuante (34d,
+            handoff-app-completo). Abre a Bíblia (capítulo de hoje, ou o
+            último lido) já com a folha aberta — ver openSermonNoteFromHome,
+            App.jsx. */}
+        <button style={styles.annotateCard} onClick={() => onOpenSermonNote?.()}>
+          <span style={styles.annotateIcon}><AppIcon name="FileText" size={17} color="var(--bento-accent)" strokeWidth={2} /></span>
+          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={styles.annotateTitle}>{L('annotateSermonTitle')}</span>
+            <span style={styles.annotateSub}>{L('annotateSermonSub')}</span>
+          </span>
+          <span style={styles.annotateChevron}>›</span>
+        </button>
+
         {/* Bloco 7 — SUA SEMANA (resumo). Sempre visível — antes do 1º
             resumo gerado (cron de domingo à noite) mostra um aviso honesto
             em vez de fingir um resumo pronto; depois, mostra sempre (não
@@ -732,7 +823,17 @@ const styles = {
   homeStepTitle: { fontFamily: FONT, fontSize: 14.5, fontWeight: 800, lineHeight: 1.2, color: '#fff', margin: '0 0 2px' },
   homeStepMeta: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.5)', margin: 0 },
 
-  btnRow: { display: 'flex', gap: 8 },
+  // Grade de tiles (34a/34b/34c) — uma linha só quando cabem ≤3 passos
+  // ativos (34a), 2×2 quando são 4 (34b/34c); nunca some um tile, o
+  // "desligado hoje" vira "dia off" no lugar do número.
+  tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
+  tilesGrid4: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
+  tile: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', boxSizing: 'border-box' },
+  tileTop: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: '#fff', margin: 0 },
+  tileTopUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
+  tileStepName: { fontFamily: FONT, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.02em', color: 'rgba(255,255,255,.55)', margin: '2px 0 0' },
+  tileDetail: { fontFamily: FONT, fontSize: 9.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.4)', margin: '4px 0 0' },
+
   startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },
   startBtnText: { fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   startBtnArrow: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
@@ -814,6 +915,13 @@ const styles = {
   squareSubDark: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   squareTitleLight: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.15, color: 'var(--bento-ink)', margin: '0 0 4px' },
   squareSubLight: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t2)', margin: 0 },
+
+  // Bloco 6.5.
+  annotateCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: 'var(--bento-card)', borderRadius: 24, padding: '18px 20px', border: 'none', cursor: 'pointer', fontFamily: FONT },
+  annotateIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  annotateTitle: { display: 'block', fontSize: 14.5, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', marginBottom: 3 },
+  annotateSub: { display: 'block', fontSize: 11.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)' },
+  annotateChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)', flexShrink: 0 },
 
   // Bloco 7.
   recapCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '14px 20px' },
