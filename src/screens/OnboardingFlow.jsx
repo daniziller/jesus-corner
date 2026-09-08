@@ -4,12 +4,13 @@
 // Cinco perguntas numeradas, cada uma com "Pular" no mesmo lugar e a linha
 // "Por que eu pergunto"; uma demonstração escolhida pela dor marcada no 15b;
 // "onde começar" (28d, Bloco 8 — reaproveita ChooseStartScreen.jsx sem
-// duplicar UI, com completedSet vazio porque um convidado novo nunca tem
-// progresso ainda); e o resultado (15e), que repete as respostas e abre o
-// livro escolhido. Nada aqui pede conta: as respostas viram plano/meta/
-// rotina na linha local de convidado quando a pessoa toca o botão final
-// (ver App.startGuestReading e src/onboarding/onboardingAnswers.js).
-// Substitui a pergunta única antiga (5c/GuestPaceScreen).
+// duplicar UI, com completedSet vazio porque ninguém chega aqui com
+// progresso ainda); e o resultado (15e), que repete as respostas e manda
+// pro cadastro — o botão final não abre a leitura direto (decisão de
+// 2026-09-07: ninguém lê sem criar conta), ele grava as respostas e chama
+// App.finishOnboarding, que empurra pro SignupScreen (ver
+// src/onboarding/onboardingAnswers.js). Substitui a pergunta única antiga
+// (5c/GuestPaceScreen).
 //
 // Nota obrigatória do handoff (seção 3.2): o onboarding tinha a opção de
 // crescer pra 6 perguntas (27a nova + 15d antiga, cada uma com seu próprio
