@@ -4,8 +4,10 @@
 // Dois estados na mesma tela: o cartão branco com o e-mail + botão laranja
 // (pedido) e, depois de enviar, o bloco escuro que os substitui, com o
 // contador de reenvio (evita o toque repetido — e o limite do Supabase, que
-// rejeita um segundo pedido em menos de ~60s). A nota areia é a promessa que
-// o app cumpre: recuperar senha não bloqueia a leitura local.
+// rejeita um segundo pedido em menos de ~60s). A nota areia tranquiliza sem
+// prometer leitura sem conta (essa porta não existe mais desde a conta
+// obrigatória, 2026-09-07): o progresso já está salvo na conta, trocar a
+// senha não apaga nada.
 //
 // O e-mail de redefinição do projeto (supabase/email-templates/
 // reset-password.html) manda um CÓDIGO de 12 dígitos (com o link como

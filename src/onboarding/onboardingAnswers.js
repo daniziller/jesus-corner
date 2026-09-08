@@ -2,9 +2,10 @@
 // que cada uma muda no app.
 //
 // As respostas ficam em localStorage porque, nesse ponto, ainda não existe
-// conta nem linha de convidado (a linha nasce em App.startGuestReading, ao
-// tocar o botão final do 15e). Plano, meta semanal e passos da rotina vão
-// pra linha de dados (userDataStore) na hora de começar; o horário do
+// conta — o botão final do 15e manda pro cadastro (App.finishOnboarding), não
+// pra leitura direto (decisão de 2026-09-07: ninguém lê sem criar conta,
+// guest mode não existe mais). Plano, meta semanal e passos da rotina vão
+// pra linha de dados (userDataStore) assim que a conta é criada; o horário do
 // lembrete espera uma conta de verdade (a inscrição push é por usuário —
 // ver pushStore.js), então fica pendente aqui até o primeiro login.
 //
