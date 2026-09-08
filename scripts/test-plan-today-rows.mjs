@@ -3,7 +3,7 @@
 // exatamente (mesma conta de exemplo: Oração feita, Leitura "agora" em
 // 35a; Estudo "agora" no lugar da Leitura em 35b). Roda com:
 // node scripts/test-plan-today-rows.mjs
-import { STEP_ORDER, orderStepsWithOff, statusFor, metaKindFor } from '../src/routine/planTodayRows.js'
+import { STEP_ORDER, orderStepsWithOff, statusFor, metaKindFor, featuredStepsFor } from '../src/routine/planTodayRows.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -68,6 +68,14 @@ check('Reflexão "a fazer" com método livre descreve o método livre', metaKind
 check('Leitura "a fazer" sem plano de leitura mostra o aviso de "sem plano"', metaKindFor('reading', 'pending', { ...ctxNoStudy, hasNoPlan: true }), 'noPlanReading')
 
 check('STEP_ORDER continua Oração→Leitura→Estudo→Reflexão', STEP_ORDER, ['prayer', 'reading', 'study', 'reflection'])
+
+// --- featuredStepsFor (card resumido da Home, 2026-09-08) --------------
+check('35a: card da Home destaca só Leitura', featuredStepsFor(todaysSteps35a), ['reading'])
+check('35b: card da Home destaca só Estudo (substituiu a Leitura)', featuredStepsFor(todaysSteps35b), ['study'])
+check('Leitura E Estudo no mesmo dia (modelo independente) → os dois no card', featuredStepsFor(['prayer', 'reading', 'study', 'reflection']), ['reading', 'study'])
+check('nem Leitura nem Estudo hoje → cai pro par Oração/Reflexão', featuredStepsFor(['prayer', 'reflection']), ['prayer', 'reflection'])
+check('só Oração hoje (Reflexão desligada) → só Oração', featuredStepsFor(['prayer']), ['prayer'])
+check('nenhum passo hoje → nada destacado (card mostra "Dia off")', featuredStepsFor([]), [])
 
 if (failures > 0) {
   console.error(`\n${failures} teste(s) falharam.`)

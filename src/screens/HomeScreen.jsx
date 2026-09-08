@@ -26,7 +26,7 @@ import { DEFAULT_ROUTINE_MODULES, mondayOf } from '../routine/routineStreak'
 import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
 import { isStepEnabled } from '../plan/stepMinutesStore'
 import { getAllSessions } from '../metrics/sessionDurationStore'
-import { totalsByStep, totalsForDay } from '../metrics/sessionDurationMath'
+import { totalsByStep } from '../metrics/sessionDurationMath'
 import { splitHoursMinutes } from '../metrics/metricsSummary'
 import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
@@ -36,6 +36,15 @@ import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { dateKey } from '../utils/dateKey'
+import { getStepDays, stepsScheduledForWeekday } from '../routine/stepDaysStore'
+import { STEP_ORDER, statusFor, buildRowMeta, featuredStepsFor } from '../routine/planTodayRows'
+import { getPrayerMethod } from '../prayer/prayerMethodStore'
+import { getReflectionMethod } from '../reflection/reflectionMethodStore'
+import { getActiveStudy } from '../studies/activeStudyStore'
+import { STUDIES } from '../data/studies'
+import { getAiStudies } from '../studies/aiStudiesStore'
+import { getInductiveStudies } from '../studies/inductiveStudiesStore'
+import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 
 const STEPS = ['prayer', 'reading', 'reflection']
 // Mesmo padrão de weeklyDaysStore.js (getWeeklyDays) — enquanto o prop
@@ -68,16 +77,17 @@ function weekdayIndexMonday(date) {
 }
 
 export default function HomeScreen({
-  session, authUser, completedSet, weeklyDays,
+  session, authUser, completedSet, weeklyDays, stepMinutes,
   onContinueSession, onNavigate, onOpenProfile,
   onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
     routineModules, plan, todayRoutine, dailyRoutine,
-    lastReadPosition, biblePercent, weeksInGoal,
+    lastReadPosition, biblePercent, weeksInGoal, activeStudyId,
   } = session
   const L = (k, vars) => translate(`home.${k}`, vars, lang)
+  const R = (k, vars) => translate(`routine.${k}`, vars, lang) // metas de passo compartilhadas com Meu Plano
   const email = authUser?.email
 
   // ── Dados que só existem via I/O (rede/Supabase) — um flag de
@@ -95,6 +105,40 @@ export default function HomeScreen({
   const [timeSheetOpen, setTimeSheetOpen] = useState(false)
   const [verseSaved, setVerseSaved] = useState(false)
   const [sharingVerse, setSharingVerse] = useState(false)
+
+  // ── Bloco 2, dados do modelo de passos com dias próprios (2026-09-08) —
+  // mesmas fontes de RoutineScreen.jsx/Meu Plano, pra "Seu plano de hoje"
+  // nunca discordar de "Meu Plano" sobre o que é hoje. Sem gate de loading
+  // próprio (mesmo padrão de RoutineScreen.jsx): assume o fallback até
+  // resolver, sem travar o resto da tela.
+  const [stepDays, setStepDaysState] = useState(null)
+  const [prayerMethod, setPrayerMethodState] = useState('acts')
+  const [reflectionMethod, setReflectionMethodState] = useState('questions')
+  const [activeStudy, setActiveStudy] = useState(null)
+  const [pausedStudy, setPausedStudy] = useState(null)
+
+  useEffect(() => {
+    getStepDays().then(setStepDaysState).catch(() => {})
+    setPrayerMethodState(getPrayerMethod())
+    setReflectionMethodState(getReflectionMethod())
+  }, [])
+
+  useEffect(() => {
+    if (!activeStudyId) { setActiveStudy(null); setPausedStudy(null); return }
+    Promise.all([getActiveStudy(), getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([active, ai, inductive, doneSet]) => {
+      setPausedStudy(active)
+      const study = [...STUDIES, ...ai, ...inductive].find(s => s.id === activeStudyId)
+      if (!study) return
+      const total = study.sessions?.length ?? 0
+      const done = (study.sessions ?? []).filter(s => isStudySessionDone(doneSet, study.id, s.id)).length
+      const current = (study.sessions ?? [])[Math.min(done, total - 1)]
+      setActiveStudy({
+        title: study.title ?? study.titleEn ?? '',
+        passage: current ? (lang === 'en' ? (current.passageEn ?? current.passage) : current.passage) : '',
+        dayDone: done, dayTotal: total,
+      })
+    }).catch(() => {})
+  }, [activeStudyId, lang])
 
   useEffect(() => {
     let alive = true
@@ -185,21 +229,69 @@ export default function HomeScreen({
   }
 
   // ── Bloco 2 — SEU PLANO DE HOJE ──
+  // "Esta semana" (Bloco 5) continua com o modelo antigo de sempre (um
+  // weeklyDays só, sem Estudo) — fora de escopo aqui, pedido dela era só
+  // sobre este bloco. enabledSteps/minutesFor seguem servindo o Bloco 5.
   const enabledSteps = STEPS.filter(s => {
     const inRoutine = (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s)
     const minutesMap = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
     return inRoutine && isStepEnabled(minutesMap[s])
   })
   const minutesFor = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
-  const totalPlanMin = enabledSteps.reduce((sum, s) => sum + (minutesFor[s] || 0), 0)
-  const allDoneToday = enabledSteps.length > 0 && enabledSteps.every(s => !!todayRoutine[s])
   const todayKeyStr = dateKey()
   const mondayKeyStr = dateKey(mondayOf(new Date()))
   const todayWeekdayIdx = weekdayIndexMonday(new Date())
   const activeWeeklyDays = Array.isArray(weeklyDays) && weeklyDays.length === 7 ? weeklyDays : DEFAULT_WEEKLY_DAYS
-  const isRestDay = !activeWeeklyDays[todayWeekdayIdx]
 
-  const planState = session.hasNoPlan ? 'noPlan' : allDoneToday ? 'done' : isRestDay ? 'rest' : 'normal'
+  // 2026-09-08 — "Seu plano de hoje" passa a usar o MESMO modelo de dias
+  // por passo de Meu Plano (stepDays + substituição leitura↔estudo), em
+  // vez do STEPS fixo [oração,leitura,reflexão] antigo (que não sabia de
+  // Estudo nem de dias por passo, e usava um weeklyDays só pra "descanso").
+  // Mesma regra de substituição de RoutineScreen.jsx: com um Estudo ativo,
+  // ele troca de lugar com a Leitura no dia em que ela cairia.
+  const activeStepsToday = STEP_ORDER.filter(k => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(k))
+  const scheduledToday = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx) : []
+  const todaysSteps = activeStudyId
+    ? [...new Set(scheduledToday.map(k => (k === 'reading' ? 'study' : k)))]
+    : scheduledToday
+
+  function minutesForStep(key) {
+    if (key === 'study' && activeStudyId) return stepMinutes?.reading ?? plan.readingMinutes
+    if (key === 'study') return stepMinutes?.study ?? 15
+    return minutesFor[key]
+  }
+  const totalPlanMin = todaysSteps.reduce((sum, k) => sum + (minutesForStep(k) || 0), 0)
+  const currentKey = todaysSteps.find(k => !todayRoutine[k]) ?? null
+  const allDoneToday = todaysSteps.length > 0 && !currentKey
+
+  // Passos "principais" de hoje — lógica pura testada em
+  // src/routine/planTodayRows.js (featuredStepsFor). No mais das vezes é
+  // só 1 passo; os dois (Leitura+Estudo) aparecem juntos quando o modelo
+  // independente marca os dois pro mesmo dia.
+  const featuredSteps = featuredStepsFor(todaysSteps)
+
+  const planState = session.hasNoPlan ? 'noPlan' : todaysSteps.length === 0 ? 'dayOff' : 'normal'
+
+  const stepTitle = k => translate(`home.routine${cap(k)}`, undefined, lang)
+
+  function metaFor(key, status) {
+    return buildRowMeta(key, status, {
+      activeStudyId, pausedStudy, hasNoPlan: session.hasNoPlan, reflectionMethod, prayerMethod,
+      todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle,
+    }, R)
+  }
+
+  function titleForFeatured(key, status) {
+    if (key === 'study' && status === 'now' && activeStudyId) return activeStudy?.passage || stepTitle(key)
+    if (key === 'reading') {
+      // Feito: mostra o que ela ACABOU de ler (lastReadPosition), não o
+      // próximo pendente — a essa altura session.todaySession já avançou
+      // pro que vem depois (ver findCurrentReadingSession.js).
+      if (status === 'done' && lastReadPosition) return `${lastReadPosition.book} ${lastReadPosition.chapter}`
+      return todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title
+    }
+    return stepTitle(key)
+  }
 
   function handleOnlyRead() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
@@ -225,14 +317,6 @@ export default function HomeScreen({
     ? L('continuityLine', { day: continuityDayWord(lastReadPosition.readAt), hour: continuityHour })
       + (continuityExcerpt ? ' ' + L('continuityExcerpt', { text: continuityExcerpt }) : '')
     : null
-
-  // "{capítulo} lido" (estado concluído) — o que a pessoa ACABOU de ler,
-  // não o que vem a seguir (por essa altura, session.todaySession já
-  // avançou pro PRÓXIMO capítulo pendente — ver findCurrentReadingSession
-  // em App.jsx). lastReadPosition é o ponteiro certo pra "o que foi lido".
-  const completedChapterLabel = lastReadPosition ? `${lastReadPosition.book} ${lastReadPosition.chapter}` : todaySession.title
-  const todayRealTotals = totalsForDay(sessionRows, todayKeyStr)
-  const todayRealMinutes = Math.round((todayRealTotals.prayer + todayRealTotals.reading + todayRealTotals.reflection) / 60)
 
   // ── Bloco 4 — SUA APLICAÇÃO DE ONTEM ──
   // Estado especial de "rotina cumprida": se a Reflexão de HOJE já
@@ -333,7 +417,7 @@ export default function HomeScreen({
       <div style={styles.header}>
         <div>
           <p style={styles.greeting}>{greeting}</p>
-          <p style={styles.date}>{dateLabel} · {planState === 'done' ? L('dayTypeDone') : planState === 'rest' ? L('dayTypeRest') : L('dayTypeReading')}</p>
+          <p style={styles.date}>{dateLabel} · {planState === 'normal' && allDoneToday ? L('dayTypeDone') : planState === 'dayOff' ? L('dayTypeRest') : L('dayTypeReading')}</p>
         </div>
         <button style={styles.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
           {avatarInitials}
@@ -342,14 +426,15 @@ export default function HomeScreen({
 
       <div style={styles.body}>
 
-        {/* Bloco 2 — SEU PLANO DE HOJE. */}
-        <div style={{ ...styles.planCard, ...(planState === 'done' ? styles.planCardDone : {}) }}>
+        {/* Bloco 2 — SEU PLANO DE HOJE (2026-09-08: passos com dias
+            próprios, mesmo modelo de Meu Plano — ver planTodayRows.js). */}
+        <div style={{ ...styles.planCard, ...(planState === 'normal' && allDoneToday ? styles.planCardDone : {}) }}>
           <div style={styles.planHead}>
-            <p style={{ ...styles.planLabel, ...(planState === 'done' ? styles.planLabelDone : {}) }}>
-              {planState === 'done' ? L('planDoneLabel') : L('planLabel')}
+            <p style={{ ...styles.planLabel, ...(planState === 'normal' && allDoneToday ? styles.planLabelDone : {}) }}>
+              {planState === 'normal' && allDoneToday ? L('planDoneLabel') : L('planLabel')}
             </p>
-            {planState === 'normal' && totalPlanMin > 0 && (
-              <span style={styles.planMin}>{L('minShort', { n: totalPlanMin })}</span>
+            {planState === 'normal' && !allDoneToday && totalPlanMin > 0 && (
+              <button style={styles.planMin} onClick={() => setTimeSheetOpen(true)}>{L('minShort', { n: totalPlanMin })}</button>
             )}
           </div>
 
@@ -363,69 +448,74 @@ export default function HomeScreen({
             </>
           )}
 
-          {planState === 'rest' && (
+          {/* "Dia off" — nenhum passo do plano cai hoje (stepDays de todos
+              os passos ativos desmarcados pra hoje). "Adiantar" reaproveita
+              o mesmo onContinueSession de "Só ler": abre a próxima leitura
+              pendente de verdade, sem mexer nos dias configurados. */}
+          {planState === 'dayOff' && (
             <>
-              <p style={styles.planTitle}>{L('restTitle')}</p>
+              <p style={styles.planTitle}>{L('dayOffTitle')}</p>
+              <p style={styles.continuityLine}>{L('dayOffSub')}</p>
               <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={handleOnlyRead}>
-                <span style={styles.onlyReadBtnText}>{L('onlyRead')}</span>
+                <span style={styles.onlyReadBtnText}>{L('dayOffCta')}</span>
               </button>
-            </>
-          )}
-
-          {planState === 'done' && (
-            <>
-              <p style={styles.planTitleDone}>{L('doneTitle', { chapter: completedChapterLabel, n: todayRealMinutes })}</p>
-              {enabledSteps.length > 0 && (
-                <div style={styles.tilesRow}>
-                  {enabledSteps.map(s => (
-                    <div key={s} style={styles.tileDone}>
-                      <p style={styles.tileValueDone}>
-                        {Math.round((todayRealTotals[s] || 0) / 60)}<span style={styles.tileUnitDone}>{L('minUnit')}</span>
-                      </p>
-                      <p style={styles.tileLabelDone}>{L(`step${cap(s)}`)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p style={styles.nextUpLine}>{L('nextUp', { title: todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title })}</p>
-              <div style={styles.doneBtnRow}>
-                <button style={styles.extraChapterBtn} onClick={handleOnlyRead}>{L('extraChapter')}</button>
-                <button style={styles.seeInGroupBtn} onClick={() => onNavigate?.('groups')}>{L('seeInGroup')}</button>
-              </div>
             </>
           )}
 
           {planState === 'normal' && (
             <>
-              <p style={styles.planTitle}>{todaySession.title}</p>
-              {continuityLine && <p style={styles.continuityLine}>{continuityLine}</p>}
+              {continuityLine && featuredSteps.includes('reading') && <p style={styles.continuityLine}>{continuityLine}</p>}
 
-              {enabledSteps.length > 0 && (
-                <div style={styles.tilesRow}>
-                  {enabledSteps.map(s => (
-                    <button key={s} style={styles.tile} onClick={() => setTimeSheetOpen(true)}>
-                      <p style={styles.tileValue}>
-                        {minutesFor[s]}<span style={styles.tileUnit}>{L('minUnit')}</span>
-                      </p>
-                      <p style={styles.tileLabel}>{L(`step${cap(s)}`)}</p>
-                    </button>
-                  ))}
+              {/* Uma linha por passo "principal" de hoje — normalmente só
+                  Leitura OU Estudo; os dois juntos quando o modelo
+                  independente marca os dois pro mesmo dia (pedido dela,
+                  2026-09-08); Oração/Reflexão só quando nenhum dos dois
+                  cai hoje. */}
+              <div style={styles.stepRowsCol}>
+                {featuredSteps.map(k => {
+                  const status = statusFor(k, { offSteps: [], todayRoutine, currentKey })
+                  return (
+                    <div key={k} style={styles.homeStepRow}>
+                      <span style={{
+                        ...styles.homeStepIcon,
+                        ...(status === 'done' ? styles.homeStepIconDone : status === 'now' ? styles.homeStepIconNow : styles.homeStepIconPending),
+                      }}>
+                        {status === 'done' && <AppIcon name="Check" size={14} strokeWidth={2.6} color="var(--bento-sand)" />}
+                        {status === 'now' && <AppIcon name="Play" size={12} color="var(--bento-ink)" fill="var(--bento-ink)" />}
+                        {status === 'pending' && <span style={styles.homeStepDot} />}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={styles.homeStepTitle}>{titleForFeatured(k, status)}</p>
+                        <p style={styles.homeStepMeta}>{metaFor(k, status)}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {allDoneToday ? (
+                <>
+                  <p style={styles.nextUpLine}>{L('nextUp', { title: todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title })}</p>
+                  <div style={styles.doneBtnRow}>
+                    <button style={styles.extraChapterBtn} onClick={handleOnlyRead}>{L('extraChapter')}</button>
+                    <button style={styles.seeInGroupBtn} onClick={() => onNavigate?.('groups')}>{L('seeInGroup')}</button>
+                  </div>
+                </>
+              ) : (
+                <div style={styles.btnRow}>
+                  {/* Pedido explícito da Daniela (2026-09-07): este botão não
+                      inicia mais a rotina guiada direto da Home — só leva
+                      pra aba Meu Plano, onde o início da rotina guiada já
+                      vive (ver RoutineScreen.jsx). */}
+                  <button style={styles.startBtn} onClick={() => onNavigate?.('routine')}>
+                    <span style={styles.startBtnText}>{L('goToMyPlan')}</span>
+                    <span style={styles.startBtnArrow}>→</span>
+                  </button>
+                  <button style={styles.onlyReadBtn} onClick={handleOnlyRead}>
+                    <span style={styles.onlyReadBtnText}>{L('onlyRead')}</span>
+                  </button>
                 </div>
               )}
-
-              <div style={styles.btnRow}>
-                {/* Pedido explícito da Daniela (2026-09-07): este botão não
-                    inicia mais a rotina guiada direto da Home — só leva
-                    pra aba Meu Plano, onde o início da rotina guiada já
-                    vive (ver RoutineScreen.jsx). */}
-                <button style={styles.startBtn} onClick={() => onNavigate?.('routine')}>
-                  <span style={styles.startBtnText}>{L('goToMyPlan')}</span>
-                  <span style={styles.startBtnArrow}>→</span>
-                </button>
-                <button style={styles.onlyReadBtn} onClick={handleOnlyRead}>
-                  <span style={styles.onlyReadBtnText}>{L('onlyRead')}</span>
-                </button>
-              </div>
             </>
           )}
         </div>
@@ -623,20 +713,24 @@ const styles = {
   planHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   planLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
   planLabelDone: { color: 'var(--bento-accent)' },
-  planMin: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.42)' },
+  planMin: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.42)', border: 'none', background: 'none', padding: 0, cursor: 'pointer' },
   planTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
-  planTitleDone: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.7px', color: '#fff', margin: '0 0 14px' },
   continuityLine: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
 
-  tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
-  tile: { flex: 1, minWidth: 0, border: 'none', cursor: 'pointer', borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', textAlign: 'left', fontFamily: FONT },
-  tileValue: { fontSize: 15, fontWeight: 800, color: '#fff', margin: '0 0 2px', lineHeight: 1.1 },
-  tileUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
-  tileLabel: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', margin: 0 },
-  tileDone: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(0,0,0,.2)', padding: '11px 12px' },
-  tileValueDone: { fontSize: 15, fontWeight: 800, color: '#fff', margin: '0 0 2px', lineHeight: 1.1 },
-  tileUnitDone: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)' },
-  tileLabelDone: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.6)', margin: 0 },
+  // Linhas de passo "principal" de hoje (Leitura/Estudo, ou Oração/
+  // Reflexão quando nenhum dos dois cai hoje — ver featuredSteps) —
+  // 2026-09-08, substitui a faixa de tiles (minutos configurados de TODOS
+  // os passos) por uma lista mais parecida com a de Meu Plano, só do(s)
+  // passo(s) que realmente importam agora.
+  stepRowsCol: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 },
+  homeStepRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  homeStepIcon: { width: 30, height: 30, flexShrink: 0, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  homeStepIconDone: { background: 'var(--bento-sand-icon)' },
+  homeStepIconNow: { background: 'var(--bento-accent)' },
+  homeStepIconPending: { background: 'rgba(255,255,255,.12)' },
+  homeStepDot: { width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,.5)' },
+  homeStepTitle: { fontFamily: FONT, fontSize: 14.5, fontWeight: 800, lineHeight: 1.2, color: '#fff', margin: '0 0 2px' },
+  homeStepMeta: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.5)', margin: 0 },
 
   btnRow: { display: 'flex', gap: 8 },
   startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },

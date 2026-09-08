@@ -118,46 +118,10 @@ import { applyPendingOnboardingChoices } from './onboarding/pendingOnboardingCho
 import { logActivity } from './activity/activityStore'
 import { syncPushTimezone, subscribeToPush } from './notifications/pushStore'
 import { avatarInitialsOf } from './utils/avatarInitials'
+import { findCurrentReadingSession } from './reading/findCurrentReadingSession'
 
 function defaultBlockIdFor(completedSet, planId, readingOrder, readingMinutesPerDay = null) {
   return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder, readingMinutesPerDay).blocks).id
-}
-
-// Sessão (e respectivo bloco) que o card "Continue sua leitura" da Home (e
-// o botão "Continuar sessão") reabre.
-//
-// Prioridade 1: o ÚLTIMO texto que a pessoa leu, em qualquer lugar do app
-// — a sessão que contém esse capítulo (lastRead = { book, chapter }, ver
-// lastReadPositionStore.js, gravado tanto na leitura guiada quanto na
-// navegação livre pela aba Bíblia). Se ela releu Gênesis 1 estando em
-// Levítico, o card volta pra Gênesis 1 — de propósito: "continuar" é
-// sempre "de onde eu parei", não "a próxima da fila".
-//
-// Prioridade 2 (nada lido ainda, ou o capítulo lido não existe no plano
-// ativo — ex: plano por tema): a primeira sessão pendente na ordem do
-// plano (blocks já vem ordenado conforme reading_order).
-//
-// Prioridade 3 (plano inteiro concluído): a última sessão do último bloco,
-// mostrada como "Revisar sessão" (ver ctaLabel em HomeScreen.jsx).
-function findCurrentReadingSession(blocks, sessionsByBlock, lastRead = null) {
-  if (lastRead?.book && lastRead?.chapter) {
-    for (const block of blocks) {
-      const session = sessionsByBlock[block.id].find(
-        s => s.type !== 'reflection'
-          && s.book === lastRead.book
-          && s.chStart <= lastRead.chapter
-          && s.chEnd >= lastRead.chapter
-      )
-      if (session) return { session, block }
-    }
-  }
-  for (const block of blocks) {
-    const session = sessionsByBlock[block.id].find(s => s.status !== 'done')
-    if (session) return { session, block }
-  }
-  const lastBlock = blocks[blocks.length - 1]
-  const lastSessions = sessionsByBlock[lastBlock.id]
-  return { session: lastSessions[lastSessions.length - 1], block: lastBlock }
 }
 
 // ─────────────────────────────────────────
@@ -180,25 +144,15 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // dia de hoje na rotina — ver src/routine/dailyRoutineStore.js/setThemePicks.
   const todayThemePicks = todayRoutine.themePicks
   const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, stepMinutes?.reading)
-  // Sessão (e bloco) onde o usuário realmente parou — baseado no último
-  // capítulo marcado como lido, não na ordem sugerida dos livros/blocos.
-  // Continua olhando pra TODOS os textos do plano (não só os de hoje) —
-  // sessionsByBlock nunca fica vazio, então nunca quebra; a escolha do dia
-  // só afeta o que é mostrado como "sessão de hoje" logo abaixo.
-  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock, lastReadPosition)
+  // Sessão (e bloco) onde o plano realmente está — a primeira ainda não
+  // concluída, na ordem canônica (ver findCurrentReadingSession.js: não
+  // depende mais de onde a pessoa tocou por último, só do completedSet).
+  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock)
   // Onde o plano fixo (Gênesis…) ficou pausado, pra mostrar em Meu Plano
   // (quadro 22c: "Gênesis pausado em 41 · Retomar já") enquanto um estudo
   // (activeAltPlan) estiver ativo — sempre calculado a partir de
   // blocks/sessionsByBlock ORIGINAIS (não activePlanData.blocks, que já
   // seriam os do estudo), então não depende de qual plano está "de hoje".
-  // SEM lastReadPosition aqui de propósito: esse ponteiro é global (última
-  // leitura em QUALQUER plano — ver comentário de findCurrentReadingSession
-  // acima), então enquanto o estudo estiver ativo ele aponta pro capítulo
-  // do ESTUDO, não do plano fixo — se esse capítulo por acaso bater com um
-  // livro real do cânon (ex.: um estudo sobre Rute), a busca acharia
-  // "Rute" no plano fixo por engano. Sem o ponteiro, cai direto na
-  // prioridade 2 (primeira sessão pendente pelo completedSet) — a posição
-  // real de onde o plano fixo está, não contaminada pela leitura do estudo.
   const pausedFixedSession = activePlanData.kind !== 'fixed'
     ? findCurrentReadingSession(blocks, sessionsByBlock).session
     : null
@@ -1156,7 +1110,7 @@ export default function App() {
       goToTab('groupPlanReader')
       return
     }
-    const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock, lastReadPosition)
+    const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock)
     setActiveBlockId(block.id)
     setJourneyResumeSessionId(resumeSession.id)
     setJourneyEntryMode('reading')
@@ -2119,7 +2073,7 @@ export default function App() {
   // Modo mãos-livres terminou de ler a leitura do dia em voz alta — marca
   // essa sessão como concluída, igual a marcar pelo fluxo guiado normal.
   function finishReadingFromHandsFree() {
-    const { session: s } = findCurrentReadingSession(blocks, sessionsByBlock, lastReadPosition)
+    const { session: s } = findCurrentReadingSession(blocks, sessionsByBlock)
     if (s && s.type !== 'reflection') toggleSession(s, true)
   }
 
@@ -2365,7 +2319,7 @@ export default function App() {
     // era mais simples que este quadro, não o contrário, então não houve
     // conflito entre as duas decisões, só uma sequência.
     home: <HomeScreen
-      session={session} authUser={authUser} completedSet={completedSet} weeklyDays={weeklyDays}
+      session={session} authUser={authUser} completedSet={completedSet} weeklyDays={weeklyDays} stepMinutes={stepMinutes}
       weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
       onOpenProfile={() => setProfileOpen(true)}
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}

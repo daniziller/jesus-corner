@@ -186,7 +186,14 @@ export const STRINGS = {
       onlyRead: 'Só ler',
       noPlanTitle: 'Escolher por onde começar',
       noPlanCta: 'Escolher por onde começar',
-      restTitle: 'Hoje é dia de descanso · ler se quiser',
+      // "Dia off" (2026-09-08) — substitui o "dia de descanso" antigo
+      // (baseado num único weeklyDays pra tudo) agora que cada passo tem
+      // seus próprios dias (stepDays): dia off é quando NENHUM passo do
+      // plano cai hoje. "Adiantar" abre a próxima leitura pendente mesmo
+      // assim, sem mexer nos dias configurados de nenhum passo.
+      dayOffTitle: 'Dia off',
+      dayOffSub: 'Nenhum passo do seu plano cai hoje.',
+      dayOffCta: 'Adiantar o próximo dia',
       // "Ontem às 6:48 você parou em: '...'" — day/hour vêm de
       // lastReadPosition.readAt de verdade (não sempre "Ontem"); excerpt só
       // aparece quando o texto do capítulo estava disponível.
@@ -199,7 +206,6 @@ export const STRINGS = {
       stepReflection: 'Reflexão',
       inTotal: 'no total',
       // Estado "rotina cumprida".
-      doneTitle: '{chapter} lido · {n} min',
       nextUp: 'Amanhã começa em {title}',
       extraChapter: 'Ler um capítulo a mais',
       seeInGroup: 'Ver no grupo',
@@ -2853,7 +2859,9 @@ export const STRINGS = {
       onlyRead: 'Just read',
       noPlanTitle: 'Choose where to start',
       noPlanCta: 'Choose where to start',
-      restTitle: "Today's a rest day · read if you want",
+      dayOffTitle: 'Day off',
+      dayOffSub: "No step of your plan falls today.",
+      dayOffCta: "Get ahead of tomorrow's plan",
       continuityLine: '{day} at {hour} you left off',
       continuityExcerpt: 'at: "{text}"',
       continuityToday: 'Today',
@@ -2862,7 +2870,6 @@ export const STRINGS = {
       stepReading: 'Reading',
       stepReflection: 'Reflection',
       inTotal: 'total',
-      doneTitle: '{chapter} read · {n} min',
       nextUp: 'Tomorrow starts at {title}',
       extraChapter: 'Read one more chapter',
       seeInGroup: 'See in group',
