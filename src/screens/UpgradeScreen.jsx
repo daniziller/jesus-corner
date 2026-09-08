@@ -402,7 +402,7 @@ const s = {
   primaryBtn:  { width: '100%', height: 56, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   secondaryBtn:{ flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'var(--bento-line)', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
 
-  errorMsg:    { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: '#DC2626', margin: 0, textAlign: 'center' },
+  errorMsg:    { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-accent)', margin: 0, textAlign: 'center' },
   disclaimer:  { fontFamily: FONT, fontSize: 10, fontWeight: 500, color: 'var(--bento-t4)', textAlign: 'center', lineHeight: 1.5 },
   redeemLink:  { alignSelf: 'center', border: 'none', background: 'none', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', textDecoration: 'underline', cursor: 'pointer', padding: 4 },
   redeemBox:   { display: 'flex', flexDirection: 'column', gap: 8 },

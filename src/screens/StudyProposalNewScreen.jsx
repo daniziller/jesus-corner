@@ -181,7 +181,7 @@ const s = {
   darkLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
   planTitle: { fontFamily: FONT, fontSize: 24, fontWeight: 800, letterSpacing: '-.9px', color: '#fff', margin: '0 0 8px', lineHeight: 1.15 },
   planOverview: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.5)', margin: 0 },
-  errorText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#DC2626', margin: 0, textAlign: 'center' },
+  errorText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-accent)', margin: 0, textAlign: 'center' },
 
   dayRow: { borderRadius: 20, background: 'var(--bento-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
   dayNum: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff' },

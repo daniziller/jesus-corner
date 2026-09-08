@@ -386,7 +386,7 @@ function MemberActionSheet({ L, member, busy, onPromote, onRemove, onClose }) {
       <div style={styles.sheetPanel} onClick={e => e.stopPropagation()}>
         <p style={styles.sheetTitle}>{member.name}</p>
         <button style={styles.sheetOptionBtn} onClick={onPromote} disabled={busy}>{L('promoteAction')}</button>
-        <button style={{ ...styles.sheetOptionBtn, color: '#DC2626' }} onClick={onRemove} disabled={busy}>{L('removeMemberAction')}</button>
+        <button style={{ ...styles.sheetOptionBtn, color: 'var(--bento-accent)' }} onClick={onRemove} disabled={busy}>{L('removeMemberAction')}</button>
         <button style={styles.secondarySmallBtn} onClick={onClose} disabled={busy}>{L('cancelAction')}</button>
       </div>
     </div>,
@@ -437,7 +437,7 @@ const styles = {
   fieldLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
   fieldInput: { width: '100%', border: 'none', borderRadius: 12, padding: '11px 14px', fontFamily: FONT, fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-card)' },
   bioInput: { width: '100%', border: 'none', borderRadius: 12, padding: '11px 14px', fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-card)', resize: 'none' },
-  errorText: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: '#DC2626', margin: 0 },
+  errorText: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-accent)', margin: 0 },
   primarySmallBtn: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
   secondarySmallBtn: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-t3)', background: 'var(--bento-card)', cursor: 'pointer' },
 }

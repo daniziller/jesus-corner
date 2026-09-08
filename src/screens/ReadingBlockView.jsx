@@ -23,6 +23,7 @@ import { addReadingPaceSession } from '../reading/readingPaceStore'
 import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible, postToRoom } from '../groups/chapterRoomStore'
 import { getGroupMemberCounts } from '../groups/groupsStore'
 import { collectTagVocabulary } from '../notes/noteTags'
+import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { avatarPaletteFor } from './ChapterRoomScreen'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
@@ -1484,7 +1485,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
           <div style={styles.aiChatOverlayHeader}>
             <span style={styles.aiChatOverlayTitle}>
-              <span style={styles.aiChatOverlayIcon}><AppIcon name="HelpCircle" size={15} color="#A21CAF" /></span>
+              <span style={styles.aiChatOverlayIcon}><AppIcon name="HelpCircle" size={15} color="var(--bento-accent)" /></span>
               {t('reading.tagAskAi', undefined, lang)}
             </span>
             <button type="button" style={styles.aiChatOverlayClose} onClick={() => setAiChatOpen(false)} aria-label={t('aiChat.close', undefined, lang)}>
@@ -2323,7 +2324,7 @@ const askStyles = {
   questionBubble: { alignSelf: 'flex-end', maxWidth: 300, borderRadius: '18px 18px 4px 18px', background: 'var(--bento-ink)', padding: '12px 16px' },
   questionText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.4, color: '#fff', margin: 0 },
   loadingText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-t3)' },
-  errorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: '#DC2626' },
+  errorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-accent)' },
   answerLabelRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
   answerDiamond: { width: 9, height: 9, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
   answerLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
@@ -3444,7 +3445,7 @@ function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChap
         <div
           style={{
             width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            background: isDone ? 'var(--bento-ink)' : isBadgeActive ? 'var(--bento-ink)' : isReflection ? '#A855F7' : 'var(--bento-line)',
+            background: isDone ? 'var(--bento-ink)' : isBadgeActive ? 'var(--bento-ink)' : isReflection ? ROUTINE_STEP_COLORS.reflection : 'var(--bento-line)',
           }}
           onClick={e => { e.stopPropagation(); onToggle(session, !isDone) }}
         >
@@ -3690,7 +3691,7 @@ const styles = {
   notesTextarea:{ width: '100%', border: 'none', borderRadius: 12, padding: '10px 12px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'none', outline: 'none', lineHeight: 1.5, marginBottom: 10, background: 'var(--bento-line)' },
   notesSaveBtn:{ width: '100%', background: 'var(--bento-accent)', border: 'none', borderRadius: 12, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   reflectionTip:  { background: 'var(--bento-sand)', borderRadius: 11, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-sand-ink)', lineHeight: 1.5 },
-  reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: '#A855F7', color: 'white', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
+  reflectionNumber:{ width: 20, height: 20, borderRadius: '50%', background: ROUTINE_STEP_COLORS.reflection, color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 },
   bibleTextVersionRow:  { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   bibleTextVersionBtn:  { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
   bibleTextVersionBtnActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
@@ -3749,7 +3750,7 @@ const styles = {
   aiChatInputRow:  { display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 },
   aiChatInput:     { flex: 1, border: '0.5px solid var(--bento-line)', borderRadius: 20, padding: '10px 14px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)' },
   aiChatSendBtn:   { width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  errorText:       { fontSize: 11.5, fontWeight: 600, color: '#DC2626', marginBottom: 8, flexShrink: 0 },
+  errorText:       { fontSize: 11.5, fontWeight: 600, color: 'var(--bento-accent)', marginBottom: 8, flexShrink: 0 },
   aiChatLimitCounter: { fontSize: 10, fontWeight: 500, color: 'var(--bento-t4)', textAlign: 'right', margin: '5px 2px 0', flexShrink: 0 },
 
   // Janela flutuante do chat — "nuvem" pedida: aparece por cima da leitura
@@ -3762,7 +3763,7 @@ const styles = {
   aiChatOverlayWindow: { width: '100%', maxWidth: 'var(--max-width)', height: '72vh', maxHeight: 640, background: '#fff', borderRadius: '24px 24px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
   aiChatOverlayHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '0.5px solid var(--bento-line)', flexShrink: 0 },
   aiChatOverlayTitle: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)' },
-  aiChatOverlayIcon: { width: 28, height: 28, borderRadius: 9, background: '#FAE8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  aiChatOverlayIcon: { width: 28, height: 28, borderRadius: 9, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   aiChatOverlayClose: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   aiChatOverlayBody: { flex: 1, minHeight: 0, padding: '12px 16px', display: 'flex', flexDirection: 'column' },
 

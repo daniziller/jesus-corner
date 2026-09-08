@@ -422,7 +422,7 @@ const styles = {
   center: { minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 14, padding: '52px 24px 110px' },
   closeBtn: { position: 'absolute', top: 14, right: 14, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 },
   introIcon: { width: 64, height: 64, borderRadius: 20, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  doneIcon: { width: 64, height: 64, borderRadius: '50%', background: '#1E8E4F', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  doneIcon: { width: 64, height: 64, borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   runIcon: { width: 76, height: 76, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   bigLabel: { fontFamily: 'var(--font-bento)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px' },
   sub: { fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,.72)', lineHeight: 1.5, maxWidth: 320 },

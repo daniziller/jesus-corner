@@ -289,7 +289,7 @@ const s = {
 
   sandCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '14px 18px' },
   sandText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-sand-ink)', margin: 0 },
-  errorText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#DC2626', margin: 0, textAlign: 'center' },
+  errorText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-accent)', margin: 0, textAlign: 'center' },
 
   footer: { flexShrink: 0, padding: '12px 20px calc(20px + var(--safe-bottom))' },
   submitBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer' },
