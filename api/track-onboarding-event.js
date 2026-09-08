@@ -5,9 +5,16 @@
 // ao público.
 import { supabaseAdmin } from './_lib/invites.js'
 
+// Um passo por tela real do fluxo atual (ver src/screens/WelcomeScreen.jsx,
+// OnboardingFlow.jsx — usa STEPS de lá direto — e SignupScreen.jsx/
+// UpgradeScreen.jsx). Trocado em 2026-09-08: a lista antiga (name/
+// valueIntro/features/prayerTime/firstTimeReading/readingPlan/
+// reflectionTime/preview) descrevia o wizard de 6 perguntas que
+// OnboardingFlow.jsx substituiu — nada gravava esses eventos havia tempo,
+// o funil do admin (23a) ficava mostrando quase só zero.
 const ALLOWED_STEPS = new Set([
-  'name', 'valueIntro', 'features', 'prayerTime', 'firstTimeReading', 'readingPlan', 'reflectionTime', 'preview', 'signup',
-  'signup_completed', 'checkout_started', 'subscribed',
+  'welcome', 'history', 'pains', 'demo', 'minutes', 'days', 'reminder', 'chooseStart', 'result',
+  'signup', 'signup_completed', 'checkout_started', 'subscribed',
 ])
 
 export default async function handler(req, res) {

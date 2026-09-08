@@ -37,6 +37,11 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
   const L = (k, vars) => t(`account.${k}`, vars, lang)
   const plan = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
 
+  // "Chegou no cadastro" (funil do admin, 23a) — separado de
+  // 'signup_completed' logo abaixo, pra medir quem abre esta tela mas
+  // desiste antes de terminar.
+  useEffect(() => { trackOnboardingEvent('signup') }, [])
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

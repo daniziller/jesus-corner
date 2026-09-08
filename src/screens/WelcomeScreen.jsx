@@ -7,14 +7,20 @@
 // preferências) e dali direto pro cadastro — desde 2026-09-07 a conta é
 // obrigatória pra usar o app, não tem mais leitura sem conta (ver
 // finishOnboarding em App.jsx e SignupScreen.jsx, quadro 13c).
+import { useEffect } from 'react'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import BrandMark from '../components/BrandMark'
 import BrandLogo from '../components/BrandLogo'
+import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 
 export default function WelcomeScreen({ onStart, onGoLogin }) {
   const lang = getAppLanguage() ?? 'pt'
   const L = (k, vars) => t(`welcome.${k}`, vars, lang)
+  // Primeiro evento do funil do admin (23a) — o app não sabe quando foi
+  // instalado, então "abriu as boas-vindas" é o proxy mais cedo que dá pra
+  // medir (ver mesmo raciocínio em OnboardingFlow.jsx).
+  useEffect(() => { trackOnboardingEvent('welcome') }, [])
   return (
     <div style={styles.screen}>
       <div style={styles.top}>
