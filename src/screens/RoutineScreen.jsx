@@ -19,7 +19,7 @@ import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeek
 import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
-import { STEP_ORDER, orderStepsWithOff, statusFor, metaKindFor } from '../routine/planTodayRows'
+import { STEP_ORDER, orderStepsWithOff, statusFor, buildRowMeta } from '../routine/planTodayRows'
 import { getActiveStudy } from '../studies/activeStudyStore'
 import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
@@ -33,16 +33,6 @@ function joinNames(names, lang) {
   if (names.length <= 1) return names[0] ?? ''
   const sep = lang === 'en' ? ' and ' : ' e '
   return `${names.slice(0, -1).join(', ')}${sep}${names[names.length - 1]}`
-}
-
-// "10 de setembro" (atualização 35a/35b) — dia + mês, sem dia da semana e
-// sem ano (diferente de formatWeekdayDate, usado no cartão "Retomar já"
-// logo abaixo, que já tem o dia da semana no quadro).
-function formatMonthDay(iso, lang) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long' })
 }
 
 export default function RoutineScreen({ session, completedSet, stepMinutes, onContinueSession, onOpenActiveStudy, onNavigate, onStartGuided, onResumeFixedPlan }) {
@@ -134,59 +124,14 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   const { orderedKeys, offSteps } = orderStepsWithOff(todaysSteps)
   const noPlanReading = hasNoPlan && !activeStudyId
 
-  function doneAtLine(gender, key) {
-    const at = todayRoutine[`${key}At`]
-    const d = at ? new Date(at) : null
-    if (!d || Number.isNaN(d.getTime())) return L(gender === 'masc' ? 'doneMasc' : 'doneFem')
-    const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-    return L(gender === 'masc' ? 'doneAtMasc' : 'doneAtFem', { time })
-  }
-
-  // Meta de "a fazer" quando não há descrição própria pro passo (Oração e
-  // Estudo sem estudo ativo não têm exemplo no quadro) — encadeamento
-  // antigo, sem repetir os minutos (já aparecem na coluna à direita agora).
-  function chainAfterMeta(key) {
-    const idx = todaysSteps.indexOf(key)
-    const prev = todaysSteps[idx - 1]
-    return prev ? L(`after${prev[0].toUpperCase()}${prev.slice(1)}`) : ''
-  }
-
-  // Linha "meta" de cada passo na lista — o metaKind (de onde vem a
-  // informação) é lógica pura testada em planTodayRows.js; aqui só se
-  // traduz cada kind pro texto final.
+  // Linha "meta" de cada passo na lista — lógica compartilhada com
+  // HomeScreen.jsx (planTodayRows.js/buildRowMeta), pra "Meu Plano" e "Seu
+  // plano de hoje" nunca mostrarem frases diferentes pro mesmo passo/estado.
   function metaFor(key, status) {
-    const kind = metaKindFor(key, status, {
-      activeStudyId, pausedStudyHasBook: !!pausedStudy?.pausedAtBook, hasNoPlan, reflectionMethod,
-    })
-    switch (kind) {
-      case 'pausedUntil':
-        return L('pausedUntilRow', { book: pausedStudy.pausedAtBook, date: formatMonthDay(pausedStudy.resumesAt, lang) })
-      case 'notToday':
-        return L('notTodayStep', { step: stepTitle(key).toLowerCase() })
-      case 'prayerDone':
-        return `${prayerMethod === 'acts' ? L('methodActs') : L('methodFree')} · ${doneAtLine('fem', key)}`
-      case 'prayerMethod':
-        return `${prayerMethod === 'acts' ? L('methodActs') : L('methodFree')} · ${prayerMethod === 'acts' ? L('methodActsSub') : L('methodFreeSubPrayer')}`
-      case 'doneFem':
-        return doneAtLine('fem', key)
-      case 'doneMasc':
-        return doneAtLine('masc', key)
-      case 'noPlanReading':
-        return L('noPlanReadingSub')
-      case 'readingResume':
-        return L('readingResumeSubtitle', { title: todaySession?.title ?? '' })
-      case 'studyProgress':
-        return `${activeStudy?.title ?? ''} · ${L('dayXofY', { n: (activeStudy?.dayDone ?? 0) + 1, total: activeStudy?.dayTotal ?? 1 })}`
-      case 'studyQuestion':
-        return L('studyQuestionNote')
-      case 'reflectionFree':
-        return L('reflectionFreeNote')
-      case 'reflectionQuestions':
-        return L('reflectionPendingQuestions')
-      case 'chainAfter':
-      default:
-        return chainAfterMeta(key)
-    }
+    return buildRowMeta(key, status, {
+      activeStudyId, pausedStudy, hasNoPlan, reflectionMethod, prayerMethod,
+      todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle,
+    }, L)
   }
 
   // Detalhe da linha do botão único do dia ("Agora: Leitura · Gênesis 41 ·

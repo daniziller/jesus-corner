@@ -1,10 +1,11 @@
-// planTodayRows.js — lógica pura por trás da lista "Seu plano de hoje" em
-// RoutineScreen.jsx (atualização 35a/35b, atualizacao-35-meu-plano/). Separado
-// do componente pra poder testar a parte que mais importa pra fidelidade ao
-// quadro (ordem dos passos + qual estado/motivo cada linha mostra) sem
-// precisar montar o React inteiro — mesmo padrão de stepDaysMath.js/
-// bibleOrderMath.js. A tradução em si (t()) fica no componente; aqui só a
-// decisão estrutural (ordem, status, "de onde vem a meta").
+// planTodayRows.js — lógica por trás da lista "Seu plano de hoje"
+// (atualização 35a/35b, atualizacao-35-meu-plano/) e do card "Seu plano de
+// hoje" da Home (2026-09-08) — as duas telas mostram a MESMA informação
+// (ordem, status, meta de cada passo), só com layouts diferentes, então a
+// decisão fica aqui uma vez só, testada em scripts/test-plan-today-rows.mjs,
+// em vez de duplicada e arriscando as duas discordarem entre si. Mesmo
+// padrão de stepDaysMath.js/bibleOrderMath.js: funções puras, sem depender
+// de React nem de stores.
 export const STEP_ORDER = ['prayer', 'reading', 'study', 'reflection']
 
 // Passos de hoje (já com a substituição leitura↔estudo aplicada por quem
@@ -15,6 +16,17 @@ export const STEP_ORDER = ['prayer', 'reading', 'study', 'reflection']
 export function orderStepsWithOff(todaysSteps) {
   const offSteps = STEP_ORDER.filter(k => !todaysSteps.includes(k))
   return { orderedKeys: [...todaysSteps, ...offSteps], offSteps }
+}
+
+// Passos "principais" pro card resumido da Home (Seu plano de hoje,
+// 2026-09-08) — Leitura/Estudo primeiro, o que estiver agendado hoje; só
+// cai pro par Oração/Reflexão quando NENHUM dos dois estiver agendado.
+// Meu Plano (RoutineScreen.jsx) não usa isso — lá a lista mostra sempre
+// os 4 canônicos, é só a Home que resume pro(s) passo(s) que importam.
+export function featuredStepsFor(todaysSteps) {
+  const bibleSteps = todaysSteps.filter(k => k === 'reading' || k === 'study')
+  if (bibleSteps.length > 0) return bibleSteps
+  return todaysSteps.filter(k => k === 'prayer' || k === 'reflection')
 }
 
 // Estado visual de UM passo na lista.
@@ -28,8 +40,8 @@ export function statusFor(key, { offSteps, todayRoutine, currentKey }) {
 // De onde vem o texto da linha "meta" — cada combinação de passo/estado
 // mostra um tipo de informação diferente no quadro (35a/35b): horário
 // quando feito, posição/pergunta quando é a vez, motivo quando está fora
-// de hoje. Quem chama traduz o metaKind pro texto final (ver metaFor em
-// RoutineScreen.jsx).
+// de hoje. Quem chama traduz o metaKind pro texto final (ver buildRowMeta
+// abaixo).
 export function metaKindFor(key, status, { activeStudyId, pausedStudyHasBook, hasNoPlan, reflectionMethod }) {
   if (status === 'off') {
     if (key === 'reading' && activeStudyId && pausedStudyHasBook) return 'pausedUntil'
@@ -51,4 +63,77 @@ export function metaKindFor(key, status, { activeStudyId, pausedStudyHasBook, ha
   if (status === 'done') return 'doneFem'
   if (activeStudyId) return 'studyQuestion'
   return reflectionMethod === 'free' ? 'reflectionFree' : 'reflectionQuestions'
+}
+
+// "10 de setembro" — dia + mês, sem dia da semana e sem ano (diferente de
+// formatWeekdayDate/utils/weekdayDateLabel.js, usado no cartão "Retomar
+// já", que já tem o dia da semana no quadro).
+export function formatMonthDay(iso, lang) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long' })
+}
+
+function doneAtLine(gender, key, todayRoutine, L) {
+  const at = todayRoutine[`${key}At`]
+  const d = at ? new Date(at) : null
+  if (!d || Number.isNaN(d.getTime())) return L(gender === 'masc' ? 'doneMasc' : 'doneFem')
+  const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+  return L(gender === 'masc' ? 'doneAtMasc' : 'doneAtFem', { time })
+}
+
+// Meta de "a fazer" quando não há descrição própria pro passo (Oração e
+// Estudo sem estudo ativo não têm exemplo no quadro) — encadeamento
+// antigo ("depois da leitura"), sem repetir os minutos (têm coluna
+// própria em Meu Plano; na Home não aparecem de propósito, ver
+// HomeScreen.jsx).
+function chainAfterMeta(key, todaysSteps, L) {
+  const idx = todaysSteps.indexOf(key)
+  const prev = todaysSteps[idx - 1]
+  return prev ? L(`after${prev[0].toUpperCase()}${prev.slice(1)}`) : ''
+}
+
+// Texto final da linha "meta" de um passo — traduz o metaKind (acima) pro
+// texto certo, incluindo os poucos casos que precisam de mais que 1 chave
+// (gênero de "concluído/a", "{método} · {texto}", "{título do estudo} ·
+// dia N de M"). `L` é uma função de tradução já presa ao namespace
+// 'routine' (ver RoutineScreen.jsx/HomeScreen.jsx) — o vocabulário de
+// passo é o mesmo nas duas telas, por isso mora só na de Meu Plano.
+// `ctx.stepTitle` é a função de nome de passo já usada por quem chama
+// (RoutineScreen.jsx/HomeScreen.jsx: `t('home.routine'+cap(k), ...)`) — o
+// nome bonito do passo mora em home.routineXxx, não em routine.*, então
+// vem de fora em vez de L() tentar adivinhar o namespace certo.
+export function buildRowMeta(key, status, ctx, L) {
+  const { activeStudyId, pausedStudy, hasNoPlan, reflectionMethod, prayerMethod, todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle } = ctx
+  const kind = metaKindFor(key, status, { activeStudyId, pausedStudyHasBook: !!pausedStudy?.pausedAtBook, hasNoPlan, reflectionMethod })
+  switch (kind) {
+    case 'pausedUntil':
+      return L('pausedUntilRow', { book: pausedStudy.pausedAtBook, date: formatMonthDay(pausedStudy.resumesAt, lang) })
+    case 'notToday':
+      return L('notTodayStep', { step: stepTitle(key).toLowerCase() })
+    case 'prayerDone':
+      return `${prayerMethod === 'acts' ? L('methodActs') : L('methodFree')} · ${doneAtLine('fem', key, todayRoutine, L)}`
+    case 'prayerMethod':
+      return `${prayerMethod === 'acts' ? L('methodActs') : L('methodFree')} · ${prayerMethod === 'acts' ? L('methodActsSub') : L('methodFreeSubPrayer')}`
+    case 'doneFem':
+      return doneAtLine('fem', key, todayRoutine, L)
+    case 'doneMasc':
+      return doneAtLine('masc', key, todayRoutine, L)
+    case 'noPlanReading':
+      return L('noPlanReadingSub')
+    case 'readingResume':
+      return L('readingResumeSubtitle', { title: todaySession?.title ?? '' })
+    case 'studyProgress':
+      return `${activeStudy?.title ?? ''} · ${L('dayXofY', { n: (activeStudy?.dayDone ?? 0) + 1, total: activeStudy?.dayTotal ?? 1 })}`
+    case 'studyQuestion':
+      return L('studyQuestionNote')
+    case 'reflectionFree':
+      return L('reflectionFreeNote')
+    case 'reflectionQuestions':
+      return L('reflectionPendingQuestions')
+    case 'chainAfter':
+    default:
+      return chainAfterMeta(key, todaysSteps, L)
+  }
 }
