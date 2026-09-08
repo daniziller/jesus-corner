@@ -26,8 +26,6 @@ import { collectTagVocabulary } from '../notes/noteTags'
 import { avatarPaletteFor } from './ChapterRoomScreen'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
-import { saveSermonNote } from '../notes/sermonNotesStore'
-import { formatWeekdayDate } from '../utils/weekdayDateLabel'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
 import { verseSelectionLabel } from '../bible/verseSelectionLabel'
@@ -53,16 +51,8 @@ function formatClock(totalSeconds) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
-// Tipos da folha de sermão flutuante (34f) — "sermon" reusa notes.typeSermon
-// (mesmo vocabulário de NotesScreen.jsx); os outros 4 têm chave própria em
-// sermonNote.* (ver translations.js).
-const SERMON_NOTE_TYPES = ['sermon', 'service', 'class', 'lecture', 'video']
-function sermonTypeLabel(type, lang) {
-  if (type === 'sermon') return t('notes.typeSermon', undefined, lang)
-  return t(`sermonNote.type${type[0].toUpperCase()}${type.slice(1)}`, undefined, lang)
-}
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, autoOpenSermonNote, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
   const { lang, hasPremium, hasAI } = session
   const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
   // Leitura imersiva (redesign 1b) — leitura guiada de tela cheia: cabeçalho
@@ -516,131 +506,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // pessoa estava lendo sumia da tela sozinho.
   const [aiChatOpen, setAiChatOpen] = useState(false)
 
-  // Folha de sermão flutuante (34d/34e/34f, handoff-app-completo) — mesmo
-  // padrão do chat de IA acima (portal pro <body>, estado próprio). Só um
-  // draft por vez: `sermonDraft` null = nenhuma anotação em andamento;
-  // `sermonNoteOpen` decide se é a folha inteira (34d/34f) ou só o selo +
-  // FAB minimizados (34e, quando existe draft mas a folha está fechada).
-  // "Salvar" persiste em sermonNotesStore.js E encerra a sessão flutuante
-  // (limpa o draft) — nenhum quadro mostra um jeito de descartar sem
-  // salvar, então "Minimizar" é a única saída sem persistir (o draft
-  // continua vivo, só escondido, pra não perder o que já foi escrito se a
-  // pessoa mudar de ideia no meio da leitura).
-  const [sermonDraft, setSermonDraft] = useState(null)
-  const [sermonNoteOpen, setSermonNoteOpen] = useState(false)
-  const [sermonSourceOpen, setSermonSourceOpen] = useState(false) // 34f troca o conteúdo da mesma folha, mesmo padrão de VerseCopySheet
-  const [sermonSaving, setSermonSaving] = useState(false)
-
-  function startNewSermonNote() {
-    setSermonDraft({
-      id: `sermon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      createdAt: new Date().toISOString(), date: dateKey(),
-      noteType: 'sermon', title: '', preacher: '', church: '', link: '',
-      passages: [], text: '',
-    })
-    setSermonSourceOpen(false)
-    setSermonNoteOpen(true)
-  }
-
-  // "NA TELA AGORA" (34d) — simplificação deliberada: em vez de rastrear
-  // rolagem/interseção pra saber qual versículo está no topo da tela
-  // (nenhum quadro exige essa precisão), sugere o versículo selecionado
-  // agora (highlightSelection, se houver seleção em andamento) ou o
-  // primeiro versículo do capítulo aberto — sempre um "onde você está
-  // agora" plausível, nunca inventado.
-  function currentOnScreenRef() {
-    if (highlightSelection?.chapter != null && highlightSelection.verses?.size) {
-      const v = Math.min(...highlightSelection.verses)
-      const vEnd = Math.max(...highlightSelection.verses)
-      return { book: heroSession.book, bookEn: heroSession.bookEn, chapter: highlightSelection.chapter, verseStart: v, verseEnd: vEnd }
-    }
-    return { book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart, verseStart: 1, verseEnd: 1 }
-  }
-
-  function passageRefLabel(p) {
-    const bookLabel = lang === 'en' ? (p.bookEn ?? p.book) : p.book
-    const range = p.verseStart ? `:${p.verseStart}${p.verseEnd && p.verseEnd !== p.verseStart ? `-${p.verseEnd}` : ''}` : ''
-    return `${bookLabel} ${p.chapter}${range}`
-  }
-
-  function addOnScreenVerse() {
-    const ref = currentOnScreenRef()
-    setSermonDraft(prev => {
-      if (!prev) return prev
-      const exists = prev.passages.some(p => p.book === ref.book && p.chapter === ref.chapter && p.verseStart === ref.verseStart && p.verseEnd === ref.verseEnd)
-      if (exists) return prev
-      return { ...prev, passages: [...prev.passages, ref] }
-    })
-  }
-
-  function removeSermonVerse(idx) {
-    setSermonDraft(prev => prev ? { ...prev, passages: prev.passages.filter((_, i) => i !== idx) } : prev)
-  }
-
-  function patchSermonDraft(patch) {
-    setSermonDraft(prev => prev ? { ...prev, ...patch } : prev)
-  }
-
-  // "Salvar" (34d) — persiste em sermonNotesStore.js (mesmo registro que
-  // NotesScreen.jsx/Biblioteca já lê e edita) e fecha a folha, encerrando
-  // esta sessão de anotação (ver comentário acima sobre não haver um
-  // "descartar" em nenhum quadro).
-  async function saveSermonDraft() {
-    if (!sermonDraft || sermonSaving) return
-    if (!sermonDraft.text.trim() && !sermonDraft.title.trim()) return
-    setSermonSaving(true)
-    try {
-      await saveSermonNote(authUser?.email, {
-        id: sermonDraft.id, date: sermonDraft.date, createdAt: sermonDraft.createdAt,
-        updatedAt: new Date().toISOString(), noteType: sermonDraft.noteType,
-        title: sermonDraft.title.trim(), preacher: sermonDraft.preacher.trim(),
-        church: sermonDraft.church.trim(), link: sermonDraft.link.trim(),
-        passages: sermonDraft.passages, text: sermonDraft.text.trim(),
-      })
-      setSermonNoteOpen(false)
-      setSermonSourceOpen(false)
-      setSermonDraft(null)
-    } catch (err) {
-      console.error('Failed to save sermon note', err)
-    } finally {
-      setSermonSaving(false)
-    }
-  }
-
-  function sermonSourceLine() {
-    if (!sermonDraft) return ''
-    return [sermonTypeLabel(sermonDraft.noteType, lang), sermonDraft.preacher, sermonDraft.church].filter(Boolean).join(' · ')
-  }
-
-  // "Compartilhar" (34d) — sem canvas próprio pra este pacote (diferente
-  // de dayCompleteImage.js/verseShareImage.js, que têm spec de imagem):
-  // compartilha o texto puro (Web Share API, com fallback pra área de
-  // transferência quando o navegador não suporta), mesmo padrão de
-  // degradação already usado noutros lugares do app.
-  async function shareSermonDraft() {
-    if (!sermonDraft) return
-    const text = [
-      sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang),
-      sermonSourceLine(),
-      sermonDraft.text.trim(),
-      sermonDraft.passages.length > 0 ? sermonDraft.passages.map(passageRefLabel).join(', ') : null,
-    ].filter(Boolean).join('\n\n')
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ text }) } catch { /* pessoa cancelou o seletor — não é erro */ }
-    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(text).catch(() => {})
-    }
-  }
-
-  // Chega de fora (Home, "Anotar uma pregação", 34a) já pedindo pra abrir
-  // — só na montagem (autoOpenSermonNote não muda depois; um pulo pra um
-  // capítulo DIFERENTE remonta o componente inteiro via `key`, ver
-  // BookChapterScreen.jsx/JourneyScreen.jsx).
-  useEffect(() => {
-    if (autoOpenSermonNote) startNewSermonNote()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const [noteText, setNoteText] = useState('')
   const [hasSavedNote, setHasSavedNote] = useState(false)
   // Mapa INTEIRO de anotações (não só a da sessão em destaque) — é o que
@@ -762,6 +627,25 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     initialFocusVerse ? { chapter: initialFocusVerse.chapter, verses: new Set([initialFocusVerse.verse]) } : null
   )) // { chapter, verses: Set<number> } | null
   const [highlightEditingId, setHighlightEditingId] = useState(null)
+
+  // Avisa JourneyScreen.jsx (dono da folha de sermão flutuante, 34d/34e/
+  // 34f — README: "vive... na Bíblia inteira", por isso mora lá, não
+  // aqui) qual é o "na tela agora" pro botão "+ {ref}" — o versículo
+  // selecionado (highlightSelection), se houver, senão o 1º do capítulo
+  // aberto. Limpa (null) ao desmontar/trocar de capítulo, senão a folha
+  // continuaria sugerindo um capítulo que a pessoa já fechou.
+  useEffect(() => {
+    if (heroSession.type === 'reflection') { onActiveChapterChange?.(null); return undefined }
+    const hasSel = highlightSelection?.chapter != null && highlightSelection.verses?.size
+    onActiveChapterChange?.({
+      book: heroSession.book, bookEn: heroSession.bookEn,
+      chapter: hasSel ? highlightSelection.chapter : heroSession.chStart,
+      verseStart: hasSel ? Math.min(...highlightSelection.verses) : 1,
+      verseEnd: hasSel ? Math.max(...highlightSelection.verses) : 1,
+    })
+    return () => onActiveChapterChange?.(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroSession.book, heroSession.chStart, heroSession.type, highlightSelection])
   // Liga quando "Anotar" (39e) é tocado — vira a tela cheia de 39f (ver o
   // early return logo no início do corpo da função). Fica ligado até
   // "Salvar" ou "voltar", nos dois casos (seleção nova ou grifo já salvo
@@ -1610,162 +1494,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           <div style={styles.aiChatOverlayBody}>
             <AiChatPanel session={heroSession} lang={lang} />
           </div>
-        </div>
-      </div>,
-      document.body
-    )}
-    {/* Selo + FAB da folha de sermão minimizada (34e) — só quando existe
-        um draft em andamento e a folha está fechada (ver comentário perto
-        de sermonDraft/sermonNoteOpen mais acima). */}
-    {sermonDraft && !sermonNoteOpen && createPortal(
-      <div style={styles.sermonMiniWrap}>
-        <button type="button" style={styles.sermonMiniPill} onClick={() => setSermonNoteOpen(true)}>
-          <span style={styles.sermonMiniDot} />
-          <span style={{ minWidth: 0 }}>
-            <span style={styles.sermonMiniTitle}>{sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang)}</span>
-            <span style={styles.sermonMiniSub}>
-              {sermonDraft.passages.length === 0
-                ? t('sermonNote.minimizedAnnotatingNone', undefined, lang)
-                : t(sermonDraft.passages.length === 1 ? 'sermonNote.minimizedAnnotatingOne' : 'sermonNote.minimizedAnnotatingMany', { n: sermonDraft.passages.length }, lang)}
-            </span>
-          </span>
-        </button>
-        <button type="button" style={styles.sermonFab} onClick={() => setSermonNoteOpen(true)} aria-label={t('sermonNote.newTitle', undefined, lang)}>
-          <AppIcon name="PenLine" size={19} color="var(--bento-ink)" strokeWidth={2.3} />
-          {sermonDraft.passages.length > 0 && <span style={styles.sermonFabBadge}>{sermonDraft.passages.length}</span>}
-        </button>
-      </div>,
-      document.body
-    )}
-    {/* Folha de sermão flutuante aberta (34d) — ou o conteúdo trocado por
-        "de onde veio" (34f, sermonSourceOpen), mesmo padrão de content-
-        swap de VerseCopySheet dentro de VerseActionsSheet mais abaixo. */}
-    {sermonNoteOpen && sermonDraft && createPortal(
-      <div style={styles.aiChatOverlayBackdrop} onClick={() => setSermonNoteOpen(false)}>
-        <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
-          {sermonSourceOpen ? (
-            <>
-              <div style={styles.sermonSourceHeader}>
-                <button type="button" style={styles.sermonChevronBtn} onClick={() => setSermonSourceOpen(false)} aria-label={t('sermonNote.ready', undefined, lang)}>
-                  <AppIcon name="ChevronDown" size={16} color="var(--bento-ink)" />
-                </button>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.sermonSourceTitle}>{t('sermonNote.fromLabel', undefined, lang)}</p>
-                  <p style={styles.sermonSourceDate}>
-                    {formatWeekdayDate(sermonDraft.date, lang).replace(/^./, c => c.toUpperCase())} · {new Date(sermonDraft.createdAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                <button type="button" style={styles.sermonReadyBtn} onClick={() => setSermonSourceOpen(false)}>{t('sermonNote.ready', undefined, lang)}</button>
-              </div>
-              <div style={{ ...styles.aiChatOverlayBody, overflowY: 'auto' }}>
-                <p style={styles.sermonSectionLabel}>{t('sermonNote.whatAreYouNoting', undefined, lang)}</p>
-                <div style={styles.sermonTypeGrid}>
-                  {SERMON_NOTE_TYPES.map(type => (
-                    <button
-                      key={type} type="button"
-                      style={{ ...styles.sermonTypePill, ...(sermonDraft.noteType === type ? styles.sermonTypePillOn : {}) }}
-                      onClick={() => patchSermonDraft({ noteType: type })}
-                    >
-                      <span style={{ ...styles.sermonTypeDot, ...(sermonDraft.noteType === type ? styles.sermonTypeDotOn : {}) }} />
-                      {sermonTypeLabel(type, lang)}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={styles.sermonFieldsHead}>
-                  <span style={styles.sermonSectionLabel}>{t('sermonNote.fromLabel', undefined, lang)}</span>
-                  <span style={styles.sermonOptionalTag}>{t('sermonNote.fromOptional', undefined, lang)}</span>
-                </div>
-                <div style={styles.sermonFieldsCard}>
-                  <label style={styles.sermonFieldRow}>
-                    <span style={styles.sermonFieldLabel}>{t('sermonNote.titleFieldLabel', undefined, lang)}</span>
-                    <input style={styles.sermonFieldInput} value={sermonDraft.title} placeholder={t('sermonNote.titlePlaceholder', undefined, lang)} onChange={e => patchSermonDraft({ title: e.target.value })} />
-                  </label>
-                  <label style={{ ...styles.sermonFieldRow, borderTop: '1px solid var(--bento-line)' }}>
-                    <span style={styles.sermonFieldLabel}>{t('sermonNote.preacherLabel', undefined, lang)}</span>
-                    <input style={styles.sermonFieldInput} value={sermonDraft.preacher} placeholder={t('sermonNote.preacherPlaceholder', undefined, lang)} onChange={e => patchSermonDraft({ preacher: e.target.value })} />
-                  </label>
-                  <label style={{ ...styles.sermonFieldRow, borderTop: '1px solid var(--bento-line)' }}>
-                    <span style={styles.sermonFieldLabel}>{t('sermonNote.institutionLabel', undefined, lang)}</span>
-                    <input style={styles.sermonFieldInput} value={sermonDraft.church} placeholder={t('sermonNote.institutionPlaceholder', undefined, lang)} onChange={e => patchSermonDraft({ church: e.target.value })} />
-                  </label>
-                  <label style={{ ...styles.sermonFieldRow, borderTop: '1px solid var(--bento-line)' }}>
-                    <span style={styles.sermonFieldLabel}>{t('sermonNote.linkLabel', undefined, lang)}</span>
-                    <input style={styles.sermonFieldInput} value={sermonDraft.link} placeholder={t('sermonNote.linkPlaceholder', undefined, lang)} onChange={e => patchSermonDraft({ link: e.target.value })} />
-                  </label>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={styles.sermonHeader}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.sermonHeaderTitle}>{sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang)}</p>
-                  {sermonSourceLine() && <p style={styles.sermonHeaderSub}>{sermonSourceLine()}</p>}
-                </div>
-                <button type="button" style={styles.sermonChevronBtn} onClick={() => setSermonSourceOpen(true)} aria-label={t('sermonNote.fromLabel', undefined, lang)}>
-                  <AppIcon name="ChevronDown" size={16} color="var(--bento-ink)" />
-                </button>
-                <button
-                  type="button" style={{ ...styles.sermonSaveBtn, ...((sermonSaving || (!sermonDraft.text.trim() && !sermonDraft.title.trim())) ? styles.sermonSaveBtnDisabled : {}) }}
-                  disabled={sermonSaving || (!sermonDraft.text.trim() && !sermonDraft.title.trim())}
-                  onClick={saveSermonDraft}
-                >
-                  {t('sermonNote.save', undefined, lang)}
-                </button>
-              </div>
-
-              <div style={styles.aiChatOverlayBody}>
-                {heroSession.type !== 'reflection' && (
-                  <div style={styles.sermonOnScreenCard}>
-                    <div style={styles.sermonOnScreenTop}>
-                      <span style={styles.sermonOnScreenLabel}>
-                        <span style={styles.sermonOnScreenDiamond} />
-                        {t('sermonNote.onScreenNow', undefined, lang)}
-                      </span>
-                      <button type="button" style={styles.sermonAddVerseBtn} onClick={addOnScreenVerse}>
-                        {t('sermonNote.addVerse', { ref: passageRefLabel(currentOnScreenRef()) }, lang)}
-                      </button>
-                    </div>
-                    {sermonDraft.passages.length > 0 && (
-                      <div style={styles.sermonChipsRow}>
-                        {sermonDraft.passages.map((p, i) => (
-                          <button key={i} type="button" style={styles.sermonChip} onClick={() => removeSermonVerse(i)} aria-label={t('sermonNote.removeVerse', { ref: passageRefLabel(p) }, lang)}>
-                            {passageRefLabel(p)} <span style={styles.sermonChipX}>×</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <textarea
-                  style={styles.sermonTextarea}
-                  value={sermonDraft.text}
-                  placeholder={t('sermonNote.textPlaceholder', undefined, lang)}
-                  onChange={e => patchSermonDraft({ text: e.target.value })}
-                  autoFocus
-                />
-              </div>
-
-              <div style={styles.sermonFooter}>
-                <button type="button" style={styles.sermonFooterBtn} onClick={() => setSermonNoteOpen(false)}>
-                  <AppIcon name="ChevronDown" size={14} color="var(--bento-ink)" strokeWidth={2.3} />
-                  {t('sermonNote.minimize', undefined, lang)}
-                </button>
-                <button
-                  type="button" style={styles.sermonFooterBtn}
-                  onClick={() => myGroup && onOpenGroupRoom?.({ group: myGroup, book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart })}
-                >
-                  <AppIcon name="Users" size={14} color="var(--bento-ink)" strokeWidth={2.3} />
-                  {t('room.groupBtn', undefined, lang)}
-                </button>
-                <button type="button" style={styles.sermonFooterIconBtn} onClick={shareSermonDraft} aria-label={t('sermonNote.share', undefined, lang)}>
-                  <AppIcon name="Share2" size={15} color="var(--bento-ink)" strokeWidth={2.2} />
-                </button>
-              </div>
-            </>
-          )}
         </div>
       </div>,
       document.body
@@ -4037,84 +3765,6 @@ const styles = {
   aiChatOverlayIcon: { width: 28, height: 28, borderRadius: 9, background: '#FAE8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   aiChatOverlayClose: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   aiChatOverlayBody: { flex: 1, minHeight: 0, padding: '12px 16px', display: 'flex', flexDirection: 'column' },
-
-  // ── Folha de sermão flutuante (34d/34e/34f, handoff-app-completo) ──
-  // Selo + FAB minimizados (34e) — mesmo truque de centralização de
-  // .bottom-nav (index.css), portados pro <body>; ficam acima da barra de
-  // abas quando ela existe, mas a leitura imersiva já esconde a barra, por
-  // isso a margem de baixo é só safe-bottom + respiro.
-  sermonMiniWrap: {
-    position: 'fixed', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'var(--max-width)',
-    bottom: 'calc(var(--safe-bottom) + 16px)', zIndex: 199, padding: '0 20px',
-    display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none',
-  },
-  sermonMiniPill: {
-    flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, height: 52, padding: '0 16px 0 14px',
-    borderRadius: 18, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', textAlign: 'left',
-    fontFamily: 'var(--font-bento)', pointerEvents: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,.22)',
-  },
-  sermonMiniDot: { width: 7, height: 7, borderRadius: '50%', background: 'var(--bento-accent)', flexShrink: 0 },
-  sermonMiniTitle: { display: 'block', fontSize: 13, fontWeight: 800, lineHeight: 1.2, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  sermonMiniSub: { display: 'block', fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginTop: 1 },
-  sermonFab: {
-    position: 'relative', flexShrink: 0, width: 52, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', pointerEvents: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,.22)',
-  },
-  sermonFabBadge: {
-    position: 'absolute', top: -5, right: -5, minWidth: 20, height: 20, padding: '0 5px', borderRadius: 99, background: 'var(--bento-ink)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: '#fff',
-  },
-
-  // Folha aberta (34d) — reusa aiChatOverlayBackdrop/Window (mesma
-  // profundidade/comportamento do chat de IA, nunca as duas montadas ao
-  // mesmo tempo na prática).
-  sermonHeader: { display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '0.5px solid var(--bento-line)', flexShrink: 0 },
-  sermonHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  sermonHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  sermonChevronBtn: { flexShrink: 0, width: 34, height: 34, borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  sermonSaveBtn: { flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 12, border: 'none', background: 'var(--bento-accent)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
-  sermonSaveBtnDisabled: { opacity: 0.4, cursor: 'default' },
-
-  sermonOnScreenCard: { borderRadius: 18, background: 'var(--bento-sand)', padding: '12px 14px', marginBottom: 12, flexShrink: 0 },
-  sermonOnScreenTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  sermonOnScreenLabel: { display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-sand-label)' },
-  sermonOnScreenDiamond: { width: 6, height: 6, background: 'var(--bento-sand-label)', transform: 'rotate(45deg)', flexShrink: 0 },
-  sermonAddVerseBtn: { flexShrink: 0, height: 30, padding: '0 12px', borderRadius: 11, border: 'none', background: 'var(--bento-sand-icon)', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-sand)', cursor: 'pointer' },
-  sermonChipsRow: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 },
-  sermonChip: { height: 30, padding: '0 12px', borderRadius: 11, border: 'none', background: 'rgba(255,255,255,.6)', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-sand-ink)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 },
-  sermonChipX: { fontSize: 13, fontWeight: 700, color: 'var(--bento-sand-ink-mid)' },
-
-  sermonTextarea: {
-    flex: 1, minHeight: 140, width: '100%', border: 'none', borderRadius: 18, background: 'var(--bento-card)', padding: '14px 16px',
-    fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-ink)', resize: 'none', outline: 'none',
-  },
-  sermonFooter: { flexShrink: 0, display: 'flex', gap: 8, padding: '12px 16px calc(12px + var(--safe-bottom))', borderTop: '0.5px solid var(--bento-line)' },
-  sermonFooterBtn: {
-    flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer',
-  },
-  sermonFooterIconBtn: { flexShrink: 0, width: 44, height: 44, borderRadius: 15, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-
-  // "De onde veio" (34f) — troca o conteúdo da mesma folha.
-  sermonSourceHeader: { display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '0.5px solid var(--bento-line)', flexShrink: 0 },
-  sermonSourceTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px' },
-  sermonSourceDate: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
-  sermonReadyBtn: { flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 12, border: 'none', background: 'var(--bento-accent)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
-  sermonSectionLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
-  sermonTypeGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  sermonTypePill: {
-    flex: '1 1 45%', minWidth: 130, display: 'flex', alignItems: 'center', gap: 9, height: 48, padding: '0 14px', borderRadius: 15,
-    border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer', textAlign: 'left',
-  },
-  sermonTypePillOn: { background: 'var(--bento-ink)', color: '#fff' },
-  sermonTypeDot: { width: 6, height: 6, borderRadius: '50%', background: 'var(--bento-t5)', flexShrink: 0 },
-  sermonTypeDotOn: { background: 'var(--bento-accent)' },
-  sermonFieldsHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
-  sermonOptionalTag: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t4)' },
-  sermonFieldsCard: { borderRadius: 18, background: 'var(--bento-card)', padding: '0 16px' },
-  sermonFieldRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '13px 0' },
-  sermonFieldLabel: { flexShrink: 0, width: 90, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, color: 'var(--bento-t3)' },
-  sermonFieldInput: { flex: 1, minWidth: 0, border: 'none', background: 'none', outline: 'none', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 600, color: 'var(--bento-ink)', padding: 0 },
 
   // ── Folha do versículo selecionado (39e, pacote 39) ──
   // Hex exatos do HANDOFF: escurecido rgba(26,23,20,.45), alça #D6CFC7,

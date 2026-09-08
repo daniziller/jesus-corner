@@ -1221,15 +1221,17 @@ export default function App() {
   }
 
   // "Anotar uma pregação" (Home, handoff-app-completo, 34a) — mesmo link
-  // "ir pro texto" de sempre (acima), só que pro capítulo de HOJE (ou o
-  // último lido, sem plano de hoje de verdade) e já com a folha de sermão
-  // nova (34d) aberta — sinalizado dentro do próprio browseJumpTarget
-  // (openSermonNote: true), consumido em JourneyScreen → BookChapterScreen
-  // → ReadingBlockView (ver autoOpenSermonNote lá).
+  // "ir pro texto" de sempre (acima), no ÚLTIMO capítulo lido (README,
+  // fluxo de 34a: "abre a Bíblia no último capítulo com 34d já
+  // expandida" — não o capítulo de HOJE; conta que a pessoa quer anotar
+  // sobre o que acabou de ouvir/ler, não necessariamente o próximo do
+  // plano), com fallback pro capítulo de hoje/currentBlock pra quem ainda
+  // não leu nada. A folha abre direto em JourneyScreen.jsx (dona da
+  // folha de sermão — ver browseJumpTarget.openSermonNote).
   function openSermonNoteFromHome() {
     const readingNow = !session.todaySession?.needsThemePick && session.todaySession?.type !== 'reflection'
-    const book = readingNow ? session.todaySession.book : (session.lastReadPosition?.book ?? session.currentBlock?.book)
-    const chapter = readingNow ? session.todaySession.chStart : (session.lastReadPosition?.chapter ?? session.currentBlock?.chapter)
+    const book = session.lastReadPosition?.book ?? (readingNow ? session.todaySession.book : session.currentBlock?.book)
+    const chapter = session.lastReadPosition?.chapter ?? (readingNow ? session.todaySession.chStart : session.currentBlock?.chapter)
     const block = book ? blocks.find(b => b.books.includes(book)) : null
     const targetSession = block ? (browseSessionsByBlock[block.id] ?? []).find(
       s => s.book === book && s.chStart <= chapter && s.chEnd >= chapter
