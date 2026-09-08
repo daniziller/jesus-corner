@@ -482,7 +482,7 @@ function StudyCard({ study, lang, completedSet, isActiveStudy, onOpen, onDelete,
             onClick={e => { e.stopPropagation(); onDelete() }}
             aria-label={t('studies.deleteAction', undefined, lang)}
           >
-            <AppIcon name="Trash2" size={13} color="#DC2626" />
+            <AppIcon name="Trash2" size={13} color="var(--bento-accent)" />
           </button>
         )}
       </div>
@@ -654,7 +654,7 @@ function InductiveSessionView({ study, studySession, lang, bookLabel, isDone, on
         </button>
         <h1 style={styles.detailTitle}>{passageTitle}</h1>
         <button style={styles.sessionDeleteBtn} onClick={handleDelete} aria-label={t('studies.inductiveDeleteSessionAction', undefined, lang)}>
-          <AppIcon name="Trash2" size={15} color="#DC2626" />
+          <AppIcon name="Trash2" size={15} color="var(--bento-accent)" />
         </button>
       </div>
 
@@ -774,13 +774,13 @@ const styles = {
   completeBtn:      { width: '100%', background: 'var(--bento-ink)', border: 'none', borderRadius: 13, padding: 12, fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font-bento)' },
   completeBtnDone:  { background: 'var(--bento-line)', color: 'var(--bento-t5)', boxShadow: 'none', border: '0.5px solid var(--bento-line)' },
 
-  newStudyBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
+  newStudyBtn:   { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', border: 'none', borderRadius: 16, padding: 13, fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: 'var(--bento-ink)' },
   createCard:    { background: 'var(--bento-card)', border: 'none', borderRadius: 20, padding: 14 },
   createLabel:   { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t5)', marginBottom: 6 },
   themeInput:    { width: '100%', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: '#fff' },
   scopeInput:    { width: '100%', border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '10px 12px', fontSize: 12.5, fontFamily: 'var(--font-bento)', color: 'var(--bento-ink)', background: '#fff', resize: 'none' },
-  errorText:     { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: '#DC2626', marginTop: 8 },
-  generateBtn:   { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: '#A21CAF' },
+  errorText:     { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', marginTop: 8 },
+  generateBtn:   { flex: 1, border: 'none', borderRadius: 11, padding: 11, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'white', cursor: 'pointer', background: 'var(--bento-ink)' },
   cancelBtn:     { border: '0.5px solid var(--bento-line)', borderRadius: 11, padding: '11px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-bento)', color: 'var(--bento-t5)', cursor: 'pointer', background: 'var(--bento-line)' },
   generatingHint:{ fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t5)', textAlign: 'center', lineHeight: 1.4, marginTop: 10 },
 

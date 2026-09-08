@@ -166,7 +166,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
               return (
                 <div key={plan.id} style={{ ...s.planRow, borderBottom: i === plans.length - 1 ? 'none' : '1px solid var(--bento-line)' }}>
                   <button style={s.planRowMain} onClick={() => setActivePlanId(plan.id)}>
-                    <span style={s.planIcon}><AppIcon name="Sparkles" size={15} color="#A21CAF" /></span>
+                    <span style={s.planIcon}><AppIcon name="Sparkles" size={15} color="var(--bento-accent)" /></span>
                     <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                       <p style={s.planTitle}>{themePlanTitle(plan)}</p>
                       <p style={s.planMeta}>
@@ -177,7 +177,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
                     <span style={s.chevron}>›</span>
                   </button>
                   <button style={s.deleteBtn} onClick={() => handleDelete(plan)} aria-label={L('deleteAction')}>
-                    <AppIcon name="Trash2" size={13} color="#DC2626" />
+                    <AppIcon name="Trash2" size={13} color="var(--bento-accent)" />
                   </button>
                 </div>
               )
@@ -197,7 +197,7 @@ const s = {
   headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
 
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
-  plansRemainingNote: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: '#A21CAF', lineHeight: 1.4, margin: '0 2px' },
+  plansRemainingNote: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: 'var(--bento-accent)', lineHeight: 1.4, margin: '0 2px' },
   emptyHint: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '24px 12px' },
   sandCard: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-sand-ink)', textAlign: 'center', background: 'var(--bento-sand)', borderRadius: 18, padding: 14, margin: 0 },
 

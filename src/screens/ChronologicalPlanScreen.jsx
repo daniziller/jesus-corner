@@ -162,5 +162,5 @@ const styles = {
   movementPercent: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-0.5px' },
   movementCount: { fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 600, color: 'var(--bento-t4)' },
   badgeActive: { display: 'inline-block', marginTop: 3, fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', background: 'rgba(240,102,43,.16)', borderRadius: 999, padding: '2px 8px' },
-  badgeDone:   { display: 'inline-block', marginTop: 3, fontSize: 9.5, fontWeight: 800, color: '#1E8E4F', background: '#E1F5E9', borderRadius: 999, padding: '2px 8px' },
+  badgeDone:   { display: 'inline-block', marginTop: 3, fontSize: 9.5, fontWeight: 800, color: 'var(--bento-sand-icon)', background: 'var(--bento-sand)', borderRadius: 999, padding: '2px 8px' },
 }

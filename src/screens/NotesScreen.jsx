@@ -903,7 +903,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             {aiMatchKeys !== null && (
               <div style={styles.aiActiveRow}>
                 <span style={styles.aiActiveTag}>
-                  <AppIcon name="Sparkles" size={11} color="#A21CAF" /> {t('notes.searchAiBtn', undefined, lang)}
+                  <AppIcon name="Sparkles" size={11} color="var(--bento-accent)" /> {t('notes.searchAiBtn', undefined, lang)}
                 </span>
                 <button style={styles.aiClearBtn} onClick={clearAiSearch}>{t('notes.searchAiClear', undefined, lang)}</button>
               </div>
@@ -1326,11 +1326,11 @@ const styles = {
   searchRow:      { display: 'flex', gap: 8 },
   searchInputWrap:{ flex: 1, minWidth: 0, height: 46, display: 'flex', alignItems: 'center', gap: 10, border: 'none', borderRadius: 16, padding: '0 16px', background: 'var(--bento-card)' },
   searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1, color: 'var(--bento-ink)' },
-  searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#A21CAF' },
+  searchAiBtn:    { flexShrink: 0, width: 40, border: 'none', borderRadius: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bento-accent)' },
   aiActiveRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-4px 2px 0' },
-  aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: '#A21CAF' },
+  aiActiveTag:    { display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-accent)' },
   aiClearBtn:     { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', padding: '2px 4px' },
-  aiErrorText:    { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: '#DC2626', margin: '-4px 2px 0' },
+  aiErrorText:    { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-accent)', margin: '-4px 2px 0' },
   filtersToggleBtn:  { display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: 'var(--bento-card)', borderRadius: 13, padding: '10px 12px', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t2)' },
   filtersToggleLabel:{ flexShrink: 0 },
   filtersBadge:      { minWidth: 17, height: 17, borderRadius: 9, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
