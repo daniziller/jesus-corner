@@ -1816,6 +1816,9 @@ export const STRINGS = {
       watchForHint: 'Três coisas que voltam mais na frente.',
       beginReading: 'Começar a leitura',
       skipContext: 'Pular contexto e ir direto ao texto',
+      // Botão em cima do texto (follow-up, turno 39) — reabre o mesmo
+      // contexto sob demanda, não só uma vez antes de começar.
+      recallButton: 'Relembre onde a história parou',
     },
     // Reflexão com perguntas geradas — tela 10d do redesign Bento. Nome
     // diferente do namespace `reflection` (a Reflexão Guiada de sempre,
@@ -4396,6 +4399,7 @@ export const STRINGS = {
       watchForHint: 'Three things that come back later on.',
       beginReading: 'Begin reading',
       skipContext: 'Skip context and go straight to the text',
+      recallButton: 'Recall where the story left off',
     },
     reflectAi: {
       questionOf: 'Question {n} of {total}',

@@ -678,6 +678,26 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setContextGate(false)
   }
 
+  // "Relembre onde a história parou" (follow-up, turno 39) — o mesmo
+  // conteúdo do contexto de 10c, mas como botão sempre disponível em cima
+  // do texto, pra reler quando quiser (não só uma vez, antes de começar).
+  // Busca de novo a cada abertura — sem custo de IA de verdade, já que
+  // agora existe um cache de verdade no servidor (chapter_contexts,
+  // migration 0060): reabrir o mesmo capítulo nunca gera de novo, só
+  // consulta.
+  const [recallOpen, setRecallOpen] = useState(false)
+  const [recallData, setRecallData] = useState(null) // null = carregando | false = erro | objeto pronto
+  useEffect(() => {
+    if (!recallOpen) return
+    let cancelled = false
+    setRecallData(null)
+    fetchChapterContext({ book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart, lang })
+      .then(data => { if (!cancelled) setRecallData(data) })
+      .catch(() => { if (!cancelled) setRecallData(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recallOpen, heroSession?.id])
+
   // Toque no NÚMERO de um versículo — alterna ele dentro/fora da seleção em
   // andamento (ou, se esse versículo já tem um grifo salvo, troca pro modo
   // "editar esse grifo" em vez de somar à seleção. Sempre abre o popup
@@ -1201,6 +1221,18 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         />
       )}
 
+      {/* "Relembre onde a história parou" (follow-up, turno 39) — em cima
+          do texto, sempre que a leitura imersiva abre um capítulo de
+          verdade (não reflexão). Mesmo par hasAI/toggle do contexto
+          automático de 10c — é o mesmo conteúdo, só reaberto sob demanda. */}
+      {immersive && heroSession.type !== 'reflection' && hasAI && getChapterContextEnabled() && (
+        <div style={{ padding: '0 20px 4px' }}>
+          <button type="button" style={styles.recallBtn} onClick={() => setRecallOpen(true)}>
+            <span style={styles.recallBtnDiamond} />
+            <span>{t('context.recallButton', undefined, lang)}</span>
+          </button>
+        </div>
+      )}
       {/* Painel de texto / contexto / mapa / notas / curiosidades da
           sessão atual. Na leitura imersiva, Contexto/Mapa/Notas/Curiosidades
           vivem na folha Ferramentas (ToolsSheet, mais abaixo) — aqui fica só
@@ -1598,6 +1630,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           onSelectChapter={openChapterFromPicker}
           onSwitchBook={() => { setChapterPickerOpen(false); onNavigate?.('journey') }}
         />
+        {recallOpen && (
+          <ChapterRecallSheet
+            lang={lang}
+            book={heroBookDisplayName}
+            chapter={heroSession.chStart}
+            data={recallData}
+            onClose={() => setRecallOpen(false)}
+          />
+        )}
       </div>
     ) : (
       // Tela cheia antiga (fluxo guiado não-migrado / navegação livre antiga).
@@ -2715,6 +2756,75 @@ function ChapterContextScreen({ lang, book, chapter, data, onBegin, onSkip }) {
   )
 }
 
+// "Relembre onde a história parou" (follow-up, turno 39) — o MESMO
+// conteúdo de ChapterContextScreen (recap/quem aparece/fio do capítulo/
+// fique de olho em), só que como folha reaberta sob demanda em vez de
+// tela cheia automática — por isso não tem onBegin/onSkip, só onClose.
+// `data` null = carregando, false = erro (rede/geração falhou — mesma
+// postura de sempre, nunca vira parede: mostra uma linha curta e o
+// fechar continua funcionando).
+function ChapterRecallSheet({ lang, book, chapter, data, onClose }) {
+  const L = (k, vars) => t(`context.${k}`, vars, lang)
+  const loading = data === null
+  const failed = data === false
+
+  return createPortal(
+    <div style={styles.verseSheetBackdrop} onClick={onClose}>
+      <div style={styles.verseSheet} onClick={e => e.stopPropagation()}>
+        <div style={styles.verseSheetHandleWrap}><div style={styles.verseSheetHandle} /></div>
+        <p style={styles.verseSheetTitle}>{book} {chapter}</p>
+        <p style={styles.verseSheetSub}>{L('beforeStart')}</p>
+
+        {failed ? (
+          <p style={styles.recallErrorText}>{t('aiPassage.errorGeneric', undefined, lang)}</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={styles.contextDarkCard}>
+              <div style={styles.contextAiLabelRow}>
+                <span style={styles.contextAiDiamond} />
+                <p style={styles.contextAiLabel}>{L('whereYouAre')}</p>
+              </div>
+              {loading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                  <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '100%' }} />
+                  <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '92%' }} />
+                  <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '70%' }} />
+                </div>
+              ) : (
+                <p style={styles.contextRecap}>{data.recap}</p>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={styles.contextSubBlock}>
+                  <p style={styles.contextSubBlockLabel}>{L('whoAppears')}</p>
+                  <p style={styles.contextSubBlockValue}>{loading ? '' : data.whoAppears}</p>
+                </div>
+                <div style={styles.contextSubBlock}>
+                  <p style={styles.contextSubBlockLabel}>{L('chapterThread')}</p>
+                  <p style={styles.contextSubBlockValue}>{loading ? '' : data.chapterThread}</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.contextWatchCard}>
+              <p style={styles.contextWatchLabel}>{L('watchForTitle')}</p>
+              <p style={styles.contextWatchHint}>{L('watchForHint')}</p>
+              {(loading ? [0, 1, 2] : data.watchFor).map((point, i) => (
+                <div key={i} style={{ ...styles.contextWatchRow, ...(i === 0 ? { paddingTop: 0 } : {}), ...(i === 2 ? { borderBottom: 'none', paddingBottom: 0 } : {}) }}>
+                  <span style={styles.contextWatchDot} />
+                  {loading
+                    ? <span className="rb-context-skeleton" style={{ ...styles.contextSkeletonLine, width: '80%' }} />
+                    : <p style={styles.contextWatchText}>{point}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 // Folha do versículo selecionado (39e, pacote 39) — sobe sobre a leitura
 // (que continua visível, escurecida atrás por rgba(26,23,20,.45)), raio
 // 32 no topo, alça 44×5. Substitui o antigo menu pequeno ancorado perto
@@ -3411,6 +3521,17 @@ const styles = {
   contextFooter: { flex: 'none', padding: '12px 20px calc(20px + var(--safe-bottom))' },
   contextBeginBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font-bento)', fontSize: 15.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer' },
   contextSkipBtn: { width: '100%', border: 'none', background: 'none', padding: 0, marginTop: 12, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-t4)', textAlign: 'center', cursor: 'pointer' },
+
+  // "Relembre onde a história parou" — botão discreto em cima do texto
+  // (ver ChapterRecallSheet), mesmo losango laranja de sempre pra
+  // sinalizar "isso é gerado" sem repetir o card inteiro aqui.
+  recallBtn: {
+    width: '100%', display: 'flex', alignItems: 'center', gap: 9, height: 44, borderRadius: 16, border: 'none',
+    background: 'var(--bento-card)', padding: '0 16px', cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-t2)', textAlign: 'left',
+  },
+  recallBtnDiamond: { width: 8, height: 8, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  recallErrorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t3)' },
 
   // ── Leitura imersiva (redesign 1b, reskin Bento — tela 4a) ──
   readerHeader: {
