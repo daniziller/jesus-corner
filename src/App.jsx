@@ -88,7 +88,7 @@ import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { getReadingSeconds } from './reading/readingTimeStore'
 import ChapterRoomScreen from './screens/ChapterRoomScreen'
-import RoutineCompleteScreen from './screens/RoutineCompleteScreen'
+import DayCompleteScreen from './screens/DayCompleteScreen'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
 import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRecapStore'
 import WeeklySummaryNumbersScreen from './screens/WeeklySummaryNumbersScreen'
@@ -489,7 +489,7 @@ export default function App() {
   const [guidedFlow, setGuidedFlow] = useState(null)
   const guidedFlowRef = useRef(null)
   guidedFlowRef.current = guidedFlow
-  // Snapshot pra tela de fechamento do dia (21c, RoutineCompleteScreen) —
+  // Snapshot pra tela de fechamento do dia (37c, DayCompleteScreen) —
   // { steps, readingSession }, montado no fim da rotina guiada (ver
   // advanceGuided abaixo) e limpo ao voltar pra Hoje. steps é a mesma lista
   // de guidedFlow.steps (prayer/reading/reflection incluídos nesta rotina);
@@ -2557,13 +2557,12 @@ export default function App() {
     // advanceGuided). routineCompleteInfo só existe entre o fim da rotina e
     // "Voltar para Hoje".
     routineComplete: routineCompleteInfo
-      ? <RoutineCompleteScreen
+      ? <DayCompleteScreen
           session={session}
           authUser={authUser}
           steps={routineCompleteInfo.steps}
           readingSession={routineCompleteInfo.readingSession}
           onBack={() => { setRoutineCompleteInfo(null); goToTab('home') }}
-          onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }}
         />
       : null,
     // Pacote 36-37, 36f — fim da Oração, sempre passa por aqui antes de
