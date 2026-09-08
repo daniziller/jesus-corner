@@ -349,7 +349,7 @@ export default function ProfileSheet({
             <div style={s.card}>
               <Row icon="Crown" label={t('billing.mySubscriptionLabel', undefined, lang)} sub={subscriptionSub()} onPress={handleSubscriptionClick} />
               {session.hasPremium && <Row icon="StickyNote" label={t('nav.notes', undefined, lang)} sub={L('notesLinkSub')} onPress={() => go('notes')} />}
-              {session.hasPremium && <Row icon="GraduationCap" label={t('nav.studies', undefined, lang)} sub={L('studiesLinkSub')} onPress={() => go('studies')} />}
+              {session.hasPremium && <Row icon="GraduationCap" label={t('nav.studies', undefined, lang)} sub={L('studiesLinkSub')} onPress={() => go('addStudy')} />}
               <Row
                 icon="BookOpen" label={L('readingPlanLabel')}
                 sub={L('readingPlanSub', { plan: lang === 'en' ? session.plan.labelEn : session.plan.label, n: session.plan.avgChapters })}
