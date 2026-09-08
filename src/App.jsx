@@ -47,7 +47,6 @@ import JourneyScreen from './screens/JourneyScreen'
 import GroupsScreen from './screens/GroupsScreen'
 import MessagesScreen from './screens/MessagesScreen'
 import StudiesScreen from './screens/StudiesScreen'
-import InductiveMethodScreen from './screens/InductiveMethodScreen'
 import MetricsScreen from './screens/MetricsScreen'
 import MetricsBlocksScreen from './screens/MetricsBlocksScreen'
 import ProfileScreen from './screens/ProfileScreen'
@@ -2485,7 +2484,6 @@ export default function App() {
       : <AiSettingsScreen session={session} onBack={goBack} />,
     contact: <ContactScreen session={session} authUser={authUser} onBack={goBack} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} />,
-    inductiveMethod: <InductiveMethodScreen session={session} onOpenBiblePassage={openBiblePassage} onBack={goBack} />,
     themePlan: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
@@ -2671,10 +2669,10 @@ export default function App() {
   const reflectionBento = activeTab === 'reflection' && reflectionAiActive
   // 'profile' entrou nesta lista junto da migração pra Bento do Perfil de
   // desktop (antes ficava de fora, com o AppHeader antigo por cima da
-  // versão antiga da tela); 'contact'/'applicationPhrases'/'inductiveMethod'/
-  // 'themePlan' entraram junto da migração dessas telas — cada uma tem
-  // cabeçalho Bento próprio agora. 'studies' continua de fora DE PROPÓSITO
-  // (o pacote de design nunca teve um quadro mobile pra Estudos — só
+  // versão antiga da tela); 'contact'/'applicationPhrases'/'themePlan'
+  // entraram junto da migração dessas telas — cada uma tem cabeçalho
+  // Bento próprio agora. 'studies' continua de fora DE PROPÓSITO (o
+  // pacote de design nunca teve um quadro mobile pra Estudos — só
   // desktop), então o AppHeader compacto (já corrigido pra --bento-*)
   // segue cobrindo o mobile igual antes; o que era identidade antiga de
   // verdade — o próprio cabeçalho de página (.page-header/.page-title,
@@ -2682,20 +2680,20 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
   // concluir. 'admin' (23a-d, Bloco 14) tem sidebar e cabeçalho PRÓPRIOS —
   // roda fora do chrome do app inteiro (ver .admin-active em index.css).
-  // 'contact'/'applicationPhrases'/'inductiveMethod' também saem sozinhas
-  // (tela de utilidade cheia, sem rodapé de rotina).
+  // 'contact'/'applicationPhrases' também saem sozinhas (tela de
+  // utilidade cheia, sem rodapé de rotina).
   // 35h (addStudy) fica DE FORA desta lista de propósito — HANDOFF-35 pede
   // barra de abas fixa nessa tela ("é um push dentro da aba Meu Plano"),
   // diferente de 35d/35e (createAiStudy/studyProposalNew), que têm botão
   // primário fixo no rodapé no lugar da barra, como o antigo createStudy/
   // studyProposal já tinham.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (
@@ -2739,7 +2737,7 @@ export default function App() {
             )}
             {hasPremium && studiesVisitedRef.current && (
               <div style={{ display: activeTab === 'studies' ? 'contents' : 'none' }}>
-                <StudiesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} autoOpenStudyId={libraryOpenStudyId} onAutoOpenStudyConsumed={() => setLibraryOpenStudyId(null)} />
+                <StudiesScreen session={session} authUser={authUser} onNavigate={navigateTo} onContinueSession={continueToday} onMarkRoutineStep={markRoutineStep} onSelectActiveStudy={selectActiveStudy} autoOpenStudyId={libraryOpenStudyId} onAutoOpenStudyConsumed={() => setLibraryOpenStudyId(null)} />
               </div>
             )}
           </div>
