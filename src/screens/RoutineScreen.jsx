@@ -143,6 +143,27 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
     return null
   }
 
+  // Linha abaixo do botão único do dia — "Agora: Leitura · Gênesis 41 · 15
+  // min" quando já fez algo hoje (continuando), ou "Começa pela Oração ·
+  // ACTS, quatro etapas de 2,5 min" quando é o primeiro passo do dia
+  // (36a/pacote 36-37) — só Oração tem "método" pra nomear; os outros
+  // passos ficam só com o nome (+ referência, quando existe).
+  function ctaSubtitle(key) {
+    const detail = ctaDetailFor(key)
+    const min = minutesForStep(key)
+    if (doneCount > 0) {
+      return `${L('nowPrefix')}: ${stepTitle(key)}${detail ? ` · ${detail}` : ''} · ${L('minShort', { n: min })}`
+    }
+    if (key === 'prayer') {
+      const stageMin = (Math.round((min / 4) * 10) / 10).toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { maximumFractionDigits: 1 })
+      const methodDetail = prayerMethod === 'acts'
+        ? L('startsWithPrayerActs', { method: L('methodActs'), min: stageMin })
+        : L('startsWithPrayerFree', { method: L('methodFree'), min })
+      return L('startsWithStep', { step: stepTitle(key), detail: methodDetail })
+    }
+    return detail ? L('startsWithStep', { step: stepTitle(key), detail }) : L('startsWithStepPlain', { step: stepTitle(key) })
+  }
+
   // Passo ATUAL (ainda não feito) — encadeia a partir dele (ver
   // startGuidedRoutine em App.jsx), exceto Estudo, que não faz parte da
   // rotina guiada (mesma exceção de sempre: sem cronômetro/avanço automático).
@@ -277,9 +298,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
             <button style={styles.startCta} onClick={() => startStep(currentKey)}>
               <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                 <p style={styles.startCtaTitle}>{doneCount > 0 ? L('continuePlanBtn') : L('startPlanBtn')}</p>
-                <p style={styles.startCtaSub}>
-                  {L('nowPrefix')}: {stepTitle(currentKey)}{ctaDetailFor(currentKey) ? ` · ${ctaDetailFor(currentKey)}` : ''} · {L('minShort', { n: minutesForStep(currentKey) })}
-                </p>
+                <p style={styles.startCtaSub}>{ctaSubtitle(currentKey)}</p>
               </div>
               <span style={styles.startCtaArrow}><AppIcon name="ArrowRight" size={18} color="var(--bento-ink)" /></span>
             </button>
