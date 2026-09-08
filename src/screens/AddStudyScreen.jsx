@@ -18,6 +18,7 @@ import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { getStepDays } from '../routine/stepDaysStore'
+import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath'
 import { deriveThemeTexts } from '../themePlans/themeTexts'
 
 const FONT = 'var(--font-bento)'
@@ -34,7 +35,10 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
   const [publicResults, setPublicResults] = useState([])
   const [savedStudies, setSavedStudies] = useState([])
   const [activeStudy, setActiveStudy] = useState(null)
-  const [studyDaysCount, setStudyDaysCount] = useState(0)
+  // "DIAS DO ESTUDO / Seg · Qua · Sex" (35h) — os DIAS de verdade, não uma
+  // contagem ("3 dias"): mesma fonte que Meu Plano/Ajustar (stepDays.
+  // study), só formatada como lista curta em vez de grade.
+  const [studyDaysAbbr, setStudyDaysAbbr] = useState('')
 
   useEffect(() => {
     getReadyMadeStudies().then(setReadyMade).catch(err => console.error('Failed to load ready-made studies', err))
@@ -45,7 +49,8 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
         groupName: session.myGroups?.find(g => g.groupId === p.groupId)?.name ?? '',
       })))
     }).catch(err => console.error('Failed to load group plans', err))
-    getStepDays().then(days => setStudyDaysCount(days.study.filter(Boolean).length)).catch(() => {})
+    const abbr = WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt
+    getStepDays().then(days => setStudyDaysAbbr(abbr.filter((_, i) => days.study[i]).join(' · '))).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -137,7 +142,7 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
             <div style={s.sandDaysRow}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={s.sandDaysLabel}>{L('inProgressDaysLabel')}</p>
-                <p style={s.sandDaysValue}>{L('cardDaysMeta', { n: studyDaysCount })}</p>
+                <p style={s.sandDaysValue}>{studyDaysAbbr}</p>
               </div>
               <button style={s.changeDaysBtn} onClick={onChangeStudyDays}>{L('changeDaysBtn')}</button>
             </div>

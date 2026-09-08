@@ -226,7 +226,7 @@ export default function CreateAiStudyScreen({ session, initialText = '', onBack,
         )}
 
         <div style={s.sandCard}>
-          <p style={s.sandText}>{L('replaceNote')}</p>
+          <p style={s.sandText}>{L('replaceNoteIndependent')}</p>
         </div>
         {error && <p style={s.errorText}>{error}</p>}
       </div>
