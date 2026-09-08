@@ -2,7 +2,11 @@
 import { useState, useEffect } from 'react'
 import { sessionKeys, computeBookChapterCounts } from '../utils/progress'
 import { computeMetricsBlocks, computeTestamentTotals } from '../data/metricsBlocks'
-import { formatRelativeTime } from '../utils/time'
+import { getFreeReadingPosition } from '../bible/freeReadingPositionStore'
+import { relativeDayPeriod } from '../bible/relativeDayPeriod'
+import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
+import BibleVersionChip from '../components/bible/BibleVersionChip'
+import { formatPercent } from '../bible/formatPercent'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
@@ -43,11 +47,6 @@ function testamentStatusLine(blocksSubset, completedSet, bookChapterCounts, lang
   }
 }
 
-// Remove acentos pra busca não exigir digitar "Êxodo" com acento certo.
-function normalizeSearch(str) {
-  return str.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
-}
-
 // Achata os livros de um subconjunto de blocos numa lista única — reaproveitado
 // tanto pela busca quanto pelas seções de testamento (Antigo/Novo). A ordem
 // dos blocos passados já é a ordem canônica/bíblica dentro daquele
@@ -60,12 +59,25 @@ function flattenBooks(blocksSubset, lang) {
   })
 }
 
+// Rótulo do chip/cabeçalho de seção (39b) — o quadro mostra só "Profetas"
+// pro bloco 4 (Livros Proféticos, maiores+menores juntos — bibleBlocks.js
+// já os une num bloco só, diferente do agrupamento à parte que
+// metricsBlocks.js usa só pra Progresso); os outros três blocos do Antigo
+// e todos os do Novo já usam block.shortName tal e qual.
+function sectionLabelFor(block, lang) {
+  if (block.id === 4) return lang === 'en' ? 'Prophets' : 'Profetas'
+  return lang === 'en' ? block.shortNameEn ?? block.nameEn : block.shortName ?? block.name
+}
+
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom,
+  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom, onPastRootChange,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
+  // Seletor de versão (39b/39c cabeçalho, regra 3 da aba inteira: "vale
+  // pra aba toda"). Só 1 versão por idioma hoje — ver BibleVersionChip.jsx.
+  const [versionId, setVersionId] = useState(() => getSelectedVersionId(lang))
 
   // Qual testamento está visível agora — reskin Bento: em vez de duas
   // seções em acordeão (Antigo e Novo, cada uma abrindo/fechando por si),
@@ -123,6 +135,17 @@ export default function JourneyScreen({
   const [expandedBookKey, setExpandedBookKey] = useState(null)
   const [expandedInitialSessionId, setExpandedInitialSessionId] = useState(null)
   const [expandedInitialTextOpen, setExpandedInitialTextOpen] = useState(false)
+
+  // "Barra de abas fixa só em 39a" — avisa App.jsx assim que a navegação
+  // livre sai da raiz (39b, 39c, ou a leitura embutida dentro de 39c),
+  // pra ele esconder a barra igual já faz com a leitura guiada. Roda de
+  // novo no desmonte (voltar pra outra aba) — sem isso, journeyPastRoot
+  // ficaria "true" preso em App.jsx entre uma visita e a próxima.
+  useEffect(() => {
+    onPastRootChange?.(testamentEntered || expandedBookKey != null)
+    return () => onPastRootChange?.(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testamentEntered, expandedBookKey])
 
   // O botão "Ir para a leitura de hoje" (Rotina) chama onContinueSession
   // mesmo com a tela já montada (usuário já está na aba Bíblia) — os
@@ -284,61 +307,32 @@ export default function JourneyScreen({
     )
   }
 
-  // "Último texto lido" (pedido direto, 2026-09-07) — lastReadPositionStore.js
-  // (session.lastReadPosition) grava em QUALQUER modo de leitura, guiado
-  // (Rotina) OU livre. É o "onde parei de verdade", mesmo que seja outro
-  // livro/bloco que não o da sessão de hoje do plano — por isso resolve o
-  // bloco a partir do LIVRO salvo (b.books.includes), não de um blockId
-  // gravado. Existia um card irmão aqui, "Última leitura livre"
-  // (lastOpenedChapterStore.js), que só cobria navegação livre — removido
-  // em 2026-09-07 por ficar redundante depois deste (batiam quase sempre
-  // no mesmo capítulo; a diferença nunca compensou ter os dois).
-  const lastReadPos = session.lastReadPosition
-  const lastReadBlock = lastReadPos ? blocks.find(b => b.books.includes(lastReadPos.book)) : null
-  const lastReadSession = lastReadBlock
-    ? (browseSessionsByBlock[lastReadBlock.id] ?? []).find(s => s.book === lastReadPos.book && s.chStart <= lastReadPos.chapter && s.chEnd >= lastReadPos.chapter)
+  // "Continuar a leitura livre" (39a, pacote 39) — freeReadingPositionStore.js
+  // é uma posição PRÓPRIA da aba Bíblia (livro + capítulo + versículo),
+  // separada de session.lastReadPosition (essa continua servindo só o
+  // Início/findCurrentReadingSession, "onde parei em QUALQUER modo" —
+  // ver App.jsx). Resolve o bloco a partir do LIVRO salvo, como antes.
+  const freeReadPos = getFreeReadingPosition()
+  const freeReadBlock = freeReadPos ? blocks.find(b => b.books.includes(freeReadPos.book)) : null
+  const freeReadSession = freeReadBlock
+    ? (browseSessionsByBlock[freeReadBlock.id] ?? []).find(s => s.book === freeReadPos.book && s.chStart <= freeReadPos.chapter && s.chEnd >= freeReadPos.chapter)
     : null
+  const freeReadWhen = freeReadPos?.readAt ? relativeDayPeriod(freeReadPos.readAt, lang) : null
+  const freeReadWhenLabel = freeReadWhen
+    ? `${freeReadWhen.day === 'today' ? t('journey.whenToday', undefined, lang) : freeReadWhen.day === 'yesterday' ? t('journey.whenYesterday', undefined, lang) : freeReadWhen.day} ${t(`journey.whenPeriod${freeReadWhen.period === 'morning' ? 'Morning' : freeReadWhen.period === 'afternoon' ? 'Afternoon' : 'Evening'}`, undefined, lang)}`
+    : ''
 
-  // Busca (quadro 5f: "Livro, capítulo ou versículo") — o texto filtra os
-  // livros pelo nome; um número no fim ("Gênesis 41", "Sl 23") é o capítulo:
-  // com um livro só batendo, Enter abre direto nesse capítulo.
+  // Busca (39a → 39k) — o campo é só visual neste bloco: a busca de
+  // verdade (índice de texto, palpite de referência, temas) é o Bloco 6
+  // desta leva (39k/39l). Até lá, digitar/Enter não navega pra lugar
+  // nenhum — nem essa tela nem 39b filtram mais por texto livre (o filtro
+  // por texto saiu; os chips de seção continuam).
   const trimmedQuery = searchQuery.trim()
-  const queryMatch = trimmedQuery.match(/^(.*?)\s*(\d+)?(?::\d+(?:-\d+)?)?$/)
-  const queryName = (queryMatch?.[1] ?? trimmedQuery).trim()
-  const queryChapter = queryMatch?.[2] ? Number(queryMatch[2]) : null
-  const allBooks = flattenBooks(blocks, lang)
-  const searchResults = trimmedQuery
-    ? allBooks.filter(entry => {
-        const n = normalizeSearch(entry.displayName)
-        const abbr = normalizeSearch(abbreviationFor(entry))
-        const q = normalizeSearch(queryName || trimmedQuery)
-        return q ? (n.includes(q) || abbr === q) : true
-      })
-    : null
-
-  function openSearchTarget() {
-    if (!searchResults || searchResults.length !== 1) return
-    const entry = searchResults[0]
-    if (queryChapter) {
-      const target = browseSessionsByBlock[entry.block.id]?.find(s => s.book === entry.canonicalName && s.chStart <= queryChapter && queryChapter <= s.chEnd)
-      if (target) { jumpToBook(entry.block, entry.canonicalName, target.id, true); return }
-    }
-    openBook(entry.block, entry.canonicalName)
-  }
 
   const atBooks = flattenBooks(blocks.filter(b => b.id <= 4), lang)
   const ntBooks = flattenBooks(blocks.filter(b => b.id >= 5), lang)
   const testamentBooks = testament === 'at' ? atBooks : ntBooks
-  // Sigla do livro (grade do quadro 5f) — vem da própria referência da 1ª
-  // sessão do livro ("Gn 1:1–2:25" → "Gn"), no idioma da tela.
-  function abbreviationFor(entry) {
-    const sessions = browseSessionsByBlock?.[entry.block.id] ?? sessionsByBlock?.[entry.block.id] ?? []
-    const first = sessions.find(s => s.book === entry.canonicalName && s.type !== 'reflection')
-    const ref = first ? (lang === 'en' ? first.passageEn : first.passage) : ''
-    const abbr = ref.split(' ')[0]
-    return abbr && /[A-Za-zÀ-ÿ]/.test(abbr) ? abbr : entry.displayName.slice(0, 3)
-  }
-  // Progresso por livro (quadro 5f): barra fina — laranja em curso, preta
+  // Progresso por livro (39b): barra fina — laranja em curso, preta
   // concluído — e o total de capítulos ao lado (não quantos já leu; o
   // total é o dado estável, a barra já mostra o quanto).
   const bookChapterCounts = computeBookChapterCounts(sessionsByBlock ?? {})
@@ -351,11 +345,10 @@ export default function JourneyScreen({
   }
 
   // Grupos (Pentateuco/Históricos/Poéticos/Proféticos ou Evangelhos/Atos/
-  // Cartas/Apocalipse) dentro do testamento aberto — viram chips em 28b.
+  // Cartas/Apocalipse) dentro do testamento aberto — viram chips em 39b.
   const groupBlocks = testament === 'at' ? blocks.filter(b => b.id <= 4) : blocks.filter(b => b.id >= 5)
   const filteredBooks = blockFilter === 'all' ? testamentBooks : testamentBooks.filter(e => e.block.id === blockFilter)
-  const gridBooks = searchResults ?? filteredBooks
-  const showTestamentCards = !testamentEntered && !trimmedQuery
+  const showTestamentCards = !testamentEntered
 
   // Os dois cartões de testamento (28a) — mesmo peso, cada um com anel de
   // %, quantos capítulos e uma linha de status real (onde você está, ou
@@ -363,6 +356,7 @@ export default function JourneyScreen({
   // metricsBlocks.js (Bloco 2) em vez de recalcular a mesma soma.
   const metricsBlocks = computeMetricsBlocks(completedSet)
   const { ot: otTotals, nt: ntTotals } = computeTestamentTotals(metricsBlocks)
+  const testamentTotalsForHeader = testament === 'at' ? otTotals : ntTotals
   const atBlocksList = blocks.filter(b => b.id <= 4)
   const ntBlocksList = blocks.filter(b => b.id >= 5)
   const otStatus = testamentStatusLine(atBlocksList, completedSet, bookChapterCounts, lang)
@@ -373,18 +367,25 @@ export default function JourneyScreen({
   const activeTestament = currentBookName && atBlocksList.some(b => (lang === 'en' ? b.booksEn : b.books).includes(currentBookName))
     ? 'at' : 'nt'
 
+  // Progresso total (39a, cabeçalho) — soma dos 8 blocos já calculados
+  // acima pra "onde estou" dos dois testamentos (otTotals/ntTotals), nunca
+  // recalculado à parte (evitaria dois números que podem divergir).
+  const totalChaptersRead = otTotals.chaptersRead + ntTotals.chaptersRead
+  const totalChapters = otTotals.chaptersTotal + ntTotals.chaptersTotal
+  const totalPercent = totalChapters ? Math.round((totalChaptersRead / totalChapters) * 1000) / 10 : 0
+
   return (
     <div style={styles.screen}>
       <div style={styles.body}>
         <p style={styles.title}>{t('nav.journey', undefined, lang)}</p>
-        <p style={styles.subtitle}>{t('journey.freeReadingSubtitle', undefined, lang)}</p>
+        <p style={styles.subtitle}>{t('journey.totalProgress', { done: totalChaptersRead.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR'), total: totalChapters.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR'), pct: formatPercent(totalPercent, lang) }, lang)}</p>
         <div style={styles.searchWrap}>
           <AppIcon name="Search" size={17} strokeWidth={2} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') openSearchTarget() }}
+            onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
             placeholder={t('journey.searchPlaceholder', undefined, lang)}
             style={styles.searchInput}
           />
@@ -397,6 +398,31 @@ export default function JourneyScreen({
       </div>
 
       <div style={styles.body2}>
+        {/* Continuar a leitura livre (39a, bloco 3) — usa a posição
+            PRÓPRIA de leitura livre (freeReadingPositionStore.js), não a
+            mesma session.lastReadPosition do Início (essa é "onde parei
+            em QUALQUER modo"; esta é só a aba Bíblia — podem divergir, é
+            o próprio exemplo do quadro: plano em Gênesis, livre em
+            Salmos). Some se a pessoa nunca leu livremente.
+            Interino: abre pela mesma navegação de "tocar um livro"
+            (BookChapterScreen com o capítulo em destaque) até o Bloco 2
+            trazer 39d de verdade — sem posição de versículo ainda. */}
+        {showTestamentCards && freeReadSession && (
+          <button style={styles.lastReadCard} onClick={() => jumpToBook(freeReadBlock, freeReadPos.book, freeReadSession.id, true)}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={styles.lastReadLabel}>{t('journey.continueFreeReadingLabel', undefined, lang)}</span>
+              <span style={styles.lastReadTitle}>
+                {(lang === 'en' && freeReadPos.bookEn ? freeReadPos.bookEn : freeReadPos.book)} {freeReadPos.chapter}
+              </span>
+              <span style={styles.lastReadTime}>
+                {freeReadWhenLabel}
+                {freeReadPos.verse ? ` · ${t('journey.verseLabel', { n: freeReadPos.verse }, lang)}` : ''}
+              </span>
+            </span>
+            <span style={styles.lastReadOpenBtn}>{t('journey.openBtn', undefined, lang)}</span>
+          </button>
+        )}
+
         {showTestamentCards ? (
           <>
             {/* Bíblia (28a) — os dois testamentos, do mesmo tamanho; o
@@ -426,12 +452,12 @@ export default function JourneyScreen({
                       {/* Anel de progresso em SVG — não conic-gradient, ver
                           o mesmo ajuste em BookChapterScreen.jsx (Bloco 1). */}
                       <svg width="62" height="62" viewBox="0 0 62 62" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
-                        <circle cx="31" cy="31" r="28" fill="none" stroke={dark ? 'rgba(255,255,255,.1)' : 'var(--bento-line)'} strokeWidth="6" />
+                        <circle cx="31" cy="31" r="28" fill="none" stroke={dark ? 'rgba(255,255,255,.12)' : 'var(--bento-line)'} strokeWidth="6" />
                         <circle cx="31" cy="31" r="28" fill="none" stroke="var(--bento-accent)" strokeWidth="6" strokeLinecap="round"
                           strokeDasharray={`${(totals.percent / 100) * 175.93} 175.93`} />
                       </svg>
                       <div style={{ ...styles.testamentRingInner, background: dark ? 'var(--bento-ink)' : '#fff' }}>
-                        <span style={{ ...styles.testamentRingPct, color: dark ? '#fff' : 'var(--bento-t3)' }}>{totals.percent}%</span>
+                        <span style={{ ...styles.testamentRingPct, color: dark ? '#fff' : 'var(--bento-t3)' }}>{formatPercent(totals.percent, lang)}%</span>
                       </div>
                     </div>
                   </div>
@@ -454,54 +480,61 @@ export default function JourneyScreen({
           </>
         ) : (
           <>
-            {/* Livros do testamento (28b) — cabeçalho com voltar (não mais
-                o link "trocar" de 5f) + chips de grupo, filtrando a lista
-                sem esconder o "Todos". */}
+            {/* 39b — lista de livros do testamento. Substitui por inteiro o
+                antigo 28b: cabeçalho com contagem real + seletor de
+                versão (novo, mora aqui porque "vale pra aba inteira"),
+                chips SEMPRE visíveis (não somem ao buscar — a busca por
+                texto livre saiu daqui, é o Bloco 6/39k desta leva; até
+                lá o campo de 39a não navega pra lugar nenhum, ver
+                comentário em openSearchTarget), e cabeçalho de seção
+                SEMPRE aparecendo (antes só aparecia filtrando por busca —
+                o quadro pede sempre). */}
             <div style={styles.bookListHeader}>
-              {!searchResults && (
-                <button style={styles.backChip} onClick={() => setTestamentEntered(false)} aria-label={t('a11y.goBack', undefined, lang)}>
-                  <AppIcon name="ChevronLeft" size={15} strokeWidth={2.4} color="var(--bento-ink)" />
-                </button>
-              )}
-              <span style={styles.testamentLabel}>
-                {searchResults
-                  ? t('journey.searchResultsLabel', undefined, lang)
-                  : t(testament === 'at' ? 'journey.oldTestament' : 'journey.newTestament', undefined, lang)}
+              <button style={styles.backChip} onClick={() => setTestamentEntered(false)} aria-label={t('a11y.goBack', undefined, lang)}>
+                <AppIcon name="ChevronLeft" size={15} strokeWidth={2.4} color="var(--bento-ink)" />
+              </button>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={styles.testamentLabel}>
+                  {t(testament === 'at' ? 'journey.oldTestament' : 'journey.newTestament', undefined, lang)}
+                </span>
+                <span style={styles.testamentHeaderSub}>
+                  {t('journey.chaptersOfTotal', { done: testamentTotalsForHeader.chaptersRead, total: testamentTotalsForHeader.chaptersTotal }, lang)}
+                  {' · '}{formatPercent(testamentTotalsForHeader.percent, lang)}%
+                </span>
               </span>
+              <BibleVersionChip lang={lang} versionId={versionId} onChange={setVersionId} />
             </div>
 
-            {!searchResults && (
-              <div style={styles.chipsRow}>
-                <button style={{ ...styles.filterChip, ...(blockFilter === 'all' ? styles.filterChipOn : {}) }} onClick={() => setBlockFilter('all')}>
-                  {t('journey.allBooksChip', { n: groupBlocks.reduce((s, b) => s + b.books.length, 0) }, lang)}
+            <div style={styles.chipsRow}>
+              <button style={{ ...styles.filterChip, ...(blockFilter === 'all' ? styles.filterChipOn : {}) }} onClick={() => setBlockFilter('all')}>
+                {t('journey.allBooksChip', { n: groupBlocks.reduce((s, b) => s + b.books.length, 0) }, lang)}
+              </button>
+              {groupBlocks.map(b => (
+                <button
+                  key={b.id}
+                  style={{ ...styles.filterChip, ...(blockFilter === b.id ? styles.filterChipOn : {}) }}
+                  onClick={() => setBlockFilter(b.id)}
+                >
+                  {sectionLabelFor(b, lang)}
                 </button>
-                {groupBlocks.map(b => (
-                  <button
-                    key={b.id}
-                    style={{ ...styles.filterChip, ...(blockFilter === b.id ? styles.filterChipOn : {}) }}
-                    onClick={() => setBlockFilter(b.id)}
-                  >
-                    {lang === 'en' ? b.shortNameEn ?? b.nameEn : b.shortName ?? b.name}
-                  </button>
-                ))}
-              </div>
-            )}
+              ))}
+            </div>
 
             <div style={styles.testamentCard}>
-              {gridBooks.length === 0 ? (
+              {filteredBooks.length === 0 ? (
                 <p style={styles.searchEmptyHint}>{t('journey.searchNoResults', { query: trimmedQuery }, lang)}</p>
               ) : (
                 <div>
-                  {gridBooks.map((entry, i) => {
+                  {filteredBooks.map((entry, i) => {
                     const key = `${entry.block.id}:${entry.canonicalName}`
-                    const showSectionHeader = !!searchResults && (i === 0 || entry.block.id !== gridBooks[i - 1].block.id)
+                    const showSectionHeader = i === 0 || entry.block.id !== filteredBooks[i - 1].block.id
                     const { done, total, pct } = progressFor(entry)
-                    const isLast = i === gridBooks.length - 1
+                    const isLast = i === filteredBooks.length - 1
                     return (
                       <div key={key}>
                         {showSectionHeader && (
                           <p style={{ ...styles.sectionLabel, marginTop: i === 0 ? 0 : 14 }}>
-                            {lang === 'en' ? entry.block.nameEn : entry.block.name}
+                            {sectionLabelFor(entry.block, lang)}
                           </p>
                         )}
                         <button
@@ -516,7 +549,7 @@ export default function JourneyScreen({
                             <span style={styles.bookRowBarTrack}>
                               <span style={{ ...styles.bookRowBarFill, width: `${pct}%`, background: pct >= 100 ? 'var(--bento-ink)' : 'var(--bento-accent)' }} />
                             </span>
-                            <span style={{ ...styles.bookRowPct, color: pct > 0 ? 'var(--bento-accent)' : 'var(--bento-t4)' }}>{pct}%</span>
+                            <span style={{ ...styles.bookRowPct, color: pct >= 100 ? 'var(--bento-ink)' : pct > 0 ? 'var(--bento-accent)' : 'var(--bento-t3)' }}>{pct}%</span>
                           </span>
                         </button>
                       </div>
@@ -527,24 +560,6 @@ export default function JourneyScreen({
             </div>
           </>
         )}
-
-        {/* Último texto lido (pedido direto, 2026-09-07) — qualquer modo
-            (guiado ou livre), pode ser um livro/capítulo diferente da
-            sessão de hoje do plano; é por isso que existe separado do
-            card de baixo, que só cobre navegação livre. */}
-        {showTestamentCards && lastReadSession && (
-          <button style={styles.lastReadCard} onClick={() => jumpToBook(lastReadBlock, lastReadPos.book, lastReadSession.id, true)}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={styles.lastReadLabel}>{t('journey.lastReadTextLabel', undefined, lang)}</span>
-              <span style={styles.lastReadTitle}>
-                {(lang === 'en' && lastReadSession.bookEn ? lastReadSession.bookEn : lastReadPos.book)} {lastReadPos.chapter}
-              </span>
-              {lastReadPos.readAt && <span style={styles.lastReadTime}>{formatRelativeTime(lastReadPos.readAt, lang)}</span>}
-            </span>
-            <span style={styles.lastReadOpenBtn}>{t('journey.openBtn', undefined, lang)}</span>
-          </button>
-        )}
-
 
         {/* Atalho de volta pra sessão estruturada do dia — as "duas portas
             para o mesmo texto" do quadro 5f. */}
@@ -607,7 +622,8 @@ const styles = {
 
   testamentCard:   { background: 'var(--bento-card)', borderRadius: 24, padding: 20 },
   testamentHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px' },
-  testamentLabel:  { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
+  testamentLabel:  { display: 'block', fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-.3px', color: 'var(--bento-ink)' },
+  testamentHeaderSub: { display: 'block', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', marginTop: 2 },
   testamentSwitchBtn: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)', padding: 0 },
   // Cabeçalho de seção (Pentateuco, Históricos…) e linha de livro (28b):
   // nome + "N de M capítulos" à esquerda, barra fina + % à direita.

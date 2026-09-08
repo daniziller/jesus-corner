@@ -650,6 +650,12 @@ export default function App() {
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
   const [journeyEntryMode, setJourneyEntryMode] = useState('overview')
+  // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
+  // quando a navegação livre passa da raiz (lista de livros, grade de
+  // capítulos, leitura embutida), pra esconder a barra igual à leitura
+  // guiada (immersiveReading abaixo), sem precisar de um activeTab à parte
+  // pra cada tela empilhada dentro da aba.
+  const [journeyPastRoot, setJourneyPastRoot] = useState(false)
   // Sessão específica a destacar quando entryMode é 'reading' — garante que a
   // Leitura abra featurando exatamente a mesma sessão que a Home mostrou.
   const [journeyResumeSessionId, setJourneyResumeSessionId] = useState(null)
@@ -2501,7 +2507,7 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
@@ -2607,7 +2613,7 @@ export default function App() {
   // Leitura imersiva (redesign 1b) — a leitura guiada de hoje ocupa a tela
   // inteira, sem barra de navegação nem sidebar: só a Palavra e os
   // controles de leitura. Sai pela seta do próprio cabeçalho da tela.
-  const immersiveReading = activeTab === 'journey' && journeyEntryMode === 'reading'
+  const immersiveReading = activeTab === 'journey' && (journeyEntryMode === 'reading' || journeyPastRoot)
   // Telas já na identidade Bento (design_handoff_jesus_corner/Jesus Corner
   // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f, 5d, 21a): nenhum quadro
   // tem o cabeçalho com logotipo/sino/avatar — o título de cada tela é a

@@ -15,6 +15,7 @@ import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleV
 import { computeBookChapterCounts } from '../utils/progress'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
+import { setFreeReadingPosition } from '../bible/freeReadingPositionStore'
 import { addReadingSeconds } from '../reading/readingTimeStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { getReadingClockPrefs } from '../reading/readingClockPrefsStore'
@@ -396,7 +397,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     if (mode === 'browse') {
       if (expandedChapterId == null) return
       const s = sessions.find(x => x.id === expandedChapterId)
-      if (s) setLastReadPosition(s.book, s.chStart)
+      if (s) {
+        setLastReadPosition(s.book, s.chStart)
+        // Posição PRÓPRIA da leitura livre (39a, "Continuar a leitura
+        // livre") — pacote 39. Sem versículo específico ainda aqui (o
+        // rastro por versículo entra junto de 39e, quando existir
+        // seleção de trecho na leitura livre); cai no padrão (1) da
+        // store até lá.
+        setFreeReadingPosition(s.book, s.bookEn, s.chStart, null)
+      }
     } else if (openPanel === 'texto' && heroSession) {
       setLastReadPosition(heroSession.book, heroSession.chStart)
     }
