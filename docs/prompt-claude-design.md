@@ -79,8 +79,8 @@ pronto, a preço de ativo." Subtítulo: "Leitura bíblica, rotina espiritual,
 comunidade e IA — 61 telas, 3 rails de cobrança, dois idiomas. Zero usuários.
 Este deck não esconde a segunda parte: ela é o motivo de o preço ser este."
 Embaixo, quatro blocos em linha: **268 h** investidas em 3 meses · **R$ 150 mil**
-de piso de ativo · **R$ 220 mil** de valuation pré-money · **R$ 44 mil** por 20%
-(este último no bloco preto). Rodapé: "Proposta de sociedade · Setembro de 2026 ·
+de piso de ativo · **R$ 220 mil** de valuation pré-money · **R$ 30 mil** de pedido,
+por 12% na assinatura (este último no bloco preto). Rodapé: "Proposta de sociedade · Setembro de 2026 ·
 Leitura conservadora."
 
 **02 — A tese (fundo escuro).** Título: "A parte difícil já foi feita. Mas
@@ -190,27 +190,28 @@ duros* R$ 207 mil, faixa estreita em cinza · *Pré-seed BR (o que se pede)*
 R$ 300 a 500 mil, em cinza, rotulado como teto · **Faixa defensável** R$ 180 a
 300 mil, em laranja cheio, com traço vertical preto marcando a âncora de
 R$ 220 mil. Valores escritos à direita de cada faixa. Embaixo, três blocos:
-**R$ 220 mil** de âncora pré-money (bloco preto) · **R$ 44 mil** de preço de
-20% · e o comentário: a faixa pré-seed é o que se *pede* no Brasil com produto
+**R$ 220 mil** de âncora pré-money (bloco preto) · **R$ 30 mil** de pedido, por
+12% — com a observação de que os 20% inteiros sairiam por R$ 55 mil · e o
+comentário: a faixa pré-seed é o que se *pede* no Brasil com produto
 pronto e zero tração, quase nunca o que se fecha — entra como teto, não como
 âncora.
 
-**13 — A proposta.** Título: "A R$ 44 mil, canal vale mais que cheque." Um bloco
-preto largo dividido em duas metades. À esquerda, etiqueta "Estrutura
-recomendada" e um **5% à vista** gigantesco em laranja (o "à vista" em corpo bem
-menor e cinza), com a linha: "por R$ 11.000, a R$ 220 mil de pré-money — mais
-15% conquistados por metas em 24 meses. Total de 20%, com só um quarto liberado
-de imediato." À direita, cinco linhas com o marcador em negrito: **+3%** em 6
-meses, apps nas duas lojas e 500 cadastros · **+5%** em 12 meses, 250 assinantes
-pagantes, ARR ~R$ 30 mil · **+7%** em 24 meses, 1.000 assinantes pagantes, ARR
-~R$ 120 mil · **+** as despesas de lançamento (~R$ 40 mil em 12 meses) entram
-como despesa contabilizada da sociedade, não como compra de participação ·
+**13 — A proposta.** Título em duas linhas: "R$ 30 mil na assinatura. O resto se
+conquista." Um bloco preto largo dividido em duas metades. À esquerda, etiqueta
+"Estrutura recomendada" e um **R$ 30 mil** gigantesco em laranja, com a linha:
+"à vista por 12%, a R$ 220 mil de pré-money — mais 8% conquistados por metas em
+24 meses. Ao final, 20%." À direita, cinco linhas com o marcador em negrito:
+**+2%** em 6 meses, apps nas duas lojas e 500 cadastros · **+3%** em 12 meses,
+250 assinantes pagantes, ARR ~R$ 30 mil · **+3%** em 24 meses, 1.000 assinantes
+pagantes, ARR ~R$ 120 mil · **+** aporte de marketing acima do orçamento entra
+como mútuo conversível ou despesa da sociedade, nunca como participação extra ·
 **—** meta não cumprida, fatia não emitida; vesting mensal, cliff de 6 meses.
-Abaixo do bloco preto, dois blocos brancos: "Por que não vender por dinheiro"
-(a diluição é permanente e o caixa dura um trimestre; dinheiro puro só faz
-sentido se vier com o canal junto) e "Cláusulas inegociáveis" (acordo de sócios,
-vesting reverso do fundador, cessão de IP, direito de preferência, tag along e
-drag along, reversão por metas não cumpridas).
+Abaixo do bloco preto, dois blocos brancos: "Por que não vender os 20% de uma
+vez" (os 20% inteiros em dinheiro rendem R$ 55 mil — diluição permanente por
+menos de um ano de fôlego, e sem mecanismo que garanta entrega) e "Cláusulas
+inegociáveis" (acordo de sócios, vesting reverso do fundador, cessão de IP,
+direito de preferência, tag along e drag along, reversão por metas não
+cumpridas).
 
 **14 — A escada de valor.** Título: "Cada degrau custa meses, não milhões."
 Tabela de três colunas — marco, valuation, valor dos 20% — com a primeira linha
@@ -219,28 +220,29 @@ destacada: hoje, produto pronto e zero tração, R$ 180 a 300 mil, 20% = R$ 36 a
 R$ 70 a 120 mil · 300 assinantes pagantes, R$ 500 a 900 mil, 20% = R$ 100 a
 180 mil · 1.000 assinantes pagantes, R$ 900 mil a 1,5 mi, 20% = R$ 180 a
 300 mil · 3.000 assinantes com retenção provada, R$ 1,8 a 3,0 mi, 20% = R$ 360 a
-600 mil. Abaixo, quatro barras curtas com o uso dos R$ 44 mil, em degradê de um
-só laranja: marketing de lançamento R$ 20.000 · lojas, licenças e jurídico
-R$ 12.000 · infraestrutura e IA R$ 8.000 · reserva R$ 4.000. Nota: nenhum
+600 mil. Abaixo, quatro barras curtas com o uso dos R$ 30 mil, em degradê de um
+só laranja: marketing de lançamento R$ 12.000 · lojas, licenças e jurídico
+R$ 10.000 · infraestrutura e IA R$ 6.000 · reserva R$ 2.000. Nota: nenhum
 centavo vai para desenvolvimento — o dinheiro compra os dois primeiros degraus
 da tabela.
 
 **15 — Chances de fechar (fundo escuro).** Título: "O preço mais baixo é o que
 torna a conversa possível." Tabela de três linhas: investidor financeiro puro,
-10 a 15% (sem tração, e a R$ 44 mil o cheque é pequeno demais para justificar a
-diligência) · **sócio operador com canal gospel, 45 a 55%** (linha destacada —
-entra com R$ 11 mil e conquista o resto trabalhando) · estratégico, 15%. Embaixo,
+10 a 15% (sem tração, e R$ 30 mil ainda é cheque pequeno demais para justificar
+a diligência) · **sócio operador com canal gospel, 45 a 55%** (linha destacada —
+R$ 30 mil é um cheque que ele assina, e a maior parte da fatia ele ganha
+trabalhando) · estratégico, 15%. Embaixo,
 quatro blocos numerados: *1 · Publicar* nas duas lojas, ~R$ 10 mil e algumas
 semanas · *2 · Medir* 200 usuários de igreja e a curva D7/D30 · *3 · Cobrar* os
 10 primeiros pagantes · *4 · Ancorar* uma carta de intenção de uma igreja.
 
-**16 — Fecho.** Frase única, grande, em duas linhas: "R$ 11 mil e um canal. É
+**16 — Fecho.** Frase única, grande, em duas linhas: "R$ 30 mil e um canal. É
 essa a conversa." Parágrafo: o produto está pronto e o preço está baixo porque a
 tração não existe — isso é dito aqui, não descoberto depois; quem entra agora
 paga preço de ativo por algo que, com os dois primeiros degraus cumpridos, vale
 de duas a quatro vezes mais; e a alternativa continua na mesa — se o sócio traz
 só dinheiro, é melhor o fundador publicar sozinho e conversar de novo em seis
-meses. Três blocos finais: **R$ 11 mil** por 5% à vista · **+15%** conquistados
+meses. Três blocos finais: **R$ 30 mil** por 12% à vista · **+8%** conquistados
 em 24 meses de metas · **1ª meta**: nas duas lojas e 500 cadastros em 6 meses.
 Assinatura com o símbolo e o logotipo no rodapé.
 

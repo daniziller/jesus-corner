@@ -20,13 +20,16 @@
 | **Comparáveis pré-seed BR (o que se *pede*, não o que se fecha)** | R$ 300k – R$ 500k |
 | **Faixa defensável** | **R$ 180k – R$ 300k** |
 | **Âncora recomendada (pré-money)** | **R$ 220.000** |
-| **Preço de 20%** | **R$ 44.000** |
+| **Pedido — dinheiro na assinatura** | **R$ 30.000 por 12%** |
+| **Mais 8% conquistados por metas em 24 meses** | **20% ao final** |
+| *20% integralmente em dinheiro, se for o caso* | *R$ 55.000* |
 
-**A consequência prática:** R$ 44 mil não financia um lançamento. A esse preço,
-**vender 20% por dinheiro é um mau negócio para o vendedor** — a diluição é
-permanente e o cheque acaba em quatro meses. Os 20% só se justificam se o sócio
-entrar com **canal e trabalho**, não com dinheiro. Daí a estrutura da seção 8:
-5% à vista, 15% conquistados por metas.
+**A consequência prática:** a essa valuation, entregar os 20% inteiros por
+dinheiro rende R$ 55 mil — uma diluição permanente por menos de um ano de
+fôlego. O desenho da seção 8 divide a fatia: **R$ 30.000 à vista por 12%**, que
+é dinheiro suficiente para publicar e testar o mercado, e **8% conquistados por
+metas** ao longo de 24 meses. O sócio entra com valor real na assinatura, e o
+resto ele ganha entregando canal.
 
 E a alternativa honesta continua sendo **não vender agora**: publicar nas lojas
 custa cerca de R$ 10 mil e algumas semanas. Com 300 assinantes pagantes medidos,
@@ -288,37 +291,43 @@ FAIXA DEFENSÁVEL           |░░░█████░░░░░░░░░
 ÂNCORA                                           R$ 220k pré-money
 ```
 
-**20% = R$ 44.000.**
+A R$ 220 mil de pré-money: **12% custam R$ 30.000** e **20% custariam R$ 55.000**
+(ambos em base pós-money — `I ÷ (220 + I)`). Onde este documento escreve "20%
+vale R$ 44 mil", é a forma abreviada de 20% × pré-money; a conta que vale para o
+contrato é a de cima.
 
 ---
 
 ## 8. Estrutura recomendada para os 20%
 
-A R$ 44 mil, **vender 20% por dinheiro destrói mais valor do que cria**: a
-diluição é para sempre, o caixa dura um trimestre. A participação só se paga se
-o que entrar for canal.
+A R$ 220 mil de pré-money, **entregar os 20% inteiros por dinheiro rende
+R$ 55 mil** — pouco para um lançamento e caro para uma diluição permanente. A
+participação se paga melhor dividida: uma parte comprada, uma parte conquistada.
 
-### Opção A — 5% em dinheiro, 15% por metas (**recomendada**)
+### Opção A — R$ 30 mil por 12%, mais 8% por metas (**recomendada**)
 
-- **5% por R$ 11.000 à vista** — pré-money de R$ 220 mil. Serve de compromisso
-  real, não de financiamento.
-- **15% em earn-in**, vesting mensal ao longo de 24 meses, cliff de 6, liberado
+- **R$ 30.000 à vista por 12%** — pré-money de R$ 220 mil, pós-money de
+  R$ 250 mil. É dinheiro que faz diferença: cobre a publicação nas duas lojas,
+  o jurídico, a infraestrutura de um ano e um primeiro teste de aquisição.
+- **8% em earn-in**, vesting mensal ao longo de 24 meses, cliff de 6, liberado
   contra metas:
 
 | Marco | Meta | Fatia liberada |
 |---|---|---:|
-| 6 meses | Apps publicados nas duas lojas + 500 cadastros | 3% |
-| 12 meses | **250 assinantes pagantes** (ARR ~R$ 30k) | 5% |
-| 24 meses | **1.000 assinantes pagantes** (ARR ~R$ 120k) | 7% |
+| 6 meses | Apps publicados nas duas lojas + 500 cadastros | 2% |
+| 12 meses | **250 assinantes pagantes** (ARR ~R$ 30k) | 3% |
+| 24 meses | **1.000 assinantes pagantes** (ARR ~R$ 120k) | 3% |
 
-- O sócio também banca as despesas diretas de lançamento (~R$ 40 mil ao longo
-  de 12 meses) **como despesa da sociedade**, contabilizada, não como compra de
-  participação adicional.
-- Meta não cumprida ⇒ a fatia não liberada não é emitida. Sem discussão.
+- **Ao final dos 24 meses, com as metas cumpridas, o sócio tem 20%.** Meta não
+  cumprida ⇒ a fatia não é emitida. Sem renegociação no meio do caminho.
+- Aporte adicional de marketing acima do orçamento entra como **mútuo
+  conversível ou despesa da sociedade**, nunca como compra de participação extra
+  — do contrário a diluição vira uma torneira aberta.
 
-### Opção B — dinheiro puro
-**20% por R$ 44.000.** Só faz sentido se o sócio trouxer o canal junto — caso
-contrário o vendedor entrega um quinto da empresa por quatro meses de caixa.
+### Opção B — 20% em dinheiro, à vista
+**R$ 55.000.** Serve se o sócio quiser a fatia inteira desde o primeiro dia,
+mas o vendedor perde o mecanismo que garante entrega. Só aceitar de quem já
+tenha canal demonstrável.
 
 ### Opção C — não vender agora (**a alternativa que precisa estar na mesa**)
 Publicar nas lojas custa cerca de R$ 10 mil e algumas semanas. Com 300 pagantes
@@ -332,14 +341,14 @@ sociedade · direito de preferência · tag along e drag along · não-concorrê
 no nicho · reversão da participação por metas não cumpridas · e, por escrito,
 quem decide produto e quem decide comercial.
 
-### Uso dos R$ 44 mil (12 meses)
+### Uso dos R$ 30 mil (12 meses)
 
 | Destino | Valor |
 |---|---:|
-| Marketing de lançamento (igrejas, líderes, creators) | R$ 20.000 |
-| Publicação nas lojas, licenças, jurídico e contábil | R$ 12.000 |
-| Infra e IA por 12 meses | R$ 8.000 |
-| Reserva de caixa | R$ 4.000 |
+| Marketing de lançamento (igrejas, líderes, creators) | R$ 12.000 |
+| Publicação nas lojas, licenças, jurídico e contábil | R$ 10.000 |
+| Infra e IA por 12 meses | R$ 6.000 |
+| Reserva de caixa | R$ 2.000 |
 
 Nenhum centavo para desenvolvimento — essa parte segue aportada em horas pelo
 fundador.
@@ -350,13 +359,13 @@ fundador.
 
 | Perfil de comprador | Chance de fechar | Por quê |
 |---|---:|---|
-| Investidor financeiro puro | **10–15%** | Pré-lançamento sem tração é o ativo mais difícil de vender no mercado brasileiro, e a R$ 44 mil o cheque é pequeno demais para justificar a diligência |
-| **Sócio operador com canal gospel** | **45–55%** | O preço realista muda o jogo: ele aporta o que falta e não precisa desembolsar quase nada de início |
+| Investidor financeiro puro | **10–15%** | Pré-lançamento sem tração é o ativo mais difícil de vender no mercado brasileiro, e R$ 30 mil ainda é cheque pequeno demais para justificar a diligência |
+| **Sócio operador com canal gospel** | **45–55%** | O preço realista muda o jogo: R$ 30 mil é um cheque que ele consegue assinar, e a maior parte da fatia ele ganha trabalhando |
 | Estratégico (editora, rede de igrejas, mídia) | **15% hoje** | Precisa de prova de uso; sobe muito com 5 mil usuários ativos |
 
 Vale registrar: **baixar a valuation aumenta a chance de fechar.** A R$ 800 mil,
-um sócio operador olha a planilha e sai da mesa. A R$ 220 mil, com 5% à vista e
-o resto por metas, a conversa é razoável para os dois lados.
+um sócio operador olha a planilha e sai da mesa. A R$ 220 mil, com R$ 30 mil na
+assinatura e o resto por metas, a conversa é razoável para os dois lados.
 
 **O que mais move o valor — em ordem de impacto:**
 
@@ -398,7 +407,7 @@ Registro do que mudou, para a conversa não recomeçar do zero:
 | Assinantes no cenário base (36m) | 12.000 | 5.000 | O anterior exigia um canal que não existe |
 | Múltiplos de saída | 3,0× – 4,0× ARR | 1,8× – 3,0× ARR | Faixa de micro-SaaS sem histórico de retenção |
 | **Âncora de valuation** | **R$ 800k** | **R$ 220k** | Soma de tudo acima |
-| **Preço de 20%** | **R$ 160k** | **R$ 44k** | — |
+| **Valor dos 20%** | **R$ 160k** | **R$ 55k** (ou R$ 30k por 12% + metas) | — |
 
 O erro de fundo era um só: **tratar escopo construído como se fosse valor de
 mercado.** Um app completo sem usuários não vale o que custou — vale o que
