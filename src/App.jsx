@@ -20,6 +20,7 @@ import { clearGuestInviteState } from './onboarding/guestInviteStore'
 import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
+import BlessingScreen from './screens/BlessingScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import RoutineScreen from './screens/RoutineScreen'
 import AdjustPlanScreen from './screens/AdjustPlanScreen'
@@ -68,7 +69,8 @@ import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
 import { getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode, getCustomBookOrder, resolveBookOrder, resolveNextChapter } from './reading/bibleOrderStore'
-import { getStepDays } from './routine/stepDaysStore'
+import { getStepDays, stepsScheduledForWeekday } from './routine/stepDaysStore'
+import { STEP_ORDER } from './routine/planTodayRows'
 import { resumeDateKey } from './studies/activeStudyMath'
 import { dateKey } from './utils/dateKey'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
@@ -540,6 +542,13 @@ export default function App() {
   // fixo (ver deriveProgress/dynamicSessions.js) — substitui os 4 ritmos
   // fixos (Leve/Padrão/Intensivo), mantidos só pro plano Livre/navegação.
   const [stepMinutes, setStepMinutesState] = useState({ prayer: null, reading: null, reflection: null })
+  // Dias por passo (turno 35, stepDaysStore.js) — precisado aqui (não só em
+  // HomeScreen/RoutineScreen) pra "Começar meu plano" (startGuidedRoutine
+  // abaixo) encadear os passos de HOJE de verdade, incluindo Estudo — antes
+  // usava um GUIDED_STEPS fixo [oração,leitura,reflexão] que ignorava
+  // stepDays e nunca sabia de Estudo, discordando do que Meu Plano/Home já
+  // mostravam (achado corrigindo o pacote 36-37, ver startGuidedRoutine).
+  const [stepDays, setStepDaysState] = useState(null)
   const [activeBlockId, setActiveBlockId] = useState(1)
   // "Onde começar" (28d/28e, Bloco 6) — a escolha feita em 28d, guardada só
   // enquanto a folha 28e (reconciliação de progresso prévio) está aberta;
@@ -770,13 +779,14 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
         getWeeklyGoalDays(user.email),
         getWeeklyDays(),
         getStepMinutes(),
+        getStepDays(),
         getActiveAltPlan(user.email),
         getThemePlans(user.email),
         getDailyRoutine(),
@@ -820,6 +830,7 @@ export default function App() {
       setWeeklyGoalDaysState(userWeeklyGoalDays)
       setWeeklyDaysState(userWeeklyDays)
       setStepMinutesState(userStepMinutes)
+      setStepDaysState(userStepDays)
       setActiveAltPlanState(userActiveAltPlan)
       setThemePlans(userThemePlans)
       setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
@@ -908,7 +919,7 @@ export default function App() {
     if (lockedTabs.includes(tab)) { goToTab('upgrade'); return }
     // Sair do modo guiado se a pessoa navegar explicitamente pra fora do
     // fluxo (Oração/Leitura/Reflexão) — ex: tocar em Início ou Comunidade.
-    if (guidedFlowRef.current && !['prayer', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
+    if (guidedFlowRef.current && !['prayer', 'blessing', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
       setGuidedFlow(null)
     }
     if (tab === 'journey') setJourneyEntryMode('overview')
@@ -943,16 +954,32 @@ export default function App() {
   }
 
   // ── Rotina guiada ─────────────────────────────────────────────────────
-  // Passos possíveis, na ordem em que a rotina guiada os encadeia. Estudo
-  // guiado fica de fora de propósito (não tem cronômetro/sinal de conclusão
-  // e o pedido era "terminando na reflexão"), igual ao modo mãos-livres.
-  const GUIDED_STEPS = ['prayer', 'reading', 'reflection']
   // Quanto tempo o passo recém-concluído fica na tela ("concluído!") antes
   // de o app abrir o próximo — respiro pra pessoa perceber a transição.
   const GUIDED_ADVANCE_MS = 2600
 
   function guidedTabFor(step) {
-    return step === 'prayer' ? 'prayer' : step === 'reflection' ? 'reflection' : null
+    if (step === 'prayer') return 'prayer'
+    if (step === 'reflection') return 'reflection'
+    return null
+  }
+
+  // Passos de HOJE, na ordem em que a rotina guiada os encadeia — MESMA
+  // conta de RoutineScreen.jsx/HomeScreen.jsx (stepDays por passo +
+  // substituição leitura↔estudo quando há um Estudo ativo). Antes disto,
+  // "Começar meu plano" usava um GUIDED_STEPS fixo [oração,leitura,
+  // reflexão] que ignorava stepDays e nunca incluía Estudo — discordando
+  // do que a própria lista de Meu Plano/Home já mostravam (achado
+  // corrigindo o pacote 36-37: o botão "abre o passo da vez" precisa
+  // abrir o MESMO passo que a lista aponta como "agora").
+  function todaysGuidedSteps() {
+    const enabled = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
+    const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
+    const todayIdx = (new Date().getDay() + 6) % 7
+    const scheduledToday = stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
+    return activeStudyId
+      ? [...new Set(scheduledToday.map(k => (k === 'reading' ? 'study' : k)))]
+      : scheduledToday
   }
 
   // Iniciar em Meu Plano — encadeia os passos ligados. Com 0 ou 1 passo não
@@ -962,7 +989,7 @@ export default function App() {
     // tela de assinar (a aba Meu Plano já é travada, mas a Home também tem
     // um atalho de "Começar").
     if (!hasPremium) { goToTab('upgrade'); return }
-    const steps = GUIDED_STEPS.filter(s => (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s))
+    const steps = todaysGuidedSteps()
     if (steps.length === 0) return
     // Começa no passo ATUAL — o primeiro ainda não feito hoje (redesign 1c:
     // "vai para o passo atual da rotina, não para o início dela"). Se todos
@@ -970,10 +997,13 @@ export default function App() {
     const today = dailyRoutine[dateKey()] ?? {}
     let startIdx = steps.findIndex(s => !today[s])
     if (startIdx < 0) startIdx = steps.length - 1
-    const openStep = step => step === 'reading' ? continueToday() : goToTab(step)
+    const openStep = step => step === 'reading' ? continueToday() : step === 'study' ? openActiveStudy() : goToTab(step)
     // Sem passos pra encadear a partir daqui (só sobrou 1) — abre direto,
-    // sem o "modo guiado".
-    if (steps.length - startIdx <= 1) { openStep(steps[startIdx]); return }
+    // sem o "modo guiado". Estudo entra na CONTAGEM (Oração/Reflexão
+    // mostram "passo N de M" certo em dia de Estudo ativo), mas não no
+    // encadeamento automático — StudiesScreen não avisa quando o dia
+    // termina (mesma exceção de sempre, ver comentário de advanceGuided).
+    if (steps.length - startIdx <= 1 || steps[startIdx] === 'study') { openStep(steps[startIdx]); return }
     setGuidedFlow({ steps, idx: startIdx })
     openStep(steps[startIdx])
   }
@@ -1008,11 +1038,50 @@ export default function App() {
         goToTab('routineComplete')
         return
       }
-      setGuidedFlow({ steps: gf.steps, idx: nextIdx })
       const nextStep = gf.steps[nextIdx]
+      // Estudo não tem sinal de conclusão (StudiesScreen não chama
+      // advanceGuided) — abre, mas sai do modo guiado; a pessoa retoma o
+      // encadeamento tocando de novo em "Continuar meu plano".
+      if (nextStep === 'study') {
+        setGuidedFlow(null)
+        openActiveStudy()
+        return
+      }
+      setGuidedFlow({ steps: gf.steps, idx: nextIdx })
       if (nextStep === 'reading') continueToday()
       else goToTab(guidedTabFor(nextStep))
     }, GUIDED_ADVANCE_MS)
+  }
+
+  // Fim da Oração (pacote 36-37) — diferente dos outros passos, a Oração
+  // não encadeia direto pro próximo (advanceGuided, com banner e delay):
+  // ela sempre passa pela bênção (36f) primeiro, que tem seus PRÓPRIOS
+  // botões pra continuar. Por isso avança o bookkeeping de guidedFlow na
+  // hora (sem esperar GUIDED_ADVANCE_MS) e vai direto pra 'blessing' — sem
+  // isso o auto-avanço de advanceGuided pularia a bênção e iria direto pro
+  // próximo passo, contra o quadro (36b/36c → 36f → 35f/37c).
+  function finishPrayerStep() {
+    markRoutineStep('prayer')
+    const gf = guidedFlowRef.current
+    if (gf && gf.steps[gf.idx] === 'prayer') {
+      const nextIdx = gf.idx + 1
+      setGuidedFlow(nextIdx >= gf.steps.length ? null : { steps: gf.steps, idx: nextIdx })
+    }
+    goToTab('blessing')
+  }
+
+  // "Terminar o dia" em 36f, quando a Oração era o último passo de hoje —
+  // interino: ainda leva pro fecho antigo (routineComplete) até o Bloco 5
+  // desta leva (37c/37d) trazer o fecho de verdade.
+  function finishDayFromBlessing() {
+    setGuidedFlow(null)
+    setRoutineCompleteInfo({ steps: session.todaysSteps ?? ['prayer'], readingSession: lastReadSession })
+    goToTab('routineComplete')
+  }
+
+  function backToPlanFromBlessing() {
+    exitGuidedRoutine()
+    goToTab('routine')
   }
 
   // Todos os capítulos da leitura de hoje já concluídos? (usado pra saber
@@ -1590,13 +1659,14 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
       getWeeklyGoalDays(user.email),
       getWeeklyDays(),
       getStepMinutes(),
+      getStepDays(),
       getActiveAltPlan(user.email),
       getThemePlans(user.email),
       getPrayerStats(user.email),
@@ -1629,6 +1699,7 @@ export default function App() {
     setWeeklyGoalDaysState(userWeeklyGoalDays)
     setWeeklyDaysState(userWeeklyDays)
     setStepMinutesState(userStepMinutes)
+    setStepDaysState(userStepDays)
     setActiveAltPlanState(userActiveAltPlan)
     setThemePlans(userThemePlans)
     setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
@@ -2232,6 +2303,12 @@ export default function App() {
   session.guided = guidedFlow
     ? { steps: guidedFlow.steps, idx: guidedFlow.idx, total: guidedFlow.steps.length, step: guidedFlow.steps[guidedFlow.idx] }
     : null
+  // Passos de hoje, na ordem (mesma conta de startGuidedRoutine acima) —
+  // pras telas de execução (Oração 36b/36c, Reflexão 37a/37b) mostrarem
+  // "passo N de M" certo mesmo fora do modo guiado (ex: Oração é o único
+  // passo restante hoje, então nunca entra em guidedFlow — ver
+  // startGuidedRoutine). Independe de session.guided de propósito.
+  session.todaysSteps = todaysGuidedSteps()
   // Tier de acesso disponível pra toda tela (ver src/billing/entitlement.js).
   // hasPremium: rotina guiada, voz natural, mãos-livres, XP/conquistas,
   // cronológico, notas, comunidade. hasAI: recursos de IA.
@@ -2476,6 +2553,15 @@ export default function App() {
           onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }}
         />
       : null,
+    // Pacote 36-37, 36f — fim da Oração, sempre passa por aqui antes de
+    // seguir (ver finishPrayerStep acima). Sem timer/estado que precise
+    // sobreviver a troca de aba (ao contrário de prayer/reflection), entra
+    // no mapa normal de telas.
+    blessing: <BlessingScreen
+      session={session} stepMinutes={stepMinutes}
+      onContinueSession={continueToday} onNavigate={navigateTo}
+      onFinishDay={finishDayFromBlessing} onBackToPlan={backToPlanFromBlessing}
+    />,
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
@@ -2537,7 +2623,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
     || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
@@ -2551,7 +2637,7 @@ export default function App() {
   // diferente de 35d/35e (createAiStudy/studyProposalNew), que têm botão
   // primário fixo no rodapé no lugar da barra, como o antigo createStudy/
   // studyProposal já tinham.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'routineComplete', 'language', 'groupAdmin', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
   const isAdminScreen = activeTab === 'admin'
 
   return (
@@ -2580,7 +2666,7 @@ export default function App() {
                 height:100% que a tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen session={session} authUser={authUser} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} onPrayerCompleted={() => { markRoutineStep('prayer'); advanceGuided('prayer') }} onSkipStep={() => advanceGuided('prayer')} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} />
+                <PrayerScreen session={session} authUser={authUser} stepMinutes={stepMinutes} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} />
               </div>
             )}
             {reflectionVisitedRef.current && (
