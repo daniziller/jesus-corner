@@ -24,16 +24,32 @@ const MODEL = 'anthropic/claude-sonnet-5'
 // ritmo pedido, que era o bug original.
 const AVG_WORDS_PER_CHAPTER = 570
 
-const ThemePassagesSchema = z.object({
-  title: z.string().describe('Título curto do plano (2 a 5 palavras, no mesmo idioma do assunto) — ex: "Ansiedade: o que a Bíblia diz". É o único título que a pessoa vê (ela não digita um, só descreve o assunto em texto livre); precisa identificar o plano sozinho, sem repetir a palavra "plano" ou "estudo".'),
-  overview: z.string().describe('Um parágrafo curto (2 a 4 frases, no mesmo idioma do assunto) explicando o fio condutor do plano: por que essas passagens foram escolhidas e organizadas nessa ordem, e o que a pessoa vai entender/vivenciar ao ler todas em sequência. Escrito pra quem ainda não viu a lista de passagens — dá o contexto antes de começar a ler.'),
-  passages: z.array(z.object({
-    book: z.string().describe('Nome do livro EXATAMENTE como aparece na lista de livros válidos fornecida no prompt — nenhuma variação de grafia.'),
-    chStart: z.number().int().min(1).describe('Primeiro capítulo da passagem.'),
-    chEnd: z.number().int().min(1).describe('Último capítulo da passagem (igual a chStart se for 1 capítulo só).'),
-    reason: z.string().describe('Uma frase curta (no mesmo idioma do tema) explicando por que essa passagem é relevante.'),
-  })).min(3).max(20),
+const PassageSchema = z.object({
+  book: z.string().describe('Nome do livro EXATAMENTE como aparece na lista de livros válidos fornecida no prompt — nenhuma variação de grafia.'),
+  chStart: z.number().int().min(1).describe('Primeiro capítulo da passagem.'),
+  chEnd: z.number().int().min(1).describe('Último capítulo da passagem (igual a chStart se for 1 capítulo só).'),
+  reason: z.string().describe('Uma frase curta (no mesmo idioma do tema) explicando por que essa passagem é relevante.'),
 })
+
+// turno 35, 35d/35e — a pessoa escolhe uma DURAÇÃO fixa (3/7/14/21/30
+// dias) antes de gerar; o plano por tema, que antes só pedia "entre 5 e
+// 15" (a pessoa escolhia quais ler depois), agora mira EXATAMENTE `days`
+// passagens — uma por dia da proposta (ver 35e, "uma linha por dia, todas
+// visíveis"). O piso fica um pouco abaixo de `days` (nunca abaixo de 3) só
+// pra não estourar a geração inteira quando o tema é estreito demais pra
+// render exatamente `days` sem repetir/forçar relação fraca — nesse caso a
+// proposta sai com menos dias que o pedido (honesto: nunca inventa
+// passagem só pra completar a contagem). A fusão de passagens adjacentes
+// (mergeAdjacentPassages, api/generate-theme-plan.js) também pode reduzir
+// o total depois — nunca aumenta.
+function buildThemePassagesSchema(days) {
+  const min = Math.max(3, days - 2)
+  return z.object({
+    title: z.string().describe('Título curto do plano (2 a 5 palavras, no mesmo idioma do assunto) — ex: "Ansiedade: o que a Bíblia diz". É o único título que a pessoa vê (ela não digita um, só descreve o assunto em texto livre); precisa identificar o plano sozinho, sem repetir a palavra "plano" ou "estudo".'),
+    overview: z.string().describe('Um parágrafo curto (2 a 4 frases, no mesmo idioma do assunto) explicando o fio condutor do plano: por que essas passagens foram escolhidas e organizadas nessa ordem, e o que a pessoa vai entender/vivenciar ao ler todas em sequência. Escrito pra quem ainda não viu a lista de passagens — dá o contexto antes de começar a ler.'),
+    passages: z.array(PassageSchema).min(min).max(days),
+  })
+}
 
 function buildLangInstruction(lang) {
   return lang === 'en'
@@ -81,15 +97,15 @@ function formatPassageList(passages) {
     .join('\n')
 }
 
-async function generateDraftPassages(scope, canonicalBooks, lang, targetWords) {
+async function generateDraftPassages(scope, canonicalBooks, lang, targetWords, days) {
   const { output } = await generateText({
     model: MODEL,
-    output: Output.object({ schema: ThemePassagesSchema }),
+    output: Output.object({ schema: buildThemePassagesSchema(days) }),
     prompt: `Você é um estudioso bíblico ajudando a montar um plano de leitura devocional sobre um assunto específico.
 
 Assunto: "${scope}"
 
-Liste entre 5 e 15 passagens da Bíblia (Antigo e Novo Testamento) diretamente relevantes a esse tema. Regras:
+Liste EXATAMENTE ${days} passagens da Bíblia (Antigo e Novo Testamento) diretamente relevantes a esse tema — o plano tem ${days} dias, uma passagem por dia, nessa ordem. Regras:
 - Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
 - ${buildSizeInstruction(targetWords)}
 - Prefira passagens coerentes (nunca um livro inteiro) — cada uma precisa fazer sentido lida sozinha, sem depender do resto do livro.
@@ -110,10 +126,10 @@ ${buildLangInstruction(lang)}`,
 // mas não são as mais relevantes, ou passagens importantes que ficaram de
 // fora. Custa uma segunda chamada de IA (dobra o tempo/custo da geração),
 // mas o ganho de qualidade compensa — ver decisão com o usuário.
-async function reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords) {
+async function reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords, days) {
   const { output } = await generateText({
     model: MODEL,
-    output: Output.object({ schema: ThemePassagesSchema }),
+    output: Output.object({ schema: buildThemePassagesSchema(days) }),
     prompt: `Você é um revisor teológico criterioso. Outra pessoa (ou IA) montou um rascunho de plano de leitura devocional sobre um assunto — sua tarefa é revisar esse rascunho com espírito crítico e devolver a versão FINAL, corrigida.
 
 Assunto: "${scope}"
@@ -136,7 +152,7 @@ Revise com atenção a:
 - Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
 - ${buildSizeInstruction(targetWords)}
 - Reescreva o "overview" se necessário, pra refletir com precisão a lista final revisada (não a original).
-- Devolva SEMPRE a lista completa revisada (entre 5 e 15 passagens), nunca só as mudanças.
+- Devolva SEMPRE a lista completa revisada, com EXATAMENTE ${days} passagens (o plano tem ${days} dias, uma por dia), nunca só as mudanças.
 ${buildLangInstruction(lang)}`,
   })
   return output
@@ -152,9 +168,36 @@ ${buildLangInstruction(lang)}`,
 // Duas chamadas sequenciais (gerar rascunho → revisar criticamente) em vez
 // de uma só — o ganho de qualidade da revisão compensa o dobro de tempo/
 // custo (ambas usam o mesmo modelo, ver MODEL acima).
-export async function findThemePassages(scope, canonicalBooks, lang, targetWords = 0) {
-  const draft = await generateDraftPassages(scope, canonicalBooks, lang, targetWords)
-  return reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords)
+export async function findThemePassages(scope, canonicalBooks, lang, targetWords = 0, days = 7) {
+  const draft = await generateDraftPassages(scope, canonicalBooks, lang, targetWords, days)
+  return reviewThemePassages(scope, draft, canonicalBooks, lang, targetWords, days)
+}
+
+// "Trocar" um dia da proposta (35e) — pede só 1 passagem nova pro mesmo
+// tema, evitando repetir as que já estão na proposta (inclusive a que vai
+// ser substituída, pra não devolver a mesma de novo). Uma chamada só (sem
+// segunda passada de revisão — é uma troca pontual, não o plano inteiro).
+const SinglePassageSchema = z.object({ passage: PassageSchema })
+
+export async function regenerateThemePassage(scope, otherPassages, lang, targetWords, canonicalBooks) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: SinglePassageSchema }),
+    prompt: `Você é um estudioso bíblico ajudando a montar um plano de leitura devocional sobre um assunto específico.
+
+Assunto: "${scope}"
+
+O plano já tem estas passagens (não repita nenhuma delas, nem o mesmo livro+capítulos):
+${formatPassageList(otherPassages)}
+
+Proponha MAIS UMA passagem da Bíblia (Antigo ou Novo Testamento), diferente de todas as de cima, igualmente relevante ao assunto. Regras:
+- Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
+- ${buildSizeInstruction(targetWords)}
+- Precisa fazer sentido lida sozinha, sem depender do resto do livro.
+- Só proponha se tiver certeza que a passagem existe de verdade e trata do tema — não force uma relação fraca.
+${buildLangInstruction(lang)}`,
+  })
+  return output.passage
 }
 
 // Estudo temático gerado por IA (aba Estudos) — mesmo espírito de

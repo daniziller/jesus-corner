@@ -191,7 +191,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
             <p style={styles.title}>{L('title')}</p>
             <p style={styles.subtitle}>{headerSubtitle}</p>
           </div>
-          <button style={styles.createBtn} onClick={() => onNavigate?.('createStudy')}>
+          <button style={styles.createBtn} onClick={() => onNavigate?.('createAiStudy')}>
             <span style={styles.createDiamond} />
             {L('create')}
           </button>
@@ -392,7 +392,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
         </div>
 
         {!activeStudyId && (
-          <button style={styles.myStudiesCard} onClick={() => onNavigate?.('studies')}>
+          <button style={styles.myStudiesCard} onClick={() => onNavigate?.('addStudy')}>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <p style={styles.myStudiesTitle}>{L('myStudiesCard')}</p>
               <p style={styles.myStudiesSub}>

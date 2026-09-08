@@ -36,6 +36,8 @@ import AddStudyScreen from './screens/AddStudyScreen'
 import StudyBankScreen from './screens/StudyBankScreen'
 import CreateStudyScreen from './screens/CreateStudyScreen'
 import StudyProposalScreen from './screens/StudyProposalScreen'
+import CreateAiStudyScreen from './screens/CreateAiStudyScreen'
+import StudyProposalNewScreen from './screens/StudyProposalNewScreen'
 import GroupPlanProposalScreen from './screens/GroupPlanProposalScreen'
 import GroupPlanReaderScreen from './screens/GroupPlanReaderScreen'
 import ChronologicalPlanScreen from './screens/ChronologicalPlanScreen'
@@ -74,8 +76,9 @@ import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './pl
 import { resolveActivePlanSessions } from './plan/resolveActivePlan'
 import { getStepMinutes, setStepMinutes as persistStepMinutes } from './plan/stepMinutesStore'
 import { getWeeklyDays, setWeeklyDays as persistWeeklyDays, countTrue } from './routine/weeklyDaysStore'
-import { getThemePlans, saveThemePlan, generateThemePlan } from './themePlans/themePlansStore'
+import { getThemePlans, saveThemePlan, generateThemePlan, regenerateThemePassage } from './themePlans/themePlansStore'
 import { publishStudy, recordStudyUse } from './studies/publicStudiesStore'
+import { saveAiStudy } from './studies/aiStudiesStore'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
@@ -1348,6 +1351,120 @@ export default function App() {
     else startThemePlanReadingToday(plan.id, keys)
   }
 
+  // ── Turno 35, Bloco 4 (35d/35e/35h) ──────────────────────────────────
+  // Fluxo NOVO, paralelo ao de cima: em vez de theme_plans/activeAltPlan.
+  // theme (sem contagem de dia fixa), salva em ai_studies e ativa via
+  // selectActiveStudy — a mesma fonte que "Estudos"/StudiesScreen.jsx já
+  // usa e que o "Estudo ativo" (35b, já em produção desde o Bloco 2)
+  // espera. Decisão tomada com a autora ao montar este bloco, pra 35b
+  // funcionar de verdade pra um estudo criado por 35d, sem misturar com o
+  // fluxo antigo de plano por tema (que CreateStudyScreen.jsx/
+  // ThemePlanScreen.jsx continuam servindo do jeito de sempre).
+  const [aiStudyDraft, setAiStudyDraft] = useState(null) // { ...plan, mode: 'generate'|'preview', publicToBank }
+
+  async function handleGeneratePersonalStudy({ scope, format, days, publicToBank, plan }) {
+    if (plan) {
+      // Formato Livro — já montado 100% local (buildBookPlan), sem IA.
+      // buildBookPlan devolve passages "crus" (só book/chStart/chEnd/words,
+      // sem título/minutos) — precisa do mesmo deriveThemeTexts que
+      // qualquer outro plano por tema usa pra virar o formato que 35e
+      // espera (title/passage/minutes/id por dia).
+      setAiStudyDraft({ ...plan, format, scope: null, days: plan.passages.length, publicToBank: false, mode: 'generate', passages: deriveThemeTexts(plan.passages) })
+      goToTab('studyProposalNew')
+      return
+    }
+    const fresh = await generateThemePlan(scope, 'standard', session.lang, days)
+    setAiStudyDraft({ ...fresh, format, publicToBank, mode: 'generate' })
+    goToTab('studyProposalNew')
+  }
+
+  async function handleRefazeAiStudyDraft() {
+    if (!aiStudyDraft?.scope) return
+    const fresh = await generateThemePlan(aiStudyDraft.scope, 'standard', session.lang, aiStudyDraft.days)
+    setAiStudyDraft(prev => ({ ...prev, ...fresh }))
+  }
+
+  async function handleSwapAiStudyDay(index) {
+    if (!aiStudyDraft?.scope) return
+    const others = aiStudyDraft.passages.filter((_, i) => i !== index)
+    const replacement = await regenerateThemePassage(aiStudyDraft.scope, others, 'standard', session.lang)
+    setAiStudyDraft(prev => {
+      const nextPassages = [...prev.passages]
+      // Mantém o MESMO id (dia) do trecho trocado — api/regenerate-theme-
+      // passage.js não sabe qual posição está sendo substituída, então não
+      // devolve um id; sem isso, o progresso desse dia (studies_completed,
+      // studyId:sessionId) ficaria com uma chave quebrada assim que o
+      // estudo virasse ativo.
+      nextPassages[index] = { ...replacement, id: prev.passages[index].id }
+      return { ...prev, passages: nextPassages }
+    })
+  }
+
+  // Publica no banco (migration 0053) — mesmo mecanismo de sempre
+  // (publicStudiesStore.js), só chamado quando o toggle de 35d estava
+  // ligado. Falha aqui não desfaz a cópia pessoal já salva, só loga (mesmo
+  // espírito de publishStudyIfShared acima).
+  async function publishAiStudyIfRequested(draft) {
+    if (!draft.publicToBank) return
+    try {
+      await publishStudy({ title: draft.title, overview: draft.overview ?? null, format: draft.format ?? 'thematic', tags: [], passages: draft.passages, visibility: 'public' })
+    } catch (err) {
+      console.error('Failed to publish AI study to the bank', err)
+    }
+  }
+
+  async function saveAiStudyDraftAsPersonalCopy(draft) {
+    const id = draft.id ?? `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const study = { id, title: draft.title, overview: draft.overview ?? null, scope: draft.scope ?? null, format: draft.format ?? 'thematic', createdAt: draft.createdAt ?? new Date().toISOString(), sessions: draft.passages }
+    const updated = await saveAiStudy(authUser.email, study)
+    return updated.find(s => s.id === id) ?? study
+  }
+
+  async function handleSaveAiStudyForLater() {
+    if (!authUser || !aiStudyDraft) return
+    const saved = await saveAiStudyDraftAsPersonalCopy(aiStudyDraft)
+    await publishAiStudyIfRequested(aiStudyDraft)
+    setAiStudyDraft(null)
+    goToTab('addStudy')
+  }
+
+  async function handleStartAiStudy() {
+    if (!authUser || !aiStudyDraft) return
+    const saved = await saveAiStudyDraftAsPersonalCopy(aiStudyDraft)
+    await publishAiStudyIfRequested(aiStudyDraft)
+    await selectActiveStudy(saved.id, saved.sessions.length)
+    setAiStudyDraft(null)
+    goToTab('routine')
+  }
+
+  // Prévia de um cartão de 35h (Jesus Corner/grupo/banco público/salvos) —
+  // mesma tela de 35e, sem Refazer/trocar dia (sem `scope` pra regenerar
+  // nada) e com "Começar" só. `study.sourceStudyId`/`isPublicBank` (banco
+  // público) alimentam recordStudyUse ao adotar.
+  function handleOpenStudyPreview(study) {
+    setAiStudyDraft({ ...study, mode: 'preview' })
+    goToTab('studyProposalNew')
+  }
+
+  async function handleStartPreviewStudy() {
+    if (!authUser || !aiStudyDraft) return
+    // Reusa o id de origem (Jesus Corner/grupo/salvos) em vez de gerar um
+    // novo — pra "Salvos" isso significa só ativar o que já existia, sem
+    // duplicar; pra Jesus Corner/grupo/banco público, cada conta guarda a
+    // própria cópia em ai_studies (arrays por usuário), então reusar o
+    // mesmo id não colide com o de mais ninguém.
+    const id = aiStudyDraft.sourceStudyId ?? `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const study = { id, title: aiStudyDraft.title, overview: aiStudyDraft.overview ?? null, format: aiStudyDraft.format ?? 'thematic', createdAt: new Date().toISOString(), sessions: aiStudyDraft.sessions }
+    const updated = await saveAiStudy(authUser.email, study)
+    const saved = updated.find(s => s.id === id) ?? study
+    if (aiStudyDraft.fromPublicBank && aiStudyDraft.sourceStudyId) {
+      recordStudyUse(aiStudyDraft.sourceStudyId).catch(err => console.error('Failed to record study use', err))
+    }
+    await selectActiveStudy(saved.id, saved.sessions.length)
+    setAiStudyDraft(null)
+    goToTab('routine')
+  }
+
   // "Enviar para o grupo" (22d) — grava o plano de verdade (RPC
   // send_group_reading_plan já convida todo mundo e já entra o próprio
   // moderador 'accepted', ver migração) e publica a pergunta da 1ª semana
@@ -2296,28 +2413,40 @@ export default function App() {
     // nenhuma, só o cartão "Criar com a IA" lá dentro pede session.hasAI —
     // por isso esta aba só trava por hasPremium (a rotina inteira já é
     // hasPremium), não por hasAI.
+    // Turno 35, Bloco 4 — 35h substitui por inteiro o addStudy antigo.
     addStudy: !hasPremium
       ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
       : <AddStudyScreen
           session={session}
           onBack={goBack}
-          onUseReadyMade={useStudyFromBank}
-          onCreateWithPrompt={text => { setCreateStudyInitialText(text); navigateTo('createStudy') }}
-          onExploreBank={() => navigateTo('studyBank')}
-          onContinueWithoutStudy={goBack}
+          onCreateStudy={() => navigateTo('createAiStudy')}
+          onChangeStudyDays={() => navigateTo('studyOrganize')}
+          onOpenPreview={handleOpenStudyPreview}
         />,
     studyBank: !hasPremium
       ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
       : <StudyBankScreen session={session} onBack={goBack} onUseStudy={useStudyFromBank} />,
-    // Etapa 10 (22a/22b) — "Criar estudo" e a proposta gerada, alcançadas
-    // agora por 26e (AddStudyScreen.jsx) em vez de direto pelo botão
-    // "Criar" (que virou a entrada de 26e — ver addStudy acima).
+    // Etapa 10 (22a/22b) — fluxo ANTIGO (theme_plans/activeAltPlan.theme),
+    // mantido pra quem ainda chega por ThemePlanScreen.jsx. Turno 35,
+    // Bloco 4 não navega mais pra cá — ver createAiStudy/studyProposalNew.
     createStudy: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <CreateStudyScreen session={session} initialText={createStudyInitialText} onBack={goBack} onGenerated={reviewGeneratedStudy} />,
     studyProposal: generatedStudyPlan
       ? <StudyProposalScreen session={session} plan={generatedStudyPlan} onBack={goBack} onRefazer={refazerGeneratedStudy} onSaveForLater={saveStudyForLater} onStart={startGeneratedStudy} />
       : null,
+    // Turno 35, Bloco 4 — 35d/35e (fluxo novo: ai_studies/selectActiveStudy).
+    createAiStudy: !session.hasAI
+      ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
+      : <CreateAiStudyScreen session={session} onBack={goBack} onGeneratePersonal={handleGeneratePersonalStudy} onGeneratedGroup={plan => { setGeneratedGroupPlan(plan); goToTab('groupPlanProposal') }} />,
+    studyProposalNew: !aiStudyDraft
+      ? null
+      : <StudyProposalNewScreen
+          session={session} plan={aiStudyDraft} mode={aiStudyDraft.mode}
+          onBack={goBack} onRefazer={handleRefazeAiStudyDraft} onSwapDay={handleSwapAiStudyDay}
+          onSaveForLater={handleSaveAiStudyForLater}
+          onStart={aiStudyDraft.mode === 'preview' ? handleStartPreviewStudy : handleStartAiStudy}
+        />,
     // Etapa 10 (22d) — proposta e envio de um plano de grupo (só quem
     // modera chega aqui, ver CreateStudyScreen.jsx), e o leitor dele depois
     // de aceito (aberto por "Continuar sessão", ver continueToday).
@@ -2454,7 +2583,7 @@ export default function App() {
   // (nenhum estilo de texto declarava fontFamily, então herdava --font do
   // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
   // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
     || reflectionBento
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
@@ -2463,7 +2592,12 @@ export default function App() {
   // roda fora do chrome do app inteiro (ver .admin-active em index.css).
   // 'contact'/'applicationPhrases'/'inductiveMethod' também saem sozinhas
   // (tela de utilidade cheia, sem rodapé de rotina).
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'addStudy', 'studyBank', 'createStudy', 'studyProposal', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
+  // 35h (addStudy) fica DE FORA desta lista de propósito — HANDOFF-35 pede
+  // barra de abas fixa nessa tela ("é um push dentro da aba Meu Plano"),
+  // diferente de 35d/35e (createAiStudy/studyProposalNew), que têm botão
+  // primário fixo no rodapé no lugar da barra, como o antigo createStudy/
+  // studyProposal já tinham.
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'inductiveMethod', 'chapterRoom', 'monthRecap', 'prayer', 'routineComplete', 'language', 'groupAdmin', 'studyBank', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab) || reflectionBento
   const isAdminScreen = activeTab === 'admin'
 
   return (
