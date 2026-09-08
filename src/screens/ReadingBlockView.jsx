@@ -25,6 +25,7 @@ import { avatarPaletteFor } from './ChapterRoomScreen'
 import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
+import { verseSelectionLabel } from '../bible/verseSelectionLabel'
 import { useIsDesktop } from '../utils/useIsDesktop'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -678,7 +679,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       setHighlightSelection(null)
       setWantsToAnnotate(false)
       setHighlightAnchorRect(rect ?? null)
-      setHighlightPanelOpen(true)
+      // Turno 39, Bloco 3 (39e): reabrir um grifo já salvo agora também
+      // passa pela folha nova na leitura imersiva — antes caía sempre no
+      // popup antigo (highlightPanelOpen), mesmo em 35f/39d, sem essa
+      // ressalva; "segurar um versículo abre 39e" vale pra QUALQUER
+      // versículo, marcado ou não.
+      if (immersive) setSelectionMenuOpen(true)
+      else setHighlightPanelOpen(true)
       return
     }
     setHighlightEditingId(null)
@@ -715,35 +722,41 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     else setHighlightPanelOpen(true)
   }
 
-  // "Marcar"/"Nota" no menu de seleção (10a) — fecham o menu e caem no
-  // MESMO fluxo de grifo/anotação de sempre (highlightPanelOpen), só que
-  // como uma segunda etapa em vez da primeira. "Nota" já entra direto na
-  // etapa de escrever (wantsToAnnotate); "Marcar" para na etapa de cor.
-  function openMarkFromSelectionMenu() {
-    setSelectionMenuOpen(false)
-    setWantsToAnnotate(false)
-    setHighlightPanelOpen(true)
-  }
-  function openNoteFromSelectionMenu() {
-    setSelectionMenuOpen(false)
-    setWantsToAnnotate(true)
-    setHighlightPanelOpen(true)
+  // Turno 39, Bloco 3 (39e): "o versículo em foco" agora vem de duas
+  // fontes possíveis — uma seleção nova, ainda sem grifo (highlightSelection)
+  // ou um grifo já salvo reaberto (highlightEditingId, ver
+  // handleHighlightVerseClick acima). Copiar/Compartilhar/Perguntar
+  // precisam funcionar nos dois casos — antes só liam highlightSelection,
+  // então reabrir um grifo salvo e tocar "Copiar" não copiava nada.
+  function currentVerseTarget() {
+    if (highlightSelection) return { chapter: highlightSelection.chapter, verses: [...highlightSelection.verses].sort((a, b) => a - b) }
+    if (highlightEditingId) {
+      const h = highlights?.find(x => x.id === highlightEditingId)
+      if (h) return { chapter: h.chapter, verses: [...h.verses].sort((a, b) => a - b) }
+    }
+    return null
   }
 
-  // "Copiar" no menu de seleção — busca o texto real dos versículos
-  // selecionados (mesma fonte que o texto na tela, ver fetchBookText) e
-  // copia formatado com a referência, tipo "Gênesis 41:2-3 (NVT) — ...".
-  async function copySelectionFromMenu() {
-    if (!highlightSelection) return
+  // "Copiar" (39e) — busca o texto real dos versículos (mesma fonte que o
+  // texto na tela, ver fetchBookText) e copia formatado com a referência,
+  // tipo "Gênesis 41:2-3 (NVT) — ...". Interino: o formato de verdade (3
+  // opções + pré-visualização + confirmação ~3s) é 39g, Bloco 4.
+  async function fetchVerseTargetText() {
+    const target = currentVerseTarget()
+    if (!target) return null
     const versionId = getSelectedVersionId(lang)
     const bookKey = lang === 'en' ? heroSession.bookEn : heroSession.book
+    const chapters = await fetchBookText(versionId, bookKey)
+    const chapterData = chapters?.[String(target.chapter)]
+    const text = target.verses.map(v => chapterData?.verses?.[String(v)]).filter(Boolean).join(' ')
+    const ref = `${lang === 'en' ? heroSession.bookEn : heroSession.book} ${target.chapter}:${formatVerseRanges(target.verses)}`
+    return text ? { text, ref } : null
+  }
+
+  async function copySelectionFromMenu() {
     try {
-      const chapters = await fetchBookText(versionId, bookKey)
-      const chapterData = chapters?.[String(highlightSelection.chapter)]
-      const sortedVerses = [...highlightSelection.verses].sort((a, b) => a - b)
-      const text = sortedVerses.map(v => chapterData?.verses?.[String(v)]).filter(Boolean).join(' ')
-      const ref = `${lang === 'en' ? heroSession.bookEn : heroSession.book} ${highlightSelection.chapter}:${formatVerseRanges(sortedVerses)}`
-      if (text) await navigator.clipboard?.writeText(`${text} (${ref})`)
+      const found = await fetchVerseTargetText()
+      if (found) await navigator.clipboard?.writeText(`${found.text} (${found.ref})`)
     } catch (err) {
       console.error('Failed to copy selected passage', err)
     } finally {
@@ -753,20 +766,38 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     }
   }
 
-  // "Perguntar" no menu de seleção (10a) — manda a pergunta pro servidor
+  // "Compartilhar" (39e) — interino: texto simples via Web Share API (ou
+  // clipboard, sem ela); a imagem de marca de verdade (PNG 2x, 3
+  // proporções, 4 estilos) é 39i, Bloco 5.
+  async function shareSelection() {
+    try {
+      const found = await fetchVerseTargetText()
+      if (found) {
+        const payload = { title: found.ref, text: `${found.text} (${found.ref})` }
+        if (navigator.share) await navigator.share(payload)
+        else await navigator.clipboard?.writeText(payload.text)
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') console.error('Failed to share selected passage', err)
+    } finally {
+      setSelectionMenuOpen(false)
+      setHighlightSelection(null)
+      setHighlightAnchorRect(null)
+    }
+  }
+
+  // "Perguntar" (39e) — manda a pergunta pro servidor
   // (api/ask-about-passage.js), que decide/verifica a resposta, e abre a
   // folha de resposta (10b) já em estado de carregamento.
-  // Referência (livro/capítulo/versículo inicial e final) do trecho
-  // selecionado — o que vai pro modelo em 10a (sugestões) e 10b (resposta).
+  // Referência (livro/capítulo/versículo inicial e final) do trecho em
+  // foco — o que vai pro modelo tanto pras sugestões quanto pra resposta.
   const selectionRef = (() => {
-    if (!highlightSelection) return null
-    const sortedVerses = [...highlightSelection.verses].sort((a, b) => a - b)
-    return { book: heroSession.book, bookEn: heroSession.bookEn, chapter: highlightSelection.chapter, verseStart: sortedVerses[0], verseEnd: sortedVerses[sortedVerses.length - 1] }
+    const target = currentVerseTarget()
+    if (!target) return null
+    return { book: heroSession.book, bookEn: heroSession.bookEn, chapter: target.chapter, verseStart: target.verses[0], verseEnd: target.verses[target.verses.length - 1] }
   })()
-  // Menu "Perguntar" aberto com IA: o rodapé (player + botões) dá lugar ao
-  // cartão de sugestões (quadro 10a) — ver SelectionAiMenu.
-  const askMenuOpen = selectionMenuOpen && !!highlightAnchorRect && hasAI && getAskEnabled()
-
+  // "Perguntar" (39e) — chamado tanto do estado "asking" da folha nova
+  // (VerseActionsSheet) quanto de uma sugestão pronta tocada ali dentro.
   async function askAboutSelection(question) {
     if (!selectionRef) return
     const ref = selectionRef
@@ -861,6 +892,31 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setWantsToAnnotate(false)
     setHighlightAnchorRect(null)
     setHighlightPanelOpen(false)
+  }
+
+  // Fechos da folha de 39e (VerseActionsSheet) — ela usa selectionMenuOpen
+  // (não highlightPanelOpen, esse é da folha antiga), então precisa dos
+  // seus próprios encerramentos:
+  // - "x" da tarja Marcar texto: remove o grifo se já existe um (a cor foi
+  //   escolhida antes), ou só cancela a seleção se ainda não tinha nenhum
+  //   grifo salvo (nada pra remover ainda).
+  // - toque fora / fechar a folha sem escolher nada: só cancela.
+  function handleSheetRemove() {
+    if (highlightEditingId) removeEditingHighlight()
+    else cancelHighlightCompose()
+    setSelectionMenuOpen(false)
+  }
+  function handleSheetClose() {
+    cancelHighlightCompose()
+    setSelectionMenuOpen(false)
+  }
+  // "Anotar" (39e) — pula pro editor completo de sempre (citação + texto +
+  // etiquetas ainda não existem, isso é 39f, Bloco 4); aqui só troca de
+  // folha: fecha 39e, abre o editor já em wantsToAnnotate.
+  function startAnnotatingFromSheet() {
+    setSelectionMenuOpen(false)
+    setWantsToAnnotate(true)
+    setHighlightPanelOpen(true)
   }
 
   // Tocar num grifo já salvo, dentro da lista da janela flutuante (estado
@@ -1414,21 +1470,27 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         document.body
       )
     )}
-    {/* Menu de seleção da IA (10a, reskin Bento) — só imersivo, ver
-        selectionMenuOpen acima. Ancorado perto da seleção, mesmo espírito
-        de AnchoredHighlightPopup mas com posicionamento próprio (visual
-        bem diferente — menu escuro, não card branco de grifo). */}
-    {selectionMenuOpen && highlightAnchorRect && (
-      <SelectionAiMenu
-        anchorRect={highlightAnchorRect}
+    {/* Folha do versículo selecionado (39e, pacote 39) — só imersivo, ver
+        selectionMenuOpen acima. Sobe sobre a leitura, que fica visível e
+        escurecida atrás; vale igual na leitura do plano (35f) e na livre
+        (39d). */}
+    {selectionMenuOpen && (
+      <VerseActionsSheet
         lang={lang}
         hasAI={hasAI && getAskEnabled()}
+        chLabel={chLabel}
+        heroBook={heroSession.book}
+        heroBookEn={heroSession.bookEn}
+        selection={highlightSelection}
+        editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
         passageRef={selectionRef}
-        onClose={() => { setSelectionMenuOpen(false); setHighlightSelection(null); setHighlightAnchorRect(null) }}
-        onAsk={askAboutSelection}
-        onMark={openMarkFromSelectionMenu}
-        onNote={openNoteFromSelectionMenu}
+        onClose={handleSheetClose}
+        onChooseColor={chooseQuickColor}
+        onRemove={handleSheetRemove}
+        onAnnotate={startAnnotatingFromSheet}
         onCopy={copySelectionFromMenu}
+        onShare={shareSelection}
+        onAsk={askAboutSelection}
       />
     )}
     {/* Resposta da IA sobre o trecho (10b, reskin Bento) — folha cobrindo
@@ -1465,7 +1527,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             .app-content-inner com zoom ligado (texto grande) calcularia a
             posição errada, mesmo problema/solução dos FABs mais abaixo e
             da .bottom-nav. */}
-        {!askMenuOpen && createPortal(
+        {/* Turno 39, Bloco 3: a folha de 39e (VerseActionsSheet) cobre o
+            rodapé inteiro enquanto aberta — esconde igual em qualquer um
+            dos seus dois estados (escolhendo cor/ação, ou perguntando). */}
+        {!selectionMenuOpen && createPortal(
           <div style={styles.readerFooter}>
             {/* Chave da camada do grupo (quadro 17c) — só pra quem está num
                 grupo, e nunca na leitura livre (39d): sem sessão de plano,
@@ -1853,15 +1918,18 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                   // salvo) ganha um contorno tracejado.
                   const existingHighlight = highlightForVerse(ch, v)
                   const isSelected = highlightSelection?.chapter === ch && highlightSelection.verses.has(v)
-                  // Leitura imersiva (quadro 4a): trecho marcado sempre no
-                  // realce Bento (#FFE3C9, raio 4, padding 1px 3px); a cor
-                  // escolhida continua guardada e aparece na Biblioteca.
-                  const highlightStyle = existingHighlight && immersive
-                    ? { background: 'var(--bento-mark)', borderRadius: 4, padding: '1px 3px', ...(existingHighlight.text ? styles.verseAnnotatedUnderline : {}) }
-                    : existingHighlight
+                  // Turno 39, Bloco 3 (39e): a leitura imersiva (quadro 4a)
+                  // mostrava sempre o mesmo realce Bento fixo (#FFE3C9),
+                  // ignorando a cor escolhida — a cor só aparecia na
+                  // Biblioteca. Com quatro cores de verdade pra escolher em
+                  // 39e, isso deixou de fazer sentido: a cor marcada agora
+                  // aparece na hora, nos dois modos (raio só muda por
+                  // fidelidade a cada desenho — 4 no imersivo, 3 fora dele).
+                  const highlightStyle = existingHighlight
                     ? {
                         background: highlightColorBg(existingHighlight.color),
-                        borderRadius: 3,
+                        borderRadius: immersive ? 4 : 3,
+                        padding: immersive ? '1px 3px' : undefined,
                         // Sublinhado leve SÓ quando tem anotação de verdade
                         // escrita (texto não-vazio) — grifo só de cor não
                         // ganha, já que não há "anotação" nenhuma pra indicar.
@@ -2028,149 +2096,149 @@ function ChapterContextScreen({ lang, book, chapter, data, onBegin, onSkip }) {
   )
 }
 
-// Menu de seleção da IA (10a, reskin Bento) — mesma ideia de posicionamento
-// de AnchoredHighlightPopup logo abaixo (âncora perto da seleção, mede o
-// próprio tamanho, sem fundo escuro cobrindo a tela), mas com visual PRÓPRIO
-// (menu escuro + cartão branco de sugestões, nada a ver com o card branco de
-// grifo) — por isso um componente à parte em vez de reusar aquele, que
-// continua servindo só o fluxo de grifo/anotação de sempre. Duas etapas:
-// 'menu' (Perguntar/Marcar/Nota/Copiar) e 'question' (campo de texto), pra
-// quem quer perguntar algo que não está nas 3 sugestões prontas.
-function SelectionAiMenu({ anchorRect, lang, hasAI, passageRef, onClose, onAsk, onMark, onNote, onCopy }) {
-  const [mode, setMode] = useState('menu')
+// Folha do versículo selecionado (39e, pacote 39) — sobe sobre a leitura
+// (que continua visível, escurecida atrás por rgba(26,23,20,.45)), raio
+// 32 no topo, alça 44×5. Substitui o antigo menu pequeno ancorado perto
+// do toque (SelectionAiMenu) + a etapa de cor isolada de HighlightComposer:
+// aqui a cor já é a ação principal (toca e marca na hora, sem uma etapa
+// "Marcar" no meio), e Anotar/Copiar/Compartilhar/Perguntar viram
+// cartões nesta mesma folha. "Vale igual na leitura do plano (35f) e na
+// livre (39d)" (HANDOFF) — mesmo componente nos dois, já que os dois são
+// `immersive` agora (ver Bloco 2, freeReading).
+//
+// Duas fontes possíveis pro versículo em foco: uma seleção nova, ainda
+// sem grifo (`selection`) ou um grifo já salvo reaberto
+// (`editingHighlight`) — nunca as duas ao mesmo tempo (ver
+// handleHighlightVerseClick/handleHighlightTextRange no componente
+// principal). "Perguntar" tem um segundo estado interno (`asking`): a
+// folha troca o conteúdo pro campo de pergunta + sugestões, sem abrir
+// uma tela nova — o desenho de 39j (perguntas prontas geradas, resposta
+// com referências cruzadas) é o Bloco 5; até lá, este é o jeito real de
+// perguntar sobre o trecho a partir daqui.
+function VerseActionsSheet({
+  lang, hasAI, chLabel, heroBook, heroBookEn, selection, editingHighlight,
+  passageRef, onClose, onChooseColor, onRemove, onAnnotate, onCopy, onShare, onAsk,
+}) {
+  const [asking, setAsking] = useState(false)
   const [question, setQuestion] = useState('')
-  const popupRef = useRef(null)
-  const suggestRef = useRef(null)
-  const [pos, setPos] = useState(null)
-  const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
-
-  // Sugestões geradas pro trecho (ver api/suggest-passage-questions.js).
-  // null = ainda carregando (o cartão não aparece); em falha/offline caem
-  // as três sugestões fixas — nunca um erro visível.
   const [suggestions, setSuggestions] = useState(null)
+  const L = (k, vars) => t(`reading.${k}`, vars, lang)
+  const LA = (k, vars) => t(`aiPassage.${k}`, vars, lang)
+
+  const chapter = editingHighlight?.chapter ?? selection?.chapter
+  const verses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
+  const currentColor = editingHighlight?.color ?? null
+
+  // Sugestões geradas pro trecho (ver api/suggest-passage-questions.js) —
+  // só busca quando a pessoa de fato abre "Perguntar" (asking), não a
+  // cada seleção nova: economiza uma chamada que a maioria das seleções
+  // nunca chega a usar.
   const refKey = passageRef ? `${passageRef.book}:${passageRef.chapter}:${passageRef.verseStart}-${passageRef.verseEnd}` : null
   useEffect(() => {
-    if (!hasAI || !passageRef) return
+    if (!asking || !hasAI || !passageRef) return
     let cancelled = false
     setSuggestions(null)
-    const fallback = [L('suggestion1'), L('suggestion2'), L('suggestion3')]
+    const fallback = [LA('suggestion1'), LA('suggestion2'), LA('suggestion3')]
     if (typeof navigator !== 'undefined' && navigator.onLine === false) { setSuggestions(fallback); return }
     fetchPassageSuggestions({ ...passageRef, lang })
       .then(list => { if (!cancelled) setSuggestions(list.length === 3 ? list : fallback) })
       .catch(() => { if (!cancelled) setSuggestions(fallback) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refKey, hasAI, lang])
+  }, [asking, refKey, hasAI, lang])
 
-  useLayoutEffect(() => {
-    const el = popupRef.current
-    if (!el || !anchorRect) return
-    function reposition() {
-      const vv = window.visualViewport
-      const vw = vv?.width ?? window.innerWidth
-      const vh = vv?.height ?? window.innerHeight
-      const vLeft = vv?.offsetLeft ?? 0
-      const vTop = vv?.offsetTop ?? 0
-      const rect = el.getBoundingClientRect()
-      const margin = 10
-      // O cartão de sugestões ocupa o rodapé (quadro 10a): o menu nunca
-      // entra nessa faixa — se não cabe abaixo da seleção, sobe pra cima dela.
-      const reserved = suggestRef.current ? suggestRef.current.getBoundingClientRect().height : 0
-      const bottomLimit = vTop + vh - Math.max(margin, reserved + 8)
-      let left = anchorRect.left + (anchorRect.width - rect.width) / 2
-      left = Math.min(Math.max(left, vLeft + margin), vLeft + vw - rect.width - margin)
-      let top = anchorRect.bottom + 8
-      if (top + rect.height > bottomLimit) top = anchorRect.top - rect.height - 8
-      top = Math.min(Math.max(top, vTop + margin), bottomLimit - rect.height)
-      setPos({ top, left })
-    }
-    reposition()
-    window.visualViewport?.addEventListener('resize', reposition)
-    window.addEventListener('resize', reposition)
-    return () => {
-      window.visualViewport?.removeEventListener('resize', reposition)
-      window.removeEventListener('resize', reposition)
-    }
-  }, [anchorRect, mode, suggestions])
+  if (verses.length === 0) return null
 
-  useEffect(() => {
-    function handleOutsideClick(e) {
-      if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) return
-      if (suggestRef.current && e.target instanceof Node && suggestRef.current.contains(e.target)) return
-      if (e.target instanceof Element && e.target.closest('[data-verse]')) return
-      onClose()
-    }
-    document.addEventListener('click', handleOutsideClick, true)
-    return () => document.removeEventListener('click', handleOutsideClick, true)
-  }, [onClose])
-
-  function submitQuestion() {
-    const clean = question.trim()
+  function submitQuestion(q) {
+    const clean = q.trim()
     if (!clean) return
     onAsk(clean)
   }
 
-  const menu = createPortal(
-    <div
-      ref={popupRef}
-      style={{ ...styles.selectionMenuWrap, ...(pos ? { top: pos.top, left: pos.left, visibility: 'visible' } : { top: -9999, left: -9999, visibility: 'hidden' }) }}
-      onClick={e => e.stopPropagation()}
-    >
-      {mode === 'menu' ? (
-        <div style={styles.selectionMenuBar}>
-          {hasAI && (
-            <button style={styles.selectionMenuBtn} onClick={() => setMode('question')}>
-              <span style={styles.selectionMenuDiamondWrap}><span style={styles.selectionMenuDiamond} /></span>
-              <span style={{ ...styles.selectionMenuBtnLabel, color: 'var(--bento-ink)' }}>{L('ask')}</span>
-            </button>
-          )}
-          <button style={styles.selectionMenuBtnGhost} onClick={onMark}>
-            <span style={styles.selectionMenuSwatch} />
-            <span style={styles.selectionMenuBtnGhostLabel}>{L('mark')}</span>
-          </button>
-          <button style={styles.selectionMenuBtnGhost} onClick={onNote}>
-            <AppIcon name="StickyNote" size={15} strokeWidth={1.9} color="rgba(255,255,255,.72)" />
-            <span style={styles.selectionMenuBtnGhostLabel}>{L('note')}</span>
-          </button>
-          <button style={styles.selectionMenuBtnGhost} onClick={onCopy}>
-            <AppIcon name="Copy" size={15} strokeWidth={1.9} color="rgba(255,255,255,.72)" />
-            <span style={styles.selectionMenuBtnGhostLabel}>{L('copy')}</span>
-          </button>
-        </div>
-      ) : (
-        <div style={styles.selectionQuestionBar}>
-          <input
-            autoFocus type="text" style={styles.selectionQuestionInput} value={question}
-            onChange={e => setQuestion(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') submitQuestion() }}
-            placeholder={L('questionPlaceholder')} maxLength={300}
-          />
-          <button style={styles.selectionQuestionSend} onClick={submitQuestion} disabled={!question.trim()} aria-label={L('ask')}>
-            <AppIcon name="ArrowUp" size={15} color="var(--bento-ink)" />
-          </button>
-        </div>
-      )}
-    </div>,
-    document.body,
-  )
+  const refText = `${lang === 'en' ? heroBookEn : heroBook} ${chapter}:${formatVerseRanges(verses)}`
 
-  // Cartão de sugestões — fixo no rodapé da tela, no lugar do player e dos
-  // botões (quadro 10a), não colado ao menu.
-  const suggestCard = hasAI && suggestions && createPortal(
-    <div ref={suggestRef} style={styles.selectionSuggestFooter} onClick={e => e.stopPropagation()}>
-      <div style={styles.selectionSuggestCard}>
-        <p style={styles.selectionSuggestLabel}>{L('suggestLabel')}</p>
-        <div style={styles.selectionSuggestRow}>
-          {suggestions.map((s, i) => (
-            <button key={i} style={styles.selectionSuggestChip} onClick={() => onAsk(s)}>{s}</button>
-          ))}
-        </div>
+  return createPortal(
+    <div style={styles.verseSheetBackdrop} onClick={onClose}>
+      <div style={styles.verseSheet} onClick={e => e.stopPropagation()}>
+        <div style={styles.verseSheetHandleWrap}><div style={styles.verseSheetHandle} /></div>
+        {asking ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <button type="button" style={styles.verseSheetBack} onClick={() => setAsking(false)}>
+              <AppIcon name="ChevronLeft" size={15} strokeWidth={2.2} color="var(--bento-t3)" />
+              <span>{refText}</span>
+            </button>
+            {hasAI && suggestions && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {suggestions.map((s, i) => (
+                  <button key={i} type="button" style={styles.verseSheetSuggestChip} onClick={() => submitQuestion(s)}>{s}</button>
+                ))}
+              </div>
+            )}
+            <div style={styles.verseSheetAskRow}>
+              <input
+                autoFocus type="text" style={styles.verseSheetAskInput} value={question}
+                onChange={e => setQuestion(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') submitQuestion(question) }}
+                placeholder={LA('questionPlaceholder')} maxLength={300}
+              />
+              <button style={styles.verseSheetAskSend} onClick={() => submitQuestion(question)} disabled={!question.trim()} aria-label={L('verseAskSend')}>
+                <AppIcon name="ArrowUp" size={15} color="#fff" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p style={styles.verseSheetTitle}>{refText}</p>
+            <p style={styles.verseSheetSub}>{verseSelectionLabel(verses.length, lang)}</p>
+
+            <p style={styles.verseSheetMarkLabel}>{L('verseMarkLabel')}</p>
+            <div style={styles.verseSheetColorRow}>
+              {HIGHLIGHT_COLORS.map((c, i) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  style={{ ...styles.verseSheetColorSwatch, background: c.swatch, ...(currentColor === c.id ? styles.verseSheetColorSwatchActive : {}) }}
+                  onClick={() => onChooseColor(c.id)}
+                  aria-label={L('verseColorPosition', { n: i + 1 })}
+                  aria-pressed={currentColor === c.id}
+                />
+              ))}
+              <button type="button" style={styles.verseSheetColorRemove} onClick={onRemove} aria-label={L('verseColorRemove')}>
+                <AppIcon name="X" size={16} color="var(--bento-t2)" />
+              </button>
+            </div>
+
+            <div style={styles.verseSheetActionsGrid}>
+              <button type="button" style={styles.verseSheetActionCard} onClick={onAnnotate}>
+                <AppIcon name="Bookmark" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
+                <span>{L('verseAnnotate')}</span>
+              </button>
+              <button type="button" style={styles.verseSheetActionCard} onClick={onCopy}>
+                <AppIcon name="Copy" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
+                <span>{L('verseCopy')}</span>
+              </button>
+            </div>
+            <button type="button" style={styles.verseSheetActionCardWide} onClick={onShare}>
+              <AppIcon name="Upload" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
+              <span>{L('verseShare')}</span>
+            </button>
+
+            {hasAI && (
+              <button type="button" style={styles.verseSheetAskCard} onClick={() => setAsking(true)}>
+                <span style={styles.verseSheetAskDiamondWrap}><span style={styles.verseSheetAskDiamond} /></span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={styles.verseSheetAskTitle}>{L('verseAskTitle')}</span>
+                  <span style={styles.verseSheetAskSub}>{L('verseAskSub')}</span>
+                </span>
+                <AppIcon name="ArrowRight" size={16} color="var(--bento-accent)" />
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>,
     document.body,
   )
-
-  return <>{menu}{suggestCard}</>
 }
 
 // Popup pequeno, ancorado perto de onde a pessoa tocou o versículo (ou
@@ -3319,10 +3387,10 @@ const styles = {
 
   verseTapTarget:  { cursor: 'pointer' },
   verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
-  // Variante Bento (10a) — trecho selecionado enquanto o menu de seleção
-  // está aberto na leitura imersiva; visualmente distinto de um grifo já
-  // salvo (--bento-mark), que é permanente.
-  verseSelectedBento: { background: 'var(--bento-select)', borderRadius: 4, outline: '1.5px solid var(--bento-select-border)' },
+  // Trecho em foco enquanto a folha de 39e está aberta — hex exatos do
+  // HANDOFF (39e: "realce #FFE3C9 mais um contorno laranja de 2px"),
+  // trocou o azul antigo (--bento-select) no Bloco 3.
+  verseSelectedBento: { background: '#FFE3C9', borderRadius: 4, outline: '2px solid var(--bento-accent)' },
   verseAnnotatedUnderline: { textDecorationLine: 'underline', textDecorationColor: 'rgba(0,0,0,.38)', textDecorationThickness: 1.5, textUnderlineOffset: 3 },
   highlightBoxLabel:{ fontSize: 10.5, fontWeight: 700, color: 'var(--bento-accent)', display: 'flex', alignItems: 'center' },
   highlightDeleteBtn:{ width: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEE2E2', border: '0.5px solid rgba(220,38,38,.25)', borderRadius: 11, color: '#DC2626', cursor: 'pointer' },
@@ -3420,30 +3488,49 @@ const styles = {
   highlightPopup: { position: 'fixed', zIndex: 201, width: 252, maxWidth: 'calc(100vw - 20px)', maxHeight: '46vh', overflowY: 'auto', background: '#fff', borderRadius: 16, padding: '14px 14px 12px' },
   highlightPopupClose: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 
-  // ── Menu de seleção da IA (10a, reskin Bento) ──
-  selectionMenuWrap: { position: 'fixed', zIndex: 201, width: 322, maxWidth: 'calc(100vw - 20px)', display: 'flex', flexDirection: 'column', gap: 8 },
-  selectionMenuBar: { display: 'flex', gap: 4, background: 'var(--bento-ink)', borderRadius: 20, padding: 8 },
-  selectionMenuBtn: { flex: 1, height: 56, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer' },
-  selectionMenuBtnGhost: { flex: 1, height: 56, borderRadius: 14, border: 'none', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' },
-  selectionMenuDiamondWrap: { display: 'flex' },
-  selectionMenuDiamond: { width: 11, height: 11, background: 'var(--bento-ink)', transform: 'rotate(45deg)', borderRadius: 2 },
-  selectionMenuSwatch: { width: 14, height: 9, borderRadius: 2, background: 'var(--bento-mark)' },
-  selectionMenuBtnLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
-  selectionMenuBtnGhostLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.72)' },
-  selectionQuestionBar: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-ink)', borderRadius: 18, padding: '6px 6px 6px 16px' },
-  selectionQuestionInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'white', padding: '10px 0' },
-  selectionQuestionSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  // Mesma geometria do readerFooter (que ele substitui enquanto o menu
-  // está aberto): fixo no rodapé, padding 12px 20px 20px do quadro.
-  selectionSuggestFooter: {
-    position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-    width: '100%', maxWidth: 'min(var(--max-width), 560px)', zIndex: 200,
-    padding: '12px 20px calc(20px + var(--safe-bottom))', background: 'var(--bento-bg)',
+  // ── Folha do versículo selecionado (39e, pacote 39) ──
+  // Hex exatos do HANDOFF: escurecido rgba(26,23,20,.45), alça #D6CFC7,
+  // raio 32 no topo. zIndex acima do rodapé (90) e do FAB de IA, abaixo
+  // da folha de resposta (10b/passageSheet*, que pode abrir por cima).
+  verseSheetBackdrop: { position: 'fixed', inset: 0, zIndex: 201, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
+  verseSheet: { width: '100%', maxWidth: 'var(--max-width)', background: 'var(--bento-bg)', borderRadius: '32px 32px 0 0', padding: '0 20px calc(20px + var(--safe-bottom))', maxHeight: '80vh', overflowY: 'auto' },
+  verseSheetHandleWrap: { display: 'flex', justifyContent: 'center', padding: '14px 0 6px' },
+  verseSheetHandle: { width: 44, height: 5, borderRadius: 99, background: '#D6CFC7' },
+  verseSheetTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)', margin: '4px 0 2px' },
+  verseSheetSub: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 18px' },
+  verseSheetMarkLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
+  // Cores sem nome nenhum no rótulo — só a12y por posição (verseColorPosition).
+  verseSheetColorRow: { display: 'flex', gap: 8, marginBottom: 18 },
+  verseSheetColorSwatch: { flex: 1, height: 46, borderRadius: 14, border: 'none', cursor: 'pointer', padding: 0 },
+  verseSheetColorSwatchActive: { outline: '2px solid var(--bento-ink)', outlineOffset: -2 },
+  verseSheetColorRemove: { width: 46, height: 46, flexShrink: 0, borderRadius: 14, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  verseSheetActionsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 },
+  verseSheetActionCard: {
+    display: 'flex', alignItems: 'center', gap: 10, height: 58, borderRadius: 18, border: 'none', background: '#fff',
+    padding: '0 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)',
   },
-  selectionSuggestCard: { background: 'var(--bento-card)', borderRadius: 22, padding: '16px 18px' },
-  selectionSuggestLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
-  selectionSuggestRow: { display: 'flex', flexWrap: 'wrap', gap: 7 },
-  selectionSuggestChip: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1, color: 'var(--bento-ink)', background: 'var(--bento-line)', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
+  verseSheetActionCardWide: {
+    display: 'flex', alignItems: 'center', gap: 10, width: '100%', height: 58, borderRadius: 18, border: 'none', background: '#fff',
+    padding: '0 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 14,
+  },
+  // "Perguntar sobre este versículo" — o único item colorido da folha.
+  verseSheetAskCard: {
+    display: 'flex', alignItems: 'center', gap: 12, width: '100%', borderRadius: 20, border: 'none', background: 'var(--bento-ink)',
+    padding: '16px 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left',
+  },
+  verseSheetAskDiamondWrap: { display: 'flex', flexShrink: 0 },
+  verseSheetAskDiamond: { width: 11, height: 11, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
+  verseSheetAskTitle: { display: 'block', fontSize: 14.5, fontWeight: 800, color: '#fff', marginBottom: 3 },
+  verseSheetAskSub: { display: 'block', fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.6)' },
+  // Estado "asking" (interino pro que 39j vira no Bloco 5).
+  verseSheetBack: {
+    display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', padding: '4px 0', cursor: 'pointer',
+    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t3)', alignSelf: 'flex-start',
+  },
+  verseSheetSuggestChip: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: 'var(--bento-ink)', background: 'var(--bento-card)', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
+  verseSheetAskRow: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-card)', borderRadius: 18, padding: '6px 6px 6px 16px', marginBottom: 4 },
+  verseSheetAskInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-ink)', padding: '10px 0' },
+  verseSheetAskSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 
   // ── Folha de resposta da IA (10b, reskin Bento) ──
   // Mesma camada da folha de chat, mas SEM escurecer a leitura atrás — no

@@ -1,13 +1,22 @@
-// Cores disponíveis pra grifar um trecho — pelo menos 4, cada uma com um
-// tom sólido (o círculo do seletor) e uma versão translúcida (o fundo por
-// trás do texto marcado, ver styles.verseHighlighted em ReadingBlockView.jsx).
-// labelKey aponta pra uma chave de tradução (reading.color*) usada só como
-// aria-label dos círculos — a cor em si já é a informação principal.
+// Cores disponíveis pra grifar um trecho — pacote 39 (39e, "Marcar
+// texto") trocou a paleta viva de antes pelos quatro tons exatos do
+// quadro, sólidos (não translúcidos: o fundo atrás do texto marcado É a
+// própria cor, ver styles.verseHighlighted em ReadingBlockView.jsx) e
+// SEM nome nem significado atribuído pelo app — a folha de 39e nunca
+// rotula os quatro retângulos, "quem marca sabe por quê" (HANDOFF-39).
+// `id` continua o mesmo de antes (yellow/green/blue/pink) só como CHAVE
+// de armazenamento estável — marcações já salvas com esses ids não
+// precisam de migração nenhuma, só passam a aparecer no tom novo; o
+// nome em si não tem mais peso semântico nenhum (por isso os ids não
+// foram renomeados pra c1/c2/c3/c4: trocar a chave também exigiria
+// migrar toda marcação já salva, sem ganho nenhum). `labelKey` sobrevive
+// só pro filtro por cor da Biblioteca (NotesScreen.jsx, fora deste
+// pacote) — não é usado em lugar nenhum da leitura/39e.
 export const HIGHLIGHT_COLORS = [
-  { id: 'yellow', labelKey: 'reading.colorYellow', swatch: '#F5C518', bg: 'rgba(245,197,24,.35)' },
-  { id: 'green',  labelKey: 'reading.colorGreen',  swatch: '#4ADE80', bg: 'rgba(74,222,128,.32)' },
-  { id: 'blue',   labelKey: 'reading.colorBlue',   swatch: '#60A5FA', bg: 'rgba(96,165,250,.32)' },
-  { id: 'pink',   labelKey: 'reading.colorPink',   swatch: '#F472B6', bg: 'rgba(244,114,182,.32)' },
+  { id: 'yellow', labelKey: 'reading.colorYellow', swatch: '#FFE3C9', bg: '#FFE3C9' },
+  { id: 'green',  labelKey: 'reading.colorGreen',  swatch: '#FBEFC2', bg: '#FBEFC2' },
+  { id: 'blue',   labelKey: 'reading.colorBlue',   swatch: '#D8E6D2', bg: '#D8E6D2' },
+  { id: 'pink',   labelKey: 'reading.colorPink',   swatch: '#CFDCE4', bg: '#CFDCE4' },
 ]
 
 export const DEFAULT_HIGHLIGHT_COLOR = 'yellow'
