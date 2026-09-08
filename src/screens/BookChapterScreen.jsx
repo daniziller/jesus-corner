@@ -13,9 +13,14 @@
 // "Você está em Gênesis 41" mostra em 39a; não existe por conta própria
 // aqui, Meu Plano continua sendo quem decide.
 //
-// Interino: tocar num capítulo ainda abre a leitura EMBUTIDA abaixo da
-// grade (mecanismo antigo) — 39d como tela própria (navegação real,
-// segundo o mapa do handoff) é o Bloco 2 desta leva.
+// Bloco 2 (39d): tocar um capítulo agora troca a tela inteira pela
+// leitura livre de verdade (ReadingBlockView mode="browse", NÃO embutida
+// — vira imersiva sozinha, ver `freeReading` em ReadingBlockView.jsx),
+// no lugar da leitura embutida abaixo da grade que existia até aqui.
+// Mesmo padrão que JourneyScreen.jsx já usa pra leitura guiada: o próprio
+// componente troca o que retorna, sem precisar de uma rota nova em
+// App.jsx. "Voltar" (onBack do ReadingBlockView) fecha só o capítulo,
+// volta pra grade — não sai do livro.
 import { useState, useRef, useEffect } from 'react'
 import { computeBookChapterCounts } from '../utils/progress'
 import { getAllChapterReadRows } from '../bible/chapterReadLog'
@@ -102,11 +107,13 @@ export default function BookChapterScreen({
     })
   }
 
-  const openEntry = openSessionId ? bookSessions.find(s => s.id === openSessionId) : null
-  const expandRef = useRef(null)
-  useEffect(() => {
-    if (openSessionId && expandRef.current) expandRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [openSessionId])
+  // Só abre a leitura de tela cheia quando openTextOpen é verdadeiro —
+  // chegar aqui vindo de 39b (expandBook com textOpen=false) mostra a
+  // grade normalmente, mesmo com um openSessionId "de partida" (o próximo
+  // capítulo não lido, só pra eventual uso futuro); tocar um número
+  // (openChapter) ou vir de "lidos recentemente" (initialTextOpen) é que
+  // realmente abre 39d.
+  const openEntry = openTextOpen && openSessionId ? bookSessions.find(s => s.id === openSessionId) : null
 
   // Segurar ~450ms com haptic — pointer events cobrem mouse e toque num
   // gesto só. Um toque curto (solta antes do tempo) segue pro onClick
@@ -128,6 +135,32 @@ export default function BookChapterScreen({
   function handleChapterClick(ch) {
     if (heldRef.current) { heldRef.current = false; return }
     openChapter(ch)
+  }
+
+  // 39d: capítulo aberto de verdade troca a tela inteira pela leitura
+  // livre (mesmo padrão de JourneyScreen.jsx pra leitura guiada — ver
+  // comentário no topo do arquivo). onBack fecha só o capítulo, não o
+  // livro: volta pra 39c com a mesma grade.
+  if (openEntry) {
+    return (
+      <ReadingBlockView
+        key={`${block.id}:${bookName}:${openSessionId}`}
+        mode="browse"
+        session={session}
+        authUser={authUser}
+        onNavigate={onNavigate}
+        blockId={block.id}
+        blocks={[block]}
+        sessionsByBlock={{ [block.id]: bookSessions }}
+        completedSet={completedSet}
+        onToggleSession={onToggleSession}
+        onToggleChapter={onToggleChapter}
+        initialSessionId={openSessionId}
+        initialTextOpen
+        onBack={() => { setOpenSessionId(null); setOpenTextOpen(false) }}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
+      />
+    )
   }
 
   return (
@@ -216,28 +249,6 @@ export default function BookChapterScreen({
           </span>
           <span style={s.startPlanChevron}>›</span>
         </button>
-
-        {openEntry && (
-          <div ref={expandRef} style={s.expandWrap}>
-            <ReadingBlockView
-              key={`${block.id}:${bookName}:${openSessionId}:${openTextOpen}`}
-              embedded
-              mode="browse"
-              session={session}
-              authUser={authUser}
-              onNavigate={onNavigate}
-              blockId={block.id}
-              blocks={[block]}
-              sessionsByBlock={{ [block.id]: bookSessions }}
-              completedSet={completedSet}
-              onToggleSession={onToggleSession}
-              onToggleChapter={onToggleChapter}
-              initialSessionId={openSessionId}
-              initialTextOpen={openTextOpen}
-              onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
-            />
-          </div>
-        )}
       </div>
     </div>
   )
@@ -281,13 +292,4 @@ const s = {
   startPlanTitle: { display: 'block', fontSize: 14, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', marginBottom: 3 },
   startPlanSub: { display: 'block', fontSize: 12, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)' },
   startPlanChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)' },
-
-  // flexShrink: 0 é o ponto central do bug corrigido aqui: sem isso, o
-  // navegador dá a este item (dentro da coluna flex rolável `body` acima)
-  // um tamanho mínimo automático de 0 — regra do próprio CSS pra qualquer
-  // item de flex com overflow diferente de "visible" — e como `body` fica
-  // menor que a soma dos filhos, TODO o encolhimento cai neste item.
-  // Resultado: o capítulo abria de verdade (texto no DOM incluso) mas com
-  // 0px de altura — some sem erro nenhum no console.
-  expandWrap: { background: 'var(--bento-line)', borderRadius: 16, overflow: 'hidden', flexShrink: 0 },
 }
