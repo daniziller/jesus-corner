@@ -159,9 +159,14 @@ export function computeCompletedBooks(completedSet, sessionsByBlock) {
 }
 
 // Métricas de progresso que NÃO dependem de tempo/minutos: capítulos lidos,
-// livros e blocos completos, e um total de XP (10 por capítulo, +100 por
-// livro concluído, +500 por bloco concluído) que alimenta o sistema de
-// níveis (ver src/utils/levels.js).
+// livros e blocos completos — usado em Métricas e na Home. Calculava
+// também um total de XP que alimentava um sistema de níveis; o campo saiu
+// daqui na varredura de identidade (handoff-app-completo/specs/
+// LEGADO-fluxo-do-app.md §11: "streak/XP/nível — apagados, a métrica é
+// semanas na meta") — não sobrou nenhum consumidor real (o comentário
+// antigo já dizia isso; agora o cálculo em si também saiu, junto com
+// src/utils/levels.js e o tipo de atividade "subiu de nível" do feed de
+// amigos, ver ActivityFeedItem.jsx).
 export function computeGamificationStats(completedSet, sessionsByBlock, blocks) {
   const bookChapterCounts = computeBookChapterCounts(sessionsByBlock)
   const bookNames = Object.keys(bookChapterCounts)
@@ -180,9 +185,8 @@ export function computeGamificationStats(completedSet, sessionsByBlock, blocks) 
 
   const blocksCompleted = blocks.filter(b => b.status === 'done').length
   const totalChapters = bookNames.reduce((s, b) => s + bookChapterCounts[b], 0)
-  const xp = chaptersRead * 10 + booksCompleted * 100 + blocksCompleted * 500
 
-  return { chaptersRead, totalChapters, booksCompleted, totalBooks: bookNames.length, blocksCompleted, xp }
+  return { chaptersRead, totalChapters, booksCompleted, totalBooks: bookNames.length, blocksCompleted }
 }
 
 // Nome de um livro no idioma pedido, a partir da chave em português (mesma

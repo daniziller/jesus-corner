@@ -6,13 +6,19 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { bookNameFor } from '../utils/progress'
 import { formatRelativeTime } from '../utils/time'
-import { LEVELS } from '../utils/levels'
 import { STAT_THEMES } from '../utils/statThemes'
 
-const TYPE_ICON = { book_completed: 'BookMarked', level_up: 'Award', joined_group: 'Users' }
+// "level_up" existiu aqui (feed de amigos mostrando "fulano subiu de
+// nível") — removido na varredura de identidade (handoff-app-completo,
+// specs/LEGADO-fluxo-do-app.md §11: "cartões de nível/XP — apagados").
+// Nada grava esse tipo de atividade desde então (confirmado: só
+// 'book_completed' e 'joined_group' são logados, ver activityStore.js/
+// App.jsx/GroupsScreen.jsx) — uma linha antiga com esse tipo, se ainda
+// existir no banco, cai no fallback de tema/ícone abaixo e mostra texto
+// vazio, sem quebrar.
+const TYPE_ICON = { book_completed: 'BookMarked', joined_group: 'Users' }
 const TYPE_THEME = {
   book_completed: STAT_THEMES.orange,
-  level_up:       STAT_THEMES.purple,
   joined_group:   STAT_THEMES.green,
 }
 
@@ -21,11 +27,6 @@ function activityText(activity, lang) {
   if (activity.type === 'book_completed') {
     const book = bookNameFor(activity.payload.book, lang)
     return t('activity.bookCompleted', { name, book }, lang)
-  }
-  if (activity.type === 'level_up') {
-    const levelDef = LEVELS.find(l => l.level === activity.payload.level)
-    const title = levelDef ? (levelDef.title[lang] ?? levelDef.title.pt) : ''
-    return t('activity.levelUp', { name, level: activity.payload.level, title }, lang)
   }
   if (activity.type === 'joined_group') {
     return t('activity.joinedGroup', { name, groupName: activity.payload.groupName ?? '' }, lang)

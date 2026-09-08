@@ -17,75 +17,26 @@
 }
 
 :root {
-  /* Cores principais — --or parte da cor da própria logo (o marrom-
-     queimado de fundo do ícone, --brand-deep) em vez de um laranja vivo
-     solto; todo o resto da paleta (gradiente, tint claro, orbs) deriva
-     dela, então a marca é sempre o ponto de partida da coloração. */
-  --or: #9D4300;
-  --olt: #F5E9DE;
-  --bk: #121212;
+  /* Paleta antiga (Figma pré-Bento: --or/--bk/--brand-deep/--g1-g6/--gold/
+     --grad-primary e companhia, --font/--font-display) removida na varredura de
+     identidade (handoff-app-completo, specs/LEGADO-fluxo-do-app.md §11) —
+     a última tela que ainda usava esses tokens (o painel do admin,
+     .btn-primary/.btn-secondary abaixo) migrou pra identidade Bento
+     também, a pedido dela ("atualize o painel do admin"). --header-bg e
+     --re sobrevivem porque ainda têm consumidor de verdade (AppHeader.jsx
+     e o ponto de pendência da barra, respectivamente) e não são, em si,
+     identidade antiga — só nomes curtos herdados. */
   --white: #FFFFFF;
-
-  /* Marca — mesmo valor de --or (a cor da logo é a cor principal agora);
-     mantido como token à parte porque várias telas se referem a ele
-     explicitamente pro wordmark/avatar do header. */
-  --brand-deep: #9D4300;
-  /* Fundo escuro dos heroes (Home/Journey/ReadingBlockView/Auth/idioma) —
-     um tom mais suave que --bk, repetido igual em todos eles. */
-  --bk-hero: #141414;
-  /* Fundo translúcido do header (Figma: rgba(252,249,248,.8) + blur 12px) */
+  /* Fundo translúcido do header (AppHeader.jsx, telas ainda não migradas
+     pra Bento). */
   --header-bg: rgba(252, 249, 248, 0.8);
-
-  /* Escala de cinzas */
-  --g1: #F5F5F5;
-  --g2: #E5E5E5;
-  --g3: #D4D4D4;
-  --g4: #A3A3A3;
-  --g5: #737373;
-  --g6: #404040;
-
-  /* Semânticas */
-  --gr: #16A34A;
+  /* Ponto de pendência (pedido de amizade/convite) na barra de abas. */
   --re: #DC2626;
-  --rel: #FFF1F2;
 
-  /* Tipografia — dupla do Figma: Plus Jakarta Sans nos títulos/números
-     de destaque (--font-display), Be Vietnam Pro no corpo/labels
-     (--font, o padrão herdado pelo body). */
-  --font: 'Be Vietnam Pro', sans-serif;
-  --font-display: 'Plus Jakarta Sans', sans-serif;
-
-  /* Acento dourado/âmbar — detalhes premium (bordas, progressos, destaques) */
-  --gold: #C99A4A;
-  --gold-soft: rgba(201,154,74,.35);
-
-  /* Orbs de fundo dos heros escuros (Home/Journey/ReadingBlockView) —
-     tom âmbar/cobre quente, alinhado ao marrom da logo (--or). */
-  --hero-orb-a: #9D4300;
-  --hero-orb-b: #C2790F;
-
-  /* --grad-primary é o ÚNICO sinal de "toque aqui" do app — todo botão/CTA/
-     estado ativo usa ele, sempre, pra não ter dois "laranjas de ação"
-     competindo pela atenção (bom pra conversão). Os 3 stops derivam de
-     --or/--brand-deep (mesma cor da logo) — mais claro, o tom base, mais
-     escuro — em vez do laranja vivo antigo, sem relação com a marca.
-     --grad-vivid/--grad-premium (mesmo valor, dois nomes históricos) ficam
-     reservados pra superfícies de destaque que NÃO são botão: heroes, anel
-     de progresso, badges de conquista/status, e o paywall (Upgrade) — já
-     partiam de --brand-deep, então não mudam. */
-  --grad-primary: linear-gradient(135deg, #B5651D 0%, #9D4300 55%, #7A2E00 100%);
-  --grad-vivid: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
-  --grad-premium: linear-gradient(135deg, #9D4300 0%, #B5005D 100%);
-
-  /* Sombras */
-  --shadow-glow: 0 10px 28px rgba(157, 67, 0, .35);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, .03);
+  /* Sombra do botão do painel do admin — única superfície do app com
+     sombra permitida (LEGADO §11: "a única sombra permitida é no painel
+     admin"). */
   --shadow-premium: 0 3px 10px rgba(0,0,0,.08), 0 20px 44px rgba(0,0,0,.14);
-
-  /* Cards de conteúdo — fundo bege claro + borda visível, no lugar do
-     branco + sombra sutil original, coerente com o design system do Figma. */
-  --card-bg: #F6F3F2;
-  --card-border: 1px solid #E5E2E1;
 
   /* Layout */
   /* Barra inferior Bento (quadros 3c/4b/4c/5b/5f): 76px, sem raio/sombra. */
@@ -94,13 +45,11 @@
   --max-width: 430px;
 
   /* ── Identidade "Bento" (redesign, design_handoff_jesus_corner/
-     ADENDO-identidade-e-IA.md) — mais nova que a paleta acima e prevalece
-     sobre ela em qualquer valor visual, mas só nas telas migradas até agora
-     (leitura imersiva). Os tokens antigos continuam valendo em todo o
-     resto do app até a migração de cada tela avançar; nomes com prefixo
-     `--bento-` pra não colidir/confundir com os tokens de cima. Tipografia
-     única (Manrope), sem gradiente — ação primária é laranja sólido com
-     texto ESCURO (não branco). */
+     ADENDO-identidade-e-IA.md) — a identidade do app inteiro, sem exceção
+     desde a varredura de handoff-app-completo (nomes com prefixo
+     `--bento-` sobrevivem de quando coexistiam com a paleta antiga acima,
+     já removida). Tipografia única (Manrope), sem gradiente — ação
+     primária é laranja sólido com texto ESCURO (não branco). */
   --bento-bg: #EDE8E2;
   --bento-card: #FFFFFF;
   --bento-ink: #1A1714;
@@ -154,7 +103,7 @@ html, body, #root {
 }
 
 body {
-  font-family: var(--font);
+  font-family: var(--font-bento);
   background: #F2F2F7;
   display: flex;
   justify-content: center;
@@ -215,24 +164,6 @@ html.large-text .app-content-inner {
 }
 .screen.active { display: flex; }
 
-/* ── Status bar ── */
-.status-bar {
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px 0;
-  flex-shrink: 0;
-  background: var(--white);
-  position: relative;
-  z-index: 1;
-}
-.status-bar.dark { background: var(--bk); }
-.status-time { font-size: 15px; font-weight: 600; color: var(--bk); }
-.status-icons { font-size: 11px; font-weight: 600; color: var(--bk); }
-.status-bar.dark .status-time,
-.status-bar.dark .status-icons { color: white; }
-
 /* ── Bottom Nav ── */
 /* Identidade Bento (design_handoff_jesus_corner/Jesus Corner Redesign.dc.html,
    rodapé dos quadros 3c/4b/4c/5b/5f): barra branca de 76px, itens de 70px
@@ -291,45 +222,6 @@ html.large-text .app-content-inner {
 .nav-item.active .nav-label { color: var(--bento-ink); font-weight: 800; }
 
 /* ── Section header ── */
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.section-title {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--bk);
-  letter-spacing: -0.2px;
-}
-.section-link {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--or);
-  cursor: pointer;
-}
-
-/* ── Cards genéricos ── */
-.card {
-  background: var(--white);
-  border: 0.5px solid var(--g2);
-  border-radius: 14px;
-  overflow: hidden;
-}
-.card-dark {
-  background: var(--bk);
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-/* ── Pulse animation ── */
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
-}
-
 /* Ícone girando — usado no botão de compartilhar progresso (Home) enquanto
    a imagem do cartão é gerada. */
 @keyframes spin {
@@ -383,13 +275,6 @@ html.large-text .app-content-inner {
 @media (prefers-reduced-motion: reduce) {
   .rb-enter { animation: none; }
 }
-.pulse {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--or);
-  animation: pulse 2s infinite;
-}
 
 /* Linha de esqueleto (ChapterContextScreen, ReadingBlockView.jsx, 10c) —
    só opacidade, sem escala (ao contrário de @keyframes pulse acima, feito
@@ -405,94 +290,44 @@ html.large-text .app-content-inner {
   .rb-context-skeleton { animation: none; opacity: 0.6; }
 }
 
-/* ── Botões ──
-   Um só sinal de "toque aqui" no app inteiro: --grad-primary (laranja).
-   --grad-vivid/--grad-premium (marrom→magenta) ficam reservados pra
-   superfícies de destaque (heroes, anéis de progresso, badges de
-   conquista) e pro paywall — nunca mais em botões/estados ativos, pra
-   não competir com o laranja como "a cor de ação" do app. */
+/* ── Botões do painel do admin (AdminScreen.jsx, 23a-d) — únicos
+   consumidores destas duas classes hoje (grep confirmado). Convertidos pra
+   identidade Bento na varredura: laranja sólido `--bento-accent`, tinta
+   ESCURA em cima dele (nunca branco sobre laranja), Manrope. A sombra
+   continua — é a única superfície do app com sombra permitida (LEGADO
+   §11: "a única sombra permitida é no painel admin"). */
 .btn-primary {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: var(--grad-primary);
+  background: var(--bento-accent);
   border-radius: 13px;
   padding: 13px;
   cursor: pointer;
-  font-family: var(--font);
+  font-family: var(--font-bento);
   font-size: 13px;
   font-weight: 700;
-  color: white;
+  color: var(--bento-ink);
   letter-spacing: 0.2px;
   border: none;
   width: 100%;
   box-shadow: var(--shadow-premium);
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.btn-primary:active { transform: scale(0.97); box-shadow: 0 6px 16px rgba(157,67,0,.3); }
+.btn-primary:active { transform: scale(0.97); box-shadow: 0 6px 16px rgba(240,102,43,.3); }
 
 .btn-secondary {
-  background: var(--g1);
+  background: var(--bento-line);
   border-radius: 9px;
   padding: 9px 14px;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  color: var(--g5);
+  color: var(--bento-t3);
   border: none;
-  font-family: var(--font);
+  font-family: var(--font-bento);
 }
-
-
-/* ── Toggle switch ── */
-.toggle {
-  width: 38px;
-  height: 22px;
-  border-radius: 11px;
-  background: var(--or);
-  position: relative;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.2s;
-}
-.toggle.off { background: var(--g2); }
-.toggle-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: white;
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  transition: all 0.2s;
-}
-.toggle.off .toggle-thumb { left: 3px; right: auto; }
-
-/* ── Settings item ── */
-.settings-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 13px;
-  border-bottom: 0.5px solid var(--g1);
-  cursor: pointer;
-}
-.settings-item:last-child { border-bottom: none; }
-.settings-icon {
-  width: 29px;
-  height: 29px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.settings-info { flex: 1; }
-.settings-label { font-size: 12.5px; font-weight: 600; color: var(--bk); }
-.settings-sub { font-size: 11px; font-weight: 500; color: var(--g5); }
-.settings-arrow { font-size: 13px; color: var(--g3); }
 
 /* ── Responsive (janela larga ainda em modo celular — moldura decorativa)
    — teto em 767.98px porque a partir de 768px entra o layout de tablet/
