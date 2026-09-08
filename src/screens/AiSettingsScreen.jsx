@@ -12,6 +12,7 @@ import { getChapterContextEnabled, setChapterContextEnabled } from '../aiChat/ch
 import { getSaveQuestionsEnabled, setSaveQuestionsEnabled, clearAllPassageQuestions } from '../aiChat/passageQuestionStore'
 import { getGroupNoticeEnabled, setGroupNoticeEnabled } from '../groups/groupNoticeStore'
 import { getMyGroups } from '../groups/groupsStore'
+import { getReflectionMethod, setReflectionMethod } from '../reflection/reflectionMethodStore'
 
 const TONES = [
   { id: 'direct', labelKey: 'toneDirect', subKey: 'toneDirectSub' },
@@ -28,6 +29,13 @@ export default function AiSettingsScreen({ session, onBack }) {
   // mesmo padrão de AdjustPlanScreen.jsx pros próprios campos dela.
   const [askOn, setAskOn] = useState(getAskEnabled)
   const [contextOn, setContextOn] = useState(getChapterContextEnabled)
+  // "Perguntas na reflexão" (10f) — mesmo interruptor que já existia em
+  // Ajustar meu plano (35c, "método" da Reflexão); exposto aqui de novo
+  // porque é uma preferência de IA (as 2 primeiras perguntas são geradas
+  // do capítulo — backlog #8), não só um ajuste de rotina. Os dois
+  // lugares leem/escrevem a MESMA chave (reflectionMethodStore.js), nunca
+  // desincronizam.
+  const [reflectionQuestionsOn, setReflectionQuestionsOn] = useState(() => getReflectionMethod() === 'questions')
   const [tone, setTone] = useState(getResponseTone)
   const [saveOn, setSaveOn] = useState(getSaveQuestionsEnabled)
   // "Aviso do grupo" (quadro 10f): só aparece pra quem está num grupo, nasce
@@ -51,6 +59,11 @@ export default function AiSettingsScreen({ session, onBack }) {
 
   function toggleAsk() { setAskEnabled(!askOn); setAskOn(!askOn) }
   function toggleContext() { setChapterContextEnabled(!contextOn); setContextOn(!contextOn) }
+  function toggleReflectionQuestions() {
+    const next = !reflectionQuestionsOn
+    setReflectionMethod(next ? 'questions' : 'free')
+    setReflectionQuestionsOn(next)
+  }
   function toggleSave() { setSaveQuestionsEnabled(!saveOn); setSaveOn(!saveOn) }
   function chooseTone(id) { setResponseTone(id); setTone(id) }
 
@@ -77,7 +90,11 @@ export default function AiSettingsScreen({ session, onBack }) {
       <div style={styles.body}>
         <div style={styles.card}>
           <ToggleRow label={L('askLabel')} sub={L('askSub')} value={askOn} onChange={toggleAsk} />
-          <ToggleRow label={L('contextLabel')} sub={L('contextSub')} value={contextOn} onChange={toggleContext} last={!inGroup} noBorder={!inGroup} />
+          <ToggleRow label={L('contextLabel')} sub={L('contextSub')} value={contextOn} onChange={toggleContext} />
+          <ToggleRow
+            label={L('reflectionQuestionsLabel')} sub={L('reflectionQuestionsSub')} value={reflectionQuestionsOn} onChange={toggleReflectionQuestions}
+            last={!inGroup} noBorder={!inGroup}
+          />
           {inGroup && (
             <ToggleRow label={L('groupNoticeLabel')} sub={L('groupNoticeSub')} value={groupNoticeOn} onChange={toggleGroupNotice} last noBorder />
           )}

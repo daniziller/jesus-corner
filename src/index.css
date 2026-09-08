@@ -139,15 +139,17 @@ body {
    disponível.
    Padrão é 1.0 (decisão da autora no redesign Bento: os quadros do
    handoff são especificados em 390px com tamanhos exatos, e com um zoom
-   padrão de 1.15 tudo renderizava 15% maior que o desenho — conteúdo que
-   cabe em 390px, como dois chips lado a lado, passava a não caber). O
-   botão "T" (AppHeader/Sidebar; nas telas Bento, pelo Perfil) liga o
-   texto grande, 1.15, pra quem precisa. */
+   diferente de 1 tudo renderizava fora do desenho — conteúdo que cabe em
+   390px, como dois chips lado a lado, passava a não caber). 2026-09-08 —
+   "Aparência e texto" (19a) virou um seletor de tamanho de verdade (ver
+   textScaleStore.js), não mais um liga/desliga: --text-zoom é escrito
+   direto no <html> por App.jsx a cada troca, sem precisar de uma classe
+   por nível. */
 .app-content {
   overflow-x: auto;
 }
-html.large-text .app-content-inner {
-  zoom: 1.15;
+.app-content-inner {
+  zoom: var(--text-zoom, 1);
 }
 
 /* ── Utilitários gerais ── */

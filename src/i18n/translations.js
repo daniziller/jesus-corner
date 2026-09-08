@@ -1067,8 +1067,9 @@ export const STRINGS = {
       myDataLabel: 'Meus dados',
       myDataSub: 'Nome, e-mail, senha',
       appearanceLabel: 'Aparência e texto',
-      appearanceSubOn: 'Texto grande',
-      appearanceSubOff: 'Padrão',
+      // "Claro · 18 pt" (19a) — o app só tem tema claro (ver
+      // AppearanceScreen.jsx); o {n} é o tamanho de texto de verdade.
+      appearanceSubValue: 'Claro · {n} pt',
       groupAdminLabel: 'Administração do grupo',
       groupAdminSub: '{n} membros',
       adminBadge: 'Admin',
@@ -1090,6 +1091,18 @@ export const STRINGS = {
       versionNote: 'Cada idioma tem hoje uma única versão da Bíblia licenciada — não há outra pra escolher. Trocar o idioma não apaga nem afeta seu progresso de leitura.',
       applyBtn: 'Aplicar',
       appliedBtn: 'Aplicado ✓',
+    },
+    // "Aparência e texto" (19a) — mesma Regra Zero do card de versão logo
+    // acima: o app só tem tema claro, então "Tema" fica informativo, com
+    // nota explicando. O tamanho de texto é um seletor de verdade.
+    appearance: {
+      pageTitle: 'Aparência e texto',
+      pageSub: 'Como o app aparece pra você',
+      themeTitle: 'Tema',
+      themeLight: 'Claro',
+      themeNote: 'Por enquanto o app só existe em modo claro — não há tema escuro pra escolher ainda.',
+      textSizeTitle: 'Tamanho do texto',
+      previewText: 'Assim fica o tamanho do texto no app.',
     },
     // Bento 19c — Administração do grupo, só pra quem modera algum grupo.
     groupAdmin: {
@@ -1930,6 +1943,8 @@ export const STRINGS = {
       askSub: 'O item "Perguntar" ao selecionar',
       contextLabel: 'Contexto antes do capítulo',
       contextSub: 'Resumo de onde a história está',
+      reflectionQuestionsLabel: 'Perguntas na reflexão',
+      reflectionQuestionsSub: 'Sem isso, o campo volta a ser livre',
       groupNoticeLabel: 'Aviso do grupo',
       groupNoticeSub: '"Seu grupo terminou o capítulo de hoje"',
       toneTitle: 'Como responder',
@@ -3841,8 +3856,7 @@ export const STRINGS = {
       myDataLabel: 'My data',
       myDataSub: 'Name, email, password',
       appearanceLabel: 'Appearance and text',
-      appearanceSubOn: 'Large text',
-      appearanceSubOff: 'Default',
+      appearanceSubValue: 'Light · {n} pt',
       groupAdminLabel: 'Group administration',
       groupAdminSub: '{n} members',
       adminBadge: 'Admin',
@@ -3862,6 +3876,15 @@ export const STRINGS = {
       versionNote: "Each language currently has a single licensed Bible version — there's no other one to choose. Changing the language does not erase or affect your reading progress.",
       applyBtn: 'Apply',
       appliedBtn: 'Applied ✓',
+    },
+    appearance: {
+      pageTitle: 'Appearance and text',
+      pageSub: 'How the app looks for you',
+      themeTitle: 'Theme',
+      themeLight: 'Light',
+      themeNote: "For now the app only exists in light mode — there's no dark theme to choose yet.",
+      textSizeTitle: 'Text size',
+      previewText: "This is what the app's text size looks like.",
     },
     groupAdmin: {
       pageSub: '{n} members',
@@ -4595,6 +4618,8 @@ export const STRINGS = {
       askSub: 'The "Ask" item when selecting',
       contextLabel: 'Context before the chapter',
       contextSub: 'A recap of where the story stands',
+      reflectionQuestionsLabel: 'Reflection questions',
+      reflectionQuestionsSub: 'Without this, the field goes back to free writing',
       groupNoticeLabel: 'Group notice',
       groupNoticeSub: '"Your group finished today\'s chapter"',
       toneTitle: 'How to answer',
