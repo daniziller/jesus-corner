@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
@@ -31,6 +31,7 @@ import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../
 import { verseSelectionLabel } from '../bible/verseSelectionLabel'
 import { getLastCopyFormat, setLastCopyFormat } from '../bible/copyFormatPrefs'
 import { formatCopyText } from '../bible/formatCopyText'
+import { renderVerseCardImage, shareVerseCardImage, downloadVerseCardImage, VERSE_CARD_STYLES, VERSE_CARD_FORMATS } from '../bible/verseCardImage'
 import { useIsDesktop } from '../utils/useIsDesktop'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -621,6 +622,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // "Salvar" ou "voltar", nos dois casos (seleção nova ou grifo já salvo
   // reaberto).
   const [wantsToAnnotate, setWantsToAnnotate] = useState(false)
+  // Liga quando "Compartilhar" (39e) é tocado — vira a tela cheia de 39i,
+  // mesmo padrão de wantsToAnnotate/39f.
+  const [wantsToShareImage, setWantsToShareImage] = useState(false)
+  // Liga quando "Perguntar sobre este versículo" (39e) é tocado — vira a
+  // tela cheia de 39j (mesmo padrão de wantsToAnnotate/39f).
+  const [wantsToAsk, setWantsToAsk] = useState(false)
   // Retângulo (coordenadas de tela, de getBoundingClientRect) de onde a
   // pessoa tocou o número do versículo ou terminou de selecionar um
   // trecho — usado só pra ancorar a folha de 39e perto do toque (ver
@@ -747,24 +754,30 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     return text ? { text, ref } : null
   }
 
-  // "Compartilhar" (39e) — interino: texto simples via Web Share API (ou
-  // clipboard, sem ela); a imagem de marca de verdade (PNG 2x, 3
-  // proporções, 4 estilos) é 39i, Bloco 5.
-  async function shareSelection() {
-    try {
-      const found = await fetchVerseTargetText()
-      if (found) {
-        const payload = { title: found.ref, text: `${found.text} (${found.ref})` }
-        if (navigator.share) await navigator.share(payload)
-        else await navigator.clipboard?.writeText(payload.text)
-      }
-    } catch (err) {
-      if (err?.name !== 'AbortError') console.error('Failed to share selected passage', err)
-    } finally {
-      setSelectionMenuOpen(false)
-      setHighlightSelection(null)
-      setHighlightAnchorRect(null)
-    }
+  // "Compartilhar" (39e) — fecha a folha e liga wantsToShareImage: o
+  // próprio componente troca pra tela cheia de 39i (mesmo padrão de
+  // startAnnotatingFromSheet pra 39f).
+  function openShareImageScreen() {
+    setSelectionMenuOpen(false)
+    setWantsToShareImage(true)
+  }
+
+  // "Perguntar sobre este versículo" (39e) — fecha a folha e liga
+  // wantsToAsk: o próprio componente troca pra tela cheia de 39j.
+  function openAskScreen() {
+    setSelectionMenuOpen(false)
+    setWantsToAsk(true)
+  }
+  // "voltar" (39j) — fecha a conversa e volta pra leitura, limpando o
+  // versículo em foco (mesma despedida de cancelHighlightCompose, mas
+  // sem depender dela: 39j pode fechar sem nunca ter tido grifo/seleção
+  // pendente se a pessoa só veio perguntar).
+  function closeAskScreen() {
+    setWantsToAsk(false)
+    setPassageAnswer(null)
+    setHighlightSelection(null)
+    setHighlightEditingId(null)
+    setHighlightAnchorRect(null)
   }
 
   // "Perguntar" (39e) — manda a pergunta pro servidor
@@ -791,14 +804,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       console.error('Failed to ask about passage', err)
       setPassageAnswer({ status: 'error', ref, question, error: err.message })
     }
-  }
-
-  // Fecha a folha de resposta (10b) — encerra a interação de seleção
-  // inteira (o trecho selecionado já cumpriu seu papel).
-  function closePassageAnswer() {
-    setPassageAnswer(null)
-    setHighlightSelection(null)
-    setHighlightAnchorRect(null)
   }
 
   // "Salvar na nota" (10b) — soma a resposta à anotação do CAPÍTULO (não
@@ -1353,6 +1358,42 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     )
   }
 
+  // "Compartilhar" (39e → 39i, Bloco 5) — mesmo padrão.
+  if (wantsToShareImage && (highlightSelection || highlightEditingId)) {
+    return (
+      <VerseShareScreen
+        lang={lang}
+        chLabel={chLabel}
+        heroBook={heroSession.book}
+        heroBookEn={heroSession.bookEn}
+        selection={highlightSelection}
+        editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
+        onBack={() => { setWantsToShareImage(false); cancelHighlightCompose() }}
+      />
+    )
+  }
+
+  // "Perguntar sobre este versículo" (39e → 39j, Bloco 5) — mesmo padrão;
+  // aqui "voltar" é closeAskScreen (não cancelHighlightCompose sozinho),
+  // porque também precisa limpar passageAnswer.
+  if (wantsToAsk && (highlightSelection || highlightEditingId)) {
+    return (
+      <VersePerguntarScreen
+        lang={lang}
+        chLabel={chLabel}
+        heroBook={heroSession.book}
+        heroBookEn={heroSession.bookEn}
+        selection={highlightSelection}
+        editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
+        state={passageAnswer}
+        onBack={closeAskScreen}
+        onAsk={askAboutSelection}
+        onAskAgain={askAboutSelection}
+        onSaveNote={saveAnswerToNote}
+      />
+    )
+  }
+
   return (
     <>
     {/* Portal pro <body> — não pro fluxo normal: .app-content-inner ganha
@@ -1420,27 +1461,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           heroBookEn={heroSession.bookEn}
           selection={highlightSelection}
           editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
-          passageRef={selectionRef}
           onClose={handleSheetClose}
           onChooseColor={chooseQuickColor}
           onRemove={handleSheetRemove}
           onAnnotate={startAnnotatingFromSheet}
           onCopy={openCopySheet}
-          onShare={shareSelection}
-          onAsk={askAboutSelection}
+          onShare={openShareImageScreen}
+          onAsk={openAskScreen}
         />
       )
-    )}
-    {/* Resposta da IA sobre o trecho (10b, reskin Bento) — folha cobrindo
-        ~75% da tela, o versículo em questão continua visível acima dela. */}
-    {passageAnswer && (
-      <PassageAnswerSheet
-        state={passageAnswer}
-        lang={lang}
-        onClose={closePassageAnswer}
-        onAskAgain={askAboutSelection}
-        onSaveNote={saveAnswerToNote}
-      />
     )}
     {embedded ? (
       // Embutido: sem wrapper de tela cheia nenhum — quem rola é a página
@@ -1816,6 +1845,437 @@ const annotateStyles = {
   groupCount: { fontSize: 12, fontWeight: 500 },
   groupCheckboxEmpty: { width: 20, height: 20, flexShrink: 0, borderRadius: 7, border: '1.5px solid var(--bento-t5)' },
   shareFooterNote: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t4)', margin: '16px 0 0' },
+}
+
+// Compartilhar como imagem (39i, pacote 39) — TELA CHEIA. "O que se vê é
+// a imagem, em escala — não um painel que depois vira imagem" (mesmo
+// princípio de 37d/dayCompleteImage.js): o cartão aqui dentro É o
+// resultado do canvas (renderVerseCardImage), só reduzido por CSS, e
+// redesenha sozinho a cada troca de estilo/formato/nota.
+function VerseShareScreen({ lang, chLabel, heroBook, heroBookEn, selection, editingHighlight, onBack }) {
+  const L = (k, vars) => t(`reading.${k}`, vars, lang)
+  const [style, setStyle] = useState('dark')
+  const [format, setFormat] = useState('portrait')
+  const [includeNote, setIncludeNote] = useState(false)
+  const [quoteText, setQuoteText] = useState('')
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const chapter = editingHighlight?.chapter ?? selection?.chapter
+  const verses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
+  const versesKey = verses.join(',')
+  const refText = `${lang === 'en' ? heroBookEn : heroBook} ${chapter}:${formatVerseRanges(verses)}`
+  const versionShort = findBibleVersion(getSelectedVersionId(lang))?.short ?? ''
+  const noteText = editingHighlight?.text ?? ''
+  const dims = VERSE_CARD_FORMATS_DIMS[format]
+
+  useEffect(() => {
+    if (!chapter || !versesKey) { setQuoteText(''); return }
+    let cancelled = false
+    const versionId = getSelectedVersionId(lang)
+    const bookKey = lang === 'en' ? heroBookEn : heroBook
+    fetchBookText(versionId, bookKey).then(chapters => {
+      if (cancelled) return
+      const chapterData = chapters[String(chapter)]
+      if (!chapterData) { setQuoteText(''); return }
+      setQuoteText(versesKey.split(',').map(v => chapterData.verses[v] ?? '').join(' ').replace(/\n/g, ' '))
+    }).catch(() => { if (!cancelled) setQuoteText('') })
+    return () => { cancelled = true }
+  }, [lang, heroBook, heroBookEn, chapter, versesKey])
+
+  const cardData = useMemo(() => ({
+    text: quoteText, ref: refText, versionShort,
+    note: includeNote ? noteText : null,
+    style, format,
+  }), [quoteText, refText, versionShort, includeNote, noteText, style, format])
+
+  useEffect(() => {
+    if (!quoteText) return
+    let cancelled = false
+    renderVerseCardImage(cardData).then(blob => {
+      if (cancelled || !blob) return
+      const url = URL.createObjectURL(blob)
+      setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url })
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardData, quoteText])
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
+
+  async function handleShare() {
+    if (busy || !quoteText) return
+    setBusy(true)
+    try {
+      const blob = await renderVerseCardImage(cardData)
+      await shareVerseCardImage(blob, { title: refText, text: refText })
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function handleSave() {
+    if (busy || !quoteText) return
+    setBusy(true)
+    try {
+      const blob = await renderVerseCardImage(cardData)
+      downloadVerseCardImage(blob)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ height: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column' }}>
+      <div style={annotateStyles.header}>
+        <button style={annotateStyles.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={annotateStyles.headerTitle}>{L('shareTitle')}</p>
+          <p style={annotateStyles.headerSub}>{L('shareSub', { ref: refText, w: dims.w, h: dims.h })}</p>
+        </div>
+      </div>
+
+      <div style={annotateStyles.body}>
+        <div style={{ ...shareStyles.imageWrap, aspectRatio: `${dims.w} / ${dims.h}` }}>
+          {previewUrl && <img src={previewUrl} alt="" style={shareStyles.imagePreview} />}
+        </div>
+
+        <div style={annotateStyles.card}>
+          <p style={annotateStyles.cardLabel}>{L('shareStyleLabel')}</p>
+          <div style={shareStyles.swatchRow}>
+            {VERSE_CARD_STYLES.map(id => (
+              <button
+                key={id} type="button" aria-label={id} aria-pressed={style === id}
+                style={{ ...shareStyles.swatch, background: VERSE_CARD_STYLE_SWATCH[id], ...(style === id ? shareStyles.swatchActive : {}) }}
+                onClick={() => setStyle(id)}
+              />
+            ))}
+          </div>
+          <div style={shareStyles.formatRow}>
+            {VERSE_CARD_FORMATS.map(id => (
+              <button key={id} type="button" style={{ ...shareStyles.formatBtn, ...(format === id ? shareStyles.formatBtnActive : {}) }} onClick={() => setFormat(id)}>
+                {L(`shareFormat${id[0].toUpperCase()}${id.slice(1)}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {noteText.trim() && (
+          <div style={annotateStyles.card}>
+            <div style={annotateStyles.shareRow}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={annotateStyles.shareTitle}>{L('shareIncludeNoteTitle')}</p>
+                <p style={shareStyles.notePreview}>"{noteText.trim()}"</p>
+              </div>
+              <button role="switch" aria-checked={includeNote} onClick={() => setIncludeNote(v => !v)}
+                style={{ ...annotateStyles.toggle, background: includeNote ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: includeNote ? 'flex-end' : 'flex-start' }}>
+                <span style={{ ...annotateStyles.toggleThumb, background: includeNote ? 'var(--bento-accent)' : '#fff' }} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={shareStyles.footer}>
+        <button style={shareStyles.saveBtn} onClick={handleSave} disabled={busy || !quoteText}>{L('shareSaveBtn')}</button>
+        <button style={shareStyles.shareBtn} onClick={handleShare} disabled={busy || !quoteText}>
+          <AppIcon name="Upload" size={16} strokeWidth={2.2} color="var(--bento-ink)" />
+          {L('verseShare')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const VERSE_CARD_FORMATS_DIMS = {
+  portrait: { w: 1080, h: 1350 },
+  square: { w: 1080, h: 1080 },
+  story: { w: 1080, h: 1920 },
+}
+const VERSE_CARD_STYLE_SWATCH = { dark: '#1A1714', sand: '#E6DACB', light: '#EDE8E2', orange: '#F0662B' }
+
+const shareStyles = {
+  imageWrap: { borderRadius: 24, overflow: 'hidden', background: '#1A1714', marginBottom: 14, maxHeight: '48vh', margin: '0 auto 14px' },
+  imagePreview: { display: 'block', width: '100%', height: '100%', objectFit: 'contain' },
+  swatchRow: { display: 'flex', gap: 10, marginBottom: 14 },
+  swatch: { width: 44, height: 44, borderRadius: 14, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 },
+  swatchActive: { outline: '2.5px solid var(--bento-accent)', outlineOffset: 2 },
+  formatRow: { display: 'flex', gap: 8 },
+  formatBtn: { flex: 1, height: 40, borderRadius: 14, border: 'none', background: 'var(--bento-line)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-t3)' },
+  formatBtnActive: { background: 'var(--bento-ink)', color: '#fff' },
+  notePreview: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, fontStyle: 'italic', color: 'var(--bento-t3)', lineHeight: 1.4, margin: '4px 0 0' },
+  footer: { flexShrink: 0, display: 'flex', gap: 10, padding: '12px 20px calc(20px + var(--safe-bottom))' },
+  saveBtn: { flex: 1, height: 54, borderRadius: 18, border: 'none', background: '#fff', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)' },
+  shareBtn: { flex: 1, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)' },
+}
+
+// Perguntar sobre o versículo (39j, pacote 39) — TELA CHEIA, substitui a
+// folha escura de sempre (10b) por um visual claro, no mesmo espírito de
+// 39f/39g/39i. "A IA mora dentro da leitura, nunca numa aba própria"
+// (HANDOFF) — reaproveita a MESMA lógica de sempre (askAboutPassage,
+// citações já conferidas no servidor, casos de doutrina divergente/risco/
+// fora do escopo, reportar resposta, salvar na nota) só com a casca nova;
+// nenhuma dessas regras de segurança/conferência foi reescrita aqui.
+// Sugestões prontas ficam visíveis o tempo todo (não somem depois da
+// primeira pergunta) — "a conversa continua na mesma tela".
+function VersePerguntarScreen({
+  lang, chLabel, heroBook, heroBookEn, selection, editingHighlight,
+  state, onBack, onAsk, onAskAgain, onSaveNote,
+}) {
+  const L = (k, vars) => t(`reading.${k}`, vars, lang)
+  const LA = (k, vars) => t(`aiPassage.${k}`, vars, lang)
+  const [question, setQuestion] = useState('')
+  const [suggestions, setSuggestions] = useState(null)
+  const [savedNote, setSavedNote] = useState(false)
+  const [doctrineTextsOpen, setDoctrineTextsOpen] = useState(false)
+  const [doctrineNoted, setDoctrineNoted] = useState(false)
+  const [reported, setReported] = useState(false)
+  const [quoteText, setQuoteText] = useState('')
+
+  const chapter = editingHighlight?.chapter ?? selection?.chapter
+  const verses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
+  const versesKey = verses.join(',')
+  const refText = `${lang === 'en' ? heroBookEn : heroBook} ${chapter}:${formatVerseRanges(verses)}`
+  const versionShort = findBibleVersion(getSelectedVersionId(lang))?.short ?? ''
+
+  useEffect(() => {
+    if (!chapter || !versesKey) { setQuoteText(''); return }
+    let cancelled = false
+    const versionId = getSelectedVersionId(lang)
+    const bookKey = lang === 'en' ? heroBookEn : heroBook
+    fetchBookText(versionId, bookKey).then(chapters => {
+      if (cancelled) return
+      const chapterData = chapters[String(chapter)]
+      if (!chapterData) { setQuoteText(''); return }
+      setQuoteText(versesKey.split(',').map(v => chapterData.verses[v] ?? '').join(' ').replace(/\n/g, ' '))
+    }).catch(() => { if (!cancelled) setQuoteText('') })
+    return () => { cancelled = true }
+  }, [lang, heroBook, heroBookEn, chapter, versesKey])
+
+  const passageRef = { book: heroBook, bookEn: heroBookEn, chapter, verseStart: verses[0], verseEnd: verses[verses.length - 1] }
+  const refKey = `${passageRef.book}:${passageRef.chapter}:${passageRef.verseStart}-${passageRef.verseEnd}`
+  useEffect(() => {
+    let cancelled = false
+    setSuggestions(null)
+    const fallback = [LA('suggestion1'), LA('suggestion2'), LA('suggestion3')]
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { setSuggestions(fallback); return }
+    fetchPassageSuggestions({ ...passageRef, lang })
+      .then(list => { if (!cancelled) setSuggestions(list.length === 3 ? list : fallback) })
+      .catch(() => { if (!cancelled) setSuggestions(fallback) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refKey, lang])
+
+  // Reseta os estados de uma resposta anterior sempre que a resposta muda
+  // (ex: depois de "Perguntar outra coisa") — mesmo motivo de sempre: sem
+  // isso, "Salvo!"/"Reportada" de uma resposta antiga ficaria colado na
+  // próxima.
+  useEffect(() => { setSavedNote(false); setDoctrineTextsOpen(false); setDoctrineNoted(false); setReported(false) }, [state])
+
+  function submitQuestion(q) {
+    const clean = q.trim()
+    if (!clean) return
+    setQuestion('')
+    onAsk(clean)
+  }
+  function submitFollowUp() {
+    submitQuestion(question)
+  }
+  function handleSaveNote() {
+    if (state?.status !== 'ready') return
+    onSaveNote(state.question, state.answer.reply)
+    setSavedNote(true)
+  }
+  function handleCopyAnswer() {
+    if (state?.status !== 'ready') return
+    navigator.clipboard?.writeText(state.answer.reply).catch(() => {})
+  }
+  function handleReport() {
+    if (state?.status !== 'ready' || reported) return
+    setReported(true)
+    reportPassageAnswer({
+      book: passageRef.book, bookEn: passageRef.bookEn, chapter: passageRef.chapter,
+      verseStart: passageRef.verseStart, verseEnd: passageRef.verseEnd,
+      question: state.question, answer: state.answer, lang,
+    }).catch(err => console.error('Failed to report AI answer', err))
+  }
+  function handleNoteToAsk() {
+    if (state?.status !== 'ready' || doctrineNoted) return
+    onSaveNote(state.question, `${LA('doctrineNotePrefix')} ${state.question}`)
+    setDoctrineNoted(true)
+  }
+
+  const isRisk = state?.status === 'ready' && state.answer.outcome === 'risk'
+
+  return (
+    <div style={{ height: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column' }}>
+      <div style={annotateStyles.header}>
+        <button style={annotateStyles.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={annotateStyles.headerTitle}>{L('askScreenTitle')}</p>
+          <p style={annotateStyles.headerSub}>{refText} · {versionShort}</p>
+        </div>
+      </div>
+
+      <div style={annotateStyles.body}>
+        <div style={annotateStyles.quoteCard}>
+          {quoteText && <p style={annotateStyles.quoteText}>“{quoteText}”</p>}
+          <p style={annotateStyles.quoteRef}>{refText} · {versionShort}</p>
+        </div>
+
+        {suggestions && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {suggestions.map((s, i) => (
+              <button key={i} type="button" style={askStyles.suggestChip} onClick={() => submitQuestion(s)}>{s}</button>
+            ))}
+          </div>
+        )}
+
+        {state && (
+          <div style={askStyles.questionBubble}>
+            <p style={askStyles.questionText}>{state.question}</p>
+          </div>
+        )}
+
+        {state?.status === 'loading' && <p style={askStyles.loadingText}>{LA('generating')}</p>}
+
+        {state?.status === 'error' && (
+          <p style={askStyles.errorText}>
+            {state.error === 'subscription_required' ? LA('errorSubscription')
+              : state.error === 'daily_limit_reached' ? LA('errorLimit')
+              : state.error === 'citation_unverifiable' ? LA('errorCitation')
+              : LA('errorGeneric')}
+          </p>
+        )}
+
+        {state?.status === 'ready' && (() => {
+          const { answer } = state
+          const isAnswer = answer.outcome === 'answer'
+          const isDoctrine = answer.outcome === 'doctrine_divergent'
+          const isOutOfScope = answer.outcome === 'out_of_scope'
+          const replyText = isDoctrine ? LA('doctrineReply')
+            : isOutOfScope ? (answer.nearTopic ? LA('outOfScopeReply', { topic: answer.nearTopic }) : LA('outOfScopeReplyNoTopic'))
+            : answer.reply
+
+          if (isRisk) {
+            return (
+              <div style={annotateStyles.card}>
+                <p style={askStyles.riskText}>{LA('riskLine')}</p>
+                {lang !== 'en' && <a href="tel:188" style={askStyles.riskBtn}>{LA('riskCta')}</a>}
+              </div>
+            )
+          }
+
+          return (
+            <>
+              <div style={annotateStyles.card}>
+                <div style={askStyles.answerLabelRow}>
+                  <span style={askStyles.answerDiamond} />
+                  <p style={askStyles.answerLabel}>{L('answerLabel')}</p>
+                </div>
+                <p style={askStyles.answerText}>{reported ? LA('reportedNote') : replyText}</p>
+
+                {isDoctrine && !doctrineTextsOpen && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <button type="button" style={askStyles.chipAccent} onClick={() => setDoctrineTextsOpen(true)}>{LA('seeTexts')}</button>
+                    <button type="button" style={askStyles.chipGhost} onClick={handleNoteToAsk} disabled={doctrineNoted}>{doctrineNoted ? LA('noteToAskDone') : LA('noteToAsk')}</button>
+                  </div>
+                )}
+
+                {/* "Também aparece em" — support + expansion citations juntas
+                    num bloco só (ambas já verificadas no servidor antes de
+                    chegar aqui; o quadro 39j não distingue as duas
+                    visualmente, então unificadas aqui também). */}
+                {isAnswer && !reported && (
+                  <div style={askStyles.crossRefBox}>
+                    <p style={askStyles.crossRefLabel}>{L('crossRefLabel')}</p>
+                    <p style={askStyles.crossRefLine}><strong>{answer.supportCitation.reference}</strong> · {answer.supportCitation.quote}</p>
+                    <p style={askStyles.crossRefLine}><strong>{answer.expansionCitation.reference}</strong> · {answer.expansionCitation.note}</p>
+                  </div>
+                )}
+
+                {isDoctrine && doctrineTextsOpen && (
+                  <div style={askStyles.crossRefBox}>
+                    <p style={askStyles.crossRefLine}><strong>{answer.doctrineSideA.label} · {answer.doctrineSideA.reference}</strong> — {answer.doctrineSideA.quote}</p>
+                    <p style={askStyles.crossRefLine}><strong>{answer.doctrineSideB.label} · {answer.doctrineSideB.reference}</strong> — {answer.doctrineSideB.quote}</p>
+                  </div>
+                )}
+              </div>
+
+              {isAnswer && !reported && (
+                <div style={askStyles.disclaimerBox}>
+                  <AppIcon name="Check" size={15} strokeWidth={2.4} color="var(--bento-t3)" />
+                  <p style={askStyles.disclaimerText}>{L('askDisclaimer')}</p>
+                </div>
+              )}
+
+              {isAnswer && (
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" style={askStyles.saveLibraryBtn} onClick={handleSaveNote} disabled={savedNote || reported}>
+                    <AppIcon name="Bookmark" size={15} strokeWidth={1.9} color="var(--bento-ink)" />
+                    <span>{savedNote ? L('savedToLibrary') : L('saveToLibrary')}</span>
+                  </button>
+                  <button type="button" style={askStyles.copyIconBtn} onClick={handleCopyAnswer} aria-label={L('verseCopy')}>
+                    <AppIcon name="Copy" size={16} strokeWidth={1.9} color="var(--bento-ink)" />
+                  </button>
+                </div>
+              )}
+              {isAnswer && !reported && (
+                <button type="button" style={askStyles.reportBtn} onClick={handleReport}>{LA('reportAnswer')}</button>
+              )}
+            </>
+          )
+        })()}
+      </div>
+
+      {!isRisk && (
+        <div style={askStyles.footer}>
+          <input
+            type="text" style={askStyles.footerInput} value={question}
+            onChange={e => setQuestion(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submitFollowUp() }}
+            placeholder={LA('askSomethingElse')} maxLength={300}
+          />
+          <button style={askStyles.footerSend} onClick={submitFollowUp} disabled={!question.trim()} aria-label={L('verseAskSend')}>
+            <AppIcon name="ArrowUp" size={15} color="#fff" />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const askStyles = {
+  suggestChip: { height: 38, padding: '0 16px', borderRadius: 99, border: 'none', background: '#fff', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, color: 'var(--bento-ink)', textAlign: 'left' },
+  questionBubble: { alignSelf: 'flex-end', maxWidth: 300, borderRadius: '18px 18px 4px 18px', background: 'var(--bento-ink)', padding: '12px 16px' },
+  questionText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.4, color: '#fff', margin: 0 },
+  loadingText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-t3)' },
+  errorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: '#DC2626' },
+  answerLabelRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
+  answerDiamond: { width: 9, height: 9, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
+  answerLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  answerText: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.65, color: 'var(--bento-ink)', margin: 0, whiteSpace: 'pre-line' },
+  crossRefBox: { marginTop: 14, borderRadius: 16, background: 'var(--bento-line)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 },
+  crossRefLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 2px' },
+  crossRefLine: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t2)', margin: 0 },
+  chipAccent: { border: 'none', borderRadius: 99, padding: '9px 12px', background: 'rgba(240,102,43,.12)', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer' },
+  chipGhost: { border: 'none', borderRadius: 99, padding: '9px 12px', background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  riskText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-sand-ink)', margin: '0 0 14px' },
+  riskBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 46, borderRadius: 14, background: 'var(--bento-sand-ink-strong)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-sand)', textDecoration: 'none' },
+  // Linha de conferência (39j) — obrigatória, texto fixo (ver askDisclaimer).
+  disclaimerBox: { display: 'flex', alignItems: 'flex-start', gap: 10, borderRadius: 16, background: 'var(--bento-card)', padding: '14px 16px' },
+  disclaimerText: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t3)', margin: 0 },
+  saveLibraryBtn: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 16, border: 'none', background: '#fff', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
+  copyIconBtn: { width: 50, height: 50, flexShrink: 0, borderRadius: 16, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  reportBtn: { alignSelf: 'center', border: 'none', background: 'none', padding: 4, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t4)' },
+  footer: {
+    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, margin: '0 20px calc(16px + var(--safe-bottom))',
+    height: 54, borderRadius: 18, background: 'var(--bento-card)', padding: '0 6px 0 18px',
+  },
+  footerInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-ink)' },
+  footerSend: { width: 42, height: 42, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
 }
 
 // Ícone do botão "Ferramentas" do rodapé imersivo (quadro 4a) — o traçado
@@ -2269,50 +2729,21 @@ function ChapterContextScreen({ lang, book, chapter, data, onBegin, onSkip }) {
 // sem grifo (`selection`) ou um grifo já salvo reaberto
 // (`editingHighlight`) — nunca as duas ao mesmo tempo (ver
 // handleHighlightVerseClick/handleHighlightTextRange no componente
-// principal). "Perguntar" tem um segundo estado interno (`asking`): a
-// folha troca o conteúdo pro campo de pergunta + sugestões, sem abrir
-// uma tela nova — o desenho de 39j (perguntas prontas geradas, resposta
-// com referências cruzadas) é o Bloco 5; até lá, este é o jeito real de
-// perguntar sobre o trecho a partir daqui.
+// principal). Turno 39, Bloco 5: "Perguntar" deixou de ser um estado
+// interno desta folha (sugestões+campo aqui dentro) — agora é a mesma
+// troca de tela cheia que Anotar/Compartilhar já fazem, pra 39j de
+// verdade (ver VersePerguntarScreen).
 function VerseActionsSheet({
   lang, hasAI, chLabel, heroBook, heroBookEn, selection, editingHighlight,
-  passageRef, onClose, onChooseColor, onRemove, onAnnotate, onCopy, onShare, onAsk,
+  onClose, onChooseColor, onRemove, onAnnotate, onCopy, onShare, onAsk,
 }) {
-  const [asking, setAsking] = useState(false)
-  const [question, setQuestion] = useState('')
-  const [suggestions, setSuggestions] = useState(null)
   const L = (k, vars) => t(`reading.${k}`, vars, lang)
-  const LA = (k, vars) => t(`aiPassage.${k}`, vars, lang)
 
   const chapter = editingHighlight?.chapter ?? selection?.chapter
   const verses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
   const currentColor = editingHighlight?.color ?? null
 
-  // Sugestões geradas pro trecho (ver api/suggest-passage-questions.js) —
-  // só busca quando a pessoa de fato abre "Perguntar" (asking), não a
-  // cada seleção nova: economiza uma chamada que a maioria das seleções
-  // nunca chega a usar.
-  const refKey = passageRef ? `${passageRef.book}:${passageRef.chapter}:${passageRef.verseStart}-${passageRef.verseEnd}` : null
-  useEffect(() => {
-    if (!asking || !hasAI || !passageRef) return
-    let cancelled = false
-    setSuggestions(null)
-    const fallback = [LA('suggestion1'), LA('suggestion2'), LA('suggestion3')]
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) { setSuggestions(fallback); return }
-    fetchPassageSuggestions({ ...passageRef, lang })
-      .then(list => { if (!cancelled) setSuggestions(list.length === 3 ? list : fallback) })
-      .catch(() => { if (!cancelled) setSuggestions(fallback) })
-    return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asking, refKey, hasAI, lang])
-
   if (verses.length === 0) return null
-
-  function submitQuestion(q) {
-    const clean = q.trim()
-    if (!clean) return
-    onAsk(clean)
-  }
 
   const refText = `${lang === 'en' ? heroBookEn : heroBook} ${chapter}:${formatVerseRanges(verses)}`
 
@@ -2320,79 +2751,50 @@ function VerseActionsSheet({
     <div style={styles.verseSheetBackdrop} onClick={onClose}>
       <div style={styles.verseSheet} onClick={e => e.stopPropagation()}>
         <div style={styles.verseSheetHandleWrap}><div style={styles.verseSheetHandle} /></div>
-        {asking ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <button type="button" style={styles.verseSheetBack} onClick={() => setAsking(false)}>
-              <AppIcon name="ChevronLeft" size={15} strokeWidth={2.2} color="var(--bento-t3)" />
-              <span>{refText}</span>
-            </button>
-            {hasAI && suggestions && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {suggestions.map((s, i) => (
-                  <button key={i} type="button" style={styles.verseSheetSuggestChip} onClick={() => submitQuestion(s)}>{s}</button>
-                ))}
-              </div>
-            )}
-            <div style={styles.verseSheetAskRow}>
-              <input
-                autoFocus type="text" style={styles.verseSheetAskInput} value={question}
-                onChange={e => setQuestion(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') submitQuestion(question) }}
-                placeholder={LA('questionPlaceholder')} maxLength={300}
-              />
-              <button style={styles.verseSheetAskSend} onClick={() => submitQuestion(question)} disabled={!question.trim()} aria-label={L('verseAskSend')}>
-                <AppIcon name="ArrowUp" size={15} color="#fff" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p style={styles.verseSheetTitle}>{refText}</p>
-            <p style={styles.verseSheetSub}>{verseSelectionLabel(verses.length, lang)}</p>
+        <p style={styles.verseSheetTitle}>{refText}</p>
+        <p style={styles.verseSheetSub}>{verseSelectionLabel(verses.length, lang)}</p>
 
-            <p style={styles.verseSheetMarkLabel}>{L('verseMarkLabel')}</p>
-            <div style={styles.verseSheetColorRow}>
-              {HIGHLIGHT_COLORS.map((c, i) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  style={{ ...styles.verseSheetColorSwatch, background: c.swatch, ...(currentColor === c.id ? styles.verseSheetColorSwatchActive : {}) }}
-                  onClick={() => onChooseColor(c.id)}
-                  aria-label={L('verseColorPosition', { n: i + 1 })}
-                  aria-pressed={currentColor === c.id}
-                />
-              ))}
-              <button type="button" style={styles.verseSheetColorRemove} onClick={onRemove} aria-label={L('verseColorRemove')}>
-                <AppIcon name="X" size={16} color="var(--bento-t2)" />
-              </button>
-            </div>
+        <p style={styles.verseSheetMarkLabel}>{L('verseMarkLabel')}</p>
+        <div style={styles.verseSheetColorRow}>
+          {HIGHLIGHT_COLORS.map((c, i) => (
+            <button
+              key={c.id}
+              type="button"
+              style={{ ...styles.verseSheetColorSwatch, background: c.swatch, ...(currentColor === c.id ? styles.verseSheetColorSwatchActive : {}) }}
+              onClick={() => onChooseColor(c.id)}
+              aria-label={L('verseColorPosition', { n: i + 1 })}
+              aria-pressed={currentColor === c.id}
+            />
+          ))}
+          <button type="button" style={styles.verseSheetColorRemove} onClick={onRemove} aria-label={L('verseColorRemove')}>
+            <AppIcon name="X" size={16} color="var(--bento-t2)" />
+          </button>
+        </div>
 
-            <div style={styles.verseSheetActionsGrid}>
-              <button type="button" style={styles.verseSheetActionCard} onClick={onAnnotate}>
-                <AppIcon name="Bookmark" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
-                <span>{L('verseAnnotate')}</span>
-              </button>
-              <button type="button" style={styles.verseSheetActionCard} onClick={onCopy}>
-                <AppIcon name="Copy" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
-                <span>{L('verseCopy')}</span>
-              </button>
-            </div>
-            <button type="button" style={styles.verseSheetActionCardWide} onClick={onShare}>
-              <AppIcon name="Upload" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
-              <span>{L('verseShare')}</span>
-            </button>
+        <div style={styles.verseSheetActionsGrid}>
+          <button type="button" style={styles.verseSheetActionCard} onClick={onAnnotate}>
+            <AppIcon name="Bookmark" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
+            <span>{L('verseAnnotate')}</span>
+          </button>
+          <button type="button" style={styles.verseSheetActionCard} onClick={onCopy}>
+            <AppIcon name="Copy" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
+            <span>{L('verseCopy')}</span>
+          </button>
+        </div>
+        <button type="button" style={styles.verseSheetActionCardWide} onClick={onShare}>
+          <AppIcon name="Upload" size={17} strokeWidth={1.9} color="var(--bento-ink)" />
+          <span>{L('verseShare')}</span>
+        </button>
 
-            {hasAI && (
-              <button type="button" style={styles.verseSheetAskCard} onClick={() => setAsking(true)}>
-                <span style={styles.verseSheetAskDiamondWrap}><span style={styles.verseSheetAskDiamond} /></span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={styles.verseSheetAskTitle}>{L('verseAskTitle')}</span>
-                  <span style={styles.verseSheetAskSub}>{L('verseAskSub')}</span>
-                </span>
-                <AppIcon name="ArrowRight" size={16} color="var(--bento-accent)" />
-              </button>
-            )}
-          </>
+        {hasAI && (
+          <button type="button" style={styles.verseSheetAskCard} onClick={onAsk}>
+            <span style={styles.verseSheetAskDiamondWrap}><span style={styles.verseSheetAskDiamond} /></span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={styles.verseSheetAskTitle}>{L('verseAskTitle')}</span>
+              <span style={styles.verseSheetAskSub}>{L('verseAskSub')}</span>
+            </span>
+            <AppIcon name="ArrowRight" size={16} color="var(--bento-accent)" />
+          </button>
         )}
       </div>
     </div>,
@@ -2576,224 +2978,6 @@ const sheetStyles = {
   finishTitle: { fontSize: 16, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 4px' },
   finishSub: { fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: 0 },
   footerNote: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t4)', margin: 0 },
-}
-
-// state: { status: 'loading'|'ready'|'error', ref, question, answer?, error? }
-// ref: { book, bookEn, chapter, verseStart, verseEnd }.
-function PassageAnswerSheet({ state, lang, onClose, onAskAgain, onSaveNote }) {
-  const { ref, question } = state
-  // Recorte do trecho (quadro 10b): o texto ao redor em cinza e só o trecho
-  // perguntado em azul — aqui, o versículo imediatamente anterior (o fim
-  // dele, se for longo) + os versículos selecionados.
-  const [recap, setRecap] = useState({ before: '', selected: '' })
-  const [followUp, setFollowUp] = useState('')
-  const [savedNote, setSavedNote] = useState(false)
-  // Doutrina divergente (10e): os dois textos só aparecem depois de "Ver os
-  // textos"; "Anotar pra perguntar" guarda a pergunta na nota do capítulo.
-  const [doctrineTextsOpen, setDoctrineTextsOpen] = useState(false)
-  const [doctrineNoted, setDoctrineNoted] = useState(false)
-  // "Reportar resposta" (10b): a resposta sai do histórico do aparelho e vai
-  // pra revisão (api/report-ai-answer.js); no lugar dela fica só o aviso.
-  const [reported, setReported] = useState(false)
-  const L = (k, vars) => t(`aiPassage.${k}`, vars, lang)
-
-  useEffect(() => {
-    let cancelled = false
-    const versionId = getSelectedVersionId(lang)
-    const bookKey = lang === 'en' ? ref.bookEn : ref.book
-    fetchBookText(versionId, bookKey).then(chapters => {
-      if (cancelled) return
-      const chapterData = chapters?.[String(ref.chapter)]
-      const selected = Array.from(
-        { length: ref.verseEnd - ref.verseStart + 1 },
-        (_, i) => chapterData?.verses?.[String(ref.verseStart + i)]
-      ).filter(Boolean).join(' ')
-      const prev = ref.verseStart > 1 ? (chapterData?.verses?.[String(ref.verseStart - 1)] ?? '') : ''
-      const before = prev.length > 140 ? `…${prev.slice(prev.length - 140).replace(/^\S*\s/, '')}` : prev
-      setRecap({ before, selected })
-    }).catch(() => {})
-    return () => { cancelled = true }
-  }, [lang, ref.book, ref.bookEn, ref.chapter, ref.verseStart, ref.verseEnd])
-
-  // Reseta "salvo" e o campo de nova pergunta sempre que a resposta muda
-  // (ex: depois de "Perguntar outra coisa") — sem isso, o rótulo "Salvo!"
-  // de uma resposta anterior ficaria colado na próxima.
-  useEffect(() => { setSavedNote(false); setFollowUp(''); setDoctrineTextsOpen(false); setDoctrineNoted(false); setReported(false) }, [state])
-
-  const refLabel = ref.verseStart === ref.verseEnd
-    ? `${lang === 'en' ? ref.bookEn : ref.book} ${ref.chapter}:${ref.verseStart}`
-    : `${lang === 'en' ? ref.bookEn : ref.book} ${ref.chapter}:${ref.verseStart}-${ref.verseEnd}`
-
-  function submitFollowUp() {
-    const clean = followUp.trim()
-    if (!clean) return
-    onAskAgain(clean)
-  }
-
-  function handleSaveNote() {
-    if (state.status !== 'ready') return
-    onSaveNote(state.question, state.answer.reply)
-    setSavedNote(true)
-  }
-  function handleReport() {
-    if (state.status !== 'ready' || reported) return
-    setReported(true)
-    reportPassageAnswer({
-      book: ref.book, bookEn: ref.bookEn, chapter: ref.chapter, verseStart: ref.verseStart, verseEnd: ref.verseEnd,
-      question: state.question, answer: state.answer, lang,
-    }).catch(err => console.error('Failed to report AI answer', err))
-  }
-  function handleNoteToAsk() {
-    if (state.status !== 'ready' || doctrineNoted) return
-    onSaveNote(state.question, `${L('doctrineNotePrefix')} ${state.question}`)
-    setDoctrineNoted(true)
-  }
-
-  return createPortal(
-    <div style={styles.passageSheetBackdrop} onClick={onClose}>
-      <div style={styles.passageSheetOuter} onClick={e => e.stopPropagation()}>
-        {/* Recorte do trecho — auto-contido, não depende de rolagem. */}
-        <div style={styles.passageSheetRecapWrap}>
-          <div style={styles.passageSheetRecapCard}>
-            <p style={styles.passageSheetRecapLabel}>{L('chapterLabel', { n: ref.chapter })}</p>
-            <p style={styles.passageSheetRecapText}>
-              {recap.selected
-                ? <>{recap.before ? `${recap.before} ` : ''}<span style={styles.passageSheetRecapHighlight}>{recap.selected}</span></>
-                : L('recapLoading')}
-            </p>
-          </div>
-        </div>
-
-        <div style={styles.passageSheetBody}>
-          <div style={styles.passageSheetHandle} />
-          <div style={styles.passageSheetHeader}>
-            <span style={styles.passageSheetDiamond} />
-            <p style={styles.passageSheetHeaderTitle}>{L('answerAbout', { ref: refLabel })}</p>
-            <button style={styles.passageSheetCloseText} onClick={onClose}>{L('close')}</button>
-          </div>
-
-          {state.status === 'loading' && (
-            <>
-              <div style={styles.passageSheetQuestionBubble}>
-                <p style={styles.passageSheetQuestionText}>{question}</p>
-              </div>
-              <p style={styles.passageSheetLoading}>{L('generating')}</p>
-            </>
-          )}
-
-          {state.status === 'error' && (
-            <>
-              <div style={styles.passageSheetQuestionBubble}>
-                <p style={styles.passageSheetQuestionText}>{question}</p>
-              </div>
-              <p style={styles.passageSheetErrorText}>
-                {state.error === 'subscription_required' ? L('errorSubscription')
-                  : state.error === 'daily_limit_reached' ? L('errorLimit')
-                  : state.error === 'citation_unverifiable' ? L('errorCitation')
-                  : L('errorGeneric')}
-              </p>
-            </>
-          )}
-
-          {state.status === 'ready' && (() => {
-            const { answer } = state
-            const isAnswer = answer.outcome === 'answer'
-            const isDoctrine = answer.outcome === 'doctrine_divergent'
-            const isOutOfScope = answer.outcome === 'out_of_scope'
-            const isRisk = answer.outcome === 'risk'
-            // Recusas (quadro 10e) têm copy FIXA — o texto do modelo só sai
-            // na resposta normal. Fora do texto: o modelo dá só o tema
-            // próximo (nearTopic) que entra na frase pronta.
-            const replyText = isDoctrine ? L('doctrineReply')
-              : isOutOfScope ? (answer.nearTopic ? L('outOfScopeReply', { topic: answer.nearTopic }) : L('outOfScopeReplyNoTopic'))
-              : answer.reply
-            return (
-              <>
-                <div style={styles.passageSheetQuestionBubble}>
-                  <p style={styles.passageSheetQuestionText}>{question}</p>
-                </div>
-
-                {/* Risco interrompe ANTES de qualquer versículo — a linha de
-                    apoio vem primeiro, sempre, nunca depois de esperar; e
-                    nenhum texto do modelo sai (quadro 10e). */}
-                {isRisk ? (
-                  <div style={styles.passageSheetRiskCard}>
-                    <p style={styles.passageSheetRiskText}>{L('riskLine')}</p>
-                    {lang !== 'en' && <a href="tel:188" style={styles.passageSheetRiskBtn}>{L('riskCta')}</a>}
-                  </div>
-                ) : (
-                  <p style={styles.passageSheetReply}>{reported ? L('reportedNote') : replyText}</p>
-                )}
-
-                {isDoctrine && !doctrineTextsOpen && (
-                  <div style={styles.passageSheetChipRow}>
-                    <button style={styles.passageSheetChipAccent} onClick={() => setDoctrineTextsOpen(true)}>{L('seeTexts')}</button>
-                    <button style={styles.passageSheetChipGhost} onClick={handleNoteToAsk} disabled={doctrineNoted}>{doctrineNoted ? L('noteToAskDone') : L('noteToAsk')}</button>
-                  </div>
-                )}
-
-                {isAnswer && !reported && (
-                  <div style={styles.passageSheetCitations}>
-                    <div style={styles.passageSheetCiteSupport}>
-                      <p style={styles.passageSheetCiteSupportLabel}>{L('inText', { ref: answer.supportCitation.reference })}</p>
-                      <p style={styles.passageSheetCiteSupportQuote}>"{answer.supportCitation.quote}"</p>
-                    </div>
-                    <div style={styles.passageSheetCiteExpand}>
-                      <p style={styles.passageSheetCiteExpandLabel}>{L('readAlso', { ref: answer.expansionCitation.reference })}</p>
-                      <p style={styles.passageSheetCiteExpandNote}>{answer.expansionCitation.note}</p>
-                    </div>
-                  </div>
-                )}
-
-                {isDoctrine && doctrineTextsOpen && (
-                  <div style={styles.passageSheetCitations}>
-                    <div style={styles.passageSheetCiteSupport}>
-                      <p style={styles.passageSheetCiteSupportLabel}>{answer.doctrineSideA.label} · {answer.doctrineSideA.reference}</p>
-                      <p style={styles.passageSheetCiteSupportQuote}>"{answer.doctrineSideA.quote}"</p>
-                    </div>
-                    <div style={styles.passageSheetCiteExpand}>
-                      <p style={styles.passageSheetCiteExpandLabel}>{answer.doctrineSideB.label} · {answer.doctrineSideB.reference}</p>
-                      <p style={styles.passageSheetCiteExpandNote}>"{answer.doctrineSideB.quote}"</p>
-                    </div>
-                  </div>
-                )}
-
-                {!isRisk && (
-                  <div style={styles.passageSheetFooter}>
-                    {isAnswer && (
-                      <div style={styles.passageSheetFooterRow}>
-                        <button style={styles.passageSheetSaveBtn} onClick={handleSaveNote} disabled={savedNote || reported}>
-                          <AppIcon name="StickyNote" size={14} color="rgba(255,255,255,.75)" />
-                          <span>{savedNote ? L('savedToNote') : L('saveToNote')}</span>
-                        </button>
-                        {/* Texto, não ícone (quadro 10b). */}
-                        <button style={styles.passageSheetReportBtn} onClick={handleReport} disabled={reported}>
-                          {reported ? L('reported') : L('reportAnswer')}
-                        </button>
-                      </div>
-                    )}
-                    <div style={styles.passageSheetFollowUpRow}>
-                      <input
-                        type="text" style={styles.passageSheetFollowUpInput} value={followUp}
-                        onChange={e => setFollowUp(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') submitFollowUp() }}
-                        placeholder={L('askSomethingElse')} maxLength={300}
-                      />
-                      <button style={styles.passageSheetFollowUpSend} onClick={submitFollowUp} disabled={!followUp.trim()} aria-label={L('ask')}>
-                        <AppIcon name="ArrowUp" size={15} color="var(--bento-ink)" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )
-          })()}
-          <p style={styles.passageSheetAiFooter}>{L('aiWrittenNote')}</p>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  )
 }
 
 function ReflectionCard({ bookKey, displayName, info, lang }) {
@@ -3421,8 +3605,7 @@ const styles = {
 
   // ── Folha do versículo selecionado (39e, pacote 39) ──
   // Hex exatos do HANDOFF: escurecido rgba(26,23,20,.45), alça #D6CFC7,
-  // raio 32 no topo. zIndex acima do rodapé (90) e do FAB de IA, abaixo
-  // da folha de resposta (10b/passageSheet*, que pode abrir por cima).
+  // raio 32 no topo. zIndex acima do rodapé (90) e do FAB de IA.
   verseSheetBackdrop: { position: 'fixed', inset: 0, zIndex: 201, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   verseSheet: { width: '100%', maxWidth: 'var(--max-width)', background: 'var(--bento-bg)', borderRadius: '32px 32px 0 0', padding: '0 20px calc(20px + var(--safe-bottom))', maxHeight: '80vh', overflowY: 'auto' },
   verseSheetHandleWrap: { display: 'flex', justifyContent: 'center', padding: '14px 0 6px' },
@@ -3453,71 +3636,4 @@ const styles = {
   verseSheetAskDiamond: { width: 11, height: 11, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
   verseSheetAskTitle: { display: 'block', fontSize: 14.5, fontWeight: 800, color: '#fff', marginBottom: 3 },
   verseSheetAskSub: { display: 'block', fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.6)' },
-  // Estado "asking" (interino pro que 39j vira no Bloco 5).
-  verseSheetBack: {
-    display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', padding: '4px 0', cursor: 'pointer',
-    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t3)', alignSelf: 'flex-start',
-  },
-  verseSheetSuggestChip: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: 'var(--bento-ink)', background: 'var(--bento-card)', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
-  verseSheetAskRow: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-card)', borderRadius: 18, padding: '6px 6px 6px 16px', marginBottom: 4 },
-  verseSheetAskInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'var(--bento-ink)', padding: '10px 0' },
-  verseSheetAskSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-
-  // ── Folha de resposta da IA (10b, reskin Bento) ──
-  // Mesma camada da folha de chat, mas SEM escurecer a leitura atrás — no
-  // quadro 10b a área acima da folha é a tela normal; a camada existe só
-  // pra fechar ao tocar fora.
-  passageSheetBackdrop: { position: 'fixed', inset: 0, zIndex: 210, background: 'transparent', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
-  passageSheetOuter: { width: '100%', maxWidth: 'var(--max-width)', height: '78vh', maxHeight: 680, display: 'flex', flexDirection: 'column' },
-  passageSheetRecapWrap: { flex: 'none', padding: '20px 20px 0' },
-  passageSheetRecapCard: { borderRadius: 28, background: 'var(--bento-card)', padding: '22px 24px 24px', filter: 'saturate(.9)' },
-  passageSheetRecapLabel: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, lineHeight: 1, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 14px' },
-  passageSheetRecapText: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 500, lineHeight: 1.7, color: 'var(--bento-t3)', margin: 0, textWrap: 'pretty' },
-  passageSheetRecapHighlight: { background: 'var(--bento-select)', color: '#3A4A5C', borderRadius: 4, padding: '1px 3px' },
-  passageSheetBody: {
-    flex: 1, minHeight: 0, marginTop: -20, borderRadius: '34px 34px 0 0', background: 'var(--bento-ink)',
-    padding: '20px 20px 18px', display: 'flex', flexDirection: 'column', overflowY: 'auto',
-  },
-  passageSheetHandle: { width: 44, height: 5, borderRadius: 99, background: 'rgba(255,255,255,.22)', margin: '0 auto 20px', flexShrink: 0 },
-  passageSheetHeader: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 18px', flexShrink: 0 },
-  passageSheetDiamond: { width: 11, height: 11, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  passageSheetHeaderTitle: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
-  passageSheetCloseText: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.35)' },
-  passageSheetQuestionBubble: { borderRadius: 18, background: 'rgba(255,255,255,.06)', padding: '14px 16px', margin: '0 0 16px', flexShrink: 0 },
-  passageSheetQuestionText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, lineHeight: 1.45, color: 'white', margin: 0 },
-  passageSheetLoading: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: 'rgba(255,255,255,.5)' },
-  passageSheetErrorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, color: '#FCA5A5', lineHeight: 1.5 },
-  passageSheetReply: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.65, color: 'rgba(255,255,255,.9)', margin: '0 0 18px', textWrap: 'pretty' },
-  // Sinal de sofrimento (quadro 10e): bloco areia, texto e o botão "Falar
-  // com alguém agora" — antes de qualquer versículo, sem texto do modelo.
-  passageSheetRiskCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: 20, margin: '0 0 auto' },
-  passageSheetRiskText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-sand-ink)', margin: '0 0 14px' },
-  passageSheetRiskBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 46, borderRadius: 14, background: 'var(--bento-sand-ink-strong)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, lineHeight: 1, color: 'var(--bento-sand)', textDecoration: 'none' },
-  // Doutrina divergente (quadro 10e): dois chips no lugar da citação.
-  passageSheetChipRow: { display: 'flex', gap: 7, marginBottom: 'auto' },
-  passageSheetChipAccent: { border: 'none', borderRadius: 99, padding: '9px 12px', background: 'rgba(240,102,43,.14)', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-accent)', cursor: 'pointer' },
-  passageSheetChipGhost: { border: 'none', borderRadius: 99, padding: '9px 12px', background: 'rgba(255,255,255,.06)', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.55)', cursor: 'pointer' },
-  passageSheetCitations: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 'auto' },
-  passageSheetCiteSupport: { borderRadius: 16, background: 'rgba(240,102,43,.14)', padding: '14px 16px' },
-  passageSheetCiteSupportLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 7px' },
-  passageSheetCiteSupportQuote: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.5, color: 'rgba(255,255,255,.82)', margin: 0 },
-  passageSheetCiteExpand: { borderRadius: 16, background: 'rgba(255,255,255,.05)', padding: '14px 16px' },
-  passageSheetCiteExpandLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', margin: '0 0 7px' },
-  passageSheetCiteExpandNote: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.62)', margin: 0 },
-  passageSheetFooter: { flexShrink: 0, paddingTop: 16 },
-  passageSheetFooterRow: { display: 'flex', gap: 8, marginBottom: 12 },
-  passageSheetSaveBtn: {
-    flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, cursor: 'pointer',
-    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.75)',
-  },
-  passageSheetReportBtn: {
-    flex: 'none', height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.08)',
-    display: 'flex', alignItems: 'center', padding: '0 14px', cursor: 'pointer',
-    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.75)',
-  },
-  passageSheetFollowUpRow: { height: 50, borderRadius: 16, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', padding: '0 6px 0 18px', gap: 10 },
-  passageSheetFollowUpInput: { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1, color: 'white' },
-  passageSheetFollowUpSend: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  passageSheetAiFooter: { flexShrink: 0, marginTop: 14, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.32)', textAlign: 'center' },
 }
