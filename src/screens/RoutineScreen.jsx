@@ -104,7 +104,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   }, [activeStudyId])
 
   const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
-  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx, session.studyReplacesReading) : []
+  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
 
   function minutesForStep(key) {
     return minutes[key]

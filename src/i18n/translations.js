@@ -1618,13 +1618,9 @@ export const STRINGS = {
       skippedNote: 'Pulou a pergunta',
       collapsedDays: 'Dias {range} · {books}',
       studyDaysRuleLabel: 'Nos dias de estudo',
-      studyDaysRuleIntro: '{days} são dias de estudo. Escolha o que a leitura da Bíblia faz neles.',
-      replaceTitle: 'O estudo entra no lugar da leitura',
-      // Adaptado pras trilhas independentes (sem "Gênesis pausa/volta com
-      // data" — decisão confirmada com a autora, 2026-09-09).
-      replaceSub: 'Nos dias de estudo, você só faz o Estudo — a Leitura segue normal nos outros dias, sem atrasar.',
-      addTitle: 'O estudo soma à leitura',
-      addSub: 'Dia de estudo passa a ter {n} passos · +{min} min',
+      // Leitura e Estudo são passos independentes (achado dela, 2026-09-09)
+      // — nunca se excluem; cada um cai num dia pelo próprio calendário.
+      studyDaysRuleIntro: '{days} são os dias do seu Estudo. A Leitura da Bíblia segue o calendário dela mesma — os dois podem cair no mesmo dia sem problema.',
       changeDaysLink: 'Mudar os dias do estudo',
       pauseBtn: 'Pausar o estudo',
       switchBtn: 'Trocar de estudo',
@@ -4435,11 +4431,7 @@ export const STRINGS = {
       skippedNote: 'Skipped the question',
       collapsedDays: 'Days {range} · {books}',
       studyDaysRuleLabel: 'On study days',
-      studyDaysRuleIntro: '{days} are study days. Choose what Bible reading does on them.',
-      replaceTitle: 'The study takes the reading’s place',
-      replaceSub: 'On study days, you only do the Study — reading carries on as usual on the other days, no delay.',
-      addTitle: 'The study adds to the reading',
-      addSub: 'Study day gets {n} steps · +{min} min',
+      studyDaysRuleIntro: '{days} are your Study’s days. Bible reading follows its own calendar — the two can land on the same day with no issue.',
       changeDaysLink: 'Change the study days',
       pauseBtn: 'Pause the study',
       switchBtn: 'Switch study',

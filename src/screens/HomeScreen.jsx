@@ -267,7 +267,7 @@ export default function HomeScreen({
   // já está ligado pelo toggle).
   const routineModulesSet = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
   const activeStepsToday = STEP_ORDER.filter(k => routineModulesSet.has(k))
-  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx, session.studyReplacesReading) : []
+  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx) : []
 
   const stepMinutesAll = {
     prayer: minutesFor.prayer, reading: minutesFor.reading,

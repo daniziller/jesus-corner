@@ -33,19 +33,16 @@ export function resolveStepDays(stepDays, weeklyDaysFallback) {
 // Quais passos, entre os ATIVOS (ligados em stepMinutes/routineModules),
 // caem no dia de índice `weekdayIndex` (0 = segunda ... 6 = domingo).
 //
-// `studyReplacesReading` (turno 41, 41f "Nos dias de estudo" — modo
-// substitui/soma) — só importa nos dias em que Leitura E Estudo caem
-// juntos: 'substitui' (padrão do estudo, ver studyDayStore.js) tira a
-// Leitura DESSE dia (ela continua normal nos outros dias da semana, sem
-// pausar/recalcular datas — trilhas independentes, ver comentário em
-// estudosStore.js); 'soma' (o default do parâmetro aqui, pra não quebrar
-// quem chama sem saber desse 4º argumento) deixa os dois.
-export function stepsScheduledForWeekday(resolvedStepDays, activeSteps, weekdayIndex, studyReplacesReading = false) {
-  const scheduled = activeSteps.filter(step => !!resolvedStepDays[step]?.[weekdayIndex])
-  if (studyReplacesReading && scheduled.includes('study') && scheduled.includes('reading')) {
-    return scheduled.filter(step => step !== 'reading')
-  }
-  return scheduled
+// Leitura e Estudo são 100% independentes um do outro (confirmado com a
+// autora, 2026-09-09) — o único critério pra cada um cair num dia é o
+// próprio calendário desse passo (Ajustar meu plano); os dois podem
+// coexistir no mesmo dia sem problema nenhum, virando 4 passos naquele
+// dia. Turno 41 (41f "Nos dias de estudo") tinha introduzido um modo
+// "substituir" que tirava a Leitura nos dias em que os dois coincidiam —
+// revertido: não existe esse cruzamento, cada passo só olha pro próprio
+// stepDays.
+export function stepsScheduledForWeekday(resolvedStepDays, activeSteps, weekdayIndex) {
+  return activeSteps.filter(step => !!resolvedStepDays[step]?.[weekdayIndex])
 }
 
 // 7 booleanos: esse dia da semana tem ALGUM passo ativo marcado (união) —
