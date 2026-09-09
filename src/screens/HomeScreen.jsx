@@ -325,6 +325,35 @@ export default function HomeScreen({
     return idx == null ? null : weekdayFull[idx]
   }
 
+  // Continuidade — "Ontem às 6:48 você parou em: '...'" (só quando existe
+  // um último texto lido de verdade — sem isso, a linha simplesmente não
+  // aparece, nunca um texto inventado). O dia (Hoje/Ontem/dia da semana) é
+  // calculado a partir de readAt real, não fixado em "Ontem" — a cópia do
+  // handoff usa "Ontem" como exemplo mais comum, mas o dado é real.
+  //
+  // Precisa vir ANTES de planSubtitleText (acha aqui embaixo) — achado
+  // reparando o "tela branca" real em produção (2026-09-09):
+  // `continuityLine` era usada em planSubtitleText mais de 40 linhas antes
+  // de ser declarada nesta mesma função, um `ReferenceError: Cannot access
+  // 'continuityLine' before initialization` de verdade (TDZ de `const`),
+  // não um efeito de bundler/dependência circular — só derrubava quem já
+  // tinha sessão (Home só renderiza autenticado, por isso nunca aparecia
+  // testando sem login).
+  function continuityDayWord(readAtIso) {
+    const readDate = new Date(readAtIso)
+    const diffDays = Math.round((new Date(dateKey()) - new Date(dateKey(readDate))) / 86400000)
+    if (diffDays <= 0) return L('continuityToday')
+    if (diffDays === 1) return L('continuityYesterday')
+    return readDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'long' })
+  }
+  const continuityHour = lastReadPosition?.readAt
+    ? new Date(lastReadPosition.readAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: 'numeric', minute: '2-digit' })
+    : null
+  const continuityLine = (lastReadPosition && continuityHour)
+    ? L('continuityLine', { day: continuityDayWord(lastReadPosition.readAt), hour: continuityHour })
+      + (continuityExcerpt ? ' ' + L('continuityExcerpt', { text: continuityExcerpt }) : '')
+    : null
+
   const planSubtitleText = readingToday
     ? continuityLine
     : (studyToday && activeStepsToday.includes('reading') && nextWeekdayLabel('reading'))
@@ -359,26 +388,6 @@ export default function HomeScreen({
     const wd = nextWeekdayLabel('reflection')
     return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
   }
-
-  // Continuidade — "Ontem às 6:48 você parou em: '...'" (só quando existe
-  // um último texto lido de verdade — sem isso, a linha simplesmente não
-  // aparece, nunca um texto inventado). O dia (Hoje/Ontem/dia da semana) é
-  // calculado a partir de readAt real, não fixado em "Ontem" — a cópia do
-  // handoff usa "Ontem" como exemplo mais comum, mas o dado é real.
-  function continuityDayWord(readAtIso) {
-    const readDate = new Date(readAtIso)
-    const diffDays = Math.round((new Date(dateKey()) - new Date(dateKey(readDate))) / 86400000)
-    if (diffDays <= 0) return L('continuityToday')
-    if (diffDays === 1) return L('continuityYesterday')
-    return readDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'long' })
-  }
-  const continuityHour = lastReadPosition?.readAt
-    ? new Date(lastReadPosition.readAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: 'numeric', minute: '2-digit' })
-    : null
-  const continuityLine = (lastReadPosition && continuityHour)
-    ? L('continuityLine', { day: continuityDayWord(lastReadPosition.readAt), hour: continuityHour })
-      + (continuityExcerpt ? ' ' + L('continuityExcerpt', { text: continuityExcerpt }) : '')
-    : null
 
   // ── Bloco 4 — SUA APLICAÇÃO DE ONTEM ──
   // Estado especial de "rotina cumprida": se a Reflexão de HOJE já
