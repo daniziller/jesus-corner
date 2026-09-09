@@ -117,3 +117,36 @@ export async function adoptStudy(study, lang) {
 }
 
 export { getThemePlans }
+
+// ── Bloco 3 (41d/41e) — Estudo em ai_studies (ver src/studies/
+// studyDayStore.js), não theme_plans. `sessions[i].completedAt` (novo,
+// só existe a partir daqui) é a fonte de verdade de "dia feito" — dias
+// antigos, de antes desse campo existir, nunca aparecem como feitos
+// mesmo que a sessão tenha sido marcada pelo mecanismo antigo
+// (studies_completed) — decisão de escopo: 41d/41e substituem o "marcar
+// sessão" antigo por completo pra quem usa o modelo novo.
+export function currentDayOf(study) {
+  const sessions = study?.sessions ?? []
+  const index = sessions.findIndex(s => !s.completedAt)
+  if (index === -1) return { day: null, index: sessions.length, total: sessions.length, isLastDay: false }
+  return { day: sessions[index], index, total: sessions.length, isLastDay: index === sessions.length - 1 }
+}
+
+// Próxima data em que `oneStepDays` (ex: stepDays.study, 7 booleanos
+// Seg..Dom) volta a cair — usada em 41e ("O dia N+1 fica esperando...
+// quarta, 10 de setembro"). Mesma semântica de nextScheduledWeekday
+// (stepDaysMath.js), só que devolve uma Date de verdade em vez do índice
+// do dia da semana — sem duplicar a lógica de weekday aqui, só o passo de
+// "que dia do calendário é esse".
+export function nextScheduledDate(oneStepDays, fromDate = new Date()) {
+  const fromIdx = (fromDate.getDay() + 6) % 7 // Mon=0, mesma convenção de WEEKDAY_FULL/DAY_KEYS
+  for (let step = 1; step <= 7; step++) {
+    const idx = (fromIdx + step) % 7
+    if (oneStepDays?.[idx]) {
+      const d = new Date(fromDate)
+      d.setDate(d.getDate() + step)
+      return d
+    }
+  }
+  return null
+}

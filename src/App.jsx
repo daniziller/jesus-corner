@@ -83,7 +83,9 @@ import { getWeeklyDays, setWeeklyDays as persistWeeklyDays, countTrue } from './
 import { getThemePlans, saveThemePlan, generateThemePlan, regenerateThemePassage } from './themePlans/themePlansStore'
 import { publishStudy, recordStudyUse } from './studies/publicStudiesStore'
 import { saveAiStudy, getAiStudies } from './studies/aiStudiesStore'
-import { studyQuota } from './studies/estudosStore'
+import { studyQuota, currentDayOf } from './studies/estudosStore'
+import StudyDayScreen from './screens/StudyDayScreen'
+import StudyDayCompleteScreen from './screens/StudyDayCompleteScreen'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
@@ -1433,6 +1435,11 @@ export default function App() {
   // fluxo antigo de plano por tema (que CreateStudyScreen.jsx/
   // ThemePlanScreen.jsx continuam servindo do jeito de sempre).
   const [aiStudyDraft, setAiStudyDraft] = useState(null) // { ...plan, mode: 'generate'|'preview', publicToBank }
+  // Turno 41, Bloco 3 — o dia que ACABOU de ser concluído em 41d (por
+  // enquanto 'studyDay' sempre mostra o dia ATUAL, que já avançou pro
+  // seguinte no instante em que 41e precisa mostrar o que a pessoa
+  // acabou de fazer — guardado à parte só durante a transição).
+  const [justCompletedStudyDay, setJustCompletedStudyDay] = useState(null) // { studyId, dayId }
 
   async function handleGeneratePersonalStudy({ scope, format, days, publicToBank, plan }) {
     if (plan) {
@@ -2178,10 +2185,54 @@ export default function App() {
   // PR #132), essa função só dava `return` e o botão não fazia nada
   // (bug real, 2026-09-09). Agora leva pra "Adicionar estudo" pra
   // escolher/criar um, mesmo destino do cartão "Meus estudos".
+  // Turno 41, Bloco 3: ai_studies guarda DOIS formatos de sessão — o
+  // antigo (StudiesScreen.jsx, "criar por tema" com sections/
+  // reflectionQuestions, sem pergunta única por dia) e o novo (41b/41c em
+  // diante, com book/chStart/chEnd — o que 41d sabe abrir). Só o novo
+  // ganha a tela nova; um estudo antigo ainda ativo continua abrindo do
+  // jeito de sempre (StudiesScreen), sem quebrar quem já tinha um rodando
+  // antes deste bloco.
+  function isNewFormatStudy(study) {
+    return !!study?.sessions?.[0]?.book
+  }
   function openActiveStudy() {
     if (!activeStudyId) { goToTab('addStudy'); return }
+    const study = aiStudies.find(s => s.id === activeStudyId)
+    if (study && isNewFormatStudy(study)) {
+      if (currentDayOf(study).day) { goToTab('studyDay'); return }
+      // Todos os dias já feitos — 41f ("estudo por dentro", Bloco 4) e 41g
+      // (síntese, Bloco 5) ainda não existem; por ora volta pro hub.
+      goToTab('addStudy')
+      return
+    }
     setLibraryOpenStudyId(activeStudyId)
     goToTab('studies')
+  }
+
+  // Fecho de um dia (41d → 41e) — guarda qual dia foi concluído (a
+  // referência "atual" já avançou pro seguinte) e marca o passo "Estudo"
+  // de hoje como feito (mesmo evento que StudiesScreen.jsx já disparava
+  // ao concluir uma sessão do estudo ativo).
+  function handleStudyDayCompleted(studyId, dayId) {
+    markRoutineStep('study', true)
+    setJustCompletedStudyDay({ studyId, dayId })
+    goToTab('studyDayComplete')
+  }
+
+  // "Continuar meu plano" (41e) — mesma ideia de advanceGuided, mas sem
+  // modo guiado: acha o primeiro passo de hoje ainda não feito e abre
+  // direto; se não sobrou nenhum, vai pro resumo do dia (mesmo destino de
+  // sempre quando o último passo termina).
+  function continueStudyDayToNextStep() {
+    const nextKey = (session.todaysSteps ?? []).find(k => !session.todayRoutine?.[k])
+    if (!nextKey) {
+      setRoutineCompleteInfo({ steps: session.todaysSteps ?? ['study'], readingSession: lastReadSession })
+      goToTab('routineComplete')
+      return
+    }
+    if (nextKey === 'reading') { continueToday(); return }
+    if (nextKey === 'study') { openActiveStudy(); return }
+    goToTab(guidedTabFor(nextKey))
   }
 
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
@@ -2477,6 +2528,23 @@ export default function App() {
     await shareRecapImage(blob, { title: month, text: L('shareText', { month, summary }) })
   }
 
+  // Turno 41, Bloco 3 — resolvidos aqui (não em estado à parte) pra nunca
+  // dessincronizar com aiStudies: 41d sempre mostra o dia atual de
+  // verdade; 41e mostra o dia que acabou de ser concluído (ver
+  // justCompletedStudyDay, limpo ao sair de 41e).
+  const activeStudyForDay = aiStudies.find(s => s.id === activeStudyId)
+  const currentDay = activeStudyForDay ? currentDayOf(activeStudyForDay) : null
+  const justCompletedStudy = justCompletedStudyDay ? aiStudies.find(s => s.id === justCompletedStudyDay.studyId) : null
+  const justCompletedDayIndex = justCompletedStudy?.sessions?.findIndex(s => s.id === justCompletedStudyDay?.dayId) ?? -1
+  const justCompletedDay = justCompletedDayIndex >= 0 ? justCompletedStudy.sessions[justCompletedDayIndex] : null
+  // Próximo passo de hoje ainda não feito (pro rodapé "Continuar meu
+  // plano" de 41e) — mesma conta de stepMinutesAll em HomeScreen.jsx.
+  const nextRoutineStepKey = (session.todaysSteps ?? []).find(k => !session.todayRoutine?.[k])
+  const nextStepMinutesByKey = { prayer: session.plan?.prayerMinutes, reading: session.plan?.readingMinutes, study: stepMinutes?.study ?? 15, reflection: session.plan?.reflectionMinutes }
+  const nextRoutineStepInfo = nextRoutineStepKey
+    ? { label: t(`home.routine${nextRoutineStepKey[0].toUpperCase()}${nextRoutineStepKey.slice(1)}`, undefined, session.lang), minutes: nextStepMinutesByKey[nextRoutineStepKey] }
+    : null
+
   const screens = {
     // Rodada 34 (2026-09-07, handoff-hoje-34/HANDOFF-34a-hoje.md) — Hoje
     // reescrita de novo: plano de hoje → versículo → aplicação de ontem →
@@ -2576,6 +2644,36 @@ export default function App() {
           onBack={goBack} onRefazer={handleRefazeAiStudyDraft} onSwapDay={handleSwapAiStudyDay}
           onSaveForLater={handleSaveAiStudyForLater}
           onStart={aiStudyDraft.mode === 'preview' ? handleStartPreviewStudy : handleStartAiStudy}
+        />,
+    // Turno 41, Bloco 3 — 41d "O dia do estudo, aberto". `activeStudyForDay`/
+    // `currentDay` resolvidos aqui (não guardados à parte) porque o dia
+    // "atual" É sempre o mais recente incompleto — nunca dessincroniza.
+    studyDay: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : !activeStudyForDay || !currentDay?.day
+      ? null
+      : <StudyDayScreen
+          session={session} authUser={authUser} study={activeStudyForDay}
+          day={currentDay.day} dayIndex={currentDay.index} totalDays={currentDay.total}
+          onBack={goBack} onOpenBiblePassage={openBiblePassage}
+          onStudyUpdated={setAiStudies}
+          onCompleted={handleStudyDayCompleted}
+          onSavedForLater={() => goToTab('routine')}
+        />,
+    // 41e "Fim do dia do estudo" — `justCompletedDay` é o dia que ACABOU
+    // de ser concluído (guardado em justCompletedStudyDay na hora, ver
+    // handleStudyDayCompleted), não o "atual" (que já é o seguinte).
+    studyDayComplete: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : !justCompletedDay
+      ? null
+      : <StudyDayCompleteScreen
+          session={session} authUser={authUser} study={justCompletedStudy}
+          day={justCompletedDay} dayIndex={justCompletedDayIndex} totalDays={justCompletedStudy?.sessions?.length ?? 0}
+          stepDays={stepDays} nextStep={nextRoutineStepInfo}
+          onStudyUpdated={setAiStudies}
+          onContinuePlan={() => { setJustCompletedStudyDay(null); continueStudyDayToNextStep() }}
+          onFinishHere={() => { setJustCompletedStudyDay(null); goToTab('routine') }}
         />,
     // Etapa 10 (22d) — proposta e envio de um plano de grupo (só quem
     // modera chega aqui, ver CreateStudyScreen.jsx), e o leitor dele depois
@@ -2732,7 +2830,7 @@ export default function App() {
   // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
   // agora também aparece no mobile (era hide-on-mobile) — ver
   // StudiesScreen.jsx.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -2749,7 +2847,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (
