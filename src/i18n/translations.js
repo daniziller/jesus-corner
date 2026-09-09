@@ -176,7 +176,7 @@ export const STRINGS = {
       // plano de hoje → versículo → aplicação de ontem → esta semana → dois
       // quadrados → resumo da semana.
       planLabel: 'Seu plano de hoje',
-      planDoneLabel: 'Rotina de hoje concluída',
+      planDoneLabel: 'Seu plano foi concluído',
       minShort: '{n} min',
       minUnit: 'min',
       goToMyPlan: 'Ir para meu plano',
@@ -3044,7 +3044,7 @@ export const STRINGS = {
 
       // ── Today (round 34) — route /, replaces everything before it.
       planLabel: "Today's plan",
-      planDoneLabel: "Today's routine complete",
+      planDoneLabel: "Your plan is complete",
       minShort: '{n} min',
       minUnit: 'min',
       goToMyPlan: 'Go to my plan',
