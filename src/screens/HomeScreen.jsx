@@ -544,10 +544,12 @@ export default function HomeScreen({
                   const isDone = on && !!todayRoutine[k]
                   return (
                     <button key={k} type="button" style={{ ...styles.tile, position: 'relative' }} onClick={() => onNavigate?.('adjustPlan')}>
-                      {isDone && (
+                      {isDone ? (
                         <span style={styles.tileCheck}>
                           <AppIcon name="Check" size={11} strokeWidth={3} color="var(--bento-ink)" />
                         </span>
+                      ) : on && (
+                        <span style={styles.tileCirclePending} />
                       )}
                       <p style={styles.tileTop}>
                         {on ? <>{minutesForStep(k)}<span style={styles.tileTopUnit}> min</span></> : L('tileDayOff')}
@@ -785,6 +787,9 @@ const styles = {
   tileStepName: { fontFamily: FONT, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.02em', color: 'rgba(255,255,255,.55)', margin: '2px 0 0' },
   tileDetail: { fontFamily: FONT, fontSize: 9.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.4)', margin: '4px 0 0' },
   tileCheck: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  // Círculo pontilhado cinza = passo agendado pra hoje mas ainda não
+  // concluído; vira o tileCheck (laranja) assim que é feito.
+  tileCirclePending: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', border: '1.5px dashed rgba(255,255,255,.3)' },
 
   startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },
   startBtnText: { fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
