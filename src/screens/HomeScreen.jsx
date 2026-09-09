@@ -37,7 +37,7 @@ import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { dateKey } from '../utils/dateKey'
 import { getStepDays, stepsScheduledForWeekday } from '../routine/stepDaysStore'
-import { STEP_ORDER, statusFor, buildRowMeta, featuredStepsFor } from '../routine/planTodayRows'
+import { STEP_ORDER } from '../routine/planTodayRows'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
 import { nextScheduledWeekday } from '../routine/stepDaysStore'
@@ -266,34 +266,9 @@ export default function HomeScreen({
   const currentKey = todaysSteps.find(k => !todayRoutine[k]) ?? null
   const allDoneToday = todaysSteps.length > 0 && !currentKey
 
-  // Passos "principais" de hoje, só pro estado "rotina cumprida" (lista de
-  // linhas já feitas — nenhum quadro mostra esse estado pro grid de
-  // tiles novo, então a lista antiga fica só aqui; lógica pura testada em
-  // src/routine/planTodayRows.js).
-  const featuredSteps = featuredStepsFor(todaysSteps)
-
   const planState = session.hasNoPlan ? 'noPlan' : todaysSteps.length === 0 ? 'dayOff' : 'normal'
 
   const stepTitle = k => translate(`home.routine${cap(k)}`, undefined, lang)
-
-  function metaFor(key, status) {
-    return buildRowMeta(key, status, {
-      activeStudyId, hasNoPlan: session.hasNoPlan, reflectionMethod, prayerMethod,
-      todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle,
-    }, R)
-  }
-
-  function titleForFeatured(key, status) {
-    if (key === 'study' && status === 'now' && activeStudyId) return activeStudy?.passage || stepTitle(key)
-    if (key === 'reading') {
-      // Feito: mostra o que ela ACABOU de ler (lastReadPosition), não o
-      // próximo pendente — a essa altura session.todaySession já avançou
-      // pro que vem depois (ver findCurrentReadingSession.js).
-      if (status === 'done' && lastReadPosition) return `${lastReadPosition.book} ${lastReadPosition.chapter}`
-      return todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title
-    }
-    return stepTitle(key)
-  }
 
   function handleOnlyRead() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
@@ -501,10 +476,16 @@ export default function HomeScreen({
       <div style={styles.body}>
 
         {/* Bloco 2 — SEU PLANO DE HOJE (2026-09-08: passos com dias
-            próprios, mesmo modelo de Meu Plano — ver planTodayRows.js). */}
-        <div style={{ ...styles.planCard, ...(planState === 'normal' && allDoneToday ? styles.planCardDone : {}) }}>
+            próprios, mesmo modelo de Meu Plano — ver planTodayRows.js).
+            Concluído (2026-09-09, pedido dela): o card fica com as MESMAS
+            cores de sempre (nada de fundo/kicker próprios pro estado
+            "feito" — tirado o cinza-ardósia que tinha antes) e a MESMA
+            estrutura (título + grade de tiles), só troca o texto de cima
+            e acrescenta um check em cada tile já feito — ver isDone dentro
+            do .map() dos tiles, mais abaixo. */}
+        <div style={styles.planCard}>
           <div style={styles.planHead}>
-            <p style={{ ...styles.planLabel, ...(planState === 'normal' && allDoneToday ? styles.planLabelDone : {}) }}>
+            <p style={styles.planLabel}>
               {planState === 'normal' && allDoneToday ? L('planDoneLabel') : L('planLabel')}
             </p>
             {planState === 'normal' && !allDoneToday && totalPlanMin > 0 && (
@@ -536,52 +517,19 @@ export default function HomeScreen({
             </>
           )}
 
-          {/* Rotina cumprida — nenhum quadro do pacote mostra esse estado
-              pro grid de tiles novo (34a/34b/34c só mostram o dia em
-              andamento), então mantém a lista de linhas antiga aqui,
-              já com HANDOFF-34-hoje.md ("Estados da mesma tela") sem
-              nenhuma imagem contradizendo. */}
-          {planState === 'normal' && allDoneToday && (
-            <>
-              {continuityLine && featuredSteps.includes('reading') && <p style={styles.continuityLine}>{continuityLine}</p>}
-
-              <div style={styles.stepRowsCol}>
-                {featuredSteps.map(k => {
-                  const status = statusFor(k, { offSteps: [], todayRoutine, currentKey })
-                  return (
-                    <div key={k} style={styles.homeStepRow}>
-                      <span style={{
-                        ...styles.homeStepIcon,
-                        ...(status === 'done' ? styles.homeStepIconDone : status === 'now' ? styles.homeStepIconNow : styles.homeStepIconPending),
-                      }}>
-                        {status === 'done' && <AppIcon name="Check" size={14} strokeWidth={2.6} color="var(--bento-sand)" />}
-                        {status === 'now' && <AppIcon name="Play" size={12} color="var(--bento-ink)" fill="var(--bento-ink)" />}
-                        {status === 'pending' && <span style={styles.homeStepDot} />}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={styles.homeStepTitle}>{titleForFeatured(k, status)}</p>
-                        <p style={styles.homeStepMeta}>{metaFor(k, status)}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <p style={styles.nextUpLine}>{L('nextUp', { title: todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title })}</p>
-              <div style={styles.doneBtnRow}>
-                <button style={styles.extraChapterBtn} onClick={handleOnlyRead}>{L('extraChapter')}</button>
-                <button style={styles.seeInGroupBtn} onClick={() => onNavigate?.('groups')}>{L('seeInGroup')}</button>
-              </div>
-            </>
-          )}
-
-          {/* Dia em andamento (34a/34b/34c) — título grande (capítulo, ou
-              capítulo + estudo, ou estudo sozinho quando a Leitura não cai
-              hoje), subtítulo de continuidade, e a grade de tiles: um por
-              passo ATIVO, sempre 3 linhas, nunca some (passo fora de hoje
-              vira "dia off" + "Volta {dia}"). Um botão só, "Ir para meu
-              plano" — nenhum PNG mostra "Começar agora"/"Só ler" mais. */}
-          {planState === 'normal' && !allDoneToday && (
+          {/* Dia em andamento OU concluído (34a/34b/34c) — título grande
+              (capítulo, ou capítulo + estudo, ou estudo sozinho quando a
+              Leitura não cai hoje), subtítulo de continuidade, e a grade
+              de tiles: um por passo ATIVO, sempre 3 linhas, nunca some
+              (passo fora de hoje vira "dia off" + "Volta {dia}"). Um botão
+              só, "Ir para meu plano" — nenhum PNG mostra "Começar agora"/
+              "Só ler" mais. Concluído (2026-09-09, pedido dela): mesmo
+              card de sempre, só troca o texto de cima (ver planHead acima)
+              e cada tile já feito ganha um check no canto — nenhum PNG
+              desenha esse estado, mas ela decidiu que o card "quase igual"
+              é melhor que o desenho próprio (linhas + "capítulo extra"/
+              "ver no grupo") que existia aqui antes. */}
+          {planState === 'normal' && (
             <>
               <p style={styles.planTitle}>{planTitleText}</p>
               {planSubtitleText && <p style={styles.continuityLine}>{planSubtitleText}</p>}
@@ -593,8 +541,14 @@ export default function HomeScreen({
                 {activeStepsToday.map(k => {
                   const on = todaysSteps.includes(k)
                   const detail = tileDetailFor(k, on)
+                  const isDone = on && !!todayRoutine[k]
                   return (
-                    <button key={k} type="button" style={styles.tile} onClick={() => onNavigate?.('adjustPlan')}>
+                    <button key={k} type="button" style={{ ...styles.tile, position: 'relative' }} onClick={() => onNavigate?.('adjustPlan')}>
+                      {isDone && (
+                        <span style={styles.tileCheck}>
+                          <AppIcon name="Check" size={11} strokeWidth={3} color="var(--bento-ink)" />
+                        </span>
+                      )}
                       <p style={styles.tileTop}>
                         {on ? <>{minutesForStep(k)}<span style={styles.tileTopUnit}> min</span></> : L('tileDayOff')}
                       </p>
@@ -812,35 +766,17 @@ const styles = {
 
   // Bloco 2.
   planCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 20 },
-  // Antes trocava pra --bento-sand (bege) quando o plano do dia estava
-  // concluído — ela não gostou. Agora é --bento-slate (cinza), com
-  // detalhes em preto/branco/laranja abaixo, em vez do bege/marrom antigo.
-  planCardDone: { background: 'var(--bento-slate)' },
   planHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   planLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
-  planLabelDone: { color: 'var(--bento-accent)' },
   planMin: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.42)', border: 'none', background: 'none', padding: 0, cursor: 'pointer' },
   planTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
   continuityLine: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
 
-  // Linhas de passo "principal" de hoje (Leitura/Estudo, ou Oração/
-  // Reflexão quando nenhum dos dois cai hoje — ver featuredSteps) —
-  // 2026-09-08, substitui a faixa de tiles (minutos configurados de TODOS
-  // os passos) por uma lista mais parecida com a de Meu Plano, só do(s)
-  // passo(s) que realmente importam agora.
-  stepRowsCol: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 },
-  homeStepRow: { display: 'flex', alignItems: 'center', gap: 12 },
-  homeStepIcon: { width: 30, height: 30, flexShrink: 0, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  homeStepIconDone: { background: 'var(--bento-sand-icon)' },
-  homeStepIconNow: { background: 'var(--bento-accent)' },
-  homeStepIconPending: { background: 'rgba(255,255,255,.12)' },
-  homeStepDot: { width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,.5)' },
-  homeStepTitle: { fontFamily: FONT, fontSize: 14.5, fontWeight: 800, lineHeight: 1.2, color: '#fff', margin: '0 0 2px' },
-  homeStepMeta: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.5)', margin: 0 },
-
   // Grade de tiles (34a/34b/34c) — uma linha só quando cabem ≤3 passos
   // ativos (34a), 2×2 quando são 4 (34b/34c); nunca some um tile, o
-  // "desligado hoje" vira "dia off" no lugar do número.
+  // "desligado hoje" vira "dia off" no lugar do número. Plano concluído
+  // (2026-09-09): mesmo grid, cada tile já feito ganha o selinho
+  // `tileCheck` no canto — nenhuma outra mudança de cor/estrutura.
   tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
   tilesGrid4: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   tile: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', boxSizing: 'border-box', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: FONT },
@@ -848,17 +784,13 @@ const styles = {
   tileTopUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
   tileStepName: { fontFamily: FONT, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.02em', color: 'rgba(255,255,255,.55)', margin: '2px 0 0' },
   tileDetail: { fontFamily: FONT, fontSize: 9.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.4)', margin: '4px 0 0' },
+  tileCheck: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
   startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },
   startBtnText: { fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   startBtnArrow: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
   onlyReadBtn: { height: 48, padding: '0 16px', borderRadius: 16, border: 'none', background: 'rgba(255,255,255,.08)', cursor: 'pointer', fontFamily: FONT },
   onlyReadBtnText: { fontSize: 12.5, fontWeight: 700, color: '#fff' },
-
-  nextUpLine: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.55)', margin: '0 0 14px' },
-  doneBtnRow: { display: 'flex', gap: 8 },
-  extraChapterBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, cursor: 'pointer' },
-  seeInGroupBtn: { flex: 1, height: 44, borderRadius: 15, border: 'none', background: 'rgba(255,255,255,.12)', color: '#fff', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' },
 
   // Bloco 3.
   verseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px' },
