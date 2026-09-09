@@ -30,9 +30,14 @@ const SHEET_MIN_VH = 20 // nunca deixa a folha ficar menor que isso ENQUANTO arr
 const SHEET_COLLAPSE_MARGIN_VH = 14 // arrastar mais que isso abaixo de HALF solta pro lápis
 
 const SERMON_NOTE_TYPES = ['sermon', 'service', 'class', 'lecture', 'video']
+// Tipo customizado ("Outros" — Regra 4 §5): a pessoa escreveu com as
+// próprias palavras (ex: "retiro"), não é uma das 5 chaves fixas — o
+// próprio texto digitado É o rótulo, sem passar por tradução nenhuma.
 function sermonTypeLabel(type, lang) {
+  if (!type) return ''
   if (type === 'sermon') return t('notes.typeSermon', undefined, lang)
-  return t(`sermonNote.type${type[0].toUpperCase()}${type.slice(1)}`, undefined, lang)
+  if (SERMON_NOTE_TYPES.includes(type)) return t(`sermonNote.type${type[0].toUpperCase()}${type.slice(1)}`, undefined, lang)
+  return type
 }
 
 // "Você está em Gênesis 41" (progresso real) ou "Mateus é um bom começo"
@@ -215,18 +220,30 @@ export default function JourneyScreen({
   // finalizedAt é uma anotação ainda não fechada em 34h/"Guardar na
   // biblioteca". Só restaura o ESTADO (lápis com selo aparece de novo);
   // não força a folha a abrir sozinha ao entrar na aba.
+  // "Outros" (34f, Regra 4 §5) — texto livre digitado por ela vira uma
+  // opção RE-APROVEITÁVEL: junta os noteType distintos que já usou antes
+  // e que não são uma das 5 chaves fixas, oferece como sugestão dentro do
+  // próprio campo "Outros" (não como um 7º botão fixo no grid — o grid é
+  // 2×3 no quadro, ponto).
+  const [sermonCustomTypes, setSermonCustomTypes] = useState([])
+  const [sermonOtherOpen, setSermonOtherOpen] = useState(false)
+  const isCustomSermonType = !!sermonDraft?.noteType && !SERMON_NOTE_TYPES.includes(sermonDraft.noteType)
   useEffect(() => {
     if (!authUser?.email) return
     let cancelled = false
     getSermonNotes(authUser.email).then(notes => {
       if (cancelled) return
       const inProgress = notes.find(n => !n.finalizedAt)
-      if (!inProgress) return
-      setSermonDraft({
-        id: inProgress.id, createdAt: inProgress.createdAt ?? new Date().toISOString(), date: inProgress.date ?? dateKey(),
-        noteType: inProgress.noteType ?? 'sermon', title: inProgress.title ?? '', preacher: inProgress.preacher ?? '',
-        church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
-      })
+      if (inProgress) {
+        setSermonDraft({
+          id: inProgress.id, createdAt: inProgress.createdAt ?? new Date().toISOString(), date: inProgress.date ?? dateKey(),
+          noteType: inProgress.noteType ?? 'sermon', title: inProgress.title ?? '', preacher: inProgress.preacher ?? '',
+          church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
+          finalizedAt: inProgress.finalizedAt ?? null,
+        })
+      }
+      const custom = [...new Set(notes.map(n => n.noteType).filter(nt => nt && !SERMON_NOTE_TYPES.includes(nt)))]
+      setSermonCustomTypes(custom)
     }).catch(() => {})
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -670,25 +687,62 @@ export default function JourneyScreen({
                     <button type="button" style={styles.sermonReadyBtn} onClick={() => setSermonSourceOpen(false)}>{t('sermonNote.ready', undefined, lang)}</button>
                   </div>
                   <div style={{ ...styles.sermonSheetBody, overflowY: 'auto' }}>
-                    <p style={styles.sermonSectionLabel}>{t('sermonNote.whatAreYouNoting', undefined, lang)}</p>
-                    <div style={styles.sermonTypeGrid}>
-                      {SERMON_NOTE_TYPES.map(type => (
+                    <div style={styles.sermonTypeCard}>
+                      <p style={styles.sermonSectionLabel}>{t('sermonNote.whatAreYouNoting', undefined, lang)}</p>
+                      <div style={styles.sermonTypeGrid}>
+                        {SERMON_NOTE_TYPES.map(type => (
+                          <button
+                            key={type} type="button"
+                            style={{ ...styles.sermonTypePill, ...(sermonDraft.noteType === type ? styles.sermonTypePillOn : {}) }}
+                            onClick={() => { patchSermonDraft({ noteType: type }); setSermonOtherOpen(false) }}
+                          >
+                            <span style={{ ...styles.sermonTypeDot, ...(sermonDraft.noteType === type ? styles.sermonTypeDotOn : {}) }} />
+                            {sermonTypeLabel(type, lang)}
+                          </button>
+                        ))}
+                        {/* "Outros" (Regra 4 §5) — abre um campo curto pra
+                            escrever o tipo com as próprias palavras; o que
+                            ela digitou fica marcado (selecionado) mesmo
+                            depois de fechar o campo. */}
                         <button
-                          key={type} type="button"
-                          style={{ ...styles.sermonTypePill, ...(sermonDraft.noteType === type ? styles.sermonTypePillOn : {}) }}
-                          onClick={() => patchSermonDraft({ noteType: type })}
+                          type="button"
+                          style={{ ...styles.sermonTypePill, ...(isCustomSermonType ? styles.sermonTypePillOn : {}) }}
+                          onClick={() => setSermonOtherOpen(v => !v)}
                         >
-                          <span style={{ ...styles.sermonTypeDot, ...(sermonDraft.noteType === type ? styles.sermonTypeDotOn : {}) }} />
-                          {sermonTypeLabel(type, lang)}
+                          <span style={{ ...styles.sermonTypeDot, ...(isCustomSermonType ? styles.sermonTypeDotOn : {}) }} />
+                          {isCustomSermonType ? sermonDraft.noteType : t('sermonNote.typeOther', undefined, lang)}
                         </button>
-                      ))}
+                      </div>
+                      {(sermonOtherOpen || isCustomSermonType) && (
+                        <>
+                          <input
+                            style={styles.sermonOtherTypeInput}
+                            value={isCustomSermonType ? sermonDraft.noteType : ''}
+                            placeholder={t('sermonNote.otherTypePlaceholder', undefined, lang)}
+                            onChange={e => patchSermonDraft({ noteType: e.target.value })}
+                            autoFocus={sermonOtherOpen && !isCustomSermonType}
+                          />
+                          {/* Reaproveita tipos que ela já escreveu antes
+                              (Regra 4 §5: "vira uma opção reaproveitável nas
+                              próximas anotações") — sem inventar um 7º
+                              botão fixo no grid, só sugestões dentro do
+                              próprio campo "Outros". */}
+                          {sermonCustomTypes.filter(ct => ct !== sermonDraft.noteType).length > 0 && (
+                            <div style={styles.sermonOtherSuggestRow}>
+                              {sermonCustomTypes.filter(ct => ct !== sermonDraft.noteType).map(ct => (
+                                <button key={ct} type="button" style={styles.sermonOtherSuggestChip} onClick={() => patchSermonDraft({ noteType: ct })}>{ct}</button>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
 
                     <div style={styles.sermonFieldsHead}>
                       <span style={styles.sermonSectionLabel}>{t('sermonNote.fromLabel', undefined, lang)}</span>
                       <span style={styles.sermonOptionalTag}>{t('sermonNote.fromOptional', undefined, lang)}</span>
                     </div>
-                    <div style={styles.sermonFieldsCard}>
+                    <div style={styles.sermonSourceFieldsCard}>
                       <label style={styles.sermonFieldRow}>
                         <span style={styles.sermonFieldLabel}>{t('sermonNote.titleFieldLabel', undefined, lang)}</span>
                         <input style={styles.sermonFieldInput} value={sermonDraft.title} placeholder={t('sermonNote.titlePlaceholder', undefined, lang)} onChange={e => patchSermonDraft({ title: e.target.value })} />
@@ -1370,19 +1424,42 @@ const styles = {
   // "De onde veio" (34f) e "Grupo" (escolha de grupos, README: "a mesma
   // de 39f") — as duas trocam o conteúdo da mesma folha, mesmo cabeçalho.
   sermonSourceHeader: { display: 'flex', alignItems: 'center', gap: 10, padding: '4px 20px 14px', flexShrink: 0 },
-  sermonSourceTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px' },
-  sermonSourceDate: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  // 34f token: "'De onde veio' (800/17)".
+  sermonSourceTitle: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, letterSpacing: '-.3px', lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  sermonSourceDate: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
   sermonReadyBtn: { flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 12, border: 'none', background: 'var(--bento-accent)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   sermonSectionLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
-  sermonTypeGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
+  // 34f cartões grandes (token: "cartão grande 26") — "O que você está
+  // anotando" e "De onde veio" são dois cartões BRANCOS separados sobre o
+  // fundo da folha, cada um com seu rótulo DENTRO (não flutuando por
+  // cima) — achado comparando com o PNG: a versão anterior desenhava o
+  // rótulo/grade direto no fundo da folha, sem o cartão branco.
+  sermonTypeCard: { borderRadius: 26, background: '#fff', padding: '18px 16px 16px', marginBottom: 12 },
+  sermonTypeGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   sermonTypePill: {
-    flex: '1 1 45%', minWidth: 130, display: 'flex', alignItems: 'center', gap: 9, height: 48, padding: '0 14px', borderRadius: 15,
-    border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer', textAlign: 'left',
+    flex: '1 1 45%', minWidth: 130, display: 'flex', alignItems: 'center', gap: 9, padding: '13px 14px', borderRadius: 15,
+    border: 'none', background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', cursor: 'pointer', textAlign: 'left',
   },
-  sermonTypePillOn: { background: 'var(--bento-ink)', color: '#fff' },
-  sermonTypeDot: { width: 6, height: 6, borderRadius: '50%', background: 'var(--bento-t5)', flexShrink: 0 },
+  sermonTypePillOn: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
+  sermonTypeDot: { width: 8, height: 8, borderRadius: '50%', background: '#CFC6BC', flexShrink: 0 },
   sermonTypeDotOn: { background: 'var(--bento-accent)' },
-  sermonFieldsHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
+  // "Outros" abre um campo curto (Regra 4 §5) — mesma linha do grid, mas
+  // ocupando a largura toda (não é mais um botão, vira um campo de texto).
+  sermonOtherTypeInput: {
+    width: '100%', marginTop: 8, height: 48, padding: '0 14px', borderRadius: 15, border: 'none', background: 'var(--bento-line)',
+    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none',
+  },
+  sermonOtherSuggestRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  sermonOtherSuggestChip: {
+    height: 30, padding: '0 12px', borderRadius: 11, border: 'none', background: 'var(--bento-line)',
+    fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer',
+  },
+  // 34f: "De onde veio" (rótulo + "tudo opcional" + os 4 campos) é UM
+  // cartão branco só, raio 26 — diferente de sermonFieldsCard (raio 18),
+  // que continua servindo só o toggle de grupo (não redesenhado neste
+  // bloco).
+  sermonSourceFieldsCard: { borderRadius: 26, background: '#fff', padding: '18px 16px 4px' },
+  sermonFieldsHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 },
   sermonOptionalTag: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t4)' },
   sermonFieldsCard: { borderRadius: 18, background: 'var(--bento-card)', padding: '0 16px' },
   sermonFieldRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '13px 0' },
