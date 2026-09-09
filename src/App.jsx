@@ -2145,8 +2145,14 @@ export default function App() {
   // "Ler agora" em Meu Plano (35b) quando o passo de hoje é o Estudo ativo —
   // mesmo mecanismo que a Biblioteca já usa pra abrir um estudo específico
   // (ver libraryOpenStudyId/NotesScreen.jsx).
+  // Botão "Começar/Continuar" do passo Estudo (RoutineScreen.startStep/
+  // openDoneStep) — antes, sem nenhum estudo ativo escolhido ainda (o
+  // toggle de Estudo pode estar ligado sem study nenhum selecionado, ver
+  // PR #132), essa função só dava `return` e o botão não fazia nada
+  // (bug real, 2026-09-09). Agora leva pra "Adicionar estudo" pra
+  // escolher/criar um, mesmo destino do cartão "Meus estudos".
   function openActiveStudy() {
-    if (!activeStudyId) return
+    if (!activeStudyId) { goToTab('addStudy'); return }
     setLibraryOpenStudyId(activeStudyId)
     goToTab('studies')
   }
