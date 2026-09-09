@@ -36,6 +36,7 @@ import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
 import AddStudyScreen from './screens/AddStudyScreen'
+import PublicStudiesScreen from './screens/PublicStudiesScreen'
 import CreateStudyScreen from './screens/CreateStudyScreen'
 import StudyProposalScreen from './screens/StudyProposalScreen'
 import CreateAiStudyScreen from './screens/CreateAiStudyScreen'
@@ -2514,6 +2515,17 @@ export default function App() {
           onCreateStudy={() => navigateTo('createAiStudy')}
           onChangeStudyDays={() => navigateTo('studyOrganize')}
           onOpenPreview={handleOpenStudyPreview}
+          onOpenPublicBank={() => navigateTo('publicStudies')}
+        />,
+    // Turno 41, 41i — "Banco público" (busca por situação, chips de tema).
+    // Mesma trava de addStudy (rotina inteira é hasPremium).
+    publicStudies: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : <PublicStudiesScreen
+          session={session}
+          onBack={goBack}
+          onOpenPreview={handleOpenStudyPreview}
+          onGoToSaved={() => navigateTo('addStudy')}
         />,
     // Etapa 10 (22a/22b) — fluxo ANTIGO (theme_plans/activeAltPlan.theme),
     // mantido pra quem ainda chega por ThemePlanScreen.jsx. Turno 35,
@@ -2691,7 +2703,7 @@ export default function App() {
   // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
   // agora também aparece no mobile (era hide-on-mobile) — ver
   // StudiesScreen.jsx.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -2704,7 +2716,11 @@ export default function App() {
   // diferente de 35d/35e (createAiStudy/studyProposalNew), que têm botão
   // primário fixo no rodapé no lugar da barra, como o antigo createStudy/
   // studyProposal já tinham.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab)
+  // 'publicStudies' (41i) entrou aqui 2026-09-09: HANDOFF-41 é explícito
+  // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
+  // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
+  // voltar, sem barra.
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (
