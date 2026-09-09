@@ -328,7 +328,15 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
           </button>
         )}
 
-        {!activeStudyId && !hasNoPlan && (
+        {/* Bug real corrigido (2026-09-09, achado dela: "cartão 'Seu
+            plano'/'Sua semana' desapareceu"): este card ficava escondido
+            também com `!activeStudyId` — resquício do modelo antigo (35b,
+            "Gênesis pausado até 10 de setembro"), de antes das trilhas
+            independentes. Leitura continua tendo posição/progresso/grade
+            própria mesmo com um Estudo ativo (os dois não se pausam mais —
+            ver stepsScheduledForWeekday/estudosStore.js); só a ausência de
+            PLANO (hasNoPlan) é motivo real pra esconder o card. */}
+        {!hasNoPlan && (
           <div style={styles.card}>
             <div style={styles.myPlanHead}>
               <p style={styles.sectionLabel}>{L('myPlanLabel')}</p>
