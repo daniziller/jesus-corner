@@ -5,10 +5,12 @@
 // dias do estudo (independentes dos da Bíblia) e o que fazer quando o
 // estudo ativo terminar.
 //
-// "Ver os 7 dias": o pacote descreve como "mesma estrutura de 35e,
-// editável" — 35e (com o "trocar" por IA) só chega no Bloco 4. Por ora essa
-// ação abre uma lista só de leitura (título/referência de cada dia, feito
-// ou não) — funcional, sem o "trocar" ainda.
+// "Ver os 7 dias": pro Estudo do formato novo (book/chStart/chEnd, ver
+// turno 41 handoff-estudos-41/) abre 41f (StudyDetailScreen.jsx) de
+// verdade, com o "trocar"/substituir-soma completos. Pra um Estudo do
+// formato antigo (sections/reflectionQuestions, de antes do turno 41),
+// continua abrindo a lista inline só de leitura de sempre — nunca existiu
+// um 41f equivalente pra esse formato.
 import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -30,7 +32,7 @@ function weeksLabel(totalDays, daysPerWeek, lang) {
   return L('weeksHalf', { n: Math.floor(rounded) })
 }
 
-export default function StudyOrganizeScreen({ session, onEndStudy, onNavigate, onBack }) {
+export default function StudyOrganizeScreen({ session, onEndStudy, onNavigate, onBack, onOpenStudyDetail }) {
   const { lang, activeStudyId } = session
   const L = (k, vars) => t(`studyOrganize.${k}`, vars, lang)
   const abbr = { pt: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'], en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }[lang] ?? ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
@@ -67,8 +69,15 @@ export default function StudyOrganizeScreen({ session, onEndStudy, onNavigate, o
   // (ver naturalDayListSentence, diferente do join simples usado em 35c/35i).
   const studyDaysAbbr = stepDays ? naturalDayListSentence(stepDays.study, abbr, lang) : ''
 
+  // Formato real do estudo (plano temático/livro/tema/grupo — regra 3:
+  // "quando o formato muda, a frase muda junto"), não mais fixo em
+  // "plano temático" pra qualquer estudo criado.
   function sourceLabel() {
-    if (source === 'ai') return t('studyOrganize.createdByAi', undefined, lang) || ''
+    if (source === 'ai') {
+      const format = study?.format ?? 'thematic'
+      const formatLabel = t(`createStudy.format${format[0].toUpperCase()}${format.slice(1)}Label`, undefined, lang)
+      return t('studyOrganize.createdByAi', { format: formatLabel }, lang) || ''
+    }
     if (source === 'inductive') return t('studyOrganize.createdInductive', undefined, lang) || ''
     return t('studyOrganize.createdByJesusCorner', undefined, lang) || ''
   }
@@ -103,12 +112,19 @@ export default function StudyOrganizeScreen({ session, onEndStudy, onNavigate, o
                 </div>
               )}
               <div style={styles.actionsRow}>
-                <button style={styles.seeDaysBtn} onClick={() => setShowDays(v => !v)}>
+                <button
+                  style={styles.seeDaysBtn}
+                  onClick={() => (study.sessions?.[0]?.book ? onOpenStudyDetail?.() : setShowDays(v => !v))}
+                >
                   {progress.total === 1 ? L('seeDaysOne') : L('seeDaysMany', { n: progress.total })}
                 </button>
                 <button style={styles.endBtn} onClick={onEndStudy}>{L('end')}</button>
               </div>
-              {showDays && (
+              {/* "Ver os 7 dias" agora abre 41f (StudyDetailScreen.jsx) pra
+                  um Estudo do formato novo (book/chStart/chEnd) — a lista
+                  inline abaixo (showDays) sobrevive só pra formato antigo
+                  (sections/reflectionQuestions, de antes deste bloco). */}
+              {showDays && !study.sessions?.[0]?.book && (
                 <div style={styles.daysList}>
                   {(study.sessions ?? []).map((s, i) => (
                     <div key={s.id ?? i} style={styles.daysListRow}>

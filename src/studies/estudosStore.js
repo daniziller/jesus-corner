@@ -16,6 +16,7 @@
 import { getThemePlans, saveThemePlan } from '../themePlans/themePlansStore'
 import { recordStudyUse } from './publicStudiesStore'
 import { deriveThemeTexts, themeTextKey } from '../themePlans/themeTexts'
+import { supabase } from '../lib/supabaseClient'
 
 export const MAX_STUDIES_PER_MONTH = 4
 
@@ -48,6 +49,18 @@ const ORDINAL_WORDS_EN = ['first', 'second', 'third', 'fourth']
 export function ordinalWord(n, lang) {
   const words = lang === 'en' ? ORDINAL_WORDS_EN : ORDINAL_WORDS_PT
   return words[n - 1] ?? String(n)
+}
+
+// "Sete dias sobre ansiedade" (41g) — cardinal por extenso até 30
+// (ALLOWED_STUDY_DAYS vai até lá), sem cair pra dígito como
+// verseSelectionLabel.js faz de propósito acima de doze (ali é o
+// contrário: dígito é o certo pra seleção de versículos — por isso uma
+// lista própria aqui, não reaproveitada).
+const CARDINAL_WORDS_PT = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove', 'vinte', 'vinte e um', 'vinte e dois', 'vinte e três', 'vinte e quatro', 'vinte e cinco', 'vinte e seis', 'vinte e sete', 'vinte e oito', 'vinte e nove', 'trinta']
+const CARDINAL_WORDS_EN = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one', 'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five', 'twenty-six', 'twenty-seven', 'twenty-eight', 'twenty-nine', 'thirty']
+export function cardinalWord(n, lang) {
+  const words = lang === 'en' ? CARDINAL_WORDS_EN : CARDINAL_WORDS_PT
+  return words[n] ?? String(n)
 }
 
 // Dia 1º do mês seguinte, no fuso da própria pessoa (só pra exibir — a
@@ -138,6 +151,22 @@ export function currentDayOf(study) {
 // (stepDaysMath.js), só que devolve uma Date de verdade em vez do índice
 // do dia da semana — sem duplicar a lógica de weekday aqui, só o passo de
 // "que dia do calendário é esse".
+// "O fio das suas respostas" (41g) — chama api/generate-study-synthesis.js
+// só quando há 3+ respostas escritas (regra 4 §9); com menos, quem chama
+// resolve localmente (ver StudyCompleteScreen.jsx), sem gastar IA.
+export async function generateStudySynthesisFor(answers, lang) {
+  const { data: { session: authSession } } = await supabase.auth.getSession()
+  if (!authSession) throw new Error('not_authenticated')
+  const res = await fetch('/api/generate-study-synthesis', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${authSession.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answers, lang }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body?.error || `request_failed_${res.status}`)
+  return body.synthesis
+}
+
 export function nextScheduledDate(oneStepDays, fromDate = new Date()) {
   const fromIdx = (fromDate.getDay() + 6) % 7 // Mon=0, mesma convenção de WEEKDAY_FULL/DAY_KEYS
   for (let step = 1; step <= 7; step++) {

@@ -514,6 +514,35 @@ ${buildFieldsLangInstruction(lang, 'teachingParagraph1, teachingParagraph2, ques
   return output
 }
 
+// Estudo concluído (41g, turno 41) — usado por
+// api/generate-study-synthesis.js. Analisa as respostas ESCRITAS PELA
+// PRÓPRIA PESSOA (nunca texto bíblico) — "escolha uma frase" pede algo
+// EXTRAÍDO literalmente de uma das respostas, nunca reescrito, pra
+// api/generate-study-synthesis.js poder confirmar que é mesmo uma
+// substring de verdade antes de mostrar (mesma régua de "nunca invente"
+// de sempre, agora sobre o que ela escreveu em vez do texto da Bíblia).
+const StudySynthesisSchema = z.object({
+  synthesisBody: z.string().describe('Um ou dois parágrafos curtos (no idioma pedido), em segunda pessoa, apontando padrões REAIS que aparecem nas respostas: assuntos/palavras que voltaram mais de uma vez, e como a linguagem mudou do primeiro dia pro último (ex: de um verbo/tom pra outro). Específico ao que foi escrito, nunca elogio genérico ("você cresceu muito" não vale) — cite palavras ou temas que realmente aparecem nas respostas fornecidas.'),
+  highlightDayIndex: z.number().int().describe('O índice (dentro da lista de respostas fornecida, 0 em diante) da resposta escolhida como "a frase em destaque" — a mais marcante/específica das fornecidas.'),
+  highlightQuote: z.string().describe('Uma frase EXTRAÍDA LITERALMENTE (copiada, não reescrita) da resposta escolhida — pode ser a resposta inteira ou só o trecho mais forte dela, mas cada palavra precisa existir exatamente nessa resposta.'),
+})
+
+export async function generateStudySynthesis({ answers, lang }) {
+  const answersText = answers.map((a, i) => `Dia ${a.dayIndex + 1} (índice ${i}): "${a.text}"`).join('\n')
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: StudySynthesisSchema }),
+    prompt: `Estas são as respostas que uma pessoa escreveu, dia a dia, ao longo de um estudo bíblico guiado (uma pergunta de reflexão por dia):
+
+${answersText}
+
+Analise essas respostas — não o tema do estudo em si, as respostas dela — e escreva "o fio das suas respostas": o que se repete, e como a forma de escrever mudou do início pro fim. Depois escolha a frase mais marcante entre as respostas fornecidas pra destacar (copiada literalmente, sem reescrever nada).
+
+${buildFieldsLangInstruction(lang, 'synthesisBody, highlightQuote')}`,
+  })
+  return output
+}
+
 // Fecho da leitura (37e, pacote 36-37) — usado por
 // api/generate-reading-summary.js. Mesmo espírito de cache compartilhado
 // de generateChapterContext acima: o conteúdo é igual pra quem lê o mesmo

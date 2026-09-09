@@ -40,7 +40,7 @@ import { countCreatedThisMonth } from '../studies/estudosStore'
 const FONT = 'var(--font-bento)'
 const CHIPS = ['all', 'jesusCorner', 'groups', 'public', 'saved']
 
-export default function AddStudyScreen({ session, onBack, onCreateStudy, onChangeStudyDays, onOpenPreview, onOpenPublicBank }) {
+export default function AddStudyScreen({ session, onBack, onCreateStudy, onChangeStudyDays, onOpenPreview, onOpenPublicBank, onOpenStudyDetail }) {
   const { lang, activeStudyId } = session
   const L = (k, vars) => t(`addStudy.${k}`, vars, lang)
 
@@ -173,8 +173,18 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
           <p style={s.quotaExplainText}>{L('quotaExhaustedExplain', { max: quota.max, reset: resetLabel })}</p>
         )}
 
+        {/* Nav map do pacote 41: "cartão 'Em andamento' → 41f" — o cartão
+            inteiro abre 41f (StudyDetailScreen.jsx) pra um Estudo do
+            formato novo; "Mudar dias" continua indo pra 41h por cima
+            (stopPropagation, senão os dois cliques disparariam juntos).
+            Formato antigo (sem study.sessions[0].book) não tem 41f — o
+            cartão fica só informativo, como sempre foi. */}
         {showAll && activeStudy && (
-          <div style={s.sandCard}>
+          <div
+            style={s.sandCard}
+            onClick={activeStudy.sessions?.[0]?.book ? onOpenStudyDetail : undefined}
+            role={activeStudy.sessions?.[0]?.book ? 'button' : undefined}
+          >
             <div style={s.sandHead}>
               <p style={s.sandLabel}>{L('inProgressLabel')}</p>
               <p style={s.sandDay}>{L('inProgressDayOf', { n: Math.min(activeStudy.doneCount + 1, activeStudy.totalCount || 1), total: activeStudy.totalCount })}</p>
@@ -186,7 +196,7 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
                 <p style={s.sandDaysLabel}>{L('inProgressDaysLabel')}</p>
                 <p style={s.sandDaysValue}>{studyDaysAbbr}</p>
               </div>
-              <button style={s.changeDaysBtn} onClick={onChangeStudyDays}>{L('changeDaysBtn')}</button>
+              <button style={s.changeDaysBtn} onClick={e => { e.stopPropagation(); onChangeStudyDays() }}>{L('changeDaysBtn')}</button>
             </div>
           </div>
         )}

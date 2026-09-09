@@ -32,8 +32,20 @@ export function resolveStepDays(stepDays, weeklyDaysFallback) {
 
 // Quais passos, entre os ATIVOS (ligados em stepMinutes/routineModules),
 // caem no dia de índice `weekdayIndex` (0 = segunda ... 6 = domingo).
-export function stepsScheduledForWeekday(resolvedStepDays, activeSteps, weekdayIndex) {
-  return activeSteps.filter(step => !!resolvedStepDays[step]?.[weekdayIndex])
+//
+// `studyReplacesReading` (turno 41, 41f "Nos dias de estudo" — modo
+// substitui/soma) — só importa nos dias em que Leitura E Estudo caem
+// juntos: 'substitui' (padrão do estudo, ver studyDayStore.js) tira a
+// Leitura DESSE dia (ela continua normal nos outros dias da semana, sem
+// pausar/recalcular datas — trilhas independentes, ver comentário em
+// estudosStore.js); 'soma' (o default do parâmetro aqui, pra não quebrar
+// quem chama sem saber desse 4º argumento) deixa os dois.
+export function stepsScheduledForWeekday(resolvedStepDays, activeSteps, weekdayIndex, studyReplacesReading = false) {
+  const scheduled = activeSteps.filter(step => !!resolvedStepDays[step]?.[weekdayIndex])
+  if (studyReplacesReading && scheduled.includes('study') && scheduled.includes('reading')) {
+    return scheduled.filter(step => step !== 'reading')
+  }
+  return scheduled
 }
 
 // 7 booleanos: esse dia da semana tem ALGUM passo ativo marcado (união) —

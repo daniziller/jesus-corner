@@ -75,3 +75,13 @@ export function markStudyDayEditing(email, studyId, dayId, answer) {
 export function markStudyDayPrayerRequest(email, studyId, dayId, on) {
   return updateStudyDay(email, studyId, dayId, { turnedIntoPrayer: on })
 }
+
+// "Nos dias de estudo" (41f/41h) — 'substitui' (padrão, ver
+// stepsScheduledForWeekday em stepDaysMath.js) ou 'soma'. Campo do
+// ESTUDO, não do dia — por isso não passa por updateStudyDay.
+export async function setStudyReadingMode(email, studyId, mode) {
+  const studies = await getAiStudies(email)
+  const study = studies.find(s => s.id === studyId)
+  if (!study) throw new Error('study_not_found')
+  return saveAiStudy(email, { ...study, readingMode: mode })
+}

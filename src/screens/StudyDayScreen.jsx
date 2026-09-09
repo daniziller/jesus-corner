@@ -157,7 +157,10 @@ export default function StudyDayScreen({ session, authUser, study, day, dayIndex
     try {
       const updated = await completeStudyDay(authUser.email, study.id, day.id, { answer, skippedQuestion: !answer.trim(), elapsedSeconds })
       onStudyUpdated?.(updated)
-      onCompleted?.(study.id, day.id)
+      // `isLastDay` calculado aqui (não relido de `aiStudies` em App.jsx)
+      // — mesmo motivo do bug de "página errada" achado antes: o estado
+      // ainda não assentou neste mesmo instante.
+      onCompleted?.(study.id, day.id, dayIndex === totalDays - 1)
     } catch (err) {
       console.error('Failed to complete study day', err)
     } finally {
