@@ -658,6 +658,20 @@ export default function App() {
   // Sessão específica a destacar quando entryMode é 'reading' — garante que a
   // Leitura abra featurando exatamente a mesma sessão que a Home mostrou.
   const [journeyResumeSessionId, setJourneyResumeSessionId] = useState(null)
+  // "Sempre mostrar o resumo de onde a história está" ao vir da Bênção
+  // (pedido dela, 2026-09-08/09) — só o caminho Oração→Bênção→"ir para a
+  // leitura" força o recap de contexto (10c/ChapterContextScreen), mesmo
+  // se a pessoa já tiver visto aquele capítulo antes (ver
+  // isChapterContextSeen/chapterContextStore.js). Os outros jeitos de
+  // "continuar sessão" (Home, Meu Plano, Oração, Reflexão, Estudos)
+  // seguem a regra normal, só na primeira vez. Consumido (limpo) assim
+  // que a Leitura monta com o valor — ver useEffect logo abaixo — pra não
+  // ficar forçando o recap de novo se a pessoa pular pra outro capítulo
+  // dentro da mesma visita.
+  const [forceChapterContextNext, setForceChapterContextNext] = useState(false)
+  useEffect(() => {
+    if (activeTab === 'journey' && forceChapterContextNext) setForceChapterContextNext(false)
+  }, [activeTab, forceChapterContextNext])
   // Pedido de pular direto pra um livro+capítulo específico em modo livre
   // (browse) — usado pelos links de passagem bíblica das anotações de
   // sermão (ver openBiblePassage abaixo). Objeto novo a cada pedido (nunca
@@ -1202,6 +1216,20 @@ export default function App() {
     setJourneyResumeSessionId(resumeSession.id)
     setJourneyEntryMode('reading')
     goToTab('journey')
+  }
+
+  // "Ir para a leitura" na Bênção (36f, fim da Oração) — mesmo
+  // continueToday de sempre, só que marcando forceChapterContextNext
+  // primeiro (ver comentário dele acima). Função à parte (em vez de dar
+  // um parâmetro novo a continueToday) de propósito: continueToday é
+  // passada como referência de função pra vários componentes
+  // (`onContinueSession={continueToday}`), incluindo um `onClick`
+  // direto (JourneyScreen.jsx) que chamaria com o SyntheticEvent do
+  // clique como argumento — dar um parâmetro novo a ela abriria essa
+  // brecha; um wrapper sem parâmetro nenhum não tem esse risco.
+  function continueSessionFromBlessing() {
+    setForceChapterContextNext(true)
+    continueToday()
   }
 
   // Tocar numa sessão específica na aba Plano (ver PlanScreen.jsx) — mesmo
@@ -2540,7 +2568,7 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
@@ -2610,7 +2638,7 @@ export default function App() {
     // no mapa normal de telas.
     blessing: <BlessingScreen
       session={session} stepMinutes={stepMinutes}
-      onContinueSession={continueToday} onNavigate={navigateTo}
+      onContinueSession={continueSessionFromBlessing} onNavigate={navigateTo}
       onFinishDay={finishDayFromBlessing} onBackToPlan={backToPlanFromBlessing}
     />,
     // Pacote 36-37, 36d — "Pedidos de oração" (linha em 36b/36c). Push

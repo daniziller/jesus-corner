@@ -88,7 +88,7 @@ function sectionLabelFor(block, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
+  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -688,6 +688,11 @@ export default function JourneyScreen({
           onToggleChapter={onToggleChapter}
           initialSessionId={initialSessionId}
           initialTextOpen={initialTextOpen}
+          // Só força o recap "onde a história está" no caminho de sessão
+          // guiada (vindo da Bênção) — nunca em modo browse (tocar um
+          // capítulo qualquer no mapa não deve reabrir o recap de um
+          // capítulo que a pessoa já viu, ver comentário em App.jsx).
+          forceChapterContext={readingMode === 'session' ? forceChapterContext : false}
           onBack={closeBlock}
           onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
           onJumpToChapter={openRecentChapter}
