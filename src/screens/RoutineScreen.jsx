@@ -385,6 +385,13 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
                 <p style={styles.myPlanSubLabel}>{L('yourStudyLabel')}</p>
                 <p style={styles.myPlanStudyTitle}>{activeStudy.title}</p>
                 <p style={styles.myPlanStudyDay}>{L('studyDayLabel', { n: activeStudy.dayDone + 1, total: activeStudy.dayTotal })}</p>
+                {/* Barra de progresso do Estudo (pedido dela, 2026-09-09) —
+                    mesmo estilo da barra da Leitura acima (progressTrack/
+                    progressFill), só com a fração dias-feitos/dias-totais
+                    do estudo em vez do % da Bíblia. */}
+                <div style={styles.progressTrack}>
+                  <div style={{ ...styles.progressFill, width: `${activeStudy.dayTotal > 0 ? Math.min(100, (activeStudy.dayDone / activeStudy.dayTotal) * 100) : 0}%` }} />
+                </div>
               </div>
             )}
 
@@ -543,7 +550,7 @@ const styles = {
   myPlanBlock: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 12px' },
   myPlanStudyGroup: { marginTop: 16 },
   myPlanStudyTitle: { fontFamily: 'var(--font-bento)', fontSize: 16, fontWeight: 800, letterSpacing: '-.3px', lineHeight: 1.25, color: 'var(--bento-ink)', margin: '0 0 4px' },
-  myPlanStudyDay: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  myPlanStudyDay: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 12px' },
   progressTrack: { height: 6, borderRadius: 99, background: 'var(--bento-line)', overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
   myPlanDivider: { height: 1, background: 'var(--bento-line)', margin: '18px 0 14px' },
