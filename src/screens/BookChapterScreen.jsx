@@ -1,9 +1,14 @@
 // BookChapterScreen.jsx — O livro: grade de capítulos e marcação livre
 // (39c, pacote 39). Substitui por inteiro a versão anterior (18b/28c/32a
 // — modo "Marcando" opt-in com rascunho + "Salvar N capítulos"): agora
-// SEGURAR um número (~450ms, com haptic) marca/desmarca na hora, sem
+// SEGURAR um número não lido (~450ms, com haptic) marca na hora, sem
 // diálogo nem modo à parte — "toque abre · segure marca", igual ao
 // quadro. "Marcar sem abrir é requisito, não atalho" (regra 2 da aba).
+//
+// Ajustado (2026-09-09, regra dela): segurar só MARCA — nunca desmarca.
+// Um toque (curto ou longo) num capítulo JÁ lido sempre abre a leitura,
+// nunca desfaz a marcação; desmarcar é deliberado, só de dentro do
+// capítulo, desligando o botão "Marcar como lido" — nunca pela grade.
 //
 // Duas origens distintas na grade (preto = lido no app / cinza escuro
 // `#6E655C` = marcado à mão) — vêm de chapters_read (chapterReadLog.js,
@@ -88,14 +93,14 @@ export default function BookChapterScreen({
     setOpenFocusVerse(null)
   }
 
-  // Segurar marca/desmarca sem abrir e sem diálogo (regra 2 da aba) —
-  // otimista no originMap local (marcação nova = 'manual' na hora; se já
-  // havia uma linha em chapters_read pra este capítulo, o insert dela é
-  // ignorado — a origem original prevalece, ver chapterReadLog.js).
-  function toggleHold(ch) {
-    const isDone = completedSet.has(`${bookName}:${ch}`)
-    onMarkChaptersManually?.(bookName, [ch], !isDone)
-    if (!isDone) setOriginMap(prev => new Map(prev).set(`${bookName}:${ch}`, 'manual'))
+  // Segurar marca sem abrir e sem diálogo (regra 2 da aba) — otimista no
+  // originMap local (marcação nova = 'manual' na hora; se já havia uma
+  // linha em chapters_read pra este capítulo, o insert dela é ignorado —
+  // a origem original prevalece, ver chapterReadLog.js). Só chamada pra
+  // capítulo AINDA não lido — ver guarda em startHold.
+  function markChapterReadByHold(ch) {
+    onMarkChaptersManually?.(bookName, [ch], true)
+    setOriginMap(prev => new Map(prev).set(`${bookName}:${ch}`, 'manual'))
     navigator.vibrate?.(30)
   }
 
@@ -123,14 +128,17 @@ export default function BookChapterScreen({
   // gesto só. Um toque curto (solta antes do tempo) segue pro onClick
   // normal (abre); heldRef sinaliza quando o toque já virou marcação,
   // pra o click que o navegador ainda dispara na soltura não abrir junto.
+  // Capítulo já lido: o timer nem marca heldRef, então a soltura sempre
+  // cai no onClick normal (abre) — segurar num capítulo lido nunca desmarca.
   const holdTimerRef = useRef(null)
   const heldRef = useRef(false)
   function startHold(ch) {
     heldRef.current = false
     clearTimeout(holdTimerRef.current)
+    if (completedSet.has(`${bookName}:${ch}`)) return
     holdTimerRef.current = setTimeout(() => {
       heldRef.current = true
-      toggleHold(ch)
+      markChapterReadByHold(ch)
     }, HOLD_MS)
   }
   function cancelHold() {
