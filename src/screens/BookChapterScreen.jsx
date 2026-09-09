@@ -67,6 +67,20 @@ export default function BookChapterScreen({
   // livro (session.currentBlock é o mesmo dado que 39a usa).
   const planNextChapter = session.currentBlock?.book === bookName ? session.currentBlock.chapter : null
 
+  // "Você estava aqui" (2026-09-09, pedido dela) — o último capítulo que a
+  // pessoa ENTROU pra ler (não só tocou — ver openChapter abaixo) fica
+  // laranja na grade, substituindo o "próximo do plano" enquanto ela
+  // estiver navegando dentro deste livro. Só da visita atual (estado local,
+  // nada salvo) — sai do livro e volta depois, o destaque volta a ser o
+  // próximo do plano, se houver. Já entra populado se a tela abriu direto
+  // num capítulo (initialTextOpen), pra "voltar" da leitura já mostrar o
+  // capítulo certo em laranja, sem precisar tocar em nada primeiro.
+  const [lastEnteredChapter, setLastEnteredChapter] = useState(() => {
+    if (!initialTextOpen || !initialSessionId) return null
+    const s = bookSessions.find(x => x.id === initialSessionId)
+    return s ? s.chStart : null
+  })
+
   const bookIdx = block.books.indexOf(bookName)
   const blockName = lang === 'en' ? block.nameEn : block.name
 
@@ -91,6 +105,7 @@ export default function BookChapterScreen({
     setOpenSessionId(target.id)
     setOpenTextOpen(true)
     setOpenFocusVerse(null)
+    setLastEnteredChapter(ch)
   }
 
   // Segurar marca sem abrir e sem diálogo (regra 2 da aba) — otimista no
@@ -220,7 +235,11 @@ export default function BookChapterScreen({
           <div style={s.chapterGrid}>
             {Array.from({ length: total }, (_, i) => i + 1).map(ch => {
               const done = completedSet.has(`${bookName}:${ch}`)
-              const isNext = !done && ch === planNextChapter
+              // "Você estava aqui" vence o "próximo do plano" (ver
+              // comentário de lastEnteredChapter acima) — inclusive sobre
+              // um capítulo já lido, de propósito: reentrar num capítulo
+              // pra reler também conta como "é aqui que você está".
+              const isNext = lastEnteredChapter != null ? ch === lastEnteredChapter : (!done && ch === planNextChapter)
               const origin = done ? originFor(ch) : null
               const bg = isNext ? 'var(--bento-accent)' : origin === 'manual' ? 'var(--bento-t2)' : done ? 'var(--bento-ink)' : '#F4EFE9'
               const color = isNext ? 'var(--bento-ink)' : done ? '#fff' : 'var(--bento-t3)'
