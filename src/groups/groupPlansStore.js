@@ -38,16 +38,23 @@ export async function getMyPendingGroupPlanInvites() {
 // Planos de grupo que eu já ACEITEI — é o que resolveActivePlanSessions usa
 // pra montar a leitura de hoje quando activeAltPlan.type === 'group'
 // (passages já vem no formato flat que deriveThemeTexts espera).
+//
+// `authorName`/`acceptedCount` (turno 41, 41a "Dos seus grupos" — "Pr.
+// João Silva · 12 pessoas fazendo") entraram junto: o comentário antigo de
+// AddStudyScreen.jsx dizia que esse dado "não existe pra planos de grupo"
+// — na verdade existe (created_by já estava na tabela desde 0048), só não
+// estava selecionado aqui. `acceptedCount` conta os membros aceitos numa
+// query só (não N+1 por plano).
 export async function getMyAcceptedGroupPlans() {
   const userId = await getUserId()
   if (!userId) return []
   const { data, error } = await supabase
     .from('group_reading_plan_members')
-    .select('group_reading_plans(id, title, book, book_en, overview, passages, group_id)')
+    .select('group_reading_plans(id, title, book, book_en, overview, passages, group_id, created_by, author:profiles!group_reading_plans_created_by_fkey(name))')
     .eq('user_id', userId)
     .eq('status', 'accepted')
   if (error) { console.error('[groupPlansStore] getMyAcceptedGroupPlans failed:', error.message); return [] }
-  return (data ?? [])
+  const plans = (data ?? [])
     .filter(row => row.group_reading_plans)
     .map(row => ({
       id: row.group_reading_plans.id,
@@ -57,7 +64,18 @@ export async function getMyAcceptedGroupPlans() {
       overview: row.group_reading_plans.overview,
       passages: row.group_reading_plans.passages,
       groupId: row.group_reading_plans.group_id,
+      authorName: row.group_reading_plans.author?.name ?? '',
     }))
+  if (!plans.length) return plans
+  const { data: memberRows, error: memberError } = await supabase
+    .from('group_reading_plan_members')
+    .select('plan_id')
+    .eq('status', 'accepted')
+    .in('plan_id', plans.map(p => p.id))
+  if (memberError) { console.error('[groupPlansStore] getMyAcceptedGroupPlans member count failed:', memberError.message); return plans }
+  const counts = {}
+  for (const m of memberRows ?? []) counts[m.plan_id] = (counts[m.plan_id] ?? 0) + 1
+  return plans.map(p => ({ ...p, acceptedCount: counts[p.id] ?? 1 }))
 }
 
 // O plano de grupo mais recente ENVIADO num grupo (se houver) — usado por

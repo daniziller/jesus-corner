@@ -27,6 +27,12 @@ const TAB_IDS = ['home', 'routine', 'journey', 'notes', 'groups']
 // Equivalentes Lucide dos traçados do protótipo: casa, prancheta com
 // linhas, livro aberto, capelo (Biblioteca) e pessoas.
 const TAB_ICONS = { home: 'Home', routine: 'ClipboardList', journey: 'BookOpen', notes: 'GraduationCap', groups: 'Users' }
+// Estudos (41a, "barra de abas só em 41a" com Meu Plano ativo — o hub é
+// alcançado por dentro de Meu Plano, não tem slot próprio na barra) —
+// telas cuja aba "de verdade" é 'routine'. Só 'addStudy' (41a) mostra
+// esta barra hoje; as sub-telas de Estudos (41b em diante) ficam em
+// navHidden (App.jsx), sem barra nenhuma.
+const ROUTINE_ALIAS_TABS = ['addStudy']
 
 // A aba Admin não fica mais na nav — vira um item da lista de Configurações
 // no Perfil, visível só pra quem tem a permissão (ver ProfileScreen.jsx).
@@ -44,7 +50,7 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, dis
         // depois que o Supabase confirma a troca, alguns instantes depois do
         // resto da UI já ter mudado.
         const label = t(`nav.${id}`, undefined, lang)
-        const active = activeTab === id
+        const active = activeTab === id || (id === 'routine' && ROUTINE_ALIAS_TABS.includes(activeTab))
         const disabled = disabledTabs.includes(id)
         return (
           <button

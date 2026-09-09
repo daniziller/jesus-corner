@@ -31,22 +31,56 @@ function mapStudyRow(row) {
     hidden: row.hidden,
     usesCount: row.uses_count ?? 0,
     reportCount: row.report_count ?? 0,
+    minutesPerDay: row.minutes_per_day ?? 15,
+    reviewed: row.reviewed ?? true,
+    groupId: row.group_id ?? null,
+    groupName: row.group?.name ?? null,
     createdAt: row.created_at,
   }
 }
 
-const STUDY_COLUMNS = 'id, author_id, system_author_name, author:profiles!studies_author_id_fkey(name), title, overview, format, tags, passages, visibility, hidden, uses_count, report_count, created_at'
+const STUDY_COLUMNS = 'id, author_id, system_author_name, author:profiles!studies_author_id_fkey(name), title, overview, format, tags, passages, visibility, hidden, uses_count, report_count, minutes_per_day, reviewed, group_id, group:reading_groups!studies_group_id_fkey(name), created_at'
 
 // Banco público (26e "estudos prontos" + 26g busca por tema) — nunca
 // escondido (RLS já filtra `hidden`, mas o filtro explícito documenta a
-// intenção). `query` casa contra título; `tag` contra qualquer tag.
+// intenção). `query` casa contra título, resumo ou tema (41i: "Tema, livro
+// ou situação" — livro normalmente já aparece no título/resumo, ex.
+// "Filipenses em 4 dias"); `tag` contra o chip de tema ativo.
 export async function searchPublicStudies({ query = '', tag = null, maxN = 30 } = {}) {
   let q = supabase.from('studies').select(STUDY_COLUMNS).eq('visibility', 'public').eq('hidden', false)
-  if (query.trim()) q = q.ilike('title', `%${query.trim()}%`)
+  const trimmed = query.trim()
+  if (trimmed) q = q.or(`title.ilike.%${trimmed}%,overview.ilike.%${trimmed}%,tags.cs.{${trimmed}}`)
   if (tag) q = q.contains('tags', [tag])
   q = q.order('uses_count', { ascending: false }).limit(maxN)
   const { data, error } = await q
   if (error) { console.error('[publicStudiesStore] searchPublicStudies failed:', error.message); return [] }
+  return (data ?? []).map(mapStudyRow)
+}
+
+// Busca do hub (41a: "tema, livro ou autor") — mesmo texto contra
+// título/resumo/tema de searchPublicStudies, cruzando as 3 origens
+// navegáveis (Jesus Corner + grupo + público) numa chamada só; "autor" só
+// funciona pra nome exato/aproximado (ilike no nome do perfil ou no nome
+// do sistema "Jesus' Corner" já cai em system_author_name). `groupIds`
+// escopa a busca aos grupos de quem está buscando.
+export async function searchStudiesByAnything(query, groupIds = []) {
+  const trimmed = query.trim()
+  if (!trimmed) return []
+  const authorProfiles = await supabase.from('profiles').select('user_id').ilike('name', `%${trimmed}%`).limit(20)
+  const authorIds = (authorProfiles.data ?? []).map(p => p.user_id)
+  const orClauses = [`title.ilike.%${trimmed}%`, `overview.ilike.%${trimmed}%`, `tags.cs.{${trimmed}}`, `system_author_name.ilike.%${trimmed}%`]
+  if (authorIds.length) orClauses.push(`author_id.in.(${authorIds.join(',')})`)
+  let visibilityFilter = `visibility.eq.public`
+  if (groupIds.length) visibilityFilter += `,and(visibility.eq.group,group_id.in.(${groupIds.join(',')}))`
+  const { data, error } = await supabase
+    .from('studies')
+    .select(STUDY_COLUMNS)
+    .eq('hidden', false)
+    .or(orClauses.join(','))
+    .or(visibilityFilter)
+    .order('uses_count', { ascending: false })
+    .limit(30)
+  if (error) { console.error('[publicStudiesStore] searchStudiesByAnything failed:', error.message); return [] }
   return (data ?? []).map(mapStudyRow)
 }
 
@@ -56,6 +90,17 @@ export async function searchPublicStudies({ query = '', tag = null, maxN = 30 } 
 export async function getReadyMadeStudies() {
   const { data, error } = await supabase.from('studies').select(STUDY_COLUMNS).is('author_id', null).eq('hidden', false)
   if (error) { console.error('[publicStudiesStore] getReadyMadeStudies failed:', error.message); return [] }
+  return (data ?? []).map(mapStudyRow)
+}
+
+// "Dos seus grupos" (41a) — estudos visibility='group' de qualquer grupo
+// que EU seja membro ('joined', ver getMyGroups em groupsStore.js).
+// `groupIds` vem pronto de quem chama (evita essa store depender de
+// groupsStore.js só por isso).
+export async function getGroupStudies(groupIds) {
+  if (!groupIds?.length) return []
+  const { data, error } = await supabase.from('studies').select(STUDY_COLUMNS).eq('visibility', 'group').eq('hidden', false).in('group_id', groupIds)
+  if (error) { console.error('[publicStudiesStore] getGroupStudies failed:', error.message); return [] }
   return (data ?? []).map(mapStudyRow)
 }
 
