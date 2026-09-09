@@ -166,8 +166,13 @@ export default function StudyOrganizeScreen({ session, onEndStudy, onNavigate, o
               days={stepDays.study}
               lang={lang}
               onChange={days => {
-                setStepDaysState(prev => ({ ...prev, study: days }))
-                persistStepDays({ study: days }).catch(err => console.error('Failed to persist study days', err))
+                // Manda o objeto stepDays local inteiro — mesma corrida de
+                // AdjustPlanScreen.jsx/ReadingOrganizeScreen.jsx (patch
+                // parcial deixa o merge no servidor vulnerável a um fetch
+                // desatualizado).
+                const next = { ...(stepDays ?? {}), study: days }
+                setStepDaysState(next)
+                persistStepDays(next).catch(err => console.error('Failed to persist study days', err))
               }}
             />
           )}
