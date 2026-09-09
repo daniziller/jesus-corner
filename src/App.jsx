@@ -2683,16 +2683,15 @@ export default function App() {
   // desktop (antes ficava de fora, com o AppHeader antigo por cima da
   // versão antiga da tela); 'contact'/'applicationPhrases'/'themePlan'
   // entraram junto da migração dessas telas — cada uma tem cabeçalho
-  // Bento próprio agora. 'studies' continua de fora DE PROPÓSITO (o
-  // pacote de design nunca teve um quadro mobile pra Estudos — só
-  // desktop), então o AppHeader compacto (já corrigido pra --bento-*)
-  // segue cobrindo o mobile igual antes; o que era identidade antiga de
-  // verdade — o próprio cabeçalho de página (.page-header/.page-title,
-  // --font-display/--bk) e a fonte de quase todo o corpo da tela
-  // (nenhum estilo de texto declarava fontFamily, então herdava --font do
-  // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
-  // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  // Bento próprio agora. 'studies' MESMO BUG de 'groups' antes de
+  // 2026-09-07 (ver comentário logo acima): StudyDetail/SessionView já
+  // tinham cabeçalho próprio (seta de voltar + título, tokens --bento-*)
+  // desde sempre, mas ficava com o AppHeader antigo (logo) empilhado em
+  // cima — "abrir o estudo ainda parece o app antigo", reportado por ela
+  // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
+  // agora também aparece no mobile (era hide-on-mobile) — ver
+  // StudiesScreen.jsx.
+  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
