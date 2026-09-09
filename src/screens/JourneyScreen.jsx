@@ -6,6 +6,8 @@ import { computeMetricsBlocks, computeTestamentTotals } from '../data/metricsBlo
 import { getFreeReadingPosition } from '../bible/freeReadingPositionStore'
 import { relativeDayPeriod } from '../bible/relativeDayPeriod'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
+import { fetchBookText } from '../bible-text/bibleTextStore'
+import { useSpeechToText } from '../utils/useSpeechToText'
 import BibleVersionChip from '../components/bible/BibleVersionChip'
 import { formatPercent } from '../bible/formatPercent'
 import { getSermonNotes, saveSermonNote } from '../notes/sermonNotesStore'
@@ -38,6 +40,14 @@ function sermonTypeLabel(type, lang) {
   if (type === 'sermon') return t('notes.typeSermon', undefined, lang)
   if (SERMON_NOTE_TYPES.includes(type)) return t(`sermonNote.type${type[0].toUpperCase()}${type.slice(1)}`, undefined, lang)
   return type
+}
+
+// Filtro do passo 1 da busca de referência (34g, "Versículo") — só pra
+// ACHAR o livro na lista (Regra 5: "a referência entra por toque, nunca
+// digitada" — o toque final é o que conta, isto aqui só estreita a
+// lista pra rolar menos).
+function foldAccents(s) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
 // "Você está em Gênesis 41" (progresso real) ou "Mateus é um bom começo"
@@ -239,6 +249,7 @@ export default function JourneyScreen({
           id: inProgress.id, createdAt: inProgress.createdAt ?? new Date().toISOString(), date: inProgress.date ?? dateKey(),
           noteType: inProgress.noteType ?? 'sermon', title: inProgress.title ?? '', preacher: inProgress.preacher ?? '',
           church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
+          body: Array.isArray(inProgress.body) ? inProgress.body : null,
           finalizedAt: inProgress.finalizedAt ?? null,
         })
       }
@@ -262,6 +273,181 @@ export default function JourneyScreen({
       return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 }
     } catch { return { x: 0, y: 0 } }
   })
+
+  // 34g — a escrita em tela cheia (turno 34, Bloco 3). `sermonWriting`
+  // troca o CONTEÚDO da mesma folha aberta (não é outro portal) — 34d
+  // com sermonWriting=false, 34g com true. O corpo rico (sermonDraft.
+  // body) é um ARRAY de blocos — texto/citação/tópico — em vez de uma
+  // string só: é o que deixa um versículo citado ficar DENTRO do fluxo
+  // sem que editar o texto ao redor mexa nele (Regra 4 §7). Nasce vazio;
+  // ensureSermonBody() below cria o body a partir de sermonDraft.text na
+  // PRIMEIRA vez que ela entra em 34g (compat com quem só escreveu na
+  // área simples de 34d, sem nunca ter aberto 34g).
+  const [sermonWriting, setSermonWriting] = useState(false)
+  const [focusedSegId, setFocusedSegId] = useState(null)
+  const activeTextareaRef = useRef(null)
+  // Busca de referência (Regra 5 da área inteira: "a referência entra por
+  // TOQUE, nunca digitada" — por isso é um funil de 3 toques (livro →
+  // capítulo → versículo), nunca um campo onde ela escreve "Gênesis
+  // 43:3" e confirma; o campo de texto do passo 1 só FILTRA a lista de
+  // livros, a escolha em si é sempre um toque).
+  const [sermonVerseSearchOpen, setSermonVerseSearchOpen] = useState(false)
+  const [sermonVerseSearchStep, setSermonVerseSearchStep] = useState('book') // 'book' | 'chapter' | 'verse'
+  const [sermonVerseSearchQuery, setSermonVerseSearchQuery] = useState('')
+  const [sermonVerseSearchBook, setSermonVerseSearchBook] = useState(null) // { pt, en }
+  const [sermonVerseSearchChapter, setSermonVerseSearchChapter] = useState(null) // { chapter, verses, breaks }
+  const [sermonVerseSearchBusy, setSermonVerseSearchBusy] = useState(false)
+
+  function newSermonSegment(type, text = '') {
+    return { id: `seg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, type, text }
+  }
+  function ensureSermonBody() {
+    if (!sermonDraft) return
+    if (Array.isArray(sermonDraft.body) && sermonDraft.body.length > 0) return
+    patchSermonDraft({ body: [newSermonSegment('text', sermonDraft.text ?? '')] })
+  }
+  function enterSermonWriting() {
+    ensureSermonBody()
+    setSermonWriting(true)
+  }
+  function exitSermonWriting() {
+    setSermonWriting(false)
+    if (sermonDictating) stopDictation()
+  }
+
+  // Insere um bloco (citação/tópico) logo depois do segmento com foco —
+  // se não houver foco nenhum (ex: acabou de abrir 34g), entra no fim.
+  // Sempre garante um segmento de TEXTO logo depois do bloco novo, pra
+  // sempre ter onde continuar escrevendo (Regra 2: "editar o texto ao
+  // redor não quebra o bloco").
+  function insertSegmentAfterFocused(newSeg) {
+    setSermonDraft(prev => {
+      if (!prev) return prev
+      const body = prev.body ?? []
+      const idx = focusedSegId ? body.findIndex(s => s.id === focusedSegId) : body.length - 1
+      const insertAt = idx === -1 ? body.length : idx + 1
+      const followingIsText = body[insertAt]?.type === 'text'
+      const toInsert = followingIsText ? [newSeg] : [newSeg, newSermonSegment('text', '')]
+      return { ...prev, body: [...body.slice(0, insertAt), ...toInsert, ...body.slice(insertAt)] }
+    })
+  }
+  function updateSermonSegmentText(segId, text) {
+    setSermonDraft(prev => (prev ? { ...prev, body: (prev.body ?? []).map(s => (s.id === segId ? { ...s, text } : s)) } : prev))
+  }
+  // "Apagar o bloco solta a passagem da lista" (Regra 4 §7) — só um
+  // bloco de citação carrega passagem; tópico e texto não têm o que
+  // soltar.
+  function removeSermonSegment(seg) {
+    setSermonDraft(prev => {
+      if (!prev) return prev
+      const body = (prev.body ?? []).filter(s => s.id !== seg.id)
+      const passages = seg.type === 'quote'
+        ? prev.passages.filter(p => !(p.book === seg.book && p.chapter === seg.chapter && p.verseStart === seg.verseStart && p.verseEnd === seg.verseEnd))
+        : prev.passages
+      return { ...prev, body, passages }
+    })
+  }
+  function insertTopicSegment() {
+    insertSegmentAfterFocused(newSermonSegment('topic', ''))
+  }
+  // Vem da busca (Regra 4 §7) — texto real da versão dela, referência
+  // pronta embaixo (34g token: itálico #5A4327, ref laranja marrom
+  // #7A4A1E/700). Passagem entra na MESMA lista que "Na tela agora"
+  // alimenta (sermonDraft.passages) — é a fonte única de "N passagens"
+  // tanto aqui quanto em 34d/34h.
+  function insertQuoteSegment(quote) {
+    const bookLabel = lang === 'en' ? quote.bookEn : quote.book
+    const ref = quote.verseStart === quote.verseEnd
+      ? `${bookLabel} ${quote.chapter}:${quote.verseStart}`
+      : `${bookLabel} ${quote.chapter}:${quote.verseStart}-${quote.verseEnd}`
+    insertSegmentAfterFocused({ ...newSermonSegment('quote'), ...quote, ref })
+    setSermonDraft(prev => {
+      if (!prev) return prev
+      const already = prev.passages.some(p => p.book === quote.book && p.chapter === quote.chapter && p.verseStart === quote.verseStart && p.verseEnd === quote.verseEnd)
+      if (already) return prev
+      return { ...prev, passages: [...prev.passages, { book: quote.book, bookEn: quote.bookEn, chapter: quote.chapter, verseStart: quote.verseStart, verseEnd: quote.verseEnd }] }
+    })
+  }
+
+  function openVerseSearch() {
+    setSermonVerseSearchOpen(true)
+    setSermonVerseSearchStep('book')
+    setSermonVerseSearchQuery('')
+    setSermonVerseSearchBook(null)
+    setSermonVerseSearchChapter(null)
+  }
+  function pickVerseSearchBook(book) {
+    setSermonVerseSearchBook(book)
+    setSermonVerseSearchStep('chapter')
+  }
+  async function pickVerseSearchChapter(chNum) {
+    if (!sermonVerseSearchBook) return
+    setSermonVerseSearchBusy(true)
+    try {
+      const versionId = getSelectedVersionId(lang)
+      const bookKey = lang === 'en' ? sermonVerseSearchBook.en : sermonVerseSearchBook.pt
+      const chapters = await fetchBookText(versionId, bookKey)
+      const chapterData = chapters[String(chNum)]
+      if (!chapterData) return
+      setSermonVerseSearchChapter({ chapter: chNum, ...chapterData })
+      setSermonVerseSearchStep('verse')
+    } catch (err) {
+      console.error('Failed to fetch chapter for verse search', err)
+    } finally {
+      setSermonVerseSearchBusy(false)
+    }
+  }
+  function pickVerseSearchVerse(verseNum) {
+    if (!sermonVerseSearchBook || !sermonVerseSearchChapter) return
+    const text = sermonVerseSearchChapter.verses?.[String(verseNum)]
+    if (!text) return
+    insertQuoteSegment({
+      book: sermonVerseSearchBook.pt, bookEn: sermonVerseSearchBook.en,
+      chapter: sermonVerseSearchChapter.chapter, verseStart: verseNum, verseEnd: verseNum,
+      text: text.replace(/\n/g, ' '),
+    })
+    setSermonVerseSearchOpen(false)
+  }
+
+  // Ditado (Regra 4 §9) — insere no ponto do cursor do segmento com
+  // foco, concatenando com um espaço quando precisa. `activeTextareaRef`
+  // é a única forma confiável de saber onde o cursor estava no momento
+  // em que o reconhecimento terminou (o React só sabe o VALOR do campo,
+  // não a posição do cursor).
+  const { listening: sermonDictating, start: startDictation, stop: stopDictation, supported: sermonDictationSupported } = useSpeechToText({
+    lang,
+    onResult: heard => {
+      if (!focusedSegId) return
+      setSermonDraft(prev => {
+        if (!prev) return prev
+        const seg = (prev.body ?? []).find(s => s.id === focusedSegId)
+        if (!seg) return prev
+        const cur = seg.text ?? ''
+        const el = activeTextareaRef.current
+        const atEl = el && el === document.activeElement
+        const selStart = atEl ? (el.selectionStart ?? cur.length) : cur.length
+        const selEnd = atEl ? (el.selectionEnd ?? cur.length) : cur.length
+        const needsSpaceBefore = selStart > 0 && cur[selStart - 1] !== ' ' && cur[selStart - 1] !== '\n'
+        const nextText = cur.slice(0, selStart) + (needsSpaceBefore ? ' ' : '') + heard + cur.slice(selEnd)
+        return { ...prev, body: (prev.body ?? []).map(s => (s.id === focusedSegId ? { ...s, text: nextText } : s)) }
+      })
+    },
+  })
+  function handleSermonSegmentFocus(segId, e) {
+    setFocusedSegId(segId)
+    activeTextareaRef.current = e.target
+  }
+  // "Ficha areia 'N passagens' (toca e abre a lista completa)" — 34g
+  // token. A "lista completa" é a mesma fileira de fichas de 34d, só que
+  // recolhida por padrão aqui (a tira de 34g é uma linha só).
+  const [sermonPassagesListOpen, setSermonPassagesListOpen] = useState(false)
+  // Autogrow dos textareas de texto/tópico — sem isso cada parágrafo
+  // ficaria preso numa altura fixa, cortando o que não coubesse.
+  function autoGrowTextarea(e) {
+    e.target.style.height = 'auto'
+    e.target.style.height = `${e.target.scrollHeight}px`
+  }
+
   useEffect(() => {
     if (!sermonGroupPickerOpen || !session.myGroups?.length) return
     let cancelled = false
@@ -338,15 +524,22 @@ export default function JourneyScreen({
   }
 
   // Forma final pra sermonNotesStore.js, a partir do draft local — usada
-  // pelo "Salvar" explícito (34d) E pelo rascunho automático (Regra 3),
-  // pra nunca duplicar a mesma montagem de objeto em dois lugares.
+  // pelo "Salvar"/"Finalizar" explícitos E pelo rascunho automático
+  // (Regra 3), pra nunca duplicar a mesma montagem de objeto em dois
+  // lugares. `text` continua sendo salvo como string plana (compat com
+  // NotesScreen.jsx/Biblioteca, que só sabe mostrar texto corrido) —
+  // derivada do body quando ele existe (34g já foi usado), senão o texto
+  // simples de 34d.
   function buildSermonPayload(draft, { trim = true } = {}) {
     const clean = v => (trim ? v.trim() : v)
+    const plainText = Array.isArray(draft.body) && draft.body.length > 0
+      ? draft.body.map(seg => (seg.type === 'quote' ? `"${seg.text}" — ${seg.ref}` : seg.text)).filter(Boolean).join('\n\n')
+      : draft.text
     return {
       id: draft.id, date: draft.date, createdAt: draft.createdAt, updatedAt: new Date().toISOString(),
       noteType: draft.noteType, title: clean(draft.title), preacher: clean(draft.preacher),
       church: clean(draft.church), link: clean(draft.link), passages: draft.passages,
-      text: clean(draft.text), finalizedAt: draft.finalizedAt ?? null,
+      text: clean(plainText ?? ''), body: draft.body ?? null, finalizedAt: draft.finalizedAt ?? null,
     }
   }
 
@@ -607,6 +800,191 @@ export default function JourneyScreen({
     expandBook(block, bookName, target?.id ?? null, false)
   }
 
+  // 34g — a escrita em tela cheia. Renderiza DENTRO do mesmo container
+  // de sermonSheet (ver renderSermonWidget), só troca o conteúdo — não é
+  // outro portal.
+  function renderSermonWriting() {
+    if (sermonVerseSearchOpen) return renderVerseSearch()
+    const body = sermonDraft.body ?? []
+    let topicCount = 0
+    return (
+      <>
+        <div style={styles.sermonHeader}>
+          <button type="button" style={styles.sermonChevronBtn} onClick={exitSermonWriting} aria-label={t('sermonNote.minimize', undefined, lang)}>
+            <AppIcon name="ChevronDown" size={16} color="var(--bento-ink)" />
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={styles.sermonHeaderTitle}>{sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang)}</p>
+            <p style={styles.sermonHeaderSub}>{[sermonTypeLabel(sermonDraft.noteType, lang), sermonDraft.preacher, t('sermonNote.savedNow', undefined, lang)].filter(Boolean).join(' · ')}</p>
+          </div>
+          {/* "Finalizar" leva a 34h (Bloco 4 deste pacote, ainda não
+              construído) — por ora persiste na hora (mesmo efeito de
+              "Salvar" em 34d) e volta pra 34d, sem fingir uma tela que
+              ainda não existe. */}
+          <button type="button" style={{ ...styles.sermonSaveBtn, ...(sermonSaving ? styles.sermonSaveBtnDisabled : {}) }} disabled={sermonSaving} onClick={async () => { await saveSermonDraft(); exitSermonWriting() }}>
+            {t('sermonNote.finish', undefined, lang)}
+          </button>
+        </div>
+
+        <div style={styles.sermonPassageStrip}>
+          {sermonActiveChapterRef && (
+            <button type="button" style={styles.sermonAddVerseBtnSmall} onClick={addOnScreenVerse}>
+              {t('sermonNote.addVerse', { ref: passageRefLabel(sermonActiveChapterRef) }, lang)}
+            </button>
+          )}
+          {sermonDraft.passages.length > 0 && (
+            <button type="button" style={styles.sermonPassageCountChip} onClick={() => setSermonPassagesListOpen(v => !v)}>
+              {t(sermonDraft.passages.length === 1 ? 'sermonNote.passageCountOne' : 'sermonNote.passageCountMany', { n: sermonDraft.passages.length }, lang)}
+            </button>
+          )}
+          <span style={styles.sermonPassageTime}>{new Date().toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        {sermonPassagesListOpen && sermonDraft.passages.length > 0 && (
+          <div style={{ ...styles.sermonChipsRow, padding: '0 20px', marginTop: 0, marginBottom: 8 }}>
+            {sermonDraft.passages.map((p, i) => (
+              <button key={i} type="button" style={styles.sermonChip} onClick={() => removeSermonVerse(i)} aria-label={t('sermonNote.removeVerse', { ref: passageRefLabel(p) }, lang)}>
+                {passageRefLabel(p)} <span style={styles.sermonChipX}>×</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div style={styles.sermonWritingSurface}>
+          {body.map((seg, i) => {
+            if (seg.type === 'quote') {
+              return (
+                <div key={seg.id} style={styles.sermonQuoteBlock}>
+                  <button type="button" style={styles.sermonQuoteRemove} onClick={() => removeSermonSegment(seg)} aria-label={t('sermonNote.removeVerse', { ref: seg.ref }, lang)}>×</button>
+                  <p style={styles.sermonQuoteText}>&ldquo;{seg.text}&rdquo;</p>
+                  <p style={styles.sermonQuoteRef}>{seg.ref} · {getSelectedVersionId(lang).toUpperCase()}</p>
+                </div>
+              )
+            }
+            if (seg.type === 'topic') {
+              topicCount++
+              return (
+                <div key={seg.id} style={styles.sermonTopicRow}>
+                  <span style={styles.sermonTopicNum}>{topicCount}</span>
+                  <textarea
+                    style={styles.sermonBodyTextarea}
+                    value={seg.text}
+                    placeholder={t('sermonNote.topicPlaceholder', undefined, lang)}
+                    onChange={e => { updateSermonSegmentText(seg.id, e.target.value); autoGrowTextarea(e) }}
+                    onFocus={e => handleSermonSegmentFocus(seg.id, e)}
+                    onInput={autoGrowTextarea}
+                    rows={1}
+                  />
+                </div>
+              )
+            }
+            return (
+              <textarea
+                key={seg.id}
+                style={styles.sermonBodyTextarea}
+                value={seg.text}
+                placeholder={i === 0 ? t('sermonNote.textPlaceholder', undefined, lang) : ''}
+                onChange={e => { updateSermonSegmentText(seg.id, e.target.value); autoGrowTextarea(e) }}
+                onFocus={e => handleSermonSegmentFocus(seg.id, e)}
+                onInput={autoGrowTextarea}
+                autoFocus={i === body.length - 1}
+                rows={1}
+              />
+            )
+          })}
+        </div>
+
+        <div style={styles.sermonWritingToolbar}>
+          <button type="button" style={styles.sermonToolbarBtn} onClick={openVerseSearch}>
+            <AppIcon name="Plus" size={13} strokeWidth={2.4} color="var(--bento-sand-icon)" />
+            {t('sermonNote.verseBtn', undefined, lang)}
+          </button>
+          <button type="button" style={styles.sermonToolbarBtn} onClick={insertTopicSegment}>
+            <AppIcon name="List" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
+            {t('sermonNote.topicBtn', undefined, lang)}
+          </button>
+          {sermonDictationSupported && (
+            <button
+              type="button" style={{ ...styles.sermonToolbarIconBtn, ...(sermonDictating ? styles.sermonToolbarIconBtnOn : {}) }}
+              onClick={() => (sermonDictating ? stopDictation() : startDictation())}
+              aria-label={t('sermonNote.dictateBtn', undefined, lang)}
+            >
+              <AppIcon name="Mic" size={15} strokeWidth={2.2} color={sermonDictating ? '#fff' : 'var(--bento-t3)'} />
+            </button>
+          )}
+          <button type="button" style={styles.sermonKeyboardDownBtn} onClick={exitSermonWriting} aria-label={t('sermonNote.minimize', undefined, lang)}>
+            <AppIcon name="ArrowDown" size={16} strokeWidth={2.4} color="var(--bento-accent)" />
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  // Busca de referência (34g, "Versículo") — funil de 3 toques, ver
+  // Regra 5 no topo do arquivo (comentário de sermonVerseSearchOpen).
+  function renderVerseSearch() {
+    const allBooks = blocks.flatMap(b => b.books.map((name, i) => ({ pt: name, en: b.booksEn[i] })))
+    const query = foldAccents(sermonVerseSearchQuery.trim())
+    const filteredBooks = query ? allBooks.filter(b => foldAccents(lang === 'en' ? b.en : b.pt).includes(query)) : allBooks
+    const stepTitle = sermonVerseSearchStep === 'book' ? t('sermonNote.verseSearchBookStep', undefined, lang)
+      : sermonVerseSearchStep === 'chapter' ? t('sermonNote.verseSearchChapterStep', undefined, lang)
+      : t('sermonNote.verseSearchVerseStep', undefined, lang)
+    return (
+      <>
+        <div style={styles.sermonSourceHeader}>
+          <button
+            type="button" style={styles.sermonChevronBtn}
+            onClick={() => {
+              if (sermonVerseSearchStep === 'verse') setSermonVerseSearchStep('chapter')
+              else if (sermonVerseSearchStep === 'chapter') setSermonVerseSearchStep('book')
+              else setSermonVerseSearchOpen(false)
+            }}
+            aria-label={t('sermonNote.ready', undefined, lang)}
+          >
+            <AppIcon name="ChevronLeft" size={16} color="var(--bento-ink)" />
+          </button>
+          <p style={{ ...styles.sermonSourceTitle, flex: 1, minWidth: 0 }}>{stepTitle}</p>
+          <button type="button" style={styles.sermonReadyBtn} onClick={() => setSermonVerseSearchOpen(false)}>{t('sermonNote.ready', undefined, lang)}</button>
+        </div>
+        <div style={{ ...styles.sermonSheetBody, overflowY: 'auto' }}>
+          {sermonVerseSearchStep === 'book' && (
+            <>
+              <input
+                style={styles.sermonOtherTypeInput}
+                value={sermonVerseSearchQuery}
+                onChange={e => setSermonVerseSearchQuery(e.target.value)}
+                placeholder={t('sermonNote.verseSearchBookPlaceholder', undefined, lang)}
+                autoFocus
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+                {filteredBooks.map(b => (
+                  <button key={b.pt} type="button" style={styles.sermonVerseSearchRow} onClick={() => pickVerseSearchBook(b)}>
+                    {lang === 'en' ? b.en : b.pt}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {sermonVerseSearchStep === 'chapter' && sermonVerseSearchBook && (
+            <div style={styles.sermonVerseSearchChapterGrid}>
+              {Array.from({ length: bookChapterCounts[sermonVerseSearchBook.pt] ?? 0 }, (_, i) => i + 1).map(ch => (
+                <button key={ch} type="button" style={styles.sermonVerseSearchChapterBtn} disabled={sermonVerseSearchBusy} onClick={() => pickVerseSearchChapter(ch)}>{ch}</button>
+              ))}
+            </div>
+          )}
+          {sermonVerseSearchStep === 'verse' && sermonVerseSearchChapter && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {Object.keys(sermonVerseSearchChapter.verses ?? {}).sort((a, b) => Number(a) - Number(b)).map(v => (
+                <button key={v} type="button" style={styles.sermonVerseSearchRow} onClick={() => pickVerseSearchVerse(Number(v))}>
+                  <span style={styles.sermonVerseSearchVerseNum}>{v}</span> {(sermonVerseSearchChapter.verses[v] ?? '').replace(/\n/g, ' ').slice(0, 60)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </>
+    )
+  }
+
   // Selo + FAB (34e) + folha (34d/34f/escolha de grupo) — anexado em TODA
   // saída desta tela (README: "vive... na Bíblia inteira"), não só quando
   // um capítulo está aberto. Portal pro <body>, mesmo truque de
@@ -614,8 +992,12 @@ export default function JourneyScreen({
   function renderSermonWidget() {
     // Altura AO VIVO da folha — durante o arrasto, segue o dedo (clampada
     // em SHEET_MIN_VH pra nunca ficar ridícula antes de soltar); parada,
-    // é a altura já assentada (34d Regra 2: "solta em três alturas").
-    const liveVh = sheetDragState.current
+    // é a altura já assentada (34d Regra 2: "solta em três alturas"). Em
+    // 34g (sermonWriting) a folha toma a tela inteira e o arrasto nem
+    // existe (34g não tem alça) — "o texto bíblico sai de cena".
+    const liveVh = sermonWriting
+      ? 100
+      : sheetDragState.current
       ? Math.max(SHEET_MIN_VH, Math.min(94, (sermonSheetHeight === 'full' ? SHEET_FULL_VH : SHEET_HALF_VH) - sermonDragOffset / (window.innerHeight / 100)))
       : (sermonSheetHeight === 'full' ? SHEET_FULL_VH : SHEET_HALF_VH)
 
@@ -663,16 +1045,24 @@ export default function JourneyScreen({
             e não existe onClick nenhum fechando a folha ao tocar fora. */}
         {sermonNoteOpen && sermonDraft && createPortal(
           <>
-            <div style={{ ...styles.sermonVeil, bottom: `${liveVh}vh` }} />
-            <div style={{ ...styles.sermonSheet, height: `${liveVh}vh` }}>
-              <div
-                style={styles.sermonHandleWrap}
-                onPointerDown={handleSheetHandlePointerDown} onPointerMove={handleSheetHandlePointerMove}
-                onPointerUp={handleSheetHandlePointerUp} onPointerCancel={handleSheetHandlePointerUp}
-              >
-                <span style={styles.sermonHandle} />
-              </div>
-              {sermonSourceOpen ? (
+            {/* 34g não tem véu (nada visível atrás pra escurecer — "o
+                texto bíblico sai de cena"). */}
+            {!sermonWriting && <div style={{ ...styles.sermonVeil, bottom: `${liveVh}vh` }} />}
+            <div style={{ ...styles.sermonSheet, height: `${liveVh}vh`, ...(sermonWriting ? styles.sermonSheetWriting : null) }}>
+              {/* 34g também não tem alça de arrasto — a folha já É a tela
+                  inteira, não há pra onde arrastar. */}
+              {!sermonWriting && (
+                <div
+                  style={styles.sermonHandleWrap}
+                  onPointerDown={handleSheetHandlePointerDown} onPointerMove={handleSheetHandlePointerMove}
+                  onPointerUp={handleSheetHandlePointerUp} onPointerCancel={handleSheetHandlePointerUp}
+                >
+                  <span style={styles.sermonHandle} />
+                </div>
+              )}
+              {sermonWriting ? (
+                renderSermonWriting()
+              ) : sermonSourceOpen ? (
                 <>
                   <div style={styles.sermonSourceHeader}>
                     <button type="button" style={styles.sermonChevronBtn} onClick={() => setSermonSourceOpen(false)} aria-label={t('sermonNote.ready', undefined, lang)}>
@@ -850,16 +1240,32 @@ export default function JourneyScreen({
                     )}
 
                     {/* Toque na área de escrita → 34g (teclado sobe, folha
-                        em tela cheia, versículo citado inline) — Bloco 3
-                        deste pacote (handoff-anotacao-34/, ainda não
-                        construído). Por ora escreve normal aqui dentro
-                        de 34d, sem essa transição. */}
-                    <textarea
-                      style={styles.sermonTextarea}
-                      value={sermonDraft.text}
-                      placeholder={t('sermonNote.textPlaceholder', undefined, lang)}
-                      onChange={e => patchSermonDraft({ text: e.target.value })}
-                    />
+                        em tela cheia). Uma vez que o corpo já tem blocos
+                        (citação/tópico — só existem depois de visitar
+                        34g), esta área simples de 34d não consegue mais
+                        representar o conteúdo de verdade (é só um
+                        <textarea>, sem como desenhar um bloco citado) —
+                        vira um botão de PRÉVIA que leva direto pra 34g,
+                        em vez de deixar editar e arriscar perder a
+                        estrutura. */}
+                    {(!sermonDraft.body || sermonDraft.body.length <= 1) ? (
+                      <textarea
+                        style={styles.sermonTextarea}
+                        value={sermonDraft.body?.[0]?.text ?? sermonDraft.text}
+                        placeholder={t('sermonNote.textPlaceholder', undefined, lang)}
+                        onFocus={enterSermonWriting}
+                        onChange={e => {
+                          const val = e.target.value
+                          patchSermonDraft(sermonDraft.body?.[0]
+                            ? { text: val, body: [{ ...sermonDraft.body[0], text: val }] }
+                            : { text: val })
+                        }}
+                      />
+                    ) : (
+                      <button type="button" style={{ ...styles.sermonTextarea, textAlign: 'left', cursor: 'pointer' }} onClick={enterSermonWriting}>
+                        {sermonDraft.body.map(seg => (seg.type === 'quote' ? `"${seg.text}"` : seg.text)).filter(Boolean).join(' ')}
+                      </button>
+                    )}
                   </div>
 
                   <div style={styles.sermonFooter}>
@@ -1362,6 +1768,10 @@ const styles = {
   sermonHandleWrap: { flexShrink: 0, display: 'flex', justifyContent: 'center', padding: '10px 0 6px', cursor: 'grab', touchAction: 'none' },
   sermonHandle: { width: 44, height: 5, borderRadius: 99, background: 'var(--bento-line)' },
   sermonSheetBody: { flex: 1, minHeight: 0, padding: '0 20px 12px', display: 'flex', flexDirection: 'column' },
+  // 34g: a folha já É a tela inteira — sem canto arredondado (não tem
+  // mais o que "cobrir por cima"), sem sombra, sem alça (ver render:
+  // !sermonWriting condiciona a alça).
+  sermonSheetWriting: { borderRadius: 0, boxShadow: 'none' },
 
   // 34e — lápis + tarja. A posição base já fica no canto inferior direito
   // (touchAction:none evita o scroll da página brigar com o arrasto
@@ -1409,6 +1819,57 @@ const styles = {
   sermonChipsRow: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 },
   sermonChip: { height: 30, padding: '0 12px', borderRadius: 11, border: 'none', background: 'rgba(255,255,255,.6)', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-sand-ink)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 },
   sermonChipX: { fontSize: 13, fontWeight: 700, color: 'var(--bento-sand-ink-mid)' },
+
+  // 34g — tira das passagens (item 2 do HANDOFF): botão marrom + ficha
+  // areia "N passagens" + hora, tudo numa linha só (o essencial do bloco
+  // areia de 34d, encolhido).
+  sermonPassageStrip: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px 14px', flexShrink: 0 },
+  sermonAddVerseBtnSmall: { flexShrink: 0, height: 32, padding: '0 12px', borderRadius: 11, border: 'none', background: 'var(--bento-sand-icon)', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-sand)', cursor: 'pointer' },
+  sermonPassageCountChip: { flexShrink: 0, height: 32, padding: '0 12px', borderRadius: 11, border: 'none', background: 'var(--bento-sand)', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-sand-ink)', cursor: 'pointer' },
+  sermonPassageTime: { marginLeft: 'auto', flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 600, color: 'var(--bento-t4)' },
+
+  // 34g — superfície de escrita (item 3): branco raio 26 só em cima,
+  // segue até a barra de ferramentas "sem degrau" (raio 0 embaixo).
+  sermonWritingSurface: { flex: 1, minHeight: 0, overflowY: 'auto', background: '#fff', borderRadius: '26px 26px 0 0', padding: '20px 20px 12px', display: 'flex', flexDirection: 'column', gap: 14 },
+  sermonBodyTextarea: {
+    width: '100%', border: 'none', outline: 'none', background: 'none', resize: 'none', overflow: 'hidden',
+    fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.75, color: 'var(--bento-ink)', padding: 0, caretColor: 'var(--bento-accent)',
+  },
+  // 34g — versículo inserido (item 4): fundo próprio (sem token exato no
+  // app, hex do HANDOFF direto), filete marrom à esquerda, texto em
+  // itálico. sermonQuoteRemove não está desenhado no quadro (nenhum
+  // exemplo mostra o gesto de apagar em andamento), mas Regra 4 §7 exige
+  // que apagar funcione — × discreto no canto, mesma linguagem das
+  // fichas de passagem em todo o resto do pacote.
+  sermonQuoteBlock: { position: 'relative', background: '#F7F2EA', borderLeft: '3px solid var(--bento-sand-icon)', borderRadius: '0 14px 14px 0', padding: '14px 36px 14px 16px' },
+  sermonQuoteRemove: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(122,74,30,.12)', color: 'var(--bento-sand-icon)', fontSize: 14, fontWeight: 700, lineHeight: 1, cursor: 'pointer' },
+  sermonQuoteText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontStyle: 'italic', fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-sand-ink)', margin: '0 0 6px' },
+  sermonQuoteRef: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-sand-icon)', margin: 0 },
+  // Tópico — numerado em laranja, mesma linguagem que 34h vai reusar pro
+  // cartão "Os pontos que você marcou" (Bloco 4).
+  sermonTopicRow: { display: 'flex', alignItems: 'flex-start', gap: 8 },
+  sermonTopicNum: { flexShrink: 0, width: 16, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)', lineHeight: 1.75, textAlign: 'center' },
+
+  // 34g — barra acima do teclado (item 5): branca, filete em cima, só o
+  // que se usa em pé (Versículo/Tópico/ditar) + botão preto que baixa o
+  // teclado, encostado à direita.
+  sermonWritingToolbar: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px calc(10px + var(--safe-bottom))', background: '#fff', borderTop: '1px solid var(--bento-line)' },
+  sermonToolbarBtn: {
+    flexShrink: 0, height: 38, display: 'flex', alignItems: 'center', gap: 6, padding: '0 13px', borderRadius: 13, border: 'none', background: 'var(--bento-line)',
+    fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer',
+  },
+  sermonToolbarIconBtn: { flexShrink: 0, width: 38, height: 38, borderRadius: 13, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  sermonToolbarIconBtnOn: { background: 'var(--bento-accent)' },
+  sermonKeyboardDownBtn: { marginLeft: 'auto', flexShrink: 0, width: 38, height: 38, borderRadius: 13, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+
+  // Busca de referência (34g "Versículo") — funil livro→capítulo→
+  // versículo, cartões brancos simples (não redesenhado a partir de
+  // nenhum quadro — README/HANDOFF não desenham esta tela, só exigem
+  // que ela exista de verdade, ver Regra 4 §7).
+  sermonVerseSearchRow: { textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 8, width: '100%', padding: '13px 14px', borderRadius: 14, border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', cursor: 'pointer' },
+  sermonVerseSearchVerseNum: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)' },
+  sermonVerseSearchChapterGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 },
+  sermonVerseSearchChapterBtn: { height: 44, borderRadius: 13, border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
 
   sermonTextarea: {
     flex: 1, minHeight: 150, width: '100%', border: 'none', borderRadius: 20, background: 'var(--bento-card)', padding: '14px 16px',
