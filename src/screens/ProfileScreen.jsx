@@ -353,7 +353,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             <Row icon="StickyNote" label={t('nav.notes', undefined, lang)} sub={L('notesLinkSub')} onPress={() => onNavigate('notes')} />
           )}
           {session.hasPremium && (
-            <Row icon="GraduationCap" label={t('nav.studies', undefined, lang)} sub={L('studiesLinkSub')} onPress={() => onNavigate('studies')} />
+            <Row icon="GraduationCap" label={t('nav.studies', undefined, lang)} sub={L('studiesLinkSub')} onPress={() => onNavigate('addStudy')} />
           )}
           {/* Ajustes do assistente de IA (10f) — só quem tem Premium + IA
               vê; sem isso não há nada pra ajustar. */}

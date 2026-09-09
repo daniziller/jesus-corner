@@ -1246,7 +1246,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           session={session}
           activeStep="reading"
           onGoPrayer={() => onNavigate?.('prayer')}
-          onGoStudy={() => onNavigate?.('studies')}
+          onGoStudy={() => onNavigate?.('addStudy')}
           onGoReflection={() => onNavigate?.('reflection')}
         />
       )}
