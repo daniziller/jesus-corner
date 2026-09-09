@@ -2615,7 +2615,7 @@ export default function App() {
     // era mais simples que este quadro, não o contrário, então não houve
     // conflito entre as duas decisões, só uma sequência.
     home: <HomeScreen
-      session={session} authUser={authUser} completedSet={completedSet} weeklyDays={weeklyDays} stepMinutes={stepMinutes}
+      session={session} authUser={authUser} completedSet={completedSet} stepMinutes={stepMinutes}
       weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
       onOpenProfile={() => setProfileOpen(true)}
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}

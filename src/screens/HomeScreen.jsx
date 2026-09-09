@@ -36,7 +36,7 @@ import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { dateKey } from '../utils/dateKey'
-import { getStepDays, stepsScheduledForWeekday } from '../routine/stepDaysStore'
+import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeekPillStates } from '../routine/stepDaysStore'
 import { STEP_ORDER } from '../routine/planTodayRows'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
@@ -47,9 +47,6 @@ import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 
 const STEPS = ['prayer', 'reading', 'reflection']
-// Mesmo padrão de weeklyDaysStore.js (getWeeklyDays) — enquanto o prop
-// ainda não chegou/carregou, assume o padrão de 5 dias (seg-sex).
-const DEFAULT_WEEKLY_DAYS = [true, true, true, true, true, false, false]
 
 function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
@@ -77,7 +74,7 @@ function weekdayIndexMonday(date) {
 }
 
 export default function HomeScreen({
-  session, authUser, completedSet, weeklyDays, stepMinutes,
+  session, authUser, completedSet, stepMinutes,
   onContinueSession, onNavigate, onOpenProfile,
   onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
 }) {
@@ -227,9 +224,15 @@ export default function HomeScreen({
   }
 
   // ── Bloco 2 — SEU PLANO DE HOJE ──
-  // "Esta semana" (Bloco 5) continua com o modelo antigo de sempre (um
-  // weeklyDays só, sem Estudo) — fora de escopo aqui, pedido dela era só
-  // sobre este bloco. enabledSteps/minutesFor seguem servindo o Bloco 5.
+  // "Esta semana" (Bloco 5) migrado pro mesmo modelo por passo de Meu
+  // Plano (2026-09-09, achado dela: os dois divergiam — Início ainda
+  // usava um weeklyDays só, contando o dia como cumprido só com a
+  // Leitura feita, ignorando os outros passos agendados; Meu Plano já
+  // usava stepDays/computeStepWeekGoal, exigindo TODOS os passos
+  // agendados daquele dia. Ela confirmou: o critério certo é o de Meu
+  // Plano — ver computeWeekPillStates/computeStepWeekGoal mais abaixo.
+  // enabledSteps/minutesFor continuam servindo só a faixa de minutos do
+  // Bloco 5 (weekTimeRow), não a contagem de dias.
   const enabledSteps = STEPS.filter(s => {
     const inRoutine = (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s)
     const minutesMap = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
@@ -251,7 +254,6 @@ export default function HomeScreen({
   // com Leitura e Estudo em dias diferentes há muito tempo) — só não
   // tinha sido pego ainda.
   const weekdayFull = WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt
-  const activeWeeklyDays = Array.isArray(weeklyDays) && weeklyDays.length === 7 ? weeklyDays : DEFAULT_WEEKLY_DAYS
 
   // 2026-09-08 — "Seu plano de hoje" passa a usar o MESMO modelo de dias
   // por passo de Meu Plano (stepDays), em vez do STEPS fixo
@@ -414,17 +416,24 @@ export default function HomeScreen({
   // Pedido explícito da Daniela (2026-09-07, comparando com screens/34a.png):
   // o bloco fica sempre na tela, com o dado real que existir (mesmo que seja
   // zero) — sem estado "primeiros 7 dias" escondendo o quadro inteiro.
+  //
+  // Migrado pro modelo por passo de Meu Plano (2026-09-09, achado dela —
+  // ver comentário no Bloco 2 acima): dias sem NENHUM passo agendado saem
+  // do total (computeWeekPillStates devolve 'rest' pra eles, nem entram
+  // na lista); um dia com passo agendado só conta "cumprido" quando TODOS
+  // os passos daquele dia foram feitos (isStepDayFulfilled em
+  // stepDaysMath.js), não só a Leitura.
   const monday = mondayOf(new Date())
-  const markedDayIdxs = activeWeeklyDays.map((on, i) => on ? i : null).filter(i => i !== null)
-  const weekDayCells = markedDayIdxs.map(i => {
-    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
-    const key = dateKey(d)
-    const isToday = key === todayKeyStr
-    const isFuture = key > todayKeyStr
-    const done = !isFuture && !!dailyRoutine?.[key]?.reading
-    return { key, isToday, isFuture, done, weekdayIdx: i }
-  })
-  const daysMetThisWeek = weekDayCells.filter(c => c.done).length
+  const pillStates = stepDays ? computeWeekPillStates(dailyRoutine, stepDays, activeStepsToday, new Date()) : []
+  const weekDayCells = pillStates
+    .map((state, i) => ({ state, weekdayIdx: i }))
+    .filter(c => c.state !== 'rest')
+    .map(c => {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + c.weekdayIdx)
+      return { key: dateKey(d), isToday: c.state === 'today', done: c.state === 'done', weekdayIdx: c.weekdayIdx }
+    })
+  const weekGoal = stepDays ? computeStepWeekGoal(dailyRoutine, stepDays, activeStepsToday, new Date()) : { doneCount: 0, markedCount: 0 }
+  const daysMetThisWeek = weekGoal.doneCount
   const weekTotals = totalsByStep(sessionRows, dateKey(monday))
   const weekTotalSeconds = weekTotals.prayer + weekTotals.reading + weekTotals.reflection
   const weekdayAbbr = WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt
@@ -636,7 +645,7 @@ export default function HomeScreen({
           <div style={styles.weekHead}>
             <p style={styles.weekLabel}>{L('weekLabel')}</p>
             <p style={styles.weekCount}>
-              <span style={styles.weekCountStrong}>{daysMetThisWeek}</span> {L('ofDaysSuffix', { total: markedDayIdxs.length })}
+              <span style={styles.weekCountStrong}>{daysMetThisWeek}</span> {L('ofDaysSuffix', { total: weekGoal.markedCount })}
             </p>
           </div>
           <div style={styles.weekGridRow}>
