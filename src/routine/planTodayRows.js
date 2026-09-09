@@ -8,13 +8,16 @@
 // de React nem de stores.
 export const STEP_ORDER = ['prayer', 'reading', 'study', 'reflection']
 
-// Passos de hoje (já com a substituição leitura↔estudo aplicada por quem
-// chama, ver RoutineScreen.jsx) + os "desligados" no fim — README: "passos
-// desligados vão para o fim da lista, não somem da tela". Qualquer passo
-// canônico que não esteja em `todaysSteps` conta como "de fora hoje", seja
-// porque não tem dia marcado, seja porque foi substituído pelo estudo ativo.
-export function orderStepsWithOff(todaysSteps) {
-  const offSteps = STEP_ORDER.filter(k => !todaysSteps.includes(k))
+// Passos de hoje + os "de folga hoje" no fim da lista — README: "passos
+// fora do dia vão pro fim da lista, não somem da tela". Mas isso vale só
+// pra quem está LIGADO no toggle (`activeSteps`) e não caiu hoje (dia de
+// descanso daquele passo) — um passo com o TOGGLE desligado não é "de
+// folga hoje", é "não faz parte do seu plano", e por isso nem entra na
+// lista (achado dela, 2026-09-09: "toggle desligado, o passo é pausado" —
+// olha errado quando o próprio passo desligado ainda aparecia esmaecido
+// no fim, como se fosse só um dia de folga).
+export function orderStepsWithOff(todaysSteps, activeSteps) {
+  const offSteps = activeSteps.filter(k => !todaysSteps.includes(k))
   return { orderedKeys: [...todaysSteps, ...offSteps], offSteps }
 }
 

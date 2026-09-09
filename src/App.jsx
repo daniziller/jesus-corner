@@ -976,21 +976,28 @@ export default function App() {
   }
 
   // Passos de HOJE, na ordem em que a rotina guiada os encadeia — MESMA
-  // conta de RoutineScreen.jsx/HomeScreen.jsx (stepDays por passo +
-  // substituição leitura↔estudo quando há um Estudo ativo). Antes disto,
-  // "Começar meu plano" usava um GUIDED_STEPS fixo [oração,leitura,
+  // conta de RoutineScreen.jsx/HomeScreen.jsx (stepDays por passo). Antes
+  // disto, "Começar meu plano" usava um GUIDED_STEPS fixo [oração,leitura,
   // reflexão] que ignorava stepDays e nunca incluía Estudo — discordando
   // do que a própria lista de Meu Plano/Home já mostravam (achado
   // corrigindo o pacote 36-37: o botão "abre o passo da vez" precisa
   // abrir o MESMO passo que a lista aponta como "agora").
+  //
+  // A substituição leitura→estudo daqui (quando havia activeStudyId) saiu
+  // em 2026-09-09: era resquício do modelo antigo de "estudo ativo
+  // substitui a leitura", já abandonado pelas trilhas independentes
+  // (RoutineScreen.jsx/HomeScreen.jsx não fazem mais essa troca desde o
+  // handoff-app-completo) — só este arquivo ainda fazia, e junto com o
+  // mesmo achado dela (toggle desligado não pausava o Estudo de verdade)
+  // podia encadear pro passo Estudo mesmo com o toggle dele desligado.
+  // Cada passo agora só entra aqui se estiver de fato ligado E agendado
+  // pra hoje — leitura e estudo, se os dois estiverem, aparecem os dois,
+  // na ordem de STEP_ORDER.
   function todaysGuidedSteps() {
     const enabled = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
     const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
     const todayIdx = (new Date().getDay() + 6) % 7
-    const scheduledToday = stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
-    return activeStudyId
-      ? [...new Set(scheduledToday.map(k => (k === 'reading' ? 'study' : k)))]
-      : scheduledToday
+    return stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
   }
 
   // Iniciar em Meu Plano — encadeia os passos ligados. Com 0 ou 1 passo não
