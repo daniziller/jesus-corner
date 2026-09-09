@@ -1533,7 +1533,13 @@ export default function App() {
     await publishAiStudyIfRequested(aiStudyDraft)
     await selectActiveStudy(saved.id, saved.sessions.length)
     setAiStudyDraft(null)
-    goToTab('routine')
+    // "Começar agora"/"Começar amanhã" (41c) — bug real (2026-09-09,
+    // reportado por ela): antes só ia pra Meu Plano ("entra no plano",
+    // README) sem realmente abrir o dia 1, pré-datando 41d, que não
+    // existia ainda. Agora abre 41d de verdade — `saved` (não
+    // `aiStudies`/openActiveStudy) porque o estado ainda não assentou
+    // nesta mesma função (ver comentário de goToStudyOrFallback).
+    goToStudyOrFallback(saved)
   }
 
   // Prévia de um cartão de 35h (Jesus Corner/grupo/banco público/salvos) —
@@ -1570,7 +1576,7 @@ export default function App() {
     }
     await selectActiveStudy(saved.id, saved.sessions.length)
     setAiStudyDraft(null)
-    goToTab('routine')
+    goToStudyOrFallback(saved) // mesmo motivo de handleStartAiStudy acima
   }
 
   // "Enviar para o grupo" (22d) — grava o plano de verdade (RPC
@@ -2195,9 +2201,15 @@ export default function App() {
   function isNewFormatStudy(study) {
     return !!study?.sessions?.[0]?.book
   }
-  function openActiveStudy() {
-    if (!activeStudyId) { goToTab('addStudy'); return }
-    const study = aiStudies.find(s => s.id === activeStudyId)
+  // Recebe o Estudo já pronto (`study`), nunca relê de `aiStudies`/
+  // `activeStudyId` por conta própria — achado num bug real (2026-09-09,
+  // reportado por ela): chamar isso *na mesma função* que ACABOU de
+  // `setAiStudies`/`selectActiveStudy` via closure em `aiStudies`/
+  // `activeStudyId` lia os valores de ANTES do setState (React só aplica
+  // no próximo render), então caía sempre no fallback errado logo depois
+  // de criar/adotar um estudo. `openActiveStudy()` abaixo (chamado de
+  // fora, sem acabar de mudar nada) ainda lê o estado — ali é seguro.
+  function goToStudyOrFallback(study) {
     if (study && isNewFormatStudy(study)) {
       if (currentDayOf(study).day) { goToTab('studyDay'); return }
       // Todos os dias já feitos — 41f ("estudo por dentro", Bloco 4) e 41g
@@ -2205,8 +2217,12 @@ export default function App() {
       goToTab('addStudy')
       return
     }
-    setLibraryOpenStudyId(activeStudyId)
-    goToTab('studies')
+    if (study) { setLibraryOpenStudyId(study.id); goToTab('studies'); return }
+    goToTab('addStudy')
+  }
+  function openActiveStudy() {
+    if (!activeStudyId) { goToTab('addStudy'); return }
+    goToStudyOrFallback(aiStudies.find(s => s.id === activeStudyId))
   }
 
   // Fecho de um dia (41d → 41e) — guarda qual dia foi concluído (a
