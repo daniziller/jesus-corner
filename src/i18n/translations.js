@@ -1686,6 +1686,13 @@ export const STRINGS = {
     createStudy: {
       pageTitle: 'Criar estudo',
       pageSub: 'Meu Plano',
+      // Turno 41, 41b — subtítulo do cabeçalho ("3º de 4 em setembro", o
+      // ordinal do que está sendo criado AGORA) e o cartão do limite,
+      // primeiro do corpo. `pageSub` acima segue servindo CreateStudyScreen
+      // .jsx (22a, fluxo antigo de theme_plans) — não repor.
+      pageSubQuota: '{n} de {max} em {month}',
+      limitCardTitle: 'Você pode criar até {max} estudos por mês',
+      limitCardSub: 'Este é o {ordinal} de {month}. A conta zera no dia 1º — e seguir estudo do banco ou de um grupo não gasta nada.',
       promptLabel: 'O que você quer estudar?',
       promptPlaceholder: 'Quero entender o que a Bíblia diz sobre ansiedade, em uma semana',
       suggestionsLabel: 'Ou comece por aqui',
@@ -4386,6 +4393,9 @@ export const STRINGS = {
     createStudy: {
       pageTitle: 'Create study',
       pageSub: 'My Plan',
+      pageSubQuota: '{n} of {max} in {month}',
+      limitCardTitle: 'You can create up to {max} studies a month',
+      limitCardSub: "This is the {ordinal} in {month}. The quota resets on the 1st — and following a study from the bank or a group is free.",
       promptLabel: 'What do you want to study?',
       promptPlaceholder: 'I want to understand what the Bible says about anxiety, in a week',
       suggestionsLabel: 'Or start from here',

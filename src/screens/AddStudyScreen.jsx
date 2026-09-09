@@ -35,6 +35,7 @@ import { getCompletedStudySessions, isStudySessionDone } from '../studies/studie
 import { getStepDays } from '../routine/stepDaysStore'
 import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath'
 import { deriveThemeTexts } from '../themePlans/themeTexts'
+import { countCreatedThisMonth } from '../studies/estudosStore'
 
 const FONT = 'var(--font-bento)'
 const CHIPS = ['all', 'jesusCorner', 'groups', 'public', 'saved']
@@ -96,15 +97,10 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
         setActiveStudy(null)
       }
       // Cota mensal (regra 4 §3, HANDOFF-41): 4 CRIADOS por mês-calendário,
-      // zerando dia 1º. `ai_studies` hoje mistura criações com estudos
-      // adotados do banco (a mesma linha serve pros dois — ver
-      // handleStartPreviewStudy em App.jsx), sem marcar a origem; até essa
-      // distinção existir de verdade (Bloco 2, junto do gerador/cota
-      // unificados), o contador conta tudo que foi criado/adotado este mês
-      // — um limite mais conservador que o exato, nunca deixa passar de 4
-      // criações reais, mas pode contar uma adoção como se fosse criação.
-      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
-      setQuotaUsed(mine.filter(s => s.createdAt && new Date(s.createdAt).getTime() >= monthStart).length)
+      // zerando dia 1º — exata desde o Bloco 2 (origin:'created' gravado
+      // em App.jsx na hora de salvar; adotar do banco/grupo/Jesus Corner
+      // grava outro origin e não conta aqui).
+      setQuotaUsed(countCreatedThisMonth(mine))
     }).catch(err => console.error('Failed to load my studies', err))
   }, [activeStudyId])
 
@@ -204,7 +200,7 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
                 key={study.id} badge={L('badgeJesusCorner')}
                 title={study.title} sub={L('authorTeamDetail', { detail: t(`createStudy.format${study.format[0].toUpperCase()}${study.format.slice(1)}Sub`, undefined, lang) })}
                 meta={L('cardDaysMeta', { n: study.passages?.length ?? 0 })}
-                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: study.format, scope: null, sessions: deriveThemeTexts(study.passages), sourceStudyId: study.id })}
+                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: study.format, scope: null, sessions: deriveThemeTexts(study.passages), sourceStudyId: study.id, origin: 'jesus_corner' })}
               />
             ))}
           </StudySection>
@@ -216,7 +212,7 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
               <StudyCard
                 key={study.id} badge={study.groupName} badgeTone="group"
                 title={study.title} sub={L('authorByGroup', { author: study.authorName, n: study.acceptedCount ?? 1 })} meta={L('cardDaysMeta', { n: study.sessions.length })}
-                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: 'book', scope: null, sessions: study.sessions, sourceStudyId: study.id })}
+                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: 'book', scope: null, sessions: study.sessions, sourceStudyId: study.id, origin: 'group' })}
               />
             ))}
           </StudySection>
@@ -229,7 +225,7 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
                 key={study.id} badge={L('badgePublic')} badgeTone="public"
                 title={study.title} sub={L('authorBy', { author: study.authorName })}
                 meta={L('followersCount', { n: study.usesCount })}
-                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: study.format, scope: null, sessions: deriveThemeTexts(study.passages), sourceStudyId: study.id, fromPublicBank: true })}
+                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: study.format, scope: null, sessions: deriveThemeTexts(study.passages), sourceStudyId: study.id, fromPublicBank: true, origin: 'public' })}
               />
             ))}
           </StudySection>
@@ -242,7 +238,7 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
                 key={study.id} badge={null}
                 title={study.title ?? study.titleEn} sub={null}
                 meta={L('cardDaysMeta', { n: study.sessions?.length ?? 0 })}
-                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: 'thematic', scope: study.scope ?? null, sessions: study.sessions, sourceStudyId: study.id })}
+                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: 'thematic', scope: study.scope ?? null, sessions: study.sessions, sourceStudyId: study.id, origin: study.origin ?? 'created', createdAt: study.createdAt })}
               />
             ))}
           </StudySection>

@@ -82,7 +82,8 @@ import { getStepMinutes, setStepMinutes as persistStepMinutes } from './plan/ste
 import { getWeeklyDays, setWeeklyDays as persistWeeklyDays, countTrue } from './routine/weeklyDaysStore'
 import { getThemePlans, saveThemePlan, generateThemePlan, regenerateThemePassage } from './themePlans/themePlansStore'
 import { publishStudy, recordStudyUse } from './studies/publicStudiesStore'
-import { saveAiStudy } from './studies/aiStudiesStore'
+import { saveAiStudy, getAiStudies } from './studies/aiStudiesStore'
+import { studyQuota } from './studies/estudosStore'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
@@ -570,6 +571,12 @@ export default function App() {
   // cada render e precisa saber as sessões do plano por tema ativo sem
   // esperar um fetch.
   const [themePlans, setThemePlans] = useState([])
+  // Turno 41, Bloco 2 — cota mensal de verdade (41b): a criação por IA
+  // (CreateAiStudyScreen.jsx/35d) persiste em ai_studies, não theme_plans
+  // (ver saveAiStudyDraftAsPersonalCopy), então a cota precisa ler daqui,
+  // não de themePlans (que é o que api/generate-theme-plan.js já conferia
+  // — checagem real mas contra o array errado, nunca disparava).
+  const [aiStudies, setAiStudies] = useState([])
   // Plano recém-gerado em CreateStudyScreen.jsx (22a), ainda não salvo —
   // vive só entre a geração e a decisão em StudyProposalScreen.jsx (22b:
   // "Salvar p/ depois" ou "Começar"). Null fora dessa janela.
@@ -791,7 +798,7 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -801,6 +808,7 @@ export default function App() {
         getStepDays(),
         getActiveAltPlan(user.email),
         getThemePlans(user.email),
+        getAiStudies(user.email),
         getDailyRoutine(),
         getRoutineModules(user.email),
         getActiveStudyId(user.email),
@@ -845,6 +853,7 @@ export default function App() {
       setStepDaysState(userStepDays)
       setActiveAltPlanState(userActiveAltPlan)
       setThemePlans(userThemePlans)
+      setAiStudies(userAiStudies)
       setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
       setDailyRoutine(routine)
       setRoutineModulesState(userRoutineModules)
@@ -1493,8 +1502,13 @@ export default function App() {
 
   async function saveAiStudyDraftAsPersonalCopy(draft) {
     const id = draft.id ?? `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const study = { id, title: draft.title, overview: draft.overview ?? null, scope: draft.scope ?? null, format: draft.format ?? 'thematic', createdAt: draft.createdAt ?? new Date().toISOString(), sessions: draft.passages }
+    // `origin: 'created'` (turno 41, Bloco 2) — este é o caminho de CRIAR
+    // de verdade (35d, texto livre → IA), o único que consome a cota
+    // mensal (ver studyQuota em estudosStore.js e o cartão de limite em
+    // CreateAiStudyScreen.jsx).
+    const study = { id, title: draft.title, overview: draft.overview ?? null, scope: draft.scope ?? null, format: draft.format ?? 'thematic', createdAt: draft.createdAt ?? new Date().toISOString(), sessions: draft.passages, origin: 'created' }
     const updated = await saveAiStudy(authUser.email, study)
+    setAiStudies(updated)
     return updated.find(s => s.id === id) ?? study
   }
 
@@ -1532,8 +1546,17 @@ export default function App() {
     // própria cópia em ai_studies (arrays por usuário), então reusar o
     // mesmo id não colide com o de mais ninguém.
     const id = aiStudyDraft.sourceStudyId ?? `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const study = { id, title: aiStudyDraft.title, overview: aiStudyDraft.overview ?? null, format: aiStudyDraft.format ?? 'thematic', createdAt: new Date().toISOString(), sessions: aiStudyDraft.sessions }
+    // `createdAt` preserva o original quando já existe (reabrir/recomeçar
+    // um "Salvo" não é um evento novo — achado corrigindo a cota do Bloco
+    // 2: antes esta linha SEMPRE carimbava agora, então só reabrir um
+    // estudo salvo bastava pra "criar" de novo contra a cota). `origin`
+    // (idem) — Jesus Corner/grupo/banco público/salvos NUNCA consomem
+    // cota (regra 4 §3); só o "Salvos" reabre o próprio 'created' de
+    // quando foi gerado a primeira vez (aiStudyDraft.origin já vem certo
+    // dos cartões de 41a/41i, ver onOpenPreview).
+    const study = { id, title: aiStudyDraft.title, overview: aiStudyDraft.overview ?? null, format: aiStudyDraft.format ?? 'thematic', createdAt: aiStudyDraft.createdAt ?? new Date().toISOString(), sessions: aiStudyDraft.sessions, origin: aiStudyDraft.origin ?? 'created' }
     const updated = await saveAiStudy(authUser.email, study)
+    setAiStudies(updated)
     const saved = updated.find(s => s.id === id) ?? study
     if (aiStudyDraft.fromPublicBank && aiStudyDraft.sourceStudyId) {
       recordStudyUse(aiStudyDraft.sourceStudyId).catch(err => console.error('Failed to record study use', err))
@@ -1728,7 +1751,7 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -1738,6 +1761,7 @@ export default function App() {
       getStepDays(),
       getActiveAltPlan(user.email),
       getThemePlans(user.email),
+      getAiStudies(user.email),
       getPrayerStats(user.email),
       getDailyRoutine(),
       getRoutineModules(user.email),
@@ -1771,6 +1795,7 @@ export default function App() {
     setStepDaysState(userStepDays)
     setActiveAltPlanState(userActiveAltPlan)
     setThemePlans(userThemePlans)
+    setAiStudies(userAiStudies)
     setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
     setPrayerStats(stats)
     setDailyRoutine(routine)
@@ -1807,6 +1832,7 @@ export default function App() {
     setStepMinutesState({ prayer: null, reading: null, study: null, reflection: null })
     setActiveAltPlanState(null)
     setThemePlans([])
+    setAiStudies([])
     setRoutineModulesState(DEFAULT_ROUTINE_MODULES)
     setActiveStudyIdState(null)
     setBibleOrderModeState('canonical')
@@ -2537,9 +2563,12 @@ export default function App() {
       ? <StudyProposalScreen session={session} plan={generatedStudyPlan} onBack={goBack} onRefazer={refazerGeneratedStudy} onSaveForLater={saveStudyForLater} onStart={startGeneratedStudy} />
       : null,
     // Turno 35, Bloco 4 — 35d/35e (fluxo novo: ai_studies/selectActiveStudy).
+    // `quota` (turno 41, 41b "cartão do limite") soma ai_studies + theme_plans
+    // — mesma conta de api/generate-theme-plan.js (a cota é por CONTA, não
+    // por mecanismo). Conta admin nunca esgota (mesma isenção do servidor).
     createAiStudy: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
-      : <CreateAiStudyScreen session={session} onBack={goBack} onGeneratePersonal={handleGeneratePersonalStudy} onGeneratedGroup={plan => { setGeneratedGroupPlan(plan); goToTab('groupPlanProposal') }} />,
+      : <CreateAiStudyScreen session={session} quota={isAdmin ? { ...studyQuota([]), exhausted: false } : studyQuota([...aiStudies, ...themePlans])} onBack={goBack} onGeneratePersonal={handleGeneratePersonalStudy} onGeneratedGroup={plan => { setGeneratedGroupPlan(plan); goToTab('groupPlanProposal') }} />,
     studyProposalNew: !aiStudyDraft
       ? null
       : <StudyProposalNewScreen

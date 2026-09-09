@@ -121,23 +121,31 @@ export default async function handler(req, res) {
   // api/_lib/adminAuth.js) fica de fora do limite — usa a função pra testar
   // sem esperar a janela de 30 dias.
   if (!isAdminEmail(caller.email)) {
+    // Cota é POR CONTA, não por mecanismo (regra 4 §3: "4 estudos criados
+    // por mês, por conta") — este endpoint gera pra dois destinos
+    // diferentes dependendo de quem chama: ThemePlanScreen.jsx (persiste
+    // em theme_plans) e CreateAiStudyScreen.jsx/35d (persiste em
+    // ai_studies, ver saveAiStudyDraftAsPersonalCopy em App.jsx). Até o
+    // Bloco 2 (2026-09-09) esta checagem só olhava theme_plans — nunca
+    // disparava de verdade pra quem criava por 35d (a cota de fato não
+    // era aplicada nessa tela, bug real). Agora soma os dois.
     const { data: userRow } = await supabase
       .from('user_data')
-      .select('theme_plans')
+      .select('theme_plans, ai_studies')
       .eq('user_id', caller.id)
       .maybeSingle()
-    const existingPlans = userRow?.theme_plans ?? []
-    // Só *criar* conta pra cota — planos adotados do banco/grupo/Jesus
-    // Corner (origin diferente de 'created') não gastam (regra 4 §3).
-    // Planos antigos, de antes do campo `origin` existir, contam como
-    // 'created' (é o que sempre foram: só dava pra criar, nunca adotar).
     const now = new Date()
     const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
-    const recentCount = existingPlans.filter(p => {
+    // Só *criar* conta pra cota — estudos adotados do banco/grupo/Jesus
+    // Corner (origin diferente de 'created') não gastam (regra 4 §3).
+    // Entradas antigas, de antes do campo `origin` existir, contam como
+    // 'created' (é o que sempre foram: só dava pra criar, nunca adotar).
+    const countCreated = list => (list ?? []).filter(p => {
       if ((p.origin ?? 'created') !== 'created') return false
       const created = p.createdAt ? new Date(p.createdAt).getTime() : NaN
       return !Number.isNaN(created) && created >= monthStart
     }).length
+    const recentCount = countCreated(userRow?.theme_plans) + countCreated(userRow?.ai_studies)
     if (recentCount >= MAX_PLANS_PER_MONTH) {
       return res.status(429).json({ error: 'plan_limit_reached' })
     }

@@ -108,7 +108,7 @@ export default function PublicStudiesScreen({ session, onBack, onOpenPreview, on
               <p style={s.cardAuthor}>{L('authorLine', { author: study.authorName, n: study.usesCount })}</p>
               <button
                 style={s.verBtn}
-                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: study.format, scope: null, sessions: deriveThemeTexts(study.passages), sourceStudyId: study.id, fromPublicBank: true })}
+                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: study.format, scope: null, sessions: deriveThemeTexts(study.passages), sourceStudyId: study.id, fromPublicBank: true, origin: 'public' })}
               >
                 {L('verBtn')}
               </button>
