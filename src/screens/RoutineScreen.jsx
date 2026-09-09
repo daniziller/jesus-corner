@@ -368,20 +368,25 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
               <p style={styles.sectionLabel}>{L('myPlanLabel')}</p>
               <p style={styles.myPlanRight}>{L('bibleWholeLabel')}</p>
             </div>
+            <p style={styles.myPlanSubLabel}>{L('yourReadingLabel')}</p>
             <p style={styles.myPlanPosition}>{L('bookPositionLabel', { book: currentBlock.book, chapter: currentBlock.chapter })}</p>
+            <p style={styles.myPlanBlock}>{L('blockChaptersLabel', { block: currentBlock.name, done: chaptersRead, total: totalChapters })}</p>
+            <div style={styles.progressTrack}><div style={{ ...styles.progressFill, width: `${Math.min(100, biblePercent)}%` }} /></div>
+
             {/* Estudo ativo (achado dela, 2026-09-09) — título + em que dia
                 ele está, só quando o passo Estudo está LIGADO (mesma regra
                 de sempre: toggle desligado = passo pausado, nem aparece).
-                Leitura e Estudo são independentes (ver stepDaysMath.js) —
-                isso é só informativo, não substitui nada da Leitura acima. */}
+                Mesmo tratamento visual da Leitura acima, sem caixa/borda
+                separando (ela pediu: "não precisa ficar separado") —
+                Leitura e Estudo são independentes (stepDaysMath.js), mas
+                aqui é só um segundo grupo de texto igual ao primeiro. */}
             {enabled.has('study') && activeStudy && (
-              <div style={styles.myPlanStudy}>
+              <div style={styles.myPlanStudyGroup}>
+                <p style={styles.myPlanSubLabel}>{L('yourStudyLabel')}</p>
                 <p style={styles.myPlanStudyTitle}>{activeStudy.title}</p>
                 <p style={styles.myPlanStudyDay}>{L('studyDayLabel', { n: activeStudy.dayDone + 1, total: activeStudy.dayTotal })}</p>
               </div>
             )}
-            <p style={styles.myPlanBlock}>{L('blockChaptersLabel', { block: currentBlock.name, done: chaptersRead, total: totalChapters })}</p>
-            <div style={styles.progressTrack}><div style={{ ...styles.progressFill, width: `${Math.min(100, biblePercent)}%` }} /></div>
 
             <div style={styles.myPlanDivider} />
 
@@ -529,14 +534,16 @@ const styles = {
   sectionLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
   myPlanHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   myPlanRight: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', margin: 0 },
+  // Rótulo pequeno "Sua leitura"/"Seu estudo" — mesmo estilo de
+  // sectionLabel (achado dela, 2026-09-09: "não precisa ficar separado",
+  // Leitura e Estudo usam o MESMO tratamento visual, só com o rótulo
+  // trocando qual é qual).
+  myPlanSubLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t5)', margin: '0 0 5px' },
   myPlanPosition: { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: '0 0 4px' },
-  // Estudo ativo, dentro do card "Seu plano" (achado dela, 2026-09-09) —
-  // barra lateral cor de destaque só pra separar visualmente da Leitura
-  // acima (são passos independentes, não a mesma trilha).
-  myPlanStudy: { display: 'flex', flexDirection: 'column', gap: 2, borderLeft: '3px solid var(--bento-accent)', padding: '1px 0 1px 10px', margin: '2px 0 10px' },
-  myPlanStudyTitle: { fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, lineHeight: 1.25, color: 'var(--bento-ink)', margin: 0 },
-  myPlanStudyDay: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)', margin: '2px 0 0' },
   myPlanBlock: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 12px' },
+  myPlanStudyGroup: { marginTop: 16 },
+  myPlanStudyTitle: { fontFamily: 'var(--font-bento)', fontSize: 16, fontWeight: 800, letterSpacing: '-.3px', lineHeight: 1.25, color: 'var(--bento-ink)', margin: '0 0 4px' },
+  myPlanStudyDay: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
   progressTrack: { height: 6, borderRadius: 99, background: 'var(--bento-line)', overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
   myPlanDivider: { height: 1, background: 'var(--bento-line)', margin: '18px 0 14px' },
