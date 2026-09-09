@@ -10,9 +10,18 @@
 // podem coincidir no mesmo dia — leitura primeiro, estudo depois (mesma
 // ordem de STEP_ORDER). Não existe mais "Estudo ativo substitui a Leitura
 // no dia dela" nem "leitura pausa até o estudo acabar" — ver
-// activeStudyStore.js. `study` entra em `activeSteps` sempre que a pessoa
-// ligou o passo genérico "Estudo" em 35c (routineModules) OU tem um estudo
-// específico ativo (activeStudyId) sem nunca ter mexido nesse toggle.
+// activeStudyStore.js.
+//
+// Bug real corrigido (2026-09-09, achado dela: "toggle do estudo estava
+// desligado, mas como ele tinha os dias ativos, ele continuou"): `study`
+// chegou a entrar em `activeSteps` sempre que havia um `activeStudyId`,
+// MESMO com o toggle genérico desligado — a intenção original era só
+// cobrir quem nunca tinha mexido no toggle, mas o código não checava
+// isso, então desligar o toggle depois de escolher um estudo ativo não
+// pausava nada. Regra dela, agora aplicada sem exceção: toggle desligado
+// = passo pausado, ponto. `activeStudyId` continua decidindo o CONTEÚDO
+// do passo Estudo (qual estudo, qual dia dele) quando ligado — só não
+// liga o passo sozinho mais.
 import { useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -94,9 +103,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
     }).catch(() => {})
   }, [activeStudyId])
 
-  // 'study' entra mesmo sem o toggle de 35c ligado quando há um estudo
-  // específico ativo (ver comentário do topo do arquivo).
-  const activeSteps = STEP_ORDER.filter(k => (k === 'study' ? (enabled.has('study') || !!activeStudyId) : enabled.has(k)))
+  const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
   const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
 
   function minutesForStep(key) {
@@ -109,12 +116,14 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   const stepTitle = k => t(`home.routine${k[0].toUpperCase()}${k.slice(1)}`, undefined, lang)
   const weekdayName = fullNames[todayIdx]
 
-  // Atualização 35a/35b (atualizacao-35-meu-plano/) — lista única com TODOS
-  // os passos canônicos (Oração→Leitura→Estudo→Reflexão), não só os de
-  // hoje: os que não caem hoje vão pro fim, "desligados". Ordem/status/"de
-  // onde vem a meta" são lógica pura, testada à parte em
-  // src/routine/planTodayRows.js — aqui só se traduz pro texto final.
-  const { orderedKeys, offSteps } = orderStepsWithOff(todaysSteps)
+  // Atualização 35a/35b (atualizacao-35-meu-plano/) — lista com todos os
+  // passos LIGADOS pelo toggle (`activeSteps`), não só os de hoje: os
+  // ligados que não caem hoje vão pro fim, esmaecidos ("Dia off"). Um passo
+  // com o toggle desligado nem entra — desaparece de vez, os outros sobem
+  // (achado dela, 2026-09-09). Ordem/status/"de onde vem a meta" são
+  // lógica pura, testada à parte em src/routine/planTodayRows.js — aqui só
+  // se traduz pro texto final.
+  const { orderedKeys, offSteps } = orderStepsWithOff(todaysSteps, activeSteps)
   const noPlanReading = hasNoPlan && !activeStudyId
 
   // Linha "meta" de cada passo na lista — lógica compartilhada com

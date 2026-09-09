@@ -19,14 +19,17 @@ function check(label, actual, expected) {
 }
 
 // --- 35a: terça, dia de leitura, sem estudo ativo ---------------------
-// Oração feita, Leitura é a vez, Reflexão a fazer, Estudo não é hoje.
+// Oração feita, Leitura é a vez, Reflexão a fazer, Estudo LIGADO no toggle
+// mas não é dia dele hoje (dia de folga, não desligado — ver PNG 35a:
+// "Estudo · Hoje não é dia de estudo").
 const todaysSteps35a = ['prayer', 'reading', 'reflection']
+const activeSteps35a = ['prayer', 'reading', 'study', 'reflection']
 const todayRoutine35a = { prayer: true }
 const currentKey35a = 'reading'
 
-const { orderedKeys: ordered35a, offSteps: off35a } = orderStepsWithOff(todaysSteps35a)
+const { orderedKeys: ordered35a, offSteps: off35a } = orderStepsWithOff(todaysSteps35a, activeSteps35a)
 check('35a: ordem final (Oração, Leitura, Reflexão, Estudo no fim)', ordered35a, ['prayer', 'reading', 'reflection', 'study'])
-check('35a: só Estudo fica de fora', off35a, ['study'])
+check('35a: só Estudo fica de fora (dia de folga, toggle ligado)', off35a, ['study'])
 
 for (const [key, expectedStatus] of [['prayer', 'done'], ['reading', 'now'], ['reflection', 'pending'], ['study', 'off']]) {
   check(`35a: status de ${key}`, statusFor(key, { offSteps: off35a, todayRoutine: todayRoutine35a, currentKey: currentKey35a }), expectedStatus)
@@ -42,12 +45,21 @@ check('35a: meta de Estudo "fora de hoje" é o motivo genérico', metaKindFor('s
 // Trilhas independentes (handoff-app-completo): Leitura e Estudo caem no
 // mesmo dia sem se substituir, Leitura primeiro na ordem (STEP_ORDER).
 const todaysSteps35b = ['prayer', 'reading', 'study', 'reflection']
+const activeSteps35b = ['prayer', 'reading', 'study', 'reflection']
 const todayRoutine35b = { prayer: true, reading: true }
 const currentKey35b = 'study'
 
-const { orderedKeys: ordered35b, offSteps: off35b } = orderStepsWithOff(todaysSteps35b)
+const { orderedKeys: ordered35b, offSteps: off35b } = orderStepsWithOff(todaysSteps35b, activeSteps35b)
 check('35b: ordem final (Oração, Leitura, Estudo, Reflexão — nada de fora)', ordered35b, ['prayer', 'reading', 'study', 'reflection'])
 check('35b: nenhum passo fica de fora', off35b, [])
+
+// --- Achado dela (2026-09-09): toggle desligado ≠ dia de folga ---------
+// Estudo com o TOGGLE desligado (nem em activeSteps) não aparece na lista
+// de jeito nenhum — nem esmaecido no fim. Só Oração/Leitura/Reflexão.
+const activeStepsToggleOff = ['prayer', 'reading', 'reflection'] // Estudo desligado
+const { orderedKeys: orderedToggleOff, offSteps: offToggleOff } = orderStepsWithOff(['prayer', 'reading', 'reflection'], activeStepsToggleOff)
+check('Toggle de Estudo desligado: some da lista de vez, não fica esmaecido', orderedToggleOff, ['prayer', 'reading', 'reflection'])
+check('Toggle de Estudo desligado: não conta como "de fora hoje"', offToggleOff, [])
 
 for (const [key, expectedStatus] of [['prayer', 'done'], ['reading', 'done'], ['study', 'now'], ['reflection', 'pending']]) {
   check(`35b: status de ${key}`, statusFor(key, { offSteps: off35b, todayRoutine: todayRoutine35b, currentKey: currentKey35b }), expectedStatus)

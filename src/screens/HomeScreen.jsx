@@ -247,11 +247,14 @@ export default function HomeScreen({
   // por passo, e usava um weeklyDays só pra "descanso"). Trilhas
   // independentes (handoff-app-completo, 34b/34c venceram sobre a
   // substituição antiga): Leitura e Estudo têm dias próprios e podem cair
-  // no mesmo dia — 'study' entra nos passos ativos sempre que a pessoa
-  // ligou o toggle genérico "Estudo" (routineModules) OU tem um estudo
-  // específico ativo, mesma regra de RoutineScreen.jsx.
+  // no mesmo dia. `activeStepsToday` segue só o toggle (routineModules) —
+  // achado dela (2026-09-09): "study" chegou a contar como ativo com o
+  // toggle desligado, contanto que houvesse um `activeStudyId` — mesmo bug
+  // de RoutineScreen.jsx, mesma correção (toggle desligado = passo pausado,
+  // sem exceção; `activeStudyId` só decide o CONTEÚDO do passo quando ele
+  // já está ligado pelo toggle).
   const routineModulesSet = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
-  const activeStepsToday = STEP_ORDER.filter(k => (k === 'study' ? (routineModulesSet.has('study') || !!activeStudyId) : routineModulesSet.has(k)))
+  const activeStepsToday = STEP_ORDER.filter(k => routineModulesSet.has(k))
   const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx) : []
 
   const stepMinutesAll = {
