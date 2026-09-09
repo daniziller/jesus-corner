@@ -1640,11 +1640,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             ] : []),
           ]}
           extra={hasAI ? (
+            // Preto + iconizinho laranja — mesma identidade de "Perguntar à
+            // IA" já usada na folha de ações de versículo (verseSheetAskCard,
+            // acima nesta tela); pedido dela, 2026-09-09, pra bater aqui
+            // também (antes era um cartão claro com ícone e texto laranja).
             <button
               style={styles.toolsExtraBtn}
               onClick={() => { setToolsOpen(false); openAiChat() }}
             >
-              <AppIcon name="HelpCircle" size={16} color="var(--bento-accent)" />
+              <span style={styles.toolsExtraBtnDiamondWrap}><span style={styles.toolsExtraBtnDiamond} /></span>
               {t('reading.tagAskAi', undefined, lang)}
             </button>
           ) : null}
@@ -3656,10 +3660,12 @@ const styles = {
   },
   toolsExtraBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
-    border: 'none', borderRadius: 16, background: 'var(--bento-card)',
+    border: 'none', borderRadius: 16, background: 'var(--bento-ink)',
     padding: '14px 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)',
-    fontSize: 13.5, fontWeight: 800, color: 'var(--bento-accent)',
+    fontSize: 13.5, fontWeight: 800, color: '#fff',
   },
+  toolsExtraBtnDiamondWrap: { display: 'flex', flexShrink: 0 },
+  toolsExtraBtnDiamond: { width: 11, height: 11, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
   panel:       { background: 'var(--bento-card)', borderRadius: 20, padding: 16 },
   panelBookLabel:{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   panelText:   { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.55 },
