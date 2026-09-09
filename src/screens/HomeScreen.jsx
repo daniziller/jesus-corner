@@ -239,6 +239,18 @@ export default function HomeScreen({
   const todayKeyStr = dateKey()
   const mondayKeyStr = dateKey(mondayOf(new Date()))
   const todayWeekdayIdx = weekdayIndexMonday(new Date())
+  // 2026-09-09 — tela branca real em produção (2ª vez, mesma classe de
+  // bug de continuityLine acima): `weekdayFull` era declarada só perto
+  // do "Bloco 5" (~180 linhas abaixo), mas `nextWeekdayLabel` (função
+  // hoisted, ok) já era CHAMADA dentro de planSubtitleText bem antes —
+  // `ReferenceError: Cannot access 'weekdayFull' before initialization`
+  // de verdade. Passou a disparar de verdade com o modo "substitui" do
+  // turno 41 (Estudo tira a Leitura do dia — activeStepsToday.includes
+  // ('reading') && !readingToday vira um caminho comum), mas o bug já
+  // existia antes disso (mesma condição também batia sem "substitui",
+  // com Leitura e Estudo em dias diferentes há muito tempo) — só não
+  // tinha sido pego ainda.
+  const weekdayFull = WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt
   const activeWeeklyDays = Array.isArray(weeklyDays) && weeklyDays.length === 7 ? weeklyDays : DEFAULT_WEEKLY_DAYS
 
   // 2026-09-08 — "Seu plano de hoje" passa a usar o MESMO modelo de dias
@@ -416,7 +428,6 @@ export default function HomeScreen({
   const weekTotals = totalsByStep(sessionRows, dateKey(monday))
   const weekTotalSeconds = weekTotals.prayer + weekTotals.reading + weekTotals.reflection
   const weekdayAbbr = WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt
-  const weekdayFull = WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt
 
   // ── Bloco 6 — dois quadrados ──
   const unreadMessagesTotal = messagesSummary.reduce((sum, g) => sum + (g.unreadCount || 0), 0)
