@@ -10,7 +10,7 @@ import { formatVerseRanges } from '../utils/verseRanges'
 import { askAboutPassage, fetchPassageSuggestions, reportPassageAnswer } from '../aiChat/passageQuestionStore'
 import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen, fetchChapterContext } from '../aiChat/chapterContextStore'
 import { getAskEnabled } from '../aiChat/aiPreferencesStore'
-import { fetchBookText } from '../bible-text/bibleTextStore'
+import { fetchBookText, groupIntoParagraphs } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { computeBookChapterCounts } from '../utils/progress'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
@@ -2429,29 +2429,9 @@ function InfoPanel({ type, books, chStart, chEnd, lang }) {
 // Painel "Texto" do acordeão — busca o livro inteiro (cache em
 // bibleTextStore) e mostra só os capítulos da sessão em destaque, um a um,
 // fechado por padrão (só abre quando a pessoa toca na tag "Texto").
-// Agrupa os versículos de um capítulo em parágrafos, seguindo a divisão
-// que a própria versão (NVT/NLT) já publica — ver scripts/build-bible-text.mjs.
-// chapter.breaks[versículo] é 'P' (começa parágrafo novo) ou 'L' (só uma
-// linha nova dentro do mesmo parágrafo, ex: poesia) — versículos sem marca
-// continuam no parágrafo atual.
-function groupIntoParagraphs(chapter) {
-  // Defensivo: um cache de PWA desatualizado (bible-text-cache) pode, em
-  // tese, ainda entregar um formato antigo pra quem não atualizou o app —
-  // sem isso, a tela toda ficava em branco (erro não tratado no render)
-  // em vez de só aquele capítulo vir vazio.
-  if (!chapter?.verses || typeof chapter.verses !== 'object') return []
-  const verseNumbers = Object.keys(chapter.verses).map(Number).sort((a, b) => a - b)
-  const paragraphs = []
-  let current = null
-  for (const v of verseNumbers) {
-    if (!current || chapter.breaks[String(v)] === 'P') {
-      current = []
-      paragraphs.push(current)
-    }
-    current.push(v)
-  }
-  return paragraphs
-}
+// groupIntoParagraphs (agrupa por parágrafo real da versão, ver
+// chapter.breaks) mora em bibleTextStore.js — turno 41, StudyDayScreen.jsx
+// passou a precisar da mesma divisão, então saiu daqui pra não duplicar.
 
 function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, focusVerseRequest, onVerseNumberClick, onTextSelectionRange, immersive = false, groupMarks = null, versionId: versionIdProp, onChangeVersion: onChangeVersionProp }) {
   // Chip da camada do grupo aberto (mostra nomes/notas de quem compartilhou).

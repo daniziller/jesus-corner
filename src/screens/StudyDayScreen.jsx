@@ -18,7 +18,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { fetchBookText } from '../bible-text/bibleTextStore'
+import { fetchBookText, groupIntoParagraphs } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { generateStudyDayContent, updateStudyDay, saveStudyDayDraft, completeStudyDay } from '../studies/studyDayStore'
 import { saveHighlight } from '../highlights/highlightsStore'
@@ -273,25 +273,39 @@ export default function StudyDayScreen({ session, authUser, study, day, dayIndex
           {!chapters ? (
             <p style={s.loadingText}>{L('loadingPassage')}</p>
           ) : (
-            <p style={s.passageText}>
-              {chapterList.map(ch => {
-                const verses = chapters[String(ch)]?.verses ?? {}
-                return Object.keys(verses).map(Number).sort((a, b) => a - b).map(v => (
-                  <span
-                    key={`${ch}:${v}`}
-                    style={{ ...s.verseSpan, ...(heldVerse?.chapter === ch && heldVerse?.verse === v ? s.verseSpanHeld : {}) }}
-                    onTouchStart={() => startHold(ch, v, verses[String(v)])}
-                    onTouchEnd={cancelHold}
-                    onTouchMove={cancelHold}
-                    onMouseDown={() => startHold(ch, v, verses[String(v)])}
-                    onMouseUp={cancelHold}
-                    onMouseLeave={cancelHold}
-                  >
-                    <sup style={s.verseNum}>{v}</sup> {verses[String(v)]}{' '}
-                  </span>
-                ))
-              })}
-            </p>
+            // Mesma divisão em parágrafos da versão (NVT/NLT) e o mesmo
+            // estilo de número de versículo (laranja) do texto livre da
+            // Bíblia — groupIntoParagraphs/tokens de ReadingBlockView.jsx
+            // (pedido dela, 2026-09-09: "assim como no texto da bíblia
+            // quando abrimos livremente").
+            chapterList.map(ch => {
+              const chapter = chapters[String(ch)] ?? { verses: {}, breaks: {} }
+              const paragraphs = groupIntoParagraphs(chapter)
+              return (
+                <div key={ch}>
+                  {paragraphs.map((verseNums, pIdx) => (
+                    <p key={pIdx} style={s.passageText}>
+                      {verseNums.map((v, vIdx) => (
+                        <span
+                          key={v}
+                          style={{ ...s.verseSpan, ...(heldVerse?.chapter === ch && heldVerse?.verse === v ? s.verseSpanHeld : {}) }}
+                          onTouchStart={() => startHold(ch, v, chapter.verses[String(v)])}
+                          onTouchEnd={cancelHold}
+                          onTouchMove={cancelHold}
+                          onMouseDown={() => startHold(ch, v, chapter.verses[String(v)])}
+                          onMouseUp={cancelHold}
+                          onMouseLeave={cancelHold}
+                        >
+                          {vIdx > 0 && chapter.breaks?.[String(v)] === 'L' && <br />}
+                          <sup style={s.verseNum}>{v}</sup>
+                          {chapter.verses[String(v)]}{' '}
+                        </span>
+                      ))}
+                    </p>
+                  ))}
+                </div>
+              )
+            })
           )}
         </div>
 
@@ -394,10 +408,14 @@ const s = {
   openBibleLink: { fontFamily: FONT, fontSize: 12, fontWeight: 800, color: 'var(--bento-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   passageTitle: { fontFamily: FONT, fontSize: 18, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: '0 0 12px' },
   loadingText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', margin: 0 },
-  passageText: { fontFamily: READING_FONT, fontWeight: 400, fontSize: 15, lineHeight: 1.62, color: 'var(--bento-ink)', margin: 0 },
+  // Mesmo estilo do texto livre da Bíblia (bibleTextBody, ReadingBlockView
+  // .jsx) — pedido dela, 2026-09-09.
+  passageText: { fontFamily: FONT, fontWeight: 500, fontSize: 16.5, lineHeight: 1.72, color: 'var(--bento-ink)', margin: '0 0 12px', textWrap: 'pretty' },
   verseSpan: { borderRadius: 4 },
   verseSpanHeld: { background: 'rgba(240,102,43,.16)' },
-  verseNum: { fontFamily: FONT, fontSize: 10, fontWeight: 700, color: '#A29A91' },
+  // Mesmo estilo de bibleTextVerseNum (ReadingBlockView.jsx) — laranja,
+  // não mais cinza (pedido dela, 2026-09-09).
+  verseNum: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)', verticalAlign: 'super', marginRight: 2 },
 
   darkCard: { borderRadius: 24, background: 'var(--bento-ink)', padding: '18px 20px' },
   darkLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 },
