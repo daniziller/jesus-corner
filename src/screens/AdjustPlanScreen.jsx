@@ -119,9 +119,21 @@ export default function AdjustPlanScreen({ session, completedSet, stepMinutes, o
     onSaveStepMinutes?.({ [key]: next })
   }
 
+  // Bug real corrigido (2026-09-09, achado dela: clicava nos dias de um
+  // passo, mas na hora de salvar o passo não aparecia ativo naquele dia).
+  // Causa: mandar só `{ [key]: days }` faz setStepDays (stepDaysStore.js)
+  // buscar o valor salvo no servidor pra fazer merge — mas essa tela edita
+  // OS 4 PASSOS na mesma tela, cada toggle disparando seu próprio
+  // fetch+merge+write. Clicar em dois passos diferentes rápido (o uso
+  // normal daqui) fazia o 2º clique buscar um valor do servidor de ANTES
+  // do 1º clique terminar de salvar — o 2º write sobrescrevia o passo do
+  // 1º clique com o valor antigo. Mandar o objeto LOCAL inteiro (já com
+  // os 4 passos atualizados) elimina a corrida: o merge no servidor vira
+  // irrelevante, porque o patch já cobre todas as chaves.
   function saveStepDaysFor(key, days) {
-    setStepDaysState(prev => ({ ...(prev ?? {}), [key]: days }))
-    persistStepDays({ [key]: days }).catch(err => console.error('Failed to persist step days', err))
+    const next = { ...(stepDays ?? {}), [key]: days }
+    setStepDaysState(next)
+    persistStepDays(next).catch(err => console.error('Failed to persist step days', err))
   }
 
   const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
