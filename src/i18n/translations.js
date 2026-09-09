@@ -1505,6 +1505,10 @@ export const STRINGS = {
       pausedResumeDate: 'volta {date}',
       myPlanLabel: 'Seu plano',
       bibleWholeLabel: 'Bíblia inteira',
+      // "Sua leitura"/"Seu estudo" (achado dela, 2026-09-09) — os dois
+      // grupos dentro do card "Seu plano", mesmo tratamento visual.
+      yourReadingLabel: 'Sua leitura',
+      yourStudyLabel: 'Seu estudo',
       // Só o próximo capítulo (achado dela, 2026-09-09: "deixe só o
       // próximo capítulo a ser lido" — sem "de {total}" do livro).
       bookPositionLabel: '{book} {chapter}',
@@ -4335,6 +4339,8 @@ export const STRINGS = {
       pausedResumeDate: 'resumes {date}',
       myPlanLabel: 'Your plan',
       bibleWholeLabel: 'Whole Bible',
+      yourReadingLabel: 'Your reading',
+      yourStudyLabel: 'Your study',
       bookPositionLabel: '{book} {chapter}',
       blockChaptersLabel: '{block} · {done} of {total} chapters',
       studyDayLabel: 'Day {n} of {total} days',
