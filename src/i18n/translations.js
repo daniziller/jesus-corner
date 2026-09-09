@@ -1505,8 +1505,14 @@ export const STRINGS = {
       pausedResumeDate: 'volta {date}',
       myPlanLabel: 'Seu plano',
       bibleWholeLabel: 'Bíblia inteira',
-      bookPositionLabel: '{book} {chapter} de {total}',
+      // Só o próximo capítulo (achado dela, 2026-09-09: "deixe só o
+      // próximo capítulo a ser lido" — sem "de {total}" do livro).
+      bookPositionLabel: '{book} {chapter}',
       blockChaptersLabel: '{block} · {done} de {total} capítulos',
+      // Estudo ativo, dentro do card "Seu plano" (achado dela, mesma
+      // data): título do estudo + em que dia ele está, mesma conta de
+      // buildRowMeta/planTodayRows.js ("Ansiedade · dia 2 de 7").
+      studyDayLabel: 'Dia {n} de {total} dias',
       weekGridLabel: 'Sua semana',
       changeDays: 'Mudar',
       todayIsLabel: 'Hoje é {weekday}: {steps}.',
@@ -4329,8 +4335,9 @@ export const STRINGS = {
       pausedResumeDate: 'resumes {date}',
       myPlanLabel: 'Your plan',
       bibleWholeLabel: 'Whole Bible',
-      bookPositionLabel: '{book} {chapter} of {total}',
+      bookPositionLabel: '{book} {chapter}',
       blockChaptersLabel: '{block} · {done} of {total} chapters',
+      studyDayLabel: 'Day {n} of {total} days',
       weekGridLabel: 'Your week',
       changeDays: 'Change',
       todayIsLabel: "Today is {weekday}: {steps}.",
