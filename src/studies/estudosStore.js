@@ -40,6 +40,16 @@ export function studyQuota(plans) {
   return { used, max: MAX_STUDIES_PER_MONTH, remaining: Math.max(0, MAX_STUDIES_PER_MONTH - used), exhausted: used >= MAX_STUDIES_PER_MONTH }
 }
 
+// "Este é o terceiro de setembro" (41b) — por extenso, só até o teto real
+// da cota (MAX_STUDIES_PER_MONTH = 4); nunca precisa passar disso, já que
+// 41b não abre com a cota esgotada (o cartão preto vira aviso antes).
+const ORDINAL_WORDS_PT = ['primeiro', 'segundo', 'terceiro', 'quarto']
+const ORDINAL_WORDS_EN = ['first', 'second', 'third', 'fourth']
+export function ordinalWord(n, lang) {
+  const words = lang === 'en' ? ORDINAL_WORDS_EN : ORDINAL_WORDS_PT
+  return words[n - 1] ?? String(n)
+}
+
 // Dia 1º do mês seguinte, no fuso da própria pessoa (só pra exibir — a
 // cota em si é UTC no servidor, diferença de fuso nunca chega a 1 dia
 // inteiro de erro visível aqui).
