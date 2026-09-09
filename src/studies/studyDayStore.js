@@ -13,6 +13,14 @@
 import { supabase } from '../lib/supabaseClient'
 import { getAiStudies, saveAiStudy } from './aiStudiesStore'
 
+// Devolve o ARRAY inteiro de estudos (mesmo formato de saveAiStudy) —
+// bug real (2026-09-09, tela branca ao digitar a resposta): antes
+// devolvia só o Estudo (updated.find(...)), mas toda tela chama isto e
+// passa o retorno direto pra onStudyUpdated/setAiStudies, que espera o
+// array. `aiStudies` virava um objeto (não mais array) na primeira
+// gravação — studyReplacesReadingToday() chamando `aiStudies.find`
+// quebrava (`TypeError: en.find is not a function`, 'en' era aiStudies
+// minificado) assim que o rascunho salvava automaticamente.
 export async function updateStudyDay(email, studyId, dayId, updater) {
   const studies = await getAiStudies(email)
   const study = studies.find(s => s.id === studyId)
@@ -23,8 +31,7 @@ export async function updateStudyDay(email, studyId, dayId, updater) {
     return { ...s, ...patch }
   })
   const updatedStudy = { ...study, sessions }
-  const updated = await saveAiStudy(email, updatedStudy)
-  return updated.find(s => s.id === studyId) ?? updatedStudy
+  return saveAiStudy(email, updatedStudy)
 }
 
 // Chama api/generate-study-day.js — devolve o conteúdo PRONTO (ensino,
