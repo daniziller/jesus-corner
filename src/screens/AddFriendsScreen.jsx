@@ -16,7 +16,7 @@ import { avatarInitialsOf } from '../utils/avatarInitials'
 import { getFriends, getPendingRequests, sendFriendRequest, sendFriendRequestByUserId, respondToFriendRequest, removeFriend } from '../friends/friendsStore'
 import { getMyGroups, getGroupDetail } from '../groups/groupsStore'
 import { getOrCreateMyUsername, inviteLinkFor, sendFriendRequestByUsername } from '../friends/inviteLinkStore'
-import { FriendProfilePanel } from './GroupsScreen'
+import { FriendProfilePanel } from '../components/FriendProfilePanel'
 
 const FONT = 'var(--font-bento)'
 

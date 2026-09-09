@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks'
-import { computeBookChapterCounts, deriveProgress, computeOverallStats, pickActiveBlock } from '../utils/progress'
-import {
-  getFriends, getPendingRequests, getFriendFriendsList, sendFriendRequestByUserId,
-} from '../friends/friendsStore'
+import { computeBookChapterCounts } from '../utils/progress'
+import { getFriends, getPendingRequests } from '../friends/friendsStore'
 import {
   getMyGroups, getPendingGroupInvites, getGroupDetail, createGroup,
   inviteFriendToGroup, respondToGroupInvite, leaveGroup, setMemberRole,
@@ -15,7 +13,6 @@ import AddFriendsScreen from './AddFriendsScreen'
 import CreateGroupSheet from '../components/CreateGroupSheet'
 import { createChallenge, getChallengesForGroup, getChallengeLeaderboard, completeChallenge } from '../groups/challengesStore'
 import { getComments, postComment, deleteComment, toggleCommentLike, setCommentPinned } from '../groups/commentsStore'
-import { getFriendProfile, getFriendProgressSummary } from '../profile/profileStore'
 import { logActivity } from '../activity/activityStore'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import {
@@ -512,144 +509,6 @@ function FriendsPreviewCard({ lang, friends, pendingCount, onOpen }) {
           </button>
         )}
       </div>
-    </div>
-  )
-}
-
-/* ── Painel de perfil de um amigo (expande abaixo do nome, na grade de
-   amigos de AddFriendsScreen.jsx, 24c) — nome/foto/mensagem sempre
-   aparecem pra amigos; progresso, o que está estudando, os grupos e a
-   lista de amigos dele só aparecem se o dono marcou o perfil como público
-   (ver get_friend_progress_summary e get_friend_friends_list em
-   0004/0012_*.sql). Exportado porque a antiga FriendsSection embutida
-   (que vivia aqui, ao lado dele) virou AddFriendsScreen.jsx — o painel em
-   si não mudou, só passou a ser chamado de outro arquivo. ── */
-export function FriendProfilePanel({ friendUserId, lang, authUser, myFriendIds, onUnfriend, onFriendAdded }) {
-  const [profile, setProfile] = useState(null)
-  const [summary, setSummary] = useState(null)
-  const [friendsOfFriend, setFriendsOfFriend] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [addingId, setAddingId] = useState(null)
-  const [addedIds, setAddedIds] = useState(new Set())
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    getFriendProfile(friendUserId).then(async p => {
-      if (cancelled) return
-      setProfile(p)
-      if (p?.isPublic) {
-        const [s, f] = await Promise.all([
-          getFriendProgressSummary(friendUserId),
-          getFriendFriendsList(friendUserId),
-        ])
-        if (!cancelled) { setSummary(s); setFriendsOfFriend(f) }
-      }
-      setLoading(false)
-    }).catch(err => { console.error('Failed to load friend profile', err); if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [friendUserId])
-
-  async function handleAddFriend(targetUserId) {
-    setAddingId(targetUserId)
-    try {
-      await sendFriendRequestByUserId(targetUserId)
-      setAddedIds(prev => new Set(prev).add(targetUserId))
-      onFriendAdded?.()
-    } catch (err) {
-      console.error('Failed to send friend request', err)
-    } finally {
-      setAddingId(null)
-    }
-  }
-
-  if (loading) return <div style={styles.bFriendPanel} />
-  if (!profile) return null
-
-  let activeBlockName = null
-  let biblePercent = null
-  if (summary?.isPublic) {
-    const { blocks } = deriveProgress(new Set(summary.completedKeys), summary.planId)
-    const overall = computeOverallStats(blocks)
-    const activeBlock = pickActiveBlock(blocks)
-    activeBlockName = lang === 'en' ? activeBlock.nameEn : activeBlock.name
-    biblePercent = overall.biblePercent
-  }
-
-  const otherFriends = (friendsOfFriend?.friends ?? []).filter(f => f.userId !== authUser?.id)
-
-  return (
-    <div style={styles.bFriendPanel}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <span style={styles.bAvatarCircle}>
-          {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(profile.name)}
-        </span>
-        <div style={{ flex: 1 }}>
-          <p style={styles.bMemberName}>{profile.name}</p>
-          {profile.bio && <p style={{ ...styles.bMemberSub, marginTop: 2 }}>{profile.bio}</p>}
-        </div>
-      </div>
-
-      {summary?.isPublic ? (
-        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <StatItemSmall value={`${biblePercent}%`} label={t('groups.friendBibleLabel', undefined, lang)} />
-            <StatItemSmall value={summary.studiesCompletedCount} label={t('groups.friendStudiesLabel', undefined, lang)} />
-            <StatItemSmall value={otherFriends.length} label={t('groups.friendFriendsCountLabel', undefined, lang)} />
-          </div>
-          <p style={styles.bMemberSub}>
-            {t('groups.friendCurrentlyReading', { block: activeBlockName }, lang)}
-          </p>
-          {summary.groups.length > 0 && (
-            <p style={styles.bMemberSub}>
-              {t('groups.friendGroupsLabel', { groups: summary.groups.map(g => g.name).join(', ') }, lang)}
-            </p>
-          )}
-
-          {otherFriends.length > 0 && (
-            <div style={{ marginTop: 6 }}>
-              <p style={styles.bFriendOfFriendTitle}>{t('groups.friendFriendsListTitle', { name: profile.name }, lang)}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                {otherFriends.map(f => {
-                  const alreadyFriend = myFriendIds?.has(f.userId) || addedIds.has(f.userId)
-                  return (
-                    <div key={f.userId} style={styles.bFriendOfFriendRow}>
-                      <span style={{ ...styles.bAvatarCircle, width: 26, height: 26 }}>
-                        {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatarInitialsOf(f.name)}
-                      </span>
-                      <span style={{ flex: 1, ...styles.bMemberName, fontSize: 12 }}>{f.name}</span>
-                      {alreadyFriend ? (
-                        <span style={styles.bFriendOfFriendAdded}>{t('groups.alreadyFriends', undefined, lang)}</span>
-                      ) : (
-                        <button
-                          style={styles.bLinkBtn}
-                          disabled={addingId === f.userId}
-                          onClick={() => handleAddFriend(f.userId)}
-                        >
-                          {addingId === f.userId ? t('groups.loading', undefined, lang) : t('groups.addFriend', undefined, lang)}
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p style={{ ...styles.bEmptyHint, marginTop: 8 }}>{t('groups.friendProfilePrivate', undefined, lang)}</p>
-      )}
-
-      <button style={styles.bUnfriendLink} onClick={onUnfriend}>{t('groups.removeFriend', undefined, lang)}</button>
-    </div>
-  )
-}
-
-function StatItemSmall({ value, label }) {
-  return (
-    <div>
-      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-0.3px', margin: 0 }}>{value}</p>
-      <p style={{ fontFamily: 'var(--font-bento)', fontSize: 9, fontWeight: 700, color: 'var(--bento-t4)', margin: 0 }}>{label}</p>
     </div>
   )
 }
