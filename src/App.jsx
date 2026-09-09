@@ -1007,21 +1007,15 @@ export default function App() {
   // podia encadear pro passo Estudo mesmo com o toggle dele desligado.
   // Cada passo agora só entra aqui se estiver de fato ligado E agendado
   // pra hoje — leitura e estudo, se os dois estiverem, aparecem os dois,
-  // na ordem de STEP_ORDER.
-  // Turno 41, 41f — "Nos dias de estudo" (substitui/soma). `readingMode`
-  // do Estudo ATIVO ('substitui' por padrão quando o campo ainda não
-  // existe — estudos de antes deste bloco, ou o valor de fato escolhido
-  // em 41f/StudyOrganizeScreen.jsx). Sem estudo ativo, isso nunca importa
-  // (stepsScheduledForWeekday só age quando 'study' está na lista).
-  function studyReplacesReadingToday() {
-    const study = aiStudies.find(s => s.id === activeStudyId)
-    return (study?.readingMode ?? 'substitui') === 'substitui'
-  }
+  // na ordem de STEP_ORDER. Leitura e Estudo são 100% independentes: o
+  // único critério é o calendário de CADA passo (Ajustar meu plano) — os
+  // dois podem coincidir no mesmo dia sem problema (ver comentário em
+  // stepDaysMath.js).
   function todaysGuidedSteps() {
     const enabled = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
     const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
     const todayIdx = (new Date().getDay() + 6) % 7
-    return stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx, studyReplacesReadingToday()) : []
+    return stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
   }
 
   // Iniciar em Meu Plano — encadeia os passos ligados. Com 0 ou 1 passo não
@@ -2502,12 +2496,9 @@ export default function App() {
   // startGuidedRoutine). Independe de session.guided de propósito.
   session.todaysSteps = todaysGuidedSteps()
   // RoutineScreen.jsx/HomeScreen.jsx recomputam "passos de hoje" cada uma
-  // com o próprio fetch de stepDays (não leem session.todaysSteps direto)
-  // — session.studyReplacesReading exporta a MESMA decisão de
-  // studyReplacesReadingToday() pra elas passarem como 4º argumento de
-  // stepsScheduledForWeekday, senão só a Home/rotina guiada saberiam do
-  // modo substitui e Meu Plano mostraria a Leitura de volta.
-  session.studyReplacesReading = studyReplacesReadingToday()
+  // com o próprio fetch de stepDays (não leem session.todaysSteps direto),
+  // mas chamam a mesma stepsScheduledForWeekday pura — sem 4º argumento,
+  // Leitura e Estudo são independentes (ver stepDaysMath.js).
   // Tier de acesso disponível pra toda tela (ver src/billing/entitlement.js).
   // hasPremium: rotina guiada, voz natural, mãos-livres, XP/conquistas,
   // cronológico, notas, comunidade. hasAI: recursos de IA.
@@ -2769,12 +2760,11 @@ export default function App() {
       : !activeStudyForDay
       ? null
       : <StudyDetailScreen
-          session={session} authUser={authUser} study={activeStudyForDay} stepDays={stepDays}
+          session={session} study={activeStudyForDay} stepDays={stepDays}
           onBack={goBack} onOpenDay={() => goToTab('studyDay')}
           onChangeStudyDays={() => navigateTo('studyOrganize')}
           onPause={() => { selectActiveStudy(null); goBack() }}
           onSwitchStudy={() => goToTab('addStudy')}
-          onStudyUpdated={setAiStudies}
         />,
     // Etapa 10 (22d) — proposta e envio de um plano de grupo (só quem
     // modera chega aqui, ver CreateStudyScreen.jsx), e o leitor dele depois

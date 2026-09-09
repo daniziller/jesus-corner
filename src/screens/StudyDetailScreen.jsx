@@ -5,16 +5,16 @@
 // Estudo do formato antigo continua com o "Ver os 7 dias" de sempre
 // (lista simples, inline, em StudyOrganizeScreen.jsx).
 //
-// "Nos dias de estudo" (substitui/soma) — copy adaptada pras trilhas
-// independentes (decisão confirmada com a autora, 2026-09-09, junto do
-// pacote): sem "Gênesis pausa em 41 e volta em <data>". "Substitui" tira
-// a Leitura SÓ dos dias em que ela cairia junto do Estudo (ver
-// stepsScheduledForWeekday em stepDaysMath.js) — ela continua normal nos
-// outros dias, sem recalcular nem atrasar nada.
+// "Nos dias de estudo" — corrigido (2026-09-09, achado dela): Leitura e
+// Estudo são passos 100% independentes, nunca se excluem; o único
+// critério pra cada um cair num dia é o próprio calendário desse passo
+// (Ajustar meu plano/StudyOrganizeScreen.jsx). O bloco 4 tinha introduzido
+// um modo "substitui/soma" que fazia Estudo tirar a Leitura nos dias em
+// que os dois coincidiam — revertido por inteiro (ver stepDaysMath.js);
+// este card agora só explica a regra e linka pro calendário do estudo.
 import { useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { setStudyReadingMode } from '../studies/studyDayStore'
 import { currentDayOf, nextScheduledDate } from '../studies/estudosStore'
 import { formatWeekdayDate } from '../utils/weekdayDateLabel'
 import { dateKey } from '../utils/dateKey'
@@ -31,18 +31,16 @@ function formatTotalMinutes(totalSeconds, lang) {
   return lang === 'en' ? `${h}h${String(m).padStart(2, '0')}` : `${h}h${String(m).padStart(2, '0')}`
 }
 
-export default function StudyDetailScreen({ session, authUser, study, stepDays, onBack, onOpenDay, onChangeStudyDays, onPause, onSwitchStudy, onStudyUpdated }) {
+export default function StudyDetailScreen({ session, study, stepDays, onBack, onOpenDay, onChangeStudyDays, onPause, onSwitchStudy }) {
   const { lang } = session
   const L = (k, vars) => t(`studyDetail.${k}`, vars, lang)
 
   const [expanded, setExpanded] = useState(false)
-  const [savingMode, setSavingMode] = useState(false)
 
   const sessions = study.sessions ?? []
   const total = sessions.length
   const { index: currentIdx } = currentDayOf(study)
   const totalSeconds = sessions.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0)
-  const readingMode = study.readingMode ?? 'substitui'
 
   const [titleMain, titleSub] = study.title?.includes(':')
     ? [study.title.split(':')[0].trim(), study.title.split(':').slice(1).join(':').trim()]
@@ -64,25 +62,6 @@ export default function StudyDetailScreen({ session, authUser, study, stepDays, 
       from = next
     }
   }
-
-  async function handleSetReadingMode(mode) {
-    if (savingMode || mode === readingMode) return
-    setSavingMode(true)
-    try {
-      const updated = await setStudyReadingMode(authUser.email, study.id, mode)
-      onStudyUpdated?.(updated)
-    } catch (err) {
-      console.error('Failed to set study reading mode', err)
-    } finally {
-      setSavingMode(false)
-    }
-  }
-
-  // "Dia de estudo passa a ter N passos" (soma) — quantos passos a
-  // pessoa tem LIGADOS no total (session.routineModules já inclui
-  // 'study' quando ligado) — o número real, não um "4" fixo.
-  const activeStepsCount = (session.routineModules ?? []).length
-  const studyMinutes = study.minutesPerDay ?? 15
 
   const visibleIndices = []
   const collapsedIndices = []
@@ -171,20 +150,6 @@ export default function StudyDetailScreen({ session, authUser, study, stepDays, 
           <div style={s.sandCard}>
             <p style={s.sandLabel}>{L('studyDaysRuleLabel')}</p>
             <p style={s.sandIntro}>{L('studyDaysRuleIntro', { days: naturalDayListSentence(stepDays.study, WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt, lang) })}</p>
-            <button style={{ ...s.radioRow, ...(readingMode === 'substitui' ? s.radioRowOn : {}) }} onClick={() => handleSetReadingMode('substitui')} disabled={savingMode}>
-              <span style={{ ...s.radioCircle, ...(readingMode === 'substitui' ? s.radioCircleOn : {}) }}>{readingMode === 'substitui' && <span style={s.radioDot} />}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ ...s.radioTitle, color: readingMode === 'substitui' ? '#fff' : 'var(--bento-sand-ink-strong)' }}>{L('replaceTitle')}</p>
-                <p style={{ ...s.radioSub, color: readingMode === 'substitui' ? 'rgba(255,255,255,.55)' : 'var(--bento-sand-ink-mid)' }}>{L('replaceSub')}</p>
-              </div>
-            </button>
-            <button style={{ ...s.radioRow, ...(readingMode === 'soma' ? s.radioRowOn : {}) }} onClick={() => handleSetReadingMode('soma')} disabled={savingMode}>
-              <span style={{ ...s.radioCircle, ...(readingMode === 'soma' ? s.radioCircleOn : {}) }}>{readingMode === 'soma' && <span style={s.radioDot} />}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ ...s.radioTitle, color: readingMode === 'soma' ? '#fff' : 'var(--bento-sand-ink-strong)' }}>{L('addTitle')}</p>
-                <p style={{ ...s.radioSub, color: readingMode === 'soma' ? 'rgba(255,255,255,.55)' : 'var(--bento-sand-ink-mid)' }}>{L('addSub', { n: activeStepsCount, min: studyMinutes })}</p>
-              </div>
-            </button>
             <button style={s.changeDaysLink} onClick={onChangeStudyDays}>
               <span>{L('changeDaysLink')}</span>
               <AppIcon name="ChevronRight" size={15} color="var(--bento-sand-icon)" />
@@ -240,13 +205,6 @@ const s = {
   sandCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 },
   sandLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: 0 },
   sandIntro: { fontFamily: FONT, fontSize: 13, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-sand-ink-mid)', margin: '0 0 4px' },
-  radioRow: { display: 'flex', alignItems: 'flex-start', gap: 12, width: '100%', border: 'none', borderRadius: 18, background: 'rgba(255,255,255,.5)', padding: '14px 16px', cursor: 'pointer', textAlign: 'left' },
-  radioRowOn: { background: 'var(--bento-ink)' },
-  radioCircle: { flexShrink: 0, width: 20, height: 20, marginTop: 1, borderRadius: '50%', border: '2px solid var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  radioCircleOn: { border: '2px solid var(--bento-accent)' },
-  radioDot: { width: 10, height: 10, borderRadius: '50%', background: 'var(--bento-accent)' },
-  radioTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 700, margin: '0 0 3px' },
-  radioSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.35, margin: 0 },
   changeDaysLink: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: 'none', background: 'rgba(255,255,255,.5)', borderRadius: 16, padding: '13px 16px', marginTop: 4, cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-sand-ink-strong)' },
 
   footer: { flexShrink: 0, display: 'flex', gap: 10, padding: '10px 20px calc(20px + var(--safe-bottom))' },
