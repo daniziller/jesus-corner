@@ -2673,7 +2673,6 @@ export default function App() {
   // (visível na aba Comunidade tanto com quanto sem grupo aberto, nunca
   // notado porque a varredura de identidade olhou tokens de cor, não
   // esse tipo de duplicação estrutural).
-  const reflectionBento = activeTab === 'reflection' && reflectionAiActive
   // 'profile' entrou nesta lista junto da migração pra Bento do Perfil de
   // desktop (antes ficava de fora, com o AppHeader antigo por cima da
   // versão antiga da tela); 'contact'/'applicationPhrases'/'themePlan'
