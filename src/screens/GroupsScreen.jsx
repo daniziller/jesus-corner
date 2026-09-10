@@ -7,7 +7,7 @@ import { getFriends, getPendingRequests } from '../friends/friendsStore'
 import {
   getMyGroups, getPendingGroupInvites, getGroupDetail, createGroup,
   inviteFriendToGroup, respondToGroupInvite, leaveGroup, setMemberRole,
-  redeemGroupInviteCode, getGroupMemberCounts,
+  redeemGroupInviteCode, getGroupMemberCounts, leaveGroupWithNewModerator, deleteGroup,
 } from '../groups/groupsStore'
 import AddFriendsScreen from './AddFriendsScreen'
 import CreateGroupSheet from '../components/CreateGroupSheet'
@@ -535,15 +535,74 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
 
   const myMembership = detail?.members.find(m => m.userId === authUser?.id)
   const isModerator = myMembership?.role === 'moderator'
+  // Nada no schema impede vários moderadores ao mesmo tempo — "é a única
+  // moderadora" só importa de verdade quando NINGUÉM MAIS no grupo tem
+  // role='moderator' (ver comentário na migration 0063).
+  const otherMembers = (detail?.members ?? []).filter(m => m.userId !== authUser?.id)
+  const isOnlyModerator = isModerator && !otherMembers.some(m => m.role === 'moderator')
 
+  // Pedido dela (2026-09-09): quem sai sendo a única moderadora precisa
+  // escolher outra pessoa pra assumir, ou apagar o grupo — nunca sair e
+  // deixar o grupo sem moderador nenhum "por trás". Sem ninguém mais no
+  // grupo, não há pra quem passar o cargo: a única saída é apagar.
   async function handleLeave() {
+    if (isOnlyModerator) {
+      if (otherMembers.length === 0) {
+        if (!window.confirm(t('groups.leaveGroupSoloConfirm', undefined, lang))) return
+        await deleteGroup(groupId)
+        onLeft()
+        return
+      }
+      setView('leaveModerator')
+      return
+    }
     if (!window.confirm(t('groups.leaveConfirm', undefined, lang))) return
     await leaveGroup(groupId)
     onLeft()
   }
 
+  async function handlePickNewModerator(member) {
+    if (!window.confirm(t('groups.pickModeratorConfirm', { name: member.name }, lang))) return
+    await leaveGroupWithNewModerator(groupId, member.userId)
+    onLeft()
+  }
+
+  async function handleDeleteGroupInstead() {
+    if (!window.confirm(t('groups.deleteGroupConfirm', undefined, lang))) return
+    await deleteGroup(groupId)
+    onLeft()
+  }
+
   if (!detail) {
     return <div style={{ padding: 20 }} />
+  }
+
+  if (view === 'leaveModerator') {
+    return (
+      <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
+        <div style={styles.detailHeader}>
+          <button onClick={() => setView('home')} style={styles.backBtn} aria-label="back">
+            <AppIcon name="ArrowLeft" size={19} color="var(--bento-ink)" />
+          </button>
+          <h1 style={styles.detailTitle}>{t('groups.leaveModeratorTitle', undefined, lang)}</h1>
+        </div>
+        <div style={{ padding: '4px 16px 14px' }}>
+          <p style={styles.leaveModeratorIntro}>{t('groups.leaveModeratorIntro', undefined, lang)}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+            {otherMembers.map(m => (
+              <button key={m.userId} type="button" style={styles.memberPickRow} onClick={() => handlePickNewModerator(m)}>
+                <span style={styles.bAvatarCircle}>{avatarInitialsOf(m.name)}</span>
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' }}>{m.name}</span>
+                <AppIcon name="ChevronRight" size={16} color="var(--bento-t3)" />
+              </button>
+            ))}
+          </div>
+          <button type="button" style={styles.deleteGroupBtn} onClick={handleDeleteGroupInstead}>
+            {t('groups.deleteGroupInstead', undefined, lang)}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (view === 'home') {
@@ -1420,6 +1479,11 @@ const styles = {
   challengeDesc: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.5, marginBottom: 6 },
   rankNumber: { width: 18, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-t4)', flexShrink: 0 },
   leaveBtn: { background: 'var(--bento-mark)', border: 'none', borderRadius: 12, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer' },
+  // Escolher novo moderador antes de sair (pedido dela, 2026-09-09) —
+  // mesma linguagem de "linha de membro tocável" do resto do app.
+  leaveModeratorIntro: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.5, margin: '0 0 16px' },
+  memberPickRow: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bento-card)', border: 'none', borderRadius: 14, padding: 10, cursor: 'pointer', textAlign: 'left' },
+  deleteGroupBtn: { width: '100%', background: 'transparent', border: '1px solid var(--bento-line)', borderRadius: 12, padding: 11, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
   commentCard: { background: 'var(--bento-card)', borderRadius: 18, padding: 12 },
   commentCardModerator: { background: 'var(--bento-line)' },
   pinnedSectionTitle: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, color: 'var(--bento-t3)', letterSpacing: 0.5, textTransform: 'uppercase' },

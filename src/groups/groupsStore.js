@@ -202,6 +202,31 @@ export async function leaveGroup(groupId) {
   if (error) throw new Error(error.message)
 }
 
+// Sair sendo a ÚNICA moderadora do grupo (pedido dela, 2026-09-09) —
+// diferente de leaveGroup: promove `newModeratorUserId` a moderador ANTES
+// de sair, tudo na mesma transação (migration 0063), pra nunca deixar o
+// grupo sem moderador nenhum entre um passo e outro. Mesma anonimização
+// de mensagens de leaveGroup por baixo dos panos.
+export async function leaveGroupWithNewModerator(groupId, newModeratorUserId) {
+  const { error } = await supabase.rpc('leave_group_with_new_moderator', {
+    target_group_id: groupId,
+    new_moderator_id: newModeratorUserId,
+  })
+  if (error) throw new Error(error.message)
+}
+
+// Apaga o grupo de vez (pedido dela, 2026-09-09: alternativa a escolher
+// novo moderador, quando quem está saindo é a única moderadora) — só
+// quem é moderador pode chamar (a RPC recusa se não for). Todo o resto
+// (membros, posts, comentários, pedidos de oração do grupo, sala de
+// capítulo...) cai numa cascata só de `on delete cascade` já configurada
+// nas tabelas desde suas migrations originais — não precisa apagar cada
+// uma na mão.
+export async function deleteGroup(groupId) {
+  const { error } = await supabase.rpc('delete_group', { target_group_id: groupId })
+  if (error) throw new Error(error.message)
+}
+
 // Promove ou rebaixa outro membro — só quem já é moderador do grupo pode
 // chamar (a RPC recusa se quem chama não for moderador).
 export async function setMemberRole(groupId, userId, role) {
