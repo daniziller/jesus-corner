@@ -2173,7 +2173,15 @@ const styles = {
   // próprio nesse cabeçalho) — o véu cobre só o capítulo, o cabeçalho
   // (seletor de capítulo/versão) fica por fora, sem escurecer (34d: só "o
   // capítulo" leva véu, não o cabeçalho).
-  sermonVeil: { position: 'fixed', top: 68, left: 0, right: 0, background: 'rgba(26,23,20,.18)', zIndex: 198, pointerEvents: 'none' },
+  // Achado dela (2026-09-09): "os cantos superiores eram pra ser
+  // arredondados, mas está com uma sombra meio que quadrada" — o véu é
+  // um retângulo reto encostando bem onde a folha (sermonSheet) começa a
+  // arredondar (32px), então a borda dele cortava reto por cima da curva
+  // da folha em vez de acompanhá-la, lendo como um "degrau quadrado".
+  // borderRadius embaixo, espelhando o raio de cima da folha, resolve —
+  // confirmado visualmente com uma reprodução isolada antes de mexer
+  // aqui (véu e folha têm o MESMO raio, 32px, só em cantos opostos).
+  sermonVeil: { position: 'fixed', top: 68, left: 0, right: 0, background: 'rgba(26,23,20,.18)', zIndex: 198, pointerEvents: 'none', borderRadius: '0 0 32px 32px' },
   // A folha em si — fixed no rodapé, altura controlada por
   // renderSermonWidget (arrasto ao vivo ou já assentada numa das 3
   // alturas). Fundo = cor de fundo da tela (34d token), raio 32 só em
