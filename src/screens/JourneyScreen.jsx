@@ -10,8 +10,11 @@ import { fetchBookText } from '../bible-text/bibleTextStore'
 import { useSpeechToText } from '../utils/useSpeechToText'
 import BibleVersionChip from '../components/bible/BibleVersionChip'
 import { formatPercent } from '../bible/formatPercent'
-import { getSermonNotes, saveSermonNote } from '../notes/sermonNotesStore'
+import { getSermonNotes, saveSermonNote, sermonOwnWordsText, sermonOwnWordCount, generateSermonSummaryFor } from '../notes/sermonNotesStore'
+import { postToRoom } from '../groups/chapterRoomStore'
 import { getGroupMemberCounts } from '../groups/groupsStore'
+import { saveHighlight } from '../highlights/highlightsStore'
+import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { avatarPaletteFor } from './ChapterRoomScreen'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { formatWeekdayDate } from '../utils/weekdayDateLabel'
@@ -48,6 +51,30 @@ function sermonTypeLabel(type, lang) {
 // lista pra rolar menos).
 function foldAccents(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
+// "As três passagens" (34h, Regra 3: exemplo explícito no HANDOFF) —
+// numeral por EXTENSO, concordando com "passagem/passagens" (feminino).
+// Só 1 e 2 têm forma própria em português ("uma"/"duas" vs "um"/"dois");
+// de 3 em diante o cardinal já é igual pros dois gêneros — por isso não
+// dá pra reaproveitar cardinalWord (estudosStore.js), que é masculino
+// (mesma lição do reverto de numberWord em verseSelectionLabel.js: cada
+// concordância de gênero pede sua própria lista, não uma função geral).
+const FEMININE_CARDINAL_WORDS_PT = ['zero', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze']
+function femininePassageCount(n, lang) {
+  if (lang === 'en') return String(n)
+  return FEMININE_CARDINAL_WORDS_PT[n] ?? String(n)
+}
+
+// "2 de setembro" (34h, item 1) — só dia+mês, sem dia da semana (diferente
+// da data de 34f, "Terça, 2 de setembro · 20:14", que usa formatWeekdayDate).
+const SERMON_MONTH_NAMES_PT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+const SERMON_MONTH_NAMES_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+function sermonDateShort(dateStr, lang) {
+  if (!dateStr) return ''
+  const d = new Date(`${dateStr}T00:00:00`)
+  const names = lang === 'en' ? SERMON_MONTH_NAMES_EN : SERMON_MONTH_NAMES_PT
+  return lang === 'en' ? `${names[d.getMonth()]} ${d.getDate()}` : `${d.getDate()} de ${names[d.getMonth()]}`
 }
 
 // "Você está em Gênesis 41" (progresso real) ou "Mateus é um bom começo"
@@ -251,6 +278,7 @@ export default function JourneyScreen({
           church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
           body: Array.isArray(inProgress.body) ? inProgress.body : null,
           finalizedAt: inProgress.finalizedAt ?? null,
+          durationSeconds: inProgress.durationSeconds ?? 0, groupId: inProgress.groupId ?? null,
         })
       }
       const custom = [...new Set(notes.map(n => n.noteType).filter(nt => nt && !SERMON_NOTE_TYPES.includes(nt)))]
@@ -298,6 +326,33 @@ export default function JourneyScreen({
   const [sermonVerseSearchChapter, setSermonVerseSearchChapter] = useState(null) // { chapter, verses, breaks }
   const [sermonVerseSearchBusy, setSermonVerseSearchBusy] = useState(false)
 
+  // 34h — o resumo (turno 34, Bloco 4). Troca de conteúdo dentro da MESMA
+  // folha, igual 34g (não é outro portal). "Finalizar" (34g) entra aqui;
+  // "Voltar e escrever mais" volta pra 34g; "Guardar na biblioteca"
+  // encerra de vez (finalizedAt).
+  const [sermonSummaryOpen, setSermonSummaryOpen] = useState(false)
+  const [sermonSummaryData, setSermonSummaryData] = useState(null) // { before, highlight, after } | null
+  const [sermonSummaryLoading, setSermonSummaryLoading] = useState(false)
+  const [sermonMarkingHighlights, setSermonMarkingHighlights] = useState(false)
+  const [sermonHighlightsMarked, setSermonHighlightsMarked] = useState(false)
+  const [sermonFinalizing, setSermonFinalizing] = useState(false)
+
+  // "24 min anotando" (34h, item 1: "o tempo real com a folha aberta") —
+  // acumula em sermonDraft.durationSeconds sempre que a folha (34d/34g/
+  // 34h, qualquer conteúdo dela) fecha ou minimiza; mesmo padrão de
+  // durationSeconds em studyDayStore.js (soma, nunca sobrescreve).
+  const sermonOpenSinceRef = useRef(null)
+  useEffect(() => {
+    if (sermonNoteOpen) {
+      sermonOpenSinceRef.current = Date.now()
+      return
+    }
+    if (!sermonOpenSinceRef.current) return
+    const elapsed = Math.round((Date.now() - sermonOpenSinceRef.current) / 1000)
+    sermonOpenSinceRef.current = null
+    if (elapsed > 0) setSermonDraft(prev => (prev ? { ...prev, durationSeconds: (prev.durationSeconds ?? 0) + elapsed } : prev))
+  }, [sermonNoteOpen])
+
   function newSermonSegment(type, text = '') {
     return { id: `seg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, type, text }
   }
@@ -313,6 +368,100 @@ export default function JourneyScreen({
   function exitSermonWriting() {
     setSermonWriting(false)
     if (sermonDictating) stopDictation()
+  }
+
+  // "Finalizar" (34g) — "não fecha a anotação em silêncio: ela volta
+  // lida" (34h). Persiste na hora (mesmo texto que ela acabou de
+  // escrever precisa estar salvo antes de gerar o resumo) e entra em
+  // 34h; o resumo em si é buscado por um efeito à parte (abaixo),
+  // disparado quando sermonSummaryOpen fica true.
+  async function finishSermonWriting() {
+    await saveSermonDraft()
+    setSermonWriting(false)
+    setSermonSummaryData(null)
+    setSermonSummaryOpen(true)
+  }
+  // "Voltar e escrever mais" (34h) — "reabre 34g com a anotação como
+  // estava" (README).
+  function backToWritingFromSummary() {
+    setSermonSummaryOpen(false)
+    setSermonWriting(true)
+  }
+
+  // Resumo de 34h (Regra 4 §10) — só busca com ~40+ palavras ESCRITAS
+  // POR ELA (sermonOwnWordCount pula os blocos de citação, que são texto
+  // bíblico). "Sem material suficiente, não há resumo" — não é erro, é
+  // silenciosamente não mostrar o cartão preto (ver render).
+  useEffect(() => {
+    if (!sermonSummaryOpen || !sermonDraft || sermonSummaryData) return
+    const words = sermonOwnWordsText(sermonDraft)
+    if (sermonOwnWordCount(sermonDraft) < 40) return
+    let cancelled = false
+    setSermonSummaryLoading(true)
+    generateSermonSummaryFor(words, lang)
+      .then(summary => { if (!cancelled) setSermonSummaryData(summary) })
+      .catch(err => console.error('Failed to generate sermon summary', err))
+      .finally(() => { if (!cancelled) setSermonSummaryLoading(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sermonSummaryOpen])
+
+  // "Marcar na Bíblia" (34h, Regra 4 §11) — todas as passagens de uma
+  // vez, cor padrão (mesmo DEFAULT_HIGHLIGHT_COLOR que HomeScreen.jsx já
+  // usa pro versículo do dia), sem texto de marcação (é só um
+  // "lembrete", não uma anotação da passagem) — aparecem na Biblioteca
+  // pela mesma lista de marcações de sempre.
+  async function markPassagesOnBible() {
+    if (!sermonDraft || sermonMarkingHighlights || sermonDraft.passages.length === 0) return
+    setSermonMarkingHighlights(true)
+    try {
+      const today = dateKey()
+      await Promise.all(sermonDraft.passages.map((p, i) => saveHighlight(authUser?.email, {
+        id: `hl-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
+        book: p.book, bookEn: p.bookEn, chapter: p.chapter,
+        verses: Array.from({ length: (p.verseEnd ?? p.verseStart) - p.verseStart + 1 }, (_, v) => p.verseStart + v),
+        text: '', color: DEFAULT_HIGHLIGHT_COLOR, createdAt: new Date().toISOString(), date: today, sessionMode: 'browse',
+      })))
+      setSermonHighlightsMarked(true)
+    } catch (err) {
+      console.error('Failed to mark sermon passages on Bible', err)
+    } finally {
+      setSermonMarkingHighlights(false)
+    }
+  }
+
+  // "Guardar na biblioteca" (34h, Regra 4 §13) — encerra de vez
+  // (finalizedAt), publica no grupo escolhido se "Levar ao grupo"
+  // estiver ligado (§12 — é AQUI que a publicação de fato acontece, não
+  // em 34d/"Salvar", ver comentário em saveSermonDraft) e leva pra
+  // Biblioteca (README: "chip 'Sermões'" — sem prop de filtro inicial
+  // em NotesScreen.jsx hoje, então chega na Biblioteca geral; escolhido
+  // não construir esse fio a mais só pra isto, ela toca o chip 1 vez).
+  async function finalizeSermonNote() {
+    if (!sermonDraft || sermonFinalizing) return
+    setSermonFinalizing(true)
+    try {
+      const finalDraft = { ...sermonDraft, finalizedAt: new Date().toISOString() }
+      await saveSermonNote(authUser?.email, buildSermonPayload(finalDraft))
+      if (sermonShareOn && sermonSelectedGroupIds.length > 0) {
+        const target = sermonDraft.passages[0] ?? sermonActiveChapterRef
+        if (target) {
+          const body = [sermonDraft.title.trim(), sermonOwnWordsText(sermonDraft)].filter(Boolean).join('\n\n')
+          await Promise.allSettled(sermonSelectedGroupIds.map(groupId => postToRoom(groupId, target.book, target.chapter, body)))
+        }
+      }
+      setSermonDraft(null)
+      setSermonSummaryOpen(false)
+      setSermonWriting(false)
+      setSermonNoteOpen(false)
+      setSermonSummaryData(null)
+      setSermonHighlightsMarked(false)
+      onNavigate?.('notes')
+    } catch (err) {
+      console.error('Failed to finalize sermon note', err)
+    } finally {
+      setSermonFinalizing(false)
+    }
   }
 
   // Insere um bloco (citação/tópico) logo depois do segmento com foco —
@@ -448,13 +597,17 @@ export default function JourneyScreen({
     e.target.style.height = `${e.target.scrollHeight}px`
   }
 
+  // 34h também mostra "N pessoas" (item 5, "Levar ao grupo") sem
+  // necessariamente ter passado pelo picker de grupo antes (grupo único
+  // = seleção automática, ver renderSermonSummary) — busca a contagem
+  // nos dois casos, não só quando o picker abre.
   useEffect(() => {
-    if (!sermonGroupPickerOpen || !session.myGroups?.length) return
+    if ((!sermonGroupPickerOpen && !sermonSummaryOpen) || !session.myGroups?.length) return
     let cancelled = false
     getGroupMemberCounts(session.myGroups.map(g => g.groupId)).then(counts => { if (!cancelled) setSermonGroupMemberCounts(counts) }).catch(() => {})
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sermonGroupPickerOpen])
+  }, [sermonGroupPickerOpen, sermonSummaryOpen])
   // "Na tela agora" (34d) — reportado de baixo pra cima por quem estiver
   // mostrando texto de capítulo agora (ReadingBlockView.jsx, ver
   // onActiveChapterChange), null quando nenhum capítulo está aberto (39a/
@@ -540,6 +693,8 @@ export default function JourneyScreen({
       noteType: draft.noteType, title: clean(draft.title), preacher: clean(draft.preacher),
       church: clean(draft.church), link: clean(draft.link), passages: draft.passages,
       text: clean(plainText ?? ''), body: draft.body ?? null, finalizedAt: draft.finalizedAt ?? null,
+      durationSeconds: draft.durationSeconds ?? 0, topics: (draft.body ?? []).filter(s => s.type === 'topic').map(s => s.text).filter(Boolean),
+      groupId: draft.groupId ?? null,
     }
   }
 
@@ -817,11 +972,7 @@ export default function JourneyScreen({
             <p style={styles.sermonHeaderTitle}>{sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang)}</p>
             <p style={styles.sermonHeaderSub}>{[sermonTypeLabel(sermonDraft.noteType, lang), sermonDraft.preacher, t('sermonNote.savedNow', undefined, lang)].filter(Boolean).join(' · ')}</p>
           </div>
-          {/* "Finalizar" leva a 34h (Bloco 4 deste pacote, ainda não
-              construído) — por ora persiste na hora (mesmo efeito de
-              "Salvar" em 34d) e volta pra 34d, sem fingir uma tela que
-              ainda não existe. */}
-          <button type="button" style={{ ...styles.sermonSaveBtn, ...(sermonSaving ? styles.sermonSaveBtnDisabled : {}) }} disabled={sermonSaving} onClick={async () => { await saveSermonDraft(); exitSermonWriting() }}>
+          <button type="button" style={{ ...styles.sermonSaveBtn, ...(sermonSaving ? styles.sermonSaveBtnDisabled : {}) }} disabled={sermonSaving} onClick={finishSermonWriting}>
             {t('sermonNote.finish', undefined, lang)}
           </button>
         </div>
@@ -985,6 +1136,116 @@ export default function JourneyScreen({
     )
   }
 
+  // 34h — o resumo. "'Finalizar' não fecha a anotação em silêncio: ela
+  // volta lida" (README). Full-screen dentro da mesma folha, igual 34g.
+  function renderSermonSummary() {
+    const topics = (sermonDraft.body ?? []).filter(s => s.type === 'topic' && s.text.trim())
+    const minutes = Math.max(1, Math.round((sermonDraft.durationSeconds ?? 0) / 60))
+    const groups = session.myGroups ?? []
+    const selectedGroup = groups.find(g => sermonSelectedGroupIds.includes(g.groupId))
+    return (
+      <div style={{ ...styles.sermonSheetBody, overflowY: 'auto', paddingTop: 4 }}>
+        <div style={styles.sermonHeader}>
+          <button type="button" style={styles.sermonChevronBtn} onClick={backToWritingFromSummary} aria-label={t('sermonNote.backToWriting', undefined, lang)}>
+            <AppIcon name="ChevronLeft" size={16} color="var(--bento-ink)" />
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={styles.sermonHeaderTitle}>{sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang)}</p>
+            <p style={styles.sermonHeaderSub}>
+              {[sermonTypeLabel(sermonDraft.noteType, lang), sermonDateShort(sermonDraft.date, lang), t('sermonNote.minAnnotating', { min: minutes }, lang)].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+        </div>
+
+        {sermonSummaryLoading && (
+          <p style={styles.sermonSummaryLoadingText}>{t('sermonNote.summaryLoading', undefined, lang)}</p>
+        )}
+        {sermonSummaryData && (
+          <div style={styles.sermonSummaryCard}>
+            <div style={styles.sermonOnScreenLabelDark}>
+              <span style={styles.sermonSummaryDiamond} />
+              {t('sermonNote.whatStayedLabel', undefined, lang)}
+            </div>
+            <p style={styles.sermonSummaryText}>
+              {sermonSummaryData.before ? `${sermonSummaryData.before} ` : ''}
+              <strong style={styles.sermonSummaryHighlight}>{sermonSummaryData.highlight}</strong>
+              {sermonSummaryData.after ? `. ${sermonSummaryData.after}` : '.'}
+            </p>
+            <p style={styles.sermonSummaryFootnote}>{t('sermonNote.summaryFooterNote', undefined, lang)}</p>
+          </div>
+        )}
+
+        {topics.length > 0 && (
+          <div style={styles.sermonPointsCard}>
+            <p style={styles.sermonSectionLabel}>{t('sermonNote.pointsMarkedLabel', undefined, lang)}</p>
+            {topics.map((seg, i) => (
+              <div key={seg.id} style={styles.sermonPointRow}>
+                <span style={styles.sermonPointNum}>{i + 1}</span>
+                <p style={styles.sermonPointText}>{seg.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {sermonDraft.passages.length > 0 && (
+          <div style={styles.sermonPassagesCard}>
+            <div style={styles.sermonOnScreenTop}>
+              <span style={styles.sermonOnScreenLabel}>
+                <span style={styles.sermonOnScreenDiamond} />
+                {t(sermonDraft.passages.length === 1 ? 'sermonNote.passagesTitleOne' : 'sermonNote.passagesTitleMany', { n: femininePassageCount(sermonDraft.passages.length, lang) }, lang)}
+              </span>
+              <button type="button" style={styles.sermonMarkOnBibleBtn} onClick={markPassagesOnBible} disabled={sermonMarkingHighlights || sermonHighlightsMarked}>
+                {sermonHighlightsMarked ? t('sermonNote.markedOnBible', undefined, lang) : t('sermonNote.markOnBible', undefined, lang)}
+              </button>
+            </div>
+            <div style={styles.sermonChipsRow}>
+              {sermonDraft.passages.map((p, i) => (
+                <span key={i} style={styles.sermonChipStatic}>{passageRefLabel(p)}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {groups.length > 0 && (
+          <div style={styles.sermonGroupCard}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={styles.sermonFieldLabel2}>{t('sermonNote.takeToGroupLabel', undefined, lang)}</p>
+              <button
+                type="button" style={styles.sermonGroupPickLink}
+                onClick={() => (groups.length > 1 ? setSermonGroupPickerOpen(true) : null)}
+              >
+                {selectedGroup
+                  ? `${selectedGroup.name} · ${t(sermonGroupMemberCounts[selectedGroup.groupId] === 1 ? 'reading.groupMemberOne' : 'reading.groupMemberMany', { n: sermonGroupMemberCounts[selectedGroup.groupId] ?? 0 }, lang)}`
+                  : t('sermonNote.chooseGroupCta', undefined, lang)}
+              </button>
+            </div>
+            <button
+              role="switch" aria-checked={sermonShareOn}
+              onClick={() => {
+                const next = !sermonShareOn
+                setSermonShareOn(next)
+                if (next && groups.length === 1 && sermonSelectedGroupIds.length === 0) setSermonSelectedGroupIds([groups[0].groupId])
+                if (next && groups.length > 1 && sermonSelectedGroupIds.length === 0) setSermonGroupPickerOpen(true)
+              }}
+              style={{ ...styles.sermonToggle, background: sermonShareOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: sermonShareOn ? 'flex-end' : 'flex-start' }}
+            >
+              <span style={{ ...styles.sermonToggleThumb, background: sermonShareOn ? 'var(--bento-accent)' : '#fff' }} />
+            </button>
+          </div>
+        )}
+
+        <div style={styles.sermonSummaryFooter}>
+          <button type="button" style={{ ...styles.sermonSaveToLibraryBtn, ...(sermonFinalizing ? styles.sermonSaveBtnDisabled : {}) }} disabled={sermonFinalizing} onClick={finalizeSermonNote}>
+            {t('sermonNote.saveToLibrary', undefined, lang)}
+          </button>
+          <button type="button" style={styles.sermonBackToWritingBtn} onClick={backToWritingFromSummary}>
+            {t('sermonNote.backToWriting', undefined, lang)}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // Selo + FAB (34e) + folha (34d/34f/escolha de grupo) — anexado em TODA
   // saída desta tela (README: "vive... na Bíblia inteira"), não só quando
   // um capítulo está aberto. Portal pro <body>, mesmo truque de
@@ -993,9 +1254,10 @@ export default function JourneyScreen({
     // Altura AO VIVO da folha — durante o arrasto, segue o dedo (clampada
     // em SHEET_MIN_VH pra nunca ficar ridícula antes de soltar); parada,
     // é a altura já assentada (34d Regra 2: "solta em três alturas"). Em
-    // 34g (sermonWriting) a folha toma a tela inteira e o arrasto nem
-    // existe (34g não tem alça) — "o texto bíblico sai de cena".
-    const liveVh = sermonWriting
+    // 34g/34h (sermonWriting/sermonSummaryOpen) a folha toma a tela
+    // inteira e o arrasto nem existe (nenhuma das duas tem alça).
+    const sermonFullScreen = sermonWriting || sermonSummaryOpen
+    const liveVh = sermonFullScreen
       ? 100
       : sheetDragState.current
       ? Math.max(SHEET_MIN_VH, Math.min(94, (sermonSheetHeight === 'full' ? SHEET_FULL_VH : SHEET_HALF_VH) - sermonDragOffset / (window.innerHeight / 100)))
@@ -1045,13 +1307,13 @@ export default function JourneyScreen({
             e não existe onClick nenhum fechando a folha ao tocar fora. */}
         {sermonNoteOpen && sermonDraft && createPortal(
           <>
-            {/* 34g não tem véu (nada visível atrás pra escurecer — "o
+            {/* 34g/34h não têm véu (nada visível atrás pra escurecer — "o
                 texto bíblico sai de cena"). */}
-            {!sermonWriting && <div style={{ ...styles.sermonVeil, bottom: `${liveVh}vh` }} />}
-            <div style={{ ...styles.sermonSheet, height: `${liveVh}vh`, ...(sermonWriting ? styles.sermonSheetWriting : null) }}>
-              {/* 34g também não tem alça de arrasto — a folha já É a tela
-                  inteira, não há pra onde arrastar. */}
-              {!sermonWriting && (
+            {!sermonFullScreen && <div style={{ ...styles.sermonVeil, bottom: `${liveVh}vh` }} />}
+            <div style={{ ...styles.sermonSheet, height: `${liveVh}vh`, ...(sermonFullScreen ? styles.sermonSheetWriting : null) }}>
+              {/* 34g/34h também não têm alça de arrasto — a folha já É a
+                  tela inteira, não há pra onde arrastar. */}
+              {!sermonFullScreen && (
                 <div
                   style={styles.sermonHandleWrap}
                   onPointerDown={handleSheetHandlePointerDown} onPointerMove={handleSheetHandlePointerMove}
@@ -1060,7 +1322,9 @@ export default function JourneyScreen({
                   <span style={styles.sermonHandle} />
                 </div>
               )}
-              {sermonWriting ? (
+              {sermonSummaryOpen ? (
+                renderSermonSummary()
+              ) : sermonWriting ? (
                 renderSermonWriting()
               ) : sermonSourceOpen ? (
                 <>
@@ -1870,6 +2134,39 @@ const styles = {
   sermonVerseSearchVerseNum: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)' },
   sermonVerseSearchChapterGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 },
   sermonVerseSearchChapterBtn: { height: 44, borderRadius: 13, border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+
+  // 34h — item 2, "O que ficou desta anotação" (preto, cartão grande 26).
+  sermonSummaryCard: { borderRadius: 26, background: 'var(--bento-ink)', padding: '20px 20px 18px', marginTop: 4 },
+  sermonOnScreenLabelDark: { display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.55)', marginBottom: 14 },
+  sermonSummaryDiamond: { width: 9, height: 9, borderRadius: 2, background: 'var(--bento-accent)', transform: 'rotate(45deg)', flexShrink: 0 },
+  sermonSummaryText: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.7, color: '#fff', margin: '0 0 14px' },
+  sermonSummaryHighlight: { fontWeight: 700 },
+  sermonSummaryFootnote: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'rgba(255,255,255,.5)', margin: 0 },
+  sermonSummaryLoadingText: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '8px 0' },
+
+  // 34h — item 3, "Os pontos que você marcou" (branco, fixo, some se
+  // não houver tópico nenhum).
+  sermonPointsCard: { borderRadius: 26, background: '#fff', padding: '20px 20px 4px', marginTop: 12 },
+  sermonPointRow: { display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
+  sermonPointNum: { flexShrink: 0, width: 18, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)', lineHeight: 1.5 },
+  sermonPointText: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-ink)', margin: 0 },
+
+  // 34h — item 4, "As N passagens" (areia); fichas repetem as de 34d,
+  // agora SEM "×" (não dá mais pra soltar por aqui).
+  sermonPassagesCard: { borderRadius: 26, background: 'var(--bento-sand)', padding: '18px 20px', marginTop: 12 },
+  sermonMarkOnBibleBtn: { flexShrink: 0, border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-sand-icon)', cursor: 'pointer', padding: 0 },
+  sermonChipStatic: { height: 30, padding: '0 12px', borderRadius: 11, background: 'rgba(255,255,255,.6)', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-sand-ink)', display: 'inline-flex', alignItems: 'center' },
+
+  // 34h — item 5, "Levar ao grupo".
+  sermonGroupCard: { display: 'flex', alignItems: 'center', gap: 14, borderRadius: 26, background: '#fff', padding: '18px 20px', marginTop: 12 },
+  sermonFieldLabel2: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 3px' },
+  sermonGroupPickLink: { border: 'none', background: 'none', padding: 0, textAlign: 'left', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', cursor: 'pointer' },
+
+  // 34h — item 6, rodapé: "Guardar na biblioteca" (laranja 52px raio 18)
+  // e "Voltar e escrever mais" (branco 46px).
+  sermonSummaryFooter: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16, paddingBottom: 12 },
+  sermonSaveToLibraryBtn: { height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', fontFamily: 'var(--font-bento)', fontSize: 15.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  sermonBackToWritingBtn: { height: 46, borderRadius: 18, border: 'none', background: '#fff', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
 
   sermonTextarea: {
     flex: 1, minHeight: 150, width: '100%', border: 'none', borderRadius: 20, background: 'var(--bento-card)', padding: '14px 16px',

@@ -543,6 +543,40 @@ ${buildFieldsLangInstruction(lang, 'synthesisBody, highlightQuote')}`,
   return output
 }
 
+// "O que ficou desta anotação" (34h, turno 34, handoff-anotacao-34/,
+// Regra 4 §10) — usado por api/generate-sermon-summary.js. Analisa só as
+// PALAVRAS DELA (parágrafos de texto + tópicos marcados; nunca os
+// versículos citados, que são texto bíblico, não anotação). Diferente de
+// generateStudySynthesis acima: ali `highlightQuote` precisa ser uma
+// substring LITERAL de uma resposta (regra de ouro clássica); aqui a
+// frase em destaque é uma SÍNTESE da IA (o quadro mostra "a mudança de
+// um homem ao longo de vinte anos de espera" — ela nunca escreveu essa
+// frase com essas palavras, é a leitura que a IA faz do que ela
+// escreveu) — por isso vem partida em 3 (before/highlight/after) pra
+// poder entrar em negrito só no meio do parágrafo, e a verificação do
+// lado do endpoint é por PALAVRAS-CHAVE reais aparecendo no texto dela,
+// não por substring exata.
+const SermonSummarySchema = z.object({
+  before: z.string().describe('Início do resumo (1-2 frases, no idioma pedido, segunda pessoa) — o que se repete ou onde a atenção dela esteve, apontando padrões REAIS das palavras fornecidas. Pode ficar vazio se a frase em destaque já abrir o parágrafo.'),
+  highlight: z.string().describe('Uma frase curta (sem ponto final) que resume a diferença entre o tema anunciado (tipo/título da anotação) e o que ela de fato guardou/anotou — a conclusão do resumo, pra entrar em negrito.'),
+  after: z.string().describe('Fecho do resumo, se precisar (pode ficar vazio). Nunca acrescenta teologia nem elogia quem escreveu — só descreve o padrão encontrado.'),
+})
+
+export async function generateSermonSummary({ text, lang }) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: SermonSummarySchema }),
+    prompt: `Isto é uma anotação que uma pessoa escreveu enquanto ouvia um sermão/aula/vídeo — as palavras são só dela, nunca o texto bíblico:
+
+"${text}"
+
+Escreva "o que ficou desta anotação": o que voltou mais de uma vez, onde a atenção dela esteve, e a diferença entre o que parecia ser o assunto e o que ela de fato registrou. NUNCA acrescente teologia, interpretação do sermão em si, ou elogio a quem escreveu — só descreva o padrão real que aparece nas palavras dela. Se as palavras não derem pra apontar um padrão real, responda com before/after vazios e highlight sendo a ideia central mais simples que aparece no texto.
+
+${buildFieldsLangInstruction(lang, 'before, highlight, after')}`,
+  })
+  return output
+}
+
 // Fecho da leitura (37e, pacote 36-37) — usado por
 // api/generate-reading-summary.js. Mesmo espírito de cache compartilhado
 // de generateChapterContext acima: o conteúdo é igual pra quem lê o mesmo
