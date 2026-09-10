@@ -662,6 +662,11 @@ export default function App() {
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
   const [journeyEntryMode, setJourneyEntryMode] = useState('overview')
+  // Anotação de sermão (aba própria `sermonNote`, 2026-09-10) — true quando
+  // chegou lá pra começar uma anotação NOVA (Home), false quando chegou
+  // pra retomar uma em andamento (lápis flutuante) — ver
+  // openSermonNoteFromHome/resumeSermonNote.
+  const [sermonNoteFresh, setSermonNoteFresh] = useState(true)
   // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
   // quando a navegação livre passa da raiz (lista de livros, grade de
   // capítulos, leitura embutida), pra esconder a barra igual à leitura
@@ -1252,29 +1257,28 @@ export default function App() {
     goToTab('journey')
   }
 
-  // "Anotar uma pregação"/"Anotar um sermão" (Home) — correção pedida em
-  // 2026-09-09: NÃO entra na Bíblia de cara mais (isso era o comportamento
-  // antigo, que pulava pro último capítulo lido com 34d já expandida).
-  // Agora só sinaliza pra JourneyScreen.jsx começar uma anotação nova a
-  // partir da folha de campos (34f — tipo/título/preletor/...), sem
-  // navegar pra nenhum capítulo; depois de preencher e tocar "Pronto", a
-  // folha (34d) abre sobre a tela INICIAL da Bíblia (Antigo/Novo
-  // Testamento), não sobre um texto específico — ver browseJumpTarget
-  // .openSermonNote em JourneyScreen.jsx.
+  // "Anotar um sermão" (Home) — reescrito de vez (pedido dela, 2026-09-10):
+  // "em vez de uma página flutuante, vamos fazer uma página mesmo de
+  // anotação... não abrir por cima da bíblia". A anotação deixa de ser
+  // uma folha flutuante sobre a aba Bíblia (JourneyScreen.jsx) e vira uma
+  // tela própria de verdade (aba `sermonNote`, sem barra de navegação,
+  // com botão de voltar normal) — mesmo padrão de chapterRoom/metrics
+  // (tela empilhada, fora da barra inferior, onBack={goBack}).
   //
-  // Achado dela (2026-09-09): sem o reset de journeyEntryMode abaixo, se
-  // ela já tinha usado "Continuar sessão"/aberto uma sessão de leitura
-  // em QUALQUER momento antes (journeyEntryMode fica 'reading' até um
-  // toque explícito na aba Bíblia ou o botão de voltar da leitura — só
-  // trocar de aba não limpa isso), JourneyScreen montava de novo com
-  // entryMode='reading' + o bloco/sessão antigos ainda em initialBlockId/
-  // journeyResumeSessionId — caindo direto numa sessão de leitura
-  // específica (o "texto aleatório em números" que ela viu) em vez da
-  // tela inicial (Antigo/Novo Testamento).
+  // sermonNoteFresh distingue os dois jeitos de chegar nela: daqui
+  // (Home, "criar uma anotação nova") sempre true — a tela SEMPRE nasce
+  // limpa, nunca reabre um rascunho velho (ver JourneyScreen.jsx,
+  // startNewSermonNote() só roda quando fresh); do lápis flutuante
+  // (resumeSermonNote, ainda dentro da aba Bíblia — única coisa que ele
+  // continua fazendo) vem false, deixando a tela restaurar o rascunho em
+  // andamento sozinha (mesmo efeito de sempre, getSermonNotes ao montar).
   function openSermonNoteFromHome() {
-    setJourneyEntryMode('overview')
-    setBrowseJumpTarget({ openSermonNote: true })
-    goToTab('journey')
+    setSermonNoteFresh(true)
+    goToTab('sermonNote')
+  }
+  function resumeSermonNote() {
+    setSermonNoteFresh(false)
+    goToTab('sermonNote')
   }
 
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
@@ -2780,7 +2784,14 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
+    // Anotação de sermão — tela própria de verdade (pedido dela,
+    // 2026-09-10), não mais uma folha flutuante sobre a Bíblia. Reaproveita
+    // JourneyScreen.jsx (dona de toda a lógica/estado da anotação desde o
+    // início) num modo dedicado (sermonNoteMode) que pula toda a UI de
+    // navegação da Bíblia e renderiza só a anotação, em fluxo normal de
+    // página — nada de portal/véu/folha arrastável.
+    sermonNote: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} onNavigate={navigateTo} sermonNoteMode sermonNoteFresh={sermonNoteFresh} onBack={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
@@ -2925,7 +2936,7 @@ export default function App() {
   // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
   // agora também aparece no mobile (era hide-on-mobile) — ver
   // StudiesScreen.jsx.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -2942,7 +2953,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (
