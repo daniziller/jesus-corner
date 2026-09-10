@@ -302,7 +302,19 @@ export default function JourneyScreen({
       if (cancelled) return
       const inProgress = notes.find(n => !n.finalizedAt)
       if (inProgress) {
-        setSermonDraft({
+        // Correção dela (2026-09-09): essa busca é assíncrona — se
+        // "Anotar um sermão" (browseJumpTarget effect) já tiver criado um
+        // rascunho NOVO e em branco nesse meio-tempo (setSermonDraft
+        // síncrono, roda antes desta resposta de rede chegar), o
+        // `prev ? prev : ...` abaixo NÃO deixa essa busca sobrescrever o
+        // formulário em branco com os valores da anotação anterior não
+        // finalizada — "o form sempre abre limpo". Sem o guard, era
+        // exatamente isso que acontecia: o form nascia limpo por um
+        // instante e depois virava a anotação velha assim que a resposta
+        // do getSermonNotes chegava. Continua reaproveitando o rascunho
+        // em andamento normalmente quando ninguém pediu um NOVO (ex:
+        // reabrir o app com uma anotação pendente).
+        setSermonDraft(prev => prev ? prev : {
           id: inProgress.id, createdAt: inProgress.createdAt ?? new Date().toISOString(), date: inProgress.date ?? dateKey(),
           noteType: inProgress.noteType ?? 'sermon', title: inProgress.title ?? '', preacher: inProgress.preacher ?? '',
           church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
@@ -1005,10 +1017,21 @@ export default function JourneyScreen({
   // cara, então não há capítulo pra abrir aqui; a folha (34d/34f) sobe
   // sobre a tela em que esta view já estiver (o normal é a raiz, Antigo/
   // Novo Testamento, já que ninguém navegou pra lugar nenhum ainda).
+  //
+  // Correção dela (2026-09-09, mesmo dia): SEMPRE startNewSermonNote()
+  // aqui, nunca startOrResumeSermonNote() — "o form sempre abre limpo
+  // para ser preenchido". A regra de REABRIR um rascunho já em andamento
+  // (startOrResumeSermonNote, comentário logo acima da função) continua
+  // valendo só pro lápis flutuante (handleFabPointerUp) — esse é o
+  // affordance certo pra "voltar pro que eu estava escrevendo"; o botão
+  // "Anotar um sermão" da Home é sempre "começar uma anotação nova", e
+  // antes desta correção ele reabria um rascunho velho/não finalizado se
+  // um já existisse, o que ela viu como "abrindo com valores da anotação
+  // anterior".
   useEffect(() => {
     if (browseJumpTarget) {
       if (browseJumpTarget.blockId != null) openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
-      if (browseJumpTarget.openSermonNote) startOrResumeSermonNote()
+      if (browseJumpTarget.openSermonNote) startNewSermonNote()
       onBrowseJumpConsumed?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2150,7 +2173,15 @@ const styles = {
   // próprio nesse cabeçalho) — o véu cobre só o capítulo, o cabeçalho
   // (seletor de capítulo/versão) fica por fora, sem escurecer (34d: só "o
   // capítulo" leva véu, não o cabeçalho).
-  sermonVeil: { position: 'fixed', top: 68, left: 0, right: 0, background: 'rgba(26,23,20,.18)', zIndex: 198, pointerEvents: 'none' },
+  // Achado dela (2026-09-09): "os cantos superiores eram pra ser
+  // arredondados, mas está com uma sombra meio que quadrada" — o véu é
+  // um retângulo reto encostando bem onde a folha (sermonSheet) começa a
+  // arredondar (32px), então a borda dele cortava reto por cima da curva
+  // da folha em vez de acompanhá-la, lendo como um "degrau quadrado".
+  // borderRadius embaixo, espelhando o raio de cima da folha, resolve —
+  // confirmado visualmente com uma reprodução isolada antes de mexer
+  // aqui (véu e folha têm o MESMO raio, 32px, só em cantos opostos).
+  sermonVeil: { position: 'fixed', top: 68, left: 0, right: 0, background: 'rgba(26,23,20,.18)', zIndex: 198, pointerEvents: 'none', borderRadius: '0 0 32px 32px' },
   // A folha em si — fixed no rodapé, altura controlada por
   // renderSermonWidget (arrasto ao vivo ou já assentada numa das 3
   // alturas). Fundo = cor de fundo da tela (34d token), raio 32 só em
