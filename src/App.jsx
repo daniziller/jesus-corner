@@ -1261,7 +1261,18 @@ export default function App() {
   // folha (34d) abre sobre a tela INICIAL da Bíblia (Antigo/Novo
   // Testamento), não sobre um texto específico — ver browseJumpTarget
   // .openSermonNote em JourneyScreen.jsx.
+  //
+  // Achado dela (2026-09-09): sem o reset de journeyEntryMode abaixo, se
+  // ela já tinha usado "Continuar sessão"/aberto uma sessão de leitura
+  // em QUALQUER momento antes (journeyEntryMode fica 'reading' até um
+  // toque explícito na aba Bíblia ou o botão de voltar da leitura — só
+  // trocar de aba não limpa isso), JourneyScreen montava de novo com
+  // entryMode='reading' + o bloco/sessão antigos ainda em initialBlockId/
+  // journeyResumeSessionId — caindo direto numa sessão de leitura
+  // específica (o "texto aleatório em números" que ela viu) em vez da
+  // tela inicial (Antigo/Novo Testamento).
   function openSermonNoteFromHome() {
+    setJourneyEntryMode('overview')
     setBrowseJumpTarget({ openSermonNote: true })
     goToTab('journey')
   }
