@@ -188,16 +188,17 @@ export async function respondToGroupInvite(groupId, accept) {
   if (error) throw new Error(error.message)
 }
 
-// Sai do grupo (ou cancela/recusa um convite ainda pendente) apagando a
-// própria linha de membro.
+// Sai do grupo (pedido dela, 2026-09-10: "ao sair, todas as mensagens
+// enviadas por ela se tornam anônimas") — antes era um DELETE direto na
+// própria linha de membro; agora passa pela RPC leave_group_and_
+// anonymize (migration 0062), que numa transação só torna anônimas as
+// mensagens da pessoa NESSE grupo (sala de capítulo, discussão geral,
+// pedidos de oração de escopo grupo — mesmo union de "mensagem" que a
+// caixa unificada já usa, ver 0057_group_messages.sql) e só DEPOIS
+// remove a participação. (Cancelar/recusar um CONVITE pendente é outra
+// função — respondToGroupInvite(groupId, false) — não passa por aqui.)
 export async function leaveGroup(groupId) {
-  const userId = await getUserId()
-  if (!userId) return
-  const { error } = await supabase
-    .from('reading_group_members')
-    .delete()
-    .eq('group_id', groupId)
-    .eq('user_id', userId)
+  const { error } = await supabase.rpc('leave_group_and_anonymize', { target_group_id: groupId })
   if (error) throw new Error(error.message)
 }
 

@@ -16,7 +16,7 @@ export async function getComments(groupId) {
   const userId = await getUserId()
   const { data, error } = await supabase
     .from('group_comments')
-    .select('id, user_id, body, created_at, pinned, pinned_at, author:profiles!group_comments_user_id_fkey(name), group_comment_likes(user_id)')
+    .select('id, user_id, body, created_at, pinned, pinned_at, anonymous, author:profiles!group_comments_user_id_fkey(name), group_comment_likes(user_id)')
     .eq('group_id', groupId)
     .order('created_at', { ascending: true })
   if (error) { console.error('[commentsStore] getComments failed:', error.message); return [] }
@@ -26,6 +26,10 @@ export async function getComments(groupId) {
       id: c.id,
       userId: c.user_id,
       authorName: c.author?.name ?? '',
+      // Anônimo (quem saiu do grupo depois de comentar — leaveGroup em
+      // groupsStore.js/migration 0062) — quem renderiza troca por
+      // "Anônimo", nunca mostra authorName sem checar esta flag antes.
+      anonymous: c.anonymous,
       body: c.body,
       createdAt: c.created_at,
       pinned: c.pinned,

@@ -731,9 +731,10 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
         <div style={styles.noteCard} onClick={onGoDiscussion}>
           {latestNote === undefined ? null : latestNote ? (
             <>
+              {/* Anônimo (quem saiu do grupo depois de comentar). */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={styles.noteAvatar}>{avatarInitialsOf(latestNote.authorName)}</div>
-                <p style={styles.noteTitle}>{t('groups.homeNoteShared', { name: latestNote.authorName }, lang)}</p>
+                <div style={styles.noteAvatar}>{avatarInitialsOf(latestNote.anonymous ? t('groups.anonymousAuthor', undefined, lang) : latestNote.authorName)}</div>
+                <p style={styles.noteTitle}>{t('groups.homeNoteShared', { name: latestNote.anonymous ? t('groups.anonymousAuthor', undefined, lang) : latestNote.authorName }, lang)}</p>
                 <span style={styles.noteTime}>{formatRelativeTime(latestNote.createdAt, lang)}</span>
               </div>
               <p style={styles.noteBody}>"{latestNote.body}"</p>
@@ -1123,13 +1124,16 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
 
   function renderComment(c) {
     const canDelete = c.userId === authUser?.id || isModerator
-    const authorIsModerator = moderatorIds.has(c.userId)
+    // Anônimo (quem saiu do grupo depois de comentar) — some também o
+    // selo de moderador: mostrar "Anônimo [MODERADOR]" ainda deixaria
+    // dar pra adivinhar quem é, dentro do grupo pequeno de moderadores.
+    const authorIsModerator = !c.anonymous && moderatorIds.has(c.userId)
     const canPinMore = pinnedCount < 3
     return (
       <div key={c.id} style={{ ...styles.commentCard, ...(authorIsModerator ? styles.commentCardModerator : {}) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span style={styles.commentAuthor}>
-            {c.authorName}
+            {c.anonymous ? t('groups.anonymousAuthor', undefined, lang) : c.authorName}
             {authorIsModerator && <span style={{ ...styles.badgeModerator, marginLeft: 6 }}>{t('groups.moderatorBadge', undefined, lang)}</span>}
           </span>
           <span style={styles.commentDate}>{formatDate(c.createdAt, lang)}</span>

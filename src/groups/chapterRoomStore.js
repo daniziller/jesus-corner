@@ -60,7 +60,7 @@ export async function getRoomPosts(groupId, book, chapter) {
   const userId = await getUserId()
   const { data, error } = await supabase
     .from('group_chapter_posts')
-    .select('id, user_id, body, quote_text, quote_ref, created_at, author:profiles!group_chapter_posts_user_id_fkey(name), group_post_amens(user_id)')
+    .select('id, user_id, body, quote_text, quote_ref, created_at, anonymous, author:profiles!group_chapter_posts_user_id_fkey(name), group_post_amens(user_id)')
     .eq('group_id', groupId).eq('book', book).eq('chapter', chapter)
     .order('created_at', { ascending: false })
   if (error) { console.error('[chapterRoomStore] posts failed:', error.message); return [] }
@@ -68,6 +68,12 @@ export async function getRoomPosts(groupId, book, chapter) {
     id: p.id,
     userId: p.user_id,
     authorName: p.author?.name ?? '',
+    // Anônimo (quem saiu do grupo depois de postar — ver leaveGroup em
+    // groupsStore.js/migration 0062): quem renderiza troca por "Anônimo"
+    // em vez de authorName; authorName continua vindo pra não quebrar
+    // nada que ainda dependa do campo, mas nenhuma tela deve mostrá-lo
+    // direto sem checar esta flag primeiro.
+    anonymous: p.anonymous,
     body: p.body,
     quoteText: p.quote_text,
     quoteRef: p.quote_ref,

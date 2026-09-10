@@ -92,7 +92,11 @@ export default function ChapterRoomScreen({ group, book, bookEn, chapter, comple
   }
 
   function replyTo(post) {
-    setDraft(d => (d.startsWith(`@${post.authorName.split(' ')[0]} `) ? d : `@${post.authorName.split(' ')[0]} ${d}`))
+    // Anônimo (quem saiu do grupo depois de postar) — a menção também
+    // precisa esconder o nome de verdade, senão @NomeReal vazaria quem
+    // é mesmo com o post já mostrando "Anônimo".
+    const name = post.anonymous ? t('groups.anonymousAuthor', undefined, lang) : post.authorName
+    setDraft(d => (d.startsWith(`@${name.split(' ')[0]} `) ? d : `@${name.split(' ')[0]} ${d}`))
     inputRef.current?.focus()
   }
 
@@ -136,7 +140,7 @@ export default function ChapterRoomScreen({ group, book, bookEn, chapter, comple
                 {answerAvatars.length > 0 && (
                   <div style={{ display: 'flex' }}>
                     {answerAvatars.map((p, i) => (
-                      <span key={p.id} style={{ ...s.qAvatar, background: avatarPaletteFor(p.userId).bg, marginLeft: i ? -8 : 0 }} />
+                      <span key={p.id} style={{ ...s.qAvatar, background: avatarPaletteFor(p.anonymous ? 'anonymous' : p.userId).bg, marginLeft: i ? -8 : 0 }} />
                     ))}
                   </div>
                 )}
@@ -158,13 +162,19 @@ export default function ChapterRoomScreen({ group, book, bookEn, chapter, comple
         </div>
 
         {completed && posts.map(post => {
-          const pal = avatarPaletteFor(post.userId)
+          // Cor do avatar por semente PRÓPRIA quando anônimo — a mesma
+          // pra todo post anônimo, nunca a de post.userId (senão a cor
+          // continuaria entregando quem é, mesmo com o nome escondido).
+          const pal = avatarPaletteFor(post.anonymous ? 'anonymous' : post.userId)
           const mine = authUser?.id && post.userId === authUser.id
+          // Anônimo (quem saiu do grupo depois de postar) — nome e
+          // iniciais do avatar viram genéricos, nunca o nome de verdade.
+          const displayName = post.anonymous ? t('groups.anonymousAuthor', undefined, lang) : post.authorName
           return (
             <div key={post.id} style={s.postCard}>
               <div style={s.postHead}>
-                <span style={{ ...s.postAvatar, background: pal.bg, color: pal.fg }}>{avatarInitialsOf(post.authorName)}</span>
-                <span style={s.postName}>{post.authorName.split(' ')[0]}</span>
+                <span style={{ ...s.postAvatar, background: pal.bg, color: pal.fg }}>{avatarInitialsOf(displayName)}</span>
+                <span style={s.postName}>{displayName.split(' ')[0]}</span>
                 <span style={s.postTime}>{relativeTime(post.createdAt, L)}</span>
               </div>
               {post.quoteText && (
