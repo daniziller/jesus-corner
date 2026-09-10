@@ -559,6 +559,7 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
         onInvite={() => { setAutoInvite(true); setView('challenge') }}
         onGoPrayer={() => setView('prayer')}
         onGoDiscussion={() => setView('discussion')}
+        onLeave={handleLeave}
       />
     )
   }
@@ -593,7 +594,6 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
             authUser={authUser}
             lang={lang}
             onChange={reload}
-            onLeave={handleLeave}
             autoInvite={autoInvite}
           />
         )}
@@ -614,7 +614,7 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
 // existe em ReadingBlockView ao ler com o grupo), prévia do pedido de
 // oração mais recente, prévia da nota mais recente e o atalho "Escrever no
 // grupo". Cada card leva pra tela completa correspondente ao ser tocado.
-function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpenGroupRoom, onBack, onInvite, onGoPrayer, onGoDiscussion }) {
+function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpenGroupRoom, onBack, onInvite, onGoPrayer, onGoDiscussion, onLeave }) {
   const [roomStats, setRoomStats] = useState(null)
   const [latestPrayer, setLatestPrayer] = useState(undefined)
   const [latestNote, setLatestNote] = useState(undefined)
@@ -760,16 +760,23 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
             </div>
           )}
         </div>
+
+        {/* Achado real (2026-09-10, ela mesma não achou): "Sair do
+            grupo" morava lá no fundo da aba Desafio (ChallengeTab), uma
+            das 3 sub-abas — só quem entrasse especificamente ali e
+            rolasse até o fim chegava nele. Home é a tela que toda
+            pessoa vê ao abrir o grupo; o botão mora aqui agora. */}
+        <button style={{ ...styles.leaveBtn, width: '100%', marginTop: 4 }} onClick={onLeave}>{t('groups.leaveGroup', undefined, lang)}</button>
       </div>
     </div>
   )
 }
 
-/* ── Aba Desafio: membros, placar, propor desafio, convidar, sair ── */
+/* ── Aba Desafio: membros, placar, propor desafio, convidar ── */
 // autoInvite: abre o painel de convite já expandido — usado pelo atalho
 // "Convidar" do cabeçalho do quadro 5d, que cai aqui reaproveitando a
 // mesma lista de amigos convidáveis em vez de duplicá-la.
-function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange, onLeave, autoInvite = false }) {
+function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange, autoInvite = false }) {
   const [challenges, setChallenges] = useState([])
   const [leaderboards, setLeaderboards] = useState({})
   const [proposing, setProposing] = useState(false)
@@ -897,8 +904,6 @@ function ChallengeTab({ groupId, members, isModerator, authUser, lang, onChange,
       ) : (
         <button style={styles.secondaryBtn} onClick={() => setInviting(true)}>{t('groups.inviteFriendTitle', undefined, lang)}</button>
       )}
-
-      <button style={styles.leaveBtn} onClick={onLeave}>{t('groups.leaveGroup', undefined, lang)}</button>
     </div>
   )
 }
