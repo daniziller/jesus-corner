@@ -233,6 +233,36 @@ export default function JourneyScreen({
   // zera ao soltar; o valor que fica de fato é sermonSheetHeight (snap).
   const [sermonDragOffset, setSermonDragOffset] = useState(0)
   const sheetDragState = useRef(null)
+  // Achado dela (2026-09-09): com o teclado do celular aberto, o topo e a
+  // barra de baixo da folha (34g) somem — porque a folha usa `vh`/altura
+  // fixa em relação ao VIEWPORT DE LAYOUT, que no Safari/Chrome mobile
+  // NÃO encolhe quando o teclado abre (só o viewport VISUAL encolhe; o
+  // navegador rola a página pra manter o campo focado visível, o que
+  // empurra um elemento `position:fixed; bottom:0` pra baixo da área
+  // visível de verdade). Sem isso pra rastrear, não tem como saber que o
+  // teclado abriu — nenhum outro lugar do app usa visualViewport ainda.
+  // rastreia altura/offset do viewport VISUAL ao vivo (window.innerHeight
+  // como fallback pra navegador sem suporte) e usa isso — não vh cru —
+  // pra posicionar a folha, em renderSermonWidget().
+  const [sermonViewportHeight, setSermonViewportHeight] = useState(() => (
+    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 800
+  ))
+  const [sermonViewportOffsetTop, setSermonViewportOffsetTop] = useState(0)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return
+    const vv = window.visualViewport
+    function updateSermonViewport() {
+      setSermonViewportHeight(vv.height)
+      setSermonViewportOffsetTop(vv.offsetTop)
+    }
+    vv.addEventListener('resize', updateSermonViewport)
+    vv.addEventListener('scroll', updateSermonViewport)
+    updateSermonViewport()
+    return () => {
+      vv.removeEventListener('resize', updateSermonViewport)
+      vv.removeEventListener('scroll', updateSermonViewport)
+    }
+  }, [])
   const [sermonSourceOpen, setSermonSourceOpen] = useState(false)
   const [sermonGroupPickerOpen, setSermonGroupPickerOpen] = useState(false)
   const [sermonShareOn, setSermonShareOn] = useState(false)
@@ -676,6 +706,24 @@ export default function JourneyScreen({
     setSermonSelectedGroupIds([])
     setSermonSheetHeight('full')
     setSermonNoteOpen(true)
+    // Achado dela (2026-09-09): "abrir na página inicial da Bíblia pra
+    // escolher o primeiro texto" — toda anotação NOVA (venha da Home,
+    // que remonta esta tela, ou do lápis flutuante, que NÃO remonta)
+    // precisa cair na raiz (Antigo/Novo Testamento), nunca em qualquer
+    // capítulo/livro/busca que já estivesse aberto antes. A vinda pela
+    // Home já reseta o entryMode lá em App.jsx (evita a raiz nascer
+    // errada no primeiro render), mas isso não cobre o lápis flutuante
+    // — ele não remonta a tela, então sem este reset aqui a folha
+    // simplesmente subiria por cima de onde ela já estava navegando.
+    setExpandedBlockId(null)
+    setInitialSessionId(null)
+    setExpandedBookKey(null)
+    setExpandedInitialSessionId(null)
+    setExpandedInitialTextOpen(false)
+    setExpandedInitialFocusVerse(null)
+    setSearchOpen(null)
+    setThemeOpenId(null)
+    setTestamentEntered(false)
   }
 
   function patchSermonDraft(patch) {
@@ -1335,6 +1383,15 @@ export default function JourneyScreen({
       : sheetDragState.current
       ? Math.max(SHEET_MIN_VH, Math.min(94, (sermonSheetHeight === 'full' ? SHEET_FULL_VH : SHEET_HALF_VH) - sermonDragOffset / (window.innerHeight / 100)))
       : (sermonSheetHeight === 'full' ? SHEET_FULL_VH : SHEET_HALF_VH)
+    // Correção dela (2026-09-09): converte liveVh (percentual) pra pixels
+    // do viewport VISUAL ao vivo (sermonViewportHeight, ver o efeito de
+    // visualViewport acima) — não do viewport de layout, que não encolhe
+    // com o teclado aberto. A folha passa a ser posicionada por `top`
+    // (relativo ao topo do viewport visual, incluindo seu offset) em vez
+    // de `bottom:0`, senão ela continua "grudada" no fundo do viewport de
+    // LAYOUT, que fica embaixo do teclado quando ele está aberto.
+    const liveHeightPx = (liveVh / 100) * sermonViewportHeight
+    const sheetTopPx = sermonViewportOffsetTop + sermonViewportHeight - liveHeightPx
 
     return (
       <>
@@ -1382,8 +1439,10 @@ export default function JourneyScreen({
           <>
             {/* 34g/34h não têm véu (nada visível atrás pra escurecer — "o
                 texto bíblico sai de cena"). */}
-            {!sermonFullScreen && <div style={{ ...styles.sermonVeil, bottom: `${liveVh}vh` }} />}
-            <div style={{ ...styles.sermonSheet, height: `${liveVh}vh`, ...(sermonFullScreen ? styles.sermonSheetWriting : null) }}>
+            {!sermonFullScreen && (
+              <div style={{ ...styles.sermonVeil, top: sermonViewportOffsetTop + 68, bottom: 'auto', height: Math.max(0, sheetTopPx - (sermonViewportOffsetTop + 68)) }} />
+            )}
+            <div style={{ ...styles.sermonSheet, top: sheetTopPx, bottom: 'auto', height: `${liveHeightPx}px`, ...(sermonFullScreen ? styles.sermonSheetWriting : null) }}>
               {/* 34g/34h também não têm alça de arrasto — a folha já É a
                   tela inteira, não há pra onde arrastar. */}
               {!sermonFullScreen && (
