@@ -490,7 +490,7 @@ export default function JourneyScreen({
     setSermonDraft(prev => {
       if (!prev) return prev
       const body = (prev.body ?? []).filter(s => s.id !== seg.id)
-      const passages = seg.type === 'quote'
+      const passages = (seg.type === 'quote' || seg.type === 'link')
         ? prev.passages.filter(p => !(p.book === seg.book && p.chapter === seg.chapter && p.verseStart === seg.verseStart && p.verseEnd === seg.verseEnd))
         : prev.passages
       return { ...prev, body, passages }
@@ -516,6 +516,38 @@ export default function JourneyScreen({
       if (already) return prev
       return { ...prev, passages: [...prev.passages, { book: quote.book, bookEn: quote.bookEn, chapter: quote.chapter, verseStart: quote.verseStart, verseEnd: quote.verseEnd }] }
     })
+  }
+
+  // Correção dela (2026-09-09): "quando adicionar uma passagem da Bíblia
+  // no header, adicionar também no texto como um link" — diferente de
+  // insertQuoteSegment (que busca o texto real do versículo via "Versículo"
+  // em 34g), este bloco não carrega texto bíblico nenhum, só a referência;
+  // ele é o que vira o link tocável no corpo (ver render em
+  // renderSermonWriting, seg.type === 'link', e jumpToPassageFromNote
+  // abaixo pro toque que leva pro texto).
+  function insertLinkSegment(ref) {
+    const bookLabel = lang === 'en' ? ref.bookEn : ref.book
+    const label = ref.verseStart
+      ? `${bookLabel} ${ref.chapter}:${ref.verseStart}${ref.verseEnd && ref.verseEnd !== ref.verseStart ? `-${ref.verseEnd}` : ''}`
+      : `${bookLabel} ${ref.chapter}`
+    insertSegmentAfterFocused({ ...newSermonSegment('link'), ...ref, ref: label })
+  }
+
+  // Toque no link inserido pelo corpo (ver insertLinkSegment) — "ir para o
+  // texto" (pedido dela). Acha o bloco/sessão da passagem do mesmo jeito
+  // que o antigo openSermonNoteFromHome fazia, abre o capítulo ali, e
+  // MINIMIZA a folha pro lápis flutuante — mesmo mecanismo de sempre
+  // (Regra 4 §…, "minimizar mantém o rascunho salvo") — pra ela conseguir
+  // ler o texto sem a folha cobrindo a tela, e voltar pelo lápis quando
+  // quiser continuar escrevendo.
+  function jumpToPassageFromNote(seg) {
+    const block = blocks.find(b => b.books.includes(seg.book))
+    const targetSession = block ? (browseSessionsByBlock[block.id] ?? []).find(
+      s => s.book === seg.book && s.chStart <= seg.chapter && s.chEnd >= seg.chapter
+    ) : null
+    if (!block || !targetSession) return
+    setSermonNoteOpen(false)
+    openRecentChapter(block.id, targetSession.id)
   }
 
   function openVerseSearch() {
@@ -627,6 +659,10 @@ export default function JourneyScreen({
     startNewSermonNote()
   }
 
+  // Correção dela (2026-09-09): toda anotação nova começa pela folha de
+  // campos (34f — "o usuário irá preencher os dados da anotação" antes de
+  // qualquer coisa), nunca direto na escrita (34d) — sermonSourceOpen
+  // começa true aqui, e só vira false quando ela toca "Pronto".
   function startNewSermonNote() {
     setSermonDraft({
       id: `sermon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -634,7 +670,7 @@ export default function JourneyScreen({
       noteType: 'sermon', title: '', preacher: '', church: '', link: '',
       passages: [], text: '', finalizedAt: null,
     })
-    setSermonSourceOpen(false)
+    setSermonSourceOpen(true)
     setSermonGroupPickerOpen(false)
     setSermonShareOn(false)
     setSermonSelectedGroupIds([])
@@ -652,15 +688,19 @@ export default function JourneyScreen({
     return `${bookLabel} ${p.chapter}${range}`
   }
 
+  // "+ referência" do header (34d/34g, alimentado por sermonActiveChapterRef
+  // — "Na tela agora"). Correção dela (2026-09-09): além de entrar na lista
+  // de passagens, agora também vira um link tocável no corpo do texto (ver
+  // insertLinkSegment/jumpToPassageFromNote) — só quando é passagem NOVA;
+  // tocar de novo numa já adicionada não duplica o link.
   function addOnScreenVerse() {
-    if (!sermonActiveChapterRef) return
+    if (!sermonActiveChapterRef || !sermonDraft) return
     const ref = sermonActiveChapterRef
-    setSermonDraft(prev => {
-      if (!prev) return prev
-      const exists = prev.passages.some(p => p.book === ref.book && p.chapter === ref.chapter && p.verseStart === ref.verseStart && p.verseEnd === ref.verseEnd)
-      if (exists) return prev
-      return { ...prev, passages: [...prev.passages, ref] }
-    })
+    const exists = sermonDraft.passages.some(p => p.book === ref.book && p.chapter === ref.chapter && p.verseStart === ref.verseStart && p.verseEnd === ref.verseEnd)
+    if (exists) return
+    setSermonDraft(prev => (prev ? { ...prev, passages: [...prev.passages, ref] } : prev))
+    ensureSermonBody()
+    insertLinkSegment(ref)
   }
 
   function removeSermonVerse(idx) {
@@ -686,7 +726,11 @@ export default function JourneyScreen({
   function buildSermonPayload(draft, { trim = true } = {}) {
     const clean = v => (trim ? v.trim() : v)
     const plainText = Array.isArray(draft.body) && draft.body.length > 0
-      ? draft.body.map(seg => (seg.type === 'quote' ? `"${seg.text}" — ${seg.ref}` : seg.text)).filter(Boolean).join('\n\n')
+      ? draft.body.map(seg => {
+          if (seg.type === 'quote') return `"${seg.text}" — ${seg.ref}`
+          if (seg.type === 'link') return `→ ${seg.ref}`
+          return seg.text
+        }).filter(Boolean).join('\n\n')
       : draft.text
     return {
       id: draft.id, date: draft.date, createdAt: draft.createdAt, updatedAt: new Date().toISOString(),
@@ -904,13 +948,18 @@ export default function JourneyScreen({
   // isso, o pedido ficava "pendente" pra sempre e essa tela pulava pro
   // mesmo capítulo de novo em TODA montagem futura (qualquer visita à aba
   // Bíblia depois de usar o link uma vez, não só via botão Voltar).
-  // openSermonNote (34a/34d) pede pra já cair com a folha de sermão
-  // aberta — a folha mora nesta tela (não em ReadingBlockView.jsx: README
-  // "vive... na Bíblia inteira"), então abre direto aqui, sem precisar
-  // encadear um prop pelas telas de baixo.
+  //
+  // openSermonNote (App.jsx/openSermonNoteFromHome) pede pra já cair com a
+  // folha de sermão aberta — a folha mora nesta tela (não em
+  // ReadingBlockView.jsx: README "vive... na Bíblia inteira"), então abre
+  // direto aqui. Correção dela (2026-09-09): esse pedido NÃO vem mais com
+  // blockId/sessionId — "anotar um sermão" não deve entrar na Bíblia de
+  // cara, então não há capítulo pra abrir aqui; a folha (34d/34f) sobe
+  // sobre a tela em que esta view já estiver (o normal é a raiz, Antigo/
+  // Novo Testamento, já que ninguém navegou pra lugar nenhum ainda).
   useEffect(() => {
     if (browseJumpTarget) {
-      openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+      if (browseJumpTarget.blockId != null) openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
       if (browseJumpTarget.openSermonNote) startOrResumeSermonNote()
       onBrowseJumpConsumed?.()
     }
@@ -932,6 +981,12 @@ export default function JourneyScreen({
     setLastViewedBlockId(expandedBlockId)
     setExpandedBlockId(null)
     setInitialSessionId(null)
+    // Sem isso, "Na tela agora" (sermonActiveChapterRef) ficava com o
+    // capítulo de que ela acabou de sair — achado ao corrigir o fluxo de
+    // entrada da anotação (2026-09-09): agora uma anotação pode começar
+    // na raiz, sem capítulo nenhum aberto, e sem este reset o card "na
+    // tela agora" mostraria um capítulo que não está mais na tela.
+    setSermonActiveChapterRef(null)
   }
 
   // Volta da página do livro (18a, BookChapterScreen) pro mapa/grade —
@@ -941,6 +996,7 @@ export default function JourneyScreen({
     setExpandedBookKey(null)
     setExpandedInitialSessionId(null)
     setExpandedInitialFocusVerse(null)
+    setSermonActiveChapterRef(null)
   }
 
   // Toque direto numa sigla de livro (grade de 5f ou busca) — navega pra
@@ -1008,6 +1064,23 @@ export default function JourneyScreen({
                   <button type="button" style={styles.sermonQuoteRemove} onClick={() => removeSermonSegment(seg)} aria-label={t('sermonNote.removeVerse', { ref: seg.ref }, lang)}>×</button>
                   <p style={styles.sermonQuoteText}>&ldquo;{seg.text}&rdquo;</p>
                   <p style={styles.sermonQuoteRef}>{seg.ref} · {getSelectedVersionId(lang).toUpperCase()}</p>
+                </div>
+              )
+            }
+            // Link tocável (correção dela, 2026-09-09) — inserido por
+            // addOnScreenVerse quando ela adiciona a passagem "na tela
+            // agora" pelo header; diferente do bloco de citação, não tem
+            // texto bíblico nenhum, só a referência, e tocar leva pro
+            // texto de verdade (jumpToPassageFromNote minimiza a folha
+            // pro lápis flutuante e abre o capítulo).
+            if (seg.type === 'link') {
+              return (
+                <div key={seg.id} style={styles.sermonLinkRow}>
+                  <button type="button" style={styles.sermonLinkChip} onClick={() => jumpToPassageFromNote(seg)}>
+                    <AppIcon name="BookOpen" size={13} strokeWidth={2.2} color="var(--bento-accent)" />
+                    {seg.ref}
+                  </button>
+                  <button type="button" style={styles.sermonLinkRemove} onClick={() => removeSermonSegment(seg)} aria-label={t('sermonNote.removeVerse', { ref: seg.ref }, lang)}>×</button>
                 </div>
               )
             }
@@ -2109,6 +2182,12 @@ const styles = {
   sermonQuoteRemove: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(122,74,30,.12)', color: 'var(--bento-sand-icon)', fontSize: 14, fontWeight: 700, lineHeight: 1, cursor: 'pointer' },
   sermonQuoteText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontStyle: 'italic', fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-sand-ink)', margin: '0 0 6px' },
   sermonQuoteRef: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-sand-icon)', margin: 0 },
+  // Link tocável do corpo (correção dela, 2026-09-09) — pílula laranja,
+  // tom do accent (não do sépia da citação — não é texto bíblico, é
+  // navegação) com o X de remover ao lado, fora da pílula.
+  sermonLinkRow: { display: 'flex', alignItems: 'center', gap: 6 },
+  sermonLinkChip: { display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', background: 'rgba(240,102,43,.08)', border: '1px solid rgba(240,102,43,.24)', borderRadius: 999, padding: '7px 12px 7px 10px', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer' },
+  sermonLinkRemove: { width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(122,74,30,.12)', color: 'var(--bento-sand-icon)', fontSize: 14, fontWeight: 700, lineHeight: 1, cursor: 'pointer', flexShrink: 0 },
   // Tópico — numerado em laranja, mesma linguagem que 34h vai reusar pro
   // cartão "Os pontos que você marcou" (Bloco 4).
   sermonTopicRow: { display: 'flex', alignItems: 'flex-start', gap: 8 },

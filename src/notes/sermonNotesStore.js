@@ -9,11 +9,12 @@ import { fetchRow, updateRow, withRowLock } from '../backend/userDataStore'
 
 // "Só as palavras dela" (34h, Regra 4 §10) — junta os segmentos de TEXTO
 // e TÓPICO do corpo estruturado (turno 34, Bloco 3), pulando os blocos
-// de CITAÇÃO (texto bíblico, não anotação). Compat com quem só usou a
-// área simples de 34d (sem body nenhum): usa `text` direto.
+// de CITAÇÃO (texto bíblico, não anotação) e de LINK (correção
+// 2026-09-09 — só a referência, sem texto próprio nenhum). Compat com
+// quem só usou a área simples de 34d (sem body nenhum): usa `text` direto.
 export function sermonOwnWordsText(draft) {
   if (Array.isArray(draft?.body) && draft.body.length > 0) {
-    return draft.body.filter(s => s.type !== 'quote').map(s => s.text ?? '').filter(Boolean).join('\n\n')
+    return draft.body.filter(s => s.type !== 'quote' && s.type !== 'link').map(s => s.text ?? '').filter(Boolean).join('\n\n')
   }
   return draft?.text ?? ''
 }
