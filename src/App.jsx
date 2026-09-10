@@ -1252,24 +1252,17 @@ export default function App() {
     goToTab('journey')
   }
 
-  // "Anotar uma pregação" (Home, handoff-app-completo, 34a) — mesmo link
-  // "ir pro texto" de sempre (acima), no ÚLTIMO capítulo lido (README,
-  // fluxo de 34a: "abre a Bíblia no último capítulo com 34d já
-  // expandida" — não o capítulo de HOJE; conta que a pessoa quer anotar
-  // sobre o que acabou de ouvir/ler, não necessariamente o próximo do
-  // plano), com fallback pro capítulo de hoje/currentBlock pra quem ainda
-  // não leu nada. A folha abre direto em JourneyScreen.jsx (dona da
-  // folha de sermão — ver browseJumpTarget.openSermonNote).
+  // "Anotar uma pregação"/"Anotar um sermão" (Home) — correção pedida em
+  // 2026-09-09: NÃO entra na Bíblia de cara mais (isso era o comportamento
+  // antigo, que pulava pro último capítulo lido com 34d já expandida).
+  // Agora só sinaliza pra JourneyScreen.jsx começar uma anotação nova a
+  // partir da folha de campos (34f — tipo/título/preletor/...), sem
+  // navegar pra nenhum capítulo; depois de preencher e tocar "Pronto", a
+  // folha (34d) abre sobre a tela INICIAL da Bíblia (Antigo/Novo
+  // Testamento), não sobre um texto específico — ver browseJumpTarget
+  // .openSermonNote em JourneyScreen.jsx.
   function openSermonNoteFromHome() {
-    const readingNow = !session.todaySession?.needsThemePick && session.todaySession?.type !== 'reflection'
-    const book = session.lastReadPosition?.book ?? (readingNow ? session.todaySession.book : session.currentBlock?.book)
-    const chapter = session.lastReadPosition?.chapter ?? (readingNow ? session.todaySession.chStart : session.currentBlock?.chapter)
-    const block = book ? blocks.find(b => b.books.includes(book)) : null
-    const targetSession = block ? (browseSessionsByBlock[block.id] ?? []).find(
-      s => s.book === book && s.chStart <= chapter && s.chEnd >= chapter
-    ) : null
-    if (!block || !targetSession) { goToTab('journey'); return }
-    setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id, openSermonNote: true })
+    setBrowseJumpTarget({ openSermonNote: true })
     goToTab('journey')
   }
 
