@@ -1158,6 +1158,10 @@ export const STRINGS = {
       stageDoneTag: 'feita',
       stageMinShort: '{min} min',
       stageLabel: 'Etapa {n} de 4 · {min} min',
+      // Play/pausar explícito (pedido dela, 2026-09-12) — cartão da etapa
+      // (ACTS) e relógio grande da oração livre.
+      playBtn: 'Tocar',
+      pauseBtn: 'Pausar',
       starterLabel: 'Se ajudar, comece assim',
       writePlaceholder: 'Escreva, ou só ore. Nada aqui é obrigatório.',
       privacyNote: 'O que você escreve na oração é só seu — nunca vai para grupo nem para a Biblioteca pública.',
@@ -4110,6 +4114,8 @@ export const STRINGS = {
       stageDoneTag: 'done',
       stageMinShort: '{min} min',
       stageLabel: 'Step {n} of 4 · {min} min',
+      playBtn: 'Play',
+      pauseBtn: 'Pause',
       starterLabel: 'If it helps, start here',
       writePlaceholder: "Write, or just pray. None of this is required.",
       privacyNote: "What you write in prayer is yours alone — it never goes to a group or the public Library.",

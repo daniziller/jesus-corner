@@ -18,6 +18,7 @@ import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getMyPrayerRequests, markPraying } from '../groups/prayerRequestsStore'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
+import { playStageChime } from '../utils/chime'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import PrayerRequestCard from '../components/prayer/PrayerRequestCard'
@@ -123,6 +124,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
       if (remaining <= 0 && !zeroedStagesRef.current.has(currentStageIdx)) {
         zeroedStagesRef.current.add(currentStageIdx)
         navigator.vibrate?.(200)
+        playStageChime()
         setJustZeroed(true)
         setTimeout(() => setJustZeroed(false), 700)
       }
@@ -210,12 +212,6 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
           <p style={styles.title}>{L('pageTitle')}</p>
           <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {method === 'acts' ? L('methodSuffixActs') : L('methodSuffixFree')}</p>
         </div>
-        {method === 'acts' && (
-          <button style={{ ...styles.clockPill, ...(justZeroed ? styles.clockPillFlash : null) }} onClick={toggleRunning}>
-            <AppIcon name="Timer" size={13} strokeWidth={2.4} color="var(--bento-accent)" />
-            <span style={{ color: stageOvertime ? 'var(--bento-t3)' : '#fff' }}>{fmt(Math.abs(stageRemaining))}</span>
-          </button>
-        )}
       </div>
 
       {method === 'acts' && (
@@ -250,9 +246,29 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
               })}
             </div>
 
-            {/* Etapa atual — nome + explicação de duas frases (texto fixo). */}
+            {/* Etapa atual — nome + explicação de duas frases (texto fixo).
+                Pedido dela (2026-09-12): "mais visibilidade ao relógio,
+                destacando bem cada etapa" — o relógio da etapa saiu do
+                pilulazinho do cabeçalho e virou grande, dentro do próprio
+                cartão da etapa (junto do play/pausar explícito e de uma
+                barra de progresso SÓ dessa etapa — o filete fino acima do
+                corpo continua sendo o da oração inteira). */}
             <div style={styles.stageCard}>
-              <p style={styles.stageLabel}>{L('stageLabel', { n: currentStageIdx + 1, min: stageMinLabel(stageDurations[currentStageIdx], lang) })}</p>
+              <div style={styles.stageTopRow}>
+                <p style={styles.stageLabel}>{L('stageLabel', { n: currentStageIdx + 1, min: stageMinLabel(stageDurations[currentStageIdx], lang) })}</p>
+                <button
+                  type="button"
+                  style={{ ...styles.stagePlayBtn, ...(justZeroed ? styles.stagePlayBtnFlash : null) }}
+                  onClick={toggleRunning}
+                  aria-label={running ? L('pauseBtn') : L('playBtn')}
+                >
+                  <AppIcon name={running ? 'Pause' : 'Play'} size={15} color="var(--bento-ink)" fill="var(--bento-ink)" />
+                </button>
+              </div>
+              <p style={{ ...styles.stageClock, color: stageOvertime ? 'rgba(255,255,255,.4)' : '#fff' }}>{fmt(Math.abs(stageRemaining))}</p>
+              <div style={styles.stageProgressTrack}>
+                <div style={{ ...styles.stageProgressFill, width: `${Math.min(1, Math.max(0, stageLocalElapsed / stageDurations[currentStageIdx])) * 100}%` }} />
+              </div>
               <p style={styles.stageTitle}>{stageTitle}</p>
               <p style={styles.stageExplanation}>{stage.explanation[lang] ?? stage.explanation.pt}</p>
             </div>
@@ -278,6 +294,15 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
             <div style={styles.freeCard}>
               <p style={styles.freeLabel}>{L('freeTimeLabel')}</p>
               <p style={{ ...styles.freeClock, color: freeOvertime ? 'var(--bento-t3)' : '#fff' }}>{fmt(Math.abs(freeRemaining))}</p>
+              {/* Play/pausar explícito (pedido dela, 2026-09-12) — antes só
+                  dava pra pausar tocando no texto pequeno abaixo (ainda
+                  funciona, mesmo onClick). */}
+              <button
+                type="button" style={styles.freePlayBtn} onClick={toggleRunning}
+                aria-label={running ? L('pauseBtn') : L('playBtn')}
+              >
+                <AppIcon name={running ? 'Pause' : 'Play'} size={20} color="var(--bento-ink)" fill="var(--bento-ink)" />
+              </button>
               <button style={styles.freeSub} onClick={toggleRunning}>
                 {running ? L('freeTimeSub', { n: totalMinutes }) : L('freeTimeSubPaused', { n: totalMinutes })}
               </button>
@@ -362,8 +387,6 @@ const styles = {
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.3px', margin: 0 },
   subtitle: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
-  clockPill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 14px', cursor: 'pointer', fontFamily: FONT, fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' },
-  clockPillFlash: { background: 'var(--bento-accent)' },
 
   wholeTrack: { flexShrink: 0, height: 4, background: 'var(--bento-line)', margin: '0 20px' },
   wholeFill: { height: '100%', background: 'var(--bento-accent)', borderRadius: 99 },
@@ -382,7 +405,17 @@ const styles = {
   chipSub: { fontFamily: FONT, fontSize: 10.5, fontWeight: 600, margin: 0 },
 
   stageCard: { borderRadius: 24, background: 'var(--bento-ink)', padding: '20px 22px' },
-  stageLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 8px' },
+  // Relógio da etapa (pedido dela, 2026-09-12) — grande, dentro do cartão
+  // da etapa, com play/pausar explícito ao lado do rótulo e uma barra de
+  // progresso só dessa etapa (o filete fino do topo da tela continua
+  // sendo o da oração inteira, ver wholeTrack).
+  stageTopRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 6px' },
+  stageLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
+  stagePlayBtn: { flexShrink: 0, width: 32, height: 32, border: 'none', borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stagePlayBtnFlash: { background: '#fff' },
+  stageClock: { fontFamily: FONT, fontSize: 44, fontWeight: 800, letterSpacing: '-1.2px', margin: '0 0 10px', fontVariantNumeric: 'tabular-nums' },
+  stageProgressTrack: { height: 5, borderRadius: 99, background: 'rgba(255,255,255,.14)', margin: '0 0 16px' },
+  stageProgressFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
   stageTitle: { fontFamily: FONT, fontSize: 26, fontWeight: 800, letterSpacing: '-.8px', color: '#fff', margin: '0 0 12px' },
   stageExplanation: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'rgba(255,255,255,.75)', margin: 0 },
 
@@ -395,6 +428,7 @@ const styles = {
   freeCard: { borderRadius: 26, background: 'var(--bento-ink)', padding: '22px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' },
   freeLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 10px' },
   freeClock: { fontFamily: FONT, fontSize: 56, fontWeight: 800, letterSpacing: '-1.5px', margin: '0 0 8px', fontVariantNumeric: 'tabular-nums' },
+  freePlayBtn: { flexShrink: 0, width: 44, height: 44, border: 'none', borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: '0 0 10px' },
   freeSub: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
   freeTrack: { width: '100%', height: 6, borderRadius: 99, background: 'rgba(255,255,255,.14)' },
   freeFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
