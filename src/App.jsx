@@ -662,10 +662,12 @@ export default function App() {
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
   const [journeyEntryMode, setJourneyEntryMode] = useState('overview')
-  // Anotação de sermão (aba própria `sermonNote`, 2026-09-10) — true quando
-  // chegou lá pra começar uma anotação NOVA (Home), false quando chegou
-  // pra retomar uma em andamento (lápis flutuante) — ver
-  // openSermonNoteFromHome/resumeSermonNote.
+  // Anotação de sermão (aba própria `sermonNote`) — pedido dela
+  // (2026-09-12): o lápis flutuante volta, mas só aparece na Bíblia
+  // (journey) com um rascunho em andamento, nunca pra começar um novo.
+  // true = "começar uma nova" (sempre limpa, vindo do botão "Anotar um
+  // sermão" da Home); false = retomar o rascunho em andamento, vindo do
+  // lápis flutuante — ver openSermonNoteFromHome/resumeSermonNote.
   const [sermonNoteFresh, setSermonNoteFresh] = useState(true)
   // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
   // quando a navegação livre passa da raiz (lista de livros, grade de
@@ -1257,21 +1259,21 @@ export default function App() {
     goToTab('journey')
   }
 
-  // "Anotar um sermão" (Home) — reescrito de vez (pedido dela, 2026-09-10):
-  // "em vez de uma página flutuante, vamos fazer uma página mesmo de
-  // anotação... não abrir por cima da bíblia". A anotação deixa de ser
-  // uma folha flutuante sobre a aba Bíblia (JourneyScreen.jsx) e vira uma
-  // tela própria de verdade (aba `sermonNote`, sem barra de navegação,
-  // com botão de voltar normal) — mesmo padrão de chapterRoom/metrics
-  // (tela empilhada, fora da barra inferior, onBack={goBack}).
+  // "Anotar um sermão" (Home) — tela própria de verdade (aba `sermonNote`,
+  // sem barra de navegação, botão de voltar normal) — mesmo padrão de
+  // chapterRoom/metrics (tela empilhada, fora da barra inferior,
+  // onBack={goBack}). Sempre uma anotação NOVA (sermonNoteFresh=true) —
+  // "o form sempre abre limpo".
   //
-  // sermonNoteFresh distingue os dois jeitos de chegar nela: daqui
-  // (Home, "criar uma anotação nova") sempre true — a tela SEMPRE nasce
-  // limpa, nunca reabre um rascunho velho (ver JourneyScreen.jsx,
-  // startNewSermonNote() só roda quando fresh); do lápis flutuante
-  // (resumeSermonNote, ainda dentro da aba Bíblia — única coisa que ele
-  // continua fazendo) vem false, deixando a tela restaurar o rascunho em
-  // andamento sozinha (mesmo efeito de sempre, getSermonNotes ao montar).
+  // Ajuste dela (2026-09-12): "o lápis deve aparecer somente quando uma
+  // anotação estiver em andamento e a pessoa for para a bíblia" — voltar
+  // da página de anotação (leaveSermonPage, JourneyScreen.jsx) volta a
+  // ser um MINIMIZAR (não finaliza mais nada), e o lápis flutuante volta
+  // a existir, mas só dentro da aba Bíblia (journey) — nunca em Home ou
+  // em qualquer outra aba. Só fechar o app ou tocar "Finalizar" comitam
+  // de vez pra Biblioteca (ver commitSermonDraft em JourneyScreen.jsx);
+  // um rascunho vazio (abriu e saiu sem escrever nada) é descartado, não
+  // vira lápis nenhum — resolve o "retângulo que nunca finaliza".
   function openSermonNoteFromHome() {
     setSermonNoteFresh(true)
     goToTab('sermonNote')
