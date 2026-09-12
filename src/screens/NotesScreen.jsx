@@ -128,7 +128,7 @@ function dateFilterRangeFor(key, customFrom, customTo) {
   return { from: customFrom || null, to: customTo || null }
 }
 
-export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onOpenStudy, onOpenThemePlan, onUseBankStudy }) {
+export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onOpenStudy, onOpenThemePlan, onUseBankStudy, onOpenSermonNote }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   // Painel de filtros (origem/livro/cor/data) minimizado por padrão — só
@@ -167,11 +167,13 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // só os botões DAQUELE card, não a tela inteira.
   const [busyKey, setBusyKey] = useState(null)
 
-  // Formulário de anotação de sermão — bem mais campos que uma nota comum
-  // (preletor/igreja/passagens/texto), então usa seu próprio formulário
-  // rico em vez do textarea genérico de edição. sermonEditing != null =
-  // editando uma existente (guarda o registro original, pra preservar
-  // id/data/createdAt ao salvar); null = criando uma nova.
+  // Formulário simples de anotação de sermão — usado só pra CRIAR uma
+  // nova pelo FAB desta tela (startCreateSermon); editar uma já feita
+  // agora abre a página rica de verdade (startEdit → onOpenSermonNote,
+  // pedido dela 2026-09-12), então sermonEditing fica sempre null aqui —
+  // preservado (não removido) porque o resto deste formulário ainda lê
+  // essa variável pra decidir id/data/createdAt ao salvar; não vale a
+  // pena reescrever isso agora só porque o outro caminho desapareceu.
   const [creatingSermon, setCreatingSermon] = useState(false)
   const [sermonEditing, setSermonEditing] = useState(null)
   const [sermonPreacher, setSermonPreacher] = useState('')
@@ -475,10 +477,14 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   }
 
   function startEdit(note) {
-    // Anotação de sermão tem campos demais (preletor/igreja/passagens) pro
-    // textarea genérico — abre o formulário rico lá em cima já preenchido,
-    // em vez de expandir inline neste card (ver startEditSermon abaixo).
-    if (note.type === 'sermon') { startEditSermon(note); return }
+    // Pedido dela (2026-09-12): tocar uma anotação de sermão JÁ FEITA
+    // abre a página de anotação de verdade (JourneyScreen.jsx, mesma tela
+    // rica de título/preletor/versículos/tópicos/resumo que "Anotar um
+    // sermão" usa) — não mais o formulário simples embutido aqui (que
+    // sobrevive só pro FAB "nova anotação" desta tela, abaixo — sempre
+    // sermonEditing=null agora, já que este era o único jeito de setá-lo
+    // com uma anotação de verdade).
+    if (note.type === 'sermon') { onOpenSermonNote?.(note.id); return }
     setEditingKey(note.key)
     setEditText(note.text)
   }
@@ -493,19 +499,6 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     setSermonChurch('')
     setSermonPassages([])
     setSermonText('')
-    setSermonError('')
-    setCreatingSermon(true)
-  }
-
-  function startEditSermon(note) {
-    setSermonEditing(note)
-    setSermonPreacher(note.preacher ?? '')
-    setSermonChurch(note.church ?? '')
-    setSermonPassages((note.passages ?? []).map(p => ({
-      book: p.book ?? '', chapter: p.chapter ? String(p.chapter) : '',
-      verseStart: p.verseStart ? String(p.verseStart) : '', verseEnd: p.verseEnd ? String(p.verseEnd) : '',
-    })))
-    setSermonText(note.text ?? '')
     setSermonError('')
     setCreatingSermon(true)
   }

@@ -146,7 +146,11 @@ export default function JourneyScreen({
   // leaveSermonPage — minimiza, não finaliza mais nada). onOpenSermonNote
   // = toque no lápis flutuante enquanto navegando na Bíblia normal (não
   // sermonNoteMode) — navega pra tela de anotação pra retomar.
-  sermonNoteMode = false, sermonNoteFresh = false, onBack, onOpenSermonNote,
+  // sermonNoteEditId (pedido dela, 2026-09-12): tocar uma anotação JÁ
+  // FEITA na Biblioteca — carrega ESSA anotação específica por id
+  // (finalizada ou não), em vez de "a primeira em andamento" (resume) ou
+  // uma em branco (fresh). Tem prioridade sobre sermonNoteFresh.
+  sermonNoteMode = false, sermonNoteFresh = false, sermonNoteEditId = null, onBack, onOpenSermonNote,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -257,14 +261,19 @@ export default function JourneyScreen({
   // (nesta tela, fora de sermonNoteMode) quanto a retomada de verdade
   // (dentro de sermonNoteMode, quando sermonNoteFresh=false). Roda nos
   // DOIS casos — cada instância desta tela (aba Bíblia e aba de anotação)
-  // busca por si.
+  // busca por si. Correção dela (2026-09-12): dentro de sermonNoteMode
+  // com sermonNoteEditId setado (tocou uma anotação JÁ FEITA na
+  // Biblioteca), busca por ID específico em vez de "a primeira em
+  // andamento" — pode até já estar finalizada, tudo bem.
   useEffect(() => {
     if (!authUser?.email) return
     let cancelled = false
     getSermonNotes(authUser.email).then(notes => {
       if (cancelled) return
-      const inProgress = notes.find(n => !n.finalizedAt)
-      if (inProgress) {
+      const target = sermonNoteMode && sermonNoteEditId
+        ? notes.find(n => n.id === sermonNoteEditId)
+        : notes.find(n => !n.finalizedAt)
+      if (target) {
         // Correção dela (2026-09-09): essa busca é assíncrona — se
         // "Anotar um sermão" já tiver criado um rascunho NOVO e em
         // branco nesse meio-tempo (setSermonDraft síncrono, roda antes
@@ -272,12 +281,12 @@ export default function JourneyScreen({
         // NÃO deixa essa busca sobrescrever o formulário em branco com
         // os valores da anotação anterior — "o form sempre abre limpo".
         setSermonDraft(prev => prev ? prev : {
-          id: inProgress.id, createdAt: inProgress.createdAt ?? new Date().toISOString(), date: inProgress.date ?? dateKey(),
-          noteType: inProgress.noteType ?? 'sermon', title: inProgress.title ?? '', preacher: inProgress.preacher ?? '',
-          church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
-          body: Array.isArray(inProgress.body) ? inProgress.body : null,
-          finalizedAt: inProgress.finalizedAt ?? null,
-          durationSeconds: inProgress.durationSeconds ?? 0, groupId: inProgress.groupId ?? null,
+          id: target.id, createdAt: target.createdAt ?? new Date().toISOString(), date: target.date ?? dateKey(),
+          noteType: target.noteType ?? 'sermon', title: target.title ?? '', preacher: target.preacher ?? '',
+          church: target.church ?? '', link: target.link ?? '', passages: target.passages ?? [], text: target.text ?? '',
+          body: Array.isArray(target.body) ? target.body : null,
+          finalizedAt: target.finalizedAt ?? null,
+          durationSeconds: target.durationSeconds ?? 0, groupId: target.groupId ?? null,
         })
       }
       const custom = [...new Set(notes.map(n => n.noteType).filter(nt => nt && !SERMON_NOTE_TYPES.includes(nt)))]
@@ -285,7 +294,7 @@ export default function JourneyScreen({
     }).catch(() => {})
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser?.email])
+  }, [authUser?.email, sermonNoteMode, sermonNoteEditId])
   // Posição do lápis arrastado (34e, "posição lembrada") — persiste entre
   // visitas/sessões (localStorage, só client-side: é posição de UI, não
   // dado da conta). Cai em {x:0,y:0} (canto padrão) se nunca mexeu, se o
@@ -634,8 +643,10 @@ export default function JourneyScreen({
   // Ponto de entrada da página de anotação (sermonNoteMode) — só dispara
   // startNewSermonNote() quando ela chegou aqui pra criar uma nova
   // (sermonNoteFresh, vindo do botão "Anotar um sermão" da Home). Vindo
-  // pelo lápis flutuante (sermonNoteFresh=false), não faz nada aqui — o
-  // efeito de retomada acima já resgata o rascunho em andamento sozinho.
+  // pelo lápis flutuante OU editando uma anotação já feita da Biblioteca
+  // (sermonNoteFresh=false nos dois casos), não faz nada aqui — o efeito
+  // de retomada acima já resgata o rascunho/anotação certa sozinho (pelo
+  // primeiro em andamento, ou por sermonNoteEditId).
   useEffect(() => {
     if (sermonNoteMode && sermonNoteFresh) startNewSermonNote()
     // eslint-disable-next-line react-hooks/exhaustive-deps
