@@ -87,6 +87,17 @@ check('reposição na quarta quita a segunda perdida', satisfiedAfterMakeup, { s
 check('pendingMakeupWeekdays antes da reposição aponta segunda (índice 0)', pendingMakeupWeekdays(readingMondayOnly, missedThenMadeUp, 'reading', monday), [0])
 check('pendingMakeupWeekdays depois da reposição fica vazio', pendingMakeupWeekdays(readingMondayOnly, missedThenMadeUp, 'reading', wednesday), [])
 
+// Reposição só vale DENTRO da mesma semana (pedido dela, 2026-09-12):
+// mudou a semana, os dias pendentes da semana ANTERIOR zeram — mesmo que
+// o dia perdido da semana passada continue sem leitura no dailyRoutine, a
+// fila de pendências só olha de segunda (desta semana) até hoje.
+const missedAcrossWeeks = {
+  '2026-08-31': {}, // segunda da semana PASSADA — leitura perdida lá
+  '2026-09-07': {}, // segunda desta semana — perdida também
+}
+const tuesdayThisWeek = new Date(2026, 8, 8) // 8 de setembro, terça DESTA semana
+check('reposição não atravessa semana: só a segunda desta semana conta como pendente', pendingMakeupWeekdays(readingMondayOnly, missedAcrossWeeks, 'reading', tuesdayThisWeek), [0])
+
 // A reposição também precisa aparecer em computeStepWeekGoal (métrica da
 // semana) — só "reading" ativo, pra isolar o efeito (markedCount = só a
 // própria agenda da leitura, 1 dia = segunda), SEM reposição ainda vs. COM
