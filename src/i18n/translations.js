@@ -247,9 +247,15 @@ export const STRINGS = {
       weekNote: 'Hoje é {day}. Falhar um dia não zera nada.',
       newMessages: 'Mensagens novas',
       myMetrics: 'Minhas métricas',
-      metricsSummaryLine: '{hours} h com Deus · {weeks} semanas',
-      // Bloco 6.5 (34a/34b/34c) — atalho pra folha de sermão flutuante
-      // (34d), entre os dois quadrados e "Sua semana".
+      // Card de métricas esticado (pedido dela, 2026-09-12: "mais
+      // visibilidade") — três números de cara, em vez do quadrado pequeno
+      // de antes (que só mostrava % + "Xh com Deus · Y semanas").
+      metricsStatBible: 'Da Bíblia',
+      metricsStatChapters: 'Capítulos lidos',
+      metricsStatBooks: 'Livros completos',
+      // Bloco 6.5 → virou um dos dois quadrados do Bloco 6 (pedido dela,
+      // 2026-09-12, ao lado de Mensagens) — mesmo título/subtítulo de
+      // sempre, só o formato mudou.
       annotateSermonTitle: 'Anotar uma pregação',
       annotateSermonSub: 'Abre a Bíblia com a folha de anotação',
       recapLabel: 'Sua semana',
@@ -3305,7 +3311,9 @@ export const STRINGS = {
       weekNote: "It's {day}. Missing a day resets nothing.",
       newMessages: 'New messages',
       myMetrics: 'My metrics',
-      metricsSummaryLine: '{hours} h with God · {weeks} weeks',
+      metricsStatBible: 'Of the Bible',
+      metricsStatChapters: 'Chapters read',
+      metricsStatBooks: 'Books completed',
       annotateSermonTitle: 'Note a sermon',
       annotateSermonSub: 'Opens the Bible with the note sheet',
       recapLabel: 'Your week',
