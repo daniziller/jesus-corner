@@ -29,9 +29,9 @@ import { dateKey } from '../utils/dateKey'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { STUDIES } from '../data/studies'
-import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
-import { getAiStudies } from '../studies/aiStudiesStore'
-import { getInductiveStudies } from '../studies/inductiveStudiesStore'
+import { getCompletedStudySessions, isStudySessionDone, clearStudyProgress } from '../studies/studiesProgressStore'
+import { getAiStudies, deleteAiStudy } from '../studies/aiStudiesStore'
+import { getInductiveStudies, deleteInductiveStudy } from '../studies/inductiveStudiesStore'
 import { getThemePlans } from '../themePlans/themePlansStore'
 import { deriveThemeTexts } from '../themePlans/themeTexts'
 import { getMyPublishedStudies, getMyStudyInvites, withdrawStudy, acceptStudyInvite } from '../studies/publicStudiesStore'
@@ -282,20 +282,26 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         // gerado por IA, indutivo pessoal) resumidas aqui num card só de
         // progresso ("Passo 2 de 6 · retomar"), sem o conteúdo do estudo em
         // si (isso continua só em StudiesScreen; tocar no card leva pra
-        // lá). Só entram estudos que a pessoa já "produziu" de alguma
-        // forma: o catálogo pronto só aparece se já começou (começar a ler
-        // não é produzir nada); IA e indutivo sempre aparecem, já que
-        // gerar/criar um já é um ato de produção, mesmo com 0 sessões
-        // feitas ainda. `text: ''` (sem corpo de texto) pra não quebrar a
-        // busca por palavra, que espera n.text existir.
-        const studyEntries = [...STUDIES, ...aiStudies, ...inductiveStudies]
-          .map(study => {
+        // lá). Pedido dela (2026-09-12): "nunca criar nota ao criar um
+        // estudo" — antes, IA e indutivo apareciam aqui na hora de CRIAR
+        // (0 sessões feitas, rótulo "Começar"), o que ela via como uma
+        // "nota" fantasma criada sem ela ter escrito nada ainda. Agora as
+        // três origens usam a MESMA regra: só aparece com doneCount > 0
+        // (pelo menos uma sessão de verdade feita). `text: ''` (sem corpo
+        // de texto) pra não quebrar a busca por palavra, que espera
+        // n.text existir.
+        const studyEntries = [
+          ...STUDIES.map(study => ({ study, sourceKind: 'catalog' })),
+          ...aiStudies.map(study => ({ study, sourceKind: 'ai' })),
+          ...inductiveStudies.map(study => ({ study, sourceKind: 'inductive' })),
+        ]
+          .map(({ study, sourceKind }) => {
             const total = study.sessions.length
             const doneCount = study.sessions.filter(s => isStudySessionDone(completedStudySet, study.id, s.id)).length
-            return { study, doneCount, total }
+            return { study, sourceKind, doneCount, total }
           })
-          .filter(({ study, doneCount }) => study.kind === 'inductive' || aiStudies.includes(study) || doneCount > 0)
-          .map(({ study, doneCount, total }) => {
+          .filter(({ doneCount }) => doneCount > 0)
+          .map(({ study, sourceKind, doneCount, total }) => {
             // "Última atividade" pro Estudo — indutivo usa a sessão
             // (capítulo) mexida mais recentemente; catálogo pronto não
             // grava NENHUM carimbo de data por sessão (studies_completed é
@@ -307,13 +313,18 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             const lastSessionUpdate = study.sessions.reduce((max, s) => (s.updatedAt && s.updatedAt > (max ?? '') ? s.updatedAt : max), null)
             return {
               key: `study:${study.id}`, id: study.id, type: 'study', text: '',
-              updatedAt: study.kind === 'inductive' ? (lastSessionUpdate ?? study.createdAt) : (study.createdAt ?? null),
+              updatedAt: sourceKind === 'inductive' ? (lastSessionUpdate ?? study.createdAt) : (study.createdAt ?? null),
               // Cru nos dois idiomas (não já resolvido) — mesmo motivo de
               // `book` nas outras entradas: labelFor()/render leem o
               // idioma ATUAL da sessão, não o de quando a lista carregou.
               titlePt: study.title, titleEn: study.titleEn,
               icon: study.icon ?? 'GraduationCap',
-              book: study.kind === 'inductive' ? study.book : null,
+              book: sourceKind === 'inductive' ? study.book : null,
+              // sourceKind/sessionIds só servem pra deleteStudyEntry saber
+              // COMO apagar (deleteAiStudy/deleteInductiveStudy apagam o
+              // estudo inteiro; catálogo não pode ser apagado — só zera o
+              // progresso, ver clearStudyProgress em studiesProgressStore.js).
+              sourceKind, sessionIds: study.sessions.map(s => s.id),
               doneCount, total,
             }
           })
@@ -573,6 +584,28 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     if (!window.confirm(t('notes.deleteConfirm', undefined, lang))) return
     removePassageQuestion({ book: note.book, chapter: note.chapter, verseStart: note.verseStart, verseEnd: note.verseEnd, question: note.question })
     setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
+  }
+
+  // Apaga um card de Estudo na Biblioteca (pedido dela, 2026-09-12) — o
+  // que "apagar" significa depende de onde o estudo veio (ver sourceKind
+  // em studyEntries): IA/indutivo apagam o estudo inteiro (conteúdo é
+  // dela); catálogo pronto não pode ser apagado (é conteúdo fixo do app)
+  // — só zera o progresso, que já é suficiente pra sumir daqui (só
+  // aparece com doneCount > 0).
+  async function deleteStudyEntry(note) {
+    const confirmKey = note.sourceKind === 'catalog' ? 'notes.clearStudyProgressConfirm' : 'notes.deleteStudyConfirm'
+    if (!window.confirm(t(confirmKey, undefined, lang))) return
+    setBusyKey(note.key)
+    try {
+      if (note.sourceKind === 'ai') await deleteAiStudy(authUser.email, note.id)
+      else if (note.sourceKind === 'inductive') await deleteInductiveStudy(authUser.email, note.id)
+      else await clearStudyProgress(authUser.email, note.id, note.sessionIds)
+      setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
+    } catch (err) {
+      console.error('Failed to delete study entry', err)
+    } finally {
+      setBusyKey(null)
+    }
   }
 
   // Editar a busca por palavra enquanto uma busca por tema (IA) está ativa
@@ -891,18 +924,25 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // Pergunta é local/efêmera, já tem seu próprio "Apagar"); os demais tipos
   // usam renderRegularCard acima (com arquivar/desarquivar + apagar).
   function renderNoteCard(note) {
-    // Estudo — card à parte (ícone + título + progresso + seta),
-    // sem editar/deletar por aqui (isso é papel de StudiesScreen).
-    // Toque leva pra lá já aberto no estudo certo (ver onOpenStudy,
-    // App.jsx).
+    // Estudo — card à parte (ícone + título + progresso + seta). Toque
+    // leva pra StudiesScreen já aberto no estudo certo (ver onOpenStudy,
+    // App.jsx); só o conteúdo continua editável só por lá. "Apagar" (ícone
+    // de lixo, pedido dela 2026-09-12) já funciona direto daqui — ver
+    // deleteStudyEntry.
     if (note.type === 'study') {
       const label = note.doneCount === 0
         ? t('notes.studyStart', undefined, lang)
         : note.doneCount === note.total
           ? t('notes.studyReview', undefined, lang)
           : t('notes.studyResume', { step: Math.min(note.doneCount + 1, note.total), total: note.total }, lang)
+      const isBusy = busyKey === note.key
       return (
-        <button key={note.key} style={styles.studyRow} onClick={() => onOpenStudy?.(note.id)}>
+        // div (não button) porque tem um botão de apagar aninhado —
+        // mesmo padrão do card normal (ver renderRegularCard).
+        <div
+          key={note.key} style={styles.studyRow}
+          onClick={e => { if (isBusy) return; if (e.target instanceof Element && e.target.closest('button')) return; onOpenStudy?.(note.id) }}
+        >
           <span style={styles.studyRowIcon}>
             <AppIcon name={note.icon} size={16} color="var(--bento-accent)" />
           </span>
@@ -910,8 +950,16 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             <span style={styles.studyRowTitle}>{studyTitleFor(note)}</span>
             <span style={styles.studyRowProgress}>{label}</span>
           </span>
+          <button
+            type="button" style={styles.cardIconBtn} disabled={isBusy}
+            onClick={() => deleteStudyEntry(note)}
+            aria-label={t('notes.deleteAction', undefined, lang)}
+            title={t('notes.deleteAction', undefined, lang)}
+          >
+            <AppIcon name="Trash2" size={15} strokeWidth={2} color="var(--bento-t4)" />
+          </button>
           <span style={styles.studyRowChevron}>›</span>
-        </button>
+        </div>
       )
     }
     // Pergunta guardada da IA — card só de leitura (a pergunta/
