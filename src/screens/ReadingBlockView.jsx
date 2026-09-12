@@ -53,7 +53,7 @@ function formatClock(totalSeconds) {
 }
 
 
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false }) {
+export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false, forceChapterContext = false }) {
   const { lang, hasPremium, hasAI } = session
   const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
   // Leitura imersiva (redesign 1b) — leitura guiada de tela cheia: cabeçalho
@@ -679,14 +679,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
 
   // Contexto antes do capítulo (10c, reskin Bento) — tela opcional e
   // pulável mostrada ANTES do texto, só na leitura imersiva e só se este
-  // capítulo específico ainda não foi visto (ver chapterContextStore.js).
-  // Decidido uma vez só, na montagem (não muda de novo enquanto esta
-  // sessão de leitura estiver aberta, mesmo que o toggle mude no meio).
-  // Offline nem tenta (implicação técnica 5 do adendo — degradação
-  // explícita, sem tentativa de rede) — vai direto pro texto.
+  // capítulo específico ainda não foi visto (ver chapterContextStore.js) —
+  // EXCETO quando `forceChapterContext` vem true (pedido dela, 2026-09-09:
+  // vindo da Bênção — "ir para a leitura" — sempre mostra o resumo, mesmo
+  // capítulo já visto; ver App.jsx/JourneyScreen.jsx). Os outros gates
+  // (precisa de IA, toggle ligado, online) continuam valendo mesmo forçado
+  // — não é uma parede que vale a pena furar. Decidido uma vez só, na
+  // montagem (não muda de novo enquanto esta sessão de leitura estiver
+  // aberta, mesmo que o toggle mude no meio). Offline nem tenta
+  // (implicação técnica 5 do adendo — degradação explícita, sem tentativa
+  // de rede) — vai direto pro texto.
   const [contextGate, setContextGate] = useState(() => (
     immersive && heroSession.type !== 'reflection' && hasAI && getChapterContextEnabled()
-      && !isChapterContextSeen(heroSession.book, heroSession.chStart, lang)
+      && (forceChapterContext || !isChapterContextSeen(heroSession.book, heroSession.chStart, lang))
       && (typeof navigator === 'undefined' || navigator.onLine)
   ))
   const [contextData, setContextData] = useState(null) // null (carregando) | objeto pronto
