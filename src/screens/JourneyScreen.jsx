@@ -1023,6 +1023,23 @@ export default function JourneyScreen({
           </div>
         )}
 
+        {/* Pedido dela (2026-09-12): "Versículo"/"Tópico" saíram da barra
+            de baixo (perto do teclado) pra cá, ACIMA do card de escrita —
+            ficam visíveis o tempo todo enquanto ela anota, sem depender
+            de rolar até o fim ou de o teclado não estar cobrindo a barra
+            de baixo. Ditar/esconder teclado continuam lá embaixo (fazem
+            sentido perto do teclado, esses dois não). */}
+        <div style={styles.sermonInsertToolbar}>
+          <button type="button" style={styles.sermonToolbarBtn} onClick={openVerseSearch}>
+            <AppIcon name="Plus" size={13} strokeWidth={2.4} color="var(--bento-sand-icon)" />
+            {t('sermonNote.verseBtn', undefined, lang)}
+          </button>
+          <button type="button" style={styles.sermonToolbarBtn} onClick={insertTopicSegment}>
+            <AppIcon name="List" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
+            {t('sermonNote.topicBtn', undefined, lang)}
+          </button>
+        </div>
+
         <div style={styles.sermonWritingSurface}>
           {body.map((seg, i) => {
             if (seg.type === 'quote') {
@@ -1039,8 +1056,10 @@ export default function JourneyScreen({
               return (
                 <div key={seg.id} style={styles.sermonTopicRow}>
                   <span style={styles.sermonTopicNum}>{topicCount}</span>
+                  {/* Pedido dela (2026-09-12): tópico em negrito, pra se
+                      destacar do texto corrido ao redor. */}
                   <textarea
-                    style={styles.sermonBodyTextarea}
+                    style={styles.sermonTopicTextarea}
                     value={seg.text}
                     placeholder={t('sermonNote.topicPlaceholder', undefined, lang)}
                     onChange={e => { updateSermonSegmentText(seg.id, e.target.value); autoGrowTextarea(e) }}
@@ -1068,14 +1087,6 @@ export default function JourneyScreen({
         </div>
 
         <div style={styles.sermonWritingToolbar}>
-          <button type="button" style={styles.sermonToolbarBtn} onClick={openVerseSearch}>
-            <AppIcon name="Plus" size={13} strokeWidth={2.4} color="var(--bento-sand-icon)" />
-            {t('sermonNote.verseBtn', undefined, lang)}
-          </button>
-          <button type="button" style={styles.sermonToolbarBtn} onClick={insertTopicSegment}>
-            <AppIcon name="List" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
-            {t('sermonNote.topicBtn', undefined, lang)}
-          </button>
           {sermonDictationSupported && (
             <button
               type="button" style={{ ...styles.sermonToolbarIconBtn, ...(sermonDictating ? styles.sermonToolbarIconBtnOn : {}) }}
@@ -2002,12 +2013,24 @@ const styles = {
   sermonStripIconBtn: { flexShrink: 0, width: 32, height: 32, borderRadius: 11, border: 'none', background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sermonPassageTime: { marginLeft: 'auto', flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 600, color: 'var(--bento-t4)' },
 
+  // "Versículo"/"Tópico" (pedido dela, 2026-09-12: subiram da barra perto
+  // do teclado pra cá, ACIMA do card de escrita — ficam visíveis o tempo
+  // todo enquanto ela anota, sem depender de rolar até o fim).
+  sermonInsertToolbar: { display: 'flex', gap: 8, padding: '0 20px 10px', flexShrink: 0 },
+
   // 34g — superfície de escrita (item 3): branco raio 26 só em cima,
   // segue até a barra de ferramentas "sem degrau" (raio 0 embaixo).
   sermonWritingSurface: { flex: 1, minHeight: 0, overflowY: 'auto', background: '#fff', borderRadius: '26px 26px 0 0', padding: '20px 20px 12px', display: 'flex', flexDirection: 'column', gap: 14 },
   sermonBodyTextarea: {
     width: '100%', border: 'none', outline: 'none', background: 'none', resize: 'none', overflow: 'hidden',
     fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.75, color: 'var(--bento-ink)', padding: 0, caretColor: 'var(--bento-accent)',
+  },
+  // Tópico em negrito (pedido dela, 2026-09-12) — mesmo resto do estilo
+  // de sermonBodyTextarea, só troca o peso da fonte pra se destacar do
+  // texto corrido ao redor.
+  sermonTopicTextarea: {
+    width: '100%', border: 'none', outline: 'none', background: 'none', resize: 'none', overflow: 'hidden',
+    fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.75, color: 'var(--bento-ink)', padding: 0, caretColor: 'var(--bento-accent)',
   },
   // 34g — versículo inserido (item 4): fundo próprio (sem token exato no
   // app, hex do HANDOFF direto), filete marrom à esquerda, texto em
