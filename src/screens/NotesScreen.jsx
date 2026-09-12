@@ -16,9 +16,11 @@
 // com ele), e o painel de filtros vira uma extensão além do mockup, com o
 // mesmo tratamento visual das demais peças desta tela.
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, parseNoteKey } from '../notes/notesStore'
 import { searchNotesByTheme } from '../notes/notesSearchStore'
 import { getSermonNotes, deleteSermonNote } from '../notes/sermonNotesStore'
+import { getNoteFolders, getArchivedNotes, createNoteFolder, deleteNoteFolder, archiveNote, unarchiveNote } from '../notes/noteOrganizationStore'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { getHighlights, updateHighlightText, hideHighlight } from '../highlights/highlightsStore'
 import { HIGHLIGHT_COLORS } from '../data/highlightColors'
@@ -159,6 +161,45 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // só os botões DAQUELE card, não a tela inteira.
   const [busyKey, setBusyKey] = useState(null)
 
+  // Pastas + arquivo (pedido dela, 2026-09-12) — ver src/notes/
+  // noteOrganizationStore.js. 'library' é a Biblioteca de sempre (some
+  // tudo que está em archivedNotes); 'archive' é a tela à parte que só
+  // mostra o que foi arquivado, filtrável por pasta. folderPickerFor: key
+  // da nota sendo arquivada agora (abre a folha de escolher pasta) — o
+  // sentinela '__standalone__' abre a MESMA folha só pra criar uma pasta
+  // vazia (sem arquivar nada), usado pelo "+ Nova pasta" da tela de Arquivo.
+  const [folders, setFolders] = useState([])
+  const [archivedNotes, setArchivedNotes] = useState([])
+  const [viewMode, setViewMode] = useState('library')
+  const [archiveFolderFilter, setArchiveFolderFilter] = useState('all')
+  const [folderPickerFor, setFolderPickerFor] = useState(null)
+  const [newFolderMode, setNewFolderMode] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [newFolderBusy, setNewFolderBusy] = useState(false)
+
+  // Set das keys arquivadas + mapa key->entrada (folderId/archivedAt) —
+  // ver src/notes/noteOrganizationStore.js. A Biblioteca (libraryNotes)
+  // esconde tudo que está aqui; a tela de Arquivo (archivedEntries, mais
+  // abaixo) mostra só isso.
+  const archivedKeySet = useMemo(() => new Set(archivedNotes.map(a => a.noteKey)), [archivedNotes])
+  const archivedMetaByKey = useMemo(() => {
+    const map = {}
+    for (const a of archivedNotes) map[a.noteKey] = a
+    return map
+  }, [archivedNotes])
+  const folderById = useMemo(() => {
+    const map = {}
+    for (const f of folders) map[f.id] = f
+    return map
+  }, [folders])
+  // Lista "de verdade" que a Biblioteca opera em cima — tudo que NÃO está
+  // arquivado. Estudo/pergunta nunca entram em archivedKeySet (não têm
+  // botão de arquivar, ver render mais abaixo), então passam direto.
+  const libraryNotes = useMemo(
+    () => state.notes.filter(n => !archivedKeySet.has(n.key)),
+    [state.notes, archivedKeySet]
+  )
+
   // Nome do livro (chave canônica, sempre em pt) -> nome em inglês, só pra
   // exibir certo com o app em EN — mesma fonte que o resto do app usa pra
   // nomes de livro (blocks.books/blocks.booksEn, arrays paralelos).
@@ -173,7 +214,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // (Gênesis primeiro), não alfabética — vem de `blocks`, a mesma fonte de
   // ordem que o resto do app usa.
   const availableBooks = useMemo(() => {
-    const present = new Set(state.notes.filter(n => n.book).map(n => n.book))
+    const present = new Set(libraryNotes.filter(n => n.book).map(n => n.book))
     const ordered = []
     for (const block of blocks) {
       for (const b of block.books) {
@@ -181,7 +222,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       }
     }
     return ordered
-  }, [state.notes, blocks])
+  }, [libraryNotes, blocks])
 
   // Preletores já usados em alguma anotação de sermão — mesma ideia de
   // availableBooks (só quem já apareceu, não uma lista fixa), em ordem
@@ -189,10 +230,10 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // livro).
   const availablePreachers = useMemo(() => {
     const present = new Set(
-      state.notes.filter(n => n.type === 'sermon' && n.preacher).map(n => n.preacher)
+      libraryNotes.filter(n => n.type === 'sermon' && n.preacher).map(n => n.preacher)
     )
     return [...present].sort((a, b) => a.localeCompare(b))
-  }, [state.notes])
+  }, [libraryNotes])
 
   useEffect(() => {
     if (!authUser?.email) { setState({ status: 'ready', notes: [] }); return }
@@ -200,9 +241,12 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     Promise.all([
       getNotes(authUser.email), getHighlights(authUser.email), getSermonNotes(authUser.email),
       getCompletedStudySessions(authUser.email), getAiStudies(authUser.email), getInductiveStudies(authUser.email),
+      getNoteFolders(authUser.email), getArchivedNotes(authUser.email),
     ])
-      .then(([map, highlightList, sermonList, completedStudySet, aiStudies, inductiveStudies]) => {
+      .then(([map, highlightList, sermonList, completedStudySet, aiStudies, inductiveStudies, folderList, archivedList]) => {
         if (cancelled) return
+        setFolders(folderList)
+        setArchivedNotes(archivedList)
         const noteEntries = Object.entries(map)
           .map(([key, entry]) => ({
             key,
@@ -508,6 +552,13 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
       else await saveNote(authUser.email, note.key, '')
       if (note.type === 'application-phrase') await syncPinnedIfMatches(note.text, '')
       setState(s => ({ ...s, notes: s.notes.filter(n => n.key !== note.key) }))
+      // Limpa do arquivo também, se estava lá — sem isso sobrava uma
+      // entrada órfã em archived_notes apontando pra uma nota que não
+      // existe mais (inofensivo, mas some sozinho aqui).
+      if (archivedKeySet.has(note.key)) {
+        setArchivedNotes(prev => prev.filter(a => a.noteKey !== note.key))
+        unarchiveNote(authUser.email, note.key).catch(() => {})
+      }
     } catch (err) {
       console.error('Failed to delete note', err)
     } finally {
@@ -538,7 +589,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     setAiSearching(true)
     setAiError('')
     try {
-      const notesForSearch = state.notes.map(n => ({ key: n.key, text: n.text }))
+      const notesForSearch = libraryNotes.map(n => ({ key: n.key, text: n.text }))
       const matches = await searchNotesByTheme(query, notesForSearch)
       setAiMatchKeys(matches)
     } catch (err) {
@@ -559,8 +610,8 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
 
   const activeFilter = FILTERS.find(f => f.key === filter)
   const typeFiltered = activeFilter.types
-    ? state.notes.filter(n => activeFilter.types.includes(n.type))
-    : state.notes
+    ? libraryNotes.filter(n => activeFilter.types.includes(n.type))
+    : libraryNotes
   // Filtro por cor só se aplica dentro da aba "Marcações" — nas outras,
   // colorFilter é sempre null (ver função que troca de aba abaixo).
   const colorTypeFiltered = colorFilter
@@ -602,7 +653,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
   // (nome do livro, data) — "genesis" deve achar as anotações de Gênesis
   // mesmo que a palavra em si nunca apareça no texto escrito.
   const filteredNotes = aiMatchKeys !== null
-    ? aiMatchKeys.map(k => state.notes.find(n => n.key === k)).filter(Boolean)
+    ? aiMatchKeys.map(k => libraryNotes.find(n => n.key === k)).filter(Boolean)
     : trimmedQuery
       ? dateFiltered.filter(n => n.text.toLowerCase().includes(trimmedQuery) || labelFor(n).toLowerCase().includes(trimmedQuery))
       : dateFiltered
@@ -630,18 +681,339 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
     setPreacherFilter(null)
   }
 
+  // Tela de Arquivo — tudo que está em archivedKeySet, mais recente
+  // arquivado primeiro (não por updatedAt da anotação em si — ordem de
+  // quando foi GUARDADA no arquivo). Filtro por pasta independente dos
+  // filtros da Biblioteca (tipo/livro/cor/preletor/data não se aplicam
+  // aqui — arquivo é só "tudo" ou "por pasta").
+  const archivedEntries = useMemo(() => {
+    const list = state.notes.filter(n => archivedKeySet.has(n.key))
+    const withMeta = list.map(n => ({ note: n, meta: archivedMetaByKey[n.key] }))
+    const folderScoped = archiveFolderFilter === 'all'
+      ? withMeta
+      : archiveFolderFilter === 'none'
+        ? withMeta.filter(({ meta }) => !meta?.folderId)
+        : withMeta.filter(({ meta }) => meta?.folderId === archiveFolderFilter)
+    return folderScoped
+      .sort((a, b) => (b.meta?.archivedAt ?? '').localeCompare(a.meta?.archivedAt ?? ''))
+      .map(({ note }) => note)
+  }, [state.notes, archivedKeySet, archivedMetaByKey, archiveFolderFilter])
+
+  function openArchivePicker(note) {
+    setFolderPickerFor(note.key)
+    setNewFolderMode(false)
+    setNewFolderName('')
+  }
+
+  function openStandaloneFolderCreate() {
+    setFolderPickerFor('__standalone__')
+    setNewFolderMode(true)
+    setNewFolderName('')
+  }
+
+  function closeFolderPicker() {
+    setFolderPickerFor(null)
+    setNewFolderMode(false)
+    setNewFolderName('')
+  }
+
+  async function handleArchive(note, folderId) {
+    const key = note.key
+    setArchivedNotes(prev => [{ noteKey: key, folderId, archivedAt: new Date().toISOString() }, ...prev.filter(a => a.noteKey !== key)])
+    closeFolderPicker()
+    try {
+      const next = await archiveNote(authUser.email, key, folderId)
+      setArchivedNotes(next)
+    } catch (err) {
+      console.error('Failed to archive note', err)
+    }
+  }
+
+  async function handleUnarchive(note) {
+    const key = note.key
+    setArchivedNotes(prev => prev.filter(a => a.noteKey !== key))
+    try {
+      const next = await unarchiveNote(authUser.email, key)
+      setArchivedNotes(next)
+    } catch (err) {
+      console.error('Failed to unarchive note', err)
+    }
+  }
+
+  // Cria a pasta e, se veio de "arquivar esta nota" (não do "+ Nova pasta"
+  // avulso da tela de Arquivo — ver folderPickerFor), já arquiva ela lá.
+  async function handleCreateFolder() {
+    const name = newFolderName.trim()
+    if (!name || newFolderBusy) return
+    setNewFolderBusy(true)
+    try {
+      const { folder, folders: nextFolders } = await createNoteFolder(authUser.email, name)
+      setFolders(nextFolders)
+      const archiveTargetKey = folderPickerFor && folderPickerFor !== '__standalone__' ? folderPickerFor : null
+      if (archiveTargetKey) {
+        const next = await archiveNote(authUser.email, archiveTargetKey, folder.id)
+        setArchivedNotes(next)
+      } else {
+        setArchiveFolderFilter(folder.id)
+      }
+      closeFolderPicker()
+    } catch (err) {
+      console.error('Failed to create folder', err)
+    } finally {
+      setNewFolderBusy(false)
+    }
+  }
+
+  async function handleDeleteFolder(folderId) {
+    if (!window.confirm(t('notes.deleteFolderConfirm', undefined, lang))) return
+    try {
+      const { folders: nextFolders, archivedNotes: nextArchived } = await deleteNoteFolder(authUser.email, folderId)
+      setFolders(nextFolders)
+      setArchivedNotes(nextArchived)
+      if (archiveFolderFilter === folderId) setArchiveFolderFilter('all')
+    } catch (err) {
+      console.error('Failed to delete folder', err)
+    }
+  }
+
+  // Card de uma anotação "de verdade" (não Estudo/Pergunta, que têm o
+  // próprio card mais simples acima) — usado tanto pela lista normal da
+  // Biblioteca quanto pela tela de Arquivo (ver archivedEntries), o mesmo
+  // card nos dois lugares. Ícones de arquivar/desarquivar e apagar ficam
+  // sempre visíveis no cabeçalho (pedido dela, 2026-09-12) — antes só
+  // dava pra apagar depois de entrar no modo de edição.
+  function renderRegularCard(note) {
+    const isEditing = editingKey === note.key
+    const isBusy = busyKey === note.key
+    const isArchived = archivedKeySet.has(note.key)
+    const archivedFolder = isArchived ? folderById[archivedMetaByKey[note.key]?.folderId] : null
+    // Marcação usa a própria cor escolhida em vez da cor fixa do
+    // tipo "Marcações" — é a informação principal que diferencia
+    // uma marcação da outra numa lista (ver HIGHLIGHT_COLORS). Os
+    // outros tipos usam a cor fixa do grupo (ver TYPE_COLOR), pra
+    // reconhecer o tipo de longe mesmo sem abrir filtro nenhum.
+    // Quadro 4c: a marcação é sempre o cartão areia com rótulo e
+    // referência em #7A4A1E (a cor escolhida no grifo segue guardada e
+    // aparece na leitura); os outros tipos usam a cor fixa do grupo.
+    const isHighlight = note.type === 'highlight'
+    const typeColor = TYPE_COLOR[typeGroupFor(note)]
+    // Tempo relativo no canto: sermão usa a data do culto.
+    const timeIso = note.type === 'sermon' && note.date ? `${note.date}T12:00:00` : note.updatedAt
+    return (
+      // Tocar no cartão (fora dos botões) abre a edição inline.
+      <div
+        key={note.key}
+        style={{ ...styles.card, ...(isHighlight ? styles.cardHighlight : {}), cursor: isEditing ? 'default' : 'pointer' }}
+        onClick={e => { if (isEditing || isBusy) return; if (e.target instanceof Element && e.target.closest('button, textarea, a, input')) return; startEdit(note) }}
+      >
+        <div style={styles.cardHeader}>
+          <span style={{ ...styles.cardTypeLabel, color: typeColor }}>{typeCapLabel(note)}</span>
+          {archivedFolder && <span style={styles.cardFolderTag}><AppIcon name="Folder" size={10} color="var(--bento-t4)" /> {archivedFolder.name}</span>}
+          <span style={{ ...styles.cardTime, ...(isHighlight ? { color: 'var(--bento-sand-label)' } : {}) }}>
+            {timeIso ? relativeLabel(timeIso) : ''}
+          </span>
+          <div style={styles.cardIconRow}>
+            <button
+              type="button" style={styles.cardIconBtn} disabled={isBusy}
+              onClick={() => (isArchived ? handleUnarchive(note) : openArchivePicker(note))}
+              aria-label={t(isArchived ? 'notes.unarchiveAction' : 'notes.archiveIconLabel', undefined, lang)}
+              title={t(isArchived ? 'notes.unarchiveAction' : 'notes.archiveIconLabel', undefined, lang)}
+            >
+              <AppIcon name={isArchived ? 'ArchiveRestore' : 'Archive'} size={15} strokeWidth={2} color="var(--bento-t4)" />
+            </button>
+            <button
+              type="button" style={styles.cardIconBtn} disabled={isBusy}
+              onClick={() => deleteNote(note)}
+              aria-label={t('notes.deleteAction', undefined, lang)}
+              title={t('notes.deleteAction', undefined, lang)}
+            >
+              <AppIcon name="Trash2" size={15} strokeWidth={2} color="var(--bento-t4)" />
+            </button>
+          </div>
+        </div>
+
+        {note.type === 'sermon' && note.passages?.length > 0 && (
+          <div style={styles.passageChipRow}>
+            {note.passages.map((p, i) => (
+              <button
+                key={i} style={styles.passageChip}
+                onClick={() => onOpenBiblePassage?.(p.book, p.chapter)}
+              >
+                <AppIcon name="BookOpen" size={11} color="var(--bento-accent)" /> {passageLabel(p)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isEditing ? (
+          <>
+            <textarea
+              style={styles.editTextarea}
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              rows={4}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button
+                style={styles.editSaveBtn} onClick={() => saveEdit(note)}
+                disabled={isBusy || !editText.trim()}
+              >
+                {isBusy ? t('notes.saving', undefined, lang) : t('notes.saveEdit', undefined, lang)}
+              </button>
+              <button style={styles.editCancelBtn} onClick={cancelEdit} disabled={isBusy}>
+                {t('notes.cancelEdit', undefined, lang)}
+              </button>
+            </div>
+          </>
+        ) : isHighlight ? (
+          // Marcação (quadro 4c): o VERSÍCULO em itálico, a referência
+          // embaixo; a anotação da pessoa, se houver, vem depois.
+          <>
+            <HighlightQuote note={note} lang={lang} />
+            <p style={{ ...styles.highlightRef, color: typeColor }}>{labelFor(note)}</p>
+            {note.text && <p style={styles.highlightAnnotation}>{note.text}</p>}
+          </>
+        ) : (
+          <>
+            <p style={styles.cardTitleLine}>{labelFor(note)}</p>
+            {note.text
+              ? <p style={styles.cardText}>{note.text}</p>
+              : <p style={{ ...styles.cardText, ...styles.cardTextEmpty }}>{t('notes.noAnnotationText', undefined, lang)}</p>}
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // Card de uma anotação qualquer na lista — Estudo e Pergunta têm forma
+  // própria (sem arquivar: Estudo é só progresso, edita em StudiesScreen;
+  // Pergunta é local/efêmera, já tem seu próprio "Apagar"); os demais tipos
+  // usam renderRegularCard acima (com arquivar/desarquivar + apagar).
+  function renderNoteCard(note) {
+    // Estudo — card à parte (ícone + título + progresso + seta),
+    // sem editar/deletar por aqui (isso é papel de StudiesScreen).
+    // Toque leva pra lá já aberto no estudo certo (ver onOpenStudy,
+    // App.jsx).
+    if (note.type === 'study') {
+      const label = note.doneCount === 0
+        ? t('notes.studyStart', undefined, lang)
+        : note.doneCount === note.total
+          ? t('notes.studyReview', undefined, lang)
+          : t('notes.studyResume', { step: Math.min(note.doneCount + 1, note.total), total: note.total }, lang)
+      return (
+        <button key={note.key} style={styles.studyRow} onClick={() => onOpenStudy?.(note.id)}>
+          <span style={styles.studyRowIcon}>
+            <AppIcon name={note.icon} size={16} color="var(--bento-accent)" />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={styles.studyRowTitle}>{studyTitleFor(note)}</span>
+            <span style={styles.studyRowProgress}>{label}</span>
+          </span>
+          <span style={styles.studyRowChevron}>›</span>
+        </button>
+      )
+    }
+    // Pergunta guardada da IA — card só de leitura (a pergunta/
+    // resposta já foi verificada no momento em que foi feita; não
+    // edita aqui). Toque na referência volta pro texto; "Apagar"
+    // tira do histórico (mesmo botão que "Reportar resposta" usa
+    // em ReadingBlockView.jsx).
+    if (note.type === 'question') {
+      return (
+        <div key={note.key} style={styles.card}>
+          <div style={styles.cardHeader}>
+            <span style={{ ...styles.cardTypeLabel, color: TYPE_COLOR.question }}>{typeCapLabel(note)}</span>
+            <span style={styles.cardTime}>{note.updatedAt ? relativeLabel(note.updatedAt) : ''}</span>
+          </div>
+          <button style={{ ...styles.passageChip, marginBottom: 8 }} onClick={() => onOpenBiblePassage?.(note.book, note.chapter)}>
+            <AppIcon name="BookOpen" size={11} color="var(--bento-accent)" /> {bookLabel(note.book)} {note.chapter}
+          </button>
+          <p style={styles.cardText}>{note.question}</p>
+          {note.answerReply && <p style={{ ...styles.cardText, color: 'var(--bento-t3)', marginTop: 6 }}>{note.answerReply}</p>}
+          <button style={styles.editDeleteBtn} onClick={() => deleteQuestion(note)}>{t('notes.deleteAction', undefined, lang)}</button>
+        </div>
+      )
+    }
+    return renderRegularCard(note)
+  }
+
   return (
     <div style={{ position: 'relative', height: '100%' }}>
     <div style={styles.screen}>
       <div style={styles.body}>
-        <p style={styles.title}>{t('notes.pageTitle', undefined, lang)}</p>
+        <div style={styles.titleRow}>
+          <p style={styles.title}>{t('notes.pageTitle', undefined, lang)}</p>
+          {viewMode === 'library' ? (
+            archivedNotes.length > 0 && (
+              <button style={styles.archiveToggleBtn} onClick={() => setViewMode('archive')}>
+                <AppIcon name="Archive" size={13} color="var(--bento-t3)" />
+                {t('notes.archiveViewBtn', undefined, lang)}
+                <span style={styles.archiveCountBadge}>{archivedNotes.length}</span>
+              </button>
+            )
+          ) : (
+            <button style={styles.archiveToggleBtn} onClick={() => { setViewMode('library'); setArchiveFolderFilter('all') }}>
+              <AppIcon name="ChevronLeft" size={13} color="var(--bento-t3)" />
+              {t('notes.backToLibraryBtn', undefined, lang)}
+            </button>
+          )}
+        </div>
 
+        {viewMode === 'archive' ? (
+          <>
+            {/* Filtro por pasta — "Tudo", "Sem pasta" e cada pasta criada
+                (ver folders/noteOrganizationStore.js), mais um "+" pra criar
+                uma pasta nova sem precisar arquivar nada agora. */}
+            <div style={styles.filterRow}>
+              <button
+                style={{ ...styles.filterBtn, ...(archiveFolderFilter === 'all' ? styles.filterBtnActive : {}) }}
+                onClick={() => setArchiveFolderFilter('all')}
+              >
+                {t('notes.archiveFolderAll', undefined, lang)}
+              </button>
+              <button
+                style={{ ...styles.filterBtn, ...(archiveFolderFilter === 'none' ? styles.filterBtnActive : {}) }}
+                onClick={() => setArchiveFolderFilter('none')}
+              >
+                {t('notes.archiveFolderNone', undefined, lang)}
+              </button>
+              {folders.map(f => (
+                <button
+                  key={f.id}
+                  style={{ ...styles.filterBtn, ...(archiveFolderFilter === f.id ? styles.filterBtnActive : {}) }}
+                  onClick={() => setArchiveFolderFilter(f.id)}
+                >
+                  {f.name}
+                </button>
+              ))}
+              <button style={styles.newFolderChipBtn} onClick={openStandaloneFolderCreate} aria-label={t('notes.archiveNewFolderBtn', undefined, lang)} title={t('notes.archiveNewFolderBtn', undefined, lang)}>
+                <AppIcon name="FolderPlus" size={15} color="var(--bento-t3)" />
+              </button>
+            </div>
+
+            {archiveFolderFilter !== 'all' && archiveFolderFilter !== 'none' && (
+              <button style={styles.deleteFolderBtn} onClick={() => handleDeleteFolder(archiveFolderFilter)}>
+                <AppIcon name="Trash2" size={12} color="var(--bento-accent)" /> {t('notes.deleteFolderAction', undefined, lang)}
+              </button>
+            )}
+
+            {archivedEntries.length === 0 && (
+              <p style={styles.emptyHint}>{t('notes.archiveEmpty', undefined, lang)}</p>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {archivedEntries.map(renderNoteCard)}
+            </div>
+          </>
+        ) : (
+          <>
 
         {/* Busca por palavra (instantânea, casa substring no texto) +
             busca por tema com IA (botão à parte — só dispara ao tocar, não
             a cada tecla) — pra quando a pessoa lembra do assunto mas não
             da palavra exata que escreveu. */}
-        {state.status === 'ready' && state.notes.length > 0 && (
+        {state.status === 'ready' && libraryNotes.length > 0 && (
           <>
             {/* Um campo só (quadro 4c): filtra por palavra enquanto digita;
                 Enter dispara a busca por tema com IA (Premium + IA) — o botão
@@ -678,7 +1050,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             correção que o handoff pede em qualquer fileira rolável do
             app). Some junto do resto na busca por tema (IA), que ignora
             filtros de propósito. */}
-        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
+        {state.status === 'ready' && libraryNotes.length > 0 && aiMatchKeys === null && (
           <div style={styles.filterRow}>
             {FILTERS.map(f => {
               const active = filter === f.key
@@ -700,7 +1072,7 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
             tinha mais como filtrar por livro, cor da marcação, preletor ou
             data. Minimizado por padrão — só o botão "Filtros" aparece, com
             uma bolinha mostrando quantos estão ativos. */}
-        {state.status === 'ready' && state.notes.length > 0 && aiMatchKeys === null && (
+        {state.status === 'ready' && libraryNotes.length > 0 && aiMatchKeys === null && (
           <>
             <button style={styles.filtersToggleBtn} onClick={() => setFiltersOpen(v => !v)}>
               <AppIcon name="SlidersHorizontal" size={14} color="var(--bento-t3)" />
@@ -807,10 +1179,12 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
 
         {state.status === 'loading' && <p style={styles.emptyHint}>{t('notes.loading', undefined, lang)}</p>}
         {state.status === 'error' && <p style={styles.emptyHint}>{t('notes.error', undefined, lang)}</p>}
-        {state.status === 'ready' && state.notes.length === 0 && (
-          <p style={styles.emptyHint}>{t('notes.empty', undefined, lang)}</p>
+        {state.status === 'ready' && libraryNotes.length === 0 && (
+          <p style={styles.emptyHint}>
+            {state.notes.length > 0 ? t('notes.emptyAllArchived', undefined, lang) : t('notes.empty', undefined, lang)}
+          </p>
         )}
-        {state.status === 'ready' && state.notes.length > 0 && filteredNotes.length === 0 && (
+        {state.status === 'ready' && libraryNotes.length > 0 && filteredNotes.length === 0 && (
           <p style={styles.emptyHint}>
             {aiMatchKeys !== null ? t('notes.searchAiEmpty', undefined, lang)
               : trimmedQuery ? t('notes.emptySearch', undefined, lang)
@@ -832,137 +1206,10 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filteredNotes.map(note => {
-            // Estudo — card à parte (ícone + título + progresso + seta),
-            // sem editar/deletar por aqui (isso é papel de StudiesScreen).
-            // Toque leva pra lá já aberto no estudo certo (ver onOpenStudy,
-            // App.jsx).
-            if (note.type === 'study') {
-              const label = note.doneCount === 0
-                ? t('notes.studyStart', undefined, lang)
-                : note.doneCount === note.total
-                  ? t('notes.studyReview', undefined, lang)
-                  : t('notes.studyResume', { step: Math.min(note.doneCount + 1, note.total), total: note.total }, lang)
-              return (
-                <button key={note.key} style={styles.studyRow} onClick={() => onOpenStudy?.(note.id)}>
-                  <span style={styles.studyRowIcon}>
-                    <AppIcon name={note.icon} size={16} color="var(--bento-accent)" />
-                  </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={styles.studyRowTitle}>{studyTitleFor(note)}</span>
-                    <span style={styles.studyRowProgress}>{label}</span>
-                  </span>
-                  <span style={styles.studyRowChevron}>›</span>
-                </button>
-              )
-            }
-            // Pergunta guardada da IA — card só de leitura (a pergunta/
-            // resposta já foi verificada no momento em que foi feita; não
-            // edita aqui). Toque na referência volta pro texto; "Apagar"
-            // tira do histórico (mesmo botão que "Reportar resposta" usa
-            // em ReadingBlockView.jsx).
-            if (note.type === 'question') {
-              return (
-                <div key={note.key} style={styles.card}>
-                  <div style={styles.cardHeader}>
-                    <span style={{ ...styles.cardTypeLabel, color: TYPE_COLOR.question }}>{typeCapLabel(note)}</span>
-                    <span style={styles.cardTime}>{note.updatedAt ? relativeLabel(note.updatedAt) : ''}</span>
-                  </div>
-                  <button style={{ ...styles.passageChip, marginBottom: 8 }} onClick={() => onOpenBiblePassage?.(note.book, note.chapter)}>
-                    <AppIcon name="BookOpen" size={11} color="var(--bento-accent)" /> {bookLabel(note.book)} {note.chapter}
-                  </button>
-                  <p style={styles.cardText}>{note.question}</p>
-                  {note.answerReply && <p style={{ ...styles.cardText, color: 'var(--bento-t3)', marginTop: 6 }}>{note.answerReply}</p>}
-                  <button style={styles.editDeleteBtn} onClick={() => deleteQuestion(note)}>{t('notes.deleteAction', undefined, lang)}</button>
-                </div>
-              )
-            }
-            const isEditing = editingKey === note.key
-            const isBusy = busyKey === note.key
-            // Marcação usa a própria cor escolhida em vez da cor fixa do
-            // tipo "Marcações" — é a informação principal que diferencia
-            // uma marcação da outra numa lista (ver HIGHLIGHT_COLORS). Os
-            // outros tipos usam a cor fixa do grupo (ver TYPE_COLOR), pra
-            // reconhecer o tipo de longe mesmo sem abrir filtro nenhum.
-            // Quadro 4c: a marcação é sempre o cartão areia com rótulo e
-            // referência em #7A4A1E (a cor escolhida no grifo segue guardada e
-            // aparece na leitura); os outros tipos usam a cor fixa do grupo.
-            const isHighlight = note.type === 'highlight'
-            const typeColor = TYPE_COLOR[typeGroupFor(note)]
-            // Tempo relativo no canto: sermão usa a data do culto.
-            const timeIso = note.type === 'sermon' && note.date ? `${note.date}T12:00:00` : note.updatedAt
-            return (
-              // Sem ícones de editar/apagar (o quadro não tem): tocar no
-              // cartão abre a edição inline, onde também dá pra apagar.
-              <div
-                key={note.key}
-                style={{ ...styles.card, ...(isHighlight ? styles.cardHighlight : {}), cursor: isEditing ? 'default' : 'pointer' }}
-                onClick={e => { if (isEditing || isBusy) return; if (e.target instanceof Element && e.target.closest('button, textarea, a, input')) return; startEdit(note) }}
-              >
-                <div style={styles.cardHeader}>
-                  <span style={{ ...styles.cardTypeLabel, color: typeColor }}>{typeCapLabel(note)}</span>
-                  <span style={{ ...styles.cardTime, ...(isHighlight ? { color: 'var(--bento-sand-label)' } : {}) }}>
-                    {timeIso ? relativeLabel(timeIso) : ''}
-                  </span>
-                </div>
-
-                {note.type === 'sermon' && note.passages?.length > 0 && (
-                  <div style={styles.passageChipRow}>
-                    {note.passages.map((p, i) => (
-                      <button
-                        key={i} style={styles.passageChip}
-                        onClick={() => onOpenBiblePassage?.(p.book, p.chapter)}
-                      >
-                        <AppIcon name="BookOpen" size={11} color="var(--bento-accent)" /> {passageLabel(p)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {isEditing ? (
-                  <>
-                    <textarea
-                      style={styles.editTextarea}
-                      value={editText}
-                      onChange={e => setEditText(e.target.value)}
-                      rows={4}
-                      autoFocus
-                    />
-                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                      <button
-                        style={styles.editSaveBtn} onClick={() => saveEdit(note)}
-                        disabled={isBusy || !editText.trim()}
-                      >
-                        {isBusy ? t('notes.saving', undefined, lang) : t('notes.saveEdit', undefined, lang)}
-                      </button>
-                      <button style={styles.editCancelBtn} onClick={cancelEdit} disabled={isBusy}>
-                        {t('notes.cancelEdit', undefined, lang)}
-                      </button>
-                      <button style={styles.editDeleteBtn} onClick={() => deleteNote(note)} disabled={isBusy}>
-                        {t('notes.deleteAction', undefined, lang)}
-                      </button>
-                    </div>
-                  </>
-                ) : isHighlight ? (
-                  // Marcação (quadro 4c): o VERSÍCULO em itálico, a referência
-                  // embaixo; a anotação da pessoa, se houver, vem depois.
-                  <>
-                    <HighlightQuote note={note} lang={lang} />
-                    <p style={{ ...styles.highlightRef, color: typeColor }}>{labelFor(note)}</p>
-                    {note.text && <p style={styles.highlightAnnotation}>{note.text}</p>}
-                  </>
-                ) : (
-                  <>
-                    <p style={styles.cardTitleLine}>{labelFor(note)}</p>
-                    {note.text
-                      ? <p style={styles.cardText}>{note.text}</p>
-                      : <p style={{ ...styles.cardText, ...styles.cardTextEmpty }}>{t('notes.noAnnotationText', undefined, lang)}</p>}
-                  </>
-                )}
-              </div>
-            )
-          })}
+          {filteredNotes.map(renderNoteCard)}
         </div>
+          </>
+        )}
       </div>
     </div>
 
@@ -973,11 +1220,77 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
           (ver comentário em ReadingBlockView.jsx) sem precisar de portal.
           Pedido dela (2026-09-12): igual a abrir uma já feita, criar uma
           nova sermão também vai direto pra página rica (JourneyScreen.jsx,
-          sermonNoteFresh) — não existe mais formulário simples aqui. */}
-      <button style={styles.fab} onClick={onCreateSermonNote} aria-label={t('notes.sermonNewBtn', undefined, lang)} title={t('notes.sermonNewBtn', undefined, lang)}>
-        <AppIcon name="Plus" size={22} color="var(--bento-ink)" />
-      </button>
+          sermonNoteFresh) — não existe mais formulário simples aqui. Some
+          na tela de Arquivo (não faz sentido criar sermão novo por lá). */}
+      {viewMode === 'library' && (
+        <button style={styles.fab} onClick={onCreateSermonNote} aria-label={t('notes.sermonNewBtn', undefined, lang)} title={t('notes.sermonNewBtn', undefined, lang)}>
+          <AppIcon name="Plus" size={22} color="var(--bento-ink)" />
+        </button>
+      )}
+
+      {/* Folha de escolher/criar pasta pra arquivar — aberta pelo ícone de
+          arquivar num card (folderPickerFor = key da nota) ou pelo "+" da
+          tela de Arquivo (folderPickerFor = '__standalone__', só cria a
+          pasta, sem arquivar nada). */}
+      {folderPickerFor && (
+        <FolderPickerSheet
+          lang={lang}
+          folders={folders}
+          newFolderMode={newFolderMode}
+          newFolderName={newFolderName}
+          newFolderBusy={newFolderBusy}
+          onChangeNewFolderName={setNewFolderName}
+          onOpenNewFolder={() => setNewFolderMode(true)}
+          onCreateFolder={handleCreateFolder}
+          onChoose={folderId => handleArchive(state.notes.find(n => n.key === folderPickerFor), folderId)}
+          isStandalone={folderPickerFor === '__standalone__'}
+          onClose={closeFolderPicker}
+        />
+      )}
     </div>
+  )
+}
+
+// Folha inferior de escolher pasta pra arquivar uma nota — ou (isStandalone)
+// só criar uma pasta vazia, aberta pelo "+" da tela de Arquivo. Mesmo
+// padrão visual de folha (sheetBackdrop/sheetPanel) usado em outras telas
+// (ver GroupAdminScreen.jsx).
+function FolderPickerSheet({ lang, folders, newFolderMode, newFolderName, newFolderBusy, onChangeNewFolderName, onOpenNewFolder, onCreateFolder, onChoose, isStandalone, onClose }) {
+  return createPortal(
+    <div style={styles.sheetBackdrop} onClick={onClose}>
+      <div style={styles.sheetPanel} onClick={e => e.stopPropagation()}>
+        <p style={styles.sheetTitle}>{t(isStandalone ? 'notes.archiveNewFolderBtn' : 'notes.archiveSheetTitle', undefined, lang)}</p>
+        {!isStandalone && (
+          <button style={styles.sheetOptionBtn} onClick={() => onChoose(null)}>
+            <AppIcon name="Archive" size={15} color="var(--bento-t3)" /> {t('notes.archiveNoFolder', undefined, lang)}
+          </button>
+        )}
+        {!isStandalone && folders.map(f => (
+          <button key={f.id} style={styles.sheetOptionBtn} onClick={() => onChoose(f.id)}>
+            <AppIcon name="Folder" size={15} color="var(--bento-t3)" /> {f.name}
+          </button>
+        ))}
+        {newFolderMode ? (
+          <div style={styles.newFolderRow}>
+            <input
+              type="text" autoFocus style={styles.newFolderInput} value={newFolderName}
+              onChange={e => onChangeNewFolderName(e.target.value)}
+              placeholder={t('notes.archiveNewFolderPlaceholder', undefined, lang)}
+              maxLength={40}
+            />
+            <button style={styles.newFolderConfirmBtn} onClick={onCreateFolder} disabled={newFolderBusy || !newFolderName.trim()}>
+              {t('notes.archiveNewFolderCreate', undefined, lang)}
+            </button>
+          </div>
+        ) : (
+          <button style={styles.sheetOptionBtn} onClick={onOpenNewFolder}>
+            <AppIcon name="FolderPlus" size={15} color="var(--bento-accent)" /> {t('notes.archiveNewFolderBtn', undefined, lang)}
+          </button>
+        )}
+        <button style={styles.secondarySmallBtn} onClick={onClose} disabled={newFolderBusy}>{t('notes.cancelEdit', undefined, lang)}</button>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -1083,7 +1396,10 @@ const mss = {
 const styles = {
   screen:     { background: 'var(--bento-bg)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
   body:       { padding: '20px 20px calc(var(--nav-height) + 90px)', display: 'flex', flexDirection: 'column', gap: 12 },
-  title:      { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: '0 0 2px' },
+  title:      { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0 },
+  titleRow:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '0 0 2px' },
+  archiveToggleBtn: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: 'var(--bento-card)', borderRadius: 12, padding: '7px 11px', fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  archiveCountBadge: { minWidth: 16, height: 16, borderRadius: 8, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' },
   searchRow:      { display: 'flex', gap: 8 },
   searchInputWrap:{ flex: 1, minWidth: 0, height: 46, display: 'flex', alignItems: 'center', gap: 10, border: 'none', borderRadius: 16, padding: '0 16px', background: 'var(--bento-card)' },
   searchInput:    { flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'none', padding: '10px 0', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1, color: 'var(--bento-ink)' },
@@ -1157,4 +1473,26 @@ const styles = {
   studyRowChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)', flexShrink: 0 },
   passageChipRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   passageChip:    { display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '5px 10px', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', cursor: 'pointer' },
+
+  // Ícones de arquivar/desarquivar + apagar no cabeçalho do card (pedido
+  // dela, 2026-09-12) — ficam sempre visíveis, sem precisar entrar no modo
+  // de edição primeiro (ver renderRegularCard).
+  cardIconRow: { display: 'flex', gap: 2, flexShrink: 0 },
+  cardIconBtn: { width: 26, height: 26, flexShrink: 0, border: 'none', background: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  cardFolderTag: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 700, color: 'var(--bento-t4)', background: 'var(--bento-line)', borderRadius: 20, padding: '3px 8px' },
+
+  // Tela de Arquivo — chip "+ Nova pasta" e o link de apagar a pasta ativa.
+  newFolderChipBtn: { flexShrink: 0, width: 34, height: 34, border: '1px dashed var(--bento-pending-border)', background: 'none', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  deleteFolderBtn: { alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-accent)', padding: '2px 4px' },
+
+  // Folha de escolher/criar pasta (FolderPickerSheet) — mesmo padrão visual
+  // de folha inferior usado em GroupAdminScreen.jsx.
+  sheetBackdrop: { position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
+  sheetPanel: { width: '100%', maxWidth: 'var(--max-width)', background: 'var(--bento-bg)', borderRadius: '28px 28px 0 0', padding: '20px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10, animation: 'bookOpenIn .22s cubic-bezier(.32,.72,0,1)' },
+  sheetTitle: { fontFamily: 'var(--font-bento)', fontSize: 16, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 4px' },
+  sheetOptionBtn: { width: '100%', display: 'flex', alignItems: 'center', gap: 9, textAlign: 'left', border: 'none', background: 'var(--bento-card)', borderRadius: 14, padding: '13px 16px', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+  newFolderRow: { display: 'flex', gap: 8 },
+  newFolderInput: { flex: 1, minWidth: 0, border: 'none', borderRadius: 14, padding: '0 14px', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-card)' },
+  newFolderConfirmBtn: { flexShrink: 0, border: 'none', borderRadius: 14, padding: '0 16px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
+  secondarySmallBtn: { width: '100%', border: 'none', background: 'var(--bento-line)', borderRadius: 14, padding: '13px 16px', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
 }
