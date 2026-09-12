@@ -27,7 +27,6 @@ import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
 import { isStepEnabled } from '../plan/stepMinutesStore'
 import { getAllSessions } from '../metrics/sessionDurationStore'
 import { totalsByStep } from '../metrics/sessionDurationMath'
-import { splitHoursMinutes } from '../metrics/metricsSummary'
 import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
@@ -81,7 +80,8 @@ export default function HomeScreen({
   const {
     lang, userName, avatarInitials, todaySession,
     routineModules, plan, todayRoutine, dailyRoutine,
-    lastReadPosition, biblePercent, weeksInGoal, activeStudyId,
+    lastReadPosition, biblePercent, activeStudyId,
+    chaptersRead, booksCompleted,
   } = session
   const L = (k, vars) => translate(`home.${k}`, vars, lang)
   const R = (k, vars) => translate(`routine.${k}`, vars, lang) // metas de passo compartilhadas com Meu Plano
@@ -458,7 +458,6 @@ export default function HomeScreen({
     const sep = lang === 'en' ? ' and ' : ' e '
     return `${names.slice(0, -1).join(', ')}${sep}${names[names.length - 1]}`
   }
-  const totalHM = splitHoursMinutes(sessionRows.reduce((sum, r) => sum + r.segundos, 0))
   const biblePctLabel = biblePercent.toLocaleString(lang === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: 1 }) + '%'
 
   // ── Bloco 7 — SUA SEMANA (resumo) ──
@@ -698,11 +697,11 @@ export default function HomeScreen({
           )}
         </div>
 
-        {/* Bloco 6 — dois quadrados. Pedido explícito da Daniela: os dois
-            quadrados ficam sempre na tela (mesmo padrão do Bloco 5 acima) —
-            "Mensagens novas" com badge/nomes só quando há de verdade algo
-            não lido (nunca um "0" fingido), "Minhas métricas" sempre com o
-            dado real (mesmo que seja 0%/0h). */}
+        {/* Bloco 6 — dois quadrados. Pedido dela (2026-09-12): "Anotar uma
+            pregação" virou quadrado pra ficar do lado do de mensagens —
+            Métricas saiu daqui, agora é o card cheio logo abaixo, com mais
+            destaque. "Mensagens novas" com badge/nomes só quando há de
+            verdade algo não lido (nunca um "0" fingido). */}
         <div style={styles.squaresRow}>
           <button style={styles.squareDark} onClick={() => onNavigate?.('groupMessages')}>
             <div style={styles.squareTopRow}>
@@ -714,29 +713,45 @@ export default function HomeScreen({
               <p style={styles.squareSubDark}>{unreadMessagesTotal > 0 ? joinNames(messageGroupNames) : L('noNewMessages')}</p>
             </div>
           </button>
-          <button style={styles.squareLight} onClick={() => onNavigate?.('metrics')}>
+          <button style={styles.squareLight} onClick={() => onOpenSermonNote?.()}>
             <div style={styles.squareTopRow}>
-              <AppIcon name="BarChart3" size={16} color="var(--bento-t3)" strokeWidth={2} />
-              <span style={styles.squarePctLight}>{biblePctLabel}</span>
+              <AppIcon name="FileText" size={16} color="var(--bento-accent)" strokeWidth={2} />
             </div>
             <div>
-              <p style={styles.squareTitleLight}>{L('myMetrics')}</p>
-              <p style={styles.squareSubLight}>{L('metricsSummaryLine', { hours: totalHM.h, weeks: weeksInGoal })}</p>
+              <p style={styles.squareTitleLight}>{L('annotateSermonTitle')}</p>
+              <p style={styles.squareSubLight}>{L('annotateSermonSub')}</p>
             </div>
           </button>
         </div>
 
-        {/* Bloco 6.5 — atalho pra anotação de sermão flutuante (34d,
-            handoff-app-completo). Abre a Bíblia (capítulo de hoje, ou o
-            último lido) já com a folha aberta — ver openSermonNoteFromHome,
-            App.jsx. */}
-        <button style={styles.annotateCard} onClick={() => onOpenSermonNote?.()}>
-          <span style={styles.annotateIcon}><AppIcon name="FileText" size={17} color="var(--bento-accent)" strokeWidth={2} /></span>
-          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-            <span style={styles.annotateTitle}>{L('annotateSermonTitle')}</span>
-            <span style={styles.annotateSub}>{L('annotateSermonSub')}</span>
-          </span>
-          <span style={styles.annotateChevron}>›</span>
+        {/* Bloco 6.5 — Minhas métricas, esticado pra largura da tela
+            (pedido dela, 2026-09-12: "mais visibilidade") — três números
+            de cara (% da Bíblia, capítulos lidos, livros completos) em vez
+            do quadrado pequeno de antes. Toque continua levando pra
+            MetricsScreen (detalhe completo: tempo com Deus, sessão média,
+            horário mais comum etc.). */}
+        <button style={styles.metricsCard} onClick={() => onNavigate?.('metrics')}>
+          <div style={styles.metricsCardHead}>
+            <span style={styles.metricsCardIcon}><AppIcon name="BarChart3" size={15} color="var(--bento-accent)" strokeWidth={2} /></span>
+            <p style={styles.metricsCardLabel}>{L('myMetrics')}</p>
+            <span style={styles.metricsCardChevron}>›</span>
+          </div>
+          <div style={styles.metricsStatsRow}>
+            <div style={styles.metricsStatItem}>
+              <p style={styles.metricsStatValue}>{biblePctLabel}</p>
+              <p style={styles.metricsStatLabel}>{L('metricsStatBible')}</p>
+            </div>
+            <div style={styles.metricsStatDivider} />
+            <div style={styles.metricsStatItem}>
+              <p style={styles.metricsStatValue}>{chaptersRead}</p>
+              <p style={styles.metricsStatLabel}>{L('metricsStatChapters')}</p>
+            </div>
+            <div style={styles.metricsStatDivider} />
+            <div style={styles.metricsStatItem}>
+              <p style={styles.metricsStatValue}>{booksCompleted}</p>
+              <p style={styles.metricsStatLabel}>{L('metricsStatBooks')}</p>
+            </div>
+          </div>
         </button>
 
         {/* Bloco 7 — SUA SEMANA (resumo). Sempre visível — antes do 1º
@@ -898,18 +913,26 @@ const styles = {
   },
   squareTopRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   squareBadge: { minWidth: 20, height: 20, padding: '0 6px', borderRadius: 99, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 10.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  squarePctLight: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)' },
   squareTitleDark: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.15, color: '#fff', margin: '0 0 4px' },
   squareSubDark: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   squareTitleLight: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.15, color: 'var(--bento-ink)', margin: '0 0 4px' },
-  squareSubLight: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t2)', margin: 0 },
+  squareSubLight: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t2)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 
-  // Bloco 6.5.
-  annotateCard: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', background: 'var(--bento-card)', borderRadius: 24, padding: '18px 20px', border: 'none', cursor: 'pointer', fontFamily: FONT },
-  annotateIcon: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  annotateTitle: { display: 'block', fontSize: 14.5, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', marginBottom: 3 },
-  annotateSub: { display: 'block', fontSize: 11.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)' },
-  annotateChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)', flexShrink: 0 },
+  // Bloco 6.5 — Minhas métricas, esticado (pedido dela, 2026-09-12).
+  metricsCard: {
+    display: 'flex', flexDirection: 'column', gap: 16, width: '100%',
+    background: 'var(--bento-card)', borderRadius: 24, border: 'none', cursor: 'pointer',
+    padding: '16px 20px 18px', textAlign: 'left', fontFamily: FONT,
+  },
+  metricsCardHead: { display: 'flex', alignItems: 'center', gap: 10 },
+  metricsCardIcon: { width: 28, height: 28, flexShrink: 0, borderRadius: 10, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  metricsCardLabel: { flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
+  metricsCardChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)', flexShrink: 0 },
+  metricsStatsRow: { display: 'flex', alignItems: 'stretch' },
+  metricsStatItem: { flex: 1, minWidth: 0, textAlign: 'center' },
+  metricsStatValue: { fontSize: 20, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 3px', fontVariantNumeric: 'tabular-nums' },
+  metricsStatLabel: { fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t3)', margin: 0 },
+  metricsStatDivider: { width: 1, alignSelf: 'stretch', background: 'var(--bento-line)' },
 
   // Bloco 7.
   recapCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '14px 20px' },
