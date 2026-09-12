@@ -18,6 +18,7 @@ import AppIcon from '../icons/AppIcon'
 import { buildBookPlan, allBooksFlat } from '../themePlans/bookPlan'
 import { buildGroupPlan } from '../groups/groupBookPlan'
 import { CREATE_STUDY_DURATION_CHIPS, DEFAULT_STUDY_DAYS } from '../studies/studyDurationOptions'
+import { ordinalWord } from '../studies/estudosStore'
 
 const FONT = 'var(--font-bento)'
 const MAX_SCOPE_LENGTH = 200
@@ -37,11 +38,15 @@ function getSpeechRecognition() {
   return typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
 }
 
-export default function CreateAiStudyScreen({ session, initialText = '', onBack, onGeneratePersonal, onGeneratedGroup }) {
+export default function CreateAiStudyScreen({ session, quota, initialText = '', onBack, onGeneratePersonal, onGeneratedGroup }) {
   const lang = session.lang
   const L = (k, vars) => t(`createStudy.${k}`, vars, lang)
 
   const moderatedGroup = session.myGroups?.find(g => g.myRole === 'moderator')
+  // Cartão do limite (41b) — "Nº de 4 em <mês>" no cabeçalho é o ORDINAL do
+  // que está sendo criado AGORA (quota.used + 1), não o que já foi usado.
+  const creatingOrdinal = Math.min((quota?.used ?? 0) + 1, quota?.max ?? 4)
+  const monthLabel = new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'long' })
 
   const [text, setText] = useState(initialText)
   const [format, setFormat] = useState('thematic')
@@ -57,7 +62,10 @@ export default function CreateAiStudyScreen({ session, initialText = '', onBack,
   const trimmed = text.trim()
   const needsBook = format === 'book' || format === 'group'
   const canDictate = !needsBook && !!getSpeechRecognition()
-  const canSubmit = needsBook ? !!selectedBook : trimmed.length > 0 && trimmed.length <= MAX_SCOPE_LENGTH
+  // Defensivo — na navegação normal 41a já bloqueia chegar aqui com a
+  // cota esgotada ("tocar explica, não abre 41b"); isto só cobre a
+  // conta esgotar em outra aba durante a mesma sessão.
+  const canSubmit = !quota?.exhausted && (needsBook ? !!selectedBook : trimmed.length > 0 && trimmed.length <= MAX_SCOPE_LENGTH)
 
   function chooseFormat(id) {
     setFormat(id)
@@ -115,11 +123,21 @@ export default function CreateAiStudyScreen({ session, initialText = '', onBack,
         </button>
         <div>
           <p style={s.headerTitle}>{L('pageTitle')}</p>
-          <p style={s.headerSub}>{L('pageSub')}</p>
+          <p style={s.headerSub}>{L('pageSubQuota', { n: creatingOrdinal, max: quota?.max ?? 4, month: monthLabel })}</p>
         </div>
       </div>
 
       <div style={s.body}>
+        {/* Cartão do limite (41b, primeiro do corpo) — quadrado com o teto
+            + a frase por extenso ("Este é o terceiro de setembro..."). */}
+        <div style={s.limitCard}>
+          <span style={s.limitSquare}>{quota?.max ?? 4}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={s.limitTitle}>{L('limitCardTitle', { max: quota?.max ?? 4 })}</p>
+            <p style={s.limitSub}>{L('limitCardSub', { ordinal: ordinalWord(creatingOrdinal, lang), month: monthLabel })}</p>
+          </div>
+        </div>
+
         {!bookPickerOpen ? (
           <div style={s.darkCard}>
             <div style={s.darkLabelRow}>
@@ -248,6 +266,12 @@ const s = {
   headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
   headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+
+  // Cartão do limite (41b, areia, primeiro do corpo).
+  limitCard: { display: 'flex', alignItems: 'center', gap: 14, borderRadius: 24, background: 'var(--bento-sand)', padding: '16px 18px' },
+  limitSquare: { width: 40, height: 40, flexShrink: 0, borderRadius: 14, background: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 17, fontWeight: 800, color: '#fff' },
+  limitTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'var(--bento-sand-ink-strong)', margin: '0 0 3px' },
+  limitSub: { fontFamily: FONT, fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-sand-ink-mid)', margin: 0 },
 
   darkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: '18px 20px' },
   darkLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 },

@@ -238,8 +238,15 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
               days={stepDays.reading}
               lang={lang}
               onChange={days => {
-                setStepDaysState(prev => ({ ...prev, reading: days }))
-                persistStepDays({ reading: days }).catch(err => console.error('Failed to persist reading days', err))
+                // Manda o objeto stepDays local inteiro, não só
+                // `{ reading: days }` — mesma corrida de AdjustPlanScreen.jsx
+                // (setStepDays faz merge buscando o servidor; um patch
+                // parcial corre risco de perder outro passo salvo entre o
+                // fetch e o write). Com o objeto completo o merge no
+                // servidor fica irrelevante.
+                const next = { ...(stepDays ?? {}), reading: days }
+                setStepDaysState(next)
+                persistStepDays(next).catch(err => console.error('Failed to persist reading days', err))
                 refreshPosition(orderMode, customOrder)
               }}
             />

@@ -34,6 +34,7 @@ import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
+import { currentDayOf } from '../studies/estudosStore'
 import { computeProjection } from '../plan/readingProjection'
 import { getUseLearnedPace } from '../reading/readingPaceStore'
 
@@ -41,6 +42,13 @@ function joinNames(names, lang) {
   if (names.length <= 1) return names[0] ?? ''
   const sep = lang === 'en' ? ' and ' : ' e '
   return `${names.slice(0, -1).join(', ')}${sep}${names[names.length - 1]}`
+}
+
+// Estudo do formato NOVO (turno 41): sessions com book/chStart/chEnd, ver
+// isNewFormatStudy em App.jsx (mesma checagem, duplicada aqui só pra não
+// criar um import cruzado — é 1 linha).
+function isNewFormatStudy(study) {
+  return !!study?.sessions?.[0]?.book
 }
 
 export default function RoutineScreen({ session, completedSet, stepMinutes, onContinueSession, onOpenActiveStudy, onNavigate, onStartGuided }) {
@@ -78,6 +86,24 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
     Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
       const study = [...STUDIES, ...ai, ...inductive].find(s => s.id === activeStudyId)
       if (!study) return
+      // Bug real corrigido (2026-09-09): estudo do formato NOVO (turno 41,
+      // sessions com book/chStart/chEnd) marca conclusão em
+      // sessions[i].completedAt, não no Set antigo de studies_completed —
+      // isStudySessionDone(doneSet, ...) nunca bate pra ele, então
+      // dayDone ficava sempre 0 ("dia 1 de N" pra sempre, mesmo depois de
+      // avançar). currentDayOf (estudosStore.js, mesma conta de
+      // StudyDetailScreen/StudyDayScreen) é a fonte certa pra esse formato.
+      if (isNewFormatStudy(study)) {
+        const { index, total } = currentDayOf(study)
+        const doneIdx = Math.min(index, Math.max(total - 1, 0))
+        const current = (study.sessions ?? [])[doneIdx]
+        setActiveStudy({
+          title: study.title ?? study.titleEn ?? '',
+          passage: current ? (current.chStart === current.chEnd ? `${current.book} ${current.chStart}` : `${current.book} ${current.chStart}–${current.chEnd}`) : '',
+          dayDone: Math.min(index, total), dayTotal: total,
+        })
+        return
+      }
       const total = study.sessions?.length ?? 0
       const done = (study.sessions ?? []).filter(s => isStudySessionDone(doneSet, study.id, s.id)).length
       const current = (study.sessions ?? [])[Math.min(done, total - 1)]
@@ -328,15 +354,46 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
           </button>
         )}
 
-        {!activeStudyId && !hasNoPlan && (
+        {/* Bug real corrigido (2026-09-09, achado dela: "cartão 'Seu
+            plano'/'Sua semana' desapareceu"): este card ficava escondido
+            também com `!activeStudyId` — resquício do modelo antigo (35b,
+            "Gênesis pausado até 10 de setembro"), de antes das trilhas
+            independentes. Leitura continua tendo posição/progresso/grade
+            própria mesmo com um Estudo ativo (os dois não se pausam mais —
+            ver stepsScheduledForWeekday/estudosStore.js); só a ausência de
+            PLANO (hasNoPlan) é motivo real pra esconder o card. */}
+        {!hasNoPlan && (
           <div style={styles.card}>
             <div style={styles.myPlanHead}>
               <p style={styles.sectionLabel}>{L('myPlanLabel')}</p>
               <p style={styles.myPlanRight}>{L('bibleWholeLabel')}</p>
             </div>
-            <p style={styles.myPlanPosition}>{L('bookPositionLabel', { book: currentBlock.book, chapter: currentBlock.chapter, total: currentBlock.bookChapters })}</p>
+            <p style={styles.myPlanSubLabel}>{L('yourReadingLabel')}</p>
+            <p style={styles.myPlanPosition}>{L('bookPositionLabel', { book: currentBlock.book, chapter: currentBlock.chapter })}</p>
             <p style={styles.myPlanBlock}>{L('blockChaptersLabel', { block: currentBlock.name, done: chaptersRead, total: totalChapters })}</p>
             <div style={styles.progressTrack}><div style={{ ...styles.progressFill, width: `${Math.min(100, biblePercent)}%` }} /></div>
+
+            {/* Estudo ativo (achado dela, 2026-09-09) — título + em que dia
+                ele está, só quando o passo Estudo está LIGADO (mesma regra
+                de sempre: toggle desligado = passo pausado, nem aparece).
+                Mesmo tratamento visual da Leitura acima, sem caixa/borda
+                separando (ela pediu: "não precisa ficar separado") —
+                Leitura e Estudo são independentes (stepDaysMath.js), mas
+                aqui é só um segundo grupo de texto igual ao primeiro. */}
+            {enabled.has('study') && activeStudy && (
+              <div style={styles.myPlanStudyGroup}>
+                <p style={styles.myPlanSubLabel}>{L('yourStudyLabel')}</p>
+                <p style={styles.myPlanStudyTitle}>{activeStudy.title}</p>
+                <p style={styles.myPlanStudyDay}>{L('studyDayLabel', { n: activeStudy.dayDone + 1, total: activeStudy.dayTotal })}</p>
+                {/* Barra de progresso do Estudo (pedido dela, 2026-09-09) —
+                    mesmo estilo da barra da Leitura acima (progressTrack/
+                    progressFill), só com a fração dias-feitos/dias-totais
+                    do estudo em vez do % da Bíblia. */}
+                <div style={styles.progressTrack}>
+                  <div style={{ ...styles.progressFill, width: `${activeStudy.dayTotal > 0 ? Math.min(100, (activeStudy.dayDone / activeStudy.dayTotal) * 100) : 0}%` }} />
+                </div>
+              </div>
+            )}
 
             <div style={styles.myPlanDivider} />
 
@@ -484,8 +541,16 @@ const styles = {
   sectionLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
   myPlanHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   myPlanRight: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', margin: 0 },
+  // Rótulo pequeno "Sua leitura"/"Seu estudo" — mesmo estilo de
+  // sectionLabel (achado dela, 2026-09-09: "não precisa ficar separado",
+  // Leitura e Estudo usam o MESMO tratamento visual, só com o rótulo
+  // trocando qual é qual).
+  myPlanSubLabel: { fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t5)', margin: '0 0 5px' },
   myPlanPosition: { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: '0 0 4px' },
   myPlanBlock: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 12px' },
+  myPlanStudyGroup: { marginTop: 16 },
+  myPlanStudyTitle: { fontFamily: 'var(--font-bento)', fontSize: 16, fontWeight: 800, letterSpacing: '-.3px', lineHeight: 1.25, color: 'var(--bento-ink)', margin: '0 0 4px' },
+  myPlanStudyDay: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 12px' },
   progressTrack: { height: 6, borderRadius: 99, background: 'var(--bento-line)', overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
   myPlanDivider: { height: 1, background: 'var(--bento-line)', margin: '18px 0 14px' },

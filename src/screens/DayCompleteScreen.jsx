@@ -155,7 +155,14 @@ const styles = {
   context: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 6px' },
 
   imageWrap: { borderRadius: 28, overflow: 'hidden', background: '#1A1714', aspectRatio: '9 / 16' },
-  imagePreview: { display: 'block', width: '100%', height: '100%', objectFit: 'cover' },
+  // `contain`, não `cover` (achado 2026-09-09, reportado por ela: o
+  // título do cartão saía cortado por cima) — a imagem já É exatamente
+  // 1080×1920 (9:16, igual ao aspectRatio do container), então os dois
+  // deveriam ficar idênticos; `cover` corta agressivamente se o
+  // navegador arredondar a altura do container por um pixel a menos que
+  // o esperado, `contain` nunca corta, só sobra uma borda mínima nesse
+  // caso raro (imperceptível).
+  imagePreview: { display: 'block', width: '100%', height: '100%', objectFit: 'contain' },
 
   chipsRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: { height: 40, padding: '0 16px', borderRadius: 99, border: 'none', background: '#fff', cursor: 'pointer', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t3)' },

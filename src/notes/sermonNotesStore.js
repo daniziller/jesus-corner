@@ -4,7 +4,42 @@
 // highlightsStore.js (array de registros com id próprio, não um mapa por
 // chave como notesStore.js — cada anotação de sermão é um registro
 // independente, sem ligação com uma passagem/dia específico do plano).
+import { supabase } from '../lib/supabaseClient'
 import { fetchRow, updateRow, withRowLock } from '../backend/userDataStore'
+
+// "Só as palavras dela" (34h, Regra 4 §10) — junta os segmentos de TEXTO
+// e TÓPICO do corpo estruturado (turno 34, Bloco 3), pulando os blocos
+// de CITAÇÃO (texto bíblico, não anotação) e de LINK (correção
+// 2026-09-09 — só a referência, sem texto próprio nenhum). Compat com
+// quem só usou a área simples de 34d (sem body nenhum): usa `text` direto.
+export function sermonOwnWordsText(draft) {
+  if (Array.isArray(draft?.body) && draft.body.length > 0) {
+    return draft.body.filter(s => s.type !== 'quote' && s.type !== 'link').map(s => s.text ?? '').filter(Boolean).join('\n\n')
+  }
+  return draft?.text ?? ''
+}
+
+// "Com menos de ~40 palavras escritas, o bloco preto não aparece" (34h,
+// estado de anotação curta) — mesmo texto de sermonOwnWordsText, só a
+// contagem.
+export function sermonOwnWordCount(draft) {
+  return sermonOwnWordsText(draft).trim().split(/\s+/).filter(Boolean).length
+}
+
+// api/generate-sermon-summary.js — ver ali a verificação por
+// palavras-chave antes de devolver.
+export async function generateSermonSummaryFor(text, lang) {
+  const { data: { session: authSession } } = await supabase.auth.getSession()
+  if (!authSession) throw new Error('not_authenticated')
+  const res = await fetch('/api/generate-sermon-summary', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${authSession.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, lang }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body?.error || `request_failed_${res.status}`)
+  return body.summary
+}
 
 export async function getSermonNotes(_email) {
   const row = await fetchRow()

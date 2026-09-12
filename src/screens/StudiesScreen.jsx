@@ -111,12 +111,17 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
   return (
     <div className="master-detail">
       <div className={`master-pane${openStudy ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-        {/* Título + subtítulo — só no desktop (≥768px), igual
-            Rotina/Início/Progresso. No mobile o Figma não tem esse
-            cabeçalho (Estudos só tem frame desktop, sem referência mobile). */}
-        <div className="hide-on-mobile" style={styles.topHeader}>
+        {/* Título + subtítulo — antes só aparecia no desktop (o Figma nunca
+            teve um quadro mobile pra Estudos), então no celular a única
+            identidade visível era o AppHeader antigo (logo) por cima. Ela
+            reparou que abrir um estudo ainda "parecia" o app antigo por
+            causa disso — 2026-09-09: cabeçalho próprio (mesmos tokens
+            bento de sempre) agora sempre visível, igual
+            Rotina/Início/Comunidade; 'studies' também saiu do AppHeader
+            (ver bentoScreen em App.jsx). */}
+        <div style={styles.topHeader}>
           <h1 style={styles.pageTitle}>{t('studies.pageTitle', undefined, lang)}</h1>
-          <p style={{ ...styles.pageSubtitle, padding: 0, marginTop: 4, marginBottom: 0 }}>{t('studies.pageSubtitle', undefined, lang)}</p>
+          <p style={styles.pageSubtitle}>{t('studies.pageSubtitle', undefined, lang)}</p>
         </div>
 
         <RoutineStepSwitcher
@@ -381,9 +386,9 @@ const styles = {
   // antigo mantido"); migrados na varredura de identidade do Bloco 12
   // pra Manrope/tokens --bento-* (antes usavam .page-header/.page-title,
   // que ainda puxavam --font-display/--bk do index.css).
-  topHeader:    { padding: 0, marginBottom: 4 },
-  pageTitle:    { fontFamily: 'var(--font-bento)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--bento-ink)', margin: 0 },
-  pageSubtitle: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t5)', padding: '14px 14px 0', marginBottom: 8 },
+  topHeader:    { flexShrink: 0, padding: '22px 20px 0' },
+  pageTitle:    { fontFamily: 'var(--font-bento)', fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
+  pageSubtitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t5)', margin: '4px 0 0' },
   detailHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 4px' },
   detailTitle:  { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
   backBtn:      { width: 32, height: 32, borderRadius: 10, border: '0.5px solid var(--bento-line)', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },

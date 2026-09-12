@@ -32,6 +32,15 @@ export function resolveStepDays(stepDays, weeklyDaysFallback) {
 
 // Quais passos, entre os ATIVOS (ligados em stepMinutes/routineModules),
 // caem no dia de índice `weekdayIndex` (0 = segunda ... 6 = domingo).
+//
+// Leitura e Estudo são 100% independentes um do outro (confirmado com a
+// autora, 2026-09-09) — o único critério pra cada um cair num dia é o
+// próprio calendário desse passo (Ajustar meu plano); os dois podem
+// coexistir no mesmo dia sem problema nenhum, virando 4 passos naquele
+// dia. Turno 41 (41f "Nos dias de estudo") tinha introduzido um modo
+// "substituir" que tirava a Leitura nos dias em que os dois coincidiam —
+// revertido: não existe esse cruzamento, cada passo só olha pro próprio
+// stepDays.
 export function stepsScheduledForWeekday(resolvedStepDays, activeSteps, weekdayIndex) {
   return activeSteps.filter(step => !!resolvedStepDays[step]?.[weekdayIndex])
 }

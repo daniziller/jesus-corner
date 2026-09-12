@@ -188,16 +188,42 @@ export async function respondToGroupInvite(groupId, accept) {
   if (error) throw new Error(error.message)
 }
 
-// Sai do grupo (ou cancela/recusa um convite ainda pendente) apagando a
-// própria linha de membro.
+// Sai do grupo (pedido dela, 2026-09-10: "ao sair, todas as mensagens
+// enviadas por ela se tornam anônimas") — antes era um DELETE direto na
+// própria linha de membro; agora passa pela RPC leave_group_and_
+// anonymize (migration 0062), que numa transação só torna anônimas as
+// mensagens da pessoa NESSE grupo (sala de capítulo, discussão geral,
+// pedidos de oração de escopo grupo — mesmo union de "mensagem" que a
+// caixa unificada já usa, ver 0057_group_messages.sql) e só DEPOIS
+// remove a participação. (Cancelar/recusar um CONVITE pendente é outra
+// função — respondToGroupInvite(groupId, false) — não passa por aqui.)
 export async function leaveGroup(groupId) {
-  const userId = await getUserId()
-  if (!userId) return
-  const { error } = await supabase
-    .from('reading_group_members')
-    .delete()
-    .eq('group_id', groupId)
-    .eq('user_id', userId)
+  const { error } = await supabase.rpc('leave_group_and_anonymize', { target_group_id: groupId })
+  if (error) throw new Error(error.message)
+}
+
+// Sair sendo a ÚNICA moderadora do grupo (pedido dela, 2026-09-09) —
+// diferente de leaveGroup: promove `newModeratorUserId` a moderador ANTES
+// de sair, tudo na mesma transação (migration 0063), pra nunca deixar o
+// grupo sem moderador nenhum entre um passo e outro. Mesma anonimização
+// de mensagens de leaveGroup por baixo dos panos.
+export async function leaveGroupWithNewModerator(groupId, newModeratorUserId) {
+  const { error } = await supabase.rpc('leave_group_with_new_moderator', {
+    target_group_id: groupId,
+    new_moderator_id: newModeratorUserId,
+  })
+  if (error) throw new Error(error.message)
+}
+
+// Apaga o grupo de vez (pedido dela, 2026-09-09: alternativa a escolher
+// novo moderador, quando quem está saindo é a única moderadora) — só
+// quem é moderador pode chamar (a RPC recusa se não for). Todo o resto
+// (membros, posts, comentários, pedidos de oração do grupo, sala de
+// capítulo...) cai numa cascata só de `on delete cascade` já configurada
+// nas tabelas desde suas migrations originais — não precisa apagar cada
+// uma na mão.
+export async function deleteGroup(groupId) {
+  const { error } = await supabase.rpc('delete_group', { target_group_id: groupId })
   if (error) throw new Error(error.message)
 }
 

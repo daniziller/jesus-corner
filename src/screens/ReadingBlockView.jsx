@@ -10,7 +10,7 @@ import { formatVerseRanges } from '../utils/verseRanges'
 import { askAboutPassage, fetchPassageSuggestions, reportPassageAnswer } from '../aiChat/passageQuestionStore'
 import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen, fetchChapterContext } from '../aiChat/chapterContextStore'
 import { getAskEnabled } from '../aiChat/aiPreferencesStore'
-import { fetchBookText } from '../bible-text/bibleTextStore'
+import { fetchBookText, groupIntoParagraphs } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { computeBookChapterCounts } from '../utils/progress'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
@@ -1645,11 +1645,15 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             ] : []),
           ]}
           extra={hasAI ? (
+            // Preto + iconizinho laranja — mesma identidade de "Perguntar à
+            // IA" já usada na folha de ações de versículo (verseSheetAskCard,
+            // acima nesta tela); pedido dela, 2026-09-09, pra bater aqui
+            // também (antes era um cartão claro com ícone e texto laranja).
             <button
               style={styles.toolsExtraBtn}
               onClick={() => { setToolsOpen(false); openAiChat() }}
             >
-              <AppIcon name="HelpCircle" size={16} color="var(--bento-accent)" />
+              <span style={styles.toolsExtraBtnDiamondWrap}><span style={styles.toolsExtraBtnDiamond} /></span>
               {t('reading.tagAskAi', undefined, lang)}
             </button>
           ) : null}
@@ -2434,29 +2438,9 @@ function InfoPanel({ type, books, chStart, chEnd, lang }) {
 // Painel "Texto" do acordeão — busca o livro inteiro (cache em
 // bibleTextStore) e mostra só os capítulos da sessão em destaque, um a um,
 // fechado por padrão (só abre quando a pessoa toca na tag "Texto").
-// Agrupa os versículos de um capítulo em parágrafos, seguindo a divisão
-// que a própria versão (NVT/NLT) já publica — ver scripts/build-bible-text.mjs.
-// chapter.breaks[versículo] é 'P' (começa parágrafo novo) ou 'L' (só uma
-// linha nova dentro do mesmo parágrafo, ex: poesia) — versículos sem marca
-// continuam no parágrafo atual.
-function groupIntoParagraphs(chapter) {
-  // Defensivo: um cache de PWA desatualizado (bible-text-cache) pode, em
-  // tese, ainda entregar um formato antigo pra quem não atualizou o app —
-  // sem isso, a tela toda ficava em branco (erro não tratado no render)
-  // em vez de só aquele capítulo vir vazio.
-  if (!chapter?.verses || typeof chapter.verses !== 'object') return []
-  const verseNumbers = Object.keys(chapter.verses).map(Number).sort((a, b) => a - b)
-  const paragraphs = []
-  let current = null
-  for (const v of verseNumbers) {
-    if (!current || chapter.breaks[String(v)] === 'P') {
-      current = []
-      paragraphs.push(current)
-    }
-    current.push(v)
-  }
-  return paragraphs
-}
+// groupIntoParagraphs (agrupa por parágrafo real da versão, ver
+// chapter.breaks) mora em bibleTextStore.js — turno 41, StudyDayScreen.jsx
+// passou a precisar da mesma divisão, então saiu daqui pra não duplicar.
 
 function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, focusVerseRequest, onVerseNumberClick, onTextSelectionRange, immersive = false, groupMarks = null, versionId: versionIdProp, onChangeVersion: onChangeVersionProp }) {
   // Chip da camada do grupo aberto (mostra nomes/notas de quem compartilhou).
@@ -3681,10 +3665,12 @@ const styles = {
   },
   toolsExtraBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
-    border: 'none', borderRadius: 16, background: 'var(--bento-card)',
+    border: 'none', borderRadius: 16, background: 'var(--bento-ink)',
     padding: '14px 16px', cursor: 'pointer', fontFamily: 'var(--font-bento)',
-    fontSize: 13.5, fontWeight: 800, color: 'var(--bento-accent)',
+    fontSize: 13.5, fontWeight: 800, color: '#fff',
   },
+  toolsExtraBtnDiamondWrap: { display: 'flex', flexShrink: 0 },
+  toolsExtraBtnDiamond: { width: 11, height: 11, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
   panel:       { background: 'var(--bento-card)', borderRadius: 20, padding: 16 },
   panelBookLabel:{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
   panelText:   { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t2)', lineHeight: 1.55 },

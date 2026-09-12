@@ -29,11 +29,10 @@ const APP_URL = 'https://app.jesuscorner.app'
 const ALLOWED_PACE_IDS = PLANS.map(p => p.id)
 const MAX_TITLE_LENGTH = 60
 const MAX_SCOPE_LENGTH = 200
-// "4 por mês" tratado como janela rolante de 30 dias (não mês-calendário)
-// — mais simples de calcular e evita o truque de gerar vários no fim de um
-// mês e mais no início do seguinte.
+// "4 por mês" — mês-calendário de verdade (zera todo dia 1º, UTC), não
+// janela rolante — pedido explícito do HANDOFF-41 (§"Cota mensal"), que
+// substitui a janela de 30 dias corridos que este endpoint usava antes.
 const MAX_PLANS_PER_MONTH = 4
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 // Nome canônico (pt, o mesmo usado em session.book em todo o app) -> nome
 // em inglês — monta bookEn nas sessões geradas sem precisar pedir os dois
@@ -122,16 +121,31 @@ export default async function handler(req, res) {
   // api/_lib/adminAuth.js) fica de fora do limite — usa a função pra testar
   // sem esperar a janela de 30 dias.
   if (!isAdminEmail(caller.email)) {
+    // Cota é POR CONTA, não por mecanismo (regra 4 §3: "4 estudos criados
+    // por mês, por conta") — este endpoint gera pra dois destinos
+    // diferentes dependendo de quem chama: ThemePlanScreen.jsx (persiste
+    // em theme_plans) e CreateAiStudyScreen.jsx/35d (persiste em
+    // ai_studies, ver saveAiStudyDraftAsPersonalCopy em App.jsx). Até o
+    // Bloco 2 (2026-09-09) esta checagem só olhava theme_plans — nunca
+    // disparava de verdade pra quem criava por 35d (a cota de fato não
+    // era aplicada nessa tela, bug real). Agora soma os dois.
     const { data: userRow } = await supabase
       .from('user_data')
-      .select('theme_plans')
+      .select('theme_plans, ai_studies')
       .eq('user_id', caller.id)
       .maybeSingle()
-    const existingPlans = userRow?.theme_plans ?? []
-    const recentCount = existingPlans.filter(p => {
+    const now = new Date()
+    const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+    // Só *criar* conta pra cota — estudos adotados do banco/grupo/Jesus
+    // Corner (origin diferente de 'created') não gastam (regra 4 §3).
+    // Entradas antigas, de antes do campo `origin` existir, contam como
+    // 'created' (é o que sempre foram: só dava pra criar, nunca adotar).
+    const countCreated = list => (list ?? []).filter(p => {
+      if ((p.origin ?? 'created') !== 'created') return false
       const created = p.createdAt ? new Date(p.createdAt).getTime() : NaN
-      return !Number.isNaN(created) && Date.now() - created < THIRTY_DAYS_MS
+      return !Number.isNaN(created) && created >= monthStart
     }).length
+    const recentCount = countCreated(userRow?.theme_plans) + countCreated(userRow?.ai_studies)
     if (recentCount >= MAX_PLANS_PER_MONTH) {
       return res.status(429).json({ error: 'plan_limit_reached' })
     }

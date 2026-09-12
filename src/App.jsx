@@ -36,6 +36,7 @@ import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
 import AddStudyScreen from './screens/AddStudyScreen'
+import PublicStudiesScreen from './screens/PublicStudiesScreen'
 import CreateStudyScreen from './screens/CreateStudyScreen'
 import StudyProposalScreen from './screens/StudyProposalScreen'
 import CreateAiStudyScreen from './screens/CreateAiStudyScreen'
@@ -70,7 +71,8 @@ import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
 import { getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode } from './reading/bibleOrderStore'
-import { getStepDays, stepsScheduledForWeekday, nextScheduledWeekday } from './routine/stepDaysStore'
+import { getStepDays, setStepDays as persistStepDays, stepsScheduledForWeekday, nextScheduledWeekday } from './routine/stepDaysStore'
+import { getStudyFinishPrefs } from './studies/studyFinishPrefsStore'
 import { WEEKDAY_FULL } from './routine/weeklyDaysMath'
 import { STEP_ORDER } from './routine/planTodayRows'
 import { dateKey } from './utils/dateKey'
@@ -81,7 +83,12 @@ import { getStepMinutes, setStepMinutes as persistStepMinutes } from './plan/ste
 import { getWeeklyDays, setWeeklyDays as persistWeeklyDays, countTrue } from './routine/weeklyDaysStore'
 import { getThemePlans, saveThemePlan, generateThemePlan, regenerateThemePassage } from './themePlans/themePlansStore'
 import { publishStudy, recordStudyUse } from './studies/publicStudiesStore'
-import { saveAiStudy } from './studies/aiStudiesStore'
+import { saveAiStudy, getAiStudies } from './studies/aiStudiesStore'
+import { studyQuota, currentDayOf } from './studies/estudosStore'
+import StudyDayScreen from './screens/StudyDayScreen'
+import StudyDayCompleteScreen from './screens/StudyDayCompleteScreen'
+import StudyDetailScreen from './screens/StudyDetailScreen'
+import StudyCompleteScreen from './screens/StudyCompleteScreen'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
 import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
@@ -569,6 +576,12 @@ export default function App() {
   // cada render e precisa saber as sessões do plano por tema ativo sem
   // esperar um fetch.
   const [themePlans, setThemePlans] = useState([])
+  // Turno 41, Bloco 2 — cota mensal de verdade (41b): a criação por IA
+  // (CreateAiStudyScreen.jsx/35d) persiste em ai_studies, não theme_plans
+  // (ver saveAiStudyDraftAsPersonalCopy), então a cota precisa ler daqui,
+  // não de themePlans (que é o que api/generate-theme-plan.js já conferia
+  // — checagem real mas contra o array errado, nunca disparava).
+  const [aiStudies, setAiStudies] = useState([])
   // Plano recém-gerado em CreateStudyScreen.jsx (22a), ainda não salvo —
   // vive só entre a geração e a decisão em StudyProposalScreen.jsx (22b:
   // "Salvar p/ depois" ou "Começar"). Null fora dessa janela.
@@ -649,6 +662,17 @@ export default function App() {
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
   const [journeyEntryMode, setJourneyEntryMode] = useState('overview')
+  // Anotação de sermão (aba própria `sermonNote`) — pedido dela
+  // (2026-09-12): o lápis flutuante volta, mas só aparece na Bíblia
+  // (journey) com um rascunho em andamento, nunca pra começar um novo.
+  // true = "começar uma nova" (sempre limpa, vindo do botão "Anotar um
+  // sermão" da Home); false = retomar o rascunho em andamento, vindo do
+  // lápis flutuante — ver openSermonNoteFromHome/resumeSermonNote.
+  const [sermonNoteFresh, setSermonNoteFresh] = useState(true)
+  // Editar uma anotação de sermão JÁ FEITA a partir da Biblioteca (pedido
+  // dela, 2026-09-12) — id da anotação a carregar, ou null nos outros
+  // dois casos (nova/retomar). Ver editSermonNoteFromLibrary.
+  const [sermonNoteEditId, setSermonNoteEditId] = useState(null)
   // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
   // quando a navegação livre passa da raiz (lista de livros, grade de
   // capítulos, leitura embutida), pra esconder a barra igual à leitura
@@ -804,7 +828,7 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -814,6 +838,7 @@ export default function App() {
         getStepDays(),
         getActiveAltPlan(user.email),
         getThemePlans(user.email),
+        getAiStudies(user.email),
         getDailyRoutine(),
         getRoutineModules(user.email),
         getActiveStudyId(user.email),
@@ -858,6 +883,7 @@ export default function App() {
       setStepDaysState(userStepDays)
       setActiveAltPlanState(userActiveAltPlan)
       setThemePlans(userThemePlans)
+      setAiStudies(userAiStudies)
       setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
       setDailyRoutine(routine)
       setRoutineModulesState(userRoutineModules)
@@ -1006,7 +1032,10 @@ export default function App() {
   // podia encadear pro passo Estudo mesmo com o toggle dele desligado.
   // Cada passo agora só entra aqui se estiver de fato ligado E agendado
   // pra hoje — leitura e estudo, se os dois estiverem, aparecem os dois,
-  // na ordem de STEP_ORDER.
+  // na ordem de STEP_ORDER. Leitura e Estudo são 100% independentes: o
+  // único critério é o calendário de CADA passo (Ajustar meu plano) — os
+  // dois podem coincidir no mesmo dia sem problema (ver comentário em
+  // stepDaysMath.js).
   function todaysGuidedSteps() {
     const enabled = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
     const activeSteps = STEP_ORDER.filter(k => enabled.has(k))
@@ -1262,25 +1291,41 @@ export default function App() {
     goToTab('journey')
   }
 
-  // "Anotar uma pregação" (Home, handoff-app-completo, 34a) — mesmo link
-  // "ir pro texto" de sempre (acima), no ÚLTIMO capítulo lido (README,
-  // fluxo de 34a: "abre a Bíblia no último capítulo com 34d já
-  // expandida" — não o capítulo de HOJE; conta que a pessoa quer anotar
-  // sobre o que acabou de ouvir/ler, não necessariamente o próximo do
-  // plano), com fallback pro capítulo de hoje/currentBlock pra quem ainda
-  // não leu nada. A folha abre direto em JourneyScreen.jsx (dona da
-  // folha de sermão — ver browseJumpTarget.openSermonNote).
+  // "Anotar um sermão" (Home) — tela própria de verdade (aba `sermonNote`,
+  // sem barra de navegação, botão de voltar normal) — mesmo padrão de
+  // chapterRoom/metrics (tela empilhada, fora da barra inferior,
+  // onBack={goBack}). Sempre uma anotação NOVA (sermonNoteFresh=true) —
+  // "o form sempre abre limpo".
+  //
+  // Ajuste dela (2026-09-12): "o lápis deve aparecer somente quando uma
+  // anotação estiver em andamento e a pessoa for para a bíblia" — voltar
+  // da página de anotação (leaveSermonPage, JourneyScreen.jsx) volta a
+  // ser um MINIMIZAR (não finaliza mais nada), e o lápis flutuante volta
+  // a existir, mas só dentro da aba Bíblia (journey) — nunca em Home ou
+  // em qualquer outra aba. Só fechar o app ou tocar "Finalizar" comitam
+  // de vez pra Biblioteca (ver commitSermonDraft em JourneyScreen.jsx);
+  // um rascunho vazio (abriu e saiu sem escrever nada) é descartado, não
+  // vira lápis nenhum — resolve o "retângulo que nunca finaliza".
   function openSermonNoteFromHome() {
-    const readingNow = !session.todaySession?.needsThemePick && session.todaySession?.type !== 'reflection'
-    const book = session.lastReadPosition?.book ?? (readingNow ? session.todaySession.book : session.currentBlock?.book)
-    const chapter = session.lastReadPosition?.chapter ?? (readingNow ? session.todaySession.chStart : session.currentBlock?.chapter)
-    const block = book ? blocks.find(b => b.books.includes(book)) : null
-    const targetSession = block ? (browseSessionsByBlock[block.id] ?? []).find(
-      s => s.book === book && s.chStart <= chapter && s.chEnd >= chapter
-    ) : null
-    if (!block || !targetSession) { goToTab('journey'); return }
-    setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id, openSermonNote: true })
-    goToTab('journey')
+    setSermonNoteFresh(true)
+    setSermonNoteEditId(null)
+    goToTab('sermonNote')
+  }
+  function resumeSermonNote() {
+    setSermonNoteFresh(false)
+    setSermonNoteEditId(null)
+    goToTab('sermonNote')
+  }
+
+  // Tocar uma anotação de sermão JÁ FEITA na Biblioteca (pedido dela,
+  // 2026-09-12) — abre a MESMA página rica de anotação (não mais o
+  // formulário simples embutido em NotesScreen.jsx), já carregada com
+  // aquela anotação específica (finalizada ou não — ver
+  // sermonNoteEditId em JourneyScreen.jsx).
+  function editSermonNoteFromLibrary(noteId) {
+    setSermonNoteFresh(false)
+    setSermonNoteEditId(noteId)
+    goToTab('sermonNote')
   }
 
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
@@ -1451,6 +1496,14 @@ export default function App() {
   // fluxo antigo de plano por tema (que CreateStudyScreen.jsx/
   // ThemePlanScreen.jsx continuam servindo do jeito de sempre).
   const [aiStudyDraft, setAiStudyDraft] = useState(null) // { ...plan, mode: 'generate'|'preview', publicToBank }
+  // Turno 41, Bloco 3 — o dia que ACABOU de ser concluído em 41d (por
+  // enquanto 'studyDay' sempre mostra o dia ATUAL, que já avançou pro
+  // seguinte no instante em que 41e precisa mostrar o que a pessoa
+  // acabou de fazer — guardado à parte só durante a transição).
+  const [justCompletedStudyDay, setJustCompletedStudyDay] = useState(null) // { studyId, dayId }
+  // 41g "A partir de amanhã" — os dias que voltaram a ser leitura
+  // contínua (só existe quando finalizeCompletedStudy decidiu devolver).
+  const [returnedStudyDays, setReturnedStudyDays] = useState(null)
 
   async function handleGeneratePersonalStudy({ scope, format, days, publicToBank, plan }) {
     if (plan) {
@@ -1520,8 +1573,13 @@ export default function App() {
 
   async function saveAiStudyDraftAsPersonalCopy(draft) {
     const id = draft.id ?? `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const study = { id, title: draft.title, overview: draft.overview ?? null, scope: draft.scope ?? null, format: draft.format ?? 'thematic', createdAt: draft.createdAt ?? new Date().toISOString(), sessions: draft.passages }
+    // `origin: 'created'` (turno 41, Bloco 2) — este é o caminho de CRIAR
+    // de verdade (35d, texto livre → IA), o único que consome a cota
+    // mensal (ver studyQuota em estudosStore.js e o cartão de limite em
+    // CreateAiStudyScreen.jsx).
+    const study = { id, title: draft.title, overview: draft.overview ?? null, scope: draft.scope ?? null, format: draft.format ?? 'thematic', createdAt: draft.createdAt ?? new Date().toISOString(), sessions: draft.passages, origin: 'created' }
     const updated = await saveAiStudy(authUser.email, study)
+    setAiStudies(updated)
     return updated.find(s => s.id === id) ?? study
   }
 
@@ -1539,7 +1597,13 @@ export default function App() {
     await publishAiStudyIfRequested(aiStudyDraft)
     await selectActiveStudy(saved.id, saved.sessions.length)
     setAiStudyDraft(null)
-    goToTab('routine')
+    // "Começar agora"/"Começar amanhã" (41c) — bug real (2026-09-09,
+    // reportado por ela): antes só ia pra Meu Plano ("entra no plano",
+    // README) sem realmente abrir o dia 1, pré-datando 41d, que não
+    // existia ainda. Agora abre 41d de verdade — `saved` (não
+    // `aiStudies`/openActiveStudy) porque o estado ainda não assentou
+    // nesta mesma função (ver comentário de goToStudyOrFallback).
+    goToStudyOrFallback(saved)
   }
 
   // Prévia de um cartão de 35h (Jesus Corner/grupo/banco público/salvos) —
@@ -1559,15 +1623,24 @@ export default function App() {
     // própria cópia em ai_studies (arrays por usuário), então reusar o
     // mesmo id não colide com o de mais ninguém.
     const id = aiStudyDraft.sourceStudyId ?? `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const study = { id, title: aiStudyDraft.title, overview: aiStudyDraft.overview ?? null, format: aiStudyDraft.format ?? 'thematic', createdAt: new Date().toISOString(), sessions: aiStudyDraft.sessions }
+    // `createdAt` preserva o original quando já existe (reabrir/recomeçar
+    // um "Salvo" não é um evento novo — achado corrigindo a cota do Bloco
+    // 2: antes esta linha SEMPRE carimbava agora, então só reabrir um
+    // estudo salvo bastava pra "criar" de novo contra a cota). `origin`
+    // (idem) — Jesus Corner/grupo/banco público/salvos NUNCA consomem
+    // cota (regra 4 §3); só o "Salvos" reabre o próprio 'created' de
+    // quando foi gerado a primeira vez (aiStudyDraft.origin já vem certo
+    // dos cartões de 41a/41i, ver onOpenPreview).
+    const study = { id, title: aiStudyDraft.title, overview: aiStudyDraft.overview ?? null, format: aiStudyDraft.format ?? 'thematic', createdAt: aiStudyDraft.createdAt ?? new Date().toISOString(), sessions: aiStudyDraft.sessions, origin: aiStudyDraft.origin ?? 'created' }
     const updated = await saveAiStudy(authUser.email, study)
+    setAiStudies(updated)
     const saved = updated.find(s => s.id === id) ?? study
     if (aiStudyDraft.fromPublicBank && aiStudyDraft.sourceStudyId) {
       recordStudyUse(aiStudyDraft.sourceStudyId).catch(err => console.error('Failed to record study use', err))
     }
     await selectActiveStudy(saved.id, saved.sessions.length)
     setAiStudyDraft(null)
-    goToTab('routine')
+    goToStudyOrFallback(saved) // mesmo motivo de handleStartAiStudy acima
   }
 
   // "Enviar para o grupo" (22d) — grava o plano de verdade (RPC
@@ -1755,7 +1828,7 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -1765,6 +1838,7 @@ export default function App() {
       getStepDays(),
       getActiveAltPlan(user.email),
       getThemePlans(user.email),
+      getAiStudies(user.email),
       getPrayerStats(user.email),
       getDailyRoutine(),
       getRoutineModules(user.email),
@@ -1798,6 +1872,7 @@ export default function App() {
     setStepDaysState(userStepDays)
     setActiveAltPlanState(userActiveAltPlan)
     setThemePlans(userThemePlans)
+    setAiStudies(userAiStudies)
     setActiveBlockId(defaultBlockIdFor(set, userPlanId, userReadingOrder, userStepMinutes.reading))
     setPrayerStats(stats)
     setDailyRoutine(routine)
@@ -1834,6 +1909,7 @@ export default function App() {
     setStepMinutesState({ prayer: null, reading: null, study: null, reflection: null })
     setActiveAltPlanState(null)
     setThemePlans([])
+    setAiStudies([])
     setRoutineModulesState(DEFAULT_ROUTINE_MODULES)
     setActiveStudyIdState(null)
     setBibleOrderModeState('canonical')
@@ -2173,10 +2249,103 @@ export default function App() {
   // "Ler agora" em Meu Plano (35b) quando o passo de hoje é o Estudo ativo —
   // mesmo mecanismo que a Biblioteca já usa pra abrir um estudo específico
   // (ver libraryOpenStudyId/NotesScreen.jsx).
+  // Botão "Começar/Continuar" do passo Estudo (RoutineScreen.startStep/
+  // openDoneStep) — antes, sem nenhum estudo ativo escolhido ainda (o
+  // toggle de Estudo pode estar ligado sem study nenhum selecionado, ver
+  // PR #132), essa função só dava `return` e o botão não fazia nada
+  // (bug real, 2026-09-09). Agora leva pra "Adicionar estudo" pra
+  // escolher/criar um, mesmo destino do cartão "Meus estudos".
+  // Turno 41, Bloco 3: ai_studies guarda DOIS formatos de sessão — o
+  // antigo (StudiesScreen.jsx, "criar por tema" com sections/
+  // reflectionQuestions, sem pergunta única por dia) e o novo (41b/41c em
+  // diante, com book/chStart/chEnd — o que 41d sabe abrir). Só o novo
+  // ganha a tela nova; um estudo antigo ainda ativo continua abrindo do
+  // jeito de sempre (StudiesScreen), sem quebrar quem já tinha um rodando
+  // antes deste bloco.
+  function isNewFormatStudy(study) {
+    return !!study?.sessions?.[0]?.book
+  }
+  // Recebe o Estudo já pronto (`study`), nunca relê de `aiStudies`/
+  // `activeStudyId` por conta própria — achado num bug real (2026-09-09,
+  // reportado por ela): chamar isso *na mesma função* que ACABOU de
+  // `setAiStudies`/`selectActiveStudy` via closure em `aiStudies`/
+  // `activeStudyId` lia os valores de ANTES do setState (React só aplica
+  // no próximo render), então caía sempre no fallback errado logo depois
+  // de criar/adotar um estudo. `openActiveStudy()` abaixo (chamado de
+  // fora, sem acabar de mudar nada) ainda lê o estado — ali é seguro.
+  function goToStudyOrFallback(study) {
+    if (study && isNewFormatStudy(study)) {
+      if (currentDayOf(study).day) { goToTab('studyDay'); return }
+      // Todos os dias já feitos — 41f ("estudo por dentro", Bloco 4) e 41g
+      // (síntese, Bloco 5) ainda não existem; por ora volta pro hub.
+      goToTab('addStudy')
+      return
+    }
+    if (study) { setLibraryOpenStudyId(study.id); goToTab('studies'); return }
+    goToTab('addStudy')
+  }
   function openActiveStudy() {
-    if (!activeStudyId) return
-    setLibraryOpenStudyId(activeStudyId)
-    goToTab('studies')
+    if (!activeStudyId) { goToTab('addStudy'); return }
+    goToStudyOrFallback(aiStudies.find(s => s.id === activeStudyId))
+  }
+
+  // Fecho de um dia (41d → 41e) — guarda qual dia foi concluído (a
+  // referência "atual" já avançou pro seguinte) e marca o passo "Estudo"
+  // de hoje como feito (mesmo evento que StudiesScreen.jsx já disparava
+  // ao concluir uma sessão do estudo ativo).
+  // Regra 4 §8 — "ao terminar, encadear o próximo salvo e/ou devolver os
+  // dias à leitura". studyFinishPrefsStore.js já documentava isso como
+  // pendente ("o gatilho que as consome ainda não existe") — este é esse
+  // gatilho, disparado só na conclusão NATURAL do último dia (41g), não
+  // num "Pausar"/"Encerrar" manual (41f/41h) — abandonar antes do fim não
+  // implica escolher o próximo nem devolver dia nenhum.
+  async function finalizeCompletedStudy(finishedStudyId) {
+    try {
+      const prefs = await getStudyFinishPrefs()
+      if (prefs.returnDays) {
+        // Guarda os dias de ANTES de limpar — 41g mostra "Seg, qua e sex
+        // voltam a ser leitura contínua" citando os dias reais que
+        // tinham Estudo, não o array já zerado.
+        setReturnedStudyDays(stepDays?.study ?? null)
+        const cleared = [false, false, false, false, false, false, false]
+        setStepDaysState(prev => (prev ? { ...prev, study: cleared } : prev))
+        persistStepDays({ study: cleared }).catch(err => console.error('Failed to return study days to reading', err))
+      }
+      if (prefs.autoNext) {
+        const queued = aiStudies.find(s => s.id !== finishedStudyId && !(s.sessions ?? []).every(sess => sess.completedAt))
+        if (queued) { await selectActiveStudy(queued.id, queued.sessions?.length ?? 0); return }
+      }
+      await selectActiveStudy(null)
+    } catch (err) {
+      console.error('Failed to finalize completed study', err)
+    }
+  }
+
+  function handleStudyDayCompleted(studyId, dayId, isLastDay) {
+    markRoutineStep('study', true)
+    setJustCompletedStudyDay({ studyId, dayId })
+    if (isLastDay) {
+      finalizeCompletedStudy(studyId)
+      goToTab('studyComplete')
+      return
+    }
+    goToTab('studyDayComplete')
+  }
+
+  // "Continuar meu plano" (41e) — mesma ideia de advanceGuided, mas sem
+  // modo guiado: acha o primeiro passo de hoje ainda não feito e abre
+  // direto; se não sobrou nenhum, vai pro resumo do dia (mesmo destino de
+  // sempre quando o último passo termina).
+  function continueStudyDayToNextStep() {
+    const nextKey = (session.todaysSteps ?? []).find(k => !session.todayRoutine?.[k])
+    if (!nextKey) {
+      setRoutineCompleteInfo({ steps: session.todaysSteps ?? ['study'], readingSession: lastReadSession })
+      goToTab('routineComplete')
+      return
+    }
+    if (nextKey === 'reading') { continueToday(); return }
+    if (nextKey === 'study') { openActiveStudy(); return }
+    goToTab(guidedTabFor(nextKey))
   }
 
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
@@ -2381,6 +2550,10 @@ export default function App() {
   // passo restante hoje, então nunca entra em guidedFlow — ver
   // startGuidedRoutine). Independe de session.guided de propósito.
   session.todaysSteps = todaysGuidedSteps()
+  // RoutineScreen.jsx/HomeScreen.jsx recomputam "passos de hoje" cada uma
+  // com o próprio fetch de stepDays (não leem session.todaysSteps direto),
+  // mas chamam a mesma stepsScheduledForWeekday pura — sem 4º argumento,
+  // Leitura e Estudo são independentes (ver stepDaysMath.js).
   // Tier de acesso disponível pra toda tela (ver src/billing/entitlement.js).
   // hasPremium: rotina guiada, voz natural, mãos-livres, XP/conquistas,
   // cronológico, notas, comunidade. hasAI: recursos de IA.
@@ -2472,6 +2645,23 @@ export default function App() {
     await shareRecapImage(blob, { title: month, text: L('shareText', { month, summary }) })
   }
 
+  // Turno 41, Bloco 3 — resolvidos aqui (não em estado à parte) pra nunca
+  // dessincronizar com aiStudies: 41d sempre mostra o dia atual de
+  // verdade; 41e mostra o dia que acabou de ser concluído (ver
+  // justCompletedStudyDay, limpo ao sair de 41e).
+  const activeStudyForDay = aiStudies.find(s => s.id === activeStudyId)
+  const currentDay = activeStudyForDay ? currentDayOf(activeStudyForDay) : null
+  const justCompletedStudy = justCompletedStudyDay ? aiStudies.find(s => s.id === justCompletedStudyDay.studyId) : null
+  const justCompletedDayIndex = justCompletedStudy?.sessions?.findIndex(s => s.id === justCompletedStudyDay?.dayId) ?? -1
+  const justCompletedDay = justCompletedDayIndex >= 0 ? justCompletedStudy.sessions[justCompletedDayIndex] : null
+  // Próximo passo de hoje ainda não feito (pro rodapé "Continuar meu
+  // plano" de 41e) — mesma conta de stepMinutesAll em HomeScreen.jsx.
+  const nextRoutineStepKey = (session.todaysSteps ?? []).find(k => !session.todayRoutine?.[k])
+  const nextStepMinutesByKey = { prayer: session.plan?.prayerMinutes, reading: session.plan?.readingMinutes, study: stepMinutes?.study ?? 15, reflection: session.plan?.reflectionMinutes }
+  const nextRoutineStepInfo = nextRoutineStepKey
+    ? { label: t(`home.routine${nextRoutineStepKey[0].toUpperCase()}${nextRoutineStepKey.slice(1)}`, undefined, session.lang), minutes: nextStepMinutesByKey[nextRoutineStepKey] }
+    : null
+
   const screens = {
     // Rodada 34 (2026-09-07, handoff-hoje-34/HANDOFF-34a-hoje.md) — Hoje
     // reescrita de novo: plano de hoje → versículo → aplicação de ontem →
@@ -2480,7 +2670,7 @@ export default function App() {
     // era mais simples que este quadro, não o contrário, então não houve
     // conflito entre as duas decisões, só uma sequência.
     home: <HomeScreen
-      session={session} authUser={authUser} completedSet={completedSet} weeklyDays={weeklyDays} stepMinutes={stepMinutes}
+      session={session} authUser={authUser} completedSet={completedSet} stepMinutes={stepMinutes}
       weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
       onOpenProfile={() => setProfileOpen(true)}
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
@@ -2503,7 +2693,7 @@ export default function App() {
       ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} onSaveBibleOrderMode={saveBibleOrderMode} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     studyOrganize: hasPremium
-      ? <StudyOrganizeScreen session={session} onEndStudy={() => selectActiveStudy(null)} onNavigate={navigateTo} onBack={goBack} />
+      ? <StudyOrganizeScreen session={session} onEndStudy={() => selectActiveStudy(null)} onNavigate={navigateTo} onBack={goBack} onOpenStudyDetail={() => goToTab('studyDetail')} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // "Onde começar" (28d/28e, Bloco 6) — "Trocar plano" em Ajustar meu
     // plano (5a). chooseStartExisting nunca é alcançada por navegação
@@ -2536,6 +2726,18 @@ export default function App() {
           onCreateStudy={() => navigateTo('createAiStudy')}
           onChangeStudyDays={() => navigateTo('studyOrganize')}
           onOpenPreview={handleOpenStudyPreview}
+          onOpenPublicBank={() => navigateTo('publicStudies')}
+          onOpenStudyDetail={() => goToTab('studyDetail')}
+        />,
+    // Turno 41, 41i — "Banco público" (busca por situação, chips de tema).
+    // Mesma trava de addStudy (rotina inteira é hasPremium).
+    publicStudies: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : <PublicStudiesScreen
+          session={session}
+          onBack={goBack}
+          onOpenPreview={handleOpenStudyPreview}
+          onGoToSaved={() => navigateTo('addStudy')}
         />,
     // Etapa 10 (22a/22b) — fluxo ANTIGO (theme_plans/activeAltPlan.theme),
     // mantido pra quem ainda chega por ThemePlanScreen.jsx. Turno 35,
@@ -2547,9 +2749,12 @@ export default function App() {
       ? <StudyProposalScreen session={session} plan={generatedStudyPlan} onBack={goBack} onRefazer={refazerGeneratedStudy} onSaveForLater={saveStudyForLater} onStart={startGeneratedStudy} />
       : null,
     // Turno 35, Bloco 4 — 35d/35e (fluxo novo: ai_studies/selectActiveStudy).
+    // `quota` (turno 41, 41b "cartão do limite") soma ai_studies + theme_plans
+    // — mesma conta de api/generate-theme-plan.js (a cota é por CONTA, não
+    // por mecanismo). Conta admin nunca esgota (mesma isenção do servidor).
     createAiStudy: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
-      : <CreateAiStudyScreen session={session} onBack={goBack} onGeneratePersonal={handleGeneratePersonalStudy} onGeneratedGroup={plan => { setGeneratedGroupPlan(plan); goToTab('groupPlanProposal') }} />,
+      : <CreateAiStudyScreen session={session} quota={isAdmin ? { ...studyQuota([]), exhausted: false } : studyQuota([...aiStudies, ...themePlans])} onBack={goBack} onGeneratePersonal={handleGeneratePersonalStudy} onGeneratedGroup={plan => { setGeneratedGroupPlan(plan); goToTab('groupPlanProposal') }} />,
     studyProposalNew: !aiStudyDraft
       ? null
       : <StudyProposalNewScreen
@@ -2557,6 +2762,64 @@ export default function App() {
           onBack={goBack} onRefazer={handleRefazeAiStudyDraft} onSwapDay={handleSwapAiStudyDay}
           onSaveForLater={handleSaveAiStudyForLater}
           onStart={aiStudyDraft.mode === 'preview' ? handleStartPreviewStudy : handleStartAiStudy}
+        />,
+    // Turno 41, Bloco 3 — 41d "O dia do estudo, aberto". `activeStudyForDay`/
+    // `currentDay` resolvidos aqui (não guardados à parte) porque o dia
+    // "atual" É sempre o mais recente incompleto — nunca dessincroniza.
+    studyDay: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : !activeStudyForDay || !currentDay?.day
+      ? null
+      : <StudyDayScreen
+          session={session} authUser={authUser} study={activeStudyForDay}
+          day={currentDay.day} dayIndex={currentDay.index} totalDays={currentDay.total}
+          onBack={goBack} onOpenBiblePassage={openBiblePassage}
+          onStudyUpdated={setAiStudies}
+          onCompleted={handleStudyDayCompleted}
+          onSavedForLater={() => goToTab('routine')}
+        />,
+    // 41e "Fim do dia do estudo" — `justCompletedDay` é o dia que ACABOU
+    // de ser concluído (guardado em justCompletedStudyDay na hora, ver
+    // handleStudyDayCompleted), não o "atual" (que já é o seguinte).
+    studyDayComplete: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : !justCompletedDay
+      ? null
+      : <StudyDayCompleteScreen
+          session={session} authUser={authUser} study={justCompletedStudy}
+          day={justCompletedDay} dayIndex={justCompletedDayIndex} totalDays={justCompletedStudy?.sessions?.length ?? 0}
+          stepDays={stepDays} nextStep={nextRoutineStepInfo}
+          onStudyUpdated={setAiStudies}
+          onContinuePlan={() => { setJustCompletedStudyDay(null); continueStudyDayToNextStep() }}
+          onFinishHere={() => { setJustCompletedStudyDay(null); goToTab('routine') }}
+        />,
+    // 41g "Estudo concluído" — substitui 41e no último dia (M de M, ver
+    // handleStudyDayCompleted). Reusa justCompletedStudy/justCompletedDay
+    // já resolvidos acima pra 41e (mesmo studyId/dayId, a diferença é só
+    // qual tela renderiza).
+    studyComplete: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : !justCompletedStudy
+      ? null
+      : <StudyCompleteScreen
+          session={session} authUser={authUser} study={justCompletedStudy} returnedDays={returnedStudyDays}
+          onChooseAnother={() => { setJustCompletedStudyDay(null); setReturnedStudyDays(null); goToTab('addStudy') }}
+          onOnlyReadingForNow={() => { setJustCompletedStudyDay(null); setReturnedStudyDays(null); goToTab('routine') }}
+          onBackToPlan={() => { setJustCompletedStudyDay(null); setReturnedStudyDays(null); goToTab('routine') }}
+        />,
+    // 41f "O estudo por dentro" — só o Estudo do formato novo chega aqui
+    // (o antigo continua no "Ver os 7 dias" inline de StudyOrganizeScreen
+    // .jsx). `activeStudyForDay` já é o mesmo resolvido pra 41d.
+    studyDetail: !hasPremium
+      ? <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />
+      : !activeStudyForDay
+      ? null
+      : <StudyDetailScreen
+          session={session} study={activeStudyForDay} stepDays={stepDays}
+          onBack={goBack} onOpenDay={() => goToTab('studyDay')}
+          onChangeStudyDays={() => navigateTo('studyOrganize')}
+          onPause={() => { selectActiveStudy(null); goBack() }}
+          onSwitchStudy={() => goToTab('addStudy')}
         />,
     // Etapa 10 (22d) — proposta e envio de um plano de grupo (só quem
     // modera chega aqui, ver CreateStudyScreen.jsx), e o leitor dele depois
@@ -2568,7 +2831,14 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
+    // Anotação de sermão — tela própria de verdade (pedido dela,
+    // 2026-09-10), não mais uma folha flutuante sobre a Bíblia. Reaproveita
+    // JourneyScreen.jsx (dona de toda a lógica/estado da anotação desde o
+    // início) num modo dedicado (sermonNoteMode) que pula toda a UI de
+    // navegação da Bíblia e renderiza só a anotação, em fluxo normal de
+    // página — nada de portal/véu/folha arrastável.
+    sermonNote: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} onNavigate={navigateTo} sermonNoteMode sermonNoteFresh={sermonNoteFresh} sermonNoteEditId={sermonNoteEditId} onBack={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
@@ -2701,21 +2971,19 @@ export default function App() {
   // (visível na aba Comunidade tanto com quanto sem grupo aberto, nunca
   // notado porque a varredura de identidade olhou tokens de cor, não
   // esse tipo de duplicação estrutural).
-  const reflectionBento = activeTab === 'reflection' && reflectionAiActive
   // 'profile' entrou nesta lista junto da migração pra Bento do Perfil de
   // desktop (antes ficava de fora, com o AppHeader antigo por cima da
   // versão antiga da tela); 'contact'/'applicationPhrases'/'themePlan'
   // entraram junto da migração dessas telas — cada uma tem cabeçalho
-  // Bento próprio agora. 'studies' continua de fora DE PROPÓSITO (o
-  // pacote de design nunca teve um quadro mobile pra Estudos — só
-  // desktop), então o AppHeader compacto (já corrigido pra --bento-*)
-  // segue cobrindo o mobile igual antes; o que era identidade antiga de
-  // verdade — o próprio cabeçalho de página (.page-header/.page-title,
-  // --font-display/--bk) e a fonte de quase todo o corpo da tela
-  // (nenhum estilo de texto declarava fontFamily, então herdava --font do
-  // body) — foi migrado pra Manrope/tokens --bento-* dentro do próprio
-  // StudiesScreen.jsx na varredura de identidade do Bloco 12.
-  const bentoScreen = ['home', 'routine', 'journey', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages'].includes(activeTab)
+  // Bento próprio agora. 'studies' MESMO BUG de 'groups' antes de
+  // 2026-09-07 (ver comentário logo acima): StudyDetail/SessionView já
+  // tinham cabeçalho próprio (seta de voltar + título, tokens --bento-*)
+  // desde sempre, mas ficava com o AppHeader antigo (logo) empilhado em
+  // cima — "abrir o estudo ainda parece o app antigo", reportado por ela
+  // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
+  // agora também aparece no mobile (era hide-on-mobile) — ver
+  // StudiesScreen.jsx.
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -2728,7 +2996,11 @@ export default function App() {
   // diferente de 35d/35e (createAiStudy/studyProposalNew), que têm botão
   // primário fixo no rodapé no lugar da barra, como o antigo createStudy/
   // studyProposal já tinham.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages'].includes(activeTab)
+  // 'publicStudies' (41i) entrou aqui 2026-09-09: HANDOFF-41 é explícito
+  // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
+  // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
+  // voltar, sem barra.
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (
@@ -2767,7 +3039,7 @@ export default function App() {
             )}
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
-                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} />
+                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} onOpenSermonNote={editSermonNoteFromLibrary} onCreateSermonNote={openSermonNoteFromHome} />
               </div>
             )}
             {hasPremium && studiesVisitedRef.current && (
