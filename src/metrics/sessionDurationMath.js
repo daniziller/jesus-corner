@@ -11,20 +11,28 @@ function sumBy(rows, keyFn) {
   return totals
 }
 
+// Filtro comum de sinceDate/untilDate (pedido dela, 2026-09-12: "filtro
+// de data de início e fim") sobre a coluna `data` (YYYY-MM-DD) — usado por
+// totalsByStep/totalsByDay abaixo. untilDate null = sem teto (vai até
+// agora), mesmo comportamento de sempre.
+function filterByRange(rows, sinceDate, untilDate) {
+  if (!sinceDate && !untilDate) return rows
+  return rows.filter(r => (!sinceDate || r.data >= sinceDate) && (!untilDate || r.data <= untilDate))
+}
+
 // { prayer, reading, reflection } em segundos, dentro do período (todas as
-// linhas se `sinceDate` for null) — base do bloco escuro "Tempo com Deus" de
-// 30b e do cartão "Tempo em cada passo" de 31a.
-export function totalsByStep(rows, sinceDate = null) {
-  const filtered = sinceDate ? rows.filter(r => r.data >= sinceDate) : rows
+// linhas se `sinceDate`/`untilDate` forem null) — base do bloco escuro
+// "Tempo com Deus" de 30b e do cartão "Tempo em cada passo" de 31a.
+export function totalsByStep(rows, sinceDate = null, untilDate = null) {
+  const filtered = filterByRange(rows, sinceDate, untilDate)
   const byPasso = sumBy(filtered, r => r.passo)
   return { prayer: byPasso.prayer ?? 0, reading: byPasso.reading ?? 0, reflection: byPasso.reflection ?? 0 }
 }
 
 // Segundos por dia (chave YYYY-MM-DD) somando os 3 passos — usado pra achar
 // "dia mais longo" (31a) e pra decidir se um dia contou pra "esta semana".
-export function totalsByDay(rows, sinceDate = null) {
-  const filtered = sinceDate ? rows.filter(r => r.data >= sinceDate) : rows
-  return sumBy(filtered, r => r.data)
+export function totalsByDay(rows, sinceDate = null, untilDate = null) {
+  return sumBy(filterByRange(rows, sinceDate, untilDate), r => r.data)
 }
 
 // { prayer, reading, reflection } de UM dia só (dayKeyStr, formato
@@ -38,8 +46,8 @@ export function totalsForDay(rows, dayKeyStr) {
 // Sessão média em segundos — só conta dias com pelo menos uma sessão, não
 // divide pelos dias do período inteiro (um período de 30 dias com 10 dias
 // de leitura tem "sessão média" sobre esses 10, não sobre 30).
-export function averageSessionSeconds(rows, sinceDate = null) {
-  const byDay = totalsByDay(rows, sinceDate)
+export function averageSessionSeconds(rows, sinceDate = null, untilDate = null) {
+  const byDay = totalsByDay(rows, sinceDate, untilDate)
   const days = Object.values(byDay)
   if (days.length === 0) return 0
   return Math.round(days.reduce((s, v) => s + v, 0) / days.length)

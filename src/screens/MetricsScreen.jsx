@@ -26,16 +26,22 @@ import { totalsByStep, averageSessionSeconds } from '../metrics/sessionDurationM
 import { getAllChapterReadRows } from '../bible/chapterReadLog'
 import { getDailyRoutine } from '../routine/dailyRoutineStore'
 import { getWeeklyDays } from '../routine/weeklyDaysStore'
-import { periodSinceDate, mostCommonHour, hourRangeLabel, chaptersReadInPeriod, reflectionDaysInPeriod, splitHoursMinutes } from '../metrics/metricsSummary'
+import { periodRange, mostCommonHour, hourRangeLabel, chaptersReadInPeriod, reflectionDaysInPeriod, splitHoursMinutes } from '../metrics/metricsSummary'
 import { countChaptersRead, totalBibleChapters, computeProjection, formatYearsMonths } from '../plan/readingProjection'
 import { computeCompletedBooks } from '../utils/progress'
 
-const PERIODS = ['30d', 'year', 'all']
+// Pedido dela (2026-09-12): "adicionar esta semana e filtro de data de
+// início e fim pra filtrar as métricas" — 'week' usa a mesma segunda-feira
+// de sempre (mondayOf, ver periodSinceDate em metricsSummary.js); 'custom'
+// abre os dois campos de data (De/Até) em vez de um período fixo.
+const PERIODS = ['week', '30d', 'year', 'all', 'custom']
 
 export default function MetricsScreen({ session, completedSet, sessionsByBlock, stepMinutes, hasWeeklySummary, onNavigate, onBack }) {
   const { lang } = session
   const L = (k, vars) => t(`metrics.${k}`, vars, lang)
   const [period, setPeriod] = useState('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [sessionRows, setSessionRows] = useState([])
   const [chapterRows, setChapterRows] = useState([])
   const [dailyRoutine, setDailyRoutine] = useState({})
@@ -55,19 +61,19 @@ export default function MetricsScreen({ session, completedSet, sessionsByBlock, 
     return () => { alive = false }
   }, [])
 
-  const sinceDate = periodSinceDate(period)
+  const { sinceDate, untilDate } = periodRange(period, customFrom, customTo)
 
-  const totals = useMemo(() => totalsByStep(sessionRows, sinceDate), [sessionRows, sinceDate])
+  const totals = useMemo(() => totalsByStep(sessionRows, sinceDate, untilDate), [sessionRows, sinceDate, untilDate])
   const totalSeconds = totals.prayer + totals.reading + totals.reflection
   const totalHM = splitHoursMinutes(totalSeconds)
   const pct = secs => totalSeconds > 0 ? Math.round((secs / totalSeconds) * 100) : 0
 
   const chaptersInPeriod = useMemo(
-    () => period === 'all' ? countChaptersRead(completedSet) : chaptersReadInPeriod(chapterRows, sinceDate),
+    () => (period === 'all' ? countChaptersRead(completedSet) : chaptersReadInPeriod(chapterRows, sinceDate, untilDate)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [period, chapterRows, sinceDate, completedSet]
+    [period, chapterRows, sinceDate, untilDate, completedSet]
   )
-  const reflectionCount = useMemo(() => reflectionDaysInPeriod(dailyRoutine, sinceDate), [dailyRoutine, sinceDate])
+  const reflectionCount = useMemo(() => reflectionDaysInPeriod(dailyRoutine, sinceDate, untilDate), [dailyRoutine, sinceDate, untilDate])
 
   const totalChapters = totalBibleChapters()
   const chaptersRemaining = Math.max(0, totalChapters - countChaptersRead(completedSet))
@@ -78,8 +84,8 @@ export default function MetricsScreen({ session, completedSet, sessionsByBlock, 
     ? computeProjection({ completedSet, readingMinutesPerDay, weeklyDays, lang })
     : null
 
-  const avgSeconds = useMemo(() => averageSessionSeconds(sessionRows, sinceDate), [sessionRows, sinceDate])
-  const commonHour = useMemo(() => mostCommonHour(sessionRows, 'reading', sinceDate), [sessionRows, sinceDate])
+  const avgSeconds = useMemo(() => averageSessionSeconds(sessionRows, sinceDate, untilDate), [sessionRows, sinceDate, untilDate])
+  const commonHour = useMemo(() => mostCommonHour(sessionRows, 'reading', sinceDate, untilDate), [sessionRows, sinceDate, untilDate])
   const completedBooks = useMemo(() => computeCompletedBooks(completedSet, sessionsByBlock ?? {}).size, [completedSet, sessionsByBlock])
 
   const prayingHM = splitHoursMinutes(totals.prayer)
@@ -102,6 +108,25 @@ export default function MetricsScreen({ session, completedSet, sessionsByBlock, 
             </button>
           ))}
         </div>
+
+        {/* "Escolher período" (pedido dela, 2026-09-12: "filtro de data de
+            início e fim") — mesmo padrão de par De/Até já usado no filtro
+            de data da Biblioteca (NotesScreen.jsx). */}
+        {period === 'custom' && (
+          <div style={s.dateRangeRow}>
+            <input
+              type="date" style={s.dateInput} value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              aria-label={L('dateFrom')}
+            />
+            <span style={s.dateRangeSep}>–</span>
+            <input
+              type="date" style={s.dateInput} value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              aria-label={L('dateTo')}
+            />
+          </div>
+        )}
       </div>
 
       <div style={s.body}>
@@ -192,9 +217,15 @@ const s = {
   headerTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 18, fontWeight: 800, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: 0 },
-  periodRow: { display: 'flex', gap: 6 },
-  periodBtn: { fontFamily: FONT, fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t2)', background: '#fff', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
+  // 5 pílulas (week/30d/year/all/custom) rolam horizontal em telas
+  // estreitas em vez de espremer o texto — scrollbar escondida global
+  // (index.css, ::-webkit-scrollbar { display: none }).
+  periodRow: { display: 'flex', gap: 6, overflowX: 'auto' },
+  periodBtn: { flexShrink: 0, whiteSpace: 'nowrap', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t2)', background: '#fff', border: 'none', borderRadius: 99, padding: '9px 13px', cursor: 'pointer' },
   periodBtnOn: { fontWeight: 800, color: '#fff', background: 'var(--bento-ink)' },
+  dateRangeRow: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 },
+  dateRangeSep: { fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t4)' },
+  dateInput: { flex: 1, minWidth: 0, border: 'none', borderRadius: 11, padding: '9px 10px', fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-ink)', background: '#fff' },
 
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 4px', display: 'flex', flexDirection: 'column', gap: 10 },
 

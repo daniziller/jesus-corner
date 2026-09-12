@@ -60,6 +60,13 @@ check('totalsForDay dia sem sessão nenhuma', totalsForDay(rows, '2026-08-27').p
 const sinceLater = totalsByStep(rows, '2026-08-28')
 check('sinceDate filtra: orando só 28 e 30 (30+45 min)', sinceLater.prayer, (30 + 45) * 60)
 
+// untilDate (pedido dela, 2026-09-12: "filtro de data de início e fim") —
+// intervalo fechado dos dois lados, não só um início aberto até agora.
+const rangeMiddle = totalsByStep(rows, '2026-08-26', '2026-08-28')
+check('início E fim: orando só 26 e 28 (25+30 min)', rangeMiddle.prayer, (25 + 30) * 60)
+const untilOnly = totalsByStep(rows, null, '2026-08-26')
+check('só fim (sem início): orando 25 e 26 (25+25 min)', untilOnly.prayer, (25 + 25) * 60)
+
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)
   process.exit(1)
