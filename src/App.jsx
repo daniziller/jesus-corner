@@ -662,11 +662,6 @@ export default function App() {
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
   const [journeyEntryMode, setJourneyEntryMode] = useState('overview')
-  // Anotação de sermão (aba própria `sermonNote`, 2026-09-10) — true quando
-  // chegou lá pra começar uma anotação NOVA (Home), false quando chegou
-  // pra retomar uma em andamento (lápis flutuante) — ver
-  // openSermonNoteFromHome/resumeSermonNote.
-  const [sermonNoteFresh, setSermonNoteFresh] = useState(true)
   // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
   // quando a navegação livre passa da raiz (lista de livros, grade de
   // capítulos, leitura embutida), pra esconder a barra igual à leitura
@@ -1257,27 +1252,15 @@ export default function App() {
     goToTab('journey')
   }
 
-  // "Anotar um sermão" (Home) — reescrito de vez (pedido dela, 2026-09-10):
-  // "em vez de uma página flutuante, vamos fazer uma página mesmo de
-  // anotação... não abrir por cima da bíblia". A anotação deixa de ser
-  // uma folha flutuante sobre a aba Bíblia (JourneyScreen.jsx) e vira uma
-  // tela própria de verdade (aba `sermonNote`, sem barra de navegação,
-  // com botão de voltar normal) — mesmo padrão de chapterRoom/metrics
-  // (tela empilhada, fora da barra inferior, onBack={goBack}).
-  //
-  // sermonNoteFresh distingue os dois jeitos de chegar nela: daqui
-  // (Home, "criar uma anotação nova") sempre true — a tela SEMPRE nasce
-  // limpa, nunca reabre um rascunho velho (ver JourneyScreen.jsx,
-  // startNewSermonNote() só roda quando fresh); do lápis flutuante
-  // (resumeSermonNote, ainda dentro da aba Bíblia — única coisa que ele
-  // continua fazendo) vem false, deixando a tela restaurar o rascunho em
-  // andamento sozinha (mesmo efeito de sempre, getSermonNotes ao montar).
+  // "Anotar um sermão" (Home) — tela própria de verdade (aba `sermonNote`,
+  // sem barra de navegação, botão de voltar normal) — mesmo padrão de
+  // chapterRoom/metrics (tela empilhada, fora da barra inferior,
+  // onBack={goBack}). Correção dela (2026-09-12): não existe mais lápis
+  // flutuante pra "retomar" — toda entrada é sempre uma anotação nova; ao
+  // sair (voltar ou fechar o app) ela vira registro definitivo direto na
+  // Biblioteca (ver commitSermonDraft em JourneyScreen.jsx), sem ficar
+  // "pendurada" em lugar nenhum.
   function openSermonNoteFromHome() {
-    setSermonNoteFresh(true)
-    goToTab('sermonNote')
-  }
-  function resumeSermonNote() {
-    setSermonNoteFresh(false)
     goToTab('sermonNote')
   }
 
@@ -2784,14 +2767,14 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
+    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} />,
     // Anotação de sermão — tela própria de verdade (pedido dela,
     // 2026-09-10), não mais uma folha flutuante sobre a Bíblia. Reaproveita
     // JourneyScreen.jsx (dona de toda a lógica/estado da anotação desde o
     // início) num modo dedicado (sermonNoteMode) que pula toda a UI de
     // navegação da Bíblia e renderiza só a anotação, em fluxo normal de
     // página — nada de portal/véu/folha arrastável.
-    sermonNote: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} onNavigate={navigateTo} sermonNoteMode sermonNoteFresh={sermonNoteFresh} onBack={goBack} />,
+    sermonNote: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} onNavigate={navigateTo} sermonNoteMode onBack={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,

@@ -10,7 +10,7 @@ import { fetchBookText } from '../bible-text/bibleTextStore'
 import { useSpeechToText } from '../utils/useSpeechToText'
 import BibleVersionChip from '../components/bible/BibleVersionChip'
 import { formatPercent } from '../bible/formatPercent'
-import { getSermonNotes, saveSermonNote, sermonOwnWordsText, sermonOwnWordCount, generateSermonSummaryFor } from '../notes/sermonNotesStore'
+import { getSermonNotes, saveSermonNote, deleteSermonNote, sermonOwnWordsText, sermonOwnWordCount, generateSermonSummaryFor } from '../notes/sermonNotesStore'
 import { postToRoom } from '../groups/chapterRoomStore'
 import { getGroupMemberCounts } from '../groups/groupsStore'
 import { saveHighlight } from '../highlights/highlightsStore'
@@ -140,12 +140,9 @@ export default function JourneyScreen({
   // Bíblia/busca/livro/capítulo) como página normal, sem barra de
   // navegação (ver App.jsx, tela `sermonNote`) — reaproveita o mesmo
   // componente porque toda a lógica/estado da anotação sempre morou aqui.
-  // sermonNoteFresh: true = "começar uma nova" (sempre limpa); false =
-  // retomar o rascunho em andamento (lápis flutuante). onBack = botão de
-  // voltar da tela (só usado em sermonNoteMode). onOpenSermonNote = toque
-  // no lápis flutuante enquanto NAVEGANDO na Bíblia normal (não
-  // sermonNoteMode) — navega pra tela de anotação pra retomar.
-  sermonNoteMode = false, sermonNoteFresh = false, onBack, onOpenSermonNote,
+  // onBack = botão de voltar da tela (só usado em sermonNoteMode; ver
+  // leaveSermonPage, que comita o rascunho antes de chamar isto).
+  sermonNoteMode = false, onBack,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -218,16 +215,15 @@ export default function JourneyScreen({
   // versículo pra focar — ver initialFocusVerse em ReadingBlockView.jsx.
   const [expandedInitialFocusVerse, setExpandedInitialFocusVerse] = useState(null)
 
-  // Anotação de sermão — reescrita de vez (pedido dela, 2026-09-10):
-  // "vamos fazer uma página mesmo de anotação... não abrir por cima da
-  // bíblia". Deixou de ser uma folha flutuante (portal + véu + arrasto)
-  // sobre esta tela — agora é uma página normal, própria (sermonNoteMode,
-  // ver App.jsx/aba `sermonNote`). O estado (sermonDraft e companhia)
-  // continua morando aqui, porque o lápis flutuante (34e) — que SOBREVIVE
-  // a essa mudança, só perdeu o poder de começar uma anotação nova, ver
-  // Regra abaixo — continua precisando saber "existe rascunho em
-  // andamento?" enquanto ela navega a Bíblia normalmente. Só um draft por
-  // vez: `sermonDraft` null = nada em andamento.
+  // Anotação de sermão — página própria (sermonNoteMode, ver App.jsx/aba
+  // `sermonNote`). Correção dela (2026-09-12): "está ficando um retângulo
+  // no rodapé do app com um botão de anotação quando entra na bíblia...
+  // meio que a anotação nunca finaliza" — o lápis flutuante (34e) foi
+  // removido de vez ("esse rodapé não tem necessidade, pode tirar de
+  // vez"). Não existe mais "rascunho em andamento pendurado": ao sair da
+  // página (voltar ou fechar o app), o rascunho vira registro definitivo
+  // na Biblioteca (ou some, se estava vazio) — ver commitSermonDraft
+  // abaixo. Só um draft por vez, e só existe enquanto ela está NA página.
   const [sermonDraft, setSermonDraft] = useState(null)
   const [sermonSourceOpen, setSermonSourceOpen] = useState(false)
   const [sermonGroupPickerOpen, setSermonGroupPickerOpen] = useState(false)
@@ -235,25 +231,6 @@ export default function JourneyScreen({
   const [sermonSelectedGroupIds, setSermonSelectedGroupIds] = useState([])
   const [sermonSaving, setSermonSaving] = useState(false)
   const [sermonGroupMemberCounts, setSermonGroupMemberCounts] = useState({})
-  // Tarja escura de 34e — "some sozinha depois de alguns segundos",
-  // deixando só o lápis. Reaparece a cada vez que o lápis fica visível de
-  // novo (ex: voltou de sermonNoteMode pra Bíblia normal com um rascunho
-  // em andamento).
-  const [sermonTarjaVisible, setSermonTarjaVisible] = useState(true)
-  const sermonTarjaTimeoutRef = useRef(null)
-  useEffect(() => {
-    if (sermonDraft && !sermonNoteMode) {
-      setSermonTarjaVisible(true)
-      window.clearTimeout(sermonTarjaTimeoutRef.current)
-      sermonTarjaTimeoutRef.current = window.setTimeout(() => setSermonTarjaVisible(false), 4000)
-    }
-    return () => window.clearTimeout(sermonTarjaTimeoutRef.current)
-  }, [sermonDraft, sermonNoteMode])
-  // Retoma um rascunho que ficou em andamento (Regra 4 §6, "rascunho
-  // automático... ao sair do app; reabrir restaura") — uma anotação sem
-  // finalizedAt é uma anotação ainda não fechada em 34h/"Guardar na
-  // biblioteca". Só restaura o ESTADO (lápis com selo aparece de novo);
-  // não força a folha a abrir sozinha ao entrar na aba.
   // "Outros" (34f, Regra 4 §5) — texto livre digitado por ela vira uma
   // opção RE-APROVEITÁVEL: junta os noteType distintos que já usou antes
   // e que não são uma das 5 chaves fixas, oferece como sugestão dentro do
@@ -263,53 +240,15 @@ export default function JourneyScreen({
   const [sermonOtherOpen, setSermonOtherOpen] = useState(false)
   const isCustomSermonType = !!sermonDraft?.noteType && !SERMON_NOTE_TYPES.includes(sermonDraft.noteType)
   useEffect(() => {
-    if (!authUser?.email) return
+    if (!sermonNoteMode || !authUser?.email) return
     let cancelled = false
     getSermonNotes(authUser.email).then(notes => {
       if (cancelled) return
-      const inProgress = notes.find(n => !n.finalizedAt)
-      if (inProgress) {
-        // Correção dela (2026-09-09): essa busca é assíncrona — se
-        // "Anotar um sermão" (browseJumpTarget effect) já tiver criado um
-        // rascunho NOVO e em branco nesse meio-tempo (setSermonDraft
-        // síncrono, roda antes desta resposta de rede chegar), o
-        // `prev ? prev : ...` abaixo NÃO deixa essa busca sobrescrever o
-        // formulário em branco com os valores da anotação anterior não
-        // finalizada — "o form sempre abre limpo". Sem o guard, era
-        // exatamente isso que acontecia: o form nascia limpo por um
-        // instante e depois virava a anotação velha assim que a resposta
-        // do getSermonNotes chegava. Continua reaproveitando o rascunho
-        // em andamento normalmente quando ninguém pediu um NOVO (ex:
-        // reabrir o app com uma anotação pendente).
-        setSermonDraft(prev => prev ? prev : {
-          id: inProgress.id, createdAt: inProgress.createdAt ?? new Date().toISOString(), date: inProgress.date ?? dateKey(),
-          noteType: inProgress.noteType ?? 'sermon', title: inProgress.title ?? '', preacher: inProgress.preacher ?? '',
-          church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
-          body: Array.isArray(inProgress.body) ? inProgress.body : null,
-          finalizedAt: inProgress.finalizedAt ?? null,
-          durationSeconds: inProgress.durationSeconds ?? 0, groupId: inProgress.groupId ?? null,
-        })
-      }
       const custom = [...new Set(notes.map(n => n.noteType).filter(nt => nt && !SERMON_NOTE_TYPES.includes(nt)))]
       setSermonCustomTypes(custom)
     }).catch(() => {})
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser?.email])
-  // Posição do lápis arrastado (34e, "posição lembrada") — persiste entre
-  // visitas/sessões (localStorage, só client-side: é posição de UI, não
-  // dado da conta). Cai em {x:0,y:0} (canto padrão) se nunca mexeu, se o
-  // valor salvo for inválido, ou se localStorage não estiver disponível
-  // (modo privado, etc.) — nunca trava a tela por causa disso.
-  const [sermonFabDrag, setSermonFabDrag] = useState(() => {
-    try {
-      const raw = window.localStorage.getItem('sermonFabPos')
-      if (!raw) return { x: 0, y: 0 }
-      const parsed = JSON.parse(raw)
-      const x = Number(parsed?.x), y = Number(parsed?.y)
-      return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 }
-    } catch { return { x: 0, y: 0 } }
-  })
+  }, [sermonNoteMode, authUser?.email])
 
   // A escrita — corpo rico (sermonDraft.body) é um ARRAY de blocos —
   // texto/citação/tópico — em vez de uma string só: é o que deixa um
@@ -626,11 +565,8 @@ export default function JourneyScreen({
   }, [sermonGroupPickerOpen, sermonSummaryOpen])
   // Pedido dela (2026-09-10): toda anotação nova SEMPRE abre a página de
   // campos (34f — "o usuário vai ter os dados do título e tals e aí pode
-  // começar a anotação"), nunca o lápis flutuante — startNewSermonNote()
-  // só roda dentro de sermonNoteMode, no efeito de montagem logo abaixo
-  // (só quando sermonNoteFresh — chegou aqui pelo botão "Anotar um
-  // sermão" da Home, não pelo lápis). sermonSourceOpen começa true aqui,
-  // e só vira false quando ela toca "Pronto".
+  // começar a anotação"). sermonSourceOpen começa true aqui, e só vira
+  // false quando ela toca "Pronto".
   function startNewSermonNote() {
     setSermonDraft({
       id: `sermon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -644,16 +580,13 @@ export default function JourneyScreen({
     setSermonSelectedGroupIds([])
   }
 
-  // Ponto de entrada da página de anotação (sermonNoteMode) — só dispara
-  // startNewSermonNote() quando ela chegou aqui pra criar uma nova
-  // (sermonNoteFresh, vindo do botão "Anotar um sermão" da Home). Vindo
-  // pelo lápis flutuante (sermonNoteFresh=false), não faz nada aqui — o
-  // efeito de baixo (getSermonNotes ao montar) já retoma o rascunho em
-  // andamento sozinho, do jeito de sempre.
+  // Ponto de entrada da página de anotação (sermonNoteMode) — pedido dela
+  // (2026-09-12): sem mais "retomar" (não existe mais lápis flutuante),
+  // toda entrada é sempre uma anotação NOVA.
   useEffect(() => {
-    if (sermonNoteMode && sermonNoteFresh) startNewSermonNote()
+    if (sermonNoteMode) startNewSermonNote()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sermonNoteMode, sermonNoteFresh])
+  }, [sermonNoteMode])
 
   function patchSermonDraft(patch) {
     setSermonDraft(prev => prev ? { ...prev, ...patch } : prev)
@@ -741,17 +674,66 @@ export default function JourneyScreen({
     return () => window.clearTimeout(sermonAutosaveTimer.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sermonDraft, authUser?.email])
-  // "...e ao sair do app" (mesma regra) — grava na hora ao perder foco,
-  // sem esperar o debounce (mesmo padrão de ReadingBlockView.jsx/
-  // PrayerScreen.jsx/ReflectionScreen.jsx).
+  // "Tem algo de verdade escrito?" — pra decidir, ao sair, se vira
+  // registro definitivo ou some sem deixar rastro (pedido dela,
+  // 2026-09-12): abrir "Anotar um sermão" sem querer e sair na hora não
+  // pode deixar uma anotação vazia pendurada na Biblioteca.
+  function sermonDraftHasContent(draft) {
+    if (!draft) return false
+    if (draft.title.trim() || draft.preacher.trim() || draft.church.trim() || draft.link.trim()) return true
+    if (draft.passages.length > 0) return true
+    if (sermonOwnWordsText(draft).trim().length > 0) return true
+    return false
+  }
+
+  // Comita o rascunho ATUAL — pedido dela (2026-09-12): "quando a pessoa
+  // fechar o app ou salvar a anotação, guardar somente na biblioteca" —
+  // sem mais um estado de "rascunho em andamento" separado (era o que o
+  // lápis flutuante representava, agora removido). Com conteúdo de
+  // verdade, vira um registro finalizado comum (a mesma anotação pode
+  // continuar recebendo edição via Biblioteca depois, como qualquer
+  // outra); sem nada digitado, simplesmente apaga — devolve o draft
+  // final (já com finalizedAt) pra quem chamou decidir o que fazer com o
+  // state local, ou null se apagou.
+  function commitSermonDraft() {
+    if (!sermonDraft || !authUser?.email) return null
+    if (!sermonDraftHasContent(sermonDraft)) {
+      deleteSermonNote(authUser.email, sermonDraft.id).catch(() => {})
+      return null
+    }
+    const finalDraft = { ...sermonDraft, finalizedAt: sermonDraft.finalizedAt ?? new Date().toISOString() }
+    saveSermonNote(authUser.email, buildSermonPayload(finalDraft, { trim: false })).catch(() => {})
+    return finalDraft
+  }
+
+  // "...e ao fechar o app" (pedido dela, 2026-09-12) — comita na hora ao
+  // perder foco, sem esperar o debounce do autosave (mesmo padrão de
+  // ReadingBlockView.jsx/PrayerScreen.jsx/ReflectionScreen.jsx pra
+  // "salvar ao sair"). Diferente do autosave abaixo (que só persiste o
+  // rascunho como está, sem finalizar): aqui ela está de fato SAINDO da
+  // anotação, então já entra como registro definitivo — sem "rascunho
+  // pendurado" se ela nunca mais voltar a essa aba/PWA. Continua na
+  // página (não navega), só mantém o state local coerente com o que já
+  // foi salvo como finalizado.
   useEffect(() => {
+    if (!sermonNoteMode) return
     function handleVisibility() {
-      if (!document.hidden || !sermonDraft || !authUser?.email) return
-      saveSermonNote(authUser.email, buildSermonPayload(sermonDraft, { trim: false })).catch(() => {})
+      if (!document.hidden) return
+      const finalDraft = commitSermonDraft()
+      if (finalDraft) setSermonDraft(finalDraft)
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [sermonDraft, authUser?.email])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sermonNoteMode, sermonDraft, authUser?.email])
+
+  // Botão de voltar da página (topo, sempre visível) — mesmo raciocínio
+  // do handleVisibility acima: sair sem ter tocado "Finalizar" não deixa
+  // mais rascunho pendurado nenhum, comita e só depois navega pra fora.
+  function leaveSermonPage() {
+    commitSermonDraft()
+    onBack?.()
+  }
 
   // "Compartilhar" (34d, rodapé) — sem canvas próprio pra este pacote
   // (diferente de dayCompleteImage.js/verseShareImage.js, que têm spec de
@@ -773,40 +755,6 @@ export default function JourneyScreen({
     } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
       await navigator.clipboard.writeText(text).catch(() => {})
     }
-  }
-
-  // Arrasto do FAB (34e, "arrastável") — diferença de posição em relação
-  // ao ponto onde o toque começou; um deslocamento total menor que 6px
-  // conta como toque (abre a folha), não como arrasto, mesmo limiar que
-  // qualquer gesto de toque-vs-arrasto no navegador.
-  const dragState = useRef(null)
-  function handleFabPointerDown(e) {
-    dragState.current = { startX: e.clientX, startY: e.clientY, baseX: sermonFabDrag.x, baseY: sermonFabDrag.y, moved: false, lastPos: sermonFabDrag }
-    e.currentTarget.setPointerCapture?.(e.pointerId)
-  }
-  function handleFabPointerMove(e) {
-    if (!dragState.current) return
-    const dx = e.clientX - dragState.current.startX
-    const dy = e.clientY - dragState.current.startY
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) dragState.current.moved = true
-    const next = { x: dragState.current.baseX + dx, y: dragState.current.baseY + dy }
-    dragState.current.lastPos = next
-    setSermonFabDrag(next)
-  }
-  // "Posição lembrada" (Regra 4 §3) — grava só ao SOLTAR (não a cada
-  // pointermove, que dispararia dezenas de escritas por segundo). Toque
-  // simples (sem arrasto): navega pra página de anotação pra RETOMAR o
-  // rascunho em andamento (onOpenSermonNote → App.jsx/resumeSermonNote).
-  // O lápis só aparece com sermonDraft (ver renderSermonFab), então
-  // chegando aqui sempre há o que retomar — diferente de antes (2026-09-09
-  // e anterior), não existe mais "toque sem draft começa uma nova": criar
-  // uma anotação nova é sempre o botão "Anotar um sermão" da Home agora.
-  function handleFabPointerUp() {
-    const moved = dragState.current?.moved
-    const lastPos = dragState.current?.lastPos
-    dragState.current = null
-    if (!moved) { onOpenSermonNote?.(); return }
-    if (lastPos) { try { window.localStorage.setItem('sermonFabPos', JSON.stringify(lastPos)) } catch { /* modo privado etc. — posição só não persiste */ } }
   }
 
   // "Barra de abas fixa só em 39a" — avisa App.jsx assim que a navegação
@@ -1234,43 +1182,6 @@ export default function JourneyScreen({
     )
   }
 
-  // Lápis flutuante (34e) — SÓ aparece com um rascunho em andamento
-  // (pedido dela, 2026-09-10: criar uma anotação nova é sempre "Anotar um
-  // sermão" da Home agora, nunca o lápis — sem draft não há o que
-  // retomar). Toque nele navega pra sermonNoteMode pra RETOMAR
-  // (onOpenSermonNote → App.jsx/resumeSermonNote) — não abre mais nada
-  // localmente. Portal pro <body>, mesmo truque de centralização de
-  // .bottom-nav (ver estilos, no fim do arquivo).
-  function renderSermonFab() {
-    if (!sermonDraft) return null
-    return createPortal(
-      <div style={styles.sermonFabWrap}>
-        {sermonTarjaVisible && (
-          <button type="button" style={styles.sermonTarja} onClick={() => onOpenSermonNote?.()}>
-            <span style={styles.sermonTarjaDot} />
-            <span style={{ minWidth: 0 }}>
-              <span style={styles.sermonTarjaTitle}>{sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang)}</span>
-              <span style={styles.sermonTarjaSub}>
-                {sermonDraft.passages.length === 0
-                  ? t('sermonNote.minimizedAnnotatingNone', undefined, lang)
-                  : t(sermonDraft.passages.length === 1 ? 'sermonNote.minimizedAnnotatingOne' : 'sermonNote.minimizedAnnotatingMany', { n: sermonDraft.passages.length }, lang)}
-              </span>
-            </span>
-          </button>
-        )}
-        <button
-          type="button" style={{ ...styles.sermonFab, transform: `translate(${sermonFabDrag.x}px, ${sermonFabDrag.y}px)` }}
-          onPointerDown={handleFabPointerDown} onPointerMove={handleFabPointerMove} onPointerUp={handleFabPointerUp} onPointerCancel={handleFabPointerUp}
-          aria-label={t('sermonNote.newTitle', undefined, lang)}
-        >
-          <AppIcon name="PenLine" size={22} color="#1A1714" strokeWidth={2.2} />
-          {sermonDraft.passages.length > 0 && <span style={styles.sermonFabBadge}>{sermonDraft.passages.length}</span>}
-        </button>
-      </div>,
-      document.body
-    )
-  }
-
   // Página de anotação (sermonNoteMode) — pedido dela, 2026-09-10: "vamos
   // fazer uma página mesmo de anotação... não abrir por cima da bíblia".
   // Página normal (fluxo de documento, sem portal/véu/arrasto), chamada
@@ -1287,7 +1198,7 @@ export default function JourneyScreen({
     return (
       <div style={styles.sermonPage}>
         <div style={styles.sermonPageTopBar}>
-          <button type="button" style={styles.sermonPageBackBtn} onClick={onBack} aria-label="back">
+          <button type="button" style={styles.sermonPageBackBtn} onClick={leaveSermonPage} aria-label="back">
             <AppIcon name="ArrowLeft" size={18} color="var(--bento-ink)" strokeWidth={2.2} />
           </button>
         </div>
@@ -1453,29 +1364,26 @@ export default function JourneyScreen({
     // expandido, livro aberto na lista) fica preso no livro antigo — ver
     // comentário em ReadingBlockView.jsx.
     return (
-      <>
-        <ReadingBlockView
-          key={`${expandedBlockId}-${initialSessionId}`}
-          session={session}
-          authUser={authUser}
-          onNavigate={onNavigate}
-          blockId={expandedBlockId}
-          blocks={blocks}
-          sessionsByBlock={readingMode === 'session' ? sessionsByBlock : browseSessionsByBlock}
-          mode={readingMode}
-          completedSet={completedSet}
-          onToggleSession={onToggleSession}
-          onToggleChapter={onToggleChapter}
-          initialSessionId={initialSessionId}
-          initialTextOpen={initialTextOpen}
-          onBack={closeBlock}
-          onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
-          onJumpToChapter={openRecentChapter}
-          onExitGuided={onExitGuided}
-          onOpenGroupRoom={onOpenGroupRoom}
-        />
-        {renderSermonFab()}
-      </>
+      <ReadingBlockView
+        key={`${expandedBlockId}-${initialSessionId}`}
+        session={session}
+        authUser={authUser}
+        onNavigate={onNavigate}
+        blockId={expandedBlockId}
+        blocks={blocks}
+        sessionsByBlock={readingMode === 'session' ? sessionsByBlock : browseSessionsByBlock}
+        mode={readingMode}
+        completedSet={completedSet}
+        onToggleSession={onToggleSession}
+        onToggleChapter={onToggleChapter}
+        initialSessionId={initialSessionId}
+        initialTextOpen={initialTextOpen}
+        onBack={closeBlock}
+        onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
+        onJumpToChapter={openRecentChapter}
+        onExitGuided={onExitGuided}
+        onOpenGroupRoom={onOpenGroupRoom}
+      />
     )
   }
 
@@ -1490,29 +1398,26 @@ export default function JourneyScreen({
       // remontar do zero, senão o painel de leitura embutido continuaria
       // preso no capítulo antigo (mesmo raciocínio do ReadingBlockView
       // acima).
-      <>
-        <BookChapterScreen
-          key={`${expandedBookKey}:${expandedInitialSessionId}`}
-          session={session}
-          authUser={authUser}
-          block={block}
-          bookName={bookName}
-          displayName={displayName}
-          sessionsByBlock={sessionsByBlock}
-          browseSessionsByBlock={browseSessionsByBlock}
-          completedSet={completedSet}
-          onToggleSession={onToggleSession}
-          onToggleChapter={onToggleChapter}
-          onMarkChaptersManually={onMarkChaptersManually}
-          onGoToReflectionFrom={onGoToReflectionFrom}
-          onNavigate={onNavigate}
-          onBack={closeBook}
-          initialSessionId={expandedInitialSessionId}
-          initialTextOpen={expandedInitialTextOpen}
-          initialFocusVerse={expandedInitialFocusVerse}
-        />
-        {renderSermonFab()}
-      </>
+      <BookChapterScreen
+        key={`${expandedBookKey}:${expandedInitialSessionId}`}
+        session={session}
+        authUser={authUser}
+        block={block}
+        bookName={bookName}
+        displayName={displayName}
+        sessionsByBlock={sessionsByBlock}
+        browseSessionsByBlock={browseSessionsByBlock}
+        completedSet={completedSet}
+        onToggleSession={onToggleSession}
+        onToggleChapter={onToggleChapter}
+        onMarkChaptersManually={onMarkChaptersManually}
+        onGoToReflectionFrom={onGoToReflectionFrom}
+        onNavigate={onNavigate}
+        onBack={closeBook}
+        initialSessionId={expandedInitialSessionId}
+        initialTextOpen={expandedInitialTextOpen}
+        initialFocusVerse={expandedInitialFocusVerse}
+      />
     )
   }
 
@@ -1522,35 +1427,29 @@ export default function JourneyScreen({
     const theme = getThemeById(themeOpenId)
     if (theme) {
       return (
-        <>
-          <ThemeAsStudyScreen
-            session={session}
-            theme={theme}
-            completedSet={completedSet}
-            onBack={() => setThemeOpenId(null)}
-            onOpenChapter={openChapterFromSearch}
-            onBuildStudy={onBuildThemeStudy}
-          />
-          {renderSermonFab()}
-        </>
+        <ThemeAsStudyScreen
+          session={session}
+          theme={theme}
+          completedSet={completedSet}
+          onBack={() => setThemeOpenId(null)}
+          onOpenChapter={openChapterFromSearch}
+          onBuildStudy={onBuildThemeStudy}
+        />
       )
     }
   }
   if (searchOpen != null) {
     return (
-      <>
-        <SearchResultsScreen
-          session={session}
-          initialQuery={searchOpen}
-          sessionsByBlock={browseSessionsByBlock}
-          completedSet={completedSet}
-          onBack={() => { setSearchOpen(null); setSearchQuery('') }}
-          onOpenChapter={openChapterFromSearch}
-          onOpenBook={(block, bookName) => { setSearchOpen(null); setSearchQuery(''); openBook(block, bookName) }}
-          onOpenTheme={id => setThemeOpenId(id)}
-        />
-        {renderSermonFab()}
-      </>
+      <SearchResultsScreen
+        session={session}
+        initialQuery={searchOpen}
+        sessionsByBlock={browseSessionsByBlock}
+        completedSet={completedSet}
+        onBack={() => { setSearchOpen(null); setSearchQuery('') }}
+        onOpenChapter={openChapterFromSearch}
+        onOpenBook={(block, bookName) => { setSearchOpen(null); setSearchQuery(''); openBook(block, bookName) }}
+        onOpenTheme={id => setThemeOpenId(id)}
+      />
     )
   }
 
@@ -1622,7 +1521,6 @@ export default function JourneyScreen({
   const totalPercent = totalChapters ? Math.round((totalChaptersRead / totalChapters) * 1000) / 10 : 0
 
   return (
-    <>
     <div style={styles.screen}>
       <div style={styles.body}>
         <p style={styles.title}>{t('nav.journey', undefined, lang)}</p>
@@ -1823,8 +1721,6 @@ export default function JourneyScreen({
         )}
       </div>
     </div>
-    {renderSermonFab()}
-  </>
   )
 }
 
@@ -1905,37 +1801,6 @@ const styles = {
   sermonPageTopBar: { flexShrink: 0, display: 'flex', alignItems: 'center', padding: '20px 20px 4px' },
   sermonPageBackBtn: { width: 36, height: 36, borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sermonSheetBody: { flex: 1, minHeight: 0, padding: '0 20px 12px', display: 'flex', flexDirection: 'column' },
-
-  // 34e — lápis + tarja. A posição base já fica no canto inferior direito
-  // (touchAction:none evita o scroll da página brigar com o arrasto
-  // vertical); sermonFabDrag desloca a partir daí via transform.
-  sermonFabWrap: {
-    position: 'fixed', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 'var(--max-width)',
-    bottom: 'calc(var(--safe-bottom) + 16px)', zIndex: 199, padding: '0 20px',
-    display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none',
-  },
-  // Tarja escura (34e token: preto #1A1714, raio 18) — "some sozinha
-  // depois de alguns segundos" (ver sermonTarjaVisible/timeout).
-  sermonTarja: {
-    flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, height: 52, padding: '0 16px 0 14px',
-    borderRadius: 18, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', textAlign: 'left',
-    fontFamily: 'var(--font-bento)', pointerEvents: 'auto',
-  },
-  sermonTarjaDot: { width: 7, height: 7, borderRadius: '50%', background: 'var(--bento-accent)', flexShrink: 0 },
-  sermonTarjaTitle: { display: 'block', fontSize: 13, fontWeight: 800, lineHeight: 1.2, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  sermonTarjaSub: { display: 'block', fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.5)', marginTop: 1 },
-  // O lápis (34e tokens: 58×58, raio 20, laranja, sombra
-  // 0 8px 20px rgba(240,102,43,.4)). Selo preto no canto superior direito
-  // com o número em laranja.
-  sermonFab: {
-    position: 'fixed', right: 20, bottom: 'calc(var(--safe-bottom) + 16px)', zIndex: 199, touchAction: 'none', pointerEvents: 'auto',
-    width: 58, height: 58, borderRadius: 20, border: 'none', background: 'var(--bento-accent)', boxShadow: '0 8px 20px rgba(240,102,43,.4)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab',
-  },
-  sermonFabBadge: {
-    position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, padding: '0 5px', borderRadius: 99, background: 'var(--bento-ink)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)',
-  },
 
   sermonHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '4px 20px 14px' },
   sermonHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
