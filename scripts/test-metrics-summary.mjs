@@ -2,7 +2,7 @@
 // que faltavam pra montar 30b/30c em cima de sessionDurationMath.js/
 // readingProjection.js/metricsBlocks.js). Roda com:
 // node scripts/test-metrics-summary.mjs
-import { periodSinceDate, mostCommonHour, hourRangeLabel, chaptersReadInPeriod, reflectionDaysInPeriod, splitHoursMinutes } from '../src/metrics/metricsSummary.js'
+import { periodSinceDate, periodRange, mostCommonHour, hourRangeLabel, chaptersReadInPeriod, reflectionDaysInPeriod, splitHoursMinutes } from '../src/metrics/metricsSummary.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -20,6 +20,15 @@ const from = new Date(2026, 7, 30) // mês 0-indexado: agosto = 7
 check('periodSinceDate 30d', periodSinceDate('30d', from), '2026-08-01')
 check('periodSinceDate year', periodSinceDate('year', from), '2026-01-01')
 check('periodSinceDate all', periodSinceDate('all', from), null)
+// 'week' (pedido dela, 2026-09-12) — 30/08/2026 é domingo, então a
+// segunda daquela semana é 24/08/2026 (mesma convenção de mondayOf,
+// routineStreak.js).
+check('periodSinceDate week (referência num domingo) = segunda daquela semana', periodSinceDate('week', from), '2026-08-24')
+
+// periodRange — generaliza pra 'custom' (início E fim, não só início).
+check('periodRange week ainda sem teto (untilDate null)', periodRange('week', null, null, from), { sinceDate: '2026-08-24', untilDate: null })
+check('periodRange custom usa os dois limites informados', periodRange('custom', '2026-08-10', '2026-08-20', from), { sinceDate: '2026-08-10', untilDate: '2026-08-20' })
+check('periodRange custom com só um limite preenchido', periodRange('custom', '2026-08-10', '', from), { sinceDate: '2026-08-10', untilDate: null })
 
 // mostCommonHour / hourRangeLabel — 3 leituras às 6h, 1 às 20h -> 6h vence.
 // `localHour` monta o Date em hora LOCAL de quem roda o teste (não UTC) e
@@ -56,6 +65,10 @@ const chapterRows = [
 check('chaptersReadInPeriod sem corte = 3', chaptersReadInPeriod(chapterRows, null), 3)
 check('chaptersReadInPeriod desde 2026-08-20 = 2', chaptersReadInPeriod(chapterRows, '2026-08-20'), 2)
 check('chaptersReadInPeriod sem linhas = 0', chaptersReadInPeriod([], '2026-08-01'), 0)
+// untilDate (pedido dela, 2026-09-12) — intervalo fechado dos dois lados;
+// 20/08 inclusive na ponta de cima (o dia inteiro, não só 00h00).
+check('chaptersReadInPeriod com início E fim: só o do meio (20/08)', chaptersReadInPeriod(chapterRows, '2026-08-02', '2026-08-28'), 1)
+check('chaptersReadInPeriod até 20/08 inclusive (o próprio dia conta)', chaptersReadInPeriod(chapterRows, null, '2026-08-20'), 2)
 
 // reflectionDaysInPeriod — a partir do mapa daily_routine.
 const dailyRoutine = {
@@ -68,6 +81,7 @@ check('reflectionDaysInPeriod sem corte = 3', reflectionDaysInPeriod(dailyRoutin
 check('reflectionDaysInPeriod desde 2026-08-15 = 2', reflectionDaysInPeriod(dailyRoutine, '2026-08-15'), 2)
 check('reflectionDaysInPeriod mapa vazio = 0', reflectionDaysInPeriod({}, null), 0)
 check('reflectionDaysInPeriod undefined = 0', reflectionDaysInPeriod(undefined, null), 0)
+check('reflectionDaysInPeriod com início E fim: só 15/08 (01 e 30 ficam de fora)', reflectionDaysInPeriod(dailyRoutine, '2026-08-10', '2026-08-20'), 1)
 
 // splitHoursMinutes — 9h05 (32700s) e casos de borda (0s, <1min).
 check('splitHoursMinutes 32700s = 9h05', splitHoursMinutes(9 * 3600 + 5 * 60), { h: 9, m: '05' })

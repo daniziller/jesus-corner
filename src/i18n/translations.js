@@ -432,9 +432,15 @@ export const STRINGS = {
     // Métricas (30b/30c, Bloco 7) — "Minhas métricas" no Perfil.
     metrics: {
       title: 'Minhas métricas',
+      // Pedido dela (2026-09-12): "esta semana" + filtro de data de
+      // início e fim.
+      period_week: 'Esta semana',
       period_30d: '30 dias',
       period_year: 'Este ano',
       period_all: 'Desde o começo',
+      period_custom: 'Escolher período',
+      dateFrom: 'De',
+      dateTo: 'Até',
       timeWithGod: 'Tempo com Deus',
       heroValue: '{h} h {m} min',
       legendPraying: 'orando',
@@ -3467,9 +3473,13 @@ export const STRINGS = {
     // Metrics (30b/30c, Block 7) — "My metrics" in Profile.
     metrics: {
       title: 'My metrics',
+      period_week: 'This week',
       period_30d: '30 days',
       period_year: 'This year',
       period_all: 'Since the beginning',
+      period_custom: 'Choose period',
+      dateFrom: 'From',
+      dateTo: 'To',
       timeWithGod: 'Time with God',
       heroValue: '{h}h {m}min',
       legendPraying: 'praying',
