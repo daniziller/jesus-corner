@@ -146,7 +146,11 @@ export default function JourneyScreen({
   // leaveSermonPage — minimiza, não finaliza mais nada). onOpenSermonNote
   // = toque no lápis flutuante enquanto navegando na Bíblia normal (não
   // sermonNoteMode) — navega pra tela de anotação pra retomar.
-  sermonNoteMode = false, sermonNoteFresh = false, onBack, onOpenSermonNote,
+  // sermonNoteEditId (pedido dela, 2026-09-12): tocar uma anotação JÁ
+  // FEITA na Biblioteca — carrega ESSA anotação específica por id
+  // (finalizada ou não), em vez de "a primeira em andamento" (resume) ou
+  // uma em branco (fresh). Tem prioridade sobre sermonNoteFresh.
+  sermonNoteMode = false, sermonNoteFresh = false, sermonNoteEditId = null, onBack, onOpenSermonNote,
 }) {
   const { lang } = session
   const [searchQuery, setSearchQuery] = useState('')
@@ -257,14 +261,19 @@ export default function JourneyScreen({
   // (nesta tela, fora de sermonNoteMode) quanto a retomada de verdade
   // (dentro de sermonNoteMode, quando sermonNoteFresh=false). Roda nos
   // DOIS casos — cada instância desta tela (aba Bíblia e aba de anotação)
-  // busca por si.
+  // busca por si. Correção dela (2026-09-12): dentro de sermonNoteMode
+  // com sermonNoteEditId setado (tocou uma anotação JÁ FEITA na
+  // Biblioteca), busca por ID específico em vez de "a primeira em
+  // andamento" — pode até já estar finalizada, tudo bem.
   useEffect(() => {
     if (!authUser?.email) return
     let cancelled = false
     getSermonNotes(authUser.email).then(notes => {
       if (cancelled) return
-      const inProgress = notes.find(n => !n.finalizedAt)
-      if (inProgress) {
+      const target = sermonNoteMode && sermonNoteEditId
+        ? notes.find(n => n.id === sermonNoteEditId)
+        : notes.find(n => !n.finalizedAt)
+      if (target) {
         // Correção dela (2026-09-09): essa busca é assíncrona — se
         // "Anotar um sermão" já tiver criado um rascunho NOVO e em
         // branco nesse meio-tempo (setSermonDraft síncrono, roda antes
@@ -272,12 +281,12 @@ export default function JourneyScreen({
         // NÃO deixa essa busca sobrescrever o formulário em branco com
         // os valores da anotação anterior — "o form sempre abre limpo".
         setSermonDraft(prev => prev ? prev : {
-          id: inProgress.id, createdAt: inProgress.createdAt ?? new Date().toISOString(), date: inProgress.date ?? dateKey(),
-          noteType: inProgress.noteType ?? 'sermon', title: inProgress.title ?? '', preacher: inProgress.preacher ?? '',
-          church: inProgress.church ?? '', link: inProgress.link ?? '', passages: inProgress.passages ?? [], text: inProgress.text ?? '',
-          body: Array.isArray(inProgress.body) ? inProgress.body : null,
-          finalizedAt: inProgress.finalizedAt ?? null,
-          durationSeconds: inProgress.durationSeconds ?? 0, groupId: inProgress.groupId ?? null,
+          id: target.id, createdAt: target.createdAt ?? new Date().toISOString(), date: target.date ?? dateKey(),
+          noteType: target.noteType ?? 'sermon', title: target.title ?? '', preacher: target.preacher ?? '',
+          church: target.church ?? '', link: target.link ?? '', passages: target.passages ?? [], text: target.text ?? '',
+          body: Array.isArray(target.body) ? target.body : null,
+          finalizedAt: target.finalizedAt ?? null,
+          durationSeconds: target.durationSeconds ?? 0, groupId: target.groupId ?? null,
         })
       }
       const custom = [...new Set(notes.map(n => n.noteType).filter(nt => nt && !SERMON_NOTE_TYPES.includes(nt)))]
@@ -285,7 +294,7 @@ export default function JourneyScreen({
     }).catch(() => {})
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser?.email])
+  }, [authUser?.email, sermonNoteMode, sermonNoteEditId])
   // Posição do lápis arrastado (34e, "posição lembrada") — persiste entre
   // visitas/sessões (localStorage, só client-side: é posição de UI, não
   // dado da conta). Cai em {x:0,y:0} (canto padrão) se nunca mexeu, se o
@@ -634,8 +643,10 @@ export default function JourneyScreen({
   // Ponto de entrada da página de anotação (sermonNoteMode) — só dispara
   // startNewSermonNote() quando ela chegou aqui pra criar uma nova
   // (sermonNoteFresh, vindo do botão "Anotar um sermão" da Home). Vindo
-  // pelo lápis flutuante (sermonNoteFresh=false), não faz nada aqui — o
-  // efeito de retomada acima já resgata o rascunho em andamento sozinho.
+  // pelo lápis flutuante OU editando uma anotação já feita da Biblioteca
+  // (sermonNoteFresh=false nos dois casos), não faz nada aqui — o efeito
+  // de retomada acima já resgata o rascunho/anotação certa sozinho (pelo
+  // primeiro em andamento, ou por sermonNoteEditId).
   useEffect(() => {
     if (sermonNoteMode && sermonNoteFresh) startNewSermonNote()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1023,6 +1034,23 @@ export default function JourneyScreen({
           </div>
         )}
 
+        {/* Pedido dela (2026-09-12): "Versículo"/"Tópico" saíram da barra
+            de baixo (perto do teclado) pra cá, ACIMA do card de escrita —
+            ficam visíveis o tempo todo enquanto ela anota, sem depender
+            de rolar até o fim ou de o teclado não estar cobrindo a barra
+            de baixo. Ditar/esconder teclado continuam lá embaixo (fazem
+            sentido perto do teclado, esses dois não). */}
+        <div style={styles.sermonInsertToolbar}>
+          <button type="button" style={styles.sermonToolbarBtn} onClick={openVerseSearch}>
+            <AppIcon name="Plus" size={13} strokeWidth={2.4} color="var(--bento-sand-icon)" />
+            {t('sermonNote.verseBtn', undefined, lang)}
+          </button>
+          <button type="button" style={styles.sermonToolbarBtn} onClick={insertTopicSegment}>
+            <AppIcon name="List" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
+            {t('sermonNote.topicBtn', undefined, lang)}
+          </button>
+        </div>
+
         <div style={styles.sermonWritingSurface}>
           {body.map((seg, i) => {
             if (seg.type === 'quote') {
@@ -1039,8 +1067,10 @@ export default function JourneyScreen({
               return (
                 <div key={seg.id} style={styles.sermonTopicRow}>
                   <span style={styles.sermonTopicNum}>{topicCount}</span>
+                  {/* Pedido dela (2026-09-12): tópico em negrito, pra se
+                      destacar do texto corrido ao redor. */}
                   <textarea
-                    style={styles.sermonBodyTextarea}
+                    style={styles.sermonTopicTextarea}
                     value={seg.text}
                     placeholder={t('sermonNote.topicPlaceholder', undefined, lang)}
                     onChange={e => { updateSermonSegmentText(seg.id, e.target.value); autoGrowTextarea(e) }}
@@ -1068,14 +1098,6 @@ export default function JourneyScreen({
         </div>
 
         <div style={styles.sermonWritingToolbar}>
-          <button type="button" style={styles.sermonToolbarBtn} onClick={openVerseSearch}>
-            <AppIcon name="Plus" size={13} strokeWidth={2.4} color="var(--bento-sand-icon)" />
-            {t('sermonNote.verseBtn', undefined, lang)}
-          </button>
-          <button type="button" style={styles.sermonToolbarBtn} onClick={insertTopicSegment}>
-            <AppIcon name="List" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
-            {t('sermonNote.topicBtn', undefined, lang)}
-          </button>
           {sermonDictationSupported && (
             <button
               type="button" style={{ ...styles.sermonToolbarIconBtn, ...(sermonDictating ? styles.sermonToolbarIconBtnOn : {}) }}
@@ -2002,12 +2024,24 @@ const styles = {
   sermonStripIconBtn: { flexShrink: 0, width: 32, height: 32, borderRadius: 11, border: 'none', background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sermonPassageTime: { marginLeft: 'auto', flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 600, color: 'var(--bento-t4)' },
 
+  // "Versículo"/"Tópico" (pedido dela, 2026-09-12: subiram da barra perto
+  // do teclado pra cá, ACIMA do card de escrita — ficam visíveis o tempo
+  // todo enquanto ela anota, sem depender de rolar até o fim).
+  sermonInsertToolbar: { display: 'flex', gap: 8, padding: '0 20px 10px', flexShrink: 0 },
+
   // 34g — superfície de escrita (item 3): branco raio 26 só em cima,
   // segue até a barra de ferramentas "sem degrau" (raio 0 embaixo).
   sermonWritingSurface: { flex: 1, minHeight: 0, overflowY: 'auto', background: '#fff', borderRadius: '26px 26px 0 0', padding: '20px 20px 12px', display: 'flex', flexDirection: 'column', gap: 14 },
   sermonBodyTextarea: {
     width: '100%', border: 'none', outline: 'none', background: 'none', resize: 'none', overflow: 'hidden',
     fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, lineHeight: 1.75, color: 'var(--bento-ink)', padding: 0, caretColor: 'var(--bento-accent)',
+  },
+  // Tópico em negrito (pedido dela, 2026-09-12) — mesmo resto do estilo
+  // de sermonBodyTextarea, só troca o peso da fonte pra se destacar do
+  // texto corrido ao redor.
+  sermonTopicTextarea: {
+    width: '100%', border: 'none', outline: 'none', background: 'none', resize: 'none', overflow: 'hidden',
+    fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.75, color: 'var(--bento-ink)', padding: 0, caretColor: 'var(--bento-accent)',
   },
   // 34g — versículo inserido (item 4): fundo próprio (sem token exato no
   // app, hex do HANDOFF direto), filete marrom à esquerda, texto em

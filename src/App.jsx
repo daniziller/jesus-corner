@@ -669,6 +669,10 @@ export default function App() {
   // sermão" da Home); false = retomar o rascunho em andamento, vindo do
   // lápis flutuante — ver openSermonNoteFromHome/resumeSermonNote.
   const [sermonNoteFresh, setSermonNoteFresh] = useState(true)
+  // Editar uma anotação de sermão JÁ FEITA a partir da Biblioteca (pedido
+  // dela, 2026-09-12) — id da anotação a carregar, ou null nos outros
+  // dois casos (nova/retomar). Ver editSermonNoteFromLibrary.
+  const [sermonNoteEditId, setSermonNoteEditId] = useState(null)
   // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
   // quando a navegação livre passa da raiz (lista de livros, grade de
   // capítulos, leitura embutida), pra esconder a barra igual à leitura
@@ -1276,10 +1280,23 @@ export default function App() {
   // vira lápis nenhum — resolve o "retângulo que nunca finaliza".
   function openSermonNoteFromHome() {
     setSermonNoteFresh(true)
+    setSermonNoteEditId(null)
     goToTab('sermonNote')
   }
   function resumeSermonNote() {
     setSermonNoteFresh(false)
+    setSermonNoteEditId(null)
+    goToTab('sermonNote')
+  }
+
+  // Tocar uma anotação de sermão JÁ FEITA na Biblioteca (pedido dela,
+  // 2026-09-12) — abre a MESMA página rica de anotação (não mais o
+  // formulário simples embutido em NotesScreen.jsx), já carregada com
+  // aquela anotação específica (finalizada ou não — ver
+  // sermonNoteEditId em JourneyScreen.jsx).
+  function editSermonNoteFromLibrary(noteId) {
+    setSermonNoteFresh(false)
+    setSermonNoteEditId(noteId)
     goToTab('sermonNote')
   }
 
@@ -2793,7 +2810,7 @@ export default function App() {
     // início) num modo dedicado (sermonNoteMode) que pula toda a UI de
     // navegação da Bíblia e renderiza só a anotação, em fluxo normal de
     // página — nada de portal/véu/folha arrastável.
-    sermonNote: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} onNavigate={navigateTo} sermonNoteMode sermonNoteFresh={sermonNoteFresh} onBack={goBack} />,
+    sermonNote: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} onNavigate={navigateTo} sermonNoteMode sermonNoteFresh={sermonNoteFresh} sermonNoteEditId={sermonNoteEditId} onBack={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
@@ -2994,7 +3011,7 @@ export default function App() {
             )}
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
-                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} />
+                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} onOpenSermonNote={editSermonNoteFromLibrary} onCreateSermonNote={openSermonNoteFromHome} />
               </div>
             )}
             {hasPremium && studiesVisitedRef.current && (
