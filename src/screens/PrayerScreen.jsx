@@ -22,6 +22,7 @@ import { playStageChime } from '../utils/chime'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import PrayerRequestCard from '../components/prayer/PrayerRequestCard'
+import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
 
 function fmt(s) {
   const m = Math.floor(s / 60).toString().padStart(2, '0')
@@ -76,6 +77,14 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
   }, [])
   const activeRequests = requests.filter(r => r.status !== 'closed')
   const requestCounts = { active: activeRequests.length, group: activeRequests.filter(r => !r.isMine).length }
+
+  // "Fazer pedido" direto na Súplica (pedido dela, 2026-09-12: "deixar o
+  // campo de pedidos de oração aberto para adicionar novos") — antes esse
+  // botão navegava pra fora (PrayerRequestsScreen, 36d) só pra abrir a
+  // MESMA folha que já existia pronta (AddPrayerRequestSheet.jsx, comentário
+  // dela mesma já dizia "aberta a partir da Súplica" — nunca tinha sido
+  // ligada aqui). Reload da lista local ao criar, sem sair da oração.
+  const [addRequestOpen, setAddRequestOpen] = useState(false)
 
   function handlePray(request) {
     setRequests(prev => prev.map(r => r.id === request.id
@@ -328,12 +337,16 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
             da etapa (handoff: "esta linha vira a própria lista de
             pedidos") — mesmo cartão de 36d, sem folha de arquivar aqui
             (arquivar precisa da tela cheia, não faz sentido no meio da
-            oração; quem quiser, entra em 36d pelo link "Ver todos"). */}
+            oração; quem quiser arquivar entra em 36d). "Novo" (pedido
+            dela, 2026-09-12: "deixar o campo de pedidos de oração aberto
+            para adicionar novos") abre a MESMA folha de sempre
+            (AddPrayerRequestSheet, ver abaixo) sem sair da oração — antes
+            navegava pra 36d só pra abrir essa folha por lá. */}
         {isSuplica ? (
           <div style={styles.inlineRequests}>
             <div style={styles.inlineRequestsHeader}>
               <p style={styles.helpLabel}>{t('prayerRequests.headerTitle', undefined, lang)}</p>
-              <button style={styles.inlineSeeAll} onClick={() => onNavigate?.('prayerRequests')}>{t('prayerRequests.newBtn', undefined, lang)}</button>
+              <button style={styles.inlineSeeAll} onClick={() => setAddRequestOpen(true)}>{t('prayerRequests.newBtn', undefined, lang)}</button>
             </div>
             {activeRequests.length === 0 ? (
               <p style={styles.requestsSub}>{t('prayerRequests.emptyActive', undefined, lang)}</p>
@@ -376,6 +389,19 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
           </button>
         )}
       </div>
+
+      {addRequestOpen && (
+        <AddPrayerRequestSheet
+          lang={lang}
+          authUser={authUser}
+          hasAI={session.hasAI}
+          onClose={() => setAddRequestOpen(false)}
+          onCreated={() => {
+            setAddRequestOpen(false)
+            getMyPrayerRequests().then(setRequests).catch(() => {})
+          }}
+        />
+      )}
     </div>
   )
 }
