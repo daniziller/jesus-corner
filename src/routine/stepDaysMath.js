@@ -74,45 +74,96 @@ export function countMarkedWeekdays(resolvedStepDays, activeSteps) {
 // Um dia é "cumprido" quando TODOS os passos agendados pra ele (o que
 // stepsScheduledForWeekday devolve) foram concluídos naquele dia
 // (dailyRoutine[dateKey]). Dia sem nada marcado nunca é "cumprido" nem
-// "perdido" — não entra na conta (é descanso).
+// "perdido" — não entra na conta (é descanso). Continua exportada (usada
+// em outros lugares/testes) — computeStepWeekGoal/computeWeekPillStates
+// agora usam stepSatisfiedDays abaixo, que permite REPOSIÇÃO; esta função
+// fica como o cheque simples "esse dia específico, sozinho, bateu?".
 export function isStepDayFulfilled(dayRoutineEntry, scheduledSteps) {
   if (scheduledSteps.length === 0) return false
   return scheduledSteps.every(step => !!dayRoutineEntry?.[step])
+}
+
+// Pedido dela (2026-09-12): "se a pessoa colocou que o passo tal seria
+// feito no dia tal e acabou não fazendo, aparecer pra repor o dia que
+// faltou [...] se a pessoa optar por fazer no dia off, marca como feito e
+// conta pras métricas da semana." Por PASSO (não pelo dia inteiro,
+// trilhas independentes — ver comentário de stepsScheduledForWeekday):
+// caminha os dias da semana em ordem; um dia AGENDADO sem o passo feito
+// vira um "débito" numa fila (mais antigo primeiro); um dia SEM agenda
+// (folga) em que o passo foi feito mesmo assim quita o débito mais antigo
+// em aberto — o dia perdido original passa a contar como cumprido dali em
+// diante. Não mexe na ordem de leitura nem em nenhum outro dado: só decide
+// retroativamente se aquele dia da semana "conta" pra métrica.
+// { satisfied: bool[7], pendingMissed: number[] (índices ainda em aberto,
+// mais antigo primeiro — o próximo que uma folga futura reporia). }
+export function stepSatisfiedDays(oneStepDays, dailyRoutine, step, monday, today = new Date()) {
+  const satisfied = new Array(7).fill(false)
+  const pendingMissed = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
+    if (d > today) break
+    const done = !!dailyRoutine?.[dateKey(d)]?.[step]
+    if (oneStepDays?.[i]) {
+      if (done) satisfied[i] = true
+      else pendingMissed.push(i)
+    } else if (done && pendingMissed.length > 0) {
+      satisfied[pendingMissed.shift()] = true
+    }
+  }
+  return { satisfied, pendingMissed }
+}
+
+// Dias (índices, mais antigo primeiro) que UM passo específico ainda deve
+// da semana atual, como de hoje — usado pra decidir se um dia de folga
+// daquele passo mostra "Repor {dia}" em vez do "fora de hoje" de sempre
+// (ver planTodayRows.js/HomeScreen.jsx).
+export function pendingMakeupWeekdays(oneStepDays, dailyRoutine, step, today = new Date()) {
+  return stepSatisfiedDays(oneStepDays, dailyRoutine, step, mondayOf(today), today).pendingMissed
 }
 
 // { doneCount, markedCount } da semana ATUAL (segunda até hoje) — mesma
 // fonte pras 3 leituras que o HANDOFF exige que batam (grade 35a, pílula
 // 35c, cartão "Esta semana"). markedCount conta a semana inteira (7 dias),
 // não só até hoje — é "quantos dias por semana", uma propriedade do plano,
-// não um progresso que só cresce ao longo da semana.
+// não um progresso que só cresce ao longo da semana. Um dia entra em
+// doneCount quando TODOS os passos agendados pra ele estão satisfeitos —
+// direto (feito naquele dia) ou por reposição (ver stepSatisfiedDays).
 export function computeStepWeekGoal(dailyRoutine, resolvedStepDays, activeSteps, today = new Date()) {
   const markedCount = countMarkedWeekdays(resolvedStepDays, activeSteps)
   const monday = mondayOf(today)
+  const satisfiedByStep = {}
+  for (const step of activeSteps) {
+    satisfiedByStep[step] = stepSatisfiedDays(resolvedStepDays[step], dailyRoutine, step, monday, today).satisfied
+  }
   let doneCount = 0
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
     if (d > today) break
     const scheduled = stepsScheduledForWeekday(resolvedStepDays, activeSteps, i)
-    if (isStepDayFulfilled(dailyRoutine?.[dateKey(d)], scheduled)) doneCount++
+    if (scheduled.length > 0 && scheduled.every(step => satisfiedByStep[step][i])) doneCount++
   }
   return { doneCount, markedCount }
 }
 
 // Estado de cada uma das 7 pílulas do cartão "Esta semana" (35a) — 'done'
-// (cumprido), 'today' (hoje, ainda não cumprido), 'upcoming' (marcado, não
-// cumprido — vale tanto pro futuro quanto pra um dia passado perdido: "um
-// dia perdido não zera nada" nunca vira um estado visual de culpa) e 'rest'
+// (cumprido, direto ou por reposição), 'today' (hoje, ainda não cumprido),
+// 'upcoming' (marcado, não cumprido — vale tanto pro futuro quanto pra um
+// dia passado perdido: "um dia perdido não zera nada" nunca vira um estado
+// visual de culpa, e se for reposto depois vira 'done' igual) e 'rest'
 // (nada marcado nesse dia). `done` tem prioridade sobre `today` — se hoje já
 // foi cumprido, mostra cumprido, não "ainda hoje".
 export function computeWeekPillStates(dailyRoutine, resolvedStepDays, activeSteps, today = new Date()) {
   const monday = mondayOf(today)
   const todayIdx = (today.getDay() + 6) % 7
+  const satisfiedByStep = {}
+  for (const step of activeSteps) {
+    satisfiedByStep[step] = stepSatisfiedDays(resolvedStepDays[step], dailyRoutine, step, monday, today).satisfied
+  }
   const states = []
   for (let i = 0; i < 7; i++) {
-    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
     const scheduled = stepsScheduledForWeekday(resolvedStepDays, activeSteps, i)
     if (scheduled.length === 0) { states.push('rest'); continue }
-    if (isStepDayFulfilled(dailyRoutine?.[dateKey(d)], scheduled)) { states.push('done'); continue }
+    if (scheduled.every(step => satisfiedByStep[step][i])) { states.push('done'); continue }
     states.push(i === todayIdx ? 'today' : 'upcoming')
   }
   return states

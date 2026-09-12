@@ -2,7 +2,7 @@
 // (getStepDays/setStepDays, em stepDaysStore.js, fazem I/O — verificados
 // manualmente no navegador, não aqui). Roda com:
 // node scripts/test-step-days.mjs
-import { resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal, computeWeekPillStates } from '../src/routine/stepDaysMath.js'
+import { resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal, computeWeekPillStates, stepSatisfiedDays, pendingMakeupWeekdays } from '../src/routine/stepDaysMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -68,6 +68,43 @@ check('até terça: ainda 1 cumprido (terça não fechou reflexão)', goalTuesda
 // Domingo sem nada marcado -> 'rest'. Nenhum estado de "perdido" existe.
 const pillStates = computeWeekPillStates(routine, resolved, active, tuesday)
 check('estados da semana: seg cumprida, ter=hoje, qua–sáb por vir, dom descanso', pillStates, ['done', 'today', 'upcoming', 'upcoming', 'upcoming', 'upcoming', 'rest'])
+
+// stepSatisfiedDays / pendingMakeupWeekdays / repor no dia de folga
+// (pedido dela, 2026-09-12): "leitura" cai só segunda (índice 0) nesta
+// mini-agenda; ela perdeu segunda, mas leu mesmo assim na quarta (índice
+// 2, dia de folga da leitura) — segunda passa a contar como cumprida, sem
+// mexer em nenhum outro dia.
+const readingMondayOnly = [true, false, false, false, false, false, false]
+const wednesday = new Date(2026, 8, 9) // 9 de setembro de 2026, quarta
+const missedThenMadeUp = {
+  '2026-09-07': {}, // segunda — leitura não feita
+  '2026-09-09': { reading: true }, // quarta — dia de folga da leitura, mas leu
+}
+const satisfiedBeforeMakeup = stepSatisfiedDays(readingMondayOnly, missedThenMadeUp, 'reading', monday, monday)
+check('sem chegar na quarta ainda, segunda continua em aberto', satisfiedBeforeMakeup, { satisfied: [false, false, false, false, false, false, false], pendingMissed: [0] })
+const satisfiedAfterMakeup = stepSatisfiedDays(readingMondayOnly, missedThenMadeUp, 'reading', monday, wednesday)
+check('reposição na quarta quita a segunda perdida', satisfiedAfterMakeup, { satisfied: [true, false, false, false, false, false, false], pendingMissed: [] })
+check('pendingMakeupWeekdays antes da reposição aponta segunda (índice 0)', pendingMakeupWeekdays(readingMondayOnly, missedThenMadeUp, 'reading', monday), [0])
+check('pendingMakeupWeekdays depois da reposição fica vazio', pendingMakeupWeekdays(readingMondayOnly, missedThenMadeUp, 'reading', wednesday), [])
+
+// A reposição também precisa aparecer em computeStepWeekGoal (métrica da
+// semana) — só "reading" ativo, pra isolar o efeito (markedCount = só a
+// própria agenda da leitura, 1 dia = segunda), SEM reposição ainda vs. COM
+// reposição na quarta.
+const resolvedMakeup = { reading: readingMondayOnly }
+const activeMakeup = ['reading']
+const routineNoMakeup = {
+  '2026-09-07': {}, // segunda: leitura perdida
+  '2026-09-09': {}, // quarta: nada ainda
+}
+const goalNoMakeup = computeStepWeekGoal(routineNoMakeup, resolvedMakeup, activeMakeup, wednesday)
+check('sem repor: segunda não conta — 0 de 1 dia marcado', goalNoMakeup, { doneCount: 0, markedCount: 1 })
+const routineWithMakeup = {
+  '2026-09-07': {},
+  '2026-09-09': { reading: true }, // quarta: repõe a leitura de segunda
+}
+const goalWithMakeup = computeStepWeekGoal(routineWithMakeup, resolvedMakeup, activeMakeup, wednesday)
+check('com repor na quarta: segunda passa a contar cumprida — 1 de 1', goalWithMakeup, { doneCount: 1, markedCount: 1 })
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)

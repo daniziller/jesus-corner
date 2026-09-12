@@ -25,7 +25,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeekPillStates } from '../routine/stepDaysStore'
+import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeekPillStates, pendingMakeupWeekdays } from '../routine/stepDaysStore'
 import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
@@ -152,6 +152,27 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   const { orderedKeys, offSteps } = orderStepsWithOff(todaysSteps, activeSteps)
   const noPlanReading = hasNoPlan && !activeStudyId
 
+  // Reposição (pedido dela, 2026-09-12): entre os passos de folga hoje
+  // (offSteps), quais ainda devem um dia agendado ANTERIOR desta semana —
+  // mostram "Repor {dia}" em vez do "fora de hoje" de sempre, e viram
+  // clicáveis igual um passo pendente (ver statusFor/renderização
+  // abaixo). Marcar o passo feito hoje já conta pra métrica da semana
+  // sozinho (stepDaysMath.js decide isso, nada extra precisa acontecer
+  // aqui além de deixar a pessoa chegar até a tela do passo).
+  const makeupWeekdayByStep = {}
+  if (stepDays) {
+    for (const k of offSteps) {
+      const pending = pendingMakeupWeekdays(stepDays[k], dailyRoutine, k, today)
+      if (pending.length > 0) makeupWeekdayByStep[k] = fullNames[pending[0]]
+    }
+  }
+  const makeupSteps = Object.keys(makeupWeekdayByStep)
+  // Se não sobrou nada pendente pra HOJE (currentKey null), mas existe uma
+  // reposição disponível, o botão único do dia oferece ela — sem isso, um
+  // dia de folga inteiro (sem nada agendado) nunca mostrava jeito nenhum
+  // de repor por aqui.
+  const ctaKey = currentKey ?? makeupSteps[0] ?? null
+
   // Linha "meta" de cada passo na lista — lógica compartilhada com
   // HomeScreen.jsx (planTodayRows.js/buildRowMeta), pra "Meu Plano" e "Seu
   // plano de hoje" nunca mostrarem frases diferentes pro mesmo passo/estado.
@@ -159,6 +180,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
     return buildRowMeta(key, status, {
       activeStudyId, hasNoPlan, reflectionMethod, prayerMethod,
       todayRoutine, todaySession, activeStudy, todaysSteps, lang, stepTitle,
+      makeupWeekday: makeupWeekdayByStep[key],
     }, L)
   }
 
@@ -272,7 +294,7 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
 
           <div style={styles.stepsList}>
             {orderedKeys.map((k, i) => {
-              const status = statusFor(k, { offSteps, todayRoutine, currentKey })
+              const status = statusFor(k, { offSteps, makeupSteps, todayRoutine, currentKey })
               const isStudyNow = status === 'now' && k === 'study' && activeStudyId
               // 35b: o nome da linha continua "Estudo" (nunca vira a
               // referência) — mesmo padrão de Leitura, que também não troca
@@ -284,27 +306,36 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
               const trail = isStudyNow && activeStudy?.dayTotal > 1 ? { done: activeStudy.dayDone, total: activeStudy.dayTotal } : null
               const rowStyle = {
                 ...styles.stepRow,
-                cursor: status === 'done' ? 'pointer' : 'default',
+                cursor: (status === 'done' || status === 'makeup') ? 'pointer' : 'default',
                 ...(i < orderedKeys.length - 1 ? { borderBottom: '1px solid var(--bento-line)' } : null),
               }
-              // Nenhum passo tem botão de ação próprio (README) — a única
-              // exceção é reabrir um passo JÁ FEITO pra rever, como sempre
-              // (não é "recomeçar a cadeia", só consulta).
-              const RowTag = status === 'done' ? 'button' : 'div'
+              // Nenhum passo tem botão de ação próprio (README) — as
+              // exceções são reabrir um passo JÁ FEITO pra rever e um passo
+              // de folga com reposição pendente (pedido dela, 2026-09-12).
+              // As duas usam openDoneStep (nunca startStep): startStep
+              // sempre delega pro modo guiado quando ele existe
+              // (onStartGuided), que encadeia os passos de HOJE — ignoraria
+              // qual `k` foi clicado e, num dia sem nada agendado, nem abre
+              // nada (todaysGuidedSteps() vazio). openDoneStep vai direto
+              // pra tela do passo pedido, sem passar pelo encadeamento.
+              const RowTag = (status === 'done' || status === 'makeup') ? 'button' : 'div'
+              const rowClick = (status === 'done' || status === 'makeup') ? openDoneStep : null
               return (
-                <RowTag key={k} style={rowStyle} {...(status === 'done' ? { onClick: () => openDoneStep(k) } : null)}>
+                <RowTag key={k} style={rowStyle} {...(rowClick ? { onClick: () => rowClick(k) } : null)}>
                   <span style={{
                     ...styles.stepIconBase,
                     ...(status === 'done' ? styles.stepIconDone : status === 'now' ? styles.stepIconNow : status === 'off' ? styles.stepIconOff : styles.stepIconPending),
                   }}>
                     {status === 'done' && <AppIcon name="Check" size={15} strokeWidth={2.6} color="var(--bento-sand)" />}
                     {status === 'now' && <AppIcon name="Play" size={13} color="var(--bento-ink)" fill="var(--bento-ink)" />}
+                    {status === 'makeup' && <AppIcon name="RefreshCw" size={12} color="var(--bento-ink)" />}
                     {status === 'pending' && <span style={styles.stepDot} />}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={styles.stepNameRow}>
                       <p style={{ ...styles.stepName, ...(status === 'off' ? styles.stepNameOff : null) }}>{title}</p>
                       {status === 'now' && <span style={styles.nowPill}>{L('nowPill')}</span>}
+                      {status === 'makeup' && <span style={styles.nowPill}>{L('makeupPill')}</span>}
                     </div>
                     {meta && <p style={styles.stepMeta}>{meta}</p>}
                     {trail && (
@@ -326,12 +357,15 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
           </div>
 
           {/* Um botão só pro dia — abre o passo da vez e emenda os
-              seguintes na ordem (nenhum passo tem botão próprio). */}
-          {currentKey && (
-            <button style={styles.startCta} onClick={() => startStep(currentKey)}>
+              seguintes na ordem (nenhum passo tem botão próprio). Sem
+              nada pendente HOJE (currentKey null) mas com uma reposição
+              disponível (pedido dela, 2026-09-12), oferece ela em vez de
+              simplesmente sumir — mesmo botão, texto de título diferente. */}
+          {ctaKey && (
+            <button style={styles.startCta} onClick={() => (currentKey ? startStep(ctaKey) : openDoneStep(ctaKey))}>
               <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                <p style={styles.startCtaTitle}>{doneCount > 0 ? L('continuePlanBtn') : L('startPlanBtn')}</p>
-                <p style={styles.startCtaSub}>{ctaSubtitle(currentKey)}</p>
+                <p style={styles.startCtaTitle}>{currentKey ? (doneCount > 0 ? L('continuePlanBtn') : L('startPlanBtn')) : L('makeupPlanBtn')}</p>
+                <p style={styles.startCtaSub}>{ctaSubtitle(ctaKey)}</p>
               </div>
               <span style={styles.startCtaArrow}><AppIcon name="ArrowRight" size={18} color="var(--bento-ink)" /></span>
             </button>
