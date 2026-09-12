@@ -2180,6 +2180,12 @@ export const STRINGS = {
       archiveEmpty: 'Nada arquivado ainda. Toque no ícone de arquivo numa anotação pra guardar aqui.',
       deleteFolderAction: 'Apagar pasta',
       deleteFolderConfirm: 'Apagar essa pasta? As anotações arquivadas nela voltam pra "Sem pasta".',
+      // Apagar um card de Estudo (pedido dela, 2026-09-12) — texto muda
+      // conforme o que "apagar" realmente faz (ver deleteStudyEntry):
+      // IA/indutivo apagam o estudo inteiro; catálogo pronto só zera o
+      // progresso (o estudo continua disponível pra começar de novo).
+      deleteStudyConfirm: 'Apagar esse estudo? Todo o conteúdo e progresso são perdidos, não dá pra desfazer.',
+      clearStudyProgressConfirm: 'Tirar esse estudo da Biblioteca? Seu progresso é zerado, mas ele continua disponível pra começar de novo.',
     },
     applicationPhrases: {
       pageTitle: 'Frases de aplicação',
@@ -4966,6 +4972,8 @@ export const STRINGS = {
       archiveEmpty: "Nothing archived yet. Tap the archive icon on a note to keep it here.",
       deleteFolderAction: 'Delete folder',
       deleteFolderConfirm: "Delete this folder? Notes archived in it move back to \"No folder\".",
+      deleteStudyConfirm: "Delete this study? All its content and progress are lost — can't be undone.",
+      clearStudyProgressConfirm: "Remove this study from the Library? Your progress resets, but it stays available to start again.",
     },
     applicationPhrases: {
       pageTitle: 'Application phrases',
