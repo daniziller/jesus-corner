@@ -197,8 +197,8 @@ export const STRINGS = {
       // "Adiantar" — a única diferença é o texto, avisando qual dia ficou
       // pra trás em vez de só "adiantar o próximo").
       dayOffMakeupTitle: 'Repor {weekday}',
-      dayOffMakeupSub: 'Você não leu {weekday} — continue de onde parou, sem mudar a ordem.',
-      dayOffMakeupCta: 'Repor leitura',
+      dayOffMakeupSub: 'Ficou passo de {weekday} pra trás — dá pra repor em Meu Plano, sem mudar a ordem de nada.',
+      dayOffMakeupCta: 'Ver o que repor',
       // Grade de tiles do "Seu plano de hoje" (34a/34b/34c, handoff-app-
       // completo) — título grande + tile por passo ativo, sempre com 3
       // linhas (número/"dia off", nome do passo, detalhe). Estudo sempre
@@ -213,6 +213,7 @@ export const STRINGS = {
       tilePrayerFree: 'Livre · só o cronômetro',
       tileVoltaWeekday: 'Volta {weekday}',
       tileVoltaWeekdayRef: 'Volta {weekday} · {ref}',
+      tileReporWeekday: 'Repor {weekday}',
       tileReporWeekdayRef: 'Repor {weekday} · {ref}',
       // "Ontem às 6:48 você parou em: '...'" — day/hour vêm de
       // lastReadPosition.readAt de verdade (não sempre "Ontem"); excerpt só
@@ -3280,8 +3281,8 @@ export const STRINGS = {
       dayOffSub: "No step of your plan falls today.",
       dayOffCta: "Get ahead of tomorrow's plan",
       dayOffMakeupTitle: 'Make up {weekday}',
-      dayOffMakeupSub: "You didn't read on {weekday} — pick up right where you left off, no order changed.",
-      dayOffMakeupCta: 'Make up reading',
+      dayOffMakeupSub: "A step from {weekday} got left behind — you can make it up in My Plan, no order changed.",
+      dayOffMakeupCta: 'See what to make up',
       planTitleBoth: "{chapter} and today's study",
       planSubtitleStudyOnly: "Today's a study day. The continuous Bible resumes {weekday}, at {ref}.",
       tileDayOff: 'day off',
@@ -3291,6 +3292,7 @@ export const STRINGS = {
       tilePrayerFree: 'Free · just the timer',
       tileVoltaWeekday: 'Back {weekday}',
       tileVoltaWeekdayRef: 'Back {weekday} · {ref}',
+      tileReporWeekday: 'Make up {weekday}',
       tileReporWeekdayRef: 'Make up {weekday} · {ref}',
       continuityLine: '{day} at {hour} you left off',
       continuityExcerpt: '{text}.',

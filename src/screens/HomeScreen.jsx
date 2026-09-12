@@ -284,16 +284,28 @@ export default function HomeScreen({
 
   const stepTitle = k => translate(`home.routine${cap(k)}`, undefined, lang)
 
-  // Reposição (pedido dela, 2026-09-12): a Leitura tem dia próprio
-  // agendado que passou sem ser feito? Só Leitura aqui — é o passo que
-  // "Adiantar"/handleOnlyRead já sabe abrir direto (onContinueSession),
-  // sem precisar navegar pra tela certa de cada passo (isso já existe
-  // pra Oração/Estudo/Reflexão em Meu Plano — RoutineScreen.jsx). Card
-  // continua um resumo/aviso aqui; a ação de verdade é lá.
-  const readingMakeupWeekdays = stepDays && activeStepsToday.includes('reading') && !todaysSteps.includes('reading')
-    ? pendingMakeupWeekdays(stepDays.reading, dailyRoutine, 'reading', new Date())
-    : []
-  const readingMakeupToday = readingMakeupWeekdays.length > 0
+  // Reposição (pedido dela, 2026-09-12, com o ajuste do mesmo dia: "não
+  // repor só a leitura, repor todos os passos do dia") — checa CADA passo
+  // ativo de folga hoje, não só Leitura. Card/tiles continuam só um
+  // resumo/aviso aqui; a ação de repor de verdade (cada passo tem sua
+  // própria tela) mora em Meu Plano (RoutineScreen.jsx, PR #168), que já
+  // sabe fazer isso por passo — daí o CTA de reposição navegar pra lá em
+  // vez de repetir a ação aqui.
+  const makeupWeekdaysByStep = {}
+  for (const k of activeStepsToday) {
+    if (!stepDays || todaysSteps.includes(k)) continue
+    const pending = pendingMakeupWeekdays(stepDays[k], dailyRoutine, k, new Date())
+    if (pending.length > 0) makeupWeekdaysByStep[k] = pending
+  }
+  const makeupStepsToday = Object.keys(makeupWeekdaysByStep)
+  const hasMakeupToday = makeupStepsToday.length > 0
+  // Dia mais antigo perdido entre TODOS os passos de folga — nomeia o
+  // card de "Dia off" quando ele vira reposição (fila de cada passo já é
+  // FIFO, ver pendingMakeupWeekdays/stepDaysMath.js — [0] é sempre o mais
+  // antigo daquele passo; aqui pega o mais antigo entre todos os passos).
+  const earliestMakeupWeekdayIdx = hasMakeupToday
+    ? Math.min(...makeupStepsToday.map(k => makeupWeekdaysByStep[k][0]))
+    : null
 
   function handleOnlyRead() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
@@ -369,26 +381,42 @@ export default function HomeScreen({
   // ligados hoje). Reflexão sempre "Três perguntas do dia" e Estudo
   // sempre "{título} · dia N de M" — mesmo com estudo ativo mostrando
   // passagem em 34c, ela escolheu padronizar no formato de 34b pros dois.
+  // Dia perdido a repor PARA ESSE PASSO especificamente (generalização do
+  // pedido dela, 2026-09-12 — "repor todos os passos do dia", não só
+  // Leitura) — null quando não há reposição pendente pra ele.
+  function makeupWeekdayFor(key) {
+    const pending = makeupWeekdaysByStep[key]
+    return pending ? weekdayFull[pending[0]] : null
+  }
+
   function tileDetailFor(key, on) {
     if (key === 'prayer') {
       if (on) return prayerMethod === 'acts' ? L('tilePrayerActs') : L('tilePrayerFree')
+      const makeupWd = makeupWeekdayFor('prayer')
+      if (makeupWd) return L('tileReporWeekday', { weekday: makeupWd })
       const wd = nextWeekdayLabel('prayer')
       return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
     }
     if (key === 'reading') {
       if (on) return `${readingChapterLabel} · ${L('tileBibleContinuous')}`
-      if (readingMakeupToday) return L('tileReporWeekdayRef', { weekday: weekdayFull[readingMakeupWeekdays[0]], ref: readingChapterLabel })
+      const makeupWd = makeupWeekdayFor('reading')
+      if (makeupWd) return L('tileReporWeekdayRef', { weekday: makeupWd, ref: readingChapterLabel })
       const wd = nextWeekdayLabel('reading')
       return wd ? L('tileVoltaWeekdayRef', { weekday: wd, ref: readingChapterLabel }) : null
     }
     if (key === 'study') {
       if (on) return activeStudy ? studyTitleDay : null
-      const wd = nextWeekdayLabel('study')
+      const makeupWd = makeupWeekdayFor('study')
+      const wd = makeupWd ?? nextWeekdayLabel('study')
       if (!wd) return null
-      return activeStudy ? L('tileVoltaWeekdayRef', { weekday: wd, ref: activeStudy.title }) : L('tileVoltaWeekday', { weekday: wd })
+      const refKey = makeupWd ? 'tileReporWeekdayRef' : 'tileVoltaWeekdayRef'
+      const plainKey = makeupWd ? 'tileReporWeekday' : 'tileVoltaWeekday'
+      return activeStudy ? L(refKey, { weekday: wd, ref: activeStudy.title }) : L(plainKey, { weekday: wd })
     }
     // reflection
     if (on) return L('tileReflectionOn')
+    const makeupWd = makeupWeekdayFor('reflection')
+    if (makeupWd) return L('tileReporWeekday', { weekday: makeupWd })
     const wd = nextWeekdayLabel('reflection')
     return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
   }
@@ -538,16 +566,18 @@ export default function HomeScreen({
               os passos ativos desmarcados pra hoje). "Adiantar" reaproveita
               o mesmo onContinueSession de "Só ler": abre a próxima leitura
               pendente de verdade, sem mexer nos dias configurados.
-              Reposição (pedido dela, 2026-09-12): se a Leitura tem um dia
-              perdido ainda em aberto nesta semana, o mesmo card/botão
-              troca de "adiantar" pra "repor", nomeando o dia perdido —
-              mecânica idêntica (mesmo handleOnlyRead), só o texto muda. */}
+              Reposição (pedido dela, 2026-09-12, ajustado no mesmo dia:
+              "não repor só a leitura, repor todos os passos do dia") — se
+              QUALQUER passo ativo tem um dia perdido em aberto (não só
+              Leitura), o card troca de "adiantar" pra "repor" e leva pra
+              Meu Plano em vez de abrir a leitura direto — só lá dá pra
+              repor cada passo de verdade (cada um tem sua própria tela). */}
           {planState === 'dayOff' && (
             <>
-              <p style={styles.planTitle}>{readingMakeupToday ? L('dayOffMakeupTitle', { weekday: weekdayFull[readingMakeupWeekdays[0]] }) : L('dayOffTitle')}</p>
-              <p style={styles.continuityLine}>{readingMakeupToday ? L('dayOffMakeupSub', { weekday: weekdayFull[readingMakeupWeekdays[0]] }) : L('dayOffSub')}</p>
-              <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={handleOnlyRead}>
-                <span style={styles.onlyReadBtnText}>{readingMakeupToday ? L('dayOffMakeupCta') : L('dayOffCta')}</span>
+              <p style={styles.planTitle}>{hasMakeupToday ? L('dayOffMakeupTitle', { weekday: weekdayFull[earliestMakeupWeekdayIdx] }) : L('dayOffTitle')}</p>
+              <p style={styles.continuityLine}>{hasMakeupToday ? L('dayOffMakeupSub', { weekday: weekdayFull[earliestMakeupWeekdayIdx] }) : L('dayOffSub')}</p>
+              <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={hasMakeupToday ? () => onNavigate?.('routine') : handleOnlyRead}>
+                <span style={styles.onlyReadBtnText}>{hasMakeupToday ? L('dayOffMakeupCta') : L('dayOffCta')}</span>
               </button>
             </>
           )}
@@ -571,14 +601,18 @@ export default function HomeScreen({
 
               {/* README (fluxo de 34a): "quadros de tempo ► 35c Ajustar
                   meu plano" — cada tile abre o ajuste de tempo/dias do
-                  passo, mesmo destino pros quatro. */}
+                  passo, mesmo destino pros quatro. Exceção (pedido dela,
+                  2026-09-12): um tile com reposição pendente leva pra Meu
+                  Plano em vez do ajuste de horário — é lá que dá pra repor
+                  de verdade. */}
               <div style={{ ...styles.tilesRow, ...(activeStepsToday.length >= 4 ? styles.tilesGrid4 : null) }}>
                 {activeStepsToday.map(k => {
                   const on = todaysSteps.includes(k)
                   const detail = tileDetailFor(k, on)
                   const isDone = on && !!todayRoutine[k]
+                  const hasMakeup = !!makeupWeekdaysByStep[k]
                   return (
-                    <button key={k} type="button" style={{ ...styles.tile, position: 'relative' }} onClick={() => onNavigate?.('adjustPlan')}>
+                    <button key={k} type="button" style={{ ...styles.tile, position: 'relative' }} onClick={() => onNavigate?.(hasMakeup ? 'routine' : 'adjustPlan')}>
                       {isDone ? (
                         <span style={styles.tileCheck}>
                           <AppIcon name="Check" size={11} strokeWidth={3} color="var(--bento-ink)" />
