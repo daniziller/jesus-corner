@@ -5,7 +5,7 @@
 // Oração feita, Leitura "agora", sem Estudo hoje; 35b: mesma terça, mas
 // COM Estudo ativo também caindo hoje — os dois passos coexistem, Leitura
 // primeiro). Roda com: node scripts/test-plan-today-rows.mjs
-import { STEP_ORDER, orderStepsWithOff, statusFor, metaKindFor, featuredStepsFor } from '../src/routine/planTodayRows.js'
+import { STEP_ORDER, orderStepsWithOff, statusFor, metaKindFor, buildRowMeta, featuredStepsFor } from '../src/routine/planTodayRows.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -85,6 +85,18 @@ check('Leitura E Estudo no mesmo dia (modelo independente) → os dois no card',
 check('nem Leitura nem Estudo hoje → cai pro par Oração/Reflexão', featuredStepsFor(['prayer', 'reflection']), ['prayer', 'reflection'])
 check('só Oração hoje (Reflexão desligada) → só Oração', featuredStepsFor(['prayer']), ['prayer'])
 check('nenhum passo hoje → nada destacado (card mostra "Dia off")', featuredStepsFor([]), [])
+
+// --- Reposição (pedido dela, 2026-09-12) --------------------------------
+// Mesma terça de 35a, mas Estudo (de folga hoje) deve uma segunda perdida
+// — status vira 'makeup' em vez de 'off', e a meta nomeia o dia.
+check('makeup: status vira "makeup" quando o passo de folga tem reposição pendente', statusFor('study', { offSteps: off35a, makeupSteps: ['study'], todayRoutine: todayRoutine35a, currentKey: currentKey35a }), 'makeup')
+check('sem reposição pendente, mesmo passo de folga continua "off"', statusFor('study', { offSteps: off35a, makeupSteps: [], todayRoutine: todayRoutine35a, currentKey: currentKey35a }), 'off')
+check('sem makeupSteps nenhum (chamada antiga, compatível) continua "off"', statusFor('study', { offSteps: off35a, todayRoutine: todayRoutine35a, currentKey: currentKey35a }), 'off')
+check('metaKindFor de um passo "makeup" pede o dia perdido', metaKindFor('study', 'makeup', ctx35a), 'makeupStep')
+// Mock de L(key, vars) que só sabe fazer a substituição de {weekday} —
+// suficiente pra provar que buildRowMeta manda o dia certo pra chave certa.
+const mockL = (key, vars) => key === 'makeupStepMeta' ? `Repor ${vars.weekday}` : key
+check('buildRowMeta de "makeup" nomeia o dia perdido', buildRowMeta('study', 'makeup', { ...ctx35a, makeupWeekday: 'segunda' }, mockL), 'Repor segunda')
 
 if (failures > 0) {
   console.error(`\n${failures} teste(s) falharam.`)

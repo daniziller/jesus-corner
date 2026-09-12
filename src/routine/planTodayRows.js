@@ -32,9 +32,15 @@ export function featuredStepsFor(todaysSteps) {
   return todaysSteps.filter(k => k === 'prayer' || k === 'reflection')
 }
 
-// Estado visual de UM passo na lista.
-export function statusFor(key, { offSteps, todayRoutine, currentKey }) {
-  if (offSteps.includes(key)) return 'off'
+// Estado visual de UM passo na lista. 'makeup' (pedido dela, 2026-09-12):
+// passo de folga hoje que ainda deve um dia agendado anterior desta semana
+// (ver pendingMakeupWeekdays, stepDaysMath.js) — em vez do "fora de hoje"
+// de sempre, vira clicável igual um passo pendente, com "Repor {dia}"
+// (ver metaKindFor/buildRowMeta abaixo). `makeupSteps` é o subconjunto de
+// `offSteps` nessa situação — quem chama decide (RoutineScreen.jsx/
+// HomeScreen.jsx), já que só eles têm dailyRoutine/stepDays à mão.
+export function statusFor(key, { offSteps, makeupSteps, todayRoutine, currentKey }) {
+  if (offSteps.includes(key)) return makeupSteps?.includes(key) ? 'makeup' : 'off'
   if (todayRoutine[key]) return 'done'
   if (key === currentKey) return 'now'
   return 'pending'
@@ -48,6 +54,7 @@ export function statusFor(key, { offSteps, todayRoutine, currentKey }) {
 // têm dias próprios e nunca se "pausam" um pelo outro — um passo fora de
 // hoje é sempre só "não é dia dele", não importa qual.
 export function metaKindFor(key, status, { activeStudyId, hasNoPlan, reflectionMethod }) {
+  if (status === 'makeup') return 'makeupStep'
   if (status === 'off') return 'notToday'
   if (key === 'prayer') return status === 'done' ? 'prayerDone' : 'prayerMethod'
   if (key === 'reading') {
@@ -97,9 +104,11 @@ function chainAfterMeta(key, todaysSteps, L) {
 // nome bonito do passo mora em home.routineXxx, não em routine.*, então
 // vem de fora em vez de L() tentar adivinhar o namespace certo.
 export function buildRowMeta(key, status, ctx, L) {
-  const { activeStudyId, hasNoPlan, reflectionMethod, prayerMethod, todayRoutine, todaySession, activeStudy, todaysSteps, stepTitle } = ctx
+  const { activeStudyId, hasNoPlan, reflectionMethod, prayerMethod, todayRoutine, todaySession, activeStudy, todaysSteps, stepTitle, makeupWeekday } = ctx
   const kind = metaKindFor(key, status, { activeStudyId, hasNoPlan, reflectionMethod })
   switch (kind) {
+    case 'makeupStep':
+      return L('makeupStepMeta', { weekday: makeupWeekday })
     case 'notToday':
       return L('notTodayStep', { step: stepTitle(key).toLowerCase() })
     case 'prayerDone':

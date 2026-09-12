@@ -40,7 +40,7 @@ import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeek
 import { STEP_ORDER } from '../routine/planTodayRows'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
-import { nextScheduledWeekday } from '../routine/stepDaysStore'
+import { nextScheduledWeekday, pendingMakeupWeekdays } from '../routine/stepDaysStore'
 import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
@@ -284,6 +284,17 @@ export default function HomeScreen({
 
   const stepTitle = k => translate(`home.routine${cap(k)}`, undefined, lang)
 
+  // Reposição (pedido dela, 2026-09-12): a Leitura tem dia próprio
+  // agendado que passou sem ser feito? Só Leitura aqui — é o passo que
+  // "Adiantar"/handleOnlyRead já sabe abrir direto (onContinueSession),
+  // sem precisar navegar pra tela certa de cada passo (isso já existe
+  // pra Oração/Estudo/Reflexão em Meu Plano — RoutineScreen.jsx). Card
+  // continua um resumo/aviso aqui; a ação de verdade é lá.
+  const readingMakeupWeekdays = stepDays && activeStepsToday.includes('reading') && !todaysSteps.includes('reading')
+    ? pendingMakeupWeekdays(stepDays.reading, dailyRoutine, 'reading', new Date())
+    : []
+  const readingMakeupToday = readingMakeupWeekdays.length > 0
+
   function handleOnlyRead() {
     if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
     onContinueSession?.()
@@ -366,6 +377,7 @@ export default function HomeScreen({
     }
     if (key === 'reading') {
       if (on) return `${readingChapterLabel} · ${L('tileBibleContinuous')}`
+      if (readingMakeupToday) return L('tileReporWeekdayRef', { weekday: weekdayFull[readingMakeupWeekdays[0]], ref: readingChapterLabel })
       const wd = nextWeekdayLabel('reading')
       return wd ? L('tileVoltaWeekdayRef', { weekday: wd, ref: readingChapterLabel }) : null
     }
@@ -526,13 +538,17 @@ export default function HomeScreen({
           {/* "Dia off" — nenhum passo do plano cai hoje (stepDays de todos
               os passos ativos desmarcados pra hoje). "Adiantar" reaproveita
               o mesmo onContinueSession de "Só ler": abre a próxima leitura
-              pendente de verdade, sem mexer nos dias configurados. */}
+              pendente de verdade, sem mexer nos dias configurados.
+              Reposição (pedido dela, 2026-09-12): se a Leitura tem um dia
+              perdido ainda em aberto nesta semana, o mesmo card/botão
+              troca de "adiantar" pra "repor", nomeando o dia perdido —
+              mecânica idêntica (mesmo handleOnlyRead), só o texto muda. */}
           {planState === 'dayOff' && (
             <>
-              <p style={styles.planTitle}>{L('dayOffTitle')}</p>
-              <p style={styles.continuityLine}>{L('dayOffSub')}</p>
+              <p style={styles.planTitle}>{readingMakeupToday ? L('dayOffMakeupTitle', { weekday: weekdayFull[readingMakeupWeekdays[0]] }) : L('dayOffTitle')}</p>
+              <p style={styles.continuityLine}>{readingMakeupToday ? L('dayOffMakeupSub', { weekday: weekdayFull[readingMakeupWeekdays[0]] }) : L('dayOffSub')}</p>
               <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={handleOnlyRead}>
-                <span style={styles.onlyReadBtnText}>{L('dayOffCta')}</span>
+                <span style={styles.onlyReadBtnText}>{readingMakeupToday ? L('dayOffMakeupCta') : L('dayOffCta')}</span>
               </button>
             </>
           )}
