@@ -520,6 +520,12 @@ export default function JourneyScreen({
       setSermonSummaryOpen(false)
       setSermonSummaryData(null)
       setSermonHighlightsMarked(false)
+      // Fecha qualquer OUTRO rascunho esquecido em aberto (ver comentário
+      // de closeOtherOpenSermonDrafts) — sem isso, finalizar esta
+      // anotação não tirava o lápis flutuante se sobrava um rascunho
+      // antigo, de uma sessão anterior, ainda sem finalizedAt. Best-
+      // effort, não trava a navegação esperando.
+      closeOtherOpenSermonDrafts(finalDraft.id)
       onNavigate?.('notes')
     } catch (err) {
       console.error('Failed to finalize sermon note', err)
@@ -749,8 +755,9 @@ export default function JourneyScreen({
   // começar a anotação"). sermonSourceOpen começa true aqui, e só vira
   // false quando ela toca "Pronto".
   function startNewSermonNote() {
+    const newId = `sermon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     setSermonDraft({
-      id: `sermon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: newId,
       createdAt: new Date().toISOString(), date: dateKey(),
       noteType: 'sermon', title: '', preacher: '', church: '', link: '',
       passages: [], text: '', finalizedAt: null,
@@ -759,6 +766,7 @@ export default function JourneyScreen({
     setSermonGroupPickerOpen(false)
     setSermonShareOn(false)
     setSermonSelectedGroupIds([])
+    closeOtherOpenSermonDrafts(newId)
   }
 
   // Ponto de entrada da página de anotação (sermonNoteMode) — só dispara
@@ -887,6 +895,44 @@ export default function JourneyScreen({
     if (draft.passages.length > 0) return true
     if (sermonOwnWordsText(draft).trim().length > 0) return true
     return false
+  }
+
+  // Bug real (achado dela, 2026-09-13: "a nota está ficando meio que em
+  // aberto mesmo depois de finalizar" — o lápis flutuante continuava
+  // aparecendo mesmo depois de finalizar a anotação em que ela tinha
+  // acabado de trabalhar). Causa: "Anotar um sermão" sempre cria um
+  // rascunho NOVO (sermonNoteFresh — pedido dela, 2026-09-10: "sempre
+  // limpa"), sem nunca checar se já sobrava outro rascunho ainda sem
+  // finalizedAt por aí (minimizado antes, nunca finalizado nem
+  // apagado). Com dois (ou mais) rascunhos em aberto ao mesmo tempo, o
+  // lápis/retomada (efeito acima, `notes.find(n => !n.finalizedAt)`) só
+  // sabe achar "o primeiro sem finalizedAt" — finalizar UM não tira o
+  // lápis se sobra outro esquecido. Chamado sempre que uma anotação
+  // NOVA de verdade começa: fecha qualquer outro rascunho aberto (nunca
+  // o que acabou de começar) — com conteúdo de verdade, finaliza
+  // (mesma regra de "fechar o app", ver commitSermonDraft); vazio,
+  // apaga (mesma regra de "voltar sem ter escrito nada", ver
+  // leaveSermonPage). Best-effort, em segundo plano — não trava a
+  // pessoa esperando pra começar a escrever a nova.
+  async function closeOtherOpenSermonDrafts(exceptId) {
+    if (!authUser?.email) return
+    try {
+      const notes = await getSermonNotes(authUser.email)
+      const stray = notes.filter(n => !n.finalizedAt && n.id !== exceptId)
+      for (const note of stray) {
+        const normalized = {
+          title: note.title ?? '', preacher: note.preacher ?? '', church: note.church ?? '',
+          link: note.link ?? '', passages: note.passages ?? [], body: note.body ?? null, text: note.text ?? '',
+        }
+        if (sermonDraftHasContent(normalized)) {
+          await saveSermonNote(authUser.email, { ...note, finalizedAt: note.finalizedAt ?? new Date().toISOString() })
+        } else {
+          await deleteSermonNote(authUser.email, note.id)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to close stray sermon drafts', err)
+    }
   }
 
   // Comita o rascunho ATUAL — pedido dela (2026-09-12): "quando a pessoa
