@@ -153,6 +153,20 @@ export default function JourneyScreen({
   sermonNoteMode = false, sermonNoteFresh = false, sermonNoteEditId = null, onBack, onOpenSermonNote,
 }) {
   const { lang } = session
+  // Progresso por livro (39b): barra fina — laranja em curso, preta
+  // concluído — e o total de capítulos ao lado (não quantos já leu; o
+  // total é o dado estável, a barra já mostra o quanto). Também usado
+  // pelo grid de capítulo da busca de versículo da anotação de sermão
+  // (renderVerseSearch). Precisa ficar ANTES do `if (sermonNoteMode)
+  // return renderSermonPage()` mais abaixo — bug real encontrado
+  // (2026-09-13, achado dela: tela branca ao escolher capítulo dentro de
+  // "+ Versículo"): estava declarado só lá embaixo, perto de progressFor,
+  // depois do early return; renderVerseSearch (chamado só em
+  // sermonNoteMode, antes desse ponto no código) lia a variável antes
+  // dela existir na mesma passagem de render — TDZ de `const` de verdade
+  // (mesma classe do bug de continuityLine em HomeScreen.jsx,
+  // 2026-09-09), não efeito de bundler.
+  const bookChapterCounts = computeBookChapterCounts(sessionsByBlock ?? {})
   const [searchQuery, setSearchQuery] = useState('')
   // 39k (Bloco 6) — string quando a busca de verdade está aberta (Enter no
   // campo acima), null quando não. 39l (themeOpenId) empilha POR CIMA de
@@ -1646,10 +1660,6 @@ export default function JourneyScreen({
   const atBooks = flattenBooks(blocks.filter(b => b.id <= 4), lang)
   const ntBooks = flattenBooks(blocks.filter(b => b.id >= 5), lang)
   const testamentBooks = testament === 'at' ? atBooks : ntBooks
-  // Progresso por livro (39b): barra fina — laranja em curso, preta
-  // concluído — e o total de capítulos ao lado (não quantos já leu; o
-  // total é o dado estável, a barra já mostra o quanto).
-  const bookChapterCounts = computeBookChapterCounts(sessionsByBlock ?? {})
   function progressFor(entry) {
     const total = bookChapterCounts[entry.canonicalName] ?? 0
     if (!total) return { done: 0, total: 0, pct: 0 }
