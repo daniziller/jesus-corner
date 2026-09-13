@@ -2676,7 +2676,15 @@ export const STRINGS = {
       dictateBtn: 'Ditar',
       verseSearchBookStep: 'Escolha o livro',
       verseSearchChapterStep: 'Escolha o capítulo',
-      verseSearchVerseStep: 'Escolha o versículo',
+      verseSearchVerseStep: 'Escolha o(s) versículo(s)',
+      // Múltiplos versículos (pedido dela, 2026-09-13: "poder escolher 1
+      // ou mais versículos" — ex. dela: "Gênesis 1 de 9 até 14") — toca
+      // pra marcar/desmarcar, "Pronto" vira este botão assim que tem pelo
+      // menos 1 marcado, adicionando o intervalo do menor ao maior
+      // marcado de uma vez (mesmo com buracos no meio: só marcar 9 e 14
+      // já traz 9–14 inteiro).
+      addVerseBtnOne: 'Adicionar versículo',
+      addVerseBtnMany: 'Adicionar {n} versículos',
       verseSearchBookPlaceholder: 'Buscar livro...',
       // 34h — fixos, palavra por palavra (Regra 2).
       minAnnotating: '{min} min anotando',
@@ -5450,7 +5458,9 @@ export const STRINGS = {
       dictateBtn: 'Dictate',
       verseSearchBookStep: 'Choose the book',
       verseSearchChapterStep: 'Choose the chapter',
-      verseSearchVerseStep: 'Choose the verse',
+      verseSearchVerseStep: 'Choose the verse(s)',
+      addVerseBtnOne: 'Add verse',
+      addVerseBtnMany: 'Add {n} verses',
       verseSearchBookPlaceholder: 'Search book...',
       minAnnotating: '{min} min noting',
       summaryLoading: 'Analyzing what you wrote…',
