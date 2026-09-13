@@ -151,6 +151,12 @@ export default function JourneyScreen({
   // (finalizada ou não), em vez de "a primeira em andamento" (resume) ou
   // uma em branco (fresh). Tem prioridade sobre sermonNoteFresh.
   sermonNoteMode = false, sermonNoteFresh = false, sermonNoteEditId = null, onBack, onOpenSermonNote,
+  // Toque na referência/texto de um versículo citado na anotação (pedido
+  // dela, 2026-09-13): navega pra Bíblia de verdade, na sessão/capítulo
+  // certo — mesmo mecanismo já usado por NotesScreen.jsx (openBiblePassage,
+  // App.jsx). Só passado quando sermonNoteMode (ver App.jsx, tela
+  // `sermonNote`).
+  onOpenBiblePassage,
 }) {
   const { lang } = session
   // Progresso por livro (39b): barra fina — laranja em curso, preta
@@ -820,6 +826,17 @@ export default function JourneyScreen({
     }
   }
 
+  // Toque no versículo citado (referência OU texto — pedido dela,
+  // 2026-09-13): abre a passagem de verdade na Bíblia. Salva o rascunho
+  // ANTES de navegar (saveSermonDraft, sem esperar o debounce de 1200ms do
+  // autosave logo abaixo) porque ir pra aba `journey` desmonta esta
+  // instância da tela (App.jsx só monta a aba ativa) — sem isso, o que
+  // ainda não tinha sido salvo sozinho poderia se perder.
+  function openVerseInBible(seg) {
+    saveSermonDraft()
+    onOpenBiblePassage?.(seg.book, seg.chapter)
+  }
+
   // Rascunho automático (Regra 3 da área inteira: "se salva sozinho, a
   // cada pausa") — debounce de 1200ms após a última mudança no draft,
   // mesma janela de saveStudyDayDraft/StudyDayScreen.jsx. Roda silencioso
@@ -1161,8 +1178,15 @@ export default function JourneyScreen({
               return (
                 <div key={seg.id} data-sermon-seg={seg.id} style={styles.sermonQuoteBlock}>
                   <button type="button" style={styles.sermonQuoteRemove} onClick={() => removeSermonSegment(seg)} aria-label={t('sermonNote.removeVerse', { ref: seg.ref }, lang)}>×</button>
-                  <p style={styles.sermonQuoteText}>&ldquo;{seg.text}&rdquo;</p>
-                  <p style={styles.sermonQuoteRef}>{seg.ref} · {getSelectedVersionId(lang).toUpperCase()}</p>
+                  {/* Link pro topo (pedido dela, 2026-09-13): a referência
+                      vira um link de verdade — clicar abre a passagem na
+                      Bíblia (openVerseInBible). O texto citado, logo
+                      abaixo, também é clicável e leva pro mesmo lugar. */}
+                  <button type="button" style={styles.sermonQuoteRef} onClick={() => openVerseInBible(seg)}>
+                    <AppIcon name="BookOpen" size={11} color="var(--bento-sand-icon)" />
+                    {seg.ref} · {getSelectedVersionId(lang).toUpperCase()}
+                  </button>
+                  <p style={styles.sermonQuoteText} onClick={() => openVerseInBible(seg)}>&ldquo;{seg.text}&rdquo;</p>
                 </div>
               )
             }
@@ -2184,8 +2208,12 @@ const styles = {
   // fichas de passagem em todo o resto do pacote.
   sermonQuoteBlock: { position: 'relative', background: '#F7F2EA', borderLeft: '3px solid var(--bento-sand-icon)', borderRadius: '0 14px 14px 0', padding: '14px 36px 14px 16px' },
   sermonQuoteRemove: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(122,74,30,.12)', color: 'var(--bento-sand-icon)', fontSize: 14, fontWeight: 700, lineHeight: 1, cursor: 'pointer' },
-  sermonQuoteText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontStyle: 'italic', fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-sand-ink)', margin: '0 0 6px' },
-  sermonQuoteRef: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-sand-icon)', margin: 0 },
+  sermonQuoteText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontStyle: 'italic', fontWeight: 500, lineHeight: 1.6, color: 'var(--bento-sand-ink)', margin: 0, cursor: 'pointer' },
+  // Vira link de verdade (pedido dela, 2026-09-13): agora fica no TOPO do
+  // quadro (antes da citação) e navega pra Bíblia ao tocar — daí border
+  // none/background none/padding 0 (reset de <button>) e o sublinhado pra
+  // marcar que é clicável, diferente do texto puro de antes.
+  sermonQuoteRef: { display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', padding: 0, marginBottom: 6, fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-sand-icon)', textDecoration: 'underline', textUnderlineOffset: 2, cursor: 'pointer' },
   // Tópico — numerado em laranja, mesma linguagem que 34h vai reusar pro
   // cartão "Os pontos que você marcou" (Bloco 4).
   sermonTopicRow: { display: 'flex', alignItems: 'flex-start', gap: 8 },
