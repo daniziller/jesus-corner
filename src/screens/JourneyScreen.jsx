@@ -298,7 +298,18 @@ export default function JourneyScreen({
           id: target.id, createdAt: target.createdAt ?? new Date().toISOString(), date: target.date ?? dateKey(),
           noteType: target.noteType ?? 'sermon', title: target.title ?? '', preacher: target.preacher ?? '',
           church: target.church ?? '', link: target.link ?? '', passages: target.passages ?? [], text: target.text ?? '',
-          body: Array.isArray(target.body) ? target.body : null,
+          // Bug real encontrado por ela (2026-09-13): abrir uma anotação
+          // JÁ SALVA (sermonNoteEditId) que não tem `body` estruturado —
+          // formato antigo, de antes do corpo em blocos existir, ou salva
+          // pelo formulário simples que a Biblioteca tinha antes da PR
+          // #165 — caía direto na tela de escrita (sermonSourceOpen
+          // começa false) SEM passar por ensureSermonBody() primeiro (só
+          // chamado ao sair dos campos, "Pronto"), então a superfície de
+          // escrita renderizava vazia mesmo com `target.text` preenchido
+          // — "o texto sumiu". Garante aqui, na carga, um segmento de
+          // texto com o conteúdo salvo — mesma coisa que ensureSermonBody
+          // faria, só que sem depender de passar pelos campos antes.
+          body: Array.isArray(target.body) && target.body.length > 0 ? target.body : [newSermonSegment('text', target.text ?? '')],
           finalizedAt: target.finalizedAt ?? null,
           durationSeconds: target.durationSeconds ?? 0, groupId: target.groupId ?? null,
         })
@@ -333,6 +344,13 @@ export default function JourneyScreen({
   // a mesma superfície de escrita, não duas telas alternando.
   const [focusedSegId, setFocusedSegId] = useState(null)
   const activeTextareaRef = useRef(null)
+  // Pedido dela (2026-09-13): "ao adicionar, aparecer no texto, na hora
+  // que a pessoa adicionou" — um tópico/versículo novo entra DEPOIS do
+  // segmento com foco (insertSegmentAfterFocused), que pode estar no meio
+  // do corpo, fora da área visível; sem isso a pessoa via a escrita voltar
+  // sem sinal nenhum de que algo mudou. Guarda o id do segmento recém-
+  // inserido; o efeito logo abaixo rola até ele assim que o DOM atualiza.
+  const pendingScrollSegRef = useRef(null)
   // Busca de referência (Regra 5 da área inteira: "a referência entra por
   // TOQUE, nunca digitada" — por isso é um funil de 3 toques (livro →
   // capítulo → versículo), nunca um campo onde ela escreve "Gênesis
@@ -491,6 +509,7 @@ export default function JourneyScreen({
   // sempre ter onde continuar escrevendo (Regra 2: "editar o texto ao
   // redor não quebra o bloco").
   function insertSegmentAfterFocused(newSeg) {
+    pendingScrollSegRef.current = newSeg.id
     setSermonDraft(prev => {
       if (!prev) return prev
       const body = prev.body ?? []
@@ -501,6 +520,18 @@ export default function JourneyScreen({
       return { ...prev, body: [...body.slice(0, insertAt), ...toInsert, ...body.slice(insertAt)] }
     })
   }
+  // Rola até o segmento recém-inserido (pendingScrollSegRef, ver acima)
+  // assim que ele entra no DOM — precisa ser um efeito (não fazer direto
+  // em insertSegmentAfterFocused) porque o elemento só existe DEPOIS do
+  // re-render que o setSermonDraft acima dispara.
+  useEffect(() => {
+    if (!pendingScrollSegRef.current) return
+    const id = pendingScrollSegRef.current
+    pendingScrollSegRef.current = null
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-sermon-seg="${id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    })
+  }, [sermonDraft?.body])
   function updateSermonSegmentText(segId, text) {
     setSermonDraft(prev => (prev ? { ...prev, body: (prev.body ?? []).map(s => (s.id === segId ? { ...s, text } : s)) } : prev))
   }
@@ -1069,7 +1100,7 @@ export default function JourneyScreen({
           {body.map((seg, i) => {
             if (seg.type === 'quote') {
               return (
-                <div key={seg.id} style={styles.sermonQuoteBlock}>
+                <div key={seg.id} data-sermon-seg={seg.id} style={styles.sermonQuoteBlock}>
                   <button type="button" style={styles.sermonQuoteRemove} onClick={() => removeSermonSegment(seg)} aria-label={t('sermonNote.removeVerse', { ref: seg.ref }, lang)}>×</button>
                   <p style={styles.sermonQuoteText}>&ldquo;{seg.text}&rdquo;</p>
                   <p style={styles.sermonQuoteRef}>{seg.ref} · {getSelectedVersionId(lang).toUpperCase()}</p>
@@ -1079,7 +1110,7 @@ export default function JourneyScreen({
             if (seg.type === 'topic') {
               topicCount++
               return (
-                <div key={seg.id} style={styles.sermonTopicRow}>
+                <div key={seg.id} data-sermon-seg={seg.id} style={styles.sermonTopicRow}>
                   <span style={styles.sermonTopicNum}>{topicCount}</span>
                   {/* Pedido dela (2026-09-12): tópico em negrito, pra se
                       destacar do texto corrido ao redor. */}
@@ -1098,6 +1129,7 @@ export default function JourneyScreen({
             return (
               <textarea
                 key={seg.id}
+                data-sermon-seg={seg.id}
                 style={styles.sermonBodyTextarea}
                 value={seg.text}
                 placeholder={i === 0 ? t('sermonNote.textPlaceholder', undefined, lang) : ''}
@@ -1183,12 +1215,14 @@ export default function JourneyScreen({
               ))}
             </div>
           )}
+          {/* Grade de números (pedido dela, 2026-09-13: "coloca uma
+              rolagem com os números") — mesmo formato do passo de
+              capítulo acima, em vez da lista com prévia de texto de
+              antes: mais rápido pra quem já sabe o número do versículo. */}
           {sermonVerseSearchStep === 'verse' && sermonVerseSearchChapter && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={styles.sermonVerseSearchChapterGrid}>
               {Object.keys(sermonVerseSearchChapter.verses ?? {}).sort((a, b) => Number(a) - Number(b)).map(v => (
-                <button key={v} type="button" style={styles.sermonVerseSearchRow} onClick={() => pickVerseSearchVerse(Number(v))}>
-                  <span style={styles.sermonVerseSearchVerseNum}>{v}</span> {(sermonVerseSearchChapter.verses[v] ?? '').replace(/\n/g, ' ').slice(0, 60)}
-                </button>
+                <button key={v} type="button" style={styles.sermonVerseSearchChapterBtn} onClick={() => pickVerseSearchVerse(Number(v))}>{v}</button>
               ))}
             </div>
           )}
@@ -2090,7 +2124,6 @@ const styles = {
   // nenhum quadro — README/HANDOFF não desenham esta tela, só exigem
   // que ela exista de verdade, ver Regra 4 §7).
   sermonVerseSearchRow: { textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 8, width: '100%', padding: '13px 14px', borderRadius: 14, border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', cursor: 'pointer' },
-  sermonVerseSearchVerseNum: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)' },
   sermonVerseSearchChapterGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 },
   sermonVerseSearchChapterBtn: { height: 44, borderRadius: 13, border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
 
