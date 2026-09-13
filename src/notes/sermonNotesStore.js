@@ -47,12 +47,23 @@ export async function getSermonNotes(_email) {
 }
 
 // Cria OU atualiza (mesmo id substitui) — quem chama decide o id.
+//
+// Bug real (achado dela, 2026-09-13: "apertei para finalizar e a
+// anotação não salvou na biblioteca"): updateRow() devolve null quando a
+// escrita falha (erro do Supabase OU zero linhas afetadas) — mas antes
+// isso caía no `?? next`, que devolvia o array otimista MESMO SEM nada
+// ter sido salvo de verdade. Quem chamava (finalizeSermonNote em
+// JourneyScreen.jsx) nunca via um erro: seguia como se tivesse dado
+// certo, limpava o rascunho local e navegava pra Biblioteca — perdendo o
+// conteúdo em silêncio. Agora um `updateRow` que falhou vira exceção de
+// verdade, pra quem chama poder saber e não fingir sucesso.
 export function saveSermonNote(_email, note) {
   return withRowLock(async () => {
     const notes = await getSermonNotes(_email)
     const next = [note, ...notes.filter(n => n.id !== note.id)]
     const updated = await updateRow({ sermon_notes: next })
-    return updated?.sermon_notes ?? next
+    if (!updated) throw new Error('sermon_note_save_failed')
+    return updated.sermon_notes ?? next
   })
 }
 
@@ -61,6 +72,7 @@ export function deleteSermonNote(_email, id) {
     const notes = await getSermonNotes(_email)
     const next = notes.filter(n => n.id !== id)
     const updated = await updateRow({ sermon_notes: next })
-    return updated?.sermon_notes ?? next
+    if (!updated) throw new Error('sermon_note_delete_failed')
+    return updated.sermon_notes ?? next
   })
 }
