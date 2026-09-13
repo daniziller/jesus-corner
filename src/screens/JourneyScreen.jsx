@@ -362,6 +362,12 @@ export default function JourneyScreen({
   const [sermonVerseSearchBook, setSermonVerseSearchBook] = useState(null) // { pt, en }
   const [sermonVerseSearchChapter, setSermonVerseSearchChapter] = useState(null) // { chapter, verses, breaks }
   const [sermonVerseSearchBusy, setSermonVerseSearchBusy] = useState(false)
+  // "Poder escolher 1 ou mais versículos" (pedido dela, 2026-09-13) —
+  // números marcados no passo de versículo (toque liga/desliga), não mais
+  // um toque só que já insere e fecha. Sempre da MESMA passagem (livro +
+  // capítulo do passo anterior) — reseta ao trocar de capítulo/livro/abrir
+  // a busca de novo, ver openVerseSearch/pickVerseSearchBook/Chapter.
+  const [sermonVerseSearchSelected, setSermonVerseSearchSelected] = useState([])
 
   // 34h — o resumo (turno 34, Bloco 4). Troca de conteúdo dentro da MESMA
   // folha, igual 34g (não é outro portal). "Finalizar" (34g) entra aqui;
@@ -612,10 +618,12 @@ export default function JourneyScreen({
     setSermonVerseSearchQuery('')
     setSermonVerseSearchBook(null)
     setSermonVerseSearchChapter(null)
+    setSermonVerseSearchSelected([])
   }
   function pickVerseSearchBook(book) {
     setSermonVerseSearchBook(book)
     setSermonVerseSearchStep('chapter')
+    setSermonVerseSearchSelected([])
   }
   async function pickVerseSearchChapter(chNum) {
     if (!sermonVerseSearchBook) return
@@ -628,20 +636,37 @@ export default function JourneyScreen({
       if (!chapterData) return
       setSermonVerseSearchChapter({ chapter: chNum, ...chapterData })
       setSermonVerseSearchStep('verse')
+      setSermonVerseSearchSelected([])
     } catch (err) {
       console.error('Failed to fetch chapter for verse search', err)
     } finally {
       setSermonVerseSearchBusy(false)
     }
   }
-  function pickVerseSearchVerse(verseNum) {
-    if (!sermonVerseSearchBook || !sermonVerseSearchChapter) return
-    const text = sermonVerseSearchChapter.verses?.[String(verseNum)]
+  // Liga/desliga um número na seleção (pedido dela, 2026-09-13: "poder
+  // escolher 1 ou mais versículos") — não insere nada ainda, só marca; ver
+  // confirmVerseSearchSelection abaixo, que de fato adiciona.
+  function toggleVerseSearchSelection(verseNum) {
+    setSermonVerseSearchSelected(prev => (
+      prev.includes(verseNum) ? prev.filter(v => v !== verseNum) : [...prev, verseNum]
+    ))
+  }
+  // Adiciona do menor ao maior número marcado, de uma vez só (exemplo dela:
+  // "Gênesis 1 de 9 até 14" — marcar só 9 e 14 já basta, o intervalo
+  // inteiro entra) — um quote SÓ, não um por versículo.
+  function confirmVerseSearchSelection() {
+    if (!sermonVerseSearchBook || !sermonVerseSearchChapter || sermonVerseSearchSelected.length === 0) return
+    const verseStart = Math.min(...sermonVerseSearchSelected)
+    const verseEnd = Math.max(...sermonVerseSearchSelected)
+    const text = Array.from({ length: verseEnd - verseStart + 1 }, (_, i) => verseStart + i)
+      .map(v => sermonVerseSearchChapter.verses?.[String(v)])
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\n/g, ' ')
     if (!text) return
     insertQuoteSegment({
       book: sermonVerseSearchBook.pt, bookEn: sermonVerseSearchBook.en,
-      chapter: sermonVerseSearchChapter.chapter, verseStart: verseNum, verseEnd: verseNum,
-      text: text.replace(/\n/g, ' '),
+      chapter: sermonVerseSearchChapter.chapter, verseStart, verseEnd, text,
     })
     setSermonVerseSearchOpen(false)
   }
@@ -1222,7 +1247,17 @@ export default function JourneyScreen({
             <AppIcon name="ChevronLeft" size={16} color="var(--bento-ink)" />
           </button>
           <p style={{ ...styles.sermonSourceTitle, flex: 1, minWidth: 0 }}>{stepTitle}</p>
-          <button type="button" style={styles.sermonReadyBtn} onClick={() => setSermonVerseSearchOpen(false)}>{t('sermonNote.ready', undefined, lang)}</button>
+          {/* "Pronto" vira "Adicionar" assim que pelo menos 1 versículo
+              está marcado no passo de versículo (pedido dela, 2026-09-13,
+              "poder escolher 1 ou mais versículos") — nos outros passos,
+              ou sem nada marcado ainda, continua só fechando a busca. */}
+          {sermonVerseSearchStep === 'verse' && sermonVerseSearchSelected.length > 0 ? (
+            <button type="button" style={styles.sermonReadyBtn} onClick={confirmVerseSearchSelection}>
+              {t(sermonVerseSearchSelected.length === 1 ? 'sermonNote.addVerseBtnOne' : 'sermonNote.addVerseBtnMany', { n: sermonVerseSearchSelected.length }, lang)}
+            </button>
+          ) : (
+            <button type="button" style={styles.sermonReadyBtn} onClick={() => setSermonVerseSearchOpen(false)}>{t('sermonNote.ready', undefined, lang)}</button>
+          )}
         </div>
         <div style={{ ...styles.sermonSheetBody, overflowY: 'auto' }}>
           {sermonVerseSearchStep === 'book' && (
@@ -1256,9 +1291,19 @@ export default function JourneyScreen({
               antes: mais rápido pra quem já sabe o número do versículo. */}
           {sermonVerseSearchStep === 'verse' && sermonVerseSearchChapter && (
             <div style={styles.sermonVerseSearchChapterGrid}>
-              {Object.keys(sermonVerseSearchChapter.verses ?? {}).sort((a, b) => Number(a) - Number(b)).map(v => (
-                <button key={v} type="button" style={styles.sermonVerseSearchChapterBtn} onClick={() => pickVerseSearchVerse(Number(v))}>{v}</button>
-              ))}
+              {Object.keys(sermonVerseSearchChapter.verses ?? {}).sort((a, b) => Number(a) - Number(b)).map(v => {
+                const selected = sermonVerseSearchSelected.includes(Number(v))
+                return (
+                  <button
+                    key={v} type="button"
+                    style={{ ...styles.sermonVerseSearchChapterBtn, ...(selected ? styles.sermonVerseSearchChapterBtnOn : null) }}
+                    onClick={() => toggleVerseSearchSelection(Number(v))}
+                    aria-pressed={selected}
+                  >
+                    {v}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -2165,6 +2210,9 @@ const styles = {
   sermonVerseSearchRow: { textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 8, width: '100%', padding: '13px 14px', borderRadius: 14, border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', cursor: 'pointer' },
   sermonVerseSearchChapterGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 },
   sermonVerseSearchChapterBtn: { height: 44, borderRadius: 13, border: 'none', background: 'var(--bento-card)', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+  // Versículo(s) marcado(s) no passo de versículo (pedido dela,
+  // 2026-09-13) — mesmo botão do grid, só troca a cor quando selecionado.
+  sermonVerseSearchChapterBtnOn: { background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontWeight: 800 },
 
   // 34h — item 2, "O que ficou desta anotação" (preto, cartão grande 26).
   sermonSummaryCard: { borderRadius: 26, background: 'var(--bento-ink)', padding: '20px 20px 18px', marginTop: 4 },
