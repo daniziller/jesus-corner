@@ -1073,7 +1073,13 @@ export default function JourneyScreen({
             <AppIcon name="ChevronDown" size={16} color="var(--bento-ink)" />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={styles.sermonHeaderTitle}>{sermonDraft.title.trim() || t('sermonNote.newTitle', undefined, lang)}</p>
+            <input
+              style={styles.sermonHeaderTitleInput}
+              value={sermonDraft.title}
+              placeholder={t('sermonNote.newTitle', undefined, lang)}
+              onChange={e => patchSermonDraft({ title: e.target.value })}
+              aria-label={t('sermonNote.titlePlaceholder', undefined, lang)}
+            />
             <p style={styles.sermonHeaderSub}>{[sermonTypeLabel(sermonDraft.noteType, lang), sermonDraft.preacher, t('sermonNote.savedNow', undefined, lang)].filter(Boolean).join(' · ')}</p>
           </div>
           <button type="button" style={{ ...styles.sermonSaveBtn, ...(sermonSaving ? styles.sermonSaveBtnDisabled : {}) }} disabled={sermonSaving} onClick={finishSermonWriting}>
@@ -2080,6 +2086,10 @@ const styles = {
 
   sermonHeader: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '4px 20px 14px' },
   sermonHeaderTitle: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  // Pedido dela (2026-09-13): título editável direto na página de
+  // escrita, sem precisar voltar pros campos (34f) só pra isso — mesmo
+  // visual de sermonHeaderTitle, só com os resets de <input>.
+  sermonHeaderTitleInput: { width: '100%', border: 'none', outline: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px' },
   sermonHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   sermonChevronBtn: { flexShrink: 0, width: 34, height: 34, borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sermonSaveBtn: { flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 12, border: 'none', background: 'var(--bento-accent)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
