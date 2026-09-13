@@ -2146,7 +2146,17 @@ const styles = {
   // position:fixed/véu/raio nos cantos/sombra/alça de arrasto — tudo isso
   // só existia pra "flutuar por cima"; uma página em fluxo normal não
   // precisa de nada disso).
-  sermonPage: { minHeight: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  // Bug real (achado dela, 2026-09-13: "+Versículo"/"Tópico" iam "lá pra
+  // cima" ao escrever) — faltava o `height: '100%'` (só tinha
+  // `minHeight`, que é um PISO, não um teto). Sem uma altura de verdade
+  // aqui, sermonWritingSurface (mais abaixo, flex:1 + overflow-y:auto)
+  // nunca virava uma região de rolagem própria — em vez de rolar só o
+  // texto, a PÁGINA inteira crescia com o conteúdo e tudo (cabeçalho,
+  // "+Versículo"/"Tópico", texto) subia junto. Mesmo padrão já usado em
+  // accountUi.jsx/OnboardingFlow.jsx (`screen: { height: '100%',
+  // minHeight: '100%', ... }`) e no próprio `screen` (não-sermão) desta
+  // tela, mais abaixo — só esta tinha ficado sem.
+  sermonPage: { height: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   sermonPageTopBar: { flexShrink: 0, display: 'flex', alignItems: 'center', padding: '20px 20px 4px' },
   sermonPageBackBtn: { width: 36, height: 36, borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sermonSheetBody: { flex: 1, minHeight: 0, padding: '0 20px 12px', display: 'flex', flexDirection: 'column' },
