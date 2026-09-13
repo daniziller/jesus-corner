@@ -19,6 +19,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/escalate-group-reports",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/send-weekly-digest",
       "schedule": "0 23 * * 0"
     }

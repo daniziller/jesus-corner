@@ -13,6 +13,8 @@ import AddFriendsScreen from './AddFriendsScreen'
 import CreateGroupSheet from '../components/CreateGroupSheet'
 import { createChallenge, getChallengesForGroup, getChallengeLeaderboard, completeChallenge } from '../groups/challengesStore'
 import { getComments, postComment, deleteComment, toggleCommentLike, setCommentPinned } from '../groups/commentsStore'
+import { reportGroupMessage } from '../groups/reportsStore'
+import ReportMessageSheet from '../components/ReportMessageSheet'
 import { logActivity } from '../activity/activityStore'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import {
@@ -1134,6 +1136,13 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
   const [body, setBody] = useState('')
   const [posting, setPosting] = useState(false)
   const [pinError, setPinError] = useState('')
+  // Denunciar mensagem (handoff-admin-42, 42p) — a origem do fluxo de
+  // moderação. Sem trigger visível no próprio quadro 42p (só mostra a
+  // folha já aberta); reaproveita a MESMA linha de ações que já existe
+  // aqui (Curtir · Fixar · Apagar), já que é o único lugar do app com essa
+  // convenção pra uma mensagem de mural — decisão de design disclosed, não
+  // um bloco novo.
+  const [reportTarget, setReportTarget] = useState(null)
 
   const moderatorIds = new Set(members.filter(m => m.role === 'moderator').map(m => m.userId))
 
@@ -1182,6 +1191,16 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
     }
   }
 
+  // 42p — grava a denúncia (motivo + quem denunciou, nunca exposto ao
+  // denunciado) e cai pro admin do grupo decidir em 42l, com 24h de prazo.
+  async function handleReportSubmit(comment, reason, reasonDetail) {
+    await reportGroupMessage({
+      groupId, messageKind: 'comment', messageId: comment.id,
+      reportedUserId: comment.userId, messageSnapshot: comment.body,
+      reason, reasonDetail,
+    })
+  }
+
   const pinnedComments = comments.filter(c => c.pinned).sort((a, b) => new Date(a.pinnedAt) - new Date(b.pinnedAt))
   const regularComments = comments.filter(c => !c.pinned)
   const pinnedCount = pinnedComments.length
@@ -1219,6 +1238,9 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
           )}
           {canDelete && (
             <button style={styles.smallLinkBtn} onClick={() => handleDelete(c.id)}>{t('groups.deleteComment', undefined, lang)}</button>
+          )}
+          {c.userId !== authUser?.id && (
+            <button style={styles.smallLinkBtn} onClick={() => setReportTarget(c)}>{t('groups.reportMessage', undefined, lang)}</button>
           )}
         </div>
       </div>
@@ -1258,6 +1280,15 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {regularComments.map(renderComment)}
         </div>
+      )}
+
+      {reportTarget && (
+        <ReportMessageSheet
+          lang={lang}
+          reportedUserName={reportTarget.anonymous ? t('groups.anonymousAuthor', undefined, lang) : reportTarget.authorName}
+          onClose={() => setReportTarget(null)}
+          onSubmit={(reason, reasonDetail) => handleReportSubmit(reportTarget, reason, reasonDetail)}
+        />
       )}
     </div>
   )
