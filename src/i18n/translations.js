@@ -2703,6 +2703,10 @@ export const STRINGS = {
       chooseGroupCta: 'Escolher grupo',
       saveToLibrary: 'Guardar na biblioteca',
       backToWriting: 'Voltar e escrever mais',
+      // Bug real (achado dela, 2026-09-13): salvar podia falhar em
+      // silêncio, sem avisar nada — ver comentário de sermonSaveError em
+      // JourneyScreen.jsx.
+      saveError: 'Não deu pra salvar agora. Confira sua internet e tente de novo.',
     },
     recap: {
       label: 'Seu mês',
@@ -5475,6 +5479,7 @@ export const STRINGS = {
       chooseGroupCta: 'Choose group',
       saveToLibrary: 'Save to library',
       backToWriting: 'Go back and write more',
+      saveError: "Couldn't save right now. Check your connection and try again.",
     },
     recap: {
       label: 'Your month',

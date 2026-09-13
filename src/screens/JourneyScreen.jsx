@@ -385,6 +385,16 @@ export default function JourneyScreen({
   const [sermonMarkingHighlights, setSermonMarkingHighlights] = useState(false)
   const [sermonHighlightsMarked, setSermonHighlightsMarked] = useState(false)
   const [sermonFinalizing, setSermonFinalizing] = useState(false)
+  // "Apertei para finalizar e a anotação não salvou na biblioteca"
+  // (achado dela, 2026-09-13) — a escrita real no backend podia falhar
+  // (rede, sessão) sem NUNCA virar exceção (ver sermonNotesStore.js:
+  // saveSermonNote devolvia o array otimista mesmo sem ter salvo nada de
+  // verdade), então finalizeSermonNote/finishSermonWriting seguiam como
+  // se tivesse dado certo — limpando o rascunho e navegando pra
+  // Biblioteca com o conteúdo perdido em silêncio. Agora que o erro é de
+  // verdade (throw), este estado avisa ela e MANTÉM o rascunho intacto
+  // pra poder tentar de novo, em vez de sumir sem avisar.
+  const [sermonSaveError, setSermonSaveError] = useState(false)
 
   // "24 min anotando" (34h, item 1: "o tempo real com a página aberta") —
   // acumula em sermonDraft.durationSeconds do MONTE ao DESMONTE da página
@@ -431,7 +441,9 @@ export default function JourneyScreen({
   // resumo em si é buscado por um efeito à parte (abaixo), disparado
   // quando sermonSummaryOpen fica true.
   async function finishSermonWriting() {
-    await saveSermonDraft()
+    setSermonSaveError(false)
+    const ok = await saveSermonDraft()
+    if (!ok) { setSermonSaveError(true); return }
     setSermonSummaryData(null)
     setSermonSummaryOpen(true)
   }
@@ -493,6 +505,7 @@ export default function JourneyScreen({
   async function finalizeSermonNote() {
     if (!sermonDraft || sermonFinalizing) return
     setSermonFinalizing(true)
+    setSermonSaveError(false)
     try {
       const finalDraft = { ...sermonDraft, finalizedAt: new Date().toISOString() }
       await saveSermonNote(authUser?.email, buildSermonPayload(finalDraft))
@@ -510,6 +523,10 @@ export default function JourneyScreen({
       onNavigate?.('notes')
     } catch (err) {
       console.error('Failed to finalize sermon note', err)
+      // NÃO limpa o rascunho nem navega — se o salvamento falhou de
+      // verdade, some daqui só pioraria (ver comentário de
+      // sermonSaveError acima). Ela continua na tela pra tentar de novo.
+      setSermonSaveError(true)
     } finally {
       setSermonFinalizing(false)
     }
@@ -814,13 +831,20 @@ export default function JourneyScreen({
   // ("Levar ao grupo"), não daqui; o botão "Grupo" desta tela só escolhe
   // quais grupos ficam marcados (sermonShareOn/sermonSelectedGroupIds),
   // sem publicar nada ainda.
+  // Devolve true/false (achado dela, 2026-09-13: ver comentário de
+  // sermonSaveError acima) — quem chama e PRECISA saber se salvou de
+  // verdade (finishSermonWriting) confere o retorno; quem dispara isto
+  // só "de boa fé" (autosave, openVerseInBible) continua sem esperar
+  // nada, como sempre foi.
   async function saveSermonDraft() {
-    if (!sermonDraft || sermonSaving) return
+    if (!sermonDraft || sermonSaving) return true
     setSermonSaving(true)
     try {
       await saveSermonNote(authUser?.email, buildSermonPayload(sermonDraft))
+      return true
     } catch (err) {
       console.error('Failed to save sermon note', err)
+      return false
     } finally {
       setSermonSaving(false)
     }
@@ -1128,6 +1152,7 @@ export default function JourneyScreen({
             {t('sermonNote.finish', undefined, lang)}
           </button>
         </div>
+        {sermonSaveError && <p style={styles.sermonSaveErrorText}>{t('sermonNote.saveError', undefined, lang)}</p>}
 
         <div style={styles.sermonPassageStrip}>
           {sermonDraft.passages.length > 0 && (
@@ -1434,6 +1459,11 @@ export default function JourneyScreen({
         )}
 
         <div style={styles.sermonSummaryFooter}>
+          {/* Sem o padding horizontal padrão do estilo aqui — este rodapé
+              já mora dentro de sermonSheetBody (padding 0 20px 12px), e é
+              um flex column com gap: 10 (as duas margens somadas
+              desalinhariam este texto em relação aos botões abaixo). */}
+          {sermonSaveError && <p style={{ ...styles.sermonSaveErrorText, padding: 0, margin: 0 }}>{t('sermonNote.saveError', undefined, lang)}</p>}
           <button type="button" style={{ ...styles.sermonSaveToLibraryBtn, ...(sermonFinalizing ? styles.sermonSaveBtnDisabled : {}) }} disabled={sermonFinalizing} onClick={finalizeSermonNote}>
             {t('sermonNote.saveToLibrary', undefined, lang)}
           </button>
@@ -2160,6 +2190,16 @@ const styles = {
   // visual de sermonHeaderTitle, só com os resets de <input>.
   sermonHeaderTitleInput: { width: '100%', border: 'none', outline: 'none', background: 'none', padding: 0, fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px' },
   sermonHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  // "Apertei para finalizar e a anotação não salvou na biblioteca"
+  // (achado dela, 2026-09-13) — mesma cor de erro já usada em
+  // ProfileScreen.jsx (errorText: var(--bento-accent), sem token de
+  // "vermelho" dedicado no app). Padding horizontal de 20px porque, na
+  // escrita (renderSermonWriting), este texto é irmão direto de
+  // sermonHeader/sermonPassageStrip — cada um traz o próprio respiro
+  // lateral, sem wrapper comum que já faça isso (ver sermonSheetBody, só
+  // usado no resumo/34h). Lá no resumo o padding extra é inofensivo —
+  // sermonSheetBody já tem o mesmo valor (20px).
+  sermonSaveErrorText: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-accent)', margin: '6px 0 0', padding: '0 20px' },
   sermonChevronBtn: { flexShrink: 0, width: 34, height: 34, borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sermonSaveBtn: { flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 12, border: 'none', background: 'var(--bento-accent)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   sermonSaveBtnDisabled: { opacity: 0.4, cursor: 'default' },
