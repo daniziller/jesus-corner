@@ -520,18 +520,46 @@ export default function JourneyScreen({
       return { ...prev, body: [...body.slice(0, insertAt), ...toInsert, ...body.slice(insertAt)] }
     })
   }
-  // Rola até o segmento recém-inserido (pendingScrollSegRef, ver acima)
-  // assim que ele entra no DOM — precisa ser um efeito (não fazer direto
-  // em insertSegmentAfterFocused) porque o elemento só existe DEPOIS do
-  // re-render que o setSermonDraft acima dispara.
+  // Rola até o segmento recém-inserido (pendingScrollSegRef, ver acima) e
+  // já deixa o cursor de digitação nele (pedido dela, 2026-09-13: "manter
+  // o cursor de digitação no número do tópico") — precisa ser um efeito
+  // (não fazer direto em insertSegmentAfterFocused) porque o elemento só
+  // existe DEPOIS do re-render que o setSermonDraft acima dispara. Tópico
+  // marca o `data-sermon-seg` na LINHA (número + campo), não no campo em
+  // si — por isso procura uma textarea dentro, se o próprio elemento não
+  // for uma (citação não tem nenhuma, foca em nada, de propósito).
   useEffect(() => {
     if (!pendingScrollSegRef.current) return
     const id = pendingScrollSegRef.current
     pendingScrollSegRef.current = null
     requestAnimationFrame(() => {
-      document.querySelector(`[data-sermon-seg="${id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      const el = document.querySelector(`[data-sermon-seg="${id}"]`)
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      const focusEl = el instanceof HTMLTextAreaElement ? el : el?.querySelector('textarea')
+      focusEl?.focus()
     })
   }, [sermonDraft?.body])
+  // "Ao apertar o enter, sair do tópico e ir para texto livre" (pedido
+  // dela, 2026-09-13) — tópico é um rótulo de UMA linha (Regra visual:
+  // negrito, rows=1 com auto-crescimento), então Enter nunca deveria virar
+  // quebra de linha ali. Se já existe um segmento seguinte (o normal —
+  // insertSegmentAfterFocused sempre garante um texto livre logo depois
+  // de um tópico novo), só move o foco pra ele; sem nenhum (tópico ficou
+  // sozinho no fim, ex: nota antiga), cria um texto livre novo ali.
+  function handleTopicEnterKey(segId, e) {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    const body = sermonDraft?.body ?? []
+    const idx = body.findIndex(s => s.id === segId)
+    const next = idx !== -1 ? body[idx + 1] : null
+    if (next) {
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-sermon-seg="${next.id}"]`)?.focus()
+      })
+    } else {
+      insertSegmentAfterFocused(newSermonSegment('text', ''))
+    }
+  }
   function updateSermonSegmentText(segId, text) {
     setSermonDraft(prev => (prev ? { ...prev, body: (prev.body ?? []).map(s => (s.id === segId ? { ...s, text } : s)) } : prev))
   }
@@ -1121,6 +1149,7 @@ export default function JourneyScreen({
                     onChange={e => { updateSermonSegmentText(seg.id, e.target.value); autoGrowTextarea(e) }}
                     onFocus={e => handleSermonSegmentFocus(seg.id, e)}
                     onInput={autoGrowTextarea}
+                    onKeyDown={e => handleTopicEnterKey(seg.id, e)}
                     rows={1}
                   />
                 </div>
