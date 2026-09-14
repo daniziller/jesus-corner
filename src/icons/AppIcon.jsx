@@ -23,7 +23,7 @@ import {
   X, ChevronRight, ChevronLeft, ArrowRight, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus, Minus,
   Play, Pause, AudioLines, MoreVertical, MoreHorizontal, Copy, AlignLeft, Ticket,
-  Bookmark, Upload,
+  Bookmark, Upload, FileText, Info, List, Mic, ArrowDown,
 } from 'lucide-react'
 
 // A versão de lucide-react instalada (1.23.0) não inclui o ícone do
@@ -62,7 +62,7 @@ const REGISTRY = {
   X, ChevronRight, ChevronLeft, ArrowRight, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus, Minus,
   Play, Pause, AudioLines, MoreVertical, MoreHorizontal, Copy, AlignLeft, Ticket,
-  Bookmark, Upload,
+  Bookmark, Upload, FileText, Info, List, Mic, ArrowDown,
   Instagram,
 }
 
