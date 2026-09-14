@@ -27,7 +27,7 @@ import {
   getGroupDetail, getPendingJoinRequests, updateGroupInfo, setGroupPinnedNotice,
 } from '../groups/groupsStore'
 import { getLatestGroupPlan } from '../groups/groupPlansStore'
-import { getChallengesForGroup } from '../groups/challengesStore'
+import { getActiveGroupChallenge } from '../groups/groupChallengesStore'
 import { getPendingGroupReports } from '../groups/reportsStore'
 import { getGroupReadingActivity } from '../groups/readingActivityStore'
 
@@ -83,13 +83,13 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
     let cancelled = false
     Promise.all([
       getGroupDetail(groupId), getPendingJoinRequests(groupId), getLatestGroupPlan(groupId),
-      getChallengesForGroup(groupId), getPendingGroupReports(groupId), getGroupReadingActivity(groupId),
-    ]).then(([detail, pending, plan, challenges, reports, activityRows]) => {
+      getActiveGroupChallenge(groupId), getPendingGroupReports(groupId), getGroupReadingActivity(groupId),
+    ]).then(([detail, pending, plan, activeChallenge, reports, activityRows]) => {
       if (cancelled) return
       setGroup(detail)
       setRequests(pending)
       setGroupPlan(plan)
-      setChallenge(challenges.find(c => c.active) ?? null)
+      setChallenge(activeChallenge)
       setPendingReports(reports)
       setActivity(activityRows)
       setLoading(false)
@@ -257,7 +257,7 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
           </div>
           <div style={styles.statCard}>
             <p style={styles.statLabel}>{L('challengeLabel')}</p>
-            <p style={styles.statValue}>{challenge ? challenge.name : '—'}</p>
+            <p style={styles.statValue}>{challenge ? challenge.title : '—'}</p>
             <p style={styles.statSub}>{challenge ? L('challengeActiveSub') : L('challengeNone')}</p>
           </div>
         </div>
