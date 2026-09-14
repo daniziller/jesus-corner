@@ -1,36 +1,37 @@
-// GroupAdminScreen.jsx — "Administração do grupo" (quadro 19c). Só entra
-// pra quem modera algum grupo (ver Row "Administração do grupo" em
-// ProfileSheet.jsx — session.myGroups?.[0]?.myRole === 'moderator').
+// GroupAdminScreen.jsx — 42i "Painel do grupo" (handoff-admin-42, Bloco 2).
+// Substitui de vez a 19c antiga (README do pacote): o painel agora é só a
+// entrada — "Esperando você", 3 números, seis linhas de administração,
+// Criar estudo/Criar desafio fixos no rodapé. A lista de membros por
+// inteiro virou tela própria (42j, GroupMembersScreen.jsx) e "quem está
+// lendo" também (42k, GroupReadingActivityScreen.jsx).
 //
-// Backend novo (ver supabase/migrations/0046_group_invite_codes.sql e
-// 0047_group_remove_member.sql, PRs #47/#49): código de convite, pedidos
-// de entrada por código, editar nome/descrição, remover um membro comum.
-// Promover/rebaixar (set_group_member_role) e a sala do capítulo (17a)
-// já existiam antes deste quadro.
+// Código de convite, editar nome/descrição e "pergunta da semana" — reais
+// na 19c antiga, mas fora do quadro de 42i — foram realocados (decisão
+// dela, 2026-09-13): o código de convite mora agora no topo de 42j
+// (Membros — faz mais sentido lá, é sobre trazer gente pro grupo); editar
+// grupo e pergunta da semana viraram a folha "Editar grupo", aberta pelo
+// toque no cabeçalho (avatar/nome/"N membros..."), sem quadro próprio no
+// pacote.
 //
-// Regra Zero, documentado: o quadro mostra "Gênesis 41 · em dia" como
-// subtítulo de um membro comum — progresso de leitura de outra pessoa.
-// De verdade, isso só existe via get_friend_progress_summary, que exige
-// AMIZADE aceita (não só ser do mesmo grupo) e perfil público — não dá
-// pra buscar de forma confiável (nem barata: seria 1 RPC por membro) pra
-// qualquer um dos N membros do grupo. Por isso o subtítulo real aqui é
-// "membro desde {data}" — o dado que sempre existe, sem fingir progresso
-// que a maioria das vezes nem estaria disponível. Mesma razão, o
-// "líder" ao lado de "admin" no mockup (papel extra que só o app não
-// tem) virou só "admin" pros moderadores que não são você.
+// "Regra Zero" do comentário antigo desta tela (mostrar progresso de
+// membro sem amizade aceita não era possível) finalmente resolvida pra
+// valer aqui: get_group_reading_activity (migration 0066) é um RPC
+// PRIVILEGIADO — só o moderador do próprio grupo pode chamar — que
+// contorna a exigência de amizade porque é um poder de moderação
+// explícito, não a leitura geral "ver progresso de qualquer um".
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import {
-  getGroupDetail, getPendingJoinRequests, respondToJoinRequest,
-  setMemberRole, removeGroupMember, updateGroupInfo,
+  getGroupDetail, getPendingJoinRequests, updateGroupInfo, setGroupPinnedNotice,
 } from '../groups/groupsStore'
 import { getLatestGroupPlan } from '../groups/groupPlansStore'
+import { getChallengesForGroup } from '../groups/challengesStore'
 import { getPendingGroupReports } from '../groups/reportsStore'
+import { getGroupReadingActivity } from '../groups/readingActivityStore'
 
 const FONT = 'var(--font-bento)'
-const MEMBERS_COLLAPSED_COUNT = 4
 
 function initialsOf(name) {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
@@ -39,17 +40,22 @@ function initialsOf(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function relativeRequestTime(iso, L) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const hours = Math.floor(diff / 3600000)
-  if (hours < 1) return L('requestedNow')
-  if (hours < 24) return L('requestedHoursAgo', { n: hours })
-  const days = Math.floor(hours / 24)
-  if (days === 1) return L('requestedYesterday')
-  return L('requestedDaysAgo', { n: days })
+function formatMonthYear(iso, lang) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const month = d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'short' }).replace('.', '')
+  return `${month}/${String(d.getFullYear()).slice(-2)}`
 }
 
-export default function GroupAdminScreen({ session, authUser, onBack, onNavigate, onOpenGroupRoom, onOpenReportedMessages }) {
+// "há 6 h" / "há 2 d" — sem "aberta" na frente (diferente de
+// groupReport.timeOpenHours/Days, usado em 42l); frase própria de 42i.
+function hoursAgoLabel(iso, lang) {
+  const hours = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 3600000))
+  if (hours < 24) return t('groupAdmin.hoursAgo', { n: hours }, lang)
+  return t('groupAdmin.daysAgo', { n: Math.floor(hours / 24) }, lang)
+}
+
+export default function GroupAdminScreen({ session, authUser, onBack, onNavigate, onOpenGroupRoom, onOpenMembers, onOpenReadingActivity, onOpenReportedMessages }) {
   const lang = session.lang
   const L = (k, vars) => t(`groupAdmin.${k}`, vars, lang)
   const myGroup = session.myGroups?.find(g => g.myRole === 'moderator') ?? session.myGroups?.[0]
@@ -58,32 +64,36 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
   const [group, setGroup] = useState(null)
   const [requests, setRequests] = useState([])
   const [groupPlan, setGroupPlan] = useState(undefined) // undefined = ainda carregando, null = nenhum
+  const [challenge, setChallenge] = useState(undefined)
+  const [pendingReports, setPendingReports] = useState([])
+  const [activity, setActivity] = useState([])
   const [loading, setLoading] = useState(true)
-  const [busyUserId, setBusyUserId] = useState(null)
-  const [shareState, setShareState] = useState('idle')
-  const [membersExpanded, setMembersExpanded] = useState(false)
-  const [actionSheetMember, setActionSheetMember] = useState(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [savingInfo, setSavingInfo] = useState(false)
   const [saveError, setSaveError] = useState('')
-  // Fila de mensagens denunciadas (handoff-admin-42, 42l) — entrada
-  // temporária até o Bloco 2 trocar esta tela inteira por 42i, que
-  // formaliza a linha "Mensagens do mural" com o badge de contagem.
-  const [pendingReportsCount, setPendingReportsCount] = useState(0)
+  const [noticeOpen, setNoticeOpen] = useState(false)
+  const [noticeText, setNoticeText] = useState('')
+  const [savingNotice, setSavingNotice] = useState(false)
+  const [noticeError, setNoticeError] = useState('')
 
   useEffect(() => {
     if (!groupId) { setLoading(false); return }
     let cancelled = false
-    Promise.all([getGroupDetail(groupId), getPendingJoinRequests(groupId), getLatestGroupPlan(groupId)]).then(([detail, pending, plan]) => {
+    Promise.all([
+      getGroupDetail(groupId), getPendingJoinRequests(groupId), getLatestGroupPlan(groupId),
+      getChallengesForGroup(groupId), getPendingGroupReports(groupId), getGroupReadingActivity(groupId),
+    ]).then(([detail, pending, plan, challenges, reports, activityRows]) => {
       if (cancelled) return
       setGroup(detail)
       setRequests(pending)
       setGroupPlan(plan)
+      setChallenge(challenges.find(c => c.active) ?? null)
+      setPendingReports(reports)
+      setActivity(activityRows)
       setLoading(false)
     })
-    getPendingGroupReports(groupId).then(rows => { if (!cancelled) setPendingReportsCount(rows.length) })
     return () => { cancelled = true }
   }, [groupId])
 
@@ -109,60 +119,23 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
     }
   }
 
-  async function handleShare() {
-    const message = L('shareMessage', { group: group.name, code: group.inviteCode })
-    if (navigator.share) {
-      try { await navigator.share({ text: message }) } catch { /* usuário cancelou — sem erro */ }
-      return
-    }
-    try {
-      await navigator.clipboard?.writeText(message)
-      setShareState('copied')
-      setTimeout(() => setShareState('idle'), 1800)
-    } catch (err) {
-      console.error('Failed to copy invite message', err)
-    }
+  function startEditNotice() {
+    setNoticeText(group.pinnedNotice ?? '')
+    setNoticeError('')
+    setNoticeOpen(true)
   }
 
-  async function handleRequest(userId, accept) {
-    setBusyUserId(userId)
+  async function saveNotice() {
+    setSavingNotice(true)
+    setNoticeError('')
     try {
-      await respondToJoinRequest(groupId, userId, accept)
-      setRequests(r => r.filter(req => req.userId !== userId))
-      if (accept) {
-        const detail = await getGroupDetail(groupId)
-        setGroup(detail)
-      }
+      await setGroupPinnedNotice(groupId, noticeText)
+      setGroup(g => ({ ...g, pinnedNotice: noticeText.trim() || null }))
+      setNoticeOpen(false)
     } catch (err) {
-      console.error('Failed to respond to join request', err)
+      setNoticeError(err.message)
     } finally {
-      setBusyUserId(null)
-    }
-  }
-
-  async function handlePromote(userId) {
-    setBusyUserId(userId)
-    try {
-      await setMemberRole(groupId, userId, 'moderator')
-      setGroup(g => ({ ...g, members: g.members.map(m => m.userId === userId ? { ...m, role: 'moderator' } : m) }))
-    } catch (err) {
-      console.error('Failed to promote member', err)
-    } finally {
-      setBusyUserId(null)
-      setActionSheetMember(null)
-    }
-  }
-
-  async function handleRemove(userId) {
-    setBusyUserId(userId)
-    try {
-      await removeGroupMember(groupId, userId)
-      setGroup(g => ({ ...g, members: g.members.filter(m => m.userId !== userId) }))
-    } catch (err) {
-      console.error('Failed to remove member', err)
-    } finally {
-      setBusyUserId(null)
-      setActionSheetMember(null)
+      setSavingNotice(false)
     }
   }
 
@@ -187,179 +160,190 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
     )
   }
 
-  const members = group.members ?? []
-  const visibleMembers = membersExpanded ? members : members.slice(0, MEMBERS_COLLAPSED_COUNT)
   const todaySession = session.todaySession
   const canOpenWeeklyQuestion = todaySession && !todaySession.needsThemePick
+
+  const stoppedCount = activity.filter(a => a.status === 'stopped').length
+  const readingTodayCount = activity.filter(a => a.daysActiveLast7[a.daysActiveLast7.length - 1]).length
+  const totalCells = activity.length * 7
+  const filledCells = activity.reduce((sum, a) => sum + a.daysActiveLast7.filter(Boolean).length, 0)
+  const weekPct = totalCells > 0 ? Math.round((filledCells / totalCells) * 100) : 0
+
+  // "Gên 41" — a leitura do dia atual dentro do plano do grupo. passages é
+  // achatado, uma entrada por dia, na ordem de leitura (ver comentário do
+  // schema em 0048_group_reading_plans.sql).
+  let planDayIndex = 0
+  let planTotalDays = 0
+  let planTodayRef = null
+  if (groupPlan) {
+    planTotalDays = groupPlan.passages?.length ?? 0
+    const elapsedDays = Math.floor((Date.now() - new Date(groupPlan.starts_at).getTime()) / 86400000) + 1
+    planDayIndex = Math.min(Math.max(elapsedDays, 1), planTotalDays)
+    const todayPassage = groupPlan.passages?.[planDayIndex - 1]
+    if (todayPassage) {
+      // passages é achatado num livro só (buildGroupPlan, groupBookPlan.js)
+      // — cada entrada só tem `book` (pt), sem variante por idioma; o
+      // nome em inglês vem do PLANO (book_en), não da passagem.
+      const bookLabel = lang === 'en' ? groupPlan.book_en : groupPlan.book
+      planTodayRef = `${bookLabel} ${todayPassage.chStart}`
+    }
+  }
+
+  // "Esperando você" — até 3 linhas, nesta ordem, cada uma só se houver
+  // algo; card some (vira linha discreta) se as três estiverem vazias.
+  const waitingLines = []
+  if (requests.length > 0) {
+    waitingLines.push({
+      key: 'requests',
+      text: L(requests.length === 1 ? 'waitingRequestsOne' : 'waitingRequestsMany', { n: requests.length }),
+      onClick: () => onOpenMembers?.(groupId),
+    })
+  }
+  if (pendingReports.length > 0) {
+    waitingLines.push({
+      key: 'reports',
+      text: L(pendingReports.length === 1 ? 'waitingReportOne' : 'waitingReportsMany', { n: pendingReports.length, time: hoursAgoLabel(pendingReports[0].created_at, lang) }),
+      onClick: () => onOpenReportedMessages?.(groupId),
+    })
+  }
+  if (stoppedCount > 0) {
+    waitingLines.push({
+      key: 'stopped',
+      text: L(stoppedCount === 1 ? 'waitingStoppedOne' : 'waitingStoppedMany', { n: stoppedCount }),
+      onClick: () => onOpenReadingActivity?.(groupId),
+    })
+  }
 
   return (
     <div style={styles.screen}>
       <div style={styles.header}>
         <BackBtn onBack={onBack} lang={lang} />
-        <div style={{ minWidth: 0 }}>
-          <p style={styles.headerTitle}>{group.name}</p>
-          <p style={styles.headerSub}>{L('pageSub', { n: members.length })}</p>
-        </div>
+        <p style={styles.headerBadge}>{L('headerBadge')}</p>
       </div>
+      <button type="button" style={styles.groupIdentityRow} onClick={startEditGroup}>
+        <span style={styles.groupAvatar}>{initialsOf(group.name)}</span>
+        <div style={{ minWidth: 0, textAlign: 'left' }}>
+          <p style={styles.groupName}>{group.name}</p>
+          <p style={styles.groupSub}>{L('groupSub', { n: group.members.length, date: formatMonthYear(group.members.find(m => m.userId === authUser?.id)?.joinedAt, lang) })}</p>
+        </div>
+      </button>
 
       <div style={styles.body}>
-        {/* Código de convite (quadro 19c: "é o que o admin mais faz"). */}
-        <div style={styles.inviteCard}>
-          <div style={styles.inviteLabelRow}>
-            <span style={styles.inviteDot} />
-            <p style={styles.inviteLabel}>{L('inviteCodeLabel')}</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <p style={styles.inviteCode}>{group.inviteCode}</p>
-            <button style={styles.shareBtn} onClick={handleShare}>
-              {shareState === 'copied' ? L('shareCopiedBtn') : L('shareBtn')}
-            </button>
-          </div>
-        </div>
-
-        {/* Pedidos de entrada — antes da lista, por design (footer do
-            quadro 19c: "aceitar/recusar em um toque"). Sem fila = sem
-            card, em vez de mostrar "0 pedidos" à toa. */}
-        {requests.length > 0 && (
-          <div style={styles.card}>
-            <div style={styles.cardHeadRow}>
-              <p style={{ ...styles.cardLabel, color: 'var(--bento-accent)' }}>{L('joinRequestsLabel')}</p>
-              <span style={styles.cardCount}>{requests.length}</span>
-            </div>
-            {requests.map((req, i) => (
-              <div key={req.userId} style={{ ...styles.memberRow, borderBottom: i === requests.length - 1 ? 'none' : '1px solid var(--bento-line)' }}>
-                <span style={{ ...styles.avatarCircle, background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)' }}>{initialsOf(req.name)}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.memberName}>{req.name}</p>
-                  <p style={styles.memberSub}>{relativeRequestTime(req.requestedAt, L)}</p>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    style={styles.declineBtn} disabled={busyUserId === req.userId}
-                    onClick={() => handleRequest(req.userId, false)} aria-label={L('declineAction')}
-                  >
-                    <AppIcon name="X" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
-                  </button>
-                  <button
-                    style={styles.acceptBtn} disabled={busyUserId === req.userId}
-                    onClick={() => handleRequest(req.userId, true)} aria-label={L('acceptAction')}
-                  >
-                    <AppIcon name="Check" size={13} strokeWidth={2.8} color="var(--bento-accent)" />
-                  </button>
-                </div>
-              </div>
+        {waitingLines.length > 0 ? (
+          <div style={styles.waitingCard}>
+            <p style={styles.waitingLabel}>{L('waitingLabel')}</p>
+            {waitingLines.map(line => (
+              <button key={line.key} type="button" style={styles.waitingRow} onClick={line.onClick}>
+                <span style={styles.waitingDot} />
+                <span style={styles.waitingText}>{line.text}</span>
+                <span style={styles.chevronSand}>›</span>
+              </button>
             ))}
           </div>
+        ) : (
+          <p style={styles.nothingWaiting}>{L('nothingWaiting')}</p>
         )}
 
-        {/* Membros — tocar num comum abre a folha de opções (nunca
-            inline, footer do quadro 19c: "pra evitar toque errado"). */}
-        <div style={styles.card}>
-          <div style={styles.cardHeadRow}>
-            <p style={styles.cardLabel}>{L('membersLabel')}</p>
-            {members.length > MEMBERS_COLLAPSED_COUNT && (
-              <button style={styles.viewAllBtn} onClick={() => setMembersExpanded(v => !v)}>
-                {membersExpanded ? L('showLessBtn') : L('viewAllBtn')}
-              </button>
-            )}
+        <div style={styles.statGrid}>
+          <div style={styles.statCard}>
+            <p style={styles.statLabel}>{L('readingTodayLabel')}</p>
+            <p style={styles.statValue}>{L('readingTodayValue', { n: readingTodayCount, total: activity.length })}</p>
+            <p style={styles.statSub}>{L('readingTodaySub', { pct: weekPct })}</p>
           </div>
-          {visibleMembers.map((m, i) => {
-            const isModerator = m.role === 'moderator'
-            const isSelf = m.userId === authUser.id
-            return (
-              <button
-                key={m.userId}
-                style={{ ...styles.memberRow, width: '100%', border: 'none', background: 'none', textAlign: 'left', cursor: isModerator ? 'default' : 'pointer', borderBottom: i === visibleMembers.length - 1 ? 'none' : '1px solid var(--bento-line)' }}
-                onClick={() => !isModerator && setActionSheetMember(m)}
-                disabled={isModerator}
-              >
-                <span style={{ ...styles.avatarCircle, ...(isModerator ? { background: 'var(--bento-accent)', color: 'var(--bento-ink)' } : { background: 'var(--bento-sand)', color: 'var(--bento-sand-icon)' }) }}>
-                  {initialsOf(m.name)}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.memberName}>{m.name}</p>
-                  <p style={styles.memberSub}>
-                    {isModerator
-                      ? (isSelf ? L('roleAdminSelf') : L('roleAdminOther'))
-                      : L('memberSince', { date: new Date(m.joinedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR') })}
-                  </p>
-                </div>
-                {isModerator
-                  ? <span style={styles.adminBadge}>{L('adminBadge')}</span>
-                  : <span style={styles.chevron}>›</span>}
-              </button>
-            )
-          })}
+          <div style={styles.statCard}>
+            <p style={styles.statLabel}>{L('inPlanLabel')}</p>
+            <p style={styles.statValue}>{planTodayRef ?? '—'}</p>
+            <p style={styles.statSub}>{groupPlan ? L('inPlanSub', { day: planDayIndex, total: planTotalDays }) : L('inPlanNone')}</p>
+          </div>
+          <div style={styles.statCard}>
+            <p style={styles.statLabel}>{L('challengeLabel')}</p>
+            <p style={styles.statValue}>{challenge ? challenge.name : '—'}</p>
+            <p style={styles.statSub}>{challenge ? L('challengeActiveSub') : L('challengeNone')}</p>
+          </div>
         </div>
 
-        {/* Plano do grupo (22d, entrada levantada na rodada 22 pro quadro
-            19c — "Adição necessária"). Sem plano ainda: convite pra criar
-            um (mesmo botão "Criar" de Meu Plano). Com um já enviado: só o
-            status de aceite — reenviar/encerrar fica fora desta leva (o
-            mais recente por created_at já é "o" plano vigente do grupo,
-            ver getLatestGroupPlan). */}
-        {groupPlan !== undefined && (
-          <div style={styles.card}>
-            {groupPlan ? (
-              <div style={styles.linkRow}>
-                <span style={styles.linkLabel}>{L('groupPlanLabel')}</span>
-                <span style={styles.linkSub}>{L('groupPlanAccepted', { accepted: groupPlan.memberCounts.accepted, total: groupPlan.totalMembers })}</span>
-              </div>
-            ) : (
-              <button style={styles.linkRow} onClick={() => onNavigate?.('createStudy')}>
-                <span style={styles.linkLabel}>{L('groupPlanLabel')}</span>
-                <span style={styles.linkSub}>{L('groupPlanNone')}</span>
-                <span style={styles.chevron}>›</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {pendingReportsCount > 0 && (
-          <div style={styles.card}>
-            <button style={styles.linkRow} onClick={() => onOpenReportedMessages?.(groupId)}>
-              <span style={styles.linkLabel}>{L('reportedMessagesLabel')}</span>
-              <span style={{ ...styles.linkSub, color: 'var(--bento-destructive)' }}>
-                {L(pendingReportsCount === 1 ? 'reportedMessagesCountOne' : 'reportedMessagesCountMany', { n: pendingReportsCount })}
-              </span>
-              <span style={styles.chevron}>›</span>
-            </button>
-          </div>
-        )}
-
-        {/* Pergunta da semana + editar grupo. */}
         <div style={styles.card}>
-          {canOpenWeeklyQuestion && (
-            <button
-              style={{ ...styles.linkRow, borderBottom: '1px solid var(--bento-line)' }}
-              onClick={() => onOpenGroupRoom?.({ group: { groupId, name: group.name, myRole: 'moderator' }, book: todaySession.book, bookEn: todaySession.bookEn, chapter: todaySession.chStart })}
-            >
-              <span style={styles.linkLabel}>{L('weeklyQuestionLabel')}</span>
-              <span style={styles.linkSub}>{lang === 'en' ? todaySession.bookEn : todaySession.book} {todaySession.chStart}</span>
-              <span style={styles.chevron}>›</span>
+          <button type="button" style={{ ...styles.actionRow, borderBottom: '1px solid var(--bento-line)' }} onClick={() => onOpenMembers?.(groupId)}>
+            <span style={styles.actionIconWrap}><AppIcon name="UserPlus" size={17} color="var(--bento-t2)" /></span>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <p style={styles.actionLabel}>{L('membersRowLabel')}</p>
+              <p style={styles.actionSub}>{requests.length > 0 ? L(requests.length === 1 ? 'membersRowSubPendingOne' : 'membersRowSubPendingMany', { n: group.members.length, pending: requests.length }) : L('membersRowSub', { n: group.members.length })}</p>
+            </div>
+            <span style={styles.chevron}>›</span>
+          </button>
+
+          <div style={{ ...styles.actionRow, borderBottom: '1px solid var(--bento-line)' }}>
+            <button type="button" style={styles.actionRowBtn} onClick={() => onOpenReportedMessages?.(groupId)}>
+              <span style={styles.actionIconWrap}><AppIcon name="MessageCircle" size={17} color="var(--bento-t2)" /></span>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <p style={styles.actionLabel}>{L('muralRowLabel')}</p>
+                <p style={styles.actionSub}>{pendingReports.length > 0 ? L(pendingReports.length === 1 ? 'muralRowSubOne' : 'muralRowSubMany', { n: pendingReports.length }) : L('muralRowSubNone')}</p>
+              </div>
             </button>
-          )}
-          <button style={styles.linkRow} onClick={startEditGroup}>
-            <span style={styles.linkLabel}>{L('editGroupLabel')}</span>
+            {pendingReports.length > 0 && <span style={styles.badge}>{pendingReports.length}</span>}
+          </div>
+
+          <button type="button" style={{ ...styles.actionRow, borderBottom: '1px solid var(--bento-line)' }} onClick={() => onOpenReadingActivity?.(groupId)}>
+            <span style={styles.actionIconWrap}><AppIcon name="BarChart3" size={17} color="var(--bento-t2)" /></span>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <p style={styles.actionLabel}>{L('readingActivityRowLabel')}</p>
+              <p style={styles.actionSub}>{L(stoppedCount === 1 ? 'readingActivityRowSubOne' : 'readingActivityRowSubMany', { n: stoppedCount })}</p>
+            </div>
+            <span style={styles.chevron}>›</span>
+          </button>
+
+          <button
+            type="button" style={{ ...styles.actionRow, borderBottom: '1px solid var(--bento-line)' }}
+            onClick={() => onNavigate?.(groupPlan ? 'groupPlanReader' : 'createStudy')}
+          >
+            <span style={styles.actionIconWrap}><AppIcon name="StickyNote" size={17} color="var(--bento-t2)" /></span>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <p style={styles.actionLabel}>{L('groupPlanLabel')}</p>
+              <p style={styles.actionSub}>{groupPlan ? L('groupPlanSub', { book: lang === 'en' ? groupPlan.book_en : groupPlan.book, days: planTotalDays }) : L('groupPlanNone')}</p>
+            </div>
+            <span style={styles.chevron}>›</span>
+          </button>
+
+          <button type="button" style={{ ...styles.actionRow, borderBottom: '1px solid var(--bento-line)' }} onClick={startEditNotice}>
+            <span style={styles.actionIconWrap}><AppIcon name="Bookmark" size={17} color="var(--bento-t2)" /></span>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <p style={styles.actionLabel}>{L('pinnedNoticeLabel')}</p>
+              <p style={styles.actionSub}>{group.pinnedNotice ? group.pinnedNotice : L('pinnedNoticeNone')}</p>
+            </div>
+            <span style={styles.chevron}>›</span>
+          </button>
+
+          <button type="button" style={styles.actionRow} onClick={() => onNavigate?.('reportProblem')}>
+            <span style={styles.actionIconWrap}><AppIcon name="TriangleAlert" size={17} color="var(--bento-t2)" /></span>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <p style={styles.actionLabel}>{L('reportProblemLabel')}</p>
+              <p style={styles.actionSub}>{L('reportProblemSub')}</p>
+            </div>
             <span style={styles.chevron}>›</span>
           </button>
         </div>
       </div>
 
+      <div style={styles.footer}>
+        <button type="button" style={styles.footerSecondaryBtn} onClick={() => onNavigate?.('createStudy')}>{L('createStudyBtn')}</button>
+        <button type="button" style={styles.footerPrimaryBtn} onClick={() => onNavigate?.('createChallenge')}>{L('createChallengeBtn')}</button>
+      </div>
+
       {editOpen && (
         <EditGroupSheet
           L={L} name={editName} description={editDescription} saving={savingInfo} error={saveError}
+          canOpenWeeklyQuestion={canOpenWeeklyQuestion}
+          onOpenWeeklyQuestion={() => onOpenGroupRoom?.({ group: { groupId, name: group.name, myRole: 'moderator' }, book: todaySession?.book, bookEn: todaySession?.bookEn, chapter: todaySession?.chStart })}
+          weeklyQuestionSub={todaySession ? `${lang === 'en' ? todaySession.bookEn : todaySession.book} ${todaySession.chStart}` : ''}
           onChangeName={setEditName} onChangeDescription={setEditDescription}
           onSave={saveGroupInfo} onClose={() => setEditOpen(false)}
         />
       )}
 
-      {actionSheetMember && (
-        <MemberActionSheet
-          L={L} member={actionSheetMember} busy={busyUserId === actionSheetMember.userId}
-          onPromote={() => handlePromote(actionSheetMember.userId)}
-          onRemove={() => handleRemove(actionSheetMember.userId)}
-          onClose={() => setActionSheetMember(null)}
+      {noticeOpen && (
+        <NoticeSheet
+          L={L} text={noticeText} saving={savingNotice} error={noticeError}
+          onChangeText={setNoticeText} onSave={saveNotice} onClose={() => setNoticeOpen(false)}
         />
       )}
     </div>
@@ -369,12 +353,12 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
 function BackBtn({ onBack, lang }) {
   return (
     <button style={styles.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
-      <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+      <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="#fff" />
     </button>
   )
 }
 
-function EditGroupSheet({ L, name, description, saving, error, onChangeName, onChangeDescription, onSave, onClose }) {
+function EditGroupSheet({ L, name, description, saving, error, canOpenWeeklyQuestion, onOpenWeeklyQuestion, weeklyQuestionSub, onChangeName, onChangeDescription, onSave, onClose }) {
   return createPortal(
     <div style={styles.sheetBackdrop} onClick={onClose}>
       <div style={styles.sheetPanel} onClick={e => e.stopPropagation()}>
@@ -392,20 +376,33 @@ function EditGroupSheet({ L, name, description, saving, error, onChangeName, onC
           <button style={styles.secondarySmallBtn} onClick={onClose} disabled={saving}>{L('cancelAction')}</button>
           <button style={styles.primarySmallBtn} onClick={onSave} disabled={saving}>{saving ? L('savingGroupInfo') : L('saveGroupInfo')}</button>
         </div>
+        {canOpenWeeklyQuestion && (
+          <button style={{ ...styles.linkRow, marginTop: 6, borderTop: '1px solid var(--bento-line)' }} onClick={onOpenWeeklyQuestion}>
+            <span style={styles.linkLabel}>{L('weeklyQuestionLabel')}</span>
+            <span style={styles.linkSub}>{weeklyQuestionSub}</span>
+            <span style={styles.chevron}>›</span>
+          </button>
+        )}
       </div>
     </div>,
     document.body,
   )
 }
 
-function MemberActionSheet({ L, member, busy, onPromote, onRemove, onClose }) {
+function NoticeSheet({ L, text, saving, error, onChangeText, onSave, onClose }) {
   return createPortal(
     <div style={styles.sheetBackdrop} onClick={onClose}>
       <div style={styles.sheetPanel} onClick={e => e.stopPropagation()}>
-        <p style={styles.sheetTitle}>{member.name}</p>
-        <button style={styles.sheetOptionBtn} onClick={onPromote} disabled={busy}>{L('promoteAction')}</button>
-        <button style={{ ...styles.sheetOptionBtn, color: 'var(--bento-accent)' }} onClick={onRemove} disabled={busy}>{L('removeMemberAction')}</button>
-        <button style={styles.secondarySmallBtn} onClick={onClose} disabled={busy}>{L('cancelAction')}</button>
+        <p style={styles.sheetTitle}>{L('pinnedNoticeLabel')}</p>
+        <textarea
+          style={styles.bioInput} rows={3} value={text} onChange={e => onChangeText(e.target.value)}
+          placeholder={L('pinnedNoticePlaceholder')}
+        />
+        {error && <p style={styles.errorText}>{error}</p>}
+        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+          <button style={styles.secondarySmallBtn} onClick={onClose} disabled={saving}>{L('cancelAction')}</button>
+          <button style={styles.primarySmallBtn} onClick={onSave} disabled={saving}>{saving ? L('savingGroupInfo') : L('saveGroupInfo')}</button>
+        </div>
       </div>
     </div>,
     document.body,
@@ -414,48 +411,55 @@ function MemberActionSheet({ L, member, busy, onPromote, onRemove, onClose }) {
 
 const styles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
-  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
-  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
+  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 4px', background: 'var(--bento-ink)' },
+  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  headerBadge: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
+  groupIdentityRow: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px 20px', border: 'none', background: 'var(--bento-ink)', borderRadius: '0 0 24px 24px', cursor: 'pointer' },
+  groupAvatar: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: 'rgba(255,255,255,.12)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 13, fontWeight: 800 },
+  groupName: { fontFamily: FONT, fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: '#fff', margin: '0 0 2px' },
+  groupSub: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0 },
   emptyHint: { fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '0 20px' },
 
-  inviteCard: { borderRadius: 24, background: 'var(--bento-ink)', padding: '20px 22px' },
-  inviteLabelRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
-  inviteDot: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2 },
-  inviteLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
-  inviteCode: { flex: 1, fontFamily: FONT, fontSize: 28, fontWeight: 800, letterSpacing: '.1em', color: '#fff', margin: 0 },
-  shareBtn: { flexShrink: 0, height: 40, borderRadius: 13, border: 'none', background: 'var(--bento-accent)', padding: '0 14px', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 },
 
-  card: { borderRadius: 24, background: 'var(--bento-card)', padding: '14px 20px 4px' },
-  cardHeadRow: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 },
-  cardLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
-  cardCount: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'var(--bento-accent)' },
-  viewAllBtn: { border: 'none', background: 'none', fontFamily: FONT, fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
+  waitingCard: { background: 'var(--bento-sand)', borderRadius: 22, padding: '16px 18px 6px' },
+  waitingLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 6px' },
+  waitingRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, padding: '8px 0', border: 'none', borderTop: '1px solid rgba(122,74,30,.12)', background: 'none', cursor: 'pointer', textAlign: 'left' },
+  waitingDot: { width: 6, height: 6, flexShrink: 0, borderRadius: 99, background: 'var(--bento-sand-icon)' },
+  waitingText: { flex: 1, fontFamily: FONT, fontSize: 13.5, fontWeight: 600, color: 'var(--bento-sand-ink)' },
+  chevronSand: { fontFamily: FONT, fontSize: 15, fontWeight: 700, color: 'var(--bento-sand-label)' },
+  nothingWaiting: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-t4)', margin: 0, padding: '2px 4px' },
 
-  memberRow: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, padding: '10px 0' },
-  avatarCircle: { width: 32, height: 32, borderRadius: 99, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 10.5, fontWeight: 800 },
-  memberName: { fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
-  memberSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
-  chevron: { fontFamily: FONT, fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
-  adminBadge: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--bento-accent)', flexShrink: 0 },
-  declineBtn: { width: 36, height: 36, borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
-  acceptBtn: { width: 36, height: 36, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  statGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 },
+  statCard: { background: 'var(--bento-card)', borderRadius: 18, padding: '12px 12px' },
+  statLabel: { fontFamily: FONT, fontSize: 9, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
+  statValue: { fontFamily: FONT, fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  statSub: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 
-  linkRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 14, minHeight: 52, padding: '10px 0', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' },
-  linkLabel: { flex: 1, fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)' },
-  linkSub: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-t3)' },
+  card: { background: 'var(--bento-card)', borderRadius: 22, overflow: 'hidden' },
+  actionRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 14, minHeight: 62, padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' },
+  actionRowBtn: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 14, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 },
+  actionIconWrap: { width: 36, height: 36, flexShrink: 0, borderRadius: 11, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  actionSub: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  chevron: { fontFamily: FONT, fontSize: 16, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
+  badge: { flexShrink: 0, marginRight: 16, minWidth: 22, height: 22, borderRadius: 99, background: 'var(--bento-accent)', color: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 11, fontWeight: 800, padding: '0 6px' },
+
+  footer: { flexShrink: 0, display: 'flex', gap: 10, padding: '12px 20px calc(12px + var(--safe-bottom))' },
+  footerSecondaryBtn: { flex: 1, height: 50, border: 'none', borderRadius: 16, background: 'var(--bento-card)', fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  footerPrimaryBtn: { flex: 1, height: 50, border: 'none', borderRadius: 16, background: 'var(--bento-accent)', fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
 
   sheetBackdrop: { position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   sheetPanel: { width: '100%', maxWidth: 'var(--max-width)', background: 'var(--bento-bg)', borderRadius: '28px 28px 0 0', padding: '20px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10, animation: 'bookOpenIn .22s cubic-bezier(.32,.72,0,1)' },
   sheetTitle: { fontFamily: FONT, fontSize: 16, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 4px' },
-  sheetOptionBtn: { width: '100%', textAlign: 'left', border: 'none', background: 'var(--bento-card)', borderRadius: 14, padding: '14px 16px', fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
   fieldWrap: { display: 'flex', flexDirection: 'column', gap: 5 },
   fieldLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
   fieldInput: { width: '100%', border: 'none', borderRadius: 12, padding: '11px 14px', fontFamily: FONT, fontSize: 13.5, fontWeight: 600, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-card)' },
   bioInput: { width: '100%', border: 'none', borderRadius: 12, padding: '11px 14px', fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-card)', resize: 'none' },
-  errorText: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-accent)', margin: 0 },
-  primarySmallBtn: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', background: 'var(--bento-accent)', cursor: 'pointer' },
-  secondarySmallBtn: { flex: 1, border: 'none', borderRadius: 12, padding: '11px 12px', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-t3)', background: 'var(--bento-card)', cursor: 'pointer' },
+  errorText: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-destructive)', margin: 0 },
+  secondarySmallBtn: { flex: 1, height: 44, border: 'none', borderRadius: 13, background: 'var(--bento-line)', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
+  primarySmallBtn: { flex: 1, height: 44, border: 'none', borderRadius: 13, background: 'var(--bento-ink)', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff', cursor: 'pointer' },
+  linkRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 14, minHeight: 52, padding: '10px 0', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' },
+  linkLabel: { flex: 1, fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)' },
+  linkSub: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-t3)' },
 }
