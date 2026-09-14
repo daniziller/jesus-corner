@@ -8,21 +8,32 @@ import { useState } from 'react'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import AppIcon from '../icons/AppIcon'
+import BrandMark from '../components/BrandMark'
+import BrandLogo from '../components/BrandLogo'
 
 export const FONT = 'var(--font-bento)'
 
-// Casca: cabeçalho (voltar), corpo rolável e rodapé fixo. No desktop o
-// conteúdo fica numa coluna de até 440px (invisível no celular, onde a
-// tela tem menos que isso) — mesma largura que a tela de login antiga usava.
+// Casca: cabeçalho (voltar + assinatura da marca), corpo rolável e rodapé
+// fixo. No desktop o conteúdo fica numa coluna de até 440px (invisível no
+// celular, onde a tela tem menos que isso) — mesma largura que a tela de
+// login antiga usava. A assinatura (símbolo + logotipo) — achado dela,
+// 2026-09-14: "colocar a logo em algum lugar" — Entrar/Criar conta/
+// Recuperar senha (13b/13c/13d) nunca mostravam marca nenhuma, só as
+// Boas-vindas (13a) antes delas. Mesma dupla BrandMark+BrandLogo do
+// Sidebar.jsx, não uma peça nova.
 export function AccountShell({ onBack, body, bodyStyle, footer, footerStyle }) {
   const lang = getAppLanguage() ?? 'pt'
   return (
     <div style={ui.screen}>
       <div style={ui.header}>
-        <div style={ui.col}>
+        <div style={{ ...ui.col, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button type="button" style={ui.backBtn} onClick={onBack} aria-label={t('account.back', undefined, lang)}>
             <AppIcon name="ChevronLeft" size={17} strokeWidth={2} color="var(--bento-ink)" />
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <BrandMark size={26} />
+            <BrandLogo size={13} letterSpacing="-.4px" />
+          </div>
         </div>
       </div>
       <div style={{ ...ui.body, ...bodyStyle }}>
