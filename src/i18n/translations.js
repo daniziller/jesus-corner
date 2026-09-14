@@ -178,6 +178,12 @@ export const STRINGS = {
       // quadrados → resumo da semana.
       planLabel: 'Seu plano de hoje',
       planDoneLabel: 'Seu plano foi concluído',
+      // Desafio de leitura por IA do grupo (handoff-admin-42, 42n) — card
+      // ACIMA deste, pedido dela 2026-09-13.
+      challengeKicker: 'Desafio · {title}',
+      challengeReadBtn: 'Ler agora',
+      challengeMarkDoneBtn: 'Marcar como lida',
+      challengeDoneLabel: 'Lida ✓',
       minShort: '{n} min',
       minUnit: 'min',
       goToMyPlan: 'Ir para meu plano',
@@ -3494,6 +3500,10 @@ export const STRINGS = {
       // ── Today (round 34) — route /, replaces everything before it.
       planLabel: "Today's plan",
       planDoneLabel: "Your plan is complete",
+      challengeKicker: 'Challenge · {title}',
+      challengeReadBtn: 'Read now',
+      challengeMarkDoneBtn: 'Mark as read',
+      challengeDoneLabel: 'Read ✓',
       minShort: '{n} min',
       minUnit: 'min',
       goToMyPlan: 'Go to my plan',

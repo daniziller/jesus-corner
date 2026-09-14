@@ -6,7 +6,10 @@
 // "ação → alimento → informação → o que espera", não reordenar): plano de
 // hoje → versículo do dia → aplicação de ontem → esta semana (com tempo
 // por passo) → dois quadrados (mensagens/métricas) → resumo da semana →
-// barra de abas (fora deste arquivo, App.jsx).
+// barra de abas (fora deste arquivo, App.jsx). ÚNICA exceção (pedido dela,
+// 2026-09-13, handoff-admin-42 42n: "aparece no Hoje... acima da leitura
+// do plano"): o card do desafio de leitura por IA do grupo, quando ativo,
+// vem ANTES até do plano de hoje — ver groupChallenge mais abaixo.
 //
 // Os quatro dados que não existiam em lugar nenhum do código antes desta
 // rodada (frase de aplicação com estado "cumpri", versículo do trecho em
@@ -30,6 +33,7 @@ import { totalsByStep } from '../metrics/sessionDurationMath'
 import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
+import { getActiveGroupChallenge, getMyGroupChallengeProgress, markGroupChallengeDayDone } from '../groups/groupChallengesStore'
 import { getHomeVerse, getContinuityExcerpt } from '../home/homeVerseStore'
 import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
@@ -112,12 +116,53 @@ export default function HomeScreen({
   const [prayerMethod, setPrayerMethodState] = useState('acts')
   const [reflectionMethod, setReflectionMethodState] = useState('questions')
   const [activeStudy, setActiveStudy] = useState(null)
+  // Desafio de leitura por IA do grupo (handoff-admin-42, 42n: "aparece no
+  // Hoje de quem entrar, acima da leitura do plano") — pedido dela
+  // (2026-09-13), antes do Bloco 4. Sem gate de loading próprio, mesmo
+  // padrão de stepDays/activeStudy acima: só aparece quando resolver, sem
+  // travar o resto da tela. Se a pessoa está em mais de um grupo com
+  // desafio ativo simultâneo, mostra só o primeiro encontrado —
+  // simplificação disclosed (raro, ver comentário na PR).
+  const [groupChallenge, setGroupChallenge] = useState(null)
 
   useEffect(() => {
     getStepDays().then(setStepDaysState).catch(() => {})
     setPrayerMethodState(getPrayerMethod())
     setReflectionMethodState(getReflectionMethod())
   }, [])
+
+  useEffect(() => {
+    let alive = true
+    const groups = session.myGroups ?? []
+    if (groups.length === 0) { setGroupChallenge(null); return }
+    Promise.all(groups.map(g => getActiveGroupChallenge(g.groupId).catch(() => null))).then(results => {
+      if (!alive) return
+      const active = results.find(Boolean)
+      if (!active) { setGroupChallenge(null); return }
+      // dayIndex 0-based: dia 0 = starts_at. Fora da janela (ainda não
+      // começou, ou já passou do último dia) = não mostra nada — sem
+      // "desafio encerrado" pendurado.
+      const dayIndex = Math.floor((Date.now() - new Date(active.startsAt).getTime()) / 86400000)
+      if (dayIndex < 0 || dayIndex >= active.totalDays) { setGroupChallenge(null); return }
+      const day = active.days[dayIndex]
+      getMyGroupChallengeProgress(active.id).then(completed => {
+        if (!alive) return
+        setGroupChallenge({ id: active.id, title: active.title, dayIndex, totalDays: active.totalDays, day, doneToday: completed.includes(dayIndex) })
+      })
+    })
+    return () => { alive = false }
+  }, [session.myGroups])
+
+  async function handleMarkChallengeDone() {
+    if (!groupChallenge || groupChallenge.doneToday) return
+    setGroupChallenge(c => ({ ...c, doneToday: true }))
+    try {
+      await markGroupChallengeDayDone(groupChallenge.id, groupChallenge.dayIndex)
+    } catch (err) {
+      console.error('Failed to mark challenge day done', err)
+      setGroupChallenge(c => (c ? { ...c, doneToday: false } : c))
+    }
+  }
 
   useEffect(() => {
     if (!activeStudyId) { setActiveStudy(null); return }
@@ -534,6 +579,38 @@ export default function HomeScreen({
 
       <div style={styles.body}>
 
+        {/* Desafio de leitura por IA do grupo (handoff-admin-42, 42n) —
+            pedido dela (2026-09-13): fica ACIMA do plano de hoje, exceção
+            deliberada à ordem fixa desta tela (comentário do topo do
+            arquivo, "não reordenar") — o próprio HANDOFF pede essa posição
+            especificamente pra este card. Só aparece com um desafio
+            ativo E dentro da janela de dias (ver useEffect acima). */}
+        {groupChallenge && (
+          <div style={styles.challengeCard}>
+            <p style={styles.challengeKicker}>{L('challengeKicker', { title: groupChallenge.title })}</p>
+            <p style={styles.challengeRef}>
+              {(lang === 'en' ? (groupChallenge.day.bookEn ?? groupChallenge.day.book) : groupChallenge.day.book)}
+              {' '}{groupChallenge.day.chStart === groupChallenge.day.chEnd ? groupChallenge.day.chStart : `${groupChallenge.day.chStart}-${groupChallenge.day.chEnd}`}
+            </p>
+            <p style={styles.challengeDayTitle}>{groupChallenge.day.dayTitle}</p>
+            {groupChallenge.day.reflectionQuestion && <p style={styles.challengeQuestion}>{groupChallenge.day.reflectionQuestion}</p>}
+            <div style={styles.challengeBtnRow}>
+              <button
+                type="button" style={styles.challengeReadBtn}
+                onClick={() => onOpenBiblePassage?.(groupChallenge.day.book, groupChallenge.day.chStart)}
+              >
+                {L('challengeReadBtn')}
+              </button>
+              <button
+                type="button" style={{ ...styles.challengeDoneBtn, ...(groupChallenge.doneToday ? styles.challengeDoneBtnOn : {}) }}
+                onClick={handleMarkChallengeDone} disabled={groupChallenge.doneToday}
+              >
+                {groupChallenge.doneToday ? L('challengeDoneLabel') : L('challengeMarkDoneBtn')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Bloco 2 — SEU PLANO DE HOJE (2026-09-08: passos com dias
             próprios, mesmo modelo de Meu Plano — ver planTodayRows.js).
             Concluído (2026-09-09, pedido dela): o card fica com as MESMAS
@@ -852,6 +929,20 @@ const styles = {
   skeletonBlock: { borderRadius: 24, background: 'var(--bento-line)' },
 
   // Bloco 2.
+  // Desafio de leitura por IA do grupo (handoff-admin-42, 42n) — laranja
+  // sólido com texto escuro (regra do app inteiro pra ação/destaque em
+  // cima do acento, ver index.css: "ação primária é laranja sólido com
+  // texto ESCURO, não branco"), pra se diferenciar do plano de hoje logo
+  // abaixo (que é preto) e sinalizar "isto é novo/especial".
+  challengeCard: { borderRadius: 28, background: 'var(--bento-accent)', padding: 20 },
+  challengeKicker: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(26,23,20,.6)', margin: '0 0 10px' },
+  challengeRef: { fontFamily: FONT, fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  challengeDayTitle: { fontFamily: FONT, fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 8px' },
+  challengeQuestion: { fontFamily: FONT, fontSize: 13, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.4, color: 'rgba(26,23,20,.7)', margin: '0 0 14px' },
+  challengeBtnRow: { display: 'flex', gap: 8 },
+  challengeReadBtn: { flex: 1, height: 44, border: 'none', borderRadius: 14, background: 'var(--bento-ink)', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff', cursor: 'pointer' },
+  challengeDoneBtn: { flex: 1, height: 44, border: 'none', borderRadius: 14, background: 'rgba(26,23,20,.12)', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
+  challengeDoneBtnOn: { background: 'rgba(26,23,20,.2)', cursor: 'default' },
   planCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 20 },
   planHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   planLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
