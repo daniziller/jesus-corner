@@ -3381,6 +3381,18 @@ export const STRINGS = {
           blocked_account: 'conta bloqueada',
           archived: 'arquivado',
         },
+        // "Regras de conteúdo" — sem tela própria no pacote (pedido dela,
+        // 2026-09-14). Espelha os 5 motivos de denúncia (42p) — explica o
+        // que cada um significa, em vez de inventar uma lista nova.
+        contentRulesTitle: 'Regras de conteúdo',
+        contentRulesIntro: 'O que é aceitável no mural de um grupo — a mesma régua usada pra decidir uma denúncia.',
+        contentRule: {
+          propaganda: 'Divulgar produto, serviço ou negócio próprio no mural — mesmo com boa intenção, o grupo não é vitrine.',
+          cobranca: 'Pedir dinheiro, cobrar por conteúdo ou oferecer investimento dentro do grupo.',
+          linguagem_agressiva: 'Ofender, humilhar ou atacar outra pessoa do grupo.',
+          conteudo_improprio: 'Conteúdo sexual, violento ou fora do espírito de um espaço de leitura bíblica.',
+          outro: 'Qualquer outra coisa que fuja do propósito do grupo — ler e conversar sobre a Palavra juntos.',
+        },
       },
       // 42g — Grupos e igrejas (handoff-admin-42, Bloco 4).
       groups: {
@@ -3411,6 +3423,14 @@ export const STRINGS = {
         endGroupConsequence: '{n} pessoas perdem o mural e o plano compartilhado. As leituras individuais continuam.',
         typeNameToConfirm: 'Digite "{name}" para confirmar',
         endGroupBtn: 'Encerrar "{name}"',
+        // "Falar com o admin"/"Ver mural do grupo" — sem tela própria no
+        // pacote (pedido dela, 2026-09-14: "criar levando em consideração
+        // a identidade visual que estamos usando").
+        talkToAdminPlaceholder: 'Escreva a mensagem para o admin do grupo…',
+        sendMessageBtn: 'Enviar',
+        messageSentHint: 'Enviado ao admin do grupo.',
+        wallTitle: 'Mural de {name}',
+        wallEmpty: 'Nenhuma mensagem no mural ainda.',
       },
       // 42h — Acessos (handoff-admin-42, Bloco 4).
       access: {
@@ -6437,6 +6457,15 @@ export const STRINGS = {
           blocked_account: 'account blocked',
           archived: 'archived',
         },
+        contentRulesTitle: 'Content rules',
+        contentRulesIntro: 'What is acceptable on a group wall — the same standard used to decide on a report.',
+        contentRule: {
+          propaganda: "Advertising your own product, service, or business on the wall — even well-intentioned, the group isn't a storefront.",
+          cobranca: 'Asking for money, charging for content, or offering investments inside the group.',
+          linguagem_agressiva: 'Offending, humiliating, or attacking another person in the group.',
+          conteudo_improprio: "Sexual or violent content, or anything outside the spirit of a Bible reading space.",
+          outro: "Anything else that strays from the group's purpose — reading and talking about the Word together.",
+        },
       },
       groups: {
         title: 'Groups & churches',
@@ -6466,6 +6495,11 @@ export const STRINGS = {
         endGroupConsequence: '{n} people lose the wall and the shared plan. Individual reading continues.',
         typeNameToConfirm: 'Type "{name}" to confirm',
         endGroupBtn: 'End "{name}"',
+        talkToAdminPlaceholder: "Write the message for the group's admin…",
+        sendMessageBtn: 'Send',
+        messageSentHint: "Sent to the group's admin.",
+        wallTitle: "{name}'s wall",
+        wallEmpty: 'No messages on the wall yet.',
       },
       access: {
         title: 'Access',

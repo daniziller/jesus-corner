@@ -126,6 +126,22 @@ async function performAction(req, res, callerId) {
     return res.status(200).json({ ok: true })
   }
 
+  // "Falar com o admin" (42g) — sem sistema de conversa 1:1 no app;
+  // mesma saída já usada em toda a leva (send_group_encouragement,
+  // decide_group_message_report): uma notificação individual de verdade
+  // (sino), não um recado público.
+  if (action === 'message_admin') {
+    const { message } = req.body ?? {}
+    if (!(message ?? '').trim()) return res.status(400).json({ error: 'missing_message' })
+    const { data: mod } = await supabaseAdmin.from('reading_group_members').select('user_id').eq('group_id', groupId).eq('role', 'moderator').eq('status', 'joined').limit(1).maybeSingle()
+    if (!mod) return res.status(404).json({ error: 'admin_not_found' })
+    const { error } = await supabaseAdmin.from('notifications').insert({
+      user_id: mod.user_id, type: 'master_message', title: 'Mensagem da equipe do Jesus Corner', body: message.trim(),
+    })
+    if (error) return res.status(500).json({ error: 'send_failed' })
+    return res.status(200).json({ ok: true })
+  }
+
   if (action === 'change_admin') {
     if (!newAdminUserId) return res.status(400).json({ error: 'missing_new_admin' })
     await supabaseAdmin.from('reading_group_members').update({ role: 'member' }).eq('group_id', groupId).eq('role', 'moderator')
@@ -148,6 +164,21 @@ async function performAction(req, res, callerId) {
   return res.status(400).json({ error: 'invalid_action' })
 }
 
+// "Ver mural do grupo" (42g) — leitura, sem ação nenhuma daqui (apagar
+// mensagem continua só pela fila de Moderação, com motivo registrado).
+async function groupWall(res, groupId) {
+  const { data, error } = await supabaseAdmin
+    .from('group_comments')
+    .select('id, body, created_at, author:profiles!group_comments_user_id_fkey(name)')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: false })
+    .limit(100)
+  if (error) return res.status(500).json({ error: 'query_failed' })
+  return res.status(200).json({
+    comments: (data ?? []).map(c => ({ id: c.id, name: c.author?.name ?? '', body: c.body, createdAt: c.created_at })),
+  })
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
   const caller = await requireAdmin(req, res)
@@ -157,5 +188,6 @@ export default async function handler(req, res) {
   if (op === 'list') return listGroups(res)
   if (op === 'detail') return groupDetail(res, req.body?.groupId)
   if (op === 'action') return performAction(req, res, caller.id)
+  if (op === 'wall') return groupWall(res, req.body?.groupId)
   return res.status(400).json({ error: 'invalid_op' })
 }

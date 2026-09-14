@@ -38,8 +38,12 @@ export function getAdminGroupsList() {
 export function getAdminGroupDetail(groupId) {
   return authorizedPost('/api/admin/groups', { op: 'detail', groupId })
 }
-export function adminGroupAction({ groupId, action, newAdminUserId }) {
-  return authorizedPost('/api/admin/groups', { op: 'action', groupId, action, newAdminUserId })
+export function adminGroupAction({ groupId, action, newAdminUserId, message }) {
+  return authorizedPost('/api/admin/groups', { op: 'action', groupId, action, newAdminUserId, message })
+}
+export async function getGroupWall(groupId) {
+  const { comments } = await authorizedPost('/api/admin/groups', { op: 'wall', groupId })
+  return comments
 }
 
 // 42h — Acessos

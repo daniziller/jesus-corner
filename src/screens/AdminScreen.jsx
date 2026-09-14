@@ -23,7 +23,7 @@ import {
 } from '../admin/adminStore'
 import {
   getModerationQueue, getModerationCase, decideModerationCase, exportModerationLog,
-  getAdminGroupsList, getAdminGroupDetail, adminGroupAction,
+  getAdminGroupsList, getAdminGroupDetail, adminGroupAction, getGroupWall,
   getAccessGrants, grantAccess,
 } from '../admin/masterModerationStore'
 
@@ -1268,6 +1268,7 @@ function ModerationSection({ lang, onDecided }) {
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [rulesOpen, setRulesOpen] = useState(false)
 
   function reload() {
     getModerationQueue().then(setData).catch(err => setError(err.message))
@@ -1326,7 +1327,7 @@ function ModerationSection({ lang, onDecided }) {
         title={M('title')}
         subtitle={data ? M('subtitle', { queue: queueList.length, escalated: data.escalatedCount, avg: data.avgResponseHours ?? '—' }) : ''}
         right={<>
-          <button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }}>{M('contentRulesBtn')}</button>
+          <button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }} onClick={() => setRulesOpen(true)}>{M('contentRulesBtn')}</button>
           <button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }} onClick={handleExport}>{M('exportBtn')}</button>
         </>}
       />
@@ -1396,6 +1397,18 @@ function ModerationSection({ lang, onDecided }) {
           )}
         </div>
       </div>
+
+      {rulesOpen && (
+        <AdminModal title={M('contentRulesTitle')} onClose={() => setRulesOpen(false)}>
+          <p style={{ ...styles.replyPreviewBody, marginBottom: 10 }}>{M('contentRulesIntro')}</p>
+          {['propaganda', 'cobranca', 'linguagem_agressiva', 'conteudo_improprio', 'outro'].map(id => (
+            <div key={id} style={{ ...styles.replyPreview, marginTop: 0, marginBottom: 8 }}>
+              <p style={styles.replyPreviewLabel}>{t(`report.reason.${id}`, undefined, lang)}</p>
+              <p style={styles.replyPreviewBody}>{M(`contentRule.${id}`)}</p>
+            </div>
+          ))}
+        </AdminModal>
+      )}
     </div>
   )
 }
@@ -1499,6 +1512,11 @@ function GroupsAdminSection({ lang }) {
   const [busy, setBusy] = useState(false)
   const [changingAdmin, setChangingAdmin] = useState(false)
   const [newAdminId, setNewAdminId] = useState('')
+  const [messagingAdmin, setMessagingAdmin] = useState(false)
+  const [adminMessage, setAdminMessage] = useState('')
+  const [messageSent, setMessageSent] = useState(false)
+  const [wallOpen, setWallOpen] = useState(false)
+  const [wallComments, setWallComments] = useState(null)
 
   function reload() {
     getAdminGroupsList().then(d => {
@@ -1513,6 +1531,8 @@ function GroupsAdminSection({ lang }) {
     setDetail(null)
     setConfirmName('')
     setChangingAdmin(false)
+    setMessagingAdmin(false)
+    setWallOpen(false)
     getAdminGroupDetail(selectedId).then(setDetail).catch(err => setError(err.message))
   }, [selectedId])
 
@@ -1525,6 +1545,11 @@ function GroupsAdminSection({ lang }) {
       if (action === 'end_group') { setSelectedId(null); setDetail(null) }
       setChangingAdmin(false)
       setNewAdminId('')
+      if (action === 'message_admin') {
+        setMessageSent(true)
+        setAdminMessage('')
+        setTimeout(() => { setMessageSent(false); setMessagingAdmin(false) }, 1400)
+      }
       reload()
       if (selectedId && action !== 'end_group') getAdminGroupDetail(selectedId).then(setDetail)
     } catch (err) {
@@ -1532,6 +1557,12 @@ function GroupsAdminSection({ lang }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  function openWall() {
+    setWallOpen(true)
+    setWallComments(null)
+    getGroupWall(selectedId).then(setWallComments).catch(err => setError(err.message))
   }
 
   const groups = data?.groups ?? []
@@ -1609,8 +1640,24 @@ function GroupsAdminSection({ lang }) {
               </div>
 
               <div style={styles.whiteCard}>
-                <button className="btn-secondary" style={{ ...styles.groupActionRow }} disabled>{G('talkToAdminBtn')}</button>
-                <button className="btn-secondary" style={styles.groupActionRow} disabled>{G('viewWallBtn')}</button>
+                {messagingAdmin ? (
+                  <div style={{ marginBottom: 8 }}>
+                    {messageSent ? (
+                      <p style={styles.hint}>{G('messageSentHint')}</p>
+                    ) : (
+                      <>
+                        <textarea style={styles.grantReasonInput} rows={3} value={adminMessage} onChange={e => setAdminMessage(e.target.value)} placeholder={G('talkToAdminPlaceholder')} />
+                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                          <button className="btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} disabled={busy} onClick={() => setMessagingAdmin(false)}>{t('admin.cancelBtn', undefined, lang)}</button>
+                          <button className="btn-primary" style={{ width: 'auto', padding: '8px 14px' }} disabled={busy || !adminMessage.trim()} onClick={() => runAction('message_admin', { message: adminMessage })}>{G('sendMessageBtn')}</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <button className="btn-secondary" style={{ ...styles.groupActionRow }} disabled={!detail.adminUserId} onClick={() => setMessagingAdmin(true)}>{G('talkToAdminBtn')}</button>
+                )}
+                <button className="btn-secondary" style={styles.groupActionRow} onClick={openWall}>{G('viewWallBtn')}</button>
                 {changingAdmin ? (
                   <div style={{ marginBottom: 8 }}>
                     <select style={styles.textInput} value={newAdminId} onChange={e => setNewAdminId(e.target.value)}>
@@ -1648,6 +1695,38 @@ function GroupsAdminSection({ lang }) {
             </>
           )}
         </div>
+      </div>
+
+      {wallOpen && (
+        <AdminModal title={G('wallTitle', { name: detail?.name ?? '' })} onClose={() => setWallOpen(false)}>
+          {!wallComments && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+          {wallComments?.length === 0 && <p style={styles.hint}>{G('wallEmpty')}</p>}
+          {wallComments?.map(c => (
+            <div key={c.id} style={{ ...styles.replyPreview, marginTop: 0, marginBottom: 8 }}>
+              <p style={styles.replyPreviewLabel}>{c.name} · {new Date(c.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR')}</p>
+              <p style={styles.replyPreviewBody}>{c.body}</p>
+            </div>
+          ))}
+        </AdminModal>
+      )}
+    </div>
+  )
+}
+
+// Modal genérico (desktop) — sem PNG desenhando isto no pacote ("Ver
+// mural do grupo"/"Regras de conteúdo" não tinham tela própria); segue a
+// mesma identidade visual do resto do painel (whiteCard, tokens bento).
+function AdminModal({ title, onClose, children }) {
+  return (
+    <div style={styles.modalBackdrop} onClick={onClose}>
+      <div style={styles.modalPanel} onClick={e => e.stopPropagation()}>
+        <div style={styles.modalHeader}>
+          <p style={styles.sectionTitle}>{title}</p>
+          <button style={styles.modalCloseBtn} onClick={onClose} aria-label="close">
+            <AppIcon name="X" size={16} color="var(--bento-t3)" />
+          </button>
+        </div>
+        <div style={styles.modalBody}>{children}</div>
       </div>
     </div>
   )
@@ -1908,6 +1987,11 @@ const styles = {
   endGroupBtn:        { border: 'none', background: 'rgba(240,102,43,.16)', color: 'var(--bento-accent)', borderRadius: 12, height: 40, font: '800 12.5px/1 var(--font-bento)', cursor: 'pointer' },
   btnDisabledLook:    { opacity: .4, cursor: 'default' },
   grantReasonInput:   { width: '100%', border: 'none', outline: 'none', background: 'var(--bento-card)', borderRadius: 12, padding: '10px 14px', font: '500 12.5px/1.5 var(--font-bento)', color: 'var(--bento-ink)', resize: 'none' },
+  modalBackdrop:      { position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(26,23,20,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  modalPanel:         { width: 520, maxWidth: '100%', maxHeight: '80vh', background: 'var(--bento-bg)', borderRadius: 24, display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,.25)' },
+  modalHeader:        { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 22px 14px', flexShrink: 0 },
+  modalCloseBtn:      { width: 30, height: 30, borderRadius: 10, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  modalBody:          { padding: '0 22px 22px', overflowY: 'auto' },
   input:              { width: '100%', border: '1px solid var(--bento-divider)', borderRadius: 10, padding: '10px 12px', font: '600 12.5px/1 var(--font-bento)', color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', boxSizing: 'border-box' },
   textarea:           { width: '100%', border: '1px solid var(--bento-divider)', borderRadius: 10, padding: '10px 12px', font: '500 12.5px/1.4 var(--font-bento)', color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', resize: 'vertical', boxSizing: 'border-box' },
   select:             { width: '100%', border: '1px solid var(--bento-divider)', borderRadius: 10, padding: '9px 10px', font: '600 12.5px/1 var(--font-bento)', color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', boxSizing: 'border-box' },
