@@ -94,7 +94,7 @@ const TABS = [
   { id: 'more', icon: 'MoreHorizontal' },
 ]
 
-export default function AdminMobileShell({ session }) {
+export default function AdminMobileShell({ session, onExitAdmin }) {
   const { lang } = session
   const [tab, setTab] = useState('overview')
   const [openCount, setOpenCount] = useState(0)
@@ -121,7 +121,7 @@ export default function AdminMobileShell({ session }) {
             onOpenGroup={openGroup} onChanged={reloadAlertCount}
           />
         )}
-        {tab === 'more' && <MoreMobile lang={lang} onOpenAlertCase={openAlertCase} />}
+        {tab === 'more' && <MoreMobile lang={lang} onOpenAlertCase={openAlertCase} onExitAdmin={onExitAdmin} />}
       </div>
 
       <nav style={styles.bottomNav}>
@@ -873,7 +873,7 @@ const MORE_ITEMS = [
   { id: 'health', icon: 'Wrench', built: false },
 ]
 
-function MoreMobile({ lang, onOpenAlertCase }) {
+function MoreMobile({ lang, onOpenAlertCase, onExitAdmin }) {
   const [section, setSection] = useState(null)
   if (section === 'ai') return <MoreAiMobile lang={lang} onBack={() => setSection(null)} onOpenCase={onOpenAlertCase} />
   if (section === 'access') return <MoreAccessMobile lang={lang} onBack={() => setSection(null)} />
@@ -898,6 +898,13 @@ function MoreMobile({ lang, onOpenAlertCase }) {
     <div style={styles.scrollBody}>
       <DarkHeader><p style={styles.h1White}>{M('nav.more', undefined, lang)}</p></DarkHeader>
       <div style={styles.body}>
+        {/* Sem isto a casca do Master no celular (tela inteira, barra
+            inferior própria) não tinha nenhum jeito de sair — achado
+            dela ao testar. */}
+        <button type="button" style={styles.exitAdminRow} onClick={onExitAdmin}>
+          <AppIcon name="ArrowLeft" size={18} color="var(--bento-ink)" />
+          <span style={styles.rowTitle}>{M('exitAdminBtn', undefined, lang)}</span>
+        </button>
         <div style={styles.whiteCard}>
           {MORE_ITEMS.map((item, i) => (
             <button key={item.id} type="button" style={{ ...styles.listRow, borderTop: i > 0 ? '1px solid var(--bento-line)' : 'none' }} onClick={() => setSection(item.id)}>
@@ -1170,6 +1177,7 @@ const styles = {
   endGroupBody: { font: '500 13px/1.5 var(--font-bento)', color: 'var(--bento-t5)', margin: 0 },
 
   notBuiltCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 8 },
+  exitAdminRow: { display: 'flex', alignItems: 'center', gap: 10, borderRadius: 16, background: 'var(--bento-card-soft)', border: '1px solid var(--bento-divider)', padding: '14px 16px' },
   hint: { font: '500 13px/1.5 var(--font-bento)', color: 'var(--bento-t3)', textAlign: 'center', padding: '20px 0' },
 
   sheetVeil: { position: 'fixed', inset: 0, background: 'rgba(26,23,20,.55)', display: 'flex', alignItems: 'flex-end', zIndex: 40 },

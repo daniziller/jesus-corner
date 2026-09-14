@@ -56,7 +56,7 @@ const NAV_SECTIONS = [
   { id: 'invites', icon: 'Gift', built: true },
 ]
 
-export default function AdminScreen({ session }) {
+export default function AdminScreen({ session, onExitAdmin }) {
   const { lang } = session
   const [section, setSection] = useState('overview')
   const activeNav = NAV_SECTIONS.find(s => s.id === section)
@@ -122,7 +122,7 @@ export default function AdminScreen({ session }) {
         </main>
       </div>
 
-      <AdminMobileShell session={session} />
+      <AdminMobileShell session={session} onExitAdmin={onExitAdmin} />
     </>
   )
 }

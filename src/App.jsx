@@ -1018,6 +1018,18 @@ export default function App() {
     })
   }
 
+  // "Voltar pro app normal" (AdminMobileShell, handoff-admin-42 Bloco 5 —
+  // pedido dela depois de testar: a casca do Master no celular ocupa a
+  // tela inteira e troca a barra inferior inteira, sem jeito nenhum de
+  // sair). goBack() sozinho já resolve o caso normal (sempre chega em
+  // admin vindo do Perfil, que empilha em tabHistory), mas cai pra 'home'
+  // se por algum motivo o histórico estiver vazio — nunca deixa o botão
+  // sem fazer nada.
+  function exitAdmin() {
+    if (tabHistory.length === 0) { goToTab('home'); return }
+    goBack()
+  }
+
   // ── Rotina guiada ─────────────────────────────────────────────────────
   // Quanto tempo o passo recém-concluído fica na tela ("concluído!") antes
   // de o app abrir o próximo — respiro pra pessoa perceber a transição.
@@ -2982,7 +2994,7 @@ export default function App() {
       : null,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
-    ...(isAdmin ? { admin: <AdminScreen session={session} /> } : {}),
+    ...(isAdmin ? { admin: <AdminScreen session={session} onExitAdmin={exitAdmin} /> } : {}),
     // Notas e Estudos são Premium — pra assinante ficam montadas persistentes
     // (display:contents, mais abaixo); pra grátis caem aqui.
     ...(hasPremium ? {} : {
