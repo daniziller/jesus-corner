@@ -21,6 +21,11 @@ import {
   sendBroadcast, listBroadcastLog, searchAdminUsers, getAdminUserDetail, listReadingGroupsForAdmin,
   createInvite, listAdminInvites, revokeInvite, listAnswerReports, updateAnswerReport,
 } from '../admin/adminStore'
+import {
+  getModerationQueue, getModerationCase, decideModerationCase, exportModerationLog,
+  getAdminGroupsList, getAdminGroupDetail, adminGroupAction,
+  getAccessGrants, grantAccess,
+} from '../admin/masterModerationStore'
 
 // Ordem e rótulo batem com a navegação lateral do mockup (23a-23d) —
 // `built` decide se a seção tem tela de verdade ou a de "ainda não
@@ -28,22 +33,41 @@ import {
 // de Visão geral (funil, retenção por coorte, stats de grupo) — os itens de
 // nav abaixo seriam uma página própria de detalhe pra cada um, que o mockup
 // nomeia mas não chegou a desenhar.
+// Moderação/Acessos/Grupos e igrejas — handoff-admin-42, Bloco 4: as três
+// seções que o mockup 23a nomeava mas não desenhava ganham tela de
+// verdade (ver 42f/42g/42h). Ordem batendo com o mockup daquele pacote
+// (README: "Visão geral, Usuários, Assinaturas, Onboarding, IA, Grupos e
+// igrejas, Moderação, Acessos, Mensagens, Ajustes") — "health" vira
+// rótulo "Ajustes" (o ícone Wrench já combinava mais com isso do que
+// com "Saúde técnica"); "invites" (Convites, já construído antes deste
+// pacote, sem lugar no mockup novo) fica no fim, preservado.
 const NAV_SECTIONS = [
   { id: 'overview', icon: 'BarChart3', built: true },
   { id: 'users', icon: 'Users', built: true },
   { id: 'subscriptions', icon: 'Crown', built: false },
   { id: 'onboarding', icon: 'Compass', built: false },
   { id: 'ai', icon: 'Sparkles', built: true },
-  { id: 'groups', icon: 'Landmark', built: false },
+  { id: 'groups', icon: 'Landmark', built: true },
+  { id: 'moderation', icon: 'Shield', built: true },
+  { id: 'access', icon: 'Ticket', built: true },
   { id: 'messages', icon: 'Megaphone', built: true },
-  { id: 'invites', icon: 'Gift', built: true },
   { id: 'health', icon: 'Wrench', built: false },
+  { id: 'invites', icon: 'Gift', built: true },
 ]
 
 export default function AdminScreen({ session }) {
   const { lang } = session
   const [section, setSection] = useState('overview')
   const activeNav = NAV_SECTIONS.find(s => s.id === section)
+  // Badge "Moderação (com contador)" (README do pacote 42, "a navegação
+  // lateral passa a ter... Moderação com contador") — precisa aparecer
+  // não importa qual seção está aberta, então busca aqui em cima, uma vez,
+  // não dentro de ModerationSection (que só monta quando a seção está
+  // ativa).
+  const [moderationCount, setModerationCount] = useState(0)
+  useEffect(() => {
+    getModerationQueue().then(d => setModerationCount(d.queue?.length ?? 0)).catch(() => {})
+  }, [])
 
   return (
     <>
@@ -64,6 +88,7 @@ export default function AdminScreen({ session }) {
                 <button key={s.id} style={{ ...styles.navItem, ...(active ? styles.navItemActive : null) }} onClick={() => setSection(s.id)}>
                   <span style={{ ...styles.navDot, background: active ? 'var(--bento-accent)' : 'var(--bento-t6)' }} />
                   <span style={{ ...styles.navLabel, color: active ? '#fff' : 'var(--bento-t2)' }}>{t(`admin.nav.${s.id}`, undefined, lang)}</span>
+                  {s.id === 'moderation' && moderationCount > 0 && <span style={styles.navBadge}>{moderationCount}</span>}
                 </button>
               )
             })}
@@ -86,6 +111,9 @@ export default function AdminScreen({ session }) {
               {section === 'ai' && <AiSection lang={lang} />}
               {section === 'messages' && <MessagesSection lang={lang} />}
               {section === 'invites' && <InvitesSection lang={lang} />}
+              {section === 'groups' && <GroupsAdminSection lang={lang} />}
+              {section === 'moderation' && <ModerationSection lang={lang} onDecided={() => getModerationQueue().then(d => setModerationCount(d.queue?.length ?? 0)).catch(() => {})} />}
+              {section === 'access' && <AccessSection lang={lang} />}
             </>
           ) : (
             <NotBuiltSection lang={lang} sectionId={section} />
@@ -1204,6 +1232,557 @@ function InvitesSection({ lang }) {
   )
 }
 
+// ══════════════════════════ Moderação (42f, handoff-admin-42 Bloco 4) ══════════════════════════
+// Fila encadeada de VERDADE (Regra 6.12: "decidir avança automaticamente
+// pro próximo item da fila") — decide() chama reload(), que troca a
+// seleção pro primeiro item que sobrar na lista, sem voltar pra fila
+// vazia primeiro.
+function relativeHoursOrDays(iso, lang) {
+  const hours = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 3600000))
+  if (hours < 24) return lang === 'en' ? `${hours}h` : `${hours} h`
+  return lang === 'en' ? `${Math.floor(hours / 24)}d` : `${Math.floor(hours / 24)} d`
+}
+
+function downloadCsv(filename, rows) {
+  if (!rows.length) return
+  const headers = Object.keys(rows[0])
+  const escape = v => `"${String(v ?? '').replaceAll('"', '""')}"`
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function ModerationSection({ lang, onDecided }) {
+  const M = (k, vars) => t(`admin.moderation.${k}`, vars, lang)
+  const [data, setData] = useState(null)
+  const [filter, setFilter] = useState('queue')
+  const [selected, setSelected] = useState(null)
+  const [caseDetail, setCaseDetail] = useState(null)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  function reload() {
+    getModerationQueue().then(setData).catch(err => setError(err.message))
+    onDecided?.()
+  }
+  useEffect(reload, [])
+
+  const queueList = data ? data.queue.filter(q => q.kind !== 'ai_answer') : []
+  const aiList = data ? data.queue.filter(q => q.kind === 'ai_answer') : []
+  const visibleList = filter === 'resolved' ? (data?.resolved ?? []) : filter === 'ai' ? aiList : queueList
+
+  useEffect(() => {
+    if (!data || filter === 'resolved') return
+    const list = filter === 'ai' ? aiList : queueList
+    if (list.length === 0) { setSelected(null); return }
+    if (!selected || !list.find(q => q.kind === selected.kind && q.id === selected.id)) {
+      setSelected({ kind: list[0].kind, id: list[0].id })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, filter])
+
+  useEffect(() => {
+    if (!selected) { setCaseDetail(null); return }
+    setCaseDetail(null)
+    setReason('')
+    getModerationCase(selected.kind, selected.id).then(setCaseDetail).catch(err => setError(err.message))
+  }, [selected])
+
+  async function decide(decision) {
+    if (!selected || busy) return
+    if (decision !== 'archived' && !reason.trim()) return
+    setBusy(true)
+    setError('')
+    try {
+      await decideModerationCase({ kind: selected.kind, id: selected.id, decision, reason })
+      reload()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleExport() {
+    try {
+      const rows = await exportModerationLog()
+      downloadCsv('moderacao.csv', rows)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  return (
+    <div style={styles.sectionBody}>
+      <SectionHeader
+        title={M('title')}
+        subtitle={data ? M('subtitle', { queue: queueList.length, escalated: data.escalatedCount, avg: data.avgResponseHours ?? '—' }) : ''}
+        right={<>
+          <button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }}>{M('contentRulesBtn')}</button>
+          <button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }} onClick={handleExport}>{M('exportBtn')}</button>
+        </>}
+      />
+      {error && <p style={styles.errorMsg}>{error}</p>}
+      <div style={styles.moderationLayout}>
+        <div style={styles.moderationList}>
+          <div style={styles.filterRow}>
+            <button style={{ ...styles.chipBtn, ...(filter === 'queue' ? styles.chipBtnActive : null) }} onClick={() => setFilter('queue')}>{M('filterQueue', { n: queueList.length })}</button>
+            <button style={{ ...styles.chipBtn, ...(filter === 'resolved' ? styles.chipBtnActive : null) }} onClick={() => setFilter('resolved')}>{M('filterResolved')}</button>
+            <button style={{ ...styles.chipBtn, ...(filter === 'ai' ? styles.chipBtnActive : null) }} onClick={() => setFilter('ai')}>{M('filterAi', { n: aiList.length })}</button>
+          </div>
+          <div style={styles.whiteCard}>
+            {!data && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+            {data && visibleList.length === 0 && <p style={styles.hint}>{M('empty')}</p>}
+            {filter !== 'resolved' && visibleList.map(item => (
+              <button
+                key={`${item.kind}-${item.id}`} type="button"
+                style={{ ...styles.moderationRow, ...(selected?.kind === item.kind && selected?.id === item.id ? styles.moderationRowActive : {}) }}
+                onClick={() => setSelected({ kind: item.kind, id: item.id })}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={styles.userRowName}>
+                    {item.kind === 'ai_answer' ? M('aiAnswerLabel') : `${item.reportedName}${item.groupName ? ` · ${item.groupName}` : ''}`}
+                  </p>
+                  <p style={styles.userRowEmail}>
+                    {item.kind === 'message_report' && M('reasonWithCount', { reason: t(`report.reason.${item.reason}`, undefined, lang), n: item.reportCount })}
+                    {item.kind === 'admin_report' && t(`reportProblem.category.${item.category}`, undefined, lang)}
+                    {item.kind === 'ai_answer' && (item.reason ?? '')}
+                  </p>
+                </div>
+                {item.escalated ? <span style={styles.pendingBadge}>{M('escalatedBadge')}</span> : <span style={styles.moderationTime}>{relativeHoursOrDays(item.createdAt, lang)}</span>}
+              </button>
+            ))}
+            {filter === 'resolved' && visibleList.map(item => (
+              <div key={`${item.kind}-${item.id}`} style={styles.moderationRow}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={styles.userRowName}>{item.personName || t(`reportProblem.category.${item.category}`, undefined, lang)}</p>
+                  <p style={styles.userRowEmail}>{[item.groupName, item.decision && M(`decision.${item.decision}`)].filter(Boolean).join(' · ')}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={styles.moderationDetail}>
+          {!caseDetail && <p style={styles.hint}>{M('selectHint')}</p>}
+          {caseDetail && <ModerationCaseCard detail={caseDetail} lang={lang} />}
+          {caseDetail && (
+            <div style={styles.moderationFooter}>
+              <input
+                style={styles.textInput} value={reason} onChange={e => setReason(e.target.value)}
+                placeholder={M('reasonPlaceholder', { name: caseDetail.reportedName || caseDetail.attachedName || '' })}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                {caseDetail.kind !== 'ai_answer' && (
+                  <button className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={busy || !reason.trim()} onClick={() => decide('deleted_message')}>{M('deleteMessageBtn')}</button>
+                )}
+                {caseDetail.kind !== 'ai_answer' && (
+                  <button className="btn-secondary" style={{ width: 'auto', padding: '10px 16px' }} disabled={busy || !reason.trim()} onClick={() => decide('muted_user')}>{M('mute7Btn')}</button>
+                )}
+                {caseDetail.kind !== 'ai_answer' && (
+                  <button style={styles.destructiveBtn} disabled={busy || !reason.trim()} onClick={() => decide('blocked_account')}>{M('blockAccountBtn')}</button>
+                )}
+                <button className="btn-secondary" style={{ width: 'auto', padding: '10px 16px' }} disabled={busy} onClick={() => decide('archived')}>{M('archiveBtn')}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModerationCaseCard({ detail, lang }) {
+  const M = (k, vars) => t(`admin.moderation.${k}`, vars, lang)
+  const locale = lang === 'en' ? 'en-US' : 'pt-BR'
+
+  if (detail.kind === 'ai_answer') {
+    return (
+      <div style={styles.whiteCard}>
+        <p style={styles.userRowName}>{M('aiAnswerLabel')}</p>
+        <div style={styles.replyPreview}>
+          <p style={styles.replyPreviewLabel}>{M('questionLabel')}</p>
+          <p style={styles.replyPreviewBody}>{detail.question}</p>
+        </div>
+        <div style={styles.replyPreview}>
+          <p style={styles.replyPreviewLabel}>{M('answerLabel')}</p>
+          <p style={styles.replyPreviewBody}>{typeof detail.answer === 'string' ? detail.answer : detail.answer?.reply ?? ''}</p>
+        </div>
+        {detail.reason && (
+          <div style={styles.replyPreview}>
+            <p style={styles.replyPreviewLabel}>{M('reasonLabel')}</p>
+            <p style={styles.replyPreviewBody}>{detail.reason}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (detail.kind === 'admin_report') {
+    return (
+      <div style={styles.whiteCard}>
+        <p style={styles.userRowName}>{t(`reportProblem.category.${detail.category}`, undefined, lang)} · {detail.groupName}</p>
+        <p style={styles.userRowEmail}>{new Date(detail.createdAt).toLocaleString(locale)}</p>
+        <div style={styles.replyPreview}>
+          <p style={styles.replyPreviewBody}>{detail.body}</p>
+        </div>
+        {detail.attachedName && (
+          <div style={styles.replyPreview}>
+            <p style={styles.replyPreviewLabel}>{M('attachedPersonLabel')}</p>
+            <p style={styles.replyPreviewBody}>{detail.attachedName}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // message_report
+  return (
+    <>
+      <div style={styles.whiteCard}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <div>
+            <p style={styles.userRowName}>{M('caseTitle', { id: detail.id.slice(0, 8) })}</p>
+            <p style={styles.userRowEmail}>{detail.reportedName} · {detail.groupName} · {new Date(detail.createdAt).toLocaleString(locale)}</p>
+          </div>
+          <span style={styles.pendingBadge}>{M('escalatedBadge')}</span>
+        </div>
+        <div style={styles.replyPreview}>
+          <p style={styles.replyPreviewBody}>&ldquo;{detail.messageSnapshot}&rdquo;</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10 }}>
+          <div style={styles.userDetailStatBox}>
+            <p style={styles.replyPreviewLabel}>{M('reasonsLabel')}</p>
+            <p style={styles.replyPreviewBody}>{t(`report.reason.${detail.reason}`, undefined, lang)}{detail.reasonDetail ? ` — ${detail.reasonDetail}` : ''}</p>
+          </div>
+          <div style={styles.userDetailStatBox}>
+            <p style={styles.replyPreviewLabel}>{M('groupAdminLabel')}</p>
+            <p style={styles.replyPreviewBody}>{detail.groupModeratorName || '—'}</p>
+          </div>
+          <div style={{ ...styles.userDetailStatBox, background: 'var(--bento-sand)' }}>
+            <p style={styles.replyPreviewLabel}>{M('historyLabel')}</p>
+            <p style={styles.replyPreviewBody}>{M('priorReports', { n: detail.priorReportsCount })}</p>
+          </div>
+        </div>
+      </div>
+
+      {detail.context.length > 0 && (
+        <div style={styles.whiteCard}>
+          <p style={styles.replyPreviewLabel}>{M('conversationContextLabel')}</p>
+          {detail.context.map(c => (
+            <p key={c.id} style={{ ...styles.replyPreviewBody, fontWeight: c.isReported ? 700 : 500, color: c.isReported ? 'var(--bento-ink)' : 'var(--bento-t3)', marginTop: 6 }}>
+              {new Date(c.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} · {c.name} — {c.body}
+            </p>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ══════════════════════════ Grupos e igrejas (42g, Bloco 4) ══════════════════════════
+function GroupsAdminSection({ lang }) {
+  const G = (k, vars) => t(`admin.groups.${k}`, vars, lang)
+  const [data, setData] = useState(null)
+  const [selectedId, setSelectedId] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [error, setError] = useState('')
+  const [confirmName, setConfirmName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [changingAdmin, setChangingAdmin] = useState(false)
+  const [newAdminId, setNewAdminId] = useState('')
+
+  function reload() {
+    getAdminGroupsList().then(d => {
+      setData(d)
+      if (!selectedId && d.groups.find(g => g.flagged)) setSelectedId(d.groups.find(g => g.flagged).id)
+    }).catch(err => setError(err.message))
+  }
+  useEffect(reload, [])
+
+  useEffect(() => {
+    if (!selectedId) { setDetail(null); return }
+    setDetail(null)
+    setConfirmName('')
+    setChangingAdmin(false)
+    getAdminGroupDetail(selectedId).then(setDetail).catch(err => setError(err.message))
+  }, [selectedId])
+
+  async function runAction(action, extra) {
+    if (!selectedId || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      await adminGroupAction({ groupId: selectedId, action, ...extra })
+      if (action === 'end_group') { setSelectedId(null); setDetail(null) }
+      setChangingAdmin(false)
+      setNewAdminId('')
+      reload()
+      if (selectedId && action !== 'end_group') getAdminGroupDetail(selectedId).then(setDetail)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const groups = data?.groups ?? []
+
+  return (
+    <div style={styles.sectionBody}>
+      <SectionHeader
+        title={G('title')}
+        subtitle={data ? G('subtitle', { active: data.activeCount, flagged: data.flaggedCount, stopped: data.stoppedCount }) : ''}
+        right={<button className="btn-secondary" style={{ width: 'auto', padding: '9px 16px' }} onClick={() => downloadCsv('grupos.csv', groups.map(g => ({ nome: g.name, admin: g.adminName, membros: g.memberCount, lendo: g.readingPct + '%', estado: g.flagged ? 'sinalizado' : g.stopped ? 'parado' : 'ativo' })))}>{G('exportBtn')}</button>}
+      />
+      {error && <p style={styles.errorMsg}>{error}</p>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        <div style={styles.userDetailStatBox}>
+          <p style={styles.replyPreviewLabel}>{G('activeLabel')}</p>
+          <p style={styles.userRowName}>{data?.activeCount ?? '—'}</p>
+        </div>
+        <div style={styles.userDetailStatBox}>
+          <p style={styles.replyPreviewLabel}>{G('avgMembersLabel')}</p>
+          <p style={styles.userRowName}>{groups.length ? Math.round(groups.reduce((s, g) => s + g.memberCount, 0) / groups.length) : '—'}</p>
+        </div>
+        <div style={{ ...styles.userDetailStatBox, background: 'var(--bento-sand)' }}>
+          <p style={styles.replyPreviewLabel}>{G('flaggedLabel')}</p>
+          <p style={styles.userRowName}>{data?.flaggedCount ?? '—'}</p>
+        </div>
+      </div>
+
+      <div style={styles.twoPane}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={styles.whiteCard}>
+            <div style={styles.groupTableHead}>
+              <span style={{ flex: 2 }}>{G('colGroup')}</span>
+              <span style={{ flex: 1 }}>{G('colAdmin')}</span>
+              <span style={{ width: 70, textAlign: 'right' }}>{G('colMembers')}</span>
+              <span style={{ width: 70, textAlign: 'right' }}>{G('colReading')}</span>
+              <span style={{ width: 90, textAlign: 'right' }}>{G('colStatus')}</span>
+            </div>
+            {!data && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+            {groups.map(g => (
+              <button
+                key={g.id} type="button" onClick={() => setSelectedId(g.id)}
+                style={{ ...styles.groupTableRow, ...(g.flagged ? styles.groupTableRowFlagged : {}), ...(selectedId === g.id ? styles.moderationRowActive : {}) }}
+              >
+                <span style={{ flex: 2, fontWeight: 700, color: 'var(--bento-ink)' }}>{g.name}</span>
+                <span style={{ flex: 1, color: 'var(--bento-t3)' }}>{g.adminName}</span>
+                <span style={{ width: 70, textAlign: 'right', color: 'var(--bento-ink)', fontWeight: 700 }}>{g.memberCount}</span>
+                <span style={{ width: 70, textAlign: 'right', color: 'var(--bento-t3)' }}>{g.readingPct}%</span>
+                <span style={{ width: 90, textAlign: 'right', color: g.flagged ? 'var(--bento-destructive)' : g.stopped ? 'var(--bento-t3)' : 'var(--bento-t3)', fontWeight: g.flagged ? 800 : 500, fontSize: 11 }}>
+                  {g.flagged ? G('statusFlagged') : g.stopped ? G('statusStopped', { n: g.lastReadDaysAgo ?? 0 }) : G('statusActive')}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {!detail && <p style={styles.hint}>{G('selectHint')}</p>}
+          {detail && (
+            <>
+              <div style={styles.whiteCard}>
+                <p style={styles.userRowName}>{detail.name}</p>
+                <p style={styles.userRowEmail}>{G('createdOn', { date: new Date(detail.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR') })}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 10 }}>
+                  <div style={styles.userDetailStatBox}><p style={styles.replyPreviewLabel}>{G('colMembers')}</p><p style={styles.userRowName}>{detail.memberCount}</p></div>
+                  <div style={styles.userDetailStatBox}><p style={styles.replyPreviewLabel}>{G('recentJoinsLabel')}</p><p style={styles.userRowName}>+{detail.recentJoins}</p></div>
+                  <div style={styles.userDetailStatBox}><p style={styles.replyPreviewLabel}>{G('colReading')}</p><p style={styles.userRowName}>{detail.readingPct}%</p></div>
+                </div>
+                {detail.flagged && (
+                  <div style={{ ...styles.replyPreview, background: 'var(--bento-sand)', marginTop: 10 }}>
+                    <p style={styles.replyPreviewLabel}>{G('whyFlaggedLabel')}</p>
+                    <p style={styles.replyPreviewBody}>{detail.whyFlagged}</p>
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.whiteCard}>
+                <button className="btn-secondary" style={{ ...styles.groupActionRow }} disabled>{G('talkToAdminBtn')}</button>
+                <button className="btn-secondary" style={styles.groupActionRow} disabled>{G('viewWallBtn')}</button>
+                {changingAdmin ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <select style={styles.textInput} value={newAdminId} onChange={e => setNewAdminId(e.target.value)}>
+                      <option value="">{G('changeAdminBtn')}</option>
+                      {(detail.otherMembers ?? []).map(m => <option key={m.userId} value={m.userId}>{m.name}</option>)}
+                    </select>
+                    <button
+                      className="btn-secondary" style={{ ...styles.groupActionRow, marginTop: 6 }}
+                      disabled={busy || !newAdminId} onClick={() => runAction('change_admin', { newAdminUserId: newAdminId })}
+                    >
+                      {G('confirmChangeAdminBtn')}
+                    </button>
+                  </div>
+                ) : (
+                  <button className="btn-secondary" style={styles.groupActionRow} disabled={busy || (detail.otherMembers ?? []).length === 0} onClick={() => setChangingAdmin(true)}>{G('changeAdminBtn')}</button>
+                )}
+                <button className="btn-secondary" style={{ ...styles.groupActionRow, marginBottom: 0 }} disabled={busy} onClick={() => runAction('invalidate_code')}>{G('invalidateCodeBtn')}</button>
+              </div>
+
+              <div style={styles.endGroupCard}>
+                <p style={styles.replyPreviewLabel}>{G('endGroupLabel')}</p>
+                <p style={{ ...styles.replyPreviewBody, color: 'rgba(255,255,255,.7)' }}>{G('endGroupConsequence', { n: detail.memberCount })}</p>
+                <input
+                  style={styles.endGroupInput} value={confirmName} onChange={e => setConfirmName(e.target.value)}
+                  placeholder={G('typeNameToConfirm', { name: detail.name })}
+                />
+                <button
+                  style={{ ...styles.endGroupBtn, ...(confirmName.trim() !== detail.name ? styles.btnDisabledLook : {}) }}
+                  disabled={busy || confirmName.trim() !== detail.name}
+                  onClick={() => runAction('end_group')}
+                >
+                  {G('endGroupBtn', { name: detail.name })}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════ Acessos (42h, Bloco 4) ══════════════════════════
+const ACCESS_DURATIONS = ['3_months', '6_months', '12_months', 'lifetime']
+
+function AccessSection({ lang }) {
+  const A = (k, vars) => t(`admin.access.${k}`, vars, lang)
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
+  const [emailOrName, setEmailOrName] = useState('')
+  const [kind, setKind] = useState('12_months')
+  const [reason, setReason] = useState('')
+  const [granting, setGranting] = useState(false)
+  const [grantError, setGrantError] = useState('')
+  const [granted, setGranted] = useState(false)
+
+  function reload() {
+    getAccessGrants().then(setData).catch(err => setError(err.message))
+  }
+  useEffect(reload, [])
+
+  async function handleGrant() {
+    if (!emailOrName.trim() || !reason.trim() || granting) return
+    setGranting(true)
+    setGrantError('')
+    try {
+      await grantAccess({ emailOrName: emailOrName.trim(), kind, reason: reason.trim() })
+      setEmailOrName('')
+      setReason('')
+      setGranted(true)
+      setTimeout(() => setGranted(false), 1800)
+      reload()
+    } catch (err) {
+      setGrantError(err.message === 'person_not_found' ? A('personNotFoundError') : err.message)
+    } finally {
+      setGranting(false)
+    }
+  }
+
+  const grants = data?.grants ?? []
+
+  return (
+    <div style={styles.sectionBody}>
+      <SectionHeader
+        title={A('title')}
+        subtitle={data ? A('subtitle', { n: data.totalAccounts, brl: data.abdicatedMonthlyBrl.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }) : ''}
+      />
+      {error && <p style={styles.errorMsg}>{error}</p>}
+
+      <div style={styles.twoPane}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <div style={styles.userDetailStatBox}>
+              <p style={styles.replyPreviewLabel}>{A('lifetimeLabel')}</p>
+              <p style={styles.userRowName}>{data?.lifetimeCount ?? '—'}</p>
+            </div>
+            <div style={styles.userDetailStatBox}>
+              <p style={styles.replyPreviewLabel}>{A('periodLabel')}</p>
+              <p style={styles.userRowName}>{data?.periodCount ?? '—'}</p>
+              {data && <p style={styles.replyPreviewBody}>{A('periodExpiringSoon', { n: data.periodExpiringSoonCount })}</p>}
+            </div>
+            <div style={styles.userDetailStatBox}>
+              <p style={styles.replyPreviewLabel}>{A('trialsLabel')}</p>
+              <p style={styles.userRowName}>{data?.trialsExtendedCount ?? '—'}</p>
+            </div>
+          </div>
+
+          <div style={styles.whiteCard}>
+            <div style={styles.groupTableHead}>
+              <span style={{ flex: 1.4 }}>{A('colPerson')}</span>
+              <span style={{ flex: 1 }}>{A('colType')}</span>
+              <span style={{ flex: 1.4 }}>{A('colReason')}</span>
+              <span style={{ width: 70, textAlign: 'right' }}>{A('colExpires')}</span>
+              <span style={{ width: 50, textAlign: 'right' }}>{A('colUsage')}</span>
+            </div>
+            {!data && <p style={styles.hint}>{t('admin.loading', undefined, lang)}</p>}
+            {grants.map(g => {
+              const daysLeft = g.expiresAt ? Math.ceil((new Date(g.expiresAt).getTime() - Date.now()) / 86400000) : null
+              return (
+                <div key={g.id} style={styles.groupTableRow}>
+                  <span style={{ flex: 1.4, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: 'var(--bento-ink)' }}>{g.name}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: 'var(--bento-t4)' }}>{g.email}</p>
+                  </span>
+                  <span style={{ flex: 1, color: g.kind === 'lifetime' ? 'var(--bento-destructive)' : 'var(--bento-t3)', fontWeight: g.kind === 'lifetime' ? 800 : 500 }}>
+                    {A(`kind.${g.kind}`)}
+                  </span>
+                  <span style={{ flex: 1.4, color: 'var(--bento-t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.reason}</span>
+                  <span style={{ width: 70, textAlign: 'right', color: daysLeft !== null && daysLeft <= 30 ? 'var(--bento-destructive)' : 'var(--bento-t3)', fontWeight: 700, fontSize: 11 }}>
+                    {g.expiresAt ? (daysLeft <= 30 ? A('expiresInDays', { n: daysLeft }) : new Date(g.expiresAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { month: 'short', year: '2-digit' })) : '—'}
+                  </span>
+                  <span style={{ width: 50, textAlign: 'right', color: g.usagePct < 20 ? 'var(--bento-t4)' : 'var(--bento-ink)', fontWeight: 700 }}>{g.usagePct}%</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={{ width: 320, flexShrink: 0 }}>
+          <div style={styles.whiteCard}>
+            <p style={styles.userRowName}>{A('grantTitle')}</p>
+            <p style={{ ...styles.replyPreviewLabel, marginTop: 12 }}>{A('forWhomLabel')}</p>
+            <input style={styles.textInput} value={emailOrName} onChange={e => setEmailOrName(e.target.value)} placeholder={A('forWhomPlaceholder')} />
+
+            <p style={{ ...styles.replyPreviewLabel, marginTop: 12 }}>{A('durationLabel')}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {ACCESS_DURATIONS.map(d => (
+                <button key={d} style={{ ...styles.chipBtn, ...(kind === d ? styles.chipBtnActive : null) }} onClick={() => setKind(d)}>{A(`kind.${d}`)}</button>
+              ))}
+            </div>
+
+            <p style={{ ...styles.replyPreviewLabel, marginTop: 12 }}>{A('reasonRequiredLabel')}</p>
+            <textarea style={styles.grantReasonInput} rows={3} value={reason} onChange={e => setReason(e.target.value)} placeholder={A('reasonPlaceholder')} />
+
+            <div style={{ ...styles.replyPreview, marginTop: 10 }}>
+              <p style={styles.replyPreviewBody}>{A('noticeText')}</p>
+            </div>
+
+            {grantError && <p style={styles.errorMsg}>{grantError}</p>}
+            <button
+              className="btn-primary" style={{ marginTop: 12, opacity: granting || !emailOrName.trim() || !reason.trim() ? .6 : 1 }}
+              disabled={granting || !emailOrName.trim() || !reason.trim()} onClick={handleGrant}
+            >
+              {granted ? A('grantedBtn') : granting ? A('grantingBtn') : A('grantBtn')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const styles = {
   shell:              { display: 'flex', height: '100%', background: 'var(--bento-bg)', fontFamily: 'var(--font-bento)' },
   sidebar:            { width: 232, flexShrink: 0, padding: '22px 16px', display: 'flex', flexDirection: 'column', gap: 4, borderRight: '1px solid rgba(0,0,0,.05)', height: '100%', overflowY: 'auto' },
@@ -1308,6 +1887,27 @@ const styles = {
   answeredBadge:      { font: '700 10px/1 var(--font-bento)', color: '#2E8B57', background: 'rgba(46,139,87,.1)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 },
   pendingBadge:       { font: '700 10px/1 var(--font-bento)', color: 'var(--bento-accent)', background: 'rgba(240,102,43,.14)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 },
   fieldLabel:         { font: '700 10px/1 var(--font-bento)', color: 'var(--bento-t4)', letterSpacing: '.3px', textTransform: 'uppercase' },
+
+  // ── Moderação/Grupos/Acessos (handoff-admin-42, Bloco 4) ──
+  navBadge:           { marginLeft: 'auto', minWidth: 20, height: 20, borderRadius: 99, background: 'var(--bento-accent)', color: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 10.5px/1 var(--font-bento)', padding: '0 6px' },
+  textInput:          { width: '100%', border: 'none', outline: 'none', background: 'var(--bento-card)', borderRadius: 12, height: 40, padding: '0 14px', font: '500 13px/1 var(--font-bento)', color: 'var(--bento-ink)' },
+  destructiveBtn:     { border: 'none', background: 'var(--bento-card)', borderRadius: 10, padding: '10px 16px', font: '700 13px/1 var(--font-bento)', color: 'var(--bento-destructive)', cursor: 'pointer' },
+  moderationLayout:   { display: 'flex', gap: 14, alignItems: 'flex-start' },
+  moderationList:     { width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 },
+  moderationDetail:   { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 },
+  moderationRow:      { width: '100%', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', padding: '10px 4px', borderBottom: '1px solid var(--bento-line)', borderLeft: '3px solid transparent' },
+  moderationRowActive:{ borderLeft: '3px solid var(--bento-accent)', background: 'var(--bento-line)' },
+  moderationTime:     { flexShrink: 0, font: '600 11px/1 var(--font-bento)', color: 'var(--bento-t4)' },
+  moderationFooter:   { background: 'var(--bento-card)', borderRadius: 20, padding: 16 },
+  groupTableHead:     { display: 'flex', gap: 10, padding: '4px 4px 8px', font: '800 9.5px/1 var(--font-bento)', letterSpacing: '.3px', textTransform: 'uppercase', color: 'var(--bento-t4)', borderBottom: '1px solid var(--bento-line)' },
+  groupTableRow:      { width: '100%', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', padding: '11px 4px', borderBottom: '1px solid var(--bento-line)', font: '500 12.5px/1.3 var(--font-bento)', borderLeft: '3px solid transparent' },
+  groupTableRowFlagged:{ background: 'rgba(240,102,43,.05)', borderLeft: '3px solid var(--bento-accent)' },
+  groupActionRow:     { width: '100%', textAlign: 'left', marginBottom: 8, opacity: 1 },
+  endGroupCard:       { background: 'var(--bento-ink)', borderRadius: 20, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 },
+  endGroupInput:      { width: '100%', border: 'none', outline: 'none', background: 'rgba(255,255,255,.08)', borderRadius: 10, height: 36, padding: '0 12px', font: '500 12px/1 var(--font-bento)', color: '#fff' },
+  endGroupBtn:        { border: 'none', background: 'rgba(240,102,43,.16)', color: 'var(--bento-accent)', borderRadius: 12, height: 40, font: '800 12.5px/1 var(--font-bento)', cursor: 'pointer' },
+  btnDisabledLook:    { opacity: .4, cursor: 'default' },
+  grantReasonInput:   { width: '100%', border: 'none', outline: 'none', background: 'var(--bento-card)', borderRadius: 12, padding: '10px 14px', font: '500 12.5px/1.5 var(--font-bento)', color: 'var(--bento-ink)', resize: 'none' },
   input:              { width: '100%', border: '1px solid var(--bento-divider)', borderRadius: 10, padding: '10px 12px', font: '600 12.5px/1 var(--font-bento)', color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', boxSizing: 'border-box' },
   textarea:           { width: '100%', border: '1px solid var(--bento-divider)', borderRadius: 10, padding: '10px 12px', font: '500 12.5px/1.4 var(--font-bento)', color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', resize: 'vertical', boxSizing: 'border-box' },
   select:             { width: '100%', border: '1px solid var(--bento-divider)', borderRadius: 10, padding: '9px 10px', font: '600 12.5px/1 var(--font-bento)', color: 'var(--bento-ink)', outline: 'none', background: 'var(--bento-line)', boxSizing: 'border-box' },
