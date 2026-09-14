@@ -58,6 +58,9 @@ import GroupAdminScreen from './screens/GroupAdminScreen'
 import ReportedMessageScreen from './screens/ReportedMessageScreen'
 import GroupMembersScreen from './screens/GroupMembersScreen'
 import GroupReadingActivityScreen from './screens/GroupReadingActivityScreen'
+import CreateGroupChallengeScreen from './screens/CreateGroupChallengeScreen'
+import GroupChallengeProposalScreen from './screens/GroupChallengeProposalScreen'
+import ReportProblemScreen from './screens/ReportProblemScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
 import HandsFreeScreen from './screens/HandsFreeScreen'
@@ -455,6 +458,9 @@ export default function App() {
   // 42j/42k (handoff-admin-42, Bloco 2) — mesma ideia de reportedMessageGroupId.
   const [groupMembersGroupId, setGroupMembersGroupId] = useState(null)
   const [groupReadingActivityGroupId, setGroupReadingActivityGroupId] = useState(null)
+  // 42m→42n (handoff-admin-42, Bloco 3) — a proposta viaja de uma tela pra
+  // outra só em memória (não persiste nada até "Publicar para o grupo").
+  const [challengeProposal, setChallengeProposal] = useState(null)
   const [monthRecap, setMonthRecap] = useState(null)
   const recapCheckedFor = useRef(null)
   // Resumo semanal (31a/31b/31c, Bloco 13) — histórico já pronto, gravado
@@ -2670,6 +2676,11 @@ export default function App() {
     ? { label: t(`home.routine${nextRoutineStepKey[0].toUpperCase()}${nextRoutineStepKey.slice(1)}`, undefined, session.lang), minutes: nextStepMinutesByKey[nextRoutineStepKey] }
     : null
 
+  // Grupo que a pessoa modera — mesma derivação de GroupAdminScreen.jsx
+  // (42i), reaproveitada aqui pras telas de Bloco 3 (42m/42n/42o), que só
+  // são alcançáveis a partir do painel daquele mesmo grupo.
+  const myModeratorGroup = session.myGroups?.find(g => g.myRole === 'moderator') ?? session.myGroups?.[0]
+
   const screens = {
     // Rodada 34 (2026-09-07, handoff-hoje-34/HANDOFF-34a-hoje.md) — Hoje
     // reescrita de novo: plano de hoje → versículo → aplicação de ontem →
@@ -2957,6 +2968,18 @@ export default function App() {
     groupReadingActivity: groupReadingActivityGroupId
       ? <GroupReadingActivityScreen session={session} groupId={groupReadingActivityGroupId} onBack={goBack} />
       : null,
+    // 42m "Criar desafio" (handoff-admin-42, Bloco 3).
+    createChallenge: myModeratorGroup
+      ? <CreateGroupChallengeScreen session={session} groupId={myModeratorGroup.groupId} onBack={goBack} onProposalReady={proposal => { setChallengeProposal(proposal); goToTab('groupChallengeProposal') }} />
+      : null,
+    // 42n "A proposta" (handoff-admin-42, Bloco 3).
+    groupChallengeProposal: (myModeratorGroup && challengeProposal)
+      ? <GroupChallengeProposalScreen session={session} groupId={myModeratorGroup.groupId} proposal={challengeProposal} onBack={goBack} onPublished={() => { setChallengeProposal(null); navigateTo('groupAdmin') }} />
+      : null,
+    // 42o "Reportar problema" (handoff-admin-42, Bloco 3).
+    reportProblem: myModeratorGroup
+      ? <ReportProblemScreen session={session} groupId={myModeratorGroup.groupId} onBack={goBack} onSent={() => navigateTo('groupAdmin')} />
+      : null,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
     ...(isAdmin ? { admin: <AdminScreen session={session} /> } : {}),
@@ -3005,7 +3028,7 @@ export default function App() {
   // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
   // agora também aparece no mobile (era hide-on-mobile) — ver
   // StudiesScreen.jsx.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao

@@ -251,6 +251,53 @@ export async function generateStudy(theme, canonicalBooks, lang) {
   return generateStudyDraft(theme, canonicalBooks, lang)
 }
 
+// Desafio de leitura por IA do admin de grupo (handoff-admin-42, 42m→42n)
+// — texto livre do líder ("metade do grupo está com ansiedade...") vira um
+// plano curto e nomeado. Diferente de findThemePassages (a pessoa ESCOLHE
+// quais textos ler, sem título por dia) e de generateStudy (contexto
+// histórico/geográfico/teológico denso — um curso, não uma leitura
+// noturna): aqui cada dia é UMA leitura curta com título + 1 pergunta de
+// reflexão, pensada pra caber "antes de dormir". `explanation` PRECISA
+// citar algo específico que o líder escreveu — é o que 42n usa pra provar
+// que a proposta foi "pensada", não só "gerada" (Regra 6.8 do
+// PROMPT-CODE.md). Sem meta de dias fixa: a IA decide quantos fazem
+// sentido pro texto (lê "duas semanas" -> ~14; sem pista de duração,
+// escolhe entre 5 e 10) — nunca força um número.
+const ChallengeDaySchema = z.object({
+  book: z.string().describe('Nome do livro EXATAMENTE como aparece na lista de livros válidos fornecida no prompt — nenhuma variação de grafia.'),
+  chStart: z.number().int().min(1).describe('Primeiro capítulo da leitura do dia.'),
+  chEnd: z.number().int().min(1).describe('Último capítulo da leitura do dia (igual a chStart quase sempre — a leitura é curta, uma noite só).'),
+  dayTitle: z.string().describe('Título curto do dia (2-4 palavras, no mesmo idioma do texto do líder) — ex: "O jugo suave", "Dormir em paz".'),
+  reflectionQuestion: z.string().describe('Uma pergunta de reflexão curta (1 frase) ligada à leitura do dia, pra aplicar à própria noite/semana de quem lê.'),
+})
+
+const ChallengeSchema = z.object({
+  title: z.string().describe('Título curto e evocativo do desafio inteiro (2-5 palavras, no mesmo idioma do texto do líder) — nunca genérico como "Desafio de leitura".'),
+  explanation: z.string().describe('Um parágrafo (2-4 frases, no mesmo idioma do texto do líder) explicando as escolhas feitas — precisa citar ou parafrasear de forma reconhecível algo específico que o líder escreveu no texto original, não uma explicação genérica que serviria pra qualquer desafio.'),
+  days: z.array(ChallengeDaySchema).min(5).max(21),
+})
+
+export async function generateGroupChallenge(leaderText, canonicalBooks, lang) {
+  const { output } = await generateText({
+    model: MODEL,
+    output: Output.object({ schema: ChallengeSchema }),
+    prompt: `Você está ajudando o líder de um grupo de leitura bíblica a montar um desafio de leitura curto pro grupo dele, a partir do que ele escreveu sobre o que o grupo precisa agora.
+
+O que o líder escreveu: "${leaderText}"
+
+Monte um desafio de leitura devocional curto (cada dia deve dar pra ler numa noite, antes de dormir). Regras:
+- Use SOMENTE nomes de livro desta lista, exatamente como escritos: ${canonicalBooks.join(', ')}.
+- Cada dia é uma passagem de UM livro só, tipicamente 1 capítulo (raramente 2, nunca mais).
+- Não repita a mesma passagem em dois dias.
+- Se o texto do líder mencionar uma duração (ex: "duas semanas", "uma semana"), respeite essa duração aproximadamente; se não mencionar, escolha entre 5 e 10 dias, o que fizer mais sentido pro assunto.
+- Ordene os dias numa progressão que faça sentido (não aleatória).
+- "explanation" precisa citar ou parafrasear algo específico e reconhecível do texto do líder — nunca um parágrafo genérico.
+- Só inclua passagens que você tem certeza que existem de verdade.
+${buildFieldsLangInstruction(lang, '"title", "dayTitle", "reflectionQuestion" e "explanation"')}`,
+  })
+  return output
+}
+
 // Chat com IA sobre o texto bíblico em leitura (aba "Perguntar à IA" em
 // ReadingBlockView.jsx) — usado por api/chat-about-text.js. Escopo: contexto
 // histórico/geográfico/cultural da passagem, o que o texto bíblico em si diz,
