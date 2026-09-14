@@ -22,7 +22,7 @@ import {
   CheckCircle2, ArrowUp, ChevronDown, ChevronUp, CloudRain, ArrowLeft,
   X, ChevronRight, ChevronLeft, ArrowRight, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus, Minus,
-  Play, Pause, AudioLines, MoreVertical, Copy, AlignLeft, Ticket,
+  Play, Pause, AudioLines, MoreVertical, MoreHorizontal, Copy, AlignLeft, Ticket,
   Bookmark, Upload,
 } from 'lucide-react'
 
@@ -61,7 +61,7 @@ const REGISTRY = {
   CheckCircle2, ArrowUp, ChevronDown, ChevronUp, CloudRain, ArrowLeft,
   X, ChevronRight, ChevronLeft, ArrowRight, Pin, UserPlus, Calendar, Type, Gift,
   Highlighter, Share2, Pencil, SlidersHorizontal, Plus, Minus,
-  Play, Pause, AudioLines, MoreVertical, Copy, AlignLeft, Ticket,
+  Play, Pause, AudioLines, MoreVertical, MoreHorizontal, Copy, AlignLeft, Ticket,
   Bookmark, Upload,
   Instagram,
 }

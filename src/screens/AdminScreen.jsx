@@ -5,11 +5,11 @@
 // (Visão geral/Usuários/IA/Mensagens/Convites) e 4 que o mockup nomeia mas
 // não desenha (Assinaturas/Onboarding/Grupos e igrejas/Saúde técnica), que
 // abrem uma tela honesta explicando que ainda não existem nesta leva em vez
-// de um item desabilitado sem explicação. No celular (<768px) mostra um
-// aviso pra abrir num computador — o mockup em si já assume 1280px e não
-// desenhou versão reduzida ("celular reduzido... que desenho depois se
-// aprovar"), então fingir uma versão compacta aqui seria simular tela que
-// não existe.
+// de um item desabilitado sem explicação. No celular (<768px) esta tela
+// (hide-on-mobile) some e entra AdminMobileShell.jsx (hide-on-desktop) —
+// handoff-admin-42, Bloco 5 (42a-42e): "Master mobile é o desktop
+// adaptado" (Regra 6.10), reaproveitando os mesmos endpoints/stores desta
+// tela, não uma versão reduzida do mesmo componente.
 import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -26,6 +26,7 @@ import {
   getAdminGroupsList, getAdminGroupDetail, adminGroupAction, getGroupWall,
   getAccessGrants, grantAccess,
 } from '../admin/masterModerationStore'
+import AdminMobileShell from './AdminMobileShell'
 
 // Ordem e rótulo batem com a navegação lateral do mockup (23a-23d) —
 // `built` decide se a seção tem tela de verdade ou a de "ainda não
@@ -121,11 +122,7 @@ export default function AdminScreen({ session }) {
         </main>
       </div>
 
-      <div className="hide-on-desktop" style={styles.mobileNotice}>
-        <AppIcon name="Wrench" size={30} color="var(--bento-t4)" />
-        <p style={styles.mobileNoticeTitle}>{t('admin.mobileNotice.title', undefined, lang)}</p>
-        <p style={styles.mobileNoticeBody}>{t('admin.mobileNotice.body', undefined, lang)}</p>
-      </div>
+      <AdminMobileShell session={session} />
     </>
   )
 }

@@ -101,10 +101,23 @@ async function getCase(res, kind, id) {
       .maybeSingle()
     if (error || !r) return res.status(404).json({ error: 'not_found' })
 
-    const [priorCount, adminRow] = await Promise.all([
+    const [priorCount, adminRow, sameMessageReports, subRow, groupsCountRes, reports30dRes] = await Promise.all([
       supabaseAdmin.from('group_message_reports').select('id', { count: 'exact', head: true }).eq('group_id', r.group_id).eq('reported_user_id', r.reported_user_id).neq('id', id),
       supabaseAdmin.from('reading_group_members').select('user_id, member:profiles!reading_group_members_user_id_fkey(name)').eq('group_id', r.group_id).eq('role', 'moderator').limit(1).maybeSingle(),
+      // Denúncias contra a MESMA mensagem (não só o mesmo autor) — a
+      // quebra por motivo do quadro 42c ("3 DENÚNCIAS · Cobrança de
+      // dinheiro 2 · Constrangimento a membros 1") é por mensagem, não por
+      // pessoa.
+      supabaseAdmin.from('group_message_reports').select('reason').eq('message_id', r.message_id),
+      supabaseAdmin.from('subscriptions').select('created_at').eq('user_id', r.reported_user_id).maybeSingle(),
+      supabaseAdmin.from('reading_group_members').select('id', { count: 'exact', head: true }).eq('user_id', r.reported_user_id).eq('status', 'joined'),
+      // "2ª denúncia em 30 dias" (histórico) — contra a PESSOA, em
+      // qualquer grupo, últimos 30 dias, incluindo esta.
+      supabaseAdmin.from('group_message_reports').select('id', { count: 'exact', head: true }).eq('reported_user_id', r.reported_user_id).gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()),
     ])
+    const reasonCounts = {}
+    for (const row of sameMessageReports.data ?? []) reasonCounts[row.reason] = (reasonCounts[row.reason] ?? 0) + 1
+    const reasonBreakdown = Object.entries(reasonCounts).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count)
 
     // Contexto: as mensagens vizinhas no mesmo mural (group_comments), 1
     // antes e 1 depois da denunciada, pra não julgar a mensagem isolada
@@ -128,6 +141,10 @@ async function getCase(res, kind, id) {
       priorReportsCount: priorCount.count ?? 0,
       groupModeratorName: adminRow.data?.member?.name ?? '',
       context: context.map(c => ({ id: c.id, name: c.author?.name ?? '', body: c.body, createdAt: c.created_at, isReported: c.id === r.message_id })),
+      reasonBreakdown, reportCount: (sameMessageReports.data ?? []).length,
+      subscriberSince: subRow.data?.created_at ?? null,
+      groupsCount: groupsCountRes.count ?? 0,
+      reportsIn30Days: reports30dRes.count ?? 0,
     })
   }
 
