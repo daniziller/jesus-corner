@@ -23,6 +23,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/detect-master-alerts",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/expire-access-grants",
       "schedule": "0 6 * * *"
     },

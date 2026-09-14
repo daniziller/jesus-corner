@@ -53,3 +53,28 @@ export function getAccessGrants() {
 export function grantAccess({ emailOrName, kind, reason }) {
   return authorizedPost('/api/admin/access', { op: 'grant', emailOrName, kind, reason })
 }
+
+// 42b — Alertas (Bloco 5, Master no celular)
+export function getMasterAlerts() {
+  return authorizedPost('/api/admin/alerts', { op: 'list' })
+}
+export function decideMasterAlert({ id, decision }) {
+  return authorizedPost('/api/admin/alerts', { op: 'decide', id, decision })
+}
+export function markAllAlertsSeen() {
+  return authorizedPost('/api/admin/alerts', { op: 'mark_all_seen' })
+}
+
+// 42d — Pessoa (Bloco 5)
+export function getPersonDetail(userId) {
+  return authorizedPost('/api/admin/person', { op: 'detail', userId })
+}
+export function extendPersonTrial({ userId, days }) {
+  return authorizedPost('/api/admin/person', { op: 'extend_trial', userId, days })
+}
+export function enterAsPerson(userId) {
+  return authorizedPost('/api/admin/person', { op: 'enter_as', userId })
+}
+export function blockPersonAccount({ userId, reason }) {
+  return authorizedPost('/api/admin/person', { op: 'block_account', userId, reason })
+}

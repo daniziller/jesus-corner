@@ -231,6 +231,13 @@ export default async function handler(req, res) {
     ? Math.round((newActiveIn30d / (activeRecurring.length - newActiveIn30d)) * 1000) / 10
     : null
 
+  // "churn 2,1%" (42a, mobile) — recorrentes que viraram 'canceled' nos
+  // últimos 30 dias, sobre quem estava ativo pra poder cancelar (ativos
+  // agora + os que cancelaram no período). Mensal, não anualizado.
+  const canceledLast30d = recurringSubs.filter(s => s.status === 'canceled' && s.updated_at && s.updated_at >= new Date(Date.now() - 30 * 86400000).toISOString()).length
+  const churnBase = activeRecurring.length + canceledLast30d
+  const churnPct30d = churnBase > 0 ? Math.round((canceledLast30d / churnBase) * 1000) / 10 : null
+
   const mrrCents = { brl: 0, usd: 0 }
   const activeByPlan = { brl: { monthly: 0, annual: 0 }, usd: { monthly: 0, annual: 0 } }
   for (const sub of activeRecurring) {
@@ -245,6 +252,22 @@ export default async function handler(req, res) {
 
   const trialCount = subs.filter(s => s.status === 'trialing').length
   const trialsExpiringSoon = subs.filter(s => s.status === 'trialing' && s.current_period_end && s.current_period_end <= in48hIso).length
+
+  // "31% convertem" (42a, mobile) — não existe histórico de "entrou em
+  // trial" guardado à parte (subscriptions só tem o status ATUAL), então
+  // aproxima com a melhor informação real disponível: entre quem assinou
+  // recorrente (sempre passa por trial neste app) 7-60 dias atrás — tempo
+  // suficiente pro trial já ter se resolvido de um jeito ou de outro —
+  // qual fração está `active` hoje. Disclosed: é aproximação, não
+  // rastreio exato de conversão por coorte de trial.
+  const trialCohort = recurringSubs.filter(s => {
+    if (!s.created_at) return false
+    const ageMs = Date.now() - new Date(s.created_at).getTime()
+    return ageMs >= 7 * 86400000 && ageMs <= 60 * 86400000
+  })
+  const trialConversionPct = trialCohort.length > 0
+    ? Math.round((trialCohort.filter(s => s.status === 'active').length / trialCohort.length) * 100)
+    : null
   const paymentErrorsToday = pastDueSubs.filter(s => s.updated_at && s.updated_at >= startOfTodayIso).length
 
   // DAU (proxy honesto — ver comentário na consulta acima).
@@ -280,6 +303,8 @@ export default async function handler(req, res) {
       lifetime,
       trialCount,
       trialsExpiringSoon,
+      trialConversionPct,
+      churnPct30d,
     },
     contact: {
       total: contactTotalRes.count ?? 0,
@@ -295,6 +320,13 @@ export default async function handler(req, res) {
     ai: {
       questionsToday: aiChatsTodayRes.count ?? 0,
       pendingReports: pendingReportsRes.count ?? 0,
+      // Custo do dia (42a, mobile) — não existe rastreio de tokens/custo
+      // por chamada neste app (nenhuma tabela guarda isso), então este é
+      // um custo ESTIMADO (perguntas × custo médio por pergunta do modelo
+      // usado em api/_lib/ai.js, claude-sonnet-5 via AI Gateway — entrada
+      // curta + saída curta de chat, ~US$0.006 médio por pergunta ao
+      // câmbio de referência de storeTiers.js), não um valor cobrado real.
+      estimatedCostTodayBrl: Math.round((aiChatsTodayRes.count ?? 0) * 0.006 * 5.1 * 100) / 100,
     },
     groups: {
       activeCount: groupsCountRes.count ?? 0,

@@ -12,12 +12,16 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
 
-const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+export const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const TWO_DAYS_MS = 2 * 86400000
 const SEVEN_DAYS_MS = 7 * 86400000
 const FOURTEEN_DAYS_MS = 14 * 86400000
 
-async function computeGroupStats(group, members) {
+// Exportada pra api/detect-master-alerts.js (Bloco 5, 42b) reaproveitar o
+// MESMO cálculo de "sinalizado por pico de entradas" em vez de duplicá-lo
+// — um alerta de "crescimento" tem que enxergar exatamente o mesmo grupo
+// que 42g já mostra sinalizado, nunca um cálculo levemente diferente.
+export async function computeGroupStats(group, members) {
   const joined = members.filter(m => m.status === 'joined')
   const memberCount = joined.length
   const ageDays = Math.max(1, (Date.now() - new Date(group.created_at).getTime()) / 86400000)
@@ -49,7 +53,7 @@ async function computeGroupStats(group, members) {
   const stopped = lastReadDaysAgo === null || lastReadDaysAgo > 14
 
   return {
-    memberCount, readingPct, recentJoins, flagged,
+    memberCount, readingPct, recentJoins, flagged, spikeFlag,
     whyFlagged: reasons.join(' e '), stopped, lastReadDaysAgo,
   }
 }
@@ -64,12 +68,20 @@ async function listGroups(res) {
   const { data: allMembers } = await supabaseAdmin
     .from('reading_group_members')
     .select('group_id, user_id, status, joined_at, role, member:profiles!reading_group_members_user_id_fkey(name)')
+  // "2 denúncias" no cartão do grupo sinalizado (42e, mobile) — abertas
+  // (aguardando decisão do admin do grupo OU já escaladas), por grupo.
+  const { data: openReports } = await supabaseAdmin
+    .from('group_message_reports')
+    .select('group_id')
+    .in('status', ['pending', 'escalated'])
 
   const membersByGroup = new Map()
   for (const m of allMembers ?? []) {
     if (!membersByGroup.has(m.group_id)) membersByGroup.set(m.group_id, [])
     membersByGroup.get(m.group_id).push(m)
   }
+  const reportsByGroup = new Map()
+  for (const r of openReports ?? []) reportsByGroup.set(r.group_id, (reportsByGroup.get(r.group_id) ?? 0) + 1)
 
   const rows = await Promise.all(groups.map(async g => {
     const members = membersByGroup.get(g.id) ?? []
@@ -77,7 +89,7 @@ async function listGroups(res) {
     const moderator = members.find(m => m.role === 'moderator' && m.status === 'joined')
     return {
       id: g.id, name: g.name, createdAt: g.created_at, inviteCode: g.invite_code,
-      adminName: moderator?.member?.name ?? '', ...stats,
+      adminName: moderator?.member?.name ?? '', openReportsCount: reportsByGroup.get(g.id) ?? 0, ...stats,
     }
   }))
 
