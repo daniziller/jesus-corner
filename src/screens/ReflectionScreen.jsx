@@ -46,7 +46,7 @@ function combineQaText(questions, a1, a2) {
   return parts.join('\n\n')
 }
 
-export default function ReflectionScreen({ session, authUser, stepMinutes, lastReadChapterInfo, onReflectionCompleted, onNavigate, onContinueSession, onExitGuided, onBack }) {
+export default function ReflectionScreen({ session, authUser, stepMinutes, lastReadChapterInfo, onReflectionCompleted, onNavigate, onContinueSession, onExitGuided, onBack, onApplicationChanged }) {
   const { lang } = session
   const guided = session.guided?.step === 'reflection'
   const L = (k, vars) => t(`reflection.${k}`, vars, lang)
@@ -210,7 +210,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
       await saveNote(email, applicationPhraseKey, text)
       if (!text.trim()) return
       const currentPinned = await getPinnedApplicationPhrase(email)
-      if (!currentPinned) await setPinnedApplicationPhrase(email, text)
+      if (!currentPinned) { await setPinnedApplicationPhrase(email, text); onApplicationChanged?.() }
       else if (currentPinned !== text) setPendingPin(text)
     } catch (err) {
       console.error('Failed to persist application phrase', err)
@@ -220,7 +220,12 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
     const text = pendingPin
     setPendingPin(null)
     if (!accept || !text) return
-    try { await setPinnedApplicationPhrase(email, text) } catch (err) { console.error('Failed to pin application phrase', err) }
+    try {
+      await setPinnedApplicationPhrase(email, text)
+      // Bug real (2026-09-14, "salvei a aplicação do dia, mas não trocou")
+      // — sem isto a Home nunca sabia que a frase fixada mudou.
+      onApplicationChanged?.()
+    } catch (err) { console.error('Failed to pin application phrase', err) }
   }
 
   // ── Livre (37b) ─────────────────────────────────────────────────────

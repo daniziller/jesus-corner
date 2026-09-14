@@ -20,7 +20,7 @@ import AppIcon from '../icons/AppIcon'
 
 const FONT = 'var(--font-bento)'
 
-export default function ApplicationPhrasesScreen({ session, authUser, onBack }) {
+export default function ApplicationPhrasesScreen({ session, authUser, onBack, onApplicationChanged }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', phrases: [] })
   const [editingKey, setEditingKey] = useState(null)
@@ -80,6 +80,10 @@ export default function ApplicationPhrasesScreen({ session, authUser, onBack }) 
       await setPinnedApplicationPhrase(authUser.email, newText).catch(err => {
         console.error('Failed to sync pinned application phrase', err)
       })
+      // Bug real (2026-09-14): a Home nunca sabia que a frase fixada tinha
+      // mudado (ver applicationRefreshKey em HomeScreen.jsx) — avisa quem
+      // chamou pra ela buscar de novo na próxima vez que aparecer.
+      onApplicationChanged?.()
     }
   }
 

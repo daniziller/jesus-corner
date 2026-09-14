@@ -1924,6 +1924,16 @@ export default function App() {
     if (avatarUrl !== undefined) setMyAvatarUrl(avatarUrl)
   }
 
+  // Bug real (2026-09-14, reportado por ela): a frase de aplicação fixada
+  // na Home (application:pinned) só é buscada por HomeScreen.jsx num
+  // useEffect que não reage a "a frase mudou" — Home fica montada a
+  // sessão inteira, então trocar a frase em ApplicationPhrasesScreen.jsx
+  // ou confirmar o "trocar" na Reflexão nunca refletia no cartão. Chamado
+  // nos dois lugares que podem mudar application:pinned; HomeScreen.jsx
+  // inclui este número na lista de dependências do próprio fetch.
+  const [applicationRefreshVersion, setApplicationRefreshVersion] = useState(0)
+  function bumpApplicationRefresh() { setApplicationRefreshVersion(v => v + 1) }
+
   function handleLogout() {
     logout().catch(err => console.error('Failed to logout', err))
     setAuthUser(null)
@@ -2374,6 +2384,32 @@ export default function App() {
     goToTab(guidedTabFor(nextKey))
   }
 
+  // "Terminar o dia" na Reflexão (37c) — bug real (2026-09-14, reportado
+  // por ela): fora do modo guiado, advanceGuided('reflection') sozinho
+  // dava `return` na primeira linha (guidedFlowRef vazio) e o botão não
+  // fazia NADA visível — markRoutineStep já tinha marcado o passo, mas
+  // ninguém navegava pra lugar nenhum. Mesma ideia de
+  // continueStudyDayToNextStep (guiado delega pro encadeamento de sempre;
+  // sem modo guiado, acha o próximo passo do dia ou fecha o dia), só que
+  // aqui markRoutineStep('reflection') acabou de rodar NESTA MESMA função
+  // — session.todayRoutine ainda não reflete isso (setState é assíncrono),
+  // por isso o filtro exclui 'reflection' explicitamente em vez de
+  // reler session.todayRoutine.reflection.
+  function finishReflectionStep() {
+    markRoutineStep('reflection')
+    const gf = guidedFlowRef.current
+    if (gf && gf.steps[gf.idx] === 'reflection') { advanceGuided('reflection'); return }
+    const nextKey = (session.todaysSteps ?? []).find(k => k !== 'reflection' && !session.todayRoutine?.[k])
+    if (!nextKey) {
+      setRoutineCompleteInfo({ steps: session.todaysSteps ?? ['reflection'], readingSession: lastReadSession })
+      goToTab('routineComplete')
+      return
+    }
+    if (nextKey === 'reading') { continueToday(); return }
+    if (nextKey === 'study') { openActiveStudy(); return }
+    goToTab(guidedTabFor(nextKey))
+  }
+
   // Marca (ou desmarca) qualquer sessão como concluída, na hora que o usuário
   // quiser — nenhuma sessão ou bloco fica bloqueado esperando ordem. O
   // progresso é salvo por capítulo (não por id de sessão), então sobrevive a
@@ -2706,6 +2742,7 @@ export default function App() {
       onOpenProfile={() => setProfileOpen(true)}
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
+      applicationRefreshKey={applicationRefreshVersion}
     />,
     // Turno 35, Bloco 2 (handoff-meu-plano-35/) — 35a/35b substituem a 4b
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
@@ -2739,7 +2776,7 @@ export default function App() {
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <AiSettingsScreen session={session} onBack={goBack} />,
     contact: <ContactScreen session={session} authUser={authUser} onBack={goBack} />,
-    applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} />,
+    applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} />,
     themePlan: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
@@ -3091,7 +3128,7 @@ export default function App() {
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={() => { markRoutineStep('reflection'); advanceGuided('reflection') }} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} />
+                <ReflectionScreen session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (

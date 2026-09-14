@@ -80,6 +80,7 @@ export default function HomeScreen({
   session, authUser, completedSet, stepMinutes,
   onContinueSession, onNavigate, onOpenProfile,
   onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
+  applicationRefreshKey,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -180,6 +181,15 @@ export default function HomeScreen({
     }).catch(() => {})
   }, [activeStudyId, lang])
 
+  // `applicationRefreshKey` (bug real, 2026-09-14, reportado por ela: "salvei
+  // a aplicação do dia, mas não trocou") — Home fica montada o app inteiro
+  // (display:'contents'/'none', nunca desmonta), então este efeito só
+  // rodava de novo se book/capítulo/idioma mudassem. Trocar a frase fixada
+  // em ApplicationPhrasesScreen.jsx ou confirmar o "trocar" em
+  // ReflectionScreen.jsx não mexe em nenhuma dessas dependências — o
+  // cartão ficava preso na frase de quando a Home montou pela primeira
+  // vez na sessão, até um reload da página inteira. App.jsx incrementa
+  // este contador nos dois lugares que podem mudar a frase fixada.
   useEffect(() => {
     let alive = true
     setLoading(true)
@@ -211,7 +221,7 @@ export default function HomeScreen({
     })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, todaySession.book, todaySession.chStart, lastReadPosition?.book, lastReadPosition?.chapter, lang])
+  }, [email, todaySession.book, todaySession.chStart, lastReadPosition?.book, lastReadPosition?.chapter, lang, applicationRefreshKey])
 
   const verseData = verse ?? { text: '', ref: '', version: null }
   const dateLabel = formatToday(lang)
