@@ -56,6 +56,8 @@ import LanguageSettingsScreen from './screens/LanguageSettingsScreen'
 import AppearanceScreen from './screens/AppearanceScreen'
 import GroupAdminScreen from './screens/GroupAdminScreen'
 import ReportedMessageScreen from './screens/ReportedMessageScreen'
+import GroupMembersScreen from './screens/GroupMembersScreen'
+import GroupReadingActivityScreen from './screens/GroupReadingActivityScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
 import HandsFreeScreen from './screens/HandsFreeScreen'
@@ -450,6 +452,9 @@ export default function App() {
   const [chapterRoom, setChapterRoom] = useState(null) // { group, book, bookEn, chapter }
   // Fila de mensagens denunciadas do grupo (handoff-admin-42, 42l).
   const [reportedMessageGroupId, setReportedMessageGroupId] = useState(null)
+  // 42j/42k (handoff-admin-42, Bloco 2) — mesma ideia de reportedMessageGroupId.
+  const [groupMembersGroupId, setGroupMembersGroupId] = useState(null)
+  const [groupReadingActivityGroupId, setGroupReadingActivityGroupId] = useState(null)
   const [monthRecap, setMonthRecap] = useState(null)
   const recapCheckedFor = useRef(null)
   // Resumo semanal (31a/31b/31c, Bloco 13) — histórico já pronto, gravado
@@ -2936,14 +2941,21 @@ export default function App() {
     // próprio arquivo, mesma "Regra Zero" de LanguageSettingsScreen.jsx
     // pra versão da Bíblia: o app não tem modo escuro pra escolher).
     appearance: <AppearanceScreen session={session} fontSizePt={fontSizePt} onChangeFontSizePt={changeFontSizePt} onBack={goBack} />,
-    // Bento 19c — Administração do grupo, alcançada pela folha do Perfil.
-    groupAdmin: <GroupAdminScreen session={session} authUser={authUser} onBack={goBack} onNavigate={navigateTo} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenReportedMessages={groupId => { setReportedMessageGroupId(groupId); goToTab('reportedMessage') }} />,
+    // 42i "Painel do grupo" (handoff-admin-42, Bloco 2) — substitui a 19c
+    // antiga por inteiro (README do pacote). Alcançada pela folha do
+    // Perfil ou pelo cabeçalho do grupo em Comunidade.
+    groupAdmin: <GroupAdminScreen session={session} authUser={authUser} onBack={goBack} onNavigate={navigateTo} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenReportedMessages={groupId => { setReportedMessageGroupId(groupId); goToTab('reportedMessage') }} onOpenMembers={groupId => { setGroupMembersGroupId(groupId); goToTab('groupMembers') }} onOpenReadingActivity={groupId => { setGroupReadingActivityGroupId(groupId); goToTab('groupReadingActivity') }} />,
     // Mensagem denunciada (handoff-admin-42, 42l) — fila do admin do grupo.
-    // Entrada temporária em GroupAdminScreen.jsx (19c) até o Bloco 2 trocar
-    // aquela tela inteira por 42i, que formaliza a linha "Mensagens do
-    // mural" com o badge de contagem.
     reportedMessage: reportedMessageGroupId
       ? <ReportedMessageScreen session={session} groupId={reportedMessageGroupId} onBack={goBack} />
+      : null,
+    // 42j "Membros" (handoff-admin-42, Bloco 2).
+    groupMembers: groupMembersGroupId
+      ? <GroupMembersScreen session={session} authUser={authUser} groupId={groupMembersGroupId} onBack={goBack} />
+      : null,
+    // 42k "Quem está lendo" (handoff-admin-42, Bloco 2).
+    groupReadingActivity: groupReadingActivityGroupId
+      ? <GroupReadingActivityScreen session={session} groupId={groupReadingActivityGroupId} onBack={goBack} />
       : null,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
@@ -2993,7 +3005,7 @@ export default function App() {
   // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
   // agora também aparece no mobile (era hide-on-mobile) — ver
   // StudiesScreen.jsx.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao

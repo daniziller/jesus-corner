@@ -662,7 +662,7 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
           <GroupPrayerTab groupId={groupId} isModerator={isModerator} authUser={authUser} lang={lang} hasAI={hasAI} />
         )}
         {view === 'discussion' && (
-          <DiscussionTab groupId={groupId} members={detail.members} isModerator={isModerator} authUser={authUser} lang={lang} />
+          <DiscussionTab groupId={groupId} members={detail.members} isModerator={isModerator} authUser={authUser} lang={lang} pinnedNotice={detail.pinnedNotice} />
         )}
       </div>
     </div>
@@ -1131,7 +1131,7 @@ function ChallengeCard({ challenge, leaderboard, lang, ended, isModerator, onCom
 }
 
 /* ── Aba Discussão: mural tipo fórum ── */
-function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
+function DiscussionTab({ groupId, members, isModerator, authUser, lang, pinnedNotice }) {
   const [comments, setComments] = useState([])
   const [body, setBody] = useState('')
   const [posting, setPosting] = useState(false)
@@ -1249,6 +1249,16 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Aviso fixado pelo admin (42i, "Fixar aviso no topo" — migration
+          0066, set_group_pinned_notice). Sem PNG mostrando este destino
+          pros membros; "no topo do mural" é a leitura mais direta do
+          próprio nome da linha. */}
+      {pinnedNotice && (
+        <div style={styles.pinnedNoticeCard}>
+          <AppIcon name="Bookmark" size={13} color="var(--bento-sand-icon)" />
+          <p style={styles.pinnedNoticeText}>{pinnedNotice}</p>
+        </div>
+      )}
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <textarea
           style={styles.textarea}
@@ -1382,6 +1392,8 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
 }
 
 const styles = {
+  pinnedNoticeCard: { display: 'flex', alignItems: 'flex-start', gap: 8, background: 'var(--bento-sand)', borderRadius: 16, padding: '12px 14px' },
+  pinnedNoticeText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-sand-ink)', margin: 0 },
   // ── Redesign Bento da lista (sem quadro no handoff — só o quadro 5d,
   // "dentro de um grupo", tem desenho; ver GroupHomeView). Prefixo `b`
   // pra não colidir com os estilos antigos abaixo, ainda usados pelas

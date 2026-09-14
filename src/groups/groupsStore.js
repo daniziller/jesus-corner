@@ -85,7 +85,7 @@ export async function getPendingGroupInvitesCount() {
 export async function getGroupDetail(groupId) {
   const { data: group, error: groupError } = await supabase
     .from('reading_groups')
-    .select('id, name, description, created_by, created_at, invite_code')
+    .select('id, name, description, created_by, created_at, invite_code, pinned_notice')
     .eq('id', groupId)
     .maybeSingle()
   if (groupError || !group) {
@@ -95,7 +95,7 @@ export async function getGroupDetail(groupId) {
 
   const { data: members, error: membersError } = await supabase
     .from('reading_group_members')
-    .select('user_id, role, status, joined_at, member:profiles!reading_group_members_user_id_fkey(name)')
+    .select('user_id, role, status, joined_at, silenced_until, member:profiles!reading_group_members_user_id_fkey(name)')
     .eq('group_id', groupId)
     .eq('status', 'joined')
     .order('joined_at', { ascending: true })
@@ -107,11 +107,15 @@ export async function getGroupDetail(groupId) {
     description: group.description,
     createdBy: group.created_by,
     inviteCode: group.invite_code,
+    pinnedNotice: group.pinned_notice,
     members: (members ?? []).map(m => ({
       userId: m.user_id,
       name: m.member?.name ?? '',
       role: m.role,
       joinedAt: m.joined_at,
+      // null ou no passado = não silenciado (ver comentário de
+      // silenceGroupMember mais abaixo).
+      silencedUntil: m.silenced_until && new Date(m.silenced_until) > new Date() ? m.silenced_until : null,
     })),
   }
 }
@@ -248,13 +252,39 @@ export async function updateGroupInfo(groupId, name, description) {
   if (error) throw new Error(error.message)
 }
 
-// Remove um membro comum do grupo (quadro 19c, opção "remover" ao tocar
-// num membro) — só moderador, e nunca sobre outro moderador ou a própria
-// linha (ver migration 0047_group_remove_member.sql).
-export async function removeGroupMember(groupId, userId) {
+// Remove um membro comum do grupo (42j, folha de ações) — só moderador, e
+// nunca sobre outro moderador ou a própria linha (ver
+// migration 0047_group_remove_member.sql). Motivo obrigatório desde a
+// migration 0066 — grava em moderation_actions e avisa a pessoa (sino).
+export async function removeGroupMember(groupId, userId, reason) {
   const { error } = await supabase.rpc('remove_group_member', {
     target_group_id: groupId,
     target_user_id: userId,
+    p_reason: reason,
+  })
+  if (error) throw new Error(error.message)
+}
+
+// Silenciar por prazo escolhido (42j — "1, 7 ou 30 dias"). Motivo
+// obrigatório (a RPC recusa sem ele). silencedUntil devolvido por
+// getGroupDetail já vem null quando o prazo passou — não precisa
+// "desilenciar" na mão, só passa a valer de novo quando expira sozinho.
+export async function silenceGroupMember(groupId, userId, durationDays, reason) {
+  const { error } = await supabase.rpc('silence_group_member', {
+    target_group_id: groupId,
+    target_user_id: userId,
+    duration_days: durationDays,
+    p_reason: reason,
+  })
+  if (error) throw new Error(error.message)
+}
+
+// Aviso fixado no topo do mural (42i, "Fixar aviso no topo") — texto vazio
+// remove o aviso.
+export async function setGroupPinnedNotice(groupId, notice) {
+  const { error } = await supabase.rpc('set_group_pinned_notice', {
+    target_group_id: groupId,
+    p_notice: notice,
   })
   if (error) throw new Error(error.message)
 }
