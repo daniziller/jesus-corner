@@ -27,6 +27,7 @@ import {
   setMemberRole, removeGroupMember, updateGroupInfo,
 } from '../groups/groupsStore'
 import { getLatestGroupPlan } from '../groups/groupPlansStore'
+import { getPendingGroupReports } from '../groups/reportsStore'
 
 const FONT = 'var(--font-bento)'
 const MEMBERS_COLLAPSED_COUNT = 4
@@ -48,7 +49,7 @@ function relativeRequestTime(iso, L) {
   return L('requestedDaysAgo', { n: days })
 }
 
-export default function GroupAdminScreen({ session, authUser, onBack, onNavigate, onOpenGroupRoom }) {
+export default function GroupAdminScreen({ session, authUser, onBack, onNavigate, onOpenGroupRoom, onOpenReportedMessages }) {
   const lang = session.lang
   const L = (k, vars) => t(`groupAdmin.${k}`, vars, lang)
   const myGroup = session.myGroups?.find(g => g.myRole === 'moderator') ?? session.myGroups?.[0]
@@ -67,6 +68,10 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
   const [editDescription, setEditDescription] = useState('')
   const [savingInfo, setSavingInfo] = useState(false)
   const [saveError, setSaveError] = useState('')
+  // Fila de mensagens denunciadas (handoff-admin-42, 42l) — entrada
+  // temporária até o Bloco 2 trocar esta tela inteira por 42i, que
+  // formaliza a linha "Mensagens do mural" com o badge de contagem.
+  const [pendingReportsCount, setPendingReportsCount] = useState(0)
 
   useEffect(() => {
     if (!groupId) { setLoading(false); return }
@@ -78,6 +83,7 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
       setGroupPlan(plan)
       setLoading(false)
     })
+    getPendingGroupReports(groupId).then(rows => { if (!cancelled) setPendingReportsCount(rows.length) })
     return () => { cancelled = true }
   }, [groupId])
 
@@ -306,6 +312,18 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
                 <span style={styles.chevron}>›</span>
               </button>
             )}
+          </div>
+        )}
+
+        {pendingReportsCount > 0 && (
+          <div style={styles.card}>
+            <button style={styles.linkRow} onClick={() => onOpenReportedMessages?.(groupId)}>
+              <span style={styles.linkLabel}>{L('reportedMessagesLabel')}</span>
+              <span style={{ ...styles.linkSub, color: 'var(--bento-destructive)' }}>
+                {L(pendingReportsCount === 1 ? 'reportedMessagesCountOne' : 'reportedMessagesCountMany', { n: pendingReportsCount })}
+              </span>
+              <span style={styles.chevron}>›</span>
+            </button>
           </div>
         )}
 

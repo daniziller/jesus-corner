@@ -94,6 +94,14 @@
   /* Texto da pílula "AGORA" na lista de passos de Meu Plano (atualização
      35a/35b) — sobre rgba(240,102,43,.18), não existia token pra isso. */
   --bento-now-text: #A63C0F;
+  /* Área administrativa (turno 42, handoff-admin-42) — dois tokens do
+     HANDOFF sem equivalente ainda: corpo de mensagem citada (bloco de
+     texto entre aspas, ex: mensagem denunciada em 42c/42l) e o
+     "vermelho" do app inteiro — laranja ESCURO de texto destrutivo
+     (nunca fundo de botão: "Bloquear conta", "Remover do grupo",
+     "Denúncias anteriores" quando > 0). */
+  --bento-quote-ink: #4A423A;
+  --bento-destructive: #C24E19;
   --font-bento: 'Manrope', sans-serif;
 }
 
