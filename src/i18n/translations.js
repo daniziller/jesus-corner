@@ -2448,6 +2448,13 @@ export const STRINGS = {
       cancelEdit: 'Cancelar',
       saving: 'Salvando...',
     },
+    // "Esta semana" por dentro (pedido dela, 2026-09-15) — WeekScheduleScreen.jsx.
+    weekSchedule: {
+      title: 'Esta semana',
+      subtitle: '{done} de {total} dias cumpridos',
+      todayTag: 'hoje',
+      restDay: 'Dia livre — nada agendado.',
+    },
     contact: {
       pageTitle: 'Fale Conosco',
       heroTitle: 'Estamos aqui pra ajudar',
@@ -5729,6 +5736,12 @@ export const STRINGS = {
       saveEdit: 'Save',
       cancelEdit: 'Cancel',
       saving: 'Saving...',
+    },
+    weekSchedule: {
+      title: 'This week',
+      subtitle: '{done} of {total} days met',
+      todayTag: 'today',
+      restDay: 'Day off — nothing scheduled.',
     },
     contact: {
       pageTitle: 'Contact Us',
