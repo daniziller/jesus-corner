@@ -776,8 +776,16 @@ export default function HomeScreen({
           </div>
         )}
 
-        {/* Bloco 5 — ESTA SEMANA. */}
-        <div style={styles.weekCard}>
+        {/* Bloco 5 — ESTA SEMANA. Clicável (pedido dela, 2026-09-15) — abre
+            WeekScheduleScreen.jsx, um dia por dia da programação do plano
+            (o que já foi cumprido, o que ainda falta), não só a grade
+            resumida daqui. */}
+        <div
+          style={{ ...styles.weekCard, cursor: 'pointer' }}
+          role="button" tabIndex={0}
+          onClick={() => onNavigate?.('weekSchedule')}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onNavigate?.('weekSchedule') }}
+        >
           <div style={styles.weekHead}>
             <p style={styles.weekLabel}>{L('weekLabel')}</p>
             <p style={styles.weekCount}>
