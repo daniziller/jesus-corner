@@ -74,7 +74,7 @@ export default function PrayerRequestsScreen({ session, authUser, onBack }) {
           </p>
         </div>
         <button style={styles.newBtn} onClick={() => setAddOpen(true)}>
-          <AppIcon name="Plus" size={14} strokeWidth={2.6} color="#fff" />
+          <AppIcon name="Plus" size={14} strokeWidth={2.6} color="var(--bento-accent)" />
           <span>{L('newBtn')}</span>
         </button>
       </div>
@@ -134,17 +134,17 @@ const styles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.3px', margin: 0 },
+  title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.5px', margin: 0 },
   subtitle: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
   newBtn: { flexShrink: 0, height: 36, borderRadius: 14, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff' },
 
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '14px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 12 },
 
-  fixedCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '16px 18px', borderLeft: '3px solid var(--bento-sand-icon)' },
+  fixedCard: { borderRadius: 22, background: 'var(--bento-sand)', padding: '16px 18px', borderLeft: '3px solid var(--bento-sand-icon)' },
   fixedText: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.4, color: 'var(--bento-sand-ink-strong)', margin: 0 },
 
   chipsRow: { display: 'flex', gap: 8 },
-  chip: { height: 38, padding: '0 16px', borderRadius: 14, border: 'none', background: 'var(--bento-card)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
+  chip: { height: 38, padding: '0 16px', borderRadius: 99, border: 'none', background: 'var(--bento-card)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
   chipOn: { background: 'var(--bento-ink)', color: '#fff' },
 
   list: { display: 'flex', flexDirection: 'column', gap: 10 },

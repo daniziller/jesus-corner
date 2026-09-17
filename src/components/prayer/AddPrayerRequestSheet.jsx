@@ -177,14 +177,14 @@ export default function AddPrayerRequestSheet({ lang, authUser, hasAI, defaultGr
                 <p style={s.toggleTitle}>{L('anonymousToggleTitle')}</p>
                 <p style={s.toggleSub}>{L('anonymousToggleSub')}</p>
               </div>
-              <button type="button" style={{ ...s.toggle, background: anonymous ? 'var(--bento-ink)' : 'var(--bento-line)' }} onClick={() => setAnonymous(v => !v)} aria-pressed={anonymous}>
+              <button type="button" style={{ ...s.toggle, background: anonymous ? 'var(--bento-ink)' : 'var(--bento-toggle-off)' }} onClick={() => setAnonymous(v => !v)} aria-pressed={anonymous}>
                 <div style={{ ...s.toggleKnob, ...(anonymous ? { marginLeft: 'auto', background: 'var(--bento-accent)' } : {}) }} />
               </button>
             </div>
           </div>
 
           <div style={s.noteCard}>
-            <div style={s.noteIcon}><AppIcon name="Lock" size={15} strokeWidth={2} color="var(--bento-sand-icon)" /></div>
+            <div style={s.noteIcon}><AppIcon name="CircleAlert" size={15} strokeWidth={2} color="var(--bento-sand)" /></div>
             <p style={s.noteText}>{L('noteText')}</p>
           </div>
 
@@ -218,7 +218,7 @@ function Radio({ on }) {
 
 const s = {
   backdrop: { position: 'fixed', inset: 0, zIndex: 140, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
-  sheet: { width: '100%', maxWidth: 'var(--max-width)', maxHeight: '90vh', background: 'var(--bento-bg)', borderRadius: '34px 34px 0 0', display: 'flex', flexDirection: 'column' },
+  sheet: { width: '100%', maxWidth: 'var(--max-width)', maxHeight: '90vh', background: 'var(--bento-bg)', borderRadius: '32px 32px 0 0', boxShadow: '0 -18px 40px rgba(0,0,0,.18)', display: 'flex', flexDirection: 'column' },
   handleWrap: { flex: 'none', display: 'flex', justifyContent: 'center', padding: '14px 0 0' },
   handle: { width: 44, height: 5, borderRadius: 99, background: 'var(--bento-t6)' },
   header: { flex: 'none', padding: '18px 22px 0' },

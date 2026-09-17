@@ -37,6 +37,7 @@ import { getCompletedStudySessions, isStudySessionDone } from '../studies/studie
 import { currentDayOf } from '../studies/estudosStore'
 import { computeProjection } from '../plan/readingProjection'
 import { getUseLearnedPace } from '../reading/readingPaceStore'
+import { getMyPrayerRequests } from '../groups/prayerRequestsStore'
 
 function joinNames(names, lang) {
   if (names.length <= 1) return names[0] ?? ''
@@ -73,12 +74,17 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   const [activeStudy, setActiveStudy] = useState(null) // { title, passage, dayDone, dayTotal, trailDone, trailTotal }
   const [useLearnedPace, setUseLearnedPaceState] = useState(false)
   const [myStudiesSummary, setMyStudiesSummary] = useState(null)
+  // Entrada "Meu Plano → Pedidos de oração" (handoff-oracao-pedidos,
+  // README: "PD1 vive na aba Meu Plano") — só a contagem real de ativos,
+  // pro subtítulo do cartão; a lista em si é PrayerRequestsScreen.jsx.
+  const [prayerRequestsActiveCount, setPrayerRequestsActiveCount] = useState(null)
 
   useEffect(() => {
     getStepDays().then(setStepDaysState).catch(() => {})
     setPrayerMethodState(getPrayerMethod())
     setReflectionMethodState(getReflectionMethod())
     getUseLearnedPace().then(setUseLearnedPaceState).catch(() => {})
+    getMyPrayerRequests().then(list => setPrayerRequestsActiveCount(list.filter(r => r.status !== 'closed').length)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -387,6 +393,21 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
             <span style={styles.handsFreeChevron}>›</span>
           </button>
         )}
+
+        {/* "Meu Plano → Pedidos de oração" (handoff-oracao-pedidos, README:
+            "PD1 vive na aba Meu Plano") — mesmo ícone da entrada já
+            existente dentro da etapa Oração (PrayerScreen.jsx), agora
+            também alcançável direto daqui. */}
+        <button style={styles.handsFreeCard} onClick={() => onNavigate?.('prayerRequests')}>
+          <span style={styles.handsFreeIcon}><AppIcon name="Heart" size={16} color="var(--bento-sand-icon)" /></span>
+          <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={styles.handsFreeTitle}>{t('prayerRequests.headerTitle', undefined, lang)}</span>
+            <span style={styles.handsFreeSub}>
+              {prayerRequestsActiveCount == null ? '' : t(prayerRequestsActiveCount === 1 ? 'prayerRequests.headerActiveOne' : 'prayerRequests.headerActiveMany', { n: prayerRequestsActiveCount }, lang)}
+            </span>
+          </span>
+          <span style={styles.handsFreeChevron}>›</span>
+        </button>
 
         {/* Bug real corrigido (2026-09-09, achado dela: "cartão 'Seu
             plano'/'Sua semana' desapareceu"): este card ficava escondido
