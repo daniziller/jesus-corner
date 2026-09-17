@@ -1412,6 +1412,12 @@ export const STRINGS = {
       suplicaComposeSub: 'Você escolhe quem vê',
       finishToReadingBtn: 'Concluir e ir para a leitura',
       suplicaEmpty: 'Ninguém esperando oração agora.',
+      // Súplica de quem não assina (divisão de planos, 2026): a frase fixa
+      // e o progresso continuam à vista pra todo mundo; só a lista de
+      // pedidos de outras pessoas e "Fazer um pedido" ficam no Premium
+      // (pedidos de oração é parte da Comunidade).
+      suplicaLockTitle: 'Orar pela comunidade é Premium',
+      suplicaLockSub: 'Ver os pedidos de outras pessoas, orar por eles e fazer os seus fazem parte do plano Premium.',
     },
     // 36d/36e (pacote 36-37, Bloco 2) — lista de pedidos + "Como Deus
     // respondeu?". Reaproveita prayer.fixedVerse (mesma frase fixa de
@@ -2609,6 +2615,10 @@ export const STRINGS = {
         groups: {
           title: 'A Comunidade é um recurso Premium',
           sub: 'Grupos, desafios e acompanhar amigos na leitura fazem parte do plano Premium.',
+        },
+        prayerRequests: {
+          title: 'Pedidos de oração são um recurso Premium',
+          sub: 'Fazer pedidos, orar pelos da sua comunidade e guardar as respostas fazem parte do plano Premium.',
         },
         handsFree: {
           title: 'O modo mãos-livres é Premium',
@@ -4867,6 +4877,8 @@ export const STRINGS = {
       suplicaComposeSub: 'You choose who sees it',
       finishToReadingBtn: 'Finish and go to reading',
       suplicaEmpty: 'No one waiting for prayer right now.',
+      suplicaLockTitle: 'Praying for the community is Premium',
+      suplicaLockSub: "Seeing other people's requests, praying for them, and making your own are part of the Premium plan.",
     },
     prayerRequests: {
       headerTitle: 'Prayer requests',
@@ -5903,6 +5915,10 @@ export const STRINGS = {
         groups: {
           title: 'Community is a Premium feature',
           sub: 'Groups, challenges, and following friends in their reading are part of the Premium plan.',
+        },
+        prayerRequests: {
+          title: 'Prayer requests are a Premium feature',
+          sub: "Making requests, praying for your community, and keeping their answers are part of the Premium plan.",
         },
         handsFree: {
           title: 'Hands-free mode is Premium',

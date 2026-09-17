@@ -2986,7 +2986,13 @@ export default function App() {
     // Pacote 36-37, 36d — "Pedidos de oração" (linha em 36b/36c). Push
     // dentro de Meu Plano: fica fora de navHidden de propósito (barra de
     // abas continua fixa no rodapé, ver handoff).
-    prayerRequests: <PrayerRequestsScreen session={session} authUser={authUser} onBack={goBack} />,
+    // Divisão de planos (2026): pedidos de oração é parte da Comunidade,
+    // portanto Premium — mesmo gate de groups/groupMessages acima. Fecha o
+    // desvio que existia via o link "Ver todos" da Súplica (PrayerScreen.jsx),
+    // que abre esta tela sem passar pela aba Meu Plano/Comunidade.
+    prayerRequests: !hasPremium
+      ? <PremiumRequired feature="prayerRequests" lang={session.lang} onNavigate={navigateTo} />
+      : <PrayerRequestsScreen session={session} authUser={authUser} onBack={goBack} />,
     // Pacote 36-37, 37e — fecho da leitura, sempre entre "Concluir"/
     // "Finalizar por aqui" (ReadingBlockView.jsx) e a Reflexão (ver
     // goToReflectionFrom/beginReflectionFromSummary acima).
@@ -3194,7 +3200,7 @@ function MinAgeRestricted({ lang }) {
 // `feature` escolhe o texto ('routine' | 'groups' | 'handsFree'), com
 // fallback genérico.
 function PremiumRequired({ feature, lang, onNavigate }) {
-  const key = ['routine', 'groups', 'handsFree', 'ai'].includes(feature) ? feature : 'generic'
+  const key = ['routine', 'groups', 'prayerRequests', 'handsFree', 'ai'].includes(feature) ? feature : 'generic'
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
       <AppIcon name={key === 'ai' ? 'Sparkles' : 'Crown'} size={30} color="var(--bento-accent)" />

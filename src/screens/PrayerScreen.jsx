@@ -24,6 +24,7 @@ import { playStageChime } from '../utils/chime'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
+import PremiumLockCard from '../components/PremiumLockCard'
 
 // Avatar da linha de Súplica (PD3) — cor pelo ORIGEM do pedido, não por
 // quem é (areia grupo, pêssego amigo, F2EEE9 anônimo — handoff). Anônimo
@@ -311,57 +312,67 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
               <p style={styles.suplicaBlackBody}>{L('suplicaTodayBody')}</p>
             </div>
 
-            <div style={styles.suplicaWaitingCard}>
-              <div style={styles.suplicaWaitingHead}>
-                <p style={styles.helpLabel}>{L('waitingLabel', { n: suplicaRequests.length })}</p>
-                <button type="button" style={styles.seeAllBtn} onClick={() => { pause(); onNavigate?.('prayerRequests') }}>{L('seeAllBtn')}</button>
-              </div>
-              {suplicaRequests.length === 0 ? (
-                <p style={styles.requestsSub}>{L('suplicaEmpty')}</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {suplicaRequests.map((r, i) => {
-                    const avatar = suplicaAvatar(r)
-                    const origin = r.anonymous ? '' : r.scope === 'group' ? r.groupName : r.scope === 'friends' ? L('originFriend') : L('originDiary')
-                    return (
-                      <div key={r.id} style={{ ...styles.suplicaRow, ...(i > 0 ? { borderTop: '1px solid var(--bento-line)' } : {}) }}>
-                        <div style={styles.suplicaRowHead}>
-                          <span style={{ ...styles.suplicaAvatar, background: avatar.bg, color: avatar.color }}>{avatar.initials}</span>
-                          <p style={styles.suplicaName}>
-                            {r.anonymous ? L('anonymousLabel') : r.authorName}
-                            <span style={styles.suplicaOrigin}> · {origin ? `${origin} · ` : ''}{originTimeLabel(r.createdAt, lang)}</span>
-                          </p>
-                        </div>
-                        <p style={styles.suplicaBody}>{r.body}</p>
-                        <div style={styles.suplicaActionRow}>
-                          {r.prayingByMe ? (
-                            <span style={styles.suplicaPrayedBtn}>
-                              <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-sand-icon)" />
-                              {t('prayerRequests.prayedTodayBtn', undefined, lang)}
-                            </span>
-                          ) : (
-                            <button type="button" style={styles.suplicaPrayBtn} onClick={() => handleSuplicaPray(r)}>
-                              <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-accent)" />
-                              {L('prayShortBtn')}
-                            </button>
-                          )}
-                          <span style={styles.suplicaPrayedCount}>{L(r.prayCount === 1 ? 'prayedCountOne' : 'prayedCountMany', { n: r.prayCount })}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
+            {/* Divisão de planos (2026): pedidos de oração é parte da
+                Comunidade, então Premium — quem não assina vê só a frase
+                fixa acima; a lista de pedidos de outras pessoas e "Fazer um
+                pedido" ficam atrás deste cartão. */}
+            {!session.hasPremium ? (
+              <PremiumLockCard lang={lang} onNavigate={onNavigate} title={L('suplicaLockTitle')} sub={L('suplicaLockSub')} />
+            ) : (
+              <>
+                <div style={styles.suplicaWaitingCard}>
+                  <div style={styles.suplicaWaitingHead}>
+                    <p style={styles.helpLabel}>{L('waitingLabel', { n: suplicaRequests.length })}</p>
+                    <button type="button" style={styles.seeAllBtn} onClick={() => { pause(); onNavigate?.('prayerRequests') }}>{L('seeAllBtn')}</button>
+                  </div>
+                  {suplicaRequests.length === 0 ? (
+                    <p style={styles.requestsSub}>{L('suplicaEmpty')}</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {suplicaRequests.map((r, i) => {
+                        const avatar = suplicaAvatar(r)
+                        const origin = r.anonymous ? '' : r.scope === 'group' ? r.groupName : r.scope === 'friends' ? L('originFriend') : L('originDiary')
+                        return (
+                          <div key={r.id} style={{ ...styles.suplicaRow, ...(i > 0 ? { borderTop: '1px solid var(--bento-line)' } : {}) }}>
+                            <div style={styles.suplicaRowHead}>
+                              <span style={{ ...styles.suplicaAvatar, background: avatar.bg, color: avatar.color }}>{avatar.initials}</span>
+                              <p style={styles.suplicaName}>
+                                {r.anonymous ? L('anonymousLabel') : r.authorName}
+                                <span style={styles.suplicaOrigin}> · {origin ? `${origin} · ` : ''}{originTimeLabel(r.createdAt, lang)}</span>
+                              </p>
+                            </div>
+                            <p style={styles.suplicaBody}>{r.body}</p>
+                            <div style={styles.suplicaActionRow}>
+                              {r.prayingByMe ? (
+                                <span style={styles.suplicaPrayedBtn}>
+                                  <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-sand-icon)" />
+                                  {t('prayerRequests.prayedTodayBtn', undefined, lang)}
+                                </span>
+                              ) : (
+                                <button type="button" style={styles.suplicaPrayBtn} onClick={() => handleSuplicaPray(r)}>
+                                  <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-accent)" />
+                                  {L('prayShortBtn')}
+                                </button>
+                              )}
+                              <span style={styles.suplicaPrayedCount}>{L(r.prayCount === 1 ? 'prayedCountOne' : 'prayedCountMany', { n: r.prayCount })}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <button type="button" style={styles.suplicaComposeRow} onClick={() => setAddRequestOpen(true)}>
-              <span style={styles.requestsIcon}><AppIcon name="Plus" size={16} strokeWidth={2.4} color="var(--bento-sand-icon)" /></span>
-              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                <p style={styles.requestsTitle}>{t('addPrayerRequest.title', undefined, lang)}</p>
-                <p style={styles.requestsSub}>{L('suplicaComposeSub')}</p>
-              </div>
-              <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
-            </button>
+                <button type="button" style={styles.suplicaComposeRow} onClick={() => setAddRequestOpen(true)}>
+                  <span style={styles.requestsIcon}><AppIcon name="Plus" size={16} strokeWidth={2.4} color="var(--bento-sand-icon)" /></span>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <p style={styles.requestsTitle}>{t('addPrayerRequest.title', undefined, lang)}</p>
+                    <p style={styles.requestsSub}>{L('suplicaComposeSub')}</p>
+                  </div>
+                  <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
+                </button>
+              </>
+            )}
           </>
         ) : method === 'acts' ? (
           <>
