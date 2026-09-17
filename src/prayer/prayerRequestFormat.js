@@ -44,3 +44,20 @@ export function relativeTimeSpan(iso, lang) {
   const months = Math.max(1, Math.round(days / 30))
   return lang === 'en' ? `${months} month${months === 1 ? '' : 's'}` : `${months} ${months === 1 ? 'mês' : 'meses'}`
 }
+
+// "há 2 h" / "ontem" / "há 3 dias" / "há 8 meses" — frase completa (não só
+// o intervalo) pra linha de origem da Súplica (PD3): "Grupo Semente · há
+// 2 h", "amigo · ontem", "Batista Central · há 3 dias" são os 3 exemplos
+// do handoff — "ontem" é um caso à parte (não "há 1 dia").
+export function originTimeLabel(iso, lang) {
+  const diffMs = Math.max(0, Date.now() - new Date(iso).getTime())
+  const hours = Math.floor(diffMs / 3600000)
+  if (hours < 24) return lang === 'en' ? `${Math.max(1, hours)} h ago` : `há ${Math.max(1, hours)} h`
+  const days = Math.floor(diffMs / 86400000)
+  if (days === 1) return lang === 'en' ? 'yesterday' : 'ontem'
+  if (days < MONTH_THRESHOLD_DAYS) {
+    return lang === 'en' ? `${days} days ago` : `há ${days} dias`
+  }
+  const months = Math.max(1, Math.round(days / 30))
+  return lang === 'en' ? `${months} month${months === 1 ? '' : 's'} ago` : `há ${months} ${months === 1 ? 'mês' : 'meses'}`
+}
