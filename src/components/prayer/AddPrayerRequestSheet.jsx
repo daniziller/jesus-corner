@@ -177,14 +177,14 @@ export default function AddPrayerRequestSheet({ lang, authUser, hasAI, defaultGr
                 <p style={s.toggleTitle}>{L('anonymousToggleTitle')}</p>
                 <p style={s.toggleSub}>{L('anonymousToggleSub')}</p>
               </div>
-              <button type="button" style={{ ...s.toggle, background: anonymous ? 'var(--bento-ink)' : 'var(--bento-line)' }} onClick={() => setAnonymous(v => !v)} aria-pressed={anonymous}>
+              <button type="button" style={{ ...s.toggle, background: anonymous ? 'var(--bento-ink)' : 'var(--bento-toggle-off)' }} onClick={() => setAnonymous(v => !v)} aria-pressed={anonymous}>
                 <div style={{ ...s.toggleKnob, ...(anonymous ? { marginLeft: 'auto', background: 'var(--bento-accent)' } : {}) }} />
               </button>
             </div>
           </div>
 
           <div style={s.noteCard}>
-            <div style={s.noteIcon}><AppIcon name="Lock" size={15} strokeWidth={2} color="var(--bento-sand-icon)" /></div>
+            <div style={s.noteIcon}><AppIcon name="CircleAlert" size={15} strokeWidth={2} color="var(--bento-sand)" /></div>
             <p style={s.noteText}>{L('noteText')}</p>
           </div>
 
