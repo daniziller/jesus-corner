@@ -15,14 +15,25 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { PRAYER_STAGES } from '../prayer/prayerStages'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
-import { getMyPrayerRequests, markPraying } from '../groups/prayerRequestsStore'
+import { getMyPrayerRequests, getSupplicationRequests, markPraying } from '../groups/prayerRequestsStore'
+import { originTimeLabel } from '../prayer/prayerRequestFormat'
+import { avatarInitialsOf } from '../utils/avatarInitials'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { playStageChime } from '../utils/chime'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import PrayerRequestCard from '../components/prayer/PrayerRequestCard'
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
+
+// Avatar da linha de Súplica (PD3) — cor pelo ORIGEM do pedido, não por
+// quem é (areia grupo, pêssego amigo, F2EEE9 anônimo — handoff). Anônimo
+// usa "AN" fixo (as duas primeiras letras da palavra em si, não iniciais
+// de nome nenhum — não existe nome pra tirar iniciais de um anônimo).
+function suplicaAvatar(r) {
+  if (r.anonymous) return { initials: 'AN', bg: 'var(--bento-line)', color: 'var(--bento-t3)' }
+  if (r.scope === 'friends') return { initials: avatarInitialsOf(r.authorName), bg: 'var(--bento-mark)', color: 'var(--bento-sand-icon)' }
+  return { initials: avatarInitialsOf(r.authorName), bg: 'var(--bento-sand)', color: 'var(--bento-sand-ink)' }
+}
 
 function fmt(s) {
   const m = Math.floor(s / 60).toString().padStart(2, '0')
@@ -68,15 +79,23 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
   const [freeNote, setFreeNote] = useState('')
   const [justZeroed, setJustZeroed] = useState(false)
 
-  // Pedidos de oração (36d, Bloco 2) — na etapa Súplica do ACTS a
-  // linha-resumo vira a própria lista (ver isSuplica mais abaixo, no JSX);
-  // nas outras etapas/oração livre continua só a linha-resumo → 36d.
+  // Pedidos de oração — a linha-resumo (fora da Súplica) usa "meus + do meu
+  // grupo" (mesma fonte de PD1). A etapa Súplica em si (PD3, handoff-
+  // oracao-pedidos) é uma tela DIFERENTE — pedidos de OUTRAS pessoas
+  // esperando oração, no máximo três, ordenados por quem recebeu menos
+  // (getSupplicationRequests, RPC própria pra isso — nunca a mesma lista
+  // de PD1, que é "os meus", não "pra eu orar").
   const [requests, setRequests] = useState([])
   useEffect(() => {
     getMyPrayerRequests().then(setRequests).catch(() => setRequests([]))
   }, [])
   const activeRequests = requests.filter(r => r.status !== 'closed')
   const requestCounts = { active: activeRequests.length, group: activeRequests.filter(r => !r.isMine).length }
+
+  const [suplicaRequests, setSuplicaRequests] = useState([])
+  useEffect(() => {
+    getSupplicationRequests(3).then(setSuplicaRequests).catch(() => setSuplicaRequests([]))
+  }, [])
 
   // "Fazer pedido" direto na Súplica (pedido dela, 2026-09-12: "deixar o
   // campo de pedidos de oração aberto para adicionar novos") — antes esse
@@ -91,6 +110,15 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
       ? { ...r, prayedToday: true, prayCount: r.isMine ? r.prayCount : r.prayCount + 1, diasOrados: r.isMine ? r.diasOrados + 1 : r.diasOrados }
       : r))
     markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
+  }
+
+  // "Um toque marca que você orou" (PD3) — mesma marca-por-dia de sempre
+  // (markPraying), só que na lista de Súplica, não na de PD1.
+  function handleSuplicaPray(request) {
+    setSuplicaRequests(prev => prev.map(r => r.id === request.id
+      ? { ...r, prayingByMe: true, prayCount: r.prayCount + 1 }
+      : r))
+    markPraying(request.id).catch(err => console.error('Failed to mark praying (suplica)', err))
   }
 
   const intervalRef = useRef(null)
@@ -213,15 +241,36 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
 
   return (
     <div style={styles.screen}>
-      <div style={styles.header}>
-        <button style={styles.backBtn} onClick={guided ? onExitGuided : onBack} aria-label={t('a11y.goBack', undefined, lang)}>
-          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-        </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={styles.title}>{L('pageTitle')}</p>
-          <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {method === 'acts' ? L('methodSuffixActs') : L('methodSuffixFree')}</p>
+      {isSuplica ? (
+        // PD3 — cabeçalho próprio (pd3-suplica-pedidos.png): pílula preta
+        // "Oração · passo N de M" + "Pular" à direita, sem o título/
+        // subtítulo empilhado das outras 3 etapas.
+        <div style={styles.header}>
+          <button style={styles.backBtn} onClick={guided ? onExitGuided : onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+            <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+          </button>
+          <div style={styles.stepPill}>
+            <span style={styles.stepPillTitle}>{L('pageTitle')}</span>
+            <span style={styles.stepPillSub}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })}</span>
+          </div>
+          <div style={{ flex: 1 }} />
+          {/* "Pular avança sem marcar oração" (handoff Regra 5.8) — Súplica
+              é sempre a última etapa do ACTS, então pular ela é terminar a
+              oração sem interagir com a lista de pedidos (mesma ação de
+              "Concluir", só que sem exigir que a pessoa veja a lista antes). */}
+          <button style={styles.pularBtn} onClick={finishPrayer}>{L('pularBtn')}</button>
         </div>
-      </div>
+      ) : (
+        <div style={styles.header}>
+          <button style={styles.backBtn} onClick={guided ? onExitGuided : onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+            <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={styles.title}>{L('pageTitle')}</p>
+            <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {method === 'acts' ? L('methodSuffixActs') : L('methodSuffixFree')}</p>
+          </div>
+        </div>
+      )}
 
       {method === 'acts' && (
         <div style={styles.wholeTrack}>
@@ -230,12 +279,91 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
       )}
 
       <div style={styles.body}>
-        {/* Frase fixa — idêntica em 36b, 36c e 36d, nunca muda. */}
-        <div style={styles.fixedCard}>
-          <p style={styles.fixedText}>{L('fixedVerse')}</p>
-        </div>
+        {/* Frase fixa — idêntica em 36b/36c, mas PD3 (Súplica) não a mostra
+            (pd3-suplica-pedidos.png começa direto no cartão de progresso). */}
+        {!isSuplica && (
+          <div style={styles.fixedCard}>
+            <p style={styles.fixedText}>{L('fixedVerse')}</p>
+          </div>
+        )}
 
-        {method === 'acts' ? (
+        {isSuplica ? (
+          <>
+            {/* Cartão de progresso — 4 barras (3 feitas, 1 atual) + tempo
+                restante da ETAPA (não da oração inteira). */}
+            <div style={styles.suplicaProgressCard}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={styles.suplicaProgressLabel}>{L('suplicaProgressLabel')}</p>
+                <div style={styles.suplicaBarsRow}>
+                  {PRAYER_STAGES.map((s, i) => (
+                    <div key={s.id} style={{ ...styles.suplicaBar, background: i < currentStageIdx ? 'var(--bento-sand-icon)' : i === currentStageIdx ? 'var(--bento-accent)' : 'var(--bento-line)' }} />
+                  ))}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={styles.suplicaClock}>{fmt(Math.abs(stageRemaining))}</p>
+                <p style={styles.suplicaClockLabel}>{L('remainingLabel')}</p>
+              </div>
+            </div>
+
+            <div style={styles.suplicaBlackCard}>
+              <p style={styles.suplicaBlackLabel}>{L('suplicaTodayLabel')}</p>
+              <p style={styles.suplicaBlackBody}>{L('suplicaTodayBody')}</p>
+            </div>
+
+            <div style={styles.suplicaWaitingCard}>
+              <div style={styles.suplicaWaitingHead}>
+                <p style={styles.helpLabel}>{L('waitingLabel', { n: suplicaRequests.length })}</p>
+                <button type="button" style={styles.seeAllBtn} onClick={() => { pause(); onNavigate?.('prayerRequests') }}>{L('seeAllBtn')}</button>
+              </div>
+              {suplicaRequests.length === 0 ? (
+                <p style={styles.requestsSub}>{L('suplicaEmpty')}</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {suplicaRequests.map((r, i) => {
+                    const avatar = suplicaAvatar(r)
+                    const origin = r.anonymous ? '' : r.scope === 'group' ? r.groupName : r.scope === 'friends' ? L('originFriend') : L('originDiary')
+                    return (
+                      <div key={r.id} style={{ ...styles.suplicaRow, ...(i > 0 ? { borderTop: '1px solid var(--bento-line)' } : {}) }}>
+                        <div style={styles.suplicaRowHead}>
+                          <span style={{ ...styles.suplicaAvatar, background: avatar.bg, color: avatar.color }}>{avatar.initials}</span>
+                          <p style={styles.suplicaName}>
+                            {r.anonymous ? L('anonymousLabel') : r.authorName}
+                            <span style={styles.suplicaOrigin}> · {origin ? `${origin} · ` : ''}{originTimeLabel(r.createdAt, lang)}</span>
+                          </p>
+                        </div>
+                        <p style={styles.suplicaBody}>{r.body}</p>
+                        <div style={styles.suplicaActionRow}>
+                          {r.prayingByMe ? (
+                            <span style={styles.suplicaPrayedBtn}>
+                              <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-sand-icon)" />
+                              {t('prayerRequests.prayedTodayBtn', undefined, lang)}
+                            </span>
+                          ) : (
+                            <button type="button" style={styles.suplicaPrayBtn} onClick={() => handleSuplicaPray(r)}>
+                              <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-accent)" />
+                              {L('prayShortBtn')}
+                            </button>
+                          )}
+                          <span style={styles.suplicaPrayedCount}>{L(r.prayCount === 1 ? 'prayedCountOne' : 'prayedCountMany', { n: r.prayCount })}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <button type="button" style={styles.suplicaComposeRow} onClick={() => setAddRequestOpen(true)}>
+              <span style={styles.requestsIcon}><AppIcon name="Plus" size={16} strokeWidth={2.4} color="var(--bento-sand-icon)" /></span>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <p style={styles.requestsTitle}>{t('addPrayerRequest.title', undefined, lang)}</p>
+                <p style={styles.requestsSub}>{L('suplicaComposeSub')}</p>
+              </div>
+              <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
+            </button>
+          </>
+        ) : method === 'acts' ? (
           <>
             {/* 4 chips de etapa — só status, sem interação (o quadro não
                 mostra nenhum toque neles; a etapa em vista é sempre a
@@ -332,33 +460,10 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
           </>
         )}
 
-        {/* Pedidos de oração — linha navegável → 36d (PrayerRequestsScreen).
-            Na etapa Súplica do ACTS a linha vira a própria lista, dentro
-            da etapa (handoff: "esta linha vira a própria lista de
-            pedidos") — mesmo cartão de 36d, sem folha de arquivar aqui
-            (arquivar precisa da tela cheia, não faz sentido no meio da
-            oração; quem quiser arquivar entra em 36d). "Novo" (pedido
-            dela, 2026-09-12: "deixar o campo de pedidos de oração aberto
-            para adicionar novos") abre a MESMA folha de sempre
-            (AddPrayerRequestSheet, ver abaixo) sem sair da oração — antes
-            navegava pra 36d só pra abrir essa folha por lá. */}
-        {isSuplica ? (
-          <div style={styles.inlineRequests}>
-            <div style={styles.inlineRequestsHeader}>
-              <p style={styles.helpLabel}>{t('prayerRequests.headerTitle', undefined, lang)}</p>
-              <button style={styles.inlineSeeAll} onClick={() => setAddRequestOpen(true)}>{t('prayerRequests.newBtn', undefined, lang)}</button>
-            </div>
-            {activeRequests.length === 0 ? (
-              <p style={styles.requestsSub}>{t('prayerRequests.emptyActive', undefined, lang)}</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {activeRequests.map(r => (
-                  <PrayerRequestCard key={r.id} request={r} lang={lang} onPray={handlePray} onArchive={() => onNavigate?.('prayerRequests')} />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
+        {/* Pedidos de oração — linha navegável → PrayerRequestsScreen (PD1).
+            Na etapa Súplica (PD3) o corpo inteiro já é outro (acima) — essa
+            linha-resumo só aparece nas outras 3 etapas do ACTS/oração livre. */}
+        {!isSuplica && (
           <button type="button" style={styles.requestsRow} onClick={() => onNavigate?.('prayerRequests')}>
             <span style={styles.requestsIcon}><AppIcon name="Heart" size={16} color="var(--bento-sand-icon)" /></span>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
@@ -374,7 +479,14 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
       </div>
 
       <div style={styles.footer}>
-        {method === 'acts' && !isLastStage ? (
+        {isSuplica ? (
+          // PD3 — "Concluir e ir para a leitura" (fixo), sempre um botão só
+          // (Súplica é a última etapa do ACTS, não tem "próxima etapa").
+          <button style={{ ...styles.nextBtn, flex: 1 }} onClick={finishPrayer}>
+            <span>{L('finishToReadingBtn')}</span>
+            <span>→</span>
+          </button>
+        ) : method === 'acts' && !isLastStage ? (
           <>
             <button style={styles.skipBtn} onClick={() => advanceStage(true)}>{L('skipStageBtn')}</button>
             <button style={styles.nextBtn} onClick={() => advanceStage(false)}>
@@ -464,11 +576,40 @@ const styles = {
   requestsTitle: { fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 2px' },
   requestsSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
 
-  inlineRequests: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 },
-  inlineRequestsHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  inlineSeeAll: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-accent)' },
-
   footer: { flexShrink: 0, display: 'flex', gap: 10, padding: '12px 20px calc(20px + var(--safe-bottom))' },
   skipBtn: { flexShrink: 0, height: 54, padding: '0 18px', borderRadius: 18, border: 'none', background: 'var(--bento-card)', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
   nextBtn: { flex: 1, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
+
+  // PD3 — Súplica (pd3-suplica-pedidos.png), casca própria.
+  stepPill: { flexShrink: 0, height: 34, borderRadius: 14, background: 'var(--bento-ink)', display: 'flex', alignItems: 'baseline', gap: 6, padding: '0 14px' },
+  stepPillTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 800, color: '#fff' },
+  stepPillSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.55)' },
+  pularBtn: { flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 14, border: 'none', background: 'var(--bento-card)', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
+
+  suplicaProgressCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 },
+  suplicaProgressLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 8px' },
+  suplicaBarsRow: { display: 'flex', gap: 6 },
+  suplicaBar: { flex: 1, height: 5, borderRadius: 99 },
+  suplicaClock: { fontFamily: FONT, fontSize: 22, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0, fontVariantNumeric: 'tabular-nums' },
+  suplicaClockLabel: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: 'var(--bento-t4)', margin: 0 },
+
+  suplicaBlackCard: { borderRadius: 22, background: 'var(--bento-ink)', padding: '16px 18px' },
+  suplicaBlackLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: '0 0 8px' },
+  suplicaBlackBody: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, lineHeight: 1.5, color: '#fff', margin: 0 },
+
+  suplicaWaitingCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px' },
+  suplicaWaitingHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 6px' },
+  seeAllBtn: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)' },
+  suplicaRow: { padding: '12px 0' },
+  suplicaRowHead: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 8px' },
+  suplicaAvatar: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 12.5, fontWeight: 800 },
+  suplicaName: { fontFamily: FONT, fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  suplicaOrigin: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t4)' },
+  suplicaBody: { fontFamily: FONT, fontSize: 13, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t2)', margin: '0 0 10px' },
+  suplicaActionRow: { display: 'flex', alignItems: 'center', gap: 10 },
+  suplicaPrayBtn: { flexShrink: 0, height: 32, padding: '0 14px', borderRadius: 11, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: '#fff' },
+  suplicaPrayedBtn: { flexShrink: 0, height: 32, padding: '0 14px', borderRadius: 11, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', gap: 6, fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-sand-ink)' },
+  suplicaPrayedCount: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t5)' },
+
+  suplicaComposeRow: { width: '100%', boxSizing: 'border-box', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bento-card-soft)', borderRadius: 22, padding: '16px 18px' },
 }
