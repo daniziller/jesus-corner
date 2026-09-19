@@ -12,14 +12,13 @@ bundle exec fastlane ios upload_store_listing       # App Store Connect
 bundle exec fastlane android upload_store_listing   # Google Play
 ```
 
-Cada lane sobe só o locale `pt-BR` por enquanto — `en-US` está vazio (ver
-abaixo) e o `deliver`/`supply` simplesmente ignoram um locale sem arquivos
-de screenshot novos, mas os `.txt` vazios de `en-US` **não** devem ser
-enviados até terem conteúdo real (um `description.txt` vazio sobrescreveria
-a ficha em inglês com texto em branco). Enquanto `en-US` não tiver conteúdo,
-rode as lanes apontando só pra `pt-BR` ou remova a pasta `en-US` da lane —
-ajustar isso é o próximo passo, não foi feito aqui pra não travar em decisão
-sem sua confirmação.
+Cada lane sobe todos os locales que tiverem conteúdo. Os textos (pt-BR e
+en-US) já estão preenchidos nos dois — mas as capturas do en-US ainda não
+existem (só as pastas de screenshot ficam vazias, com um `NOTE.md`
+explicando isso; texto e imagem são enviados por mecanismos separados no
+`deliver`/`supply`, então um locale pode ter um preenchido e o outro não).
+Quando as capturas em inglês existirem, apague os `NOTE.md` e a lane sobe
+os dois locales completos sem precisar de ajuste.
 
 ## O que já está aqui
 
@@ -31,32 +30,36 @@ sem sua confirmação.
   - Android: `metadata/android/pt-BR/images/phoneScreenshots/` (1080×1920, idem)
   - Imagem de destaque do Play: `metadata/android/pt-BR/images/featureGraphic.png` (1024×500)
 
-## Textos da ficha (pt-BR) — preenchidos
+## Textos da ficha — preenchidos (pt-BR e en-US)
 
-`metadata/pt-BR/*.txt` (iOS) e `metadata/android/pt-BR/*.txt` (Android) têm
-conteúdo real, baseado no que já estava levantado em
-`~/Desktop/Play Store - Jesus Corner/ficha-da-loja.md` (nome, descrição
-curta/completa, categoria, palavras-chave, URLs — tudo escrito nesta sessão
-a pedido dela, não é texto genérico):
+`metadata/{pt-BR,en-US}/*.txt` (iOS) e `metadata/android/{pt-BR,en-US}/*.txt`
+(Android) têm conteúdo real. O pt-BR é baseado no que já estava levantado em
+`~/Desktop/Play Store - Jesus Corner/ficha-da-loja.md` (não é texto
+genérico); o en-US é uma versão em inglês escrita do zero pro mesmo
+conteúdo — não é tradução literal do pt-BR (frase por frase seria
+estranha em inglês; a estrutura e o sentido de cada seção foram mantidos).
 
-- `name.txt`/`title.txt`: `Jesus' Corner`
-- `subtitle.txt` (iOS, 30 car.): `Bíblia, oração e reflexão`
+- `name.txt`/`title.txt`: `Jesus' Corner` (mesmo nome nos dois idiomas)
+- `subtitle.txt` (iOS, 30 car.): `Bíblia, oração e reflexão` /
+  `Bible, prayer & reflection`
 - `short_description.txt` (Android, 80 car.): a linha de abertura da ficha
 - `description.txt`/`full_description.txt` (4000 car., mesmo texto nas duas
-  lojas): a descrição completa — como funciona, leitura bíblica, oração
-  guiada, reflexão, estudos, comunidade, progresso, disponível em pt/en,
-  plano grátis vs. Premium vs. Premium + IA (sem citar preço — preço é o
-  que a própria loja mostra, e os valores em `storeTiers.js` ainda não
-  foram confirmados como finais)
+  lojas em cada idioma): a descrição completa — como funciona, leitura
+  bíblica, oração guiada, reflexão, estudos, comunidade, progresso,
+  disponível em pt/en, plano grátis vs. Premium vs. Premium + IA (sem citar
+  preço — preço é o que a própria loja mostra, e os valores em
+  `storeTiers.js` ainda não foram confirmados como finais)
 - `keywords.txt` (iOS, 100 car.): termos que não repetem nome/subtítulo
 - `promotional_text.txt` (iOS, 170 car., atualizável sem novo binário)
 - `release_notes.txt` (iOS): nota de lançamento da primeira versão
 - `marketing_url.txt`: `https://jesuscorner.app`
-- `privacy_url.txt`: `https://jesuscorner.app/privacidade` (rota real do site)
+- `privacy_url.txt`: `https://jesuscorner.app/privacidade` (rota real do
+  site; a mesma URL nos dois locales — o site troca o idioma do conteúdo
+  pelo seletor da própria página, não por caminho)
 - `support_url.txt`: `https://jesuscorner.app/#contato` (seção de contato
   da home do site — não existe página dedicada de suporte)
-- `video.txt` (Android): deixado vazio de propósito — não existe vídeo de
-  divulgação do app
+- `video.txt` (Android, os dois locales): deixado vazio de propósito — não
+  existe vídeo de divulgação do app
 
 Todos os campos respeitam o limite de caracteres de cada loja (conferido
 por script antes de gravar).
@@ -73,9 +76,10 @@ por script antes de gravar).
     `metadata/android/pt-BR/images/icon.png`, mas não criei o arquivo — uma
     imagem vazia/inválida quebraria o upload. Quando o ícone existir, salve
     nesse caminho exato.
-- **Locale `en-US`** (`screenshots/en-US/`, `metadata/en-US/`,
-  `metadata/android/en-US/`): pastas e arquivos de texto criados, mesma
-  estrutura da `pt-BR`, tudo vazio — inclusive os textos, que precisam ser
-  escritos em inglês, não traduzidos ao pé da letra. As capturas em inglês
-  também ainda não existem — ver `NOTE.md` dentro de cada pasta de
-  screenshots.
+- **Capturas em inglês** (`screenshots/en-US/`,
+  `metadata/android/en-US/images/phoneScreenshots/`): os textos do locale
+  en-US já existem (acima), mas as imagens não — ver `NOTE.md` dentro de
+  cada uma dessas pastas. As telas em inglês existem em
+  `handoff-screenshots-en/`; falta escrever a frase de venda de cada
+  captura (não é tradução literal das frases em pt-BR) e montar as seis
+  imagens, igual foi feito pro pt-BR em `handoff-lojas/`.
