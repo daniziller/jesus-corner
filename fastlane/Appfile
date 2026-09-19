@@ -1,0 +1,20 @@
+# -- iOS / App Store Connect --
+app_identifier("com.jesuscorner.app")
+
+# Conta e time da App Store Connect — não estão fixados aqui porque não são
+# valores conhecidos deste ambiente. Defina como variável de ambiente antes
+# de rodar (ex.: num .env local, nunca commitado) ou passe na linha de
+# comando: `fastlane ios upload_store_listing apple_id:"seu@email.com"`.
+apple_id(ENV["FASTLANE_APPLE_ID"]) if ENV["FASTLANE_APPLE_ID"]
+team_id(ENV["FASTLANE_TEAM_ID"]) if ENV["FASTLANE_TEAM_ID"]
+itc_team_id(ENV["FASTLANE_ITC_TEAM_ID"]) if ENV["FASTLANE_ITC_TEAM_ID"]
+
+# -- Android / Google Play --
+for_platform :android do
+  package_name("com.jesuscorner.app")
+
+  # Chave da service account do Google Cloud (JSON) — ainda não existe neste
+  # projeto (é criada no Google Cloud Console + vinculada no Play Console).
+  # Aponte pra ela via variável de ambiente quando existir.
+  json_key_file(ENV["SUPPLY_JSON_KEY_FILE"]) if ENV["SUPPLY_JSON_KEY_FILE"]
+end

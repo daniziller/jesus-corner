@@ -1,0 +1,18 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Sobe capturas e metadados (pt-BR) pra App Store Connect — sem binário"
+  lane :upload_store_listing do
+    # Flags de "sem binário" e "sem confirmação interativa" vêm do
+    # Deliverfile (fonte única de verdade pra essa config).
+    deliver
+  end
+end
+
+platform :android do
+  desc "Sobe capturas e metadados (pt-BR) pro Google Play — sem o AAB/APK"
+  lane :upload_store_listing do
+    # Flags de "sem binário" vêm do Supplyfile.
+    supply
+  end
+end
