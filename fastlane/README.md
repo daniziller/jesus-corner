@@ -12,23 +12,30 @@ bundle exec fastlane ios upload_store_listing       # App Store Connect
 bundle exec fastlane android upload_store_listing   # Google Play
 ```
 
-Cada lane sobe todos os locales que tiverem conteúdo. Os textos (pt-BR e
-en-US) já estão preenchidos nos dois — mas as capturas do en-US ainda não
-existem (só as pastas de screenshot ficam vazias, com um `NOTE.md`
-explicando isso; texto e imagem são enviados por mecanismos separados no
-`deliver`/`supply`, então um locale pode ter um preenchido e o outro não).
-Quando as capturas em inglês existirem, apague os `NOTE.md` e a lane sobe
-os dois locales completos sem precisar de ajuste.
+Cada lane sobe todos os locales que tiverem conteúdo — pt-BR e en-US estão
+os dois completos (texto + capturas + ícone).
 
 ## O que já está aqui
 
-- **Capturas pt-BR**, na ordem exata de `handoff-lojas/README.md` (não
-  reordenar — as três primeiras são o que a busca da loja mostra):
-  `01-hoje`, `02-meu-plano`, `03-biblia`, `04-metricas`, `05-comunidade`,
-  `06-oracao`.
-  - iOS: `screenshots/pt-BR/` (1290×2796, originais, sem recorte/recompressão)
-  - Android: `metadata/android/pt-BR/images/phoneScreenshots/` (1080×1920, idem)
-  - Imagem de destaque do Play: `metadata/android/pt-BR/images/featureGraphic.png` (1024×500)
+- **Capturas pt-BR e en-US**, na ordem exata de `handoff-lojas/README.md`
+  (não reordenar — as três primeiras são o que a busca da loja mostra):
+  `01` Hoje/Today, `02` Meu Plano/My Plan, `03` Bíblia/Bible, `04`
+  Métricas/Metrics, `05` Comunidade/Community, `06` Oração/Prayer.
+  - iOS: `screenshots/{pt-BR,en-US}/` (1290×2796, originais, sem
+    recorte/recompressão)
+  - Android: `metadata/android/{pt-BR,en-US}/images/phoneScreenshots/`
+    (1080×1920, idem)
+  - Imagem de destaque do Play: `metadata/android/{pt-BR,en-US}/images/
+    featureGraphic.png` (1024×500), uma por locale
+  - As capturas em inglês não são tradução das telas em pt-BR: são versões
+    de verdade do app em inglês — separador decimal, datas, dias
+    abreviados, horário em 12h e Escritura na World English Bible — e as
+    frases de venda foram escritas em inglês, não traduzidas ao pé da
+    letra (ex.: "Sua rotina com Deus cabe no dia" virou "Time with God
+    that fits your day", não uma tradução literal). Duas telas do app
+    precisaram ser traduzidas pra isso (Comunidade e Pedidos de oração) —
+    as capturas soltas dessas duas também estão em
+    `handoff-screenshots-en/app-en/`, caso o site venha a usá-las.
 
 ## Textos da ficha — preenchidos (pt-BR e en-US)
 
@@ -90,12 +97,9 @@ aqui de propósito, só os dois arquivos de loja acima. Esses outros já
 estavam corretos/atualizados; se algum dia divergirem da marca, é rodar o
 script e revisar o diff completo, não só a parte da loja.
 
-## O que ainda falta
+## Status
 
-- **Capturas em inglês** (`screenshots/en-US/`,
-  `metadata/android/en-US/images/phoneScreenshots/`): os textos do locale
-  en-US já existem (acima), mas as imagens não — ver `NOTE.md` dentro de
-  cada uma dessas pastas. As telas em inglês existem em
-  `handoff-screenshots-en/`; falta escrever a frase de venda de cada
-  captura (não é tradução literal das frases em pt-BR) e montar as seis
-  imagens, igual foi feito pro pt-BR em `handoff-lojas/`.
+pt-BR e en-US estão completos: capturas, feature graphic, textos e ícone.
+Falta só o que não dá pra fazer daqui — credenciais de loja (`FASTLANE_APPLE_ID`,
+`FASTLANE_TEAM_ID`, `SUPPLY_JSON_KEY_FILE`, ver `Appfile`) e os passos manuais
+no App Store Connect / Play Console.
