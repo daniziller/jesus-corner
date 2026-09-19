@@ -3,10 +3,12 @@
 // rodapé — não entra em navHidden, ver App.jsx), alcançada a partir da
 // linha "Pedidos de oração" de PrayerScreen.jsx (36b/36c).
 //
-// Os chips filtram os ATIVOS (Ativos = meus + do grupo; Do meu grupo = só
-// os do grupo); a seção Respondidos é memória — fica sempre visível
-// embaixo, em qualquer chip, por pedido explícito do handoff ("não
-// esconda atrás de um filtro por padrão").
+// Etapa 2026-09-19 (pedido dela): os chips (Ativos/Respondidos/Do meu
+// grupo) viraram 2 ABAS — "Meus pedidos" (Ativos + Respondidos, como já
+// era) e "Pedidos dos grupos" (só os abertos de outras pessoas do seu
+// grupo — nunca tem "Respondidos" aqui, a RPC só devolve os ABERTOS de
+// quem não é você). Cada card agora abre o detalhe do pedido
+// (PrayerRequestDetailScreen — comentários + "Orei por isso").
 //
 // "Novo" abre a mesma folha de compor pedido que já existe (25b,
 // AddPrayerRequestSheet) — o quadro não desenha essa tela própria; reusar
@@ -20,20 +22,16 @@ import ArchivePrayerRequestSheet from '../components/prayer/ArchivePrayerRequest
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
 import { getMyPrayerRequests, markPraying, archivePrayerRequest } from '../groups/prayerRequestsStore'
 
-const CHIPS = ['active', 'answered', 'group']
+const TABS = ['mine', 'group']
 
-export default function PrayerRequestsScreen({ session, authUser, onBack }) {
+export default function PrayerRequestsScreen({ session, authUser, onBack, onOpenRequest }) {
   const { lang } = session
   const L = (k, vars) => t(`prayerRequests.${k}`, vars, lang)
 
   const [requests, setRequests] = useState([])
-  const [chip, setChip] = useState('active')
+  const [tab, setTab] = useState('mine')
   const [archiving, setArchiving] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
-  // Distingue "vazio de verdade" de "não consegui carregar" — antes os
-  // dois casos mostravam o mesmo texto de lista vazia (bug real: sem a
-  // migration 0059 rodada, a leitura falhava e a tela parecia vazia sem
-  // nenhum aviso, ver prayerRequestsStore.js).
   const [loadError, setLoadError] = useState(false)
 
   const reload = useCallback(() => {
@@ -45,7 +43,8 @@ export default function PrayerRequestsScreen({ session, authUser, onBack }) {
 
   const activeRequests = requests.filter(r => r.status !== 'closed')
   const answeredRequests = requests.filter(r => r.status === 'closed')
-  const visibleActive = chip === 'group' ? activeRequests.filter(r => !r.isMine) : activeRequests
+  const myActive = activeRequests.filter(r => r.isMine)
+  const groupActive = activeRequests.filter(r => !r.isMine)
 
   function handlePray(request) {
     setRequests(prev => prev.map(r => r.id === request.id
@@ -90,40 +89,54 @@ export default function PrayerRequestsScreen({ session, authUser, onBack }) {
           <p style={styles.fixedText}>{t('prayer.fixedVerse', undefined, lang)}</p>
         </div>
 
-        <div style={styles.chipsRow}>
-          {CHIPS.map(key => (
+        <div style={styles.tabsRow}>
+          {TABS.map(key => (
             <button
               key={key}
               type="button"
-              style={{ ...styles.chip, ...(chip === key ? styles.chipOn : {}) }}
-              onClick={() => setChip(key)}
+              style={{ ...styles.tab, ...(tab === key ? styles.tabOn : {}) }}
+              onClick={() => setTab(key)}
             >
-              {L(`chip${key === 'active' ? 'Active' : key === 'answered' ? 'Answered' : 'Group'}`)}
+              {L(key === 'mine' ? 'tabMine' : 'tabGroup')}
             </button>
           ))}
         </div>
 
         {loadError ? (
           <p style={styles.emptyHint}>{L('loadError')}</p>
-        ) : visibleActive.length === 0 ? (
-          <p style={styles.emptyHint}>{L(chip === 'group' ? 'emptyGroup' : 'emptyActive')}</p>
-        ) : (
-          <div style={styles.list}>
-            {visibleActive.map(r => (
-              <PrayerRequestCard key={r.id} request={r} lang={lang} onPray={handlePray} onArchive={setArchiving} />
-            ))}
-          </div>
-        )}
+        ) : tab === 'mine' ? (
+          <>
+            {myActive.length === 0 ? (
+              <p style={styles.emptyHint}>{L('emptyActive')}</p>
+            ) : (
+              <div style={styles.list}>
+                {myActive.map(r => (
+                  <PrayerRequestCard key={r.id} request={r} lang={lang} onPray={handlePray} onArchive={setArchiving} onOpen={onOpenRequest} />
+                ))}
+              </div>
+            )}
 
-        {!loadError && <p style={styles.sectionLabel}>{L('answeredSectionTitle')}</p>}
-        {loadError ? null : answeredRequests.length === 0 ? (
-          <p style={styles.emptyHint}>{L('emptyAnswered')}</p>
+            <p style={styles.sectionLabel}>{L('answeredSectionTitle')}</p>
+            {answeredRequests.length === 0 ? (
+              <p style={styles.emptyHint}>{L('emptyAnswered')}</p>
+            ) : (
+              <div style={styles.list}>
+                {answeredRequests.map(r => (
+                  <PrayerRequestCard key={r.id} request={r} lang={lang} onOpen={onOpenRequest} />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
-          <div style={styles.list}>
-            {answeredRequests.map(r => (
-              <PrayerRequestCard key={r.id} request={r} lang={lang} />
-            ))}
-          </div>
+          groupActive.length === 0 ? (
+            <p style={styles.emptyHint}>{L('emptyGroup')}</p>
+          ) : (
+            <div style={styles.list}>
+              {groupActive.map(r => (
+                <PrayerRequestCard key={r.id} request={r} lang={lang} onPray={handlePray} onOpen={onOpenRequest} />
+              ))}
+            </div>
+          )
         )}
       </div>
 
@@ -151,9 +164,9 @@ const styles = {
   fixedCard: { borderRadius: 22, background: 'var(--bento-sand)', padding: '16px 18px', borderLeft: '3px solid var(--bento-sand-icon)' },
   fixedText: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.4, color: 'var(--bento-sand-ink-strong)', margin: 0 },
 
-  chipsRow: { display: 'flex', gap: 8 },
-  chip: { height: 38, padding: '0 16px', borderRadius: 99, border: 'none', background: 'var(--bento-card)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
-  chipOn: { background: 'var(--bento-ink)', color: '#fff' },
+  tabsRow: { display: 'flex', gap: 8 },
+  tab: { flex: 1, height: 40, borderRadius: 14, border: 'none', background: 'var(--bento-card)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-t2)' },
+  tabOn: { background: 'var(--bento-ink)', color: '#fff' },
 
   list: { display: 'flex', flexDirection: 'column', gap: 10 },
   emptyHint: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', margin: 0 },

@@ -21,6 +21,7 @@ import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPe
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import PrayerRequestsScreen from './screens/PrayerRequestsScreen'
+import PrayerRequestDetailScreen from './screens/PrayerRequestDetailScreen'
 import BlessingScreen from './screens/BlessingScreen'
 import ReadingSummaryScreen from './screens/ReadingSummaryScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
@@ -454,6 +455,10 @@ export default function App() {
   // o primeiro), a sala de capítulo aberta e a retrospectiva do mês devida.
   const [myGroups, setMyGroups] = useState([])
   const [chapterRoom, setChapterRoom] = useState(null) // { group, book, bookEn, chapter }
+  // Detalhe de um pedido de oração (comentários, 2026-09-19) — o request
+  // inteiro (já carregado na lista), não só o id, pra abrir sem esperar
+  // outra ida ao servidor.
+  const [prayerRequestDetail, setPrayerRequestDetail] = useState(null)
   // Fila de mensagens denunciadas do grupo (handoff-admin-42, 42l).
   const [reportedMessageGroupId, setReportedMessageGroupId] = useState(null)
   // 42j/42k (handoff-admin-42, Bloco 2) — mesma ideia de reportedMessageGroupId.
@@ -985,7 +990,7 @@ export default function App() {
     if (lockedTabs.includes(tab)) { goToTab('upgrade'); return }
     // Sair do modo guiado se a pessoa navegar explicitamente pra fora do
     // fluxo (Oração/Leitura/Reflexão) — ex: tocar em Início ou Comunidade.
-    if (guidedFlowRef.current && !['prayer', 'prayerRequests', 'blessing', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
+    if (guidedFlowRef.current && !['prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
       setGuidedFlow(null)
     }
     if (tab === 'journey') setJourneyEntryMode('overview')
@@ -2992,7 +2997,18 @@ export default function App() {
     // que abre esta tela sem passar pela aba Meu Plano/Comunidade.
     prayerRequests: !hasPremium
       ? <PremiumRequired feature="prayerRequests" lang={session.lang} onNavigate={navigateTo} />
-      : <PrayerRequestsScreen session={session} authUser={authUser} onBack={goBack} />,
+      : <PrayerRequestsScreen
+          session={session} authUser={authUser} onBack={goBack}
+          onOpenRequest={request => { setPrayerRequestDetail(request); goToTab('prayerRequestDetail') }}
+        />,
+    // Detalhe de um pedido (comentários, 2026-09-19) — aberto a partir de
+    // um card de PrayerRequestsScreen (acima); mesmo gate de Premium,
+    // é a mesma feature.
+    prayerRequestDetail: !hasPremium
+      ? <PremiumRequired feature="prayerRequests" lang={session.lang} onNavigate={navigateTo} />
+      : prayerRequestDetail
+        ? <PrayerRequestDetailScreen session={session} request={prayerRequestDetail} onBack={goBack} />
+        : null,
     // Pacote 36-37, 37e — fecho da leitura, sempre entre "Concluir"/
     // "Finalizar por aqui" (ReadingBlockView.jsx) e a Reflexão (ver
     // goToReflectionFrom/beginReflectionFromSummary acima).
@@ -3087,7 +3103,7 @@ export default function App() {
   // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
   // agora também aparece no mobile (era hide-on-mobile) — ver
   // StudiesScreen.jsx.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3104,7 +3120,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (
