@@ -1843,6 +1843,7 @@ export default function JourneyScreen({
             onBack={() => setThemeOpenId(null)}
             onOpenChapter={openChapterFromSearch}
             onBuildStudy={onBuildThemeStudy}
+            onNavigate={onNavigate}
           />
           {renderSermonFab()}
         </>

@@ -1528,6 +1528,17 @@ export default function App() {
   // fluxo antigo de plano por tema (que CreateStudyScreen.jsx/
   // ThemePlanScreen.jsx continuam servindo do jeito de sempre).
   const [aiStudyDraft, setAiStudyDraft] = useState(null) // { ...plan, mode: 'generate'|'preview', publicToBank }
+  // Trava de corrida (varredura geral, 2026-09-19) — handleGeneratePersonalStudy/
+  // handleRefazeAiStudyDraft/handleSwapAiStudyDay chamam a IA e escrevem
+  // direto em aiStudyDraft quando a resposta chega, sem checar se ainda é
+  // a geração que a pessoa está esperando. Sequência real: gera com o
+  // tema A numa rede lenta, volta, gera com o tema B (rápido, resolve
+  // primeiro, aprova, aiStudyDraft já virou outra coisa) — quando a
+  // resposta abandonada de A finalmente chega, ela reaparecia por cima do
+  // que estiver ali agora. Cada chamada tira um número aqui ANTES de
+  // chamar a IA; só aplica o resultado se ainda for o número mais recente
+  // quando a resposta voltar.
+  const aiStudyGenerationRef = useRef(0)
   // Turno 41, Bloco 3 — o dia que ACABOU de ser concluído em 41d (por
   // enquanto 'studyDay' sempre mostra o dia ATUAL, que já avançou pro
   // seguinte no instante em que 41e precisa mostrar o que a pessoa
@@ -1538,6 +1549,10 @@ export default function App() {
   const [returnedStudyDays, setReturnedStudyDays] = useState(null)
 
   async function handleGeneratePersonalStudy({ scope, format, days, publicToBank, plan }) {
+    // Tira o número ANTES de qualquer ramo (mesmo o síncrono, sem IA) —
+    // invalida uma geração anterior ainda em voo, pra ela não sobrescrever
+    // este resultado quando (se) chegar depois (ver aiStudyGenerationRef).
+    const myGeneration = ++aiStudyGenerationRef.current
     if (plan) {
       // Formato Livro — já montado 100% local (buildBookPlan), sem IA.
       // buildBookPlan devolve passages "crus" (só book/chStart/chEnd/words,
@@ -1549,6 +1564,7 @@ export default function App() {
       return
     }
     const fresh = await generateThemePlan(scope, 'standard', session.lang, days)
+    if (aiStudyGenerationRef.current !== myGeneration) return // abandonada por uma geração mais nova
     setAiStudyDraft({ ...fresh, format, publicToBank, mode: 'generate' })
     goToTab('studyProposalNew')
   }
@@ -1570,14 +1586,18 @@ export default function App() {
 
   async function handleRefazeAiStudyDraft() {
     if (!aiStudyDraft?.scope) return
+    const myGeneration = ++aiStudyGenerationRef.current
     const fresh = await generateThemePlan(aiStudyDraft.scope, 'standard', session.lang, aiStudyDraft.days)
+    if (aiStudyGenerationRef.current !== myGeneration) return
     setAiStudyDraft(prev => ({ ...prev, ...fresh }))
   }
 
   async function handleSwapAiStudyDay(index) {
     if (!aiStudyDraft?.scope) return
     const others = aiStudyDraft.passages.filter((_, i) => i !== index)
+    const myGeneration = ++aiStudyGenerationRef.current
     const replacement = await regenerateThemePassage(aiStudyDraft.scope, others, 'standard', session.lang)
+    if (aiStudyGenerationRef.current !== myGeneration) return
     setAiStudyDraft(prev => {
       const nextPassages = [...prev.passages]
       // Mantém o MESMO id (dia) do trecho trocado — api/regenerate-theme-
