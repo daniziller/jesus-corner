@@ -69,6 +69,19 @@ export function getOnboardingAnswers() {
   }
 }
 
+// Bug real (varredura geral, 2026-09-19): esta função existia, gravava
+// certinho em finishOnboarding, mas nunca era LIDA em lugar nenhum —
+// welcomeDone/pendingSignupAnswers (App.jsx) são só state em memória, sem
+// nenhuma reidratação. Um refresh entre terminar o onboarding e concluir o
+// cadastro (SignupScreen ainda aberta) jogava a pessoa de volta pra
+// Boas-vindas → as 7 telas de onboarding inteiras de novo — o progresso de
+// verdade (plano/rotina/dias) já estava salvo na linha de convidado, só a
+// pergunta-por-pergunta é que se perdia. App.jsx agora usa isto pra pular
+// direto pro cadastro quando já existem respostas salvas.
+export function clearOnboardingAnswers() {
+  try { localStorage.removeItem(ANSWERS_KEY) } catch { /* ignora */ }
+}
+
 // Lembrete escolhido no 15c — aplicado na primeira sessão de verdade (ver
 // applyPendingReminder em App.jsx), porque a inscrição push exige usuário.
 export function savePendingReminder(reminder) {
