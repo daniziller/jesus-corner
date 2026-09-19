@@ -197,6 +197,9 @@ export const STRINGS = {
       dayOffTitle: 'Dia off',
       dayOffSub: 'Nenhum passo do seu plano cai hoje.',
       dayOffCta: 'Adiantar o próximo dia',
+      planLoadErrorTitle: 'Não foi possível carregar seu plano',
+      planLoadErrorSub: 'Verifique sua conexão e tente de novo.',
+      planLoadErrorRetry: 'Tentar novamente',
       // Reposição (pedido dela, 2026-09-12): dia sem nada agendado, mas a
       // Leitura tem um dia perdido ainda em aberto nesta semana — troca o
       // card genérico de "dia off" por este, sem mexer na ordem de
@@ -3845,6 +3848,9 @@ export const STRINGS = {
       dayOffTitle: 'Day off',
       dayOffSub: "No step of your plan falls today.",
       dayOffCta: "Get ahead of tomorrow's plan",
+      planLoadErrorTitle: "Couldn't load your plan",
+      planLoadErrorSub: 'Check your connection and try again.',
+      planLoadErrorRetry: 'Try again',
       dayOffMakeupTitle: 'Make up {weekday}',
       dayOffMakeupSub: "A step from {weekday} got left behind — you can make it up in My Plan, no order changed.",
       dayOffMakeupCta: 'See what to make up',
