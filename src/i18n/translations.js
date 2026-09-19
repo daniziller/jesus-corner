@@ -1417,6 +1417,7 @@ export const STRINGS = {
       suplicaComposeSub: 'Você escolhe quem vê',
       finishToReadingBtn: 'Concluir e ir para a leitura',
       suplicaEmpty: 'Ninguém esperando oração agora.',
+      suplicaLoadError: 'Não foi possível carregar os pedidos agora.',
       // Súplica de quem não assina (divisão de planos, 2026): a frase fixa
       // e o progresso continuam à vista pra todo mundo; só a lista de
       // pedidos de outras pessoas e "Fazer um pedido" ficam no Premium
@@ -4901,6 +4902,7 @@ export const STRINGS = {
       suplicaComposeSub: 'You choose who sees it',
       finishToReadingBtn: 'Finish and go to reading',
       suplicaEmpty: 'No one waiting for prayer right now.',
+      suplicaLoadError: "Couldn't load requests right now.",
       suplicaLockTitle: 'Praying for the community is Premium',
       suplicaLockSub: "Seeing other people's requests, praying for them, and making your own are part of the Premium plan.",
     },

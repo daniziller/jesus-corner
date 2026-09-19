@@ -56,7 +56,16 @@ export default function PrayerRequestDetailScreen({ session, request, onBack }) 
   function handlePray() {
     if (prayedToday) return
     setPrayedToday(true)
-    setPrayCount(n => request.isMine ? n : n + 1)
+    // Bug real (varredura geral, 2026-09-19): marcar "orei" no PRÓPRIO
+    // pedido é permitido desde a migration 0059 (conta pra "orando há N
+    // dias") — o servidor já soma essa marca em pray_count/people igual a
+    // qualquer outra pessoa. O `isMine ? n : n + 1` daqui vinha de um
+    // tempo em que prayCount nunca era mostrado pra "mine" (só na aba de
+    // grupo); esta tela mostra o número pros dois casos, então marcar
+    // "orei" no seu próprio pedido não incrementava na hora — só depois
+    // de sair e voltar (recarregando do servidor), o número "pulava"
+    // sozinho, confuso.
+    setPrayCount(n => n + 1)
     markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
   }
 
