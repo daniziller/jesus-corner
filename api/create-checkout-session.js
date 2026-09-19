@@ -116,9 +116,25 @@ export default async function handler(req, res) {
 
   const { data: existing } = await supabase
     .from('subscriptions')
-    .select('stripe_customer_id, stripe_subscription_id, status')
+    .select('stripe_customer_id, stripe_subscription_id, status, billing_provider')
     .eq('user_id', caller.id)
     .maybeSingle()
+
+  // Bug real (varredura geral, 2026-09-19): nada aqui impedia criar uma
+  // assinatura Stripe nova em paralelo a uma já ativa via Play/Apple —
+  // "Trocar valor" em UpgradeScreen.jsx revela o seletor mesmo com uma
+  // assinatura de loja já ativa (isRecurringActive só verifica status, não
+  // billing_provider). Sem essa checagem, a pessoa acabava sendo cobrada
+  // nos dois lugares ao mesmo tempo, e o servidor não tem como cancelar
+  // uma assinatura de loja a partir daqui (isso exige o fluxo nativo da
+  // própria Play Store/App Store, com a pessoa presente). Bloqueia aqui em
+  // vez de deixar rolar.
+  if (
+    (existing?.billing_provider === 'google_play' || existing?.billing_provider === 'apple') &&
+    (existing.status === 'active' || existing.status === 'trialing')
+  ) {
+    return res.status(409).json({ error: 'other_provider_active' })
+  }
 
   // Confirma que o customer salvo ainda existe NESTE modo (test/live não se
   // misturam no Stripe — um customer_id salvo em modo teste, por exemplo,

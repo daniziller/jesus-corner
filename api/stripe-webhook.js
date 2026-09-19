@@ -30,7 +30,17 @@ function planFromInterval(interval) {
   return interval === 'year' ? 'annual' : 'monthly'
 }
 
-async function upsertFromSubscription(subscription) {
+// eventCreatedSeconds: quando o EVENTO do Stripe foi criado (event.created,
+// unix seconds) — não quando este handler processou ele. Bug real
+// (varredura geral, 2026-09-19): Stripe não garante ordem de entrega de
+// webhook; um upsert incondicional deixava um evento ATRASADO (ex: o
+// cancelamento da assinatura antiga, disparado DEPOIS de uma troca de
+// plano — ver checkout.session.completed abaixo) sobrescrever um estado
+// mais novo já gravado, se chegasse fora de ordem. A RPC
+// upsert_subscription_from_stripe_event (migration 0073) só aplica a
+// escrita quando este evento é igual ou mais novo que o último já
+// aplicado — mecanismo padrão do próprio Stripe pra isso.
+async function upsertFromSubscription(subscription, eventCreatedSeconds) {
   const userId = subscription.metadata?.supabase_user_id
   if (!userId) {
     console.error('Stripe subscription missing supabase_user_id metadata:', subscription.id)
@@ -47,18 +57,18 @@ async function upsertFromSubscription(subscription) {
   // antigo pra não quebrar se a conta usar uma apiVersion mais velha.
   const periodEndSeconds = item?.current_period_end ?? subscription.current_period_end
 
-  const { error } = await supabaseAdmin.from('subscriptions').upsert({
-    user_id: userId,
-    stripe_customer_id: subscription.customer,
-    stripe_subscription_id: subscription.id,
-    status: subscription.status,
-    plan,
-    tier,
-    access_type: 'recurring',
-    amount_cents: item?.price?.unit_amount ?? null,
-    currency: item?.price?.currency ?? null,
-    current_period_end: periodEndSeconds ? new Date(periodEndSeconds * 1000).toISOString() : null,
-    updated_at: new Date().toISOString(),
+  const { error } = await supabaseAdmin.rpc('upsert_subscription_from_stripe_event', {
+    p_user_id: userId,
+    p_stripe_customer_id: subscription.customer,
+    p_stripe_subscription_id: subscription.id,
+    p_status: subscription.status,
+    p_plan: plan,
+    p_tier: tier,
+    p_access_type: 'recurring',
+    p_amount_cents: item?.price?.unit_amount ?? null,
+    p_currency: item?.price?.currency ?? null,
+    p_current_period_end: periodEndSeconds ? new Date(periodEndSeconds * 1000).toISOString() : null,
+    p_event_at: new Date(eventCreatedSeconds * 1000).toISOString(),
   })
   if (error) console.error('Failed to upsert subscription:', error.message)
 }
@@ -111,7 +121,7 @@ export default async function handler(req, res) {
         const session = event.data.object
         if (session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription)
-          await upsertFromSubscription(subscription)
+          await upsertFromSubscription(subscription, event.created)
           // Só cancela a assinatura antiga (troca de valor/periodicidade)
           // depois que a nova já está confirmada e gravada — ver o
           // comentário em api/create-checkout-session.js sobre por que essa
@@ -131,7 +141,7 @@ export default async function handler(req, res) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        await upsertFromSubscription(event.data.object)
+        await upsertFromSubscription(event.data.object, event.created)
         break
       }
       default:

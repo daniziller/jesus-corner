@@ -144,7 +144,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
       }
     } catch (err) {
       if (err.message === 'user_cancelled') { setSubmitting(false); return }
-      setError(t('billing.checkoutError', undefined, lang))
+      setError(err.message === 'other_provider_active' ? t('billing.otherProviderActiveError', undefined, lang) : t('billing.checkoutError', undefined, lang))
       setSubmitting(false)
     }
   }
