@@ -1135,6 +1135,7 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang, pinnedNo
   const [comments, setComments] = useState([])
   const [body, setBody] = useState('')
   const [posting, setPosting] = useState(false)
+  const [postError, setPostError] = useState('')
   const [pinError, setPinError] = useState('')
   // Denunciar mensagem (handoff-admin-42, 42p) — a origem do fluxo de
   // moderação. Sem trigger visível no próprio quadro 42p (só mostra a
@@ -1156,12 +1157,19 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang, pinnedNo
     e.preventDefault()
     if (!body.trim()) return
     setPosting(true)
+    setPostError('')
     try {
       await postComment(groupId, body)
       setBody('')
       reload()
     } catch (err) {
+      // Bug real (varredura geral, 2026-09-19): "silenciar membro" passou
+      // a ser reforçado de verdade no banco (migration 0072) — antes
+      // disso, esta falha nunca acontecia de verdade, então nunca importou
+      // não ter aviso nenhum. Agora um membro silenciado que tenta postar
+      // via a RLS negando (em vez de sumir sem explicação).
       console.error('Failed to post comment', err)
+      setPostError(t('groups.postCommentError', undefined, lang))
     } finally {
       setPosting(false)
     }
@@ -1272,6 +1280,7 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang, pinnedNo
         </button>
       </form>
 
+      {postError && <p style={styles.error}>{postError}</p>}
       {pinError && <p style={styles.error}>{pinError}</p>}
 
       {pinnedComments.length > 0 && (
