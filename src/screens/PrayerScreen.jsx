@@ -86,16 +86,26 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
   // esperando oração, no máximo três, ordenados por quem recebeu menos
   // (getSupplicationRequests, RPC própria pra isso — nunca a mesma lista
   // de PD1, que é "os meus", não "pra eu orar").
+  // Bug real (varredura geral, 2026-09-19): o próprio store
+  // (prayerRequestsStore.js, comentário no topo do arquivo) já foi
+  // corrigido nesta mesma sessão pra LANÇAR em vez de engolir erro de
+  // leitura — exatamente pra distinguir "vazio de verdade" de "falha de
+  // leitura". Mas esta tela (o passo Súplica da Oração) continuava com
+  // `.catch(() => setX([]))`, jogando fora essa distinção de novo — uma
+  // falha real mostrava "ninguém esperando oração" (suplicaEmpty), o
+  // mesmo texto de "não tem pedido nenhum mesmo", sem aviso nenhum.
   const [requests, setRequests] = useState([])
+  const [requestsLoadError, setRequestsLoadError] = useState(false)
   useEffect(() => {
-    getMyPrayerRequests().then(setRequests).catch(() => setRequests([]))
+    getMyPrayerRequests().then(setRequests).catch(err => { console.error('Failed to load prayer requests', err); setRequestsLoadError(true) })
   }, [])
   const activeRequests = requests.filter(r => r.status !== 'closed')
   const requestCounts = { active: activeRequests.length, group: activeRequests.filter(r => !r.isMine).length }
 
   const [suplicaRequests, setSuplicaRequests] = useState([])
+  const [suplicaLoadError, setSuplicaLoadError] = useState(false)
   useEffect(() => {
-    getSupplicationRequests(3).then(setSuplicaRequests).catch(() => setSuplicaRequests([]))
+    getSupplicationRequests(3).then(setSuplicaRequests).catch(err => { console.error('Failed to load supplication requests', err); setSuplicaLoadError(true) })
   }, [])
 
   // "Fazer pedido" direto na Súplica (pedido dela, 2026-09-12: "deixar o
@@ -325,7 +335,9 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
                     <p style={styles.helpLabel}>{L('waitingLabel', { n: suplicaRequests.length })}</p>
                     <button type="button" style={styles.seeAllBtn} onClick={() => { pause(); onNavigate?.('prayerRequests') }}>{L('seeAllBtn')}</button>
                   </div>
-                  {suplicaRequests.length === 0 ? (
+                  {suplicaLoadError ? (
+                    <p style={styles.requestsSub}>{L('suplicaLoadError')}</p>
+                  ) : suplicaRequests.length === 0 ? (
                     <p style={styles.requestsSub}>{L('suplicaEmpty')}</p>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -480,8 +492,12 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <p style={styles.requestsTitle}>{L('requestsRowTitle')}</p>
               <p style={styles.requestsSub}>
-                {L(requestCounts.active === 1 ? 'requestsCountActiveOne' : 'requestsCountActiveMany', { n: requestCounts.active })}
-                {requestCounts.group > 0 ? ` · ${L(requestCounts.group === 1 ? 'requestsCountGroupOne' : 'requestsCountGroupMany', { n: requestCounts.group })}` : ''}
+                {requestsLoadError ? L('suplicaLoadError') : (
+                  <>
+                    {L(requestCounts.active === 1 ? 'requestsCountActiveOne' : 'requestsCountActiveMany', { n: requestCounts.active })}
+                    {requestCounts.group > 0 ? ` · ${L(requestCounts.group === 1 ? 'requestsCountGroupOne' : 'requestsCountGroupMany', { n: requestCounts.group })}` : ''}
+                  </>
+                )}
               </p>
             </div>
             <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
