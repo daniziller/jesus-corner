@@ -12,16 +12,21 @@
 //   (url padrão: http://localhost:5173 — rode `npm run dev` do app antes)
 //
 // No terminal, com o Chrome aberto e você já logado:
-//   l  -> screenshot "leitura"  (tela de leitura de um capítulo)
-//   p  -> screenshot "progresso" (aba Progresso)
-//   r  -> screenshot "rotina"    (aba Meu Plano)
+//   h  -> screenshot "hoje"      (aba Hoje/Início)
+//   l  -> screenshot "leitura"   (tela de leitura de um capítulo)
+//   m  -> screenshot "plano"     (aba Meu Plano)
+//   g  -> screenshot "progresso" (aba Progresso/Métricas)
 //   e  -> alterna o sufixo de idioma (grava como -en ou sem sufixo)
 //   s  -> mostra o estado atual (idioma)
 //   q  -> sai
 //
 // Rode uma vez com o app em português (sem sufixo) e outra com o app em
 // inglês (aperte `e` antes de capturar) — mesma dimensão dos arquivos
-// atuais: 780x1688 (390x844 @2x).
+// atuais: 780x1688 (390x844 @2x). Os 4 nomes acima (hoje/leitura/plano/
+// progresso) são os que o site (jesus-corner-site/src/App.jsx,
+// screenshotSrc) realmente usa hoje — atualizado na varredura geral de
+// 2026-09-19, esta lista tinha ficado presa nos nomes antigos (l/p/r =
+// leitura/progresso/rotina), sem "hoje" e com "rotina" em vez de "plano".
 
 import { chromium } from 'playwright'
 import { fileURLToPath } from 'node:url'
@@ -33,7 +38,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT_DIR = resolve(__dirname, '../../jesus-corner-site/public')
 const URL = process.argv[2] || 'http://localhost:5173'
 
-const SHOTS = { l: 'leitura', p: 'progresso', r: 'rotina' }
+const SHOTS = { h: 'hoje', l: 'leitura', m: 'plano', g: 'progresso' }
 
 mkdirSync(OUT_DIR, { recursive: true })
 
@@ -51,7 +56,7 @@ let lang = 'pt' // sufixo: pt = '', en = '-en'
 
 console.log(`\n  Chrome aberto em ${URL} (390x844 @2x).`)
 console.log('  Logue e navegue até a tela desejada, depois use as teclas:')
-console.log('    l = leitura   p = progresso   r = rotina')
+console.log('    h = hoje   l = leitura   m = plano (Meu Plano)   g = progresso')
 console.log('    e = alternar idioma (atual: pt)   s = status   q = sair\n')
 
 readline.emitKeypressEvents(process.stdin)
