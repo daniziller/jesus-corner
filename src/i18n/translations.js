@@ -1447,6 +1447,7 @@ export const STRINGS = {
       emptyActive: 'Nenhum pedido ativo ainda — toque em Novo para fazer o primeiro.',
       emptyAnswered: 'Ainda não há pedidos respondidos.',
       emptyGroup: 'Nenhum pedido do seu grupo por aqui.',
+      loadError: 'Não foi possível carregar seus pedidos agora. Tente novamente em instantes.',
       // Rótulos das 5 respostas — usados tanto no selo de Respondidos
       // quanto nas opções de 36e (option*Explanation abaixo).
       responseSim: 'Sim',
@@ -4903,6 +4904,7 @@ export const STRINGS = {
       emptyActive: 'No active requests yet — tap New to make the first one.',
       emptyAnswered: 'No answered requests yet.',
       emptyGroup: 'No requests from your group here.',
+      loadError: "Couldn't load your requests right now. Try again in a moment.",
       responseSim: 'Yes',
       responseNao: 'No',
       responseEspere: 'Wait',

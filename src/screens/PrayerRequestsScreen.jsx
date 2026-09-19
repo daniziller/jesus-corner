@@ -30,9 +30,15 @@ export default function PrayerRequestsScreen({ session, authUser, onBack }) {
   const [chip, setChip] = useState('active')
   const [archiving, setArchiving] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
+  // Distingue "vazio de verdade" de "não consegui carregar" — antes os
+  // dois casos mostravam o mesmo texto de lista vazia (bug real: sem a
+  // migration 0059 rodada, a leitura falhava e a tela parecia vazia sem
+  // nenhum aviso, ver prayerRequestsStore.js).
+  const [loadError, setLoadError] = useState(false)
 
   const reload = useCallback(() => {
-    getMyPrayerRequests().then(setRequests).catch(err => console.error('Failed to load prayer requests', err))
+    setLoadError(false)
+    getMyPrayerRequests().then(setRequests).catch(err => { console.error('Failed to load prayer requests', err); setLoadError(true) })
   }, [])
 
   useEffect(() => { reload() }, [reload])
@@ -97,7 +103,9 @@ export default function PrayerRequestsScreen({ session, authUser, onBack }) {
           ))}
         </div>
 
-        {visibleActive.length === 0 ? (
+        {loadError ? (
+          <p style={styles.emptyHint}>{L('loadError')}</p>
+        ) : visibleActive.length === 0 ? (
           <p style={styles.emptyHint}>{L(chip === 'group' ? 'emptyGroup' : 'emptyActive')}</p>
         ) : (
           <div style={styles.list}>
@@ -107,8 +115,8 @@ export default function PrayerRequestsScreen({ session, authUser, onBack }) {
           </div>
         )}
 
-        <p style={styles.sectionLabel}>{L('answeredSectionTitle')}</p>
-        {answeredRequests.length === 0 ? (
+        {!loadError && <p style={styles.sectionLabel}>{L('answeredSectionTitle')}</p>}
+        {loadError ? null : answeredRequests.length === 0 ? (
           <p style={styles.emptyHint}>{L('emptyAnswered')}</p>
         ) : (
           <div style={styles.list}>
