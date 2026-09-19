@@ -13,60 +13,91 @@
 //   - respondido:    cartão areia, selo da resposta (Sim sólido, as
 //                    outras translúcidas), "orado por N dias", nota em
 //                    itálico se a pessoa escreveu uma ao arquivar.
+//
+// O cartão inteiro abre o detalhe do pedido (onOpen, 2026-09-19—
+// comentários) — os botões de ação ficam por cima (stopPropagation), pra
+// tocar "Orei por isso"/"Arquivar" não abrir o detalhe também.
 import { t } from '../../i18n'
+import AppIcon from '../../icons/AppIcon'
 import { daysOrMonthsSpan, relativeTimeSpan } from '../../prayer/prayerRequestFormat'
 
 const FONT = 'var(--font-bento)'
 
-export default function PrayerRequestCard({ request: r, lang, onPray, onArchive }) {
+export default function PrayerRequestCard({ request: r, lang, onPray, onArchive, onOpen }) {
   const L = (k, vars) => t(`prayerRequests.${k}`, vars, lang)
+  const openable = !!onOpen
+  const open = () => onOpen?.(r)
+  const openOnKey = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }
 
   if (r.status === 'closed') {
     const isSim = r.resposta === 'sim'
     return (
-      <div style={s.answeredCard}>
+      <div style={s.answeredCard} onClick={openable ? open : undefined} onKeyDown={openable ? openOnKey : undefined} role={openable ? 'button' : undefined} tabIndex={openable ? 0 : undefined}>
         <div style={s.topRow}>
           <span style={{ ...s.badge, ...(isSim ? s.badgeSolid : s.badgeTint) }}>{L(`response${capResponse(r.resposta)}`)}</span>
           <span style={s.timeTextSand}>{L('answeredDaysLabel', { span: daysOrMonthsSpan(r.diasOrados, lang) })}</span>
         </div>
         <p style={s.answeredBody}>{r.body}</p>
         {r.notaResposta && <p style={s.note}>&ldquo;{r.notaResposta}&rdquo;</p>}
+        <div style={s.bottomRow}>
+          <p style={s.createdTextSand}>{L('timeAgoLabel', { span: relativeTimeSpan(r.createdAt, lang) })}</p>
+          {r.commentCount > 0 && <CommentHint count={r.commentCount} sand />}
+        </div>
       </div>
     )
   }
 
   if (r.isMine) {
     return (
-      <div style={s.card}>
+      <div style={s.card} onClick={openable ? open : undefined} onKeyDown={openable ? openOnKey : undefined} role={openable ? 'button' : undefined} tabIndex={openable ? 0 : undefined}>
         <div style={s.topRow}>
           <span style={{ ...s.badge, ...s.mineBadge }}>{L('mineTag')}</span>
           <span style={s.timeText}>{L('activeDaysLabel', { span: daysOrMonthsSpan(r.diasOrados, lang) })}</span>
         </div>
         <p style={s.body}>{r.body}</p>
+        {/* Data do pedido em si (quando foi feito) — distinta de
+            "orando há N dias" acima, que conta dias que VOCÊ orou por
+            ele, não a idade do pedido. Pedido dela, 2026-09-19. */}
+        <div style={s.bottomRow}>
+          <p style={s.createdText}>{L('timeAgoLabel', { span: relativeTimeSpan(r.createdAt, lang) })}</p>
+          {r.commentCount > 0 && <CommentHint count={r.commentCount} />}
+        </div>
         <div style={s.actionsRow}>
-          <button type="button" style={{ ...s.prayBtn, ...(r.prayedToday ? s.prayBtnDone : {}) }} onClick={() => onPray?.(r)} disabled={r.prayedToday}>
+          <button type="button" style={{ ...s.prayBtn, ...(r.prayedToday ? s.prayBtnDone : {}) }} onClick={e => { e.stopPropagation(); onPray?.(r) }} disabled={r.prayedToday}>
             {r.prayedToday ? L('prayedTodayBtn') : L('prayBtn')}
           </button>
-          <button type="button" style={s.archiveBtn} onClick={() => onArchive?.(r)}>{L('archiveBtn')}</button>
+          <button type="button" style={s.archiveBtn} onClick={e => { e.stopPropagation(); onArchive?.(r) }}>{L('archiveBtn')}</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={s.card}>
+    <div style={s.card} onClick={openable ? open : undefined} onKeyDown={openable ? openOnKey : undefined} role={openable ? 'button' : undefined} tabIndex={openable ? 0 : undefined}>
       <div style={s.topRow}>
         <span style={{ ...s.badge, ...s.groupBadge }}>{(r.groupName || '').toUpperCase()}</span>
         <span style={s.timeText}>{L('timeAgoLabel', { span: relativeTimeSpan(r.createdAt, lang) })}</span>
       </div>
       <p style={s.body}>{r.body}</p>
-      <p style={s.groupPrayedLine}>{L(r.prayCount === 1 ? 'groupPrayedOne' : 'groupPrayedMany', { n: r.prayCount })}</p>
+      <div style={s.bottomRow}>
+        <p style={s.groupPrayedLine}>{L(r.prayCount === 1 ? 'groupPrayedOne' : 'groupPrayedMany', { n: r.prayCount })}</p>
+        {r.commentCount > 0 && <CommentHint count={r.commentCount} />}
+      </div>
       <div style={s.actionsRow}>
-        <button type="button" style={{ ...s.prayBtn, ...(r.prayedToday ? s.prayBtnDone : {}) }} onClick={() => onPray?.(r)} disabled={r.prayedToday}>
+        <button type="button" style={{ ...s.prayBtn, ...(r.prayedToday ? s.prayBtnDone : {}) }} onClick={e => { e.stopPropagation(); onPray?.(r) }} disabled={r.prayedToday}>
           {r.prayedToday ? L('prayedTodayBtn') : L('prayBtn')}
         </button>
       </div>
     </div>
+  )
+}
+
+function CommentHint({ count, sand }) {
+  return (
+    <span style={{ ...s.commentHint, ...(sand ? s.commentHintSand : {}) }}>
+      <AppIcon name="MessageCircle" size={11} strokeWidth={2} color={sand ? 'var(--bento-sand-label)' : 'var(--bento-t5)'} />
+      {count}
+    </span>
   )
 }
 
@@ -75,8 +106,8 @@ function capResponse(key) {
 }
 
 const s = {
-  card: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 },
-  answeredCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 },
+  card: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer' },
+  answeredCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8, cursor: 'pointer' },
   topRow: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   // "Rótulo maiúsculo" (HANDOFF) — selo MEU/nome do grupo/resposta, 9,5/800.
   badge: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 0' },
@@ -99,6 +130,13 @@ const s = {
   // "texto sobre areia" genérico (#5A4327, usado noutros lugares).
   note: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.4, color: 'var(--bento-sand-ink-mid)', margin: 0 },
   groupPrayedLine: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+  // Data do pedido (card "meu") — secundária, por isso mais apagada que
+  // o timeText do topRow (--bento-t5, igual ao resto do app pra metadado).
+  createdText: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: 'var(--bento-t5)', margin: 0 },
+  createdTextSand: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: 'var(--bento-sand-label)', margin: 0 },
+  bottomRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  commentHint: { display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, fontFamily: FONT, fontSize: 11, fontWeight: 700, color: 'var(--bento-t5)' },
+  commentHintSand: { color: 'var(--bento-sand-label)' },
   actionsRow: { display: 'flex', gap: 8 },
   prayBtn: { height: 38, padding: '0 18px', borderRadius: 14, border: 'none', background: 'var(--bento-accent)', cursor: 'pointer', fontFamily: FONT, fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)' },
   // "Você orou" (areia) — mesmo estado de PD3, não um "concluído" cinza.

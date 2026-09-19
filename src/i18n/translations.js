@@ -724,7 +724,7 @@ export const STRINGS = {
     // (26a) ou do "+" na aba de oração de um grupo.
     addPrayerRequest: {
       title: 'Fazer um pedido',
-      sub: 'Uma frase basta. Ninguém pode comentar — só orar.',
+      sub: 'Uma frase basta. Quem pode ver o pedido também pode orar e comentar.',
       placeholder: 'Escreva seu pedido de oração...',
       charCount: '{used} / {max}',
       aiAssistBtn: 'Escrever com ajuda',
@@ -1430,9 +1430,10 @@ export const STRINGS = {
       headerAnsweredOne: '{n} respondido',
       headerAnsweredMany: '{n} respondidos',
       newBtn: 'Novo',
-      chipActive: 'Ativos',
-      chipAnswered: 'Respondidos',
-      chipGroup: 'Do meu grupo',
+      // Etapa 2026-09-19: chips (Ativos/Respondidos/Do meu grupo) viraram
+      // 2 abas — tabMine/tabGroup. chipActive/chipAnswered/chipGroup saíram.
+      tabMine: 'Meus pedidos',
+      tabGroup: 'Pedidos dos grupos',
       mineTag: 'Meu',
       // "{span}" já vem pronto de daysOrMonthsSpan (ex.: "24 dias"/"3 meses").
       activeDaysLabel: 'orando há {span}',
@@ -1466,6 +1467,16 @@ export const STRINGS = {
       noteLabel: 'O que eu vi (opcional)',
       notePlaceholder: 'Uma linha para lembrar daqui a um ano.',
       saveBtn: 'Guardar o pedido',
+    },
+    // Detalhe de um pedido + comentários (PrayerRequestDetailScreen.jsx,
+    // pedido dela 2026-09-19) — sem referência visual pronta, tela nova.
+    prayerRequestDetail: {
+      title: 'Pedido de oração',
+      commentsLabel: 'Comentários · {n}',
+      emptyComments: 'Nenhum comentário ainda — seja a primeira pessoa a escrever.',
+      loadError: 'Não foi possível carregar os comentários agora.',
+      commentPlaceholder: 'Escreva um comentário...',
+      deleteCommentA11y: 'Apagar comentário',
     },
     // 36f (pacote 36-37) — fim da Oração: única tela do app com fundo
     // escuro inteiro, sem rolagem. Texto do app (não gerado por IA); só o
@@ -4274,7 +4285,7 @@ export const STRINGS = {
     },
     addPrayerRequest: {
       title: 'Make a request',
-      sub: 'One sentence is enough. No one can comment — only pray.',
+      sub: 'One sentence is enough. Whoever can see the request can also pray and comment.',
       placeholder: 'Write your prayer request...',
       charCount: '{used} / {max}',
       aiAssistBtn: 'Write with help',
@@ -4888,9 +4899,8 @@ export const STRINGS = {
       headerAnsweredOne: '{n} answered',
       headerAnsweredMany: '{n} answered',
       newBtn: 'New',
-      chipActive: 'Active',
-      chipAnswered: 'Answered',
-      chipGroup: 'From my group',
+      tabMine: 'My requests',
+      tabGroup: "Groups' requests",
       mineTag: 'Mine',
       activeDaysLabel: 'praying for {span}',
       answeredDaysLabel: 'prayed for {span}',
@@ -4920,6 +4930,14 @@ export const STRINGS = {
       noteLabel: 'What I saw (optional)',
       notePlaceholder: 'One line to remember a year from now.',
       saveBtn: 'Save the request',
+    },
+    prayerRequestDetail: {
+      title: 'Prayer request',
+      commentsLabel: 'Comments · {n}',
+      emptyComments: 'No comments yet — be the first to write one.',
+      loadError: "Couldn't load the comments right now.",
+      commentPlaceholder: 'Write a comment...',
+      deleteCommentA11y: 'Delete comment',
     },
     blessing: {
       doneTag: '{n} min · done',

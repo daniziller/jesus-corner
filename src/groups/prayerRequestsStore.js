@@ -152,6 +152,7 @@ function mapMyRequestRow(row) {
     prayCount: Number(row.pray_count ?? 0),
     diasOrados: Number(row.days_prayed ?? 0),
     prayedToday: !!row.already_prayed_today,
+    commentCount: Number(row.comment_count ?? 0),
   }
 }
 
@@ -174,5 +175,45 @@ export async function archivePrayerRequest(requestId, response, note = '') {
     response,
     note: note.trim() || null,
   })
+  if (error) throw new Error(error.message)
+}
+
+// Comentários (migration 0070, pedido dela 2026-09-19) — quem já pode
+// VER o pedido pode comentar nele; o "Orei por isso" continua existindo
+// do lado, não é substituído por comentário. Autor do comentário sempre
+// aparece com nome, mesmo em pedido anônimo (a anonimidade é do pedido,
+// não de quem comenta).
+function mapCommentRow(row) {
+  return {
+    id: row.id,
+    body: row.body,
+    userId: row.user_id,
+    authorName: row.author_name ?? '',
+    createdAt: row.created_at,
+    isMine: !!row.is_mine,
+  }
+}
+
+export async function getPrayerRequestComments(requestId) {
+  const { data, error } = await supabase.rpc('get_prayer_request_comments', { target_request_id: requestId })
+  if (error) { console.error('[prayerRequestsStore] getPrayerRequestComments failed:', error.message); throw new Error(error.message) }
+  return (data ?? []).map(mapCommentRow)
+}
+
+export async function addPrayerRequestComment(requestId, body) {
+  const trimmed = body.trim()
+  if (!trimmed) return
+  const userId = await getUserId()
+  if (!userId) throw new Error('Você precisa estar logado.')
+  const { error } = await supabase
+    .from('group_prayer_comments')
+    .insert({ prayer_request_id: requestId, user_id: userId, body: trimmed })
+  if (error) throw new Error(error.message)
+}
+
+// A RLS decide se pode (autor do comentário, ou moderador do grupo
+// quando o pedido é de um grupo — ver migration 0070).
+export async function deletePrayerRequestComment(commentId) {
+  const { error } = await supabase.from('group_prayer_comments').delete().eq('id', commentId)
   if (error) throw new Error(error.message)
 }
