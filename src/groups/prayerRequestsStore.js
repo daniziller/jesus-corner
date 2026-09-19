@@ -13,6 +13,15 @@
 // "Orei por isso" de toggle em marca-por-dia — em TODO lugar que usa
 // group_prayer_intentions, inclusive aqui (markPraying substitui o antigo
 // togglePraying; não existe mais "desmarcar" pelo client).
+//
+// As 3 funções de LEITURA (getMyPrayerRequests/getSupplicationRequests/
+// getPrayerRequestsFeed) relançam o erro do RPC em vez de engolir e
+// devolver lista vazia — bug real encontrado 2026-09-19: sem a migration
+// 0059 rodada, get_my_prayer_requests não existia, a chamada falhava, e
+// o catch de cada tela nunca disparava (a promise nunca rejeitava) — a
+// tela só via "nenhum pedido ativo", indistinguível de estar vazia de
+// verdade. Toda tela que chama essas funções já tinha um `.catch()`
+// escrito esperando por isso; só nunca disparava.
 import { supabase } from '../lib/supabaseClient'
 
 async function getUserId() {
@@ -42,7 +51,7 @@ function mapSupplicationRow(row) {
 // voltam pra você mesmo).
 export async function getSupplicationRequests(maxN = 3) {
   const { data, error } = await supabase.rpc('get_supplication_requests', { max_n: maxN })
-  if (error) { console.error('[prayerRequestsStore] getSupplicationRequests failed:', error.message); return [] }
+  if (error) { console.error('[prayerRequestsStore] getSupplicationRequests failed:', error.message); throw new Error(error.message) }
   return (data ?? []).map(mapSupplicationRow)
 }
 
@@ -52,7 +61,7 @@ export async function getSupplicationRequests(maxN = 3) {
 // pessoas.
 export async function getPrayerRequestsFeed(groupId = null, maxN = 50) {
   const { data, error } = await supabase.rpc('get_prayer_requests_feed', { target_group_id: groupId, max_n: maxN })
-  if (error) { console.error('[prayerRequestsStore] getPrayerRequestsFeed failed:', error.message); return [] }
+  if (error) { console.error('[prayerRequestsStore] getPrayerRequestsFeed failed:', error.message); throw new Error(error.message) }
   return (data ?? []).map(row => ({ ...mapSupplicationRow(row), isMine: !!row.is_mine, status: row.status }))
 }
 
@@ -151,7 +160,7 @@ function mapMyRequestRow(row) {
 // (somem da lista assim que o autor arquiva; a resposta é dele, não sua).
 export async function getMyPrayerRequests(maxN = 100) {
   const { data, error } = await supabase.rpc('get_my_prayer_requests', { max_n: maxN })
-  if (error) { console.error('[prayerRequestsStore] getMyPrayerRequests failed:', error.message); return [] }
+  if (error) { console.error('[prayerRequestsStore] getMyPrayerRequests failed:', error.message); throw new Error(error.message) }
   return (data ?? []).map(mapMyRequestRow)
 }
 
