@@ -153,7 +153,18 @@ export async function login({ email, password }) {
     if (error.code === 'email_not_confirmed' || /not confirmed/i.test(error.message)) {
       throw new Error('Confirme seu email antes de entrar — verifique sua caixa de entrada.')
     }
-    throw new Error('Email ou senha incorretos.')
+    // Bug real (varredura geral, 2026-09-19): TODO erro (rede instável,
+    // servidor fora do ar, qualquer falha que não seja credencial errada)
+    // virava "Email ou senha incorretos" — alguém com a senha CERTA, numa
+    // falha passageira, era levado a desconfiar da própria senha (ou
+    // digitar errado tentando de novo) em vez de só tentar de novo. Só
+    // credenciais de fato inválidas (a mensagem padrão do GoTrue pra
+    // isso) mostram essa frase; qualquer outra falha mostra um aviso
+    // honesto, sem culpar a senha.
+    if (/invalid login credentials/i.test(error.message)) {
+      throw new Error('Email ou senha incorretos.')
+    }
+    throw new Error('Não foi possível entrar agora. Tente novamente em instantes.')
   }
   return mapUser(data.user)
 }

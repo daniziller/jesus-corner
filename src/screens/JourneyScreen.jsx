@@ -635,8 +635,21 @@ export default function JourneyScreen({
     setSermonDraft(prev => {
       if (!prev) return prev
       const body = (prev.body ?? []).filter(s => s.id !== seg.id)
+      // Bug real (varredura geral, 2026-09-19): citar o MESMO trecho duas
+      // vezes só entra uma vez em `passages` (insertQuoteSegment já evita
+      // duplicar ali) — mas removia daqui incondicionalmente ao apagar
+      // QUALQUER bloco de citação com esse book/chapter/verseStart/
+      // verseEnd, mesmo sobrando outro bloco idêntico ainda no corpo.
+      // "N passagens"/os chips/"Marcar na Bíblia" perdiam a referência
+      // mesmo com uma citação dela ainda visível na anotação. Agora só
+      // remove se NENHUM outro bloco no corpo (depois de tirar este)
+      // ainda referenciar o mesmo trecho.
+      const stillReferenced = (p) => body.some(s =>
+        (s.type === 'quote' || s.type === 'link') &&
+        s.book === p.book && s.chapter === p.chapter && s.verseStart === p.verseStart && s.verseEnd === p.verseEnd
+      )
       const passages = (seg.type === 'quote' || seg.type === 'link')
-        ? prev.passages.filter(p => !(p.book === seg.book && p.chapter === seg.chapter && p.verseStart === seg.verseStart && p.verseEnd === seg.verseEnd))
+        ? prev.passages.filter(p => !(p.book === seg.book && p.chapter === seg.chapter && p.verseStart === seg.verseStart && p.verseEnd === seg.verseEnd) || stillReferenced(p))
         : prev.passages
       return { ...prev, body, passages }
     })
