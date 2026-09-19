@@ -942,8 +942,19 @@ export default function JourneyScreen({
   // outra); sem nada digitado, simplesmente apaga — devolve o draft
   // final (já com finalizedAt) pra quem chamou decidir o que fazer com o
   // state local, ou null se apagou.
+  // Bug real (achado dela, 2026-09-19: "o lápis laranja continua na aba
+  // da Bíblia mesmo quando uma anotação não está ativa"). `null` aqui
+  // tinha dois sentidos diferentes — "não tinha nada pra fazer" (sem
+  // draft, ou sem sessão) E "apaguei o rascunho vazio" — e o chamador só
+  // tratava o segundo (`if (finalDraft) setSermonDraft(...)` ignorava
+  // ambos igualmente). Sem separar os dois casos, o state local
+  // (`sermonDraft`) nunca era limpo depois de apagar um rascunho vazio,
+  // então o lápis flutuante continuava aparecendo mesmo sem nenhuma
+  // anotação em andamento. Agora: `undefined` = não fez nada, state
+  // local intacto; `null` = apagou de vez, chamador precisa refletir
+  // isso limpando o state.
   function commitSermonDraft() {
-    if (!sermonDraft || !authUser?.email) return null
+    if (!sermonDraft || !authUser?.email) return undefined
     if (!sermonDraftHasContent(sermonDraft)) {
       deleteSermonNote(authUser.email, sermonDraft.id).catch(() => {})
       return null
@@ -966,7 +977,7 @@ export default function JourneyScreen({
     function handleVisibility() {
       if (!document.hidden) return
       const finalDraft = commitSermonDraft()
-      if (finalDraft) setSermonDraft(finalDraft)
+      if (finalDraft !== undefined) setSermonDraft(finalDraft)
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
@@ -983,6 +994,13 @@ export default function JourneyScreen({
   function leaveSermonPage() {
     if (sermonDraft && authUser?.email && !sermonDraftHasContent(sermonDraft)) {
       deleteSermonNote(authUser.email, sermonDraft.id).catch(() => {})
+      // Bug real (achado dela, 2026-09-19): apagava o rascunho vazio no
+      // servidor mas nunca limpava o state local — como esta tela é a
+      // MESMA instância reaproveitada pela aba Bíblia (só troca
+      // sermonNoteMode), o lápis flutuante (renderSermonFab, guiado só
+      // por `sermonDraft` truthy) continuava aparecendo lá mesmo sem
+      // nenhuma anotação em andamento.
+      setSermonDraft(null)
     }
     onBack?.()
   }
