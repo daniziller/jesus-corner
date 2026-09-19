@@ -1,0 +1,8 @@
+# Config do `supply` (Google Play). Objetivo: subir só capturas e metadados
+# de texto — nunca o binário.
+
+skip_upload_apk(true)
+skip_upload_aab(true)
+
+# Não subir changelog de versão junto (não faz parte desta tarefa).
+skip_upload_changelogs(true)

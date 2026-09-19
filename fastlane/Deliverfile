@@ -1,0 +1,15 @@
+# Config do `deliver` (App Store Connect). Objetivo: subir só capturas e
+# metadados de texto — nunca o binário.
+
+# Nunca envia binário nem toca a versão associada a ele.
+skip_binary_upload(true)
+skip_app_version_update(true)
+
+# Sobe capturas e metadados (os dois ficam explícitos mesmo sendo o padrão).
+skip_screenshots(false)
+skip_metadata(false)
+
+# Não pede confirmação interativa no terminal antes de subir — o pipeline é
+# não-interativo. Revise o diff dos arquivos em fastlane/metadata e
+# fastlane/screenshots antes de rodar.
+force(true)
