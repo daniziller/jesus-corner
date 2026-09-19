@@ -80,11 +80,15 @@ export default function RoutineScreen({ session, completedSet, stepMinutes, onCo
   const [prayerRequestsActiveCount, setPrayerRequestsActiveCount] = useState(null)
 
   useEffect(() => {
-    getStepDays().then(setStepDaysState).catch(() => {})
+    // Catches antes eram totalmente silenciosos (nem log) — uma falha de
+    // verdade em qualquer uma destas 4 buscas ficava indistinguível de
+    // "ainda carregando"/"vazio", sem NENHUM rastro pra depurar depois
+    // (mesma família de bug da varredura geral, 2026-09-19).
+    getStepDays().then(setStepDaysState).catch(err => console.error('Failed to load step days', err))
     setPrayerMethodState(getPrayerMethod())
     setReflectionMethodState(getReflectionMethod())
-    getUseLearnedPace().then(setUseLearnedPaceState).catch(() => {})
-    getMyPrayerRequests().then(list => setPrayerRequestsActiveCount(list.filter(r => r.status !== 'closed').length)).catch(() => {})
+    getUseLearnedPace().then(setUseLearnedPaceState).catch(err => console.error('Failed to load useLearnedPace', err))
+    getMyPrayerRequests().then(list => setPrayerRequestsActiveCount(list.filter(r => r.status !== 'closed').length)).catch(err => console.error('Failed to load prayer requests count', err))
   }, [])
 
   useEffect(() => {

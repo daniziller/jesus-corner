@@ -104,6 +104,18 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
   useEffect(() => {
     if (statusRef.current === 'playing' || statusRef.current === 'loading') {
       playCurrent()
+    } else if (statusRef.current !== 'idle') {
+      // Bug real (varredura geral, 2026-09-19): session.id também muda
+      // numa navegação MANUAL (trocar de capítulo direto pelo seletor,
+      // não pelo avanço do modo contínuo) — sem este ramo, um player
+      // pausado/parado/com erro no capítulo ANTERIOR continuava
+      // mostrando esse estado (barra de progresso, "retomar") como se
+      // fosse do capítulo NOVO. Tocar "retomar" nesse caso resumia o
+      // áudio ERRADO — ainda carregado no elemento <audio> compartilhado
+      // do capítulo anterior — sob o cabeçalho do capítulo certo. Volta
+      // pro estado neutro; a pessoa toca Play de novo, do zero, no
+      // capítulo certo.
+      stopPlayback()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id])
@@ -119,6 +131,13 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
       setStatus('playing')
       return
     }
+    // Bug real (varredura geral, 2026-09-19): sem este `return`, tocar
+    // duas vezes rápido (ou trocar de capítulo durante a janela de
+    // carregamento) caía direto no `playCurrent()` de baixo mesmo com
+    // 'loading' já em andamento — dois `speakSequence` concorrentes
+    // contra o mesmo elemento de áudio, um dos dois ficava preso e
+    // Pausar/Parar não silenciava tudo.
+    if (status === 'loading') return
     // idle | done | error
     primeSpeech() // destrava o áudio no iOS (precisa ser dentro do gesto)
     playCurrent()

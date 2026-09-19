@@ -126,8 +126,14 @@ export default function HomeScreen({
   // simplificação disclosed (raro, ver comentário na PR).
   const [groupChallenge, setGroupChallenge] = useState(null)
 
+  // Bug real (varredura geral, 2026-09-19): `.catch(() => {})` deixava
+  // `stepDays` em `null` pra sempre se a busca falhasse de verdade (não só
+  // "ainda carregando") — `todaysSteps` cai pra `[]` nesse caso (linha
+  // abaixo), e o card "Seu plano de hoje" mostra "Dia off" pra sessão
+  // inteira, indistinguível de um dia sem nenhum passo agendado mesmo.
+  const [stepDaysLoadError, setStepDaysLoadError] = useState(false)
   useEffect(() => {
-    getStepDays().then(setStepDaysState).catch(() => {})
+    getStepDays().then(setStepDaysState).catch(err => { console.error('Failed to load step days', err); setStepDaysLoadError(true) })
     setPrayerMethodState(getPrayerMethod())
     setReflectionMethodState(getReflectionMethod())
   }, [])
@@ -167,7 +173,15 @@ export default function HomeScreen({
 
   useEffect(() => {
     if (!activeStudyId) { setActiveStudy(null); return }
+    // Bug real (varredura geral, 2026-09-19): faltava o mesmo guard
+    // `cancelled`/`alive` que os efeitos vizinhos (groupChallenge acima,
+    // o efeito principal da tela) já usam — trocar de estudo ativo
+    // rapidamente podia deixar uma resposta ANTIGA (de um activeStudyId
+    // anterior) resolver depois da mais nova e sobrescrever o card com o
+    // estudo errado.
+    let cancelled = false
     Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
+      if (cancelled) return
       const study = [...STUDIES, ...ai, ...inductive].find(s => s.id === activeStudyId)
       if (!study) return
       const total = study.sessions?.length ?? 0
@@ -179,6 +193,7 @@ export default function HomeScreen({
         dayDone: done, dayTotal: total,
       })
     }).catch(() => {})
+    return () => { cancelled = true }
   }, [activeStudyId, lang])
 
   // `applicationRefreshKey` (bug real, 2026-09-14, reportado por ela: "salvei
@@ -335,7 +350,7 @@ export default function HomeScreen({
   const currentKey = todaysSteps.find(k => !todayRoutine[k]) ?? null
   const allDoneToday = todaysSteps.length > 0 && !currentKey
 
-  const planState = session.hasNoPlan ? 'noPlan' : todaysSteps.length === 0 ? 'dayOff' : 'normal'
+  const planState = stepDaysLoadError ? 'loadError' : session.hasNoPlan ? 'noPlan' : todaysSteps.length === 0 ? 'dayOff' : 'normal'
 
   const stepTitle = k => translate(`home.routine${cap(k)}`, undefined, lang)
 
@@ -665,6 +680,19 @@ export default function HomeScreen({
               <p style={styles.continuityLine}>{hasMakeupToday ? L('dayOffMakeupSub', { weekday: weekdayFull[earliestMakeupWeekdayIdx] }) : L('dayOffSub')}</p>
               <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={hasMakeupToday ? () => onNavigate?.('routine') : handleOnlyRead}>
                 <span style={styles.onlyReadBtnText}>{hasMakeupToday ? L('dayOffMakeupCta') : L('dayOffCta')}</span>
+              </button>
+            </>
+          )}
+
+          {planState === 'loadError' && (
+            <>
+              <p style={styles.planTitle}>{L('planLoadErrorTitle')}</p>
+              <p style={styles.continuityLine}>{L('planLoadErrorSub')}</p>
+              <button
+                style={{ ...styles.onlyReadBtn, width: '100%' }}
+                onClick={() => { setStepDaysLoadError(false); getStepDays().then(setStepDaysState).catch(err => { console.error('Failed to load step days', err); setStepDaysLoadError(true) }) }}
+              >
+                <span style={styles.onlyReadBtnText}>{L('planLoadErrorRetry')}</span>
               </button>
             </>
           )}
