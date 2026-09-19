@@ -64,18 +64,34 @@ estranha em inglês; a estrutura e o sentido de cada seção foram mantidos).
 Todos os campos respeitam o limite de caracteres de cada loja (conferido
 por script antes de gravar).
 
+## Ícone — pronto
+
+Gerado pelo `brand/render-icons.mjs` já existente no repo — mesma
+geometria/cores de `src/brand/brandSymbol.js` que desenha a marca na
+interface (BrandMark.jsx), então o ícone da loja nunca diverge da marca do
+app. Rodar de novo se o símbolo mudar: `node brand/render-icons.mjs`
+(precisa do Chromium do Playwright — `npx playwright install chromium`
+depois de `npm install`; adicionei `playwright` como devDependency porque
+o script já dependia dele sem declarar).
+
+- **iOS (1024×1024):** não existe campo separado no `deliver` — o ícone da
+  App Store vem do próprio binário. Atualizado direto no asset catalog do
+  Xcode: `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
+  (nome do arquivo é herança do Capacitor; o conteúdo é 1024×1024).
+  Quadrado, opaco, sem cantos arredondados — a Apple aplica a máscara dela.
+- **Android (512×512):** `metadata/android/{pt-BR,en-US}/images/icon.png` —
+  mesmo ícone nos dois locales (o ícone de loja não muda por idioma).
+  Fundo sólido até a borda (sem transparência), símbolo reduzido pra caber
+  na zona seguro de máscara do Android.
+
+Rodar `node brand/render-icons.mjs` sem querer também regenera o ícone real
+do app (launcher, notificação, splash, PWA) — nada disso foi commitado
+aqui de propósito, só os dois arquivos de loja acima. Esses outros já
+estavam corretos/atualizados; se algum dia divergirem da marca, é rodar o
+script e revisar o diff completo, não só a parte da loja.
+
 ## O que ainda falta
 
-- **Ícone do app.** Não tem arquivo aqui pra nenhuma das duas lojas:
-  - **iOS (1024×1024):** a App Store Connect API não aceita mais ícone de
-    loja enviado à parte — ele vem do próprio binário (asset catalog do
-    Xcode, `ios/App/App/Assets.xcassets/AppIcon.appiconset/`). Não existe
-    campo do `deliver` pra isso; não criei arquivo porque não haveria onde
-    o `deliver` o lesse.
-  - **Android (512×512):** o `supply` aceita um ícone de alta resolução em
-    `metadata/android/pt-BR/images/icon.png`, mas não criei o arquivo — uma
-    imagem vazia/inválida quebraria o upload. Quando o ícone existir, salve
-    nesse caminho exato.
 - **Capturas em inglês** (`screenshots/en-US/`,
   `metadata/android/en-US/images/phoneScreenshots/`): os textos do locale
   en-US já existem (acima), mas as imagens não — ver `NOTE.md` dentro de
