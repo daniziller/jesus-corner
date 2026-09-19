@@ -290,7 +290,8 @@ export default function JourneyScreen({
     let cancelled = false
     getSermonNotes(authUser.email).then(notes => {
       if (cancelled) return
-      const target = sermonNoteMode && sermonNoteEditId
+      const editingSpecificNote = sermonNoteMode && sermonNoteEditId
+      const target = editingSpecificNote
         ? notes.find(n => n.id === sermonNoteEditId)
         : notes.find(n => !n.finalizedAt)
       if (target) {
@@ -300,7 +301,19 @@ export default function JourneyScreen({
         // desta resposta de rede chegar), o `prev ? prev : ...` abaixo
         // NÃO deixa essa busca sobrescrever o formulário em branco com
         // os valores da anotação anterior — "o form sempre abre limpo".
-        setSermonDraft(prev => prev ? prev : {
+        //
+        // Bug real (varredura geral, 2026-09-19): esse MESMO guard
+        // impedia abrir uma anotação B pela Biblioteca enquanto uma
+        // anotação A ainda estava residente no state (a tela é a mesma
+        // instância reaproveitada, sem remontar) — a pessoa achava que
+        // tinha aberto B, via/editava A, e o texto ia pro lugar errado.
+        // A corrida original só existe no ramo "retomar rascunho em
+        // andamento" (abaixo, sem sermonNoteEditId, onde
+        // startNewSermonNote() pode criar um rascunho novo NO MEIO desta
+        // busca assíncrona) — o ramo "abrir uma anotação ESPECÍFICA"
+        // (sermonNoteEditId setado) nunca cria rascunho novo nenhum, e
+        // por isso pode — e deve — sempre confiar no que acabou de buscar.
+        setSermonDraft(prev => (editingSpecificNote || !prev) ? {
           id: target.id, createdAt: target.createdAt ?? new Date().toISOString(), date: target.date ?? dateKey(),
           noteType: target.noteType ?? 'sermon', title: target.title ?? '', preacher: target.preacher ?? '',
           church: target.church ?? '', link: target.link ?? '', passages: target.passages ?? [], text: target.text ?? '',
@@ -318,7 +331,7 @@ export default function JourneyScreen({
           body: Array.isArray(target.body) && target.body.length > 0 ? target.body : [newSermonSegment('text', target.text ?? '')],
           finalizedAt: target.finalizedAt ?? null,
           durationSeconds: target.durationSeconds ?? 0, groupId: target.groupId ?? null,
-        })
+        } : prev)
       }
       const custom = [...new Set(notes.map(n => n.noteType).filter(nt => nt && !SERMON_NOTE_TYPES.includes(nt)))]
       setSermonCustomTypes(custom)
@@ -513,7 +526,24 @@ export default function JourneyScreen({
         const target = sermonDraft.passages[0]
         if (target) {
           const body = [sermonDraft.title.trim(), sermonOwnWordsText(sermonDraft)].filter(Boolean).join('\n\n')
-          await Promise.allSettled(sermonSelectedGroupIds.map(groupId => postToRoom(groupId, target.book, target.chapter, body)))
+          const results = await Promise.allSettled(sermonSelectedGroupIds.map(groupId => postToRoom(groupId, target.book, target.chapter, body)))
+          // Bug real (varredura geral, 2026-09-19): os resultados nunca
+          // eram olhados — uma falha de rede em TODAS as publicações
+          // passava batido, a anotação era salva e finalizada normal (o
+          // que está certo — o texto em si não se perde), mas "levei ao
+          // grupo" nunca de fato aconteceu, sem nenhum sinal disso em
+          // lugar nenhum. Não bloqueia a finalização (o registro já foi
+          // salvo com sucesso acima); só deixa de ser invisível.
+          const failed = results.filter(r => r.status === 'rejected')
+          if (failed.length > 0) console.error(`Failed to post sermon note to ${failed.length}/${results.length} group(s)`, failed.map(r => r.reason))
+        } else {
+          // "Levar ao grupo" precisa de um versículo citado pra saber em
+          // qual sala de capítulo publicar (ver aviso renderSermonSummary,
+          // mesma varredura) — se chegou aqui sem passagem (ex: citou,
+          // ligou o compartilhamento, depois apagou a citação), o
+          // compartilhamento não acontece; log só pra não ficar invisível
+          // no console durante debug, a finalização em si segue normal.
+          console.error('Sermon note share-to-group skipped: no cited passage to post to')
         }
       }
       setSermonDraft(null)
@@ -1498,27 +1528,41 @@ export default function JourneyScreen({
           <div style={styles.sermonGroupCard}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={styles.sermonFieldLabel2}>{t('sermonNote.takeToGroupLabel', undefined, lang)}</p>
-              <button
-                type="button" style={styles.sermonGroupPickLink}
-                onClick={() => (groups.length > 1 ? setSermonGroupPickerOpen(true) : null)}
-              >
-                {selectedGroup
-                  ? `${selectedGroup.name} · ${t(sermonGroupMemberCounts[selectedGroup.groupId] === 1 ? 'reading.groupMemberOne' : 'reading.groupMemberMany', { n: sermonGroupMemberCounts[selectedGroup.groupId] ?? 0 }, lang)}`
-                  : t('sermonNote.chooseGroupCta', undefined, lang)}
-              </button>
+              {sermonDraft.passages.length === 0 ? (
+                // Bug real (varredura geral, 2026-09-19): "Levar ao grupo"
+                // publica no MURAL DO CAPÍTULO do primeiro versículo citado
+                // (finalizeSermonNote acima) — sem nenhum versículo citado
+                // (válido: a anotação pode ser só reflexão em palavras
+                // próprias), não existe capítulo nenhum pra publicar em.
+                // O toggle ficava visível e ligável, mas finalizeSermonNote
+                // simplesmente não fazia nada — sem aviso nenhum. Agora
+                // mostra por que não dá, em vez do toggle.
+                <p style={styles.sermonGroupHint}>{t('sermonNote.takeToGroupNeedsPassage', undefined, lang)}</p>
+              ) : (
+                <button
+                  type="button" style={styles.sermonGroupPickLink}
+                  onClick={() => (groups.length > 1 ? setSermonGroupPickerOpen(true) : null)}
+                >
+                  {selectedGroup
+                    ? `${selectedGroup.name} · ${t(sermonGroupMemberCounts[selectedGroup.groupId] === 1 ? 'reading.groupMemberOne' : 'reading.groupMemberMany', { n: sermonGroupMemberCounts[selectedGroup.groupId] ?? 0 }, lang)}`
+                    : t('sermonNote.chooseGroupCta', undefined, lang)}
+                </button>
+              )}
             </div>
-            <button
-              role="switch" aria-checked={sermonShareOn}
-              onClick={() => {
-                const next = !sermonShareOn
-                setSermonShareOn(next)
-                if (next && groups.length === 1 && sermonSelectedGroupIds.length === 0) setSermonSelectedGroupIds([groups[0].groupId])
-                if (next && groups.length > 1 && sermonSelectedGroupIds.length === 0) setSermonGroupPickerOpen(true)
-              }}
-              style={{ ...styles.sermonToggle, background: sermonShareOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: sermonShareOn ? 'flex-end' : 'flex-start' }}
-            >
-              <span style={{ ...styles.sermonToggleThumb, background: sermonShareOn ? 'var(--bento-accent)' : '#fff' }} />
-            </button>
+            {sermonDraft.passages.length > 0 && (
+              <button
+                role="switch" aria-checked={sermonShareOn}
+                onClick={() => {
+                  const next = !sermonShareOn
+                  setSermonShareOn(next)
+                  if (next && groups.length === 1 && sermonSelectedGroupIds.length === 0) setSermonSelectedGroupIds([groups[0].groupId])
+                  if (next && groups.length > 1 && sermonSelectedGroupIds.length === 0) setSermonGroupPickerOpen(true)
+                }}
+                style={{ ...styles.sermonToggle, background: sermonShareOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: sermonShareOn ? 'flex-end' : 'flex-start' }}
+              >
+                <span style={{ ...styles.sermonToggleThumb, background: sermonShareOn ? 'var(--bento-accent)' : '#fff' }} />
+              </button>
+            )}
           </div>
         )}
 
@@ -2382,6 +2426,7 @@ const styles = {
   sermonGroupCard: { display: 'flex', alignItems: 'center', gap: 14, borderRadius: 26, background: '#fff', padding: '18px 20px', marginTop: 12 },
   sermonFieldLabel2: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 3px' },
   sermonGroupPickLink: { border: 'none', background: 'none', padding: 0, textAlign: 'left', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', cursor: 'pointer' },
+  sermonGroupHint: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t4)', margin: 0 },
 
   // 34h — item 6, rodapé: "Guardar na biblioteca" (laranja 52px raio 18)
   // e "Voltar e escrever mais" (branco 46px).
