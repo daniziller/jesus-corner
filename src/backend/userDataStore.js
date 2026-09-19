@@ -100,7 +100,19 @@ export async function migrateGuestRow() {
 // Busca a linha inteira do usuário autenticado — ou, sem sessão, a linha
 // local de convidado (ver acima). null só quando realmente não há nada (nem
 // conta, nem progresso de convidado ainda) ou a linha real ainda não foi
-// criada pelo trigger (corrida rara logo após o signup).
+// criada pelo trigger (corrida rara logo após o signup) — isso é um `null`
+// LEGÍTIMO, sem erro nenhum (maybeSingle() sem match não seta `error`).
+//
+// Bug real (varredura geral, 2026-09-19): uma falha de VERDADE do Supabase
+// (rede, RLS, sessão expirada) caía no mesmo `return null` de cima —
+// indistinguível de "conta nova, ainda sem linha". Toda store construída em
+// cima desta função (progressStore, notesStore, dailyRoutineStore,
+// planStore, stepDaysStore, aiStudiesStore, highlightsStore, e ~20 outras —
+// ver `grep -rl fetchRow\|updateRow src/`) lia esse null como "vazio" e
+// seguia normalmente, e o `.catch()` de quem chamava a store nunca disparava
+// (a promise nunca rejeitava) — um erro real de leitura ficava indistinguível
+// de "usuário sem dado ainda" em TODO o app. Agora lança o erro; `null`
+// continua sendo só o caso legítimo (sem sessão/linha ainda não criada).
 export async function fetchRow() {
   const userId = await getUserId()
   if (!userId) return getGuestRow()
@@ -109,10 +121,7 @@ export async function fetchRow() {
     .select('*')
     .eq('user_id', userId)
     .maybeSingle()
-  if (error) {
-    console.error('[userDataStore] fetchRow failed:', error.message)
-    return null
-  }
+  if (error) throw new Error(error.message)
   return data
 }
 
@@ -135,6 +144,15 @@ export function withRowLock(operation) {
 // Atualiza só os campos passados em `patch`, devolvendo a linha inteira já
 // atualizada — ou, sem sessão, faz o mesmo merge incremental na linha local
 // de convidado (ver fetchRow acima).
+//
+// Bug real (varredura geral, 2026-09-19, mesma causa de fetchRow acima):
+// uma falha de gravação de verdade (rede, RLS, sessão expirada) devolvia
+// `null` em vez de lançar — toda store construída aqui em cima tinha um
+// fallback tipo `return updated?.notes ?? notes` (o valor local otimista),
+// então a chamada "tinha sucesso" mesmo sem nada ter sido escrito no banco.
+// A UI mostrava salvo na hora; na próxima abertura do app, o dado real
+// (sem a mudança) sobrescrevia o que parecia salvo — perda silenciosa.
+// Agora lança o erro; quem chama passa a receber a rejeição de verdade.
 export async function updateRow(patch) {
   const userId = await getUserId()
   if (!userId) {
@@ -147,9 +165,6 @@ export async function updateRow(patch) {
     .eq('user_id', userId)
     .select()
     .maybeSingle()
-  if (error) {
-    console.error('[userDataStore] updateRow failed:', error.message)
-    return null
-  }
+  if (error) throw new Error(error.message)
   return data
 }

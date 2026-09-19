@@ -36,7 +36,7 @@ export async function getPendingGroupReports(groupId) {
     .eq('group_id', groupId)
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
-  if (error) { console.error('[reportsStore] getPendingGroupReports failed:', error.message); return [] }
+  if (error) throw new Error(error.message)
   return data ?? []
 }
 

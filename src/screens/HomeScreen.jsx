@@ -38,7 +38,7 @@ import { getHomeVerse, getContinuityExcerpt } from '../home/homeVerseStore'
 import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
-import { dateKey } from '../utils/dateKey'
+import { dateKey, parseLocalDateKey } from '../utils/dateKey'
 import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeekPillStates } from '../routine/stepDaysStore'
 import { STEP_ORDER } from '../routine/planTodayRows'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
@@ -142,8 +142,12 @@ export default function HomeScreen({
       if (!active) { setGroupChallenge(null); return }
       // dayIndex 0-based: dia 0 = starts_at. Fora da janela (ainda não
       // começou, ou já passou do último dia) = não mostra nada — sem
-      // "desafio encerrado" pendurado.
-      const dayIndex = Math.floor((Date.now() - new Date(active.startsAt).getTime()) / 86400000)
+      // "desafio encerrado" pendurado. parseLocalDateKey (não `new
+      // Date(startsAt)` direto) — startsAt é uma "YYYY-MM-DD" e o
+      // construtor puro lê isso como meia-noite UTC, virando o dia ~3h
+      // antes da meia-noite local pra quem está em UTC-3 (bug real,
+      // achado na varredura de 2026-09-19).
+      const dayIndex = Math.floor((Date.now() - parseLocalDateKey(active.startsAt).getTime()) / 86400000)
       if (dayIndex < 0 || dayIndex >= active.totalDays) { setGroupChallenge(null); return }
       const day = active.days[dayIndex]
       getMyGroupChallengeProgress(active.id).then(completed => {

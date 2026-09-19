@@ -91,14 +91,14 @@ export async function getLatestGroupPlan(groupId) {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (error) { console.error('[groupPlansStore] getLatestGroupPlan failed:', error.message); return null }
+  if (error) throw new Error(error.message)
   if (!plan) return null
 
   const { data: members, error: membersError } = await supabase
     .from('group_reading_plan_members')
     .select('status')
     .eq('plan_id', plan.id)
-  if (membersError) console.error('[groupPlansStore] getLatestGroupPlan members failed:', membersError.message)
+  if (membersError) throw new Error(membersError.message)
   const counts = { invited: 0, accepted: 0, declined: 0 }
   for (const m of members ?? []) counts[m.status] = (counts[m.status] ?? 0) + 1
 

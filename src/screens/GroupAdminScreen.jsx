@@ -68,6 +68,7 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
   const [pendingReports, setPendingReports] = useState([])
   const [activity, setActivity] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
@@ -78,9 +79,13 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
   const [savingNotice, setSavingNotice] = useState(false)
   const [noticeError, setNoticeError] = useState('')
 
+  const [reloadKey, setReloadKey] = useState(0)
+
   useEffect(() => {
     if (!groupId) { setLoading(false); return }
     let cancelled = false
+    setLoading(true)
+    setLoadError(false)
     Promise.all([
       getGroupDetail(groupId), getPendingJoinRequests(groupId), getLatestGroupPlan(groupId),
       getActiveGroupChallenge(groupId), getPendingGroupReports(groupId), getGroupReadingActivity(groupId),
@@ -93,9 +98,20 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
       setPendingReports(reports)
       setActivity(activityRows)
       setLoading(false)
+    }).catch(err => {
+      // Bug real (varredura geral, 2026-09-19): as 6 chamadas acima
+      // engoliam erro e devolviam um default vazio — uma falha de leitura
+      // de verdade fazia esta tela ficar presa pra sempre no esqueleto
+      // (loading nunca virava false, sem nenhum aviso). Agora as stores
+      // lançam de verdade; este catch é o que finalmente existia pra
+      // tratar isso.
+      if (cancelled) return
+      console.error('Failed to load group admin panel', err)
+      setLoading(false)
+      setLoadError(true)
     })
     return () => { cancelled = true }
-  }, [groupId])
+  }, [groupId, reloadKey])
 
   function startEditGroup() {
     setEditName(group.name)
@@ -146,6 +162,20 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
           <BackBtn onBack={onBack} lang={lang} />
         </div>
         <p style={styles.emptyHint}>{L('noGroupHint')}</p>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div style={styles.screen}>
+        <div style={styles.header}>
+          <BackBtn onBack={onBack} lang={lang} />
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+          <p style={styles.emptyHint}>{L('loadError')}</p>
+          <button type="button" style={styles.retryBtn} onClick={() => setReloadKey(k => k + 1)}>{L('retryBtn')}</button>
+        </div>
       </div>
     )
   }
@@ -419,6 +449,7 @@ const styles = {
   groupName: { fontFamily: FONT, fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: '#fff', margin: '0 0 2px' },
   groupSub: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0 },
   emptyHint: { fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '0 20px' },
+  retryBtn: { height: 40, padding: '0 20px', borderRadius: 14, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff' },
 
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 },
 

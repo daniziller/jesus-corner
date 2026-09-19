@@ -46,6 +46,7 @@ export default function GroupMembersScreen({ session, authUser, groupId, onBack 
   const [requests, setRequests] = useState([])
   const [activity, setActivity] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [busyUserId, setBusyUserId] = useState(null)
   const [shareState, setShareState] = useState('idle')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -53,11 +54,19 @@ export default function GroupMembersScreen({ session, authUser, groupId, onBack 
   const [actionSheetMember, setActionSheetMember] = useState(null)
 
   function reload() {
+    setLoading(true)
+    setLoadError(false)
     Promise.all([getGroupDetail(groupId), getPendingJoinRequests(groupId), getGroupReadingActivity(groupId)]).then(([detail, pending, activityRows]) => {
       setGroup(detail)
       setRequests(pending)
       setActivity(activityRows)
       setLoading(false)
+    }).catch(err => {
+      // Mesmo bug/mesmo conserto de GroupAdminScreen.jsx — ver comentário
+      // lá (varredura geral, 2026-09-19).
+      console.error('Failed to load group members', err)
+      setLoading(false)
+      setLoadError(true)
     })
   }
 
@@ -132,6 +141,20 @@ export default function GroupMembersScreen({ session, authUser, groupId, onBack 
     } finally {
       setBusyUserId(null)
     }
+  }
+
+  if (loadError) {
+    return (
+      <div style={styles.screen}>
+        <div style={styles.header}>
+          <BackBtn onBack={onBack} lang={lang} />
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+          <p style={styles.emptyHint}>{L('loadError')}</p>
+          <button type="button" style={styles.retryBtn} onClick={reload}>{L('retryBtn')}</button>
+        </div>
+      </div>
+    )
   }
 
   if (loading || !group) {
@@ -365,6 +388,8 @@ const styles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 18px', background: 'var(--bento-ink)', borderRadius: '0 0 24px 24px' },
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  emptyHint: { fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '0 20px' },
+  retryBtn: { height: 40, padding: '0 20px', borderRadius: 14, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff' },
   searchBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: FONT, fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: '#fff', margin: 0 },
   headerSub: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: '3px 0 0' },
