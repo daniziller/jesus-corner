@@ -711,7 +711,14 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
     // marcado hoje, o toque não faz mais nada até o dia virar.
     if (!latestPrayer || latestPrayer.isMine || latestPrayer.prayingByMe) return
     setLatestPrayer(p => ({ ...p, prayingByMe: true, prayCount: p.prayCount + 1 }))
-    markPraying(latestPrayer.id).catch(err => console.error('Failed to mark praying', err))
+    // Bug real (varredura geral, 2026-09-19): sem reversão no catch — uma
+    // falha de verdade deixava "orei" marcado na tela sem ter sido
+    // registrado no banco, com o card só se corrigindo sozinho se/quando a
+    // tela recarregasse do zero.
+    markPraying(latestPrayer.id).catch(err => {
+      console.error('Failed to mark praying', err)
+      setLatestPrayer(p => (p ? { ...p, prayingByMe: false, prayCount: Math.max(0, p.prayCount - 1) } : p))
+    })
   }
 
   const AVATAR_PALETTE = [
@@ -1178,7 +1185,15 @@ function DiscussionTab({ groupId, members, isModerator, authUser, lang, pinnedNo
     setComments(prev => prev.map(c => c.id === comment.id
       ? { ...c, likedByMe: !c.likedByMe, likeCount: c.likeCount + (c.likedByMe ? -1 : 1) }
       : c))
-    toggleCommentLike(comment.id).catch(err => console.error('Failed to toggle like', err))
+    // Bug real (varredura geral, 2026-09-19): sem reversão no catch — uma
+    // falha de verdade deixava a curtida (ou descurtida) mostrando um
+    // estado que nunca foi salvo no banco.
+    toggleCommentLike(comment.id).catch(err => {
+      console.error('Failed to toggle like', err)
+      setComments(prev => prev.map(c => c.id === comment.id
+        ? { ...c, likedByMe: !c.likedByMe, likeCount: c.likeCount + (c.likedByMe ? -1 : 1) }
+        : c))
+    })
   }
 
   async function handleTogglePin(comment) {
@@ -1327,7 +1342,16 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
   function handleClose(requestId) {
     if (!window.confirm(t('groups.closeRequestConfirm', undefined, lang))) return
     setRequests(prev => prev.filter(r => r.id !== requestId))
-    closePrayerRequest(requestId).catch(err => console.error('Failed to close prayer request', err))
+    // Bug real (varredura geral, 2026-09-19): sem reversão no catch — uma
+    // falha de verdade tirava o pedido da lista na tela mesmo sem
+    // realmente ter sido fechado no banco. `reload()` (não tentar
+    // reconstruir o item removido) porque busca o estado de verdade do
+    // servidor — mais simples e sempre correto, mesmo se outra coisa
+    // (prayCount, por ex.) tiver mudado nesse meio-tempo.
+    closePrayerRequest(requestId).catch(err => {
+      console.error('Failed to close prayer request', err)
+      reload()
+    })
   }
 
   function handleMarkPraying(request) {
@@ -1337,7 +1361,14 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
     setRequests(prev => prev.map(r => r.id === request.id
       ? { ...r, prayingByMe: true, prayCount: r.prayCount + 1 }
       : r))
-    markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
+    // Bug real (varredura geral, 2026-09-19): sem reversão no catch — ver
+    // mesmo comentário em handlePray/handleLike/handleClose acima.
+    markPraying(request.id).catch(err => {
+      console.error('Failed to mark praying', err)
+      setRequests(prev => prev.map(r => r.id === request.id
+        ? { ...r, prayingByMe: false, prayCount: Math.max(0, r.prayCount - 1) }
+        : r))
+    })
   }
 
   return (
