@@ -31,7 +31,37 @@ sem sua confirmação.
   - Android: `metadata/android/pt-BR/images/phoneScreenshots/` (1080×1920, idem)
   - Imagem de destaque do Play: `metadata/android/pt-BR/images/featureGraphic.png` (1024×500)
 
-## O que ainda falta (de propósito deixado vazio — não inventei texto)
+## Textos da ficha (pt-BR) — preenchidos
+
+`metadata/pt-BR/*.txt` (iOS) e `metadata/android/pt-BR/*.txt` (Android) têm
+conteúdo real, baseado no que já estava levantado em
+`~/Desktop/Play Store - Jesus Corner/ficha-da-loja.md` (nome, descrição
+curta/completa, categoria, palavras-chave, URLs — tudo escrito nesta sessão
+a pedido dela, não é texto genérico):
+
+- `name.txt`/`title.txt`: `Jesus' Corner`
+- `subtitle.txt` (iOS, 30 car.): `Bíblia, oração e reflexão`
+- `short_description.txt` (Android, 80 car.): a linha de abertura da ficha
+- `description.txt`/`full_description.txt` (4000 car., mesmo texto nas duas
+  lojas): a descrição completa — como funciona, leitura bíblica, oração
+  guiada, reflexão, estudos, comunidade, progresso, disponível em pt/en,
+  plano grátis vs. Premium vs. Premium + IA (sem citar preço — preço é o
+  que a própria loja mostra, e os valores em `storeTiers.js` ainda não
+  foram confirmados como finais)
+- `keywords.txt` (iOS, 100 car.): termos que não repetem nome/subtítulo
+- `promotional_text.txt` (iOS, 170 car., atualizável sem novo binário)
+- `release_notes.txt` (iOS): nota de lançamento da primeira versão
+- `marketing_url.txt`: `https://jesuscorner.app`
+- `privacy_url.txt`: `https://jesuscorner.app/privacidade` (rota real do site)
+- `support_url.txt`: `https://jesuscorner.app/#contato` (seção de contato
+  da home do site — não existe página dedicada de suporte)
+- `video.txt` (Android): deixado vazio de propósito — não existe vídeo de
+  divulgação do app
+
+Todos os campos respeitam o limite de caracteres de cada loja (conferido
+por script antes de gravar).
+
+## O que ainda falta
 
 - **Ícone do app.** Não tem arquivo aqui pra nenhuma das duas lojas:
   - **iOS (1024×1024):** a App Store Connect API não aceita mais ícone de
@@ -43,14 +73,9 @@ sem sua confirmação.
     `metadata/android/pt-BR/images/icon.png`, mas não criei o arquivo — uma
     imagem vazia/inválida quebraria o upload. Quando o ícone existir, salve
     nesse caminho exato.
-- **Textos da ficha** (`metadata/pt-BR/*.txt` e `metadata/android/pt-BR/*.txt`):
-  arquivos criados, todos vazios — `name.txt`, `subtitle.txt`,
-  `description.txt`, `keywords.txt`, `release_notes.txt`,
-  `promotional_text.txt`, `support_url.txt`, `marketing_url.txt`,
-  `privacy_url.txt` (iOS) e `title.txt`, `short_description.txt`,
-  `full_description.txt`, `video.txt` (Android). Nenhum tem conteúdo —
-  descrição e palavras-chave não foram inventadas.
 - **Locale `en-US`** (`screenshots/en-US/`, `metadata/en-US/`,
   `metadata/android/en-US/`): pastas e arquivos de texto criados, mesma
-  estrutura da `pt-BR`, tudo vazio. As capturas em inglês ainda não existem —
-  ver `NOTE.md` dentro de cada pasta de screenshots.
+  estrutura da `pt-BR`, tudo vazio — inclusive os textos, que precisam ser
+  escritos em inglês, não traduzidos ao pé da letra. As capturas em inglês
+  também ainda não existem — ver `NOTE.md` dentro de cada pasta de
+  screenshots.
