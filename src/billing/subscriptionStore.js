@@ -32,7 +32,15 @@ async function authorizedPost(path, body) {
     headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),
   })
-  if (!res.ok) throw new Error(`request_failed_${res.status}`)
+  if (!res.ok) {
+    // Bug real (varredura geral, 2026-09-19): descartava o corpo da
+    // resposta de erro inteiro — todo endpoint de billing que devolvia um
+    // `{ error: 'codigo_especifico' }` (ex: create-checkout-session.js)
+    // virava só "request_failed_403" genérico pra quem chamava, sem
+    // nenhum jeito de distinguir os motivos de falha.
+    const errBody = await res.json().catch(() => ({}))
+    throw new Error(errBody?.error || `request_failed_${res.status}`)
+  }
   return res.json()
 }
 
