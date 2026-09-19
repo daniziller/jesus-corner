@@ -4,6 +4,7 @@
 // daqui pra poder testar com `node` puro — ver
 // scripts/test-metrics-summary.mjs.
 import { mondayOf } from '../routine/routineStreak.js'
+import { parseLocalDateKey } from '../utils/dateKey.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -75,11 +76,16 @@ export function hourRangeLabel(hour) {
 // sempre correto) — ver MetricsScreen.jsx.
 export function chaptersReadInPeriod(chapterReadRows, sinceDate, untilDate = null) {
   if (!sinceDate && !untilDate) return chapterReadRows.length
-  const cutoff = sinceDate ? new Date(sinceDate) : null
+  // parseLocalDateKey, não `new Date(sinceDate)` direto — sinceDate/
+  // untilDate são "YYYY-MM-DD", e o construtor puro lê isso como meia-noite
+  // UTC: pra quem está em UTC-3 (o público do app é todo BR) isso equivale
+  // a ~21h do dia ANTERIOR, deslocando os dois limites do período em ~3h
+  // (bug real, achado na varredura de 2026-09-19).
+  const cutoff = sinceDate ? parseLocalDateKey(sinceDate) : null
   // +1 dia pro teto incluir o dia INTEIRO de `untilDate` (created_at tem
   // hora; um "até 10/09" tem que pegar qualquer horário de 10/09, não só
   // 00h00).
-  const ceiling = untilDate ? new Date(new Date(untilDate).getTime() + DAY_MS) : null
+  const ceiling = untilDate ? new Date(parseLocalDateKey(untilDate).getTime() + DAY_MS) : null
   return chapterReadRows.filter(r =>
     r.created_at && (!cutoff || new Date(r.created_at) >= cutoff) && (!ceiling || new Date(r.created_at) < ceiling)
   ).length

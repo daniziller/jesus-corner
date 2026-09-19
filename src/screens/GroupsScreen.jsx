@@ -527,12 +527,22 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
   const [view, setView] = useState('home') // 'home' | 'challenge' | 'prayer' | 'discussion'
   const [autoInvite, setAutoInvite] = useState(false)
   const [detail, setDetail] = useState(null)
+  const [detailLoadError, setDetailLoadError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
   function reload() { setReloadKey(k => k + 1) }
 
   useEffect(() => {
-    getGroupDetail(groupId).then(setDetail).catch(err => console.error('Failed to load group detail', err))
+    setDetailLoadError(false)
+    getGroupDetail(groupId).then(setDetail).catch(err => {
+      // Bug real (varredura geral, 2026-09-19): getGroupDetail engolia
+      // erro de verdade e devolvia null igual a "grupo não existe" — esta
+      // tela ficava travada no `<div style={{padding:20}}/>` vazio pra
+      // sempre, sem nenhum aviso. Agora a store lança; este catch é o
+      // tratamento que faltava.
+      console.error('Failed to load group detail', err)
+      setDetailLoadError(true)
+    })
   }, [groupId, reloadKey])
 
   const myMembership = detail?.members.find(m => m.userId === authUser?.id)
@@ -573,6 +583,21 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
     if (!window.confirm(t('groups.deleteGroupConfirm', undefined, lang))) return
     await deleteGroup(groupId)
     onLeft()
+  }
+
+  if (detailLoadError) {
+    return (
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, height: '100%' }}>
+        <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center' }}>{t('groups.loadError', undefined, lang)}</p>
+        <button
+          type="button"
+          onClick={reload}
+          style={{ height: 40, padding: '0 20px', borderRadius: 14, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff' }}
+        >
+          {t('groups.retryBtn', undefined, lang)}
+        </button>
+      </div>
+    )
   }
 
   if (!detail) {

@@ -82,16 +82,21 @@ export async function getPendingGroupInvitesCount() {
 }
 
 // Detalhe de um grupo: nome + lista de membros já ativos (status 'joined').
+//
+// Bug real (varredura geral, 2026-09-19): uma falha de leitura de verdade
+// (rede, RLS) caía no mesmo `return null` do "grupo não existe/foi apagado"
+// — e como GroupsScreen/GroupAdminScreen/GroupMembersScreen não tinham
+// nenhum estado de erro pra essa tela, ficavam presas num esqueleto/tela em
+// branco pra sempre, indistinguível de "ainda carregando". Agora lança nos
+// dois erros de verdade; `null` continua sendo só "esse grupo não existe".
 export async function getGroupDetail(groupId) {
   const { data: group, error: groupError } = await supabase
     .from('reading_groups')
     .select('id, name, description, created_by, created_at, invite_code, pinned_notice')
     .eq('id', groupId)
     .maybeSingle()
-  if (groupError || !group) {
-    if (groupError) console.error('[groupsStore] getGroupDetail failed:', groupError.message)
-    return null
-  }
+  if (groupError) throw new Error(groupError.message)
+  if (!group) return null
 
   const { data: members, error: membersError } = await supabase
     .from('reading_group_members')
@@ -99,7 +104,7 @@ export async function getGroupDetail(groupId) {
     .eq('group_id', groupId)
     .eq('status', 'joined')
     .order('joined_at', { ascending: true })
-  if (membersError) console.error('[groupsStore] getGroupDetail members failed:', membersError.message)
+  if (membersError) throw new Error(membersError.message)
 
   return {
     id: group.id,
@@ -131,7 +136,7 @@ export async function getPendingJoinRequests(groupId) {
     .eq('group_id', groupId)
     .eq('status', 'requested')
     .order('created_at', { ascending: true })
-  if (error) { console.error('[groupsStore] getPendingJoinRequests failed:', error.message); return [] }
+  if (error) throw new Error(error.message)
   return (data ?? []).map(r => ({
     userId: r.user_id,
     name: r.member?.name ?? '',

@@ -3,6 +3,7 @@
 // (endpoint HTTP, não RPC); publicar/marcar dia lido são RPCs simples, no
 // mesmo padrão dos outros stores de src/groups/.
 import { supabase } from '../lib/supabaseClient'
+import { parseLocalDateKey } from '../utils/dateKey'
 
 export async function generateGroupChallenge(groupId, text, lang) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -59,10 +60,14 @@ export async function getActiveGroupChallenge(groupId) {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (error) { console.error('[groupChallengesStore] getActiveGroupChallenge failed:', error.message); return null }
+  if (error) throw new Error(error.message)
   if (!data) return null
   const totalDays = data.days.length
-  const endsAt = new Date(data.starts_at)
+  // parseLocalDateKey, não `new Date(data.starts_at)` — starts_at é uma
+  // coluna `date` (ex: "2026-09-19"), e `new Date()` direto nesse formato
+  // lê como meia-noite UTC, virando ~3h antes da meia-noite local pra
+  // quem está em UTC-3 (bug real, achado na varredura de 2026-09-19).
+  const endsAt = parseLocalDateKey(data.starts_at)
   endsAt.setDate(endsAt.getDate() + totalDays)
   if (endsAt.getTime() < Date.now()) return null
   return {

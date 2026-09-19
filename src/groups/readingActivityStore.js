@@ -15,7 +15,7 @@ export function classifyReadingActivity(daysSinceLastRead) {
 
 export async function getGroupReadingActivity(groupId) {
   const { data, error } = await supabase.rpc('get_group_reading_activity', { target_group_id: groupId })
-  if (error) { console.error('[readingActivityStore] getGroupReadingActivity failed:', error.message); return [] }
+  if (error) throw new Error(error.message)
   return (data ?? []).map(row => ({
     userId: row.member_user_id,
     name: row.member_name,

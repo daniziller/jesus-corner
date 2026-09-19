@@ -748,6 +748,8 @@ export const STRINGS = {
     },
     groups: {
       pageTitle: 'Comunidade',
+      loadError: 'Não foi possível carregar este grupo agora.',
+      retryBtn: 'Tentar novamente',
       pendingInvitesTitle: 'Convites pendentes',
       invitedBy: 'Convidado por {name}',
       // Plano do grupo (22d) — diferente do convite de MEMBRO acima: aqui
@@ -1116,6 +1118,8 @@ export const STRINGS = {
     groupAdmin: {
       pageSub: '{n} membros',
       noGroupHint: 'Você não modera nenhum grupo no momento.',
+      loadError: 'Não foi possível carregar o painel do grupo agora.',
+      retryBtn: 'Tentar novamente',
       inviteCodeLabel: 'Código de convite',
       shareBtn: 'Compartilhar',
       shareCopiedBtn: 'Copiado!',
@@ -4309,6 +4313,8 @@ export const STRINGS = {
     },
     groups: {
       pageTitle: 'Community',
+      loadError: "Couldn't load this group right now.",
+      retryBtn: 'Try again',
       pendingInvitesTitle: 'Pending invites',
       invitedBy: 'Invited by {name}',
       groupPlanInvitedBy: 'The {group} group has a reading plan',
@@ -4625,6 +4631,8 @@ export const STRINGS = {
     groupAdmin: {
       pageSub: '{n} members',
       noGroupHint: "You don't moderate any group right now.",
+      loadError: "Couldn't load the group panel right now.",
+      retryBtn: 'Try again',
       inviteCodeLabel: 'Invite code',
       shareBtn: 'Share',
       shareCopiedBtn: 'Copied!',
