@@ -17,7 +17,7 @@ import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import { migrateGuestRow } from './backend/userDataStore'
 import { migrateGuestExtraTables } from './backend/guestTableStore'
 import { clearGuestInviteState } from './onboarding/guestInviteStore'
-import { saveOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
+import { saveOnboardingAnswers, getOnboardingAnswers, clearOnboardingAnswers, savePendingReminder, getPendingReminder, clearPendingReminder } from './onboarding/onboardingAnswers'
 import HomeScreen from './screens/HomeScreen'
 import PrayerScreen from './screens/PrayerScreen'
 import PrayerRequestsScreen from './screens/PrayerRequestsScreen'
@@ -383,13 +383,19 @@ export default function App() {
   // Boas-vindas (13a) — a capa do app pra quem nunca autenticou neste
   // dispositivo. "Começar a ler" segue pro onboarding de 7 telas
   // (OnboardingFlow, 15a–15e); "Já tenho conta" vai pro login.
-  const [welcomeDone, setWelcomeDone] = useState(false)
+  // Reidrata de localStorage (jc_onboarding_answers) se o onboarding já
+  // tinha sido concluído numa visita anterior — ex: refresh/PWA reiniciado
+  // com o SignupScreen ainda aberta. Sem isso, welcomeDone/
+  // pendingSignupAnswers voltavam pro estado inicial e a pessoa era jogada
+  // de volta pras Boas-vindas → onboarding inteiro de novo (bug real,
+  // varredura geral 2026-09-19; ver comentário em onboardingAnswers.js).
+  const [welcomeDone, setWelcomeDone] = useState(() => getOnboardingAnswers() != null)
   // Onboarding concluído, esperando o cadastro (obrigatório desde
   // 2026-09-07 — ver finishOnboarding) — guarda as respostas só pra
   // alimentar o cartão "o que vai pra conta" do SignupScreen (chaptersRead,
   // planId); o progresso de verdade já foi salvo na linha local de
   // convidado por finishOnboarding, antes deste estado ser setado.
-  const [pendingSignupAnswers, setPendingSignupAnswers] = useState(null)
+  const [pendingSignupAnswers, setPendingSignupAnswers] = useState(() => getOnboardingAnswers())
   // Comunidade (5d): o painel Bento de UM grupo aberto tem cabeçalho
   // próprio (ver GroupHomeView) e não precisa do AppHeader antigo por
   // cima; a lista de vários grupos (fora do quadro 5d, sem desenho
@@ -1856,6 +1862,12 @@ export default function App() {
     await migrateGuestRow().catch(err => console.error('Failed to migrate guest progress', err))
     await migrateGuestExtraTables().catch(err => console.error('Failed to migrate guest extra tables', err))
     clearGuestInviteState()
+    // Conta real criada/logada — as respostas do onboarding não têm mais
+    // função nenhuma (só existiam pra sobreviver a um refresh antes do
+    // cadastro terminar, ver welcomeDone/pendingSignupAnswers acima).
+    // Limpa pra não reaparecer indevidamente numa visita futura como
+    // convidado no mesmo aparelho, depois de um logout.
+    clearOnboardingAnswers()
     if (!user.isGuest) applyPendingReminder()
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
@@ -2987,6 +2999,7 @@ export default function App() {
       session={session} stepMinutes={stepMinutes}
       onContinueSession={continueSessionFromBlessing} onNavigate={navigateTo}
       onFinishDay={finishDayFromBlessing} onBackToPlan={backToPlanFromBlessing}
+      onOpenActiveStudy={openActiveStudy}
     />,
     // Pacote 36-37, 36d — "Pedidos de oração" (linha em 36b/36c). Push
     // dentro de Meu Plano: fica fora de navHidden de propósito (barra de
@@ -3103,7 +3116,14 @@ export default function App() {
   // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
   // agora também aparece no mobile (era hide-on-mobile) — ver
   // StudiesScreen.jsx.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  // 'chronologicalPlan' e 'handsFree' — bug real (varredura geral,
+  // 2026-09-19): as duas têm cabeçalho Bento próprio (seta de voltar,
+  // título) mas ficaram fora desta lista, então o AppHeader antigo (logo/
+  // sino/avatar) renderizava por cima — o exato bug já documentado/
+  // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
+  // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
+  // lugar pra barra de abas embaixo.
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3120,7 +3140,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   return (

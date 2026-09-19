@@ -13,7 +13,7 @@ function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 // entrada; goToReadingBtn é o fallback se algo inesperado chegar aqui.
 const GO_TO_BTN_KEY = { reading: 'goToReadingBtn', study: 'goToStudyBtn', reflection: 'goToReflectionBtn' }
 
-export default function BlessingScreen({ session, stepMinutes, onContinueSession, onNavigate, onFinishDay, onBackToPlan }) {
+export default function BlessingScreen({ session, stepMinutes, onContinueSession, onNavigate, onFinishDay, onBackToPlan, onOpenActiveStudy }) {
   const { lang, userName, todaySession, hasNoPlan } = session
   const L = (k, vars) => t(`blessing.${k}`, vars, lang)
   const totalMinutes = stepMinutes?.prayer ?? session.plan.prayerMinutes
@@ -35,8 +35,15 @@ export default function BlessingScreen({ session, stepMinutes, onContinueSession
 
   function handlePrimary() {
     if (!nextStepKey) { onFinishDay?.(); return }
-    if (nextStepKey === 'reading') onContinueSession?.()
-    else onNavigate?.(nextStepKey)
+    if (nextStepKey === 'reading') { onContinueSession?.(); return }
+    // Bug real (varredura geral, 2026-09-19): 'study' não é uma chave de
+    // tela em App.jsx (a tela real é 'studyDay', aberta só via
+    // openActiveStudy() — ver o mesmo caso especial em RoutineScreen.jsx/
+    // App.jsx startGuidedRoutine). Caía direto no onNavigate('study')
+    // abaixo e abria tela em branco pra quem tem Oração+Estudo mas não
+    // Leitura agendados hoje.
+    if (nextStepKey === 'study') { onOpenActiveStudy?.(); return }
+    onNavigate?.(nextStepKey)
   }
 
   const nextLine = nextStepKey
