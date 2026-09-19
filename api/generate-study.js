@@ -29,11 +29,11 @@ const APP_URL = 'https://app.jesuscorner.app'
 
 const MAX_TITLE_LENGTH = 60
 const MAX_SCOPE_LENGTH = 200
-// Mesma janela rolante de 30 dias de generate-theme-plan.js — geração de
-// estudo é ainda mais cara (bem mais texto por chamada), então reaproveita
-// o mesmo limite em vez de abrir um orçamento maior.
+// Mesmo limite mensal de generate-theme-plan.js (regra 4 §3: "4 estudos
+// criados por mês, por conta") — geração de estudo é ainda mais cara (bem
+// mais texto por chamada), então reaproveita o mesmo orçamento em vez de
+// abrir um maior.
 const MAX_STUDIES_PER_MONTH = 4
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 const BOOK_EN_BY_PT = Object.fromEntries(
   BIBLE_BLOCKS.flatMap(b => b.books.map((name, i) => [name, b.booksEn[i]]))
@@ -73,17 +73,28 @@ export default async function handler(req, res) {
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
 
+  // Bug real (varredura geral, 2026-09-19): esta checagem tinha desviado da
+  // de generate-theme-plan.js — continuava numa janela rolante de 30 dias
+  // (não mês-calendário), só olhava `ai_studies` (nunca `theme_plans`), e
+  // não filtrava por `origin`. As duas checagens deveriam aplicar a MESMA
+  // cota (regra 4 §3: "4 estudos criados por mês, por conta" — a conta
+  // soma os dois destinos, não um limite por endpoint). Alinhado aqui pra
+  // usar exatamente a mesma lógica — ver o comentário completo em
+  // generate-theme-plan.js.
   if (!isAdminEmail(caller.email)) {
     const { data: userRow } = await supabase
       .from('user_data')
-      .select('ai_studies')
+      .select('theme_plans, ai_studies')
       .eq('user_id', caller.id)
       .maybeSingle()
-    const existingStudies = userRow?.ai_studies ?? []
-    const recentCount = existingStudies.filter(s => {
-      const created = s.createdAt ? new Date(s.createdAt).getTime() : NaN
-      return !Number.isNaN(created) && Date.now() - created < THIRTY_DAYS_MS
+    const now = new Date()
+    const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+    const countCreated = list => (list ?? []).filter(p => {
+      if ((p.origin ?? 'created') !== 'created') return false
+      const created = p.createdAt ? new Date(p.createdAt).getTime() : NaN
+      return !Number.isNaN(created) && created >= monthStart
     }).length
+    const recentCount = countCreated(userRow?.theme_plans) + countCreated(userRow?.ai_studies)
     if (recentCount >= MAX_STUDIES_PER_MONTH) {
       return res.status(429).json({ error: 'study_limit_reached' })
     }

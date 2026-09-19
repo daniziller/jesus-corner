@@ -19,17 +19,19 @@ import { loadSearchIndex, testamentForBook, bookEnFor, splitHighlightSegments } 
 import { normalizeForSearch, findAllOccurrences } from '../bible/searchNormalize'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import PremiumLockCard from '../components/PremiumLockCard'
 
 const FONT = 'var(--font-bento)'
 const DURATION_CHIPS = [5, 7, 14, 21]
 
-export default function ThemeAsStudyScreen({ session, theme, completedSet, onBack, onOpenChapter, onBuildStudy }) {
+export default function ThemeAsStudyScreen({ session, theme, completedSet, onBack, onOpenChapter, onBuildStudy, onNavigate }) {
   const { lang } = session
   const L = (k, vars) => t(`theme.${k}`, vars, lang)
   const count = (n, base, vars) => (n === 1 ? L(`${base}One`, { n, ...vars }) : L(`${base}Many`, { n, ...vars }))
 
   const [days, setDays] = useState(7)
   const [building, setBuilding] = useState(false)
+  const [buildError, setBuildError] = useState('')
   const [entries, setEntries] = useState(null)
 
   useEffect(() => {
@@ -62,11 +64,28 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
   const AT_PREVIEW = 3
   const NT_PREVIEW = 2
 
+  // Bug real (varredura geral, 2026-09-19): sem `catch` nenhum — quando
+  // onBuildStudy (generateThemePlan, precisa de Premium + IA) rejeitava
+  // (403 subscription_required, 429 plan_limit_reached, 502 de IA, ou
+  // simples falha de rede), a promise virava uma rejeição não tratada; o
+  // botão só voltava a ficar clicável (via `finally`) sem NENHUM aviso —
+  // "infinite spinner silencioso", pior ainda combinado com o gate de
+  // tier que faltava (ver hasAI abaixo): quem não tem Premium + IA
+  // conseguia chegar até aqui e tocar "Montar estudo" sem nunca saber
+  // por quê não funcionava.
   async function handleBuild() {
     if (building) return
     setBuilding(true)
+    setBuildError('')
     try {
       await onBuildStudy?.(theme, days)
+    } catch (err) {
+      console.error('Failed to build theme study', err)
+      setBuildError(
+        err.message === 'subscription_required' ? L('errorSubscription')
+        : err.message === 'plan_limit_reached' ? L('errorLimit')
+        : L('errorGeneric')
+      )
     } finally {
       setBuilding(false)
     }
@@ -142,27 +161,37 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
           <p style={s.threadText}>{thread}</p>
         </div>
 
-        <div style={s.buildCard}>
-          <div style={s.buildEyebrowRow}>
-            <span style={s.buildDiamond} />
-            <p style={s.buildEyebrow}>{L('buildEyebrow')}</p>
+        {/* Gate de tier (varredura geral, 2026-09-19) — "Montar estudo"
+            chama generateThemePlan, que exige Premium + IA no servidor;
+            faltava o mesmo gate aqui no cliente (Bíblia/busca por tema é
+            recurso do plano Grátis, então dava pra chegar até esta tela
+            sem ter Premium + IA nenhum). */}
+        {!session.hasAI ? (
+          <PremiumLockCard lang={lang} onNavigate={onNavigate} variant="ai" title={L('buildHeadline')} sub={L('buildLockSub')} />
+        ) : (
+          <div style={s.buildCard}>
+            <div style={s.buildEyebrowRow}>
+              <span style={s.buildDiamond} />
+              <p style={s.buildEyebrow}>{L('buildEyebrow')}</p>
+            </div>
+            <p style={s.buildHeadline}>{L('buildHeadline')}</p>
+            <p style={s.buildSub}>{L('buildSub', { n: passages.length })}</p>
+            <div style={s.durationRow}>
+              {DURATION_CHIPS.map(n => (
+                <button key={n} style={{ ...s.durationChip, ...(days === n ? s.durationChipOn : {}) }} onClick={() => setDays(n)}>
+                  <span style={{ ...s.durationChipN, color: days === n ? 'var(--bento-ink)' : '#fff' }}>{n}</span>
+                  <span style={{ ...s.durationChipLabel, color: days === n ? 'rgba(26,23,20,.65)' : 'rgba(255,255,255,.45)' }}>{L('daysLabel')}</span>
+                </button>
+              ))}
+            </div>
+            <button style={{ ...s.buildBtn, opacity: building ? .6 : 1 }} onClick={handleBuild} disabled={building}>
+              <span>{building ? L('buildingBtn') : L('buildBtn', { n: days })}</span>
+              {!building && <span>→</span>}
+            </button>
+            {buildError && <p style={s.buildErrorText}>{buildError}</p>}
+            <p style={s.approveNote}>{L('approveNote')}</p>
           </div>
-          <p style={s.buildHeadline}>{L('buildHeadline')}</p>
-          <p style={s.buildSub}>{L('buildSub', { n: passages.length })}</p>
-          <div style={s.durationRow}>
-            {DURATION_CHIPS.map(n => (
-              <button key={n} style={{ ...s.durationChip, ...(days === n ? s.durationChipOn : {}) }} onClick={() => setDays(n)}>
-                <span style={{ ...s.durationChipN, color: days === n ? 'var(--bento-ink)' : '#fff' }}>{n}</span>
-                <span style={{ ...s.durationChipLabel, color: days === n ? 'rgba(26,23,20,.65)' : 'rgba(255,255,255,.45)' }}>{L('daysLabel')}</span>
-              </button>
-            ))}
-          </div>
-          <button style={{ ...s.buildBtn, opacity: building ? .6 : 1 }} onClick={handleBuild} disabled={building}>
-            <span>{building ? L('buildingBtn') : L('buildBtn', { n: days })}</span>
-            {!building && <span>→</span>}
-          </button>
-          <p style={s.approveNote}>{L('approveNote')}</p>
-        </div>
+        )}
 
         {atPassages.length > 0 && (
           <div>
@@ -225,6 +254,7 @@ const s = {
   durationChipLabel: { fontFamily: FONT, fontSize: 8.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' },
   buildBtn: { width: '100%', height: 52, borderRadius: 17, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)' },
   approveNote: { fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.4, color: 'rgba(255,255,255,.4)', textAlign: 'center', margin: '12px 4px 0' },
+  buildErrorText: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-accent)', textAlign: 'center', margin: '10px 4px 0' },
 
   sectionHeadRow: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 2px 10px' },
   sectionLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
