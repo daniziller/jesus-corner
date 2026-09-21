@@ -43,14 +43,9 @@ import GuidedFlowBanner from '../components/GuidedFlowBanner'
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import ToolsSheet from '../components/ToolsSheet'
 import ChapterPickerSheet from '../components/ChapterPickerSheet'
-
-// "6:20" — mm:ss do relógio do passo (26b), sem zero à esquerda no minuto
-// (mesmo formato usado em 26a/26h/26c pro cronômetro de cada passo).
-function formatClock(totalSeconds) {
-  const m = Math.floor(totalSeconds / 60)
-  const sec = Math.floor(totalSeconds % 60)
-  return `${m}:${String(sec).padStart(2, '0')}`
-}
+import StepTimerPill from '../components/timer/StepTimerPill'
+import { usePlanTotalToday } from '../timer/usePlanTotalToday'
+import { formatClock } from '../timer/formatClock'
 
 
 export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false, forceChapterContext = false }) {
@@ -314,6 +309,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   useEffect(() => { getReadingClockPrefs().then(setReadingClockPrefsState).catch(() => {}) }, [])
   const showReadingClock = immersive && !freeReading && ['fixed', 'chrono'].includes(session.activePlan?.kind) && heroSession.type !== 'reflection' && !!readingClockPrefs?.showOnReading
   const targetClockSeconds = Math.max(0, (session.plan.readingMinutes ?? 0) * 60)
+  // "tempo total do plano" (unificação do cronômetro, 2026-09-21) — mesmo
+  // hook que Oração/Reflexão usam, somado ao stepElapsedSeconds ao vivo.
+  const planPriorSeconds = usePlanTotalToday()
 
   const [clockPaused, setClockPaused] = useState(false)
   const clockPausedRef = useRef(false)
@@ -344,6 +342,23 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showReadingClock, heroSession?.id])
 
+  // Wake lock (unificação do cronômetro, 2026-09-21) — Leitura era a única
+  // das três telas sem isso; mantém a tela acesa igual Oração/Reflexão
+  // enquanto o relógio está rodando. Mantém o comportamento próprio de
+  // Leitura de retomar sozinho ao voltar pra aba (diferente do "pausa de
+  // verdade" de Oração/Reflexão) — só a tela acesa é nova aqui.
+  useEffect(() => {
+    if (!showReadingClock || clockPaused) return
+    let wakeLock = null
+    let cancelled = false
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen')
+        .then(lock => { if (cancelled) lock.release().catch(() => {}); else wakeLock = lock })
+        .catch(err => console.error('[ReadingBlockView] wake lock request failed:', err.message))
+    }
+    return () => { cancelled = true; wakeLock?.release().catch(() => {}) }
+  }, [showReadingClock, clockPaused])
+
   // Ao zerar: toque discreto (haptic + pisca uma vez) e passa a contar pra
   // cima — nunca bloqueia nem fecha a leitura (HANDOFF, 35f).
   useEffect(() => {
@@ -356,8 +371,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       setTimeout(() => setZeroFlash(false), 700)
     }
   }, [stepElapsedSeconds, showReadingClock, hasZeroed, targetClockSeconds, readingClockPrefs])
-
-  const clockDisplaySeconds = hasZeroed ? Math.max(0, stepElapsedSeconds - targetClockSeconds) : Math.max(0, targetClockSeconds - stepElapsedSeconds)
 
   // Ritmo aprendido (35i) — cada trecho concluído (por "Concluir" ou por
   // "Continuar lendo" em 35g) vira uma amostra de palavras/minuto. Sessões
@@ -1101,16 +1114,21 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               </div>
             </div>
             {showReadingClock ? (
-              // Pílula do relógio (35f) — toca pra pausar/retomar; ao zerar
-              // passa a contar pra cima, discreto, nunca bloqueia a leitura.
-              <button
-                style={{ ...styles.clockPill, ...(zeroFlash ? styles.clockPillFlash : {}) }}
-                onClick={() => setClockPaused(p => !p)}
-                aria-label={clockPaused ? t('reading.clockResume', undefined, lang) : t('reading.clockPause', undefined, lang)}
-              >
-                <AppIcon name={clockPaused ? 'Play' : 'Timer'} size={13} strokeWidth={2.4} color="var(--bento-accent)" />
-                <span style={{ ...styles.clockPillText, ...(hasZeroed ? styles.clockPillTextOvertime : {}) }}>{formatClock(clockDisplaySeconds)}</span>
-              </button>
+              // Pílula do relógio (cronômetro unificado, 2026-09-21) — toca
+              // pra pausar/retomar; ao zerar passa a contar pra cima,
+              // discreto, nunca bloqueia a leitura. Versão compacta do
+              // mesmo cronômetro de Oração/Reflexão (StepTimerPill.jsx) —
+              // aqui não cabe o card grande, a leitura é imersiva.
+              <StepTimerPill
+                lang={lang}
+                planSeconds={planPriorSeconds + stepElapsedSeconds}
+                passoSeconds={stepElapsedSeconds}
+                passoDurationSeconds={targetClockSeconds}
+                running={!clockPaused}
+                onToggle={() => setClockPaused(p => !p)}
+                onStop={handleConcludePress}
+                flash={zeroFlash}
+              />
             ) : freeReading ? (
               // Cabeçalho de 39d: sem chave de grupo nem ícone de áudio
               // duplicado (o player mora em Ferramentas) — só o seletor de
@@ -3572,17 +3590,11 @@ const styles = {
     padding: '20px 20px 14px', background: 'var(--bento-bg)',
     transition: 'transform .2s ease-out',
   },
-  // Pílula do relógio de leitura (turno 35, 35f) — substitui os ícones de
-  // Ferramentas no cabeçalho quando o relógio está ativo (a folha de
-  // Ferramentas continua acessível pelo botão do rodapé).
-  clockPill: {
-    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, height: 34,
-    border: 'none', borderRadius: 12, background: 'var(--bento-ink)', padding: '0 12px', cursor: 'pointer',
-    transition: 'background .15s',
-  },
-  clockPillFlash: { background: 'var(--bento-accent)' },
-  clockPillText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' },
-  clockPillTextOvertime: { color: '#8B8279' },
+  // Pílula do relógio de leitura — substitui os ícones de Ferramentas no
+  // cabeçalho quando o relógio está ativo (a folha de Ferramentas continua
+  // acessível pelo botão do rodapé). O componente em si (StepTimerPill,
+  // cronômetro unificado 2026-09-21) já traz seu próprio estilo — só a
+  // barrinha de progresso abaixo do cabeçalho continua definida aqui.
   clockElapsedTrack: { height: 4, background: 'rgba(0,0,0,.07)', flexShrink: 0 },
   clockElapsedFill: { height: '100%', background: 'var(--bento-accent)', transition: 'width 1s linear' },
   readerHeaderLeft: { display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 },
