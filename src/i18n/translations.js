@@ -1371,6 +1371,18 @@ export const STRINGS = {
     routineSwitcher: {
       jumpLabel: 'Ir para outro passo',
     },
+    // Rótulos do cronômetro compartilhado (src/timer/, src/components/
+    // timer/) — usado por Oração, Reflexão e Leitura. Play/pausar continua
+    // com o texto próprio de cada tela (prayer.playBtn, etc.) porque o
+    // contexto muda ("Tocar a oração" x "Tocar a reflexão"); só o Parar e
+    // os três rótulos de tempo (plano/passo/etapa) são genéricos o
+    // suficiente pra compartilhar.
+    timer: {
+      planLabel: 'Total do dia',
+      passoLabel: 'Neste passo',
+      etapaLabel: 'Nesta etapa',
+      stopBtn: 'Parar',
+    },
     prayer: {
       // Pacote 36-37 (2026-09-08) — reescreve por inteiro a execução da
       // Oração (36b ACTS, 36c livre). "passo N de M" agora sempre aparece
@@ -4873,6 +4885,12 @@ export const STRINGS = {
     },
     routineSwitcher: {
       jumpLabel: 'Jump to another step',
+    },
+    timer: {
+      planLabel: "Today's total",
+      passoLabel: 'This step',
+      etapaLabel: 'This stage',
+      stopBtn: 'Stop',
     },
     prayer: {
       pageTitle: 'Prayer',

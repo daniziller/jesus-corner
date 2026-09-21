@@ -4,15 +4,20 @@
 // perguntas geradas + parágrafo final aprovado): o método (perguntas ou
 // livre) agora é decidido em Meu Plano/Ajustar (35c,
 // reflectionMethodStore.js) e só LIDO aqui — sem chip pra trocar dentro
-// da execução, mesmo padrão de PrayerScreen.jsx (Bloco 1 do pacote). Sem
-// fases/roteiro Reviver/Entender/Aplicar — o quadro não mostra.
+// da execução, mesmo padrão de PrayerScreen.jsx (Bloco 1 do pacote).
+//
+// Unificação dos cronômetros (2026-09-21, pedido dela): Reviver/Entender/
+// Aplicar voltaram, como chips do cronômetro compartilhado
+// (StepTimerCard.jsx) avançando sozinhos por TEMPO — não como telas
+// separadas por etapa (isso ela decidiu explicitamente não fazer: as 3
+// perguntas continuam juntas, na mesma tela, só rolagem).
 //
 // "questions" exige session.hasAI (é IA de verdade, gerada por
 // requisição, não cacheada — ver aiChat/reflectionQuestionsStore.js);
 // quem escolheu perguntas em 35c mas não tem o tier certo cai em livre
 // (nunca uma tela quebrada) — o quadro não cobre esse caso, mas alguma
 // tela precisa abrir.
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
 import { fetchReflectionQuestionPair } from '../aiChat/reflectionQuestionsStore'
 import { getNotes, saveNote, noteTextOf } from '../notes/notesStore'
@@ -20,16 +25,14 @@ import { getHighlights } from '../highlights/highlightsStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase, dailyApplicationKeyFor } from '../reflection/applicationPhraseStore'
+import { REFLECTION_DATA } from '../data/reflectionGuide'
 import { dateKey } from '../utils/dateKey'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
+import { useStepTimer } from '../timer/useStepTimer'
+import { usePlanTotalToday } from '../timer/usePlanTotalToday'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-
-function fmt(s) {
-  const m = Math.floor(s / 60).toString().padStart(2, '0')
-  const sec = Math.floor(s % 60).toString().padStart(2, '0')
-  return `${m}:${sec}`
-}
+import StepTimerCard from '../components/timer/StepTimerCard'
 
 function verseSpan(start, end) {
   return start === end ? `${start}` : `${start}-${end}`
@@ -64,62 +67,27 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
   const hasChapter = !!lastReadChapterInfo?.book
   const chapterLabel = hasChapter ? `${lastReadChapterInfo.book} ${verseSpan(lastReadChapterInfo.chStart, lastReadChapterInfo.chEnd)}` : ''
 
-  const [running, setRunning] = useState(false)
-  const [elapsed, setElapsed] = useState(0)
-  const intervalRef = useRef(null)
-  const startedAtRef = useRef(null)
-  const accumulatedRef = useRef(0)
-  const wakeLockRef = useRef(null)
+  const { running, elapsedSeconds: elapsed, toggle: toggleRunning, pause } = useStepTimer()
+  const planPriorSeconds = usePlanTotalToday()
+  const planSeconds = planPriorSeconds + elapsed
 
-  function computeElapsed() {
-    if (!startedAtRef.current) return accumulatedRef.current
-    return accumulatedRef.current + (Date.now() - startedAtRef.current) / 1000
-  }
-  async function requestWakeLock() {
-    try {
-      if ('wakeLock' in navigator) wakeLockRef.current = await navigator.wakeLock.request('screen')
-    } catch (err) {
-      console.error('[ReflectionScreen] wake lock request failed:', err.message)
+  // Etapas Reviver/Entender/Aplicar (REFLECTION_DATA) reaparecem como
+  // chips + relógio de etapa no cronômetro compartilhado — mas as 3
+  // perguntas continuam todas na mesma tela (decisão dela: não vale a
+  // pena redesenhar a tela pra uma pergunta por vez, só pelo cronômetro).
+  // A etapa "atual" avança sozinha por TEMPO decorrido, não por clique —
+  // não existe botão de avançar etapa aqui, diferente da Oração.
+  const reflectionWeightSum = REFLECTION_DATA.reduce((sum, s) => sum + s.durationMin, 0)
+  const reflectionStageDurations = REFLECTION_DATA.map(s => (s.durationMin / reflectionWeightSum) * TOTAL_SECONDS)
+  let reflectionStageIdx = reflectionStageDurations.length - 1
+  let reflectionStageElapsedBefore = 0
+  {
+    let acc = 0
+    for (let i = 0; i < reflectionStageDurations.length; i++) {
+      if (elapsed < acc + reflectionStageDurations[i]) { reflectionStageIdx = i; reflectionStageElapsedBefore = acc; break }
+      acc += reflectionStageDurations[i]
     }
   }
-  function releaseWakeLock() {
-    wakeLockRef.current?.release().catch(() => {})
-    wakeLockRef.current = null
-  }
-  function pause() {
-    accumulatedRef.current = computeElapsed()
-    startedAtRef.current = null
-    setRunning(false)
-    releaseWakeLock()
-    clearInterval(intervalRef.current)
-  }
-  useEffect(() => {
-    if (running) intervalRef.current = setInterval(() => setElapsed(computeElapsed()), 250)
-    else clearInterval(intervalRef.current)
-    return () => clearInterval(intervalRef.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running])
-  // "Sair do app pausa" — mesmo tratamento de PrayerScreen.jsx (o resto do
-  // app se recupera sozinho via wall-clock; aqui, como na Oração, some da
-  // tela é pausa de verdade, só retoma com um toque.
-  useEffect(() => {
-    function handleVisibility() {
-      if (document.visibilityState === 'hidden' && running) pause()
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running])
-  useEffect(() => () => releaseWakeLock(), [])
-  function toggleRunning() {
-    if (running) { pause(); return }
-    startedAtRef.current = Date.now()
-    setRunning(true)
-    requestWakeLock()
-  }
-  const remaining = Math.round(TOTAL_SECONDS - elapsed)
-  const overtime = remaining < 0
-  const progress = Math.min(1, elapsed / TOTAL_SECONDS)
 
   // "Você acabou de ler" — o texto BÍBLICO do primeiro trecho marcado
   // hoje durante a sessão guiada (não a nota pessoal do highlight — ver
@@ -256,23 +224,26 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
           <p style={styles.title}>{L('pageTitle')}</p>
           <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {effectiveMethod === 'questions' ? L('methodSuffixQuestions') : L('methodSuffixFree')}</p>
         </div>
-        {effectiveMethod === 'questions' && (
-          <button style={styles.clockPill} onClick={toggleRunning}>
-            <AppIcon name="Timer" size={13} strokeWidth={2.4} color="var(--bento-accent)" />
-            <span style={{ color: overtime ? 'var(--bento-t3)' : '#fff' }}>{fmt(Math.abs(remaining))}</span>
-          </button>
-        )}
       </div>
-
-      {effectiveMethod === 'questions' && (
-        <div style={styles.wholeTrack}>
-          <div style={{ ...styles.wholeFill, width: `${progress * 100}%` }} />
-        </div>
-      )}
 
       <div style={styles.body}>
         {effectiveMethod === 'questions' ? (
           <>
+            {/* Cronômetro compartilhado (mesmo padrão de Oração/Leitura) —
+                chips Reviver/Entender/Aplicar avançam sozinhos por tempo
+                (sem botão de próxima etapa: as 3 perguntas continuam
+                todas na mesma tela, decisão dela — não criar uma tela por
+                etapa só por causa do relógio). */}
+            <StepTimerCard
+              lang={lang}
+              steps={REFLECTION_DATA.map(s => ({ id: s.id, title: s.title[lang] ?? s.title.pt }))}
+              currentIndex={reflectionStageIdx}
+              planSeconds={planSeconds} passoSeconds={elapsed}
+              etapaSeconds={elapsed - reflectionStageElapsedBefore}
+              etapaDurationSeconds={reflectionStageDurations[reflectionStageIdx]}
+              running={running} onToggle={toggleRunning} onStop={finishDay}
+            />
+
             {hasChapter && (
               <div style={styles.justReadCard}>
                 <div style={styles.justReadHeader}>
@@ -348,16 +319,13 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
           </>
         ) : (
           <>
-            <div style={styles.freeCard}>
-              <p style={styles.freeLabel}>{L('freeTimeLabel')}</p>
-              <p style={{ ...styles.freeClock, color: overtime ? 'var(--bento-t3)' : '#fff' }}>{fmt(Math.abs(remaining))}</p>
-              <button style={styles.freeSub} onClick={toggleRunning}>
-                {running ? L('freeTimeSub', { n: totalMinutes }) : L('freeTimeSubPaused', { n: totalMinutes })}
-              </button>
-              <div style={styles.freeTrack}>
-                <div style={{ ...styles.freeFill, width: `${progress * 100}%` }} />
-              </div>
-            </div>
+            {/* Livre — sem etapas, mesmo cronômetro compartilhado. */}
+            <StepTimerCard
+              lang={lang} steps={null}
+              planSeconds={planSeconds} passoSeconds={elapsed} etapaSeconds={elapsed}
+              etapaDurationSeconds={TOTAL_SECONDS}
+              running={running} onToggle={toggleRunning} onStop={finishDay}
+            />
 
             <div style={styles.freeWriteCard}>
               <div style={styles.freeWriteHeader}>
@@ -400,10 +368,6 @@ const styles = {
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.3px', margin: 0 },
   subtitle: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
-  clockPill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 14px', cursor: 'pointer', fontFamily: FONT, fontSize: 14, fontWeight: 800, fontVariantNumeric: 'tabular-nums' },
-
-  wholeTrack: { flexShrink: 0, height: 4, background: 'var(--bento-line)', margin: '0 20px' },
-  wholeFill: { height: '100%', background: 'var(--bento-accent)', borderRadius: 99 },
 
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '14px 20px 4px', display: 'flex', flexDirection: 'column', gap: 10 },
 
@@ -443,13 +407,6 @@ const styles = {
   privacyCard: { borderRadius: 20, background: 'var(--bento-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
   privacyIcon: { width: 30, height: 30, flexShrink: 0, borderRadius: 10, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   privacyText: { flex: 1, fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: 0 },
-
-  freeCard: { borderRadius: 26, background: 'var(--bento-ink)', padding: '22px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' },
-  freeLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: '0 0 10px' },
-  freeClock: { fontFamily: FONT, fontSize: 52, fontWeight: 800, letterSpacing: '-1.5px', margin: '0 0 8px', fontVariantNumeric: 'tabular-nums' },
-  freeSub: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
-  freeTrack: { width: '100%', height: 6, borderRadius: 99, background: 'rgba(255,255,255,.14)' },
-  freeFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)' },
 
   freeWriteCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px' },
   freeWriteHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
