@@ -26,6 +26,7 @@ import { usePlanTotalToday } from '../timer/usePlanTotalToday'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
+import PrayerRequestCard from '../components/prayer/PrayerRequestCard'
 import PremiumLockCard from '../components/PremiumLockCard'
 import StepTimerCard from '../components/timer/StepTimerCard'
 
@@ -88,8 +89,13 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
     getMyPrayerRequests().then(setRequests).catch(err => { console.error('Failed to load prayer requests', err); setRequestsLoadError(true) })
   }, [])
   const activeRequests = requests.filter(r => r.status !== 'closed')
-  const requestCounts = { active: activeRequests.length, group: activeRequests.filter(r => !r.isMine).length }
+  // "Pedidos dos grupos" (pedido dela, 2026-09-22: mesma aba que já existe
+  // em Pedidos de oração, PD1) — mesmos dados de `requests` acima, só
+  // filtrados; não precisa de uma chamada nova, já está tudo carregado.
+  const groupRequests = activeRequests.filter(r => !r.isMine)
+  const requestCounts = { active: activeRequests.length, group: groupRequests.length }
 
+  const [suplicaTab, setSuplicaTab] = useState('waiting')
   const [suplicaRequests, setSuplicaRequests] = useState([])
   const [suplicaLoadError, setSuplicaLoadError] = useState(false)
   useEffect(() => {
@@ -256,45 +262,72 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
               <>
                 <div style={styles.suplicaWaitingCard}>
                   <div style={styles.suplicaWaitingHead}>
-                    <p style={styles.helpLabel}>{L('waitingLabel', { n: suplicaRequests.length })}</p>
+                    {/* Duas abas (pedido dela, 2026-09-22) — mesmo padrão de
+                        PrayerRequestsScreen.jsx (PD1): "Pra orar" é a lista
+                        curada de sempre (getSupplicationRequests — de
+                        qualquer origem, incl. anônimo/amigos, ordenada por
+                        quem recebeu menos oração); "Pedidos dos grupos"
+                        reaproveita os mesmos dados já carregados pra linha-
+                        resumo fora da Súplica (getMyPrayerRequests, só os
+                        `!isMine`) — sem chamada nova. */}
+                    <div style={styles.suplicaTabsRow}>
+                      <button type="button" style={{ ...styles.suplicaTab, ...(suplicaTab === 'waiting' ? styles.suplicaTabOn : {}) }} onClick={() => setSuplicaTab('waiting')}>
+                        {L('suplicaTabWaiting')}
+                      </button>
+                      <button type="button" style={{ ...styles.suplicaTab, ...(suplicaTab === 'group' ? styles.suplicaTabOn : {}) }} onClick={() => setSuplicaTab('group')}>
+                        {t('prayerRequests.tabGroup', undefined, lang)}
+                      </button>
+                    </div>
                     <button type="button" style={styles.seeAllBtn} onClick={() => { pause(); onNavigate?.('prayerRequests') }}>{L('seeAllBtn')}</button>
                   </div>
-                  {suplicaLoadError ? (
+                  {suplicaTab === 'waiting' ? (
+                    suplicaLoadError ? (
+                      <p style={styles.requestsSub}>{L('suplicaLoadError')}</p>
+                    ) : suplicaRequests.length === 0 ? (
+                      <p style={styles.requestsSub}>{L('suplicaEmpty')}</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {suplicaRequests.map((r, i) => {
+                          const avatar = suplicaAvatar(r)
+                          const origin = r.anonymous ? '' : r.scope === 'group' ? r.groupName : r.scope === 'friends' ? L('originFriend') : L('originDiary')
+                          return (
+                            <div key={r.id} style={{ ...styles.suplicaRow, ...(i > 0 ? { borderTop: '1px solid var(--bento-line)' } : {}) }}>
+                              <div style={styles.suplicaRowHead}>
+                                <span style={{ ...styles.suplicaAvatar, background: avatar.bg, color: avatar.color }}>{avatar.initials}</span>
+                                <p style={styles.suplicaName}>
+                                  {r.anonymous ? L('anonymousLabel') : r.authorName}
+                                  <span style={styles.suplicaOrigin}> · {origin ? `${origin} · ` : ''}{originTimeLabel(r.createdAt, lang)}</span>
+                                </p>
+                              </div>
+                              <p style={styles.suplicaBody}>{r.body}</p>
+                              <div style={styles.suplicaActionRow}>
+                                {r.prayingByMe ? (
+                                  <span style={styles.suplicaPrayedBtn}>
+                                    <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-sand-icon)" />
+                                    {t('prayerRequests.prayedTodayBtn', undefined, lang)}
+                                  </span>
+                                ) : (
+                                  <button type="button" style={styles.suplicaPrayBtn} onClick={() => handleSuplicaPray(r)}>
+                                    <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-accent)" />
+                                    {L('prayShortBtn')}
+                                  </button>
+                                )}
+                                <span style={styles.suplicaPrayedCount}>{L(r.prayCount === 1 ? 'prayedCountOne' : 'prayedCountMany', { n: r.prayCount })}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  ) : requestsLoadError ? (
                     <p style={styles.requestsSub}>{L('suplicaLoadError')}</p>
-                  ) : suplicaRequests.length === 0 ? (
-                    <p style={styles.requestsSub}>{L('suplicaEmpty')}</p>
+                  ) : groupRequests.length === 0 ? (
+                    <p style={styles.requestsSub}>{t('prayerRequests.emptyGroup', undefined, lang)}</p>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      {suplicaRequests.map((r, i) => {
-                        const avatar = suplicaAvatar(r)
-                        const origin = r.anonymous ? '' : r.scope === 'group' ? r.groupName : r.scope === 'friends' ? L('originFriend') : L('originDiary')
-                        return (
-                          <div key={r.id} style={{ ...styles.suplicaRow, ...(i > 0 ? { borderTop: '1px solid var(--bento-line)' } : {}) }}>
-                            <div style={styles.suplicaRowHead}>
-                              <span style={{ ...styles.suplicaAvatar, background: avatar.bg, color: avatar.color }}>{avatar.initials}</span>
-                              <p style={styles.suplicaName}>
-                                {r.anonymous ? L('anonymousLabel') : r.authorName}
-                                <span style={styles.suplicaOrigin}> · {origin ? `${origin} · ` : ''}{originTimeLabel(r.createdAt, lang)}</span>
-                              </p>
-                            </div>
-                            <p style={styles.suplicaBody}>{r.body}</p>
-                            <div style={styles.suplicaActionRow}>
-                              {r.prayingByMe ? (
-                                <span style={styles.suplicaPrayedBtn}>
-                                  <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-sand-icon)" />
-                                  {t('prayerRequests.prayedTodayBtn', undefined, lang)}
-                                </span>
-                              ) : (
-                                <button type="button" style={styles.suplicaPrayBtn} onClick={() => handleSuplicaPray(r)}>
-                                  <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-accent)" />
-                                  {L('prayShortBtn')}
-                                </button>
-                              )}
-                              <span style={styles.suplicaPrayedCount}>{L(r.prayCount === 1 ? 'prayedCountOne' : 'prayedCountMany', { n: r.prayCount })}</span>
-                            </div>
-                          </div>
-                        )
-                      })}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {groupRequests.map(r => (
+                        <PrayerRequestCard key={r.id} request={r} lang={lang} onPray={handlePray} />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -479,8 +512,14 @@ const styles = {
   suplicaBlackBody: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, lineHeight: 1.5, color: '#fff', margin: 0 },
 
   suplicaWaitingCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px' },
-  suplicaWaitingHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 6px' },
-  seeAllBtn: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)' },
+  suplicaWaitingHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, margin: '0 0 10px' },
+  seeAllBtn: { flexShrink: 0, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)' },
+  // Abas "Pra orar" / "Pedidos dos grupos" (pedido dela, 2026-09-22) —
+  // mesmo conceito de PrayerRequestsScreen.jsx (tabsRow/tab/tabOn), só
+  // compactas (não flex:1) porque dividem a linha com o botão "ver tudo".
+  suplicaTabsRow: { display: 'flex', gap: 6, minWidth: 0 },
+  suplicaTab: { flexShrink: 0, height: 30, padding: '0 12px', borderRadius: 11, border: 'none', background: 'var(--bento-line)', cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t2)' },
+  suplicaTabOn: { background: 'var(--bento-ink)', color: '#fff' },
   suplicaRow: { padding: '12px 0' },
   suplicaRowHead: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 8px' },
   suplicaAvatar: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 12.5, fontWeight: 800 },
