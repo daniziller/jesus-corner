@@ -1435,6 +1435,10 @@ export const STRINGS = {
       originDiary: 'seu pedido',
       suplicaComposeSub: 'Você escolhe quem vê',
       finishToReadingBtn: 'Concluir e ir para a leitura',
+      // Abas da Súplica (2026-09-22) — "Pra orar" é a lista curada de
+      // sempre; a segunda aba reaproveita o texto de prayerRequests.tabGroup
+      // (mesma aba de Pedidos de oração).
+      suplicaTabWaiting: 'Pra orar',
       suplicaEmpty: 'Ninguém esperando oração agora.',
       suplicaLoadError: 'Não foi possível carregar os pedidos agora.',
       // Súplica de quem não assina (divisão de planos, 2026): a frase fixa
@@ -4933,6 +4937,7 @@ export const STRINGS = {
       originDiary: 'your request',
       suplicaComposeSub: 'You choose who sees it',
       finishToReadingBtn: 'Finish and go to reading',
+      suplicaTabWaiting: 'To pray for',
       suplicaEmpty: 'No one waiting for prayer right now.',
       suplicaLoadError: "Couldn't load requests right now.",
       suplicaLockTitle: 'Praying for the community is Premium',
