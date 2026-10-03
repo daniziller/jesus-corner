@@ -94,6 +94,14 @@ export default async function handler(req, res) {
   // provável na transação decodificada; CONFERIR o nome exato do campo.
   const currency = (decoded.currency ?? 'USD').toLowerCase()
 
+  // Preço real configurado no App Store Connect (`appleUsd`/`appleBrl` em
+  // storeTiers.js) — pode divergir do `usd`/`brl` genérico (preço da Play
+  // Billing/Stripe), porque a tabela de preços da Apple não tem um ponto
+  // exato pra cada valor e às vezes obriga escolher o mais próximo. Cai
+  // pro genérico só se o produto ainda não tiver um preço Apple próprio
+  // registrado.
+  const applePrice = currency === 'brl' ? (tier.appleBrl ?? tier.brl) : (tier.appleUsd ?? tier.usd)
+
   const { error: upsertErr } = await supabaseAdmin.from('subscriptions').upsert({
     user_id: caller.id,
     billing_provider: 'apple',
@@ -103,7 +111,7 @@ export default async function handler(req, res) {
     plan: tier.interval === 'year' ? 'annual' : 'monthly',
     tier: tier.tier,
     status,
-    amount_cents: Math.round((tier[currency] ?? tier.usd) * 100),
+    amount_cents: Math.round(applePrice * 100),
     currency,
     current_period_end: decoded.expiresDate ? new Date(decoded.expiresDate).toISOString() : null,
     updated_at: new Date().toISOString(),
