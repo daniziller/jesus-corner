@@ -1383,6 +1383,9 @@ export const STRINGS = {
       planLabel: 'Total do dia',
       etapaLabel: 'Nesta etapa',
       stopBtn: 'Parar',
+      pauseFloating: 'Pausar',
+      resumeFloating: 'Continuar',
+      floatingOpenLabel: 'Voltar pra {step}',
     },
     prayer: {
       // Pacote 36-37 (2026-09-08) — reescreve por inteiro a execução da
@@ -4895,6 +4898,9 @@ export const STRINGS = {
       planLabel: "Today's total",
       etapaLabel: 'This stage',
       stopBtn: 'Stop',
+      pauseFloating: 'Pause',
+      resumeFloating: 'Resume',
+      floatingOpenLabel: 'Back to {step}',
     },
     prayer: {
       pageTitle: 'Prayer',

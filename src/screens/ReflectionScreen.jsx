@@ -49,7 +49,7 @@ function combineQaText(questions, a1, a2) {
   return parts.join('\n\n')
 }
 
-export default function ReflectionScreen({ session, authUser, stepMinutes, lastReadChapterInfo, onReflectionCompleted, onNavigate, onContinueSession, onExitGuided, onBack, onApplicationChanged }) {
+export default function ReflectionScreen({ session, authUser, stepMinutes, lastReadChapterInfo, onReflectionCompleted, onNavigate, onContinueSession, onExitGuided, onBack, onApplicationChanged, timerControlsRef, onTimerRunningChange }) {
   const { lang } = session
   const guided = session.guided?.step === 'reflection'
   const L = (k, vars) => t(`reflection.${k}`, vars, lang)
@@ -67,7 +67,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
   const hasChapter = !!lastReadChapterInfo?.book
   const chapterLabel = hasChapter ? `${lastReadChapterInfo.book} ${verseSpan(lastReadChapterInfo.chStart, lastReadChapterInfo.chEnd)}` : ''
 
-  const { running, elapsedSeconds: elapsed, toggle: toggleRunning, pause } = useStepTimer()
+  const { running, elapsedSeconds: elapsed, toggle: toggleRunning, pause, computeElapsed } = useStepTimer()
   const planPriorSeconds = usePlanTotalToday()
   const planSeconds = planPriorSeconds + elapsed
 
@@ -213,6 +213,14 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
     logSessionSeconds('reflection', elapsed).catch(err => console.error('Failed to log reflection session seconds', err))
     onReflectionCompleted?.()
   }
+
+  // Pedido dela (2026-10-22): mesmo pill flutuante global de PrayerScreen.jsx
+  // (ver comentário lá) — Reflexão também fica sempre montada
+  // (reflectionVisitedRef em App.jsx), só faltava expor os controles.
+  if (timerControlsRef) {
+    timerControlsRef.current = { toggle: toggleRunning, finish: finishDay, computeElapsed, totalSeconds: TOTAL_SECONDS, label: L('pageTitle') }
+  }
+  useEffect(() => { onTimerRunningChange?.(running) }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={styles.screen}>

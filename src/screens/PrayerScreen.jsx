@@ -40,7 +40,7 @@ function suplicaAvatar(r) {
   return { initials: avatarInitialsOf(r.authorName), bg: 'var(--bento-sand)', color: 'var(--bento-sand-ink)' }
 }
 
-export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerCompleted, onContinueSession, onNavigate, onExitGuided, onBack }) {
+export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerCompleted, onContinueSession, onNavigate, onExitGuided, onBack, timerControlsRef, onTimerRunningChange }) {
   const { lang } = session
   const guided = session.guided?.step === 'prayer'
   const L = (k, vars) => t(`prayer.${k}`, vars, lang)
@@ -181,6 +181,19 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
     incrementPrayerStat(email, 'timerCompletions').catch(() => {})
     onPrayerCompleted?.()
   }
+
+  // Pedido dela (2026-10-22): o relógio da Oração já continua contando
+  // em segundo plano ao trocar de aba (a tela fica sempre montada, ver
+  // prayerVisitedRef em App.jsx) — faltava só um jeito de VER isso de
+  // outra aba. `timerControlsRef` (dono é o App, ver lá) guarda os
+  // controles pro pill flutuante global ler/chamar de fora; reescrever
+  // a cada render é de graça (mesma técnica de prayerVisitedRef — sem
+  // efeito, sem re-render extra). O efeito só avisa o App quando
+  // `running` muda de VERDADE (liga/pausa), não a cada tick de 250ms.
+  if (timerControlsRef) {
+    timerControlsRef.current = { toggle: toggleRunning, finish: finishPrayer, computeElapsed, totalSeconds: TOTAL_SECONDS, label: L('pageTitle') }
+  }
+  useEffect(() => { onTimerRunningChange?.(running) }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stage = PRAYER_STAGES[currentStageIdx]
   const stageTitle = stage.title[lang] ?? stage.title.pt

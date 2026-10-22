@@ -25,6 +25,7 @@ import PrayerRequestDetailScreen from './screens/PrayerRequestDetailScreen'
 import BlessingScreen from './screens/BlessingScreen'
 import ReadingSummaryScreen from './screens/ReadingSummaryScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
+import FloatingTimerPill from './components/timer/FloatingTimerPill'
 import RoutineScreen from './screens/RoutineScreen'
 import AdjustPlanScreen from './screens/AdjustPlanScreen'
 import ReadingOrganizeScreen from './screens/ReadingOrganizeScreen'
@@ -546,6 +547,17 @@ export default function App() {
   // render — não precisa disparar um re-render próprio pra isso.
   const prayerVisitedRef = useRef(false)
   const reflectionVisitedRef = useRef(false)
+  // Pill flutuante global (pedido dela, 2026-10-22): o relógio de Oração/
+  // Reflexão já continua contando com a pessoa em outra aba (prayerVisitedRef/
+  // reflectionVisitedRef acima) — isto só EXPÕE esse estado pra fora.
+  // timerControlsRef é mutável, reescrito a cada render da tela (toggle/
+  // finish/computeElapsed/label mais atuais, sem efeito nem re-render);
+  // *TimerRunning é o único pedacinho reativo (liga/pausa real, não cada
+  // tick) que decide se o pill aparece.
+  const prayerTimerControlsRef = useRef({})
+  const reflectionTimerControlsRef = useRef({})
+  const [prayerTimerRunning, setPrayerTimerRunning] = useState(false)
+  const [reflectionTimerRunning, setReflectionTimerRunning] = useState(false)
   // Notas também fica sempre montada (mesma técnica) — o formulário de
   // anotação de sermão tem campos demais pra perder se a pessoa sair pra
   // conferir um versículo (ver link "ir pro texto" dentro do próprio
@@ -3163,6 +3175,17 @@ export default function App() {
   const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
+  // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se
+  // algum) mostrar fora da própria tela de Oração/Reflexão. Os dois
+  // rodando ao mesmo tempo é borda rara (teria que deixar um ligado,
+  // sair, abrir o outro e também ligar); Oração ganha a prioridade nesse
+  // caso só pra sempre mostrar só um.
+  const floatingTimer = activeTab !== 'prayer' && prayerTimerRunning
+    ? { controlsRef: prayerTimerControlsRef, tab: 'prayer' }
+    : activeTab !== 'reflection' && reflectionTimerRunning
+      ? { controlsRef: reflectionTimerControlsRef, tab: 'reflection' }
+      : null
+
   return (
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥768px (ver index.css) */}
@@ -3189,12 +3212,12 @@ export default function App() {
                 height:100% que a tela em si já assume. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen session={session} authUser={authUser} stepMinutes={stepMinutes} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} />
+                <PrayerScreen session={session} authUser={authUser} stepMinutes={stepMinutes} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
               </div>
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} />
+                <ReflectionScreen session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (
@@ -3215,6 +3238,15 @@ export default function App() {
           <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
         )}
       </div>
+
+      {floatingTimer && (
+        <FloatingTimerPill
+          lang={session.lang}
+          running={floatingTimer.tab === 'prayer' ? prayerTimerRunning : reflectionTimerRunning}
+          controlsRef={floatingTimer.controlsRef}
+          onOpen={() => goToTab(floatingTimer.tab)}
+        />
+      )}
 
       <ProfileSheet
         open={profileOpen}
