@@ -43,6 +43,7 @@ export default function PrayerRequestDetailScreen({ session, request, onBack }) 
   const [postError, setPostError] = useState('')
   const [prayedToday, setPrayedToday] = useState(!!request.prayedToday)
   const [prayCount, setPrayCount] = useState(request.prayCount)
+  const [prayedEver, setPrayedEver] = useState(!!request.prayedEver)
 
   const reload = useCallback(() => {
     setLoadError(false)
@@ -56,16 +57,12 @@ export default function PrayerRequestDetailScreen({ session, request, onBack }) 
   function handlePray() {
     if (prayedToday) return
     setPrayedToday(true)
-    // Bug real (varredura geral, 2026-09-19): marcar "orei" no PRÓPRIO
-    // pedido é permitido desde a migration 0059 (conta pra "orando há N
-    // dias") — o servidor já soma essa marca em pray_count/people igual a
-    // qualquer outra pessoa. O `isMine ? n : n + 1` daqui vinha de um
-    // tempo em que prayCount nunca era mostrado pra "mine" (só na aba de
-    // grupo); esta tela mostra o número pros dois casos, então marcar
-    // "orei" no seu próprio pedido não incrementava na hora — só depois
-    // de sair e voltar (recarregando do servidor), o número "pulava"
-    // sozinho, confuso.
-    setPrayCount(n => n + 1)
+    // pray_count é POR PESSOA, nunca por dia (bug real, 2026-10-19): só
+    // soma na primeira vez que esta pessoa marca pra este pedido —
+    // prayedEver (vindo de request.prayedEver, carregado antes do clique)
+    // guarda isso; orar de novo num dia seguinte não é gente nova, só
+    // atualiza prayedToday (pro botão) sem repetir o +1.
+    if (!prayedEver) { setPrayCount(n => n + 1); setPrayedEver(true) }
     markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
   }
 

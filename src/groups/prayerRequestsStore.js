@@ -42,6 +42,7 @@ function mapSupplicationRow(row) {
     createdAt: row.created_at,
     prayCount: Number(row.pray_count ?? 0),
     prayingByMe: !!row.already_prayed,
+    prayedEver: !!row.already_prayed_ever,
   }
 }
 
@@ -152,6 +153,7 @@ function mapMyRequestRow(row) {
     prayCount: Number(row.pray_count ?? 0),
     diasOrados: Number(row.days_prayed ?? 0),
     prayedToday: !!row.already_prayed_today,
+    prayedEver: Number(row.days_prayed ?? 0) > 0,
     commentCount: Number(row.comment_count ?? 0),
   }
 }

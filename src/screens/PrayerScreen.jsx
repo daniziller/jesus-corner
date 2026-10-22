@@ -112,16 +112,19 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
 
   function handlePray(request) {
     setRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayedToday: true, prayCount: r.isMine ? r.prayCount : r.prayCount + 1, diasOrados: r.isMine ? r.diasOrados + 1 : r.diasOrados }
+      ? { ...r, prayedToday: true, prayCount: r.isMine || r.prayedEver ? r.prayCount : r.prayCount + 1, prayedEver: true, diasOrados: r.isMine ? r.diasOrados + 1 : r.diasOrados }
       : r))
     markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
   }
 
   // "Um toque marca que você orou" (PD3) — mesma marca-por-dia de sempre
-  // (markPraying), só que na lista de Súplica, não na de PD1.
+  // (markPraying), só que na lista de Súplica, não na de PD1. pray_count
+  // é POR PESSOA, nunca por dia (bug real, 2026-10-19): só soma na
+  // primeira vez que esta pessoa marca pra este pedido — orar de novo num
+  // dia seguinte não é gente nova.
   function handleSuplicaPray(request) {
     setSuplicaRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayingByMe: true, prayCount: r.prayCount + 1 }
+      ? { ...r, prayingByMe: true, prayCount: r.prayedEver ? r.prayCount : r.prayCount + 1, prayedEver: true }
       : r))
     markPraying(request.id).catch(err => console.error('Failed to mark praying (suplica)', err))
   }
@@ -455,6 +458,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
           onCreated={() => {
             setAddRequestOpen(false)
             getMyPrayerRequests().then(setRequests).catch(() => {})
+            getSupplicationRequests(3).then(setSuplicaRequests).catch(() => {})
           }}
         />
       )}

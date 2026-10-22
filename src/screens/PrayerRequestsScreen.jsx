@@ -47,12 +47,14 @@ export default function PrayerRequestsScreen({ session, authUser, onBack, onOpen
   const groupActive = activeRequests.filter(r => !r.isMine)
 
   function handlePray(request) {
-    // prayCount sempre soma (o servidor conta a marca do próprio autor
-    // igual a qualquer outra pessoa, desde a migration 0059 — ver mesmo
-    // comentário em PrayerRequestDetailScreen.jsx); diasOrados continua
-    // só pra "mine" (é "dias que EU orei por isso", conceito diferente).
+    // prayCount soma a marca do próprio autor igual a qualquer outra
+    // pessoa (migration 0059), mas só na PRIMEIRA vez que esta pessoa
+    // marca pra este pedido (prayedEver — bug real, 2026-10-19: contava
+    // de novo a cada dia novo que a pessoa orasse, virando "2 pessoas"
+    // pra 1 só). diasOrados continua só pra "mine" (é "dias que EU orei
+    // por isso", conceito diferente).
     setRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayedToday: true, prayCount: r.prayCount + 1, diasOrados: r.isMine ? r.diasOrados + 1 : r.diasOrados }
+      ? { ...r, prayedToday: true, prayCount: r.prayedEver ? r.prayCount : r.prayCount + 1, prayedEver: true, diasOrados: r.isMine ? r.diasOrados + 1 : r.diasOrados }
       : r))
     markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
   }
