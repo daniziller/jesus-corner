@@ -238,7 +238,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
               lang={lang}
               steps={REFLECTION_DATA.map(s => ({ id: s.id, title: s.title[lang] ?? s.title.pt }))}
               currentIndex={reflectionStageIdx}
-              planSeconds={planSeconds} passoSeconds={elapsed}
+              planSeconds={planSeconds}
               etapaSeconds={elapsed - reflectionStageElapsedBefore}
               etapaDurationSeconds={reflectionStageDurations[reflectionStageIdx]}
               running={running} onToggle={toggleRunning} onStop={finishDay}
@@ -322,7 +322,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
             {/* Livre — sem etapas, mesmo cronômetro compartilhado. */}
             <StepTimerCard
               lang={lang} steps={null}
-              planSeconds={planSeconds} passoSeconds={elapsed} etapaSeconds={elapsed}
+              planSeconds={planSeconds} etapaSeconds={elapsed}
               etapaDurationSeconds={TOTAL_SECONDS}
               running={running} onToggle={toggleRunning} onStop={finishDay}
             />

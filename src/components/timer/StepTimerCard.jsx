@@ -16,8 +16,7 @@ export default function StepTimerCard({
   steps,                 // [{id, title}] | null — null/undefined = sem chips (Reflexão livre)
   currentIndex = 0,
   planSeconds,
-  passoSeconds,
-  etapaSeconds,           // já igual a passoSeconds quando não há etapa (decisão de cada tela)
+  etapaSeconds,           // já igual ao tempo do passo inteiro quando não há etapa (decisão de cada tela)
   etapaDurationSeconds,   // number | null — presente = relógio conta REGRESSIVO (+ hora extra); ausente = conta progressivo
   running,
   onToggle,
@@ -50,10 +49,15 @@ export default function StepTimerCard({
       )}
 
       <div style={styles.card}>
+        {/* Um relógio pequeno só, no topo (pedido dela, 2026-10-22): tinha
+            "plano" (dia inteiro) e "passo" (este passo) lado a lado, mas
+            os dois mostram o MESMO número sempre que oração/leitura/
+            reflexão é o primeiro passo feito no dia (nada gravado antes
+            ainda) — parecia relógio duplicado/quebrado. "passo" saiu;
+            "plano" sobrou (segue distinto de "etapa", o relógio grande
+            abaixo, quando há sub-etapas). */}
         <div style={styles.metaRow}>
           <span style={styles.metaItem}>{T('planLabel')} <b style={styles.metaValue}>{formatClock(planSeconds)}</b></span>
-          <span style={styles.metaDivider}>·</span>
-          <span style={styles.metaItem}>{T('passoLabel')} <b style={styles.metaValue}>{formatClock(passoSeconds)}</b></span>
         </div>
 
         {steps && <p style={styles.etapaLabel}>{T('etapaLabel')}</p>}
@@ -98,7 +102,6 @@ const styles = {
   metaRow: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 },
   metaItem: { fontFamily: FONT, fontSize: 10.5, fontWeight: 700, letterSpacing: '.02em', color: 'rgba(255,255,255,.5)' },
   metaValue: { color: 'rgba(255,255,255,.85)', fontVariantNumeric: 'tabular-nums' },
-  metaDivider: { color: 'rgba(255,255,255,.3)' },
 
   etapaLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 4px' },
   etapaClock: { fontFamily: FONT, fontSize: 44, fontWeight: 800, letterSpacing: '-1.2px', margin: '0 0 10px', fontVariantNumeric: 'tabular-nums' },

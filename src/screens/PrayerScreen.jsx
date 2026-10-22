@@ -244,7 +244,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
           <>
             <StepTimerCard
               lang={lang} steps={actsChipSteps} currentIndex={currentStageIdx}
-              planSeconds={planSeconds} passoSeconds={elapsed} etapaSeconds={stageLocalElapsed}
+              planSeconds={planSeconds} etapaSeconds={stageLocalElapsed}
               etapaDurationSeconds={stageDurations[currentStageIdx]}
               running={running} onToggle={toggleRunning} onStop={finishPrayer}
               playLabel={L('playBtn')} pauseLabel={L('pauseBtn')} justZeroed={justZeroed}
@@ -354,7 +354,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
                 atual entram como children, dentro do mesmo cartão. */}
             <StepTimerCard
               lang={lang} steps={actsChipSteps} currentIndex={currentStageIdx}
-              planSeconds={planSeconds} passoSeconds={elapsed} etapaSeconds={stageLocalElapsed}
+              planSeconds={planSeconds} etapaSeconds={stageLocalElapsed}
               etapaDurationSeconds={stageDurations[currentStageIdx]}
               running={running} onToggle={toggleRunning} onStop={finishPrayer}
               playLabel={L('playBtn')} pauseLabel={L('pauseBtn')} justZeroed={justZeroed}
@@ -385,7 +385,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
                 total configurado, igual sempre foi). */}
             <StepTimerCard
               lang={lang} steps={null}
-              planSeconds={planSeconds} passoSeconds={elapsed} etapaSeconds={elapsed}
+              planSeconds={planSeconds} etapaSeconds={elapsed}
               etapaDurationSeconds={TOTAL_SECONDS}
               running={running} onToggle={toggleRunning} onStop={finishPrayer}
               playLabel={L('playBtn')} pauseLabel={L('pauseBtn')}
