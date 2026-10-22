@@ -1375,11 +1375,12 @@ export const STRINGS = {
     // timer/) — usado por Oração, Reflexão e Leitura. Play/pausar continua
     // com o texto próprio de cada tela (prayer.playBtn, etc.) porque o
     // contexto muda ("Tocar a oração" x "Tocar a reflexão"); só o Parar e
-    // os três rótulos de tempo (plano/passo/etapa) são genéricos o
-    // suficiente pra compartilhar.
+    // os dois rótulos de tempo (plano/etapa) são genéricos o suficiente
+    // pra compartilhar. "Neste passo" existiu até 2026-10-22 — saiu por
+    // mostrar o mesmo número que "Total do dia" sempre que o passo era o
+    // primeiro feito no dia (ver comentário em StepTimerCard.jsx).
     timer: {
       planLabel: 'Total do dia',
-      passoLabel: 'Neste passo',
       etapaLabel: 'Nesta etapa',
       stopBtn: 'Parar',
     },
@@ -4892,7 +4893,6 @@ export const STRINGS = {
     },
     timer: {
       planLabel: "Today's total",
-      passoLabel: 'This step',
       etapaLabel: 'This stage',
       stopBtn: 'Stop',
     },
