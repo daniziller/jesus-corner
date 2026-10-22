@@ -3,10 +3,13 @@
 // (nesse caso `defaultGroupId` já vem preenchido e a lista de "quem vê"
 // nasce em cima dele).
 //
-// "Quem vê": uma linha por grupo que a pessoa já é membro (escopo
-// 'group'), + "Meus amigos" (escopo 'friends') + "Só eu" (escopo
-// 'only_me', vira lembrete pessoal — ver prayerRequestsStore.js). Sem
-// grupo nenhum, a lista some e some só as duas últimas opções.
+// "Quem vê": "Só eu" primeiro — escopo 'only_me' (vira lembrete pessoal,
+// ver prayerRequestsStore.js), também o PADRÃO já marcado ao abrir —, daí
+// uma linha por grupo que a pessoa já é membro (escopo 'group') e por
+// último "Meus amigos" (escopo 'friends'). Pedido dela, 2026-10-19: antes
+// o padrão nascia num grupo (se houvesse um) ou em amigos; "Só eu" sempre
+// primeiro agora, grupo só quando a folha abre a partir de um grupo
+// específico (defaultGroupId, "+" na aba de oração do grupo).
 //
 // "Escrever com ajuda": não é um modo separado — o mesmo campo de texto
 // aceita tanto o desabafo cru quanto o pedido final; o botão manda o texto
@@ -33,7 +36,10 @@ export default function AddPrayerRequestSheet({ lang, authUser, hasAI, defaultGr
   const [groups, setGroups] = useState([])
   const [memberCounts, setMemberCounts] = useState({})
   const [friendsCount, setFriendsCount] = useState(0)
-  const [scope, setScope] = useState(defaultGroupId ? 'group' : null)
+  // "Só eu" é o padrão (pedido dela, 2026-10-19) — só quando a folha abre
+  // a partir de um grupo específico (defaultGroupId, "+" na aba de oração
+  // do grupo) o escopo nasce nesse grupo; fora disso, sempre "Só eu".
+  const [scope, setScope] = useState(defaultGroupId ? 'group' : 'only_me')
   const [groupId, setGroupId] = useState(defaultGroupId)
 
   const [body, setBody] = useState('')
@@ -47,12 +53,6 @@ export default function AddPrayerRequestSheet({ lang, authUser, hasAI, defaultGr
     getMyGroups().then(async list => {
       setGroups(list)
       setMemberCounts(await getGroupMemberCounts(list.map(g => g.groupId)))
-      // Sem grupo escolhido de fora (aba de um grupo específico) — o
-      // primeiro disponível vira o padrão: um grupo, se houver, senão amigos.
-      if (!defaultGroupId) {
-        setScope(list.length > 0 ? 'group' : 'friends')
-        if (list.length > 0) setGroupId(list[0].groupId)
-      }
     }).catch(err => console.error('Failed to load groups', err))
     getFriendsCount().then(setFriendsCount).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,27 +97,29 @@ export default function AddPrayerRequestSheet({ lang, authUser, hasAI, defaultGr
     setGroupId(gid)
   }
 
+  // "Só eu" primeiro (pedido dela, 2026-10-19) — é o padrão, então também
+  // a primeira opção da lista; grupos e amigos vêm depois.
   const whoSeesOptions = useMemo(() => {
-    const opts = groups.map(g => ({
+    const opts = [{
+      key: 'only_me',
+      on: scope === 'only_me',
+      label: L('onlyMeOptionLabel'),
+      sub: L('onlyMeOptionSub'),
+      onClick: () => { setScope('only_me'); setGroupId(null) },
+    }]
+    opts.push(...groups.map(g => ({
       key: `group:${g.groupId}`,
       on: scope === 'group' && groupId === g.groupId,
       label: g.name,
       sub: t(memberCounts[g.groupId] === 1 ? 'addPrayerRequest.peopleCountOne' : 'addPrayerRequest.peopleCountMany', { n: memberCounts[g.groupId] ?? 0 }, lang),
       onClick: () => selectGroup(g.groupId),
-    }))
+    })))
     opts.push({
       key: 'friends',
       on: scope === 'friends',
       label: L('friendsOptionLabel'),
       sub: t(friendsCount === 1 ? 'addPrayerRequest.peopleCountOne' : 'addPrayerRequest.peopleCountMany', { n: friendsCount }, lang),
       onClick: () => { setScope('friends'); setGroupId(null) },
-    })
-    opts.push({
-      key: 'only_me',
-      on: scope === 'only_me',
-      label: L('onlyMeOptionLabel'),
-      sub: L('onlyMeOptionSub'),
-      onClick: () => { setScope('only_me'); setGroupId(null) },
     })
     return opts
     // eslint-disable-next-line react-hooks/exhaustive-deps

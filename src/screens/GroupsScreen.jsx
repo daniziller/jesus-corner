@@ -735,14 +735,19 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
     // "Orei por isso" marca o dia, não o clique (migration 0059) — uma vez
     // marcado hoje, o toque não faz mais nada até o dia virar.
     if (!latestPrayer || latestPrayer.isMine || latestPrayer.prayingByMe) return
-    setLatestPrayer(p => ({ ...p, prayingByMe: true, prayCount: p.prayCount + 1 }))
+    // pray_count é POR PESSOA, nunca por dia (bug real, 2026-10-19): só
+    // soma na primeira vez que esta pessoa marca pra este pedido —
+    // prayedEver guarda isso; orar de novo num dia seguinte não é gente
+    // nova, só reacende prayingByMe sem repetir o +1.
+    const wasPrayedEver = !!latestPrayer.prayedEver
+    setLatestPrayer(p => ({ ...p, prayingByMe: true, prayedEver: true, prayCount: wasPrayedEver ? p.prayCount : p.prayCount + 1 }))
     // Bug real (varredura geral, 2026-09-19): sem reversão no catch — uma
     // falha de verdade deixava "orei" marcado na tela sem ter sido
     // registrado no banco, com o card só se corrigindo sozinho se/quando a
     // tela recarregasse do zero.
     markPraying(latestPrayer.id).catch(err => {
       console.error('Failed to mark praying', err)
-      setLatestPrayer(p => (p ? { ...p, prayingByMe: false, prayCount: Math.max(0, p.prayCount - 1) } : p))
+      setLatestPrayer(p => (p ? { ...p, prayingByMe: false, prayedEver: wasPrayedEver, prayCount: wasPrayedEver ? p.prayCount : Math.max(0, p.prayCount - 1) } : p))
     })
   }
 
@@ -1392,15 +1397,19 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
     // "Orei por isso" marca o dia, não o clique (migration 0059) — sem
     // desmarcar; otimista: atualiza local antes de esperar o servidor.
     if (request.prayingByMe) return
+    // pray_count é POR PESSOA, nunca por dia (bug real, 2026-10-19): só
+    // soma na primeira vez que esta pessoa marca pra este pedido —
+    // prayedEver guarda isso (ver mesmo comentário em handlePray acima).
+    const wasPrayedEver = !!request.prayedEver
     setRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayingByMe: true, prayCount: r.prayCount + 1 }
+      ? { ...r, prayingByMe: true, prayedEver: true, prayCount: wasPrayedEver ? r.prayCount : r.prayCount + 1 }
       : r))
     // Bug real (varredura geral, 2026-09-19): sem reversão no catch — ver
     // mesmo comentário em handlePray/handleLike/handleClose acima.
     markPraying(request.id).catch(err => {
       console.error('Failed to mark praying', err)
       setRequests(prev => prev.map(r => r.id === request.id
-        ? { ...r, prayingByMe: false, prayCount: Math.max(0, r.prayCount - 1) }
+        ? { ...r, prayingByMe: false, prayedEver: wasPrayedEver, prayCount: wasPrayedEver ? r.prayCount : Math.max(0, r.prayCount - 1) }
         : r))
     })
   }
