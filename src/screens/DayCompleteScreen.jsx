@@ -154,7 +154,17 @@ const styles = {
   headline: { fontFamily: FONT, fontSize: 24, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
   context: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 6px' },
 
-  imageWrap: { borderRadius: 28, overflow: 'hidden', background: '#1A1714', aspectRatio: '9 / 16' },
+  // flexShrink: 0 é o que segura o tamanho do cartão (achado 2026-10-25,
+  // reportado por ela: "a imagem fica pequena"). O body é uma coluna flex
+  // de altura fixa, e um item flex com overflow:hidden tem min-height
+  // automático ZERO (regra do flexbox) — então o container 9:16 era
+  // espremido até caber no que sobrava da tela (~230px num iPhone), e a
+  // imagem, com `contain`, virava uma miniatura no meio de um retângulo
+  // escuro. Sem encolher, o cartão mantém a proporção e o body rola.
+  // O teto de 62vh (largura derivada da altura, proporção exata) é pra o
+  // cartão não tomar a tela inteira e deixar os chips à vista com um rolar
+  // curto — mesmo espírito do maxHeight de 48vh na prévia de ReadingBlockView.
+  imageWrap: { flexShrink: 0, alignSelf: 'center', width: '100%', maxWidth: 'calc(62vh * 9 / 16)', borderRadius: 28, overflow: 'hidden', background: '#1A1714', aspectRatio: '9 / 16' },
   // `contain`, não `cover` (achado 2026-09-09, reportado por ela: o
   // título do cartão saía cortado por cima) — a imagem já É exatamente
   // 1080×1920 (9:16, igual ao aspectRatio do container), então os dois
