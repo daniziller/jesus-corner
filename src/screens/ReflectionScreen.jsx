@@ -138,11 +138,19 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveMethod, hasChapter])
 
-  function saveQaNote(nextQ1, nextQ2) {
-    saveNote(email, noteKey, combineQaText(questions, nextQ1, nextQ2)).catch(err => console.error('Failed to persist reflection note', err))
-  }
-  function handleQ1Change(text) { setQ1Text(text); saveQaNote(text, q2Text) }
-  function handleQ2Change(text) { setQ2Text(text); saveQaNote(q1Text, text) }
+  // Bug real (2026-10-22, "a frase do dia fica cortada"): salvar a cada
+  // tecla (onChange chamando saveNote/getPinnedApplicationPhrase direto)
+  // abria uma corrida — num texto digitado rápido, uma requisição mais
+  // antiga (texto mais curto) podia responder DEPOIS de uma mais nova e
+  // sobrescrever a frase fixada com uma versão truncada, fora o lag de
+  // digitação de um round-trip ao servidor por tecla. onChange agora só
+  // atualiza o estado local — salvar de verdade só acontece (a) no botão
+  // "Salvar" explícito (persistAnswers, com a confirmação de troca do
+  // card do Início) ou (b) ao sair da tela/terminar o dia (saveNoteText,
+  // sem a confirmação — não dá tempo da pessoa responder o banner antes
+  // de navegar pra outro lugar).
+  function handleQ1Change(text) { setQ1Text(text) }
+  function handleQ2Change(text) { setQ2Text(text) }
 
   // "Trocar perguntas" troca só as duas primeiras — nunca a 3ª (fixa) —
   // e limpa as respostas de 1/2 (não fazem mais sentido pras perguntas
@@ -160,29 +168,49 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
   const applicationPhraseKey = dailyApplicationKeyFor()
   const [q3Text, setQ3Text] = useState('')
   const [pendingPin, setPendingPin] = useState(null)
+  const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved'
   useEffect(() => {
     if (!email) return
     getNotes(email).then(map => setQ3Text(noteTextOf(map[applicationPhraseKey]))).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email])
+  function handleQ3Change(text) { setQ3Text(text) }
 
-  // A frase do dia sempre grava no histórico; virar a frase FIXADA no
-  // card do Início é outra decisão — a 1a frase de todas fixa sozinha
-  // (nada pra comparar ainda), da 2a em diante só troca com confirmação
-  // (mesmo mecanismo do antigo ApplicationStepCard.jsx, apagado nesta
-  // reescrita — o banner de confirmação não aparece no PNG de 37a, mas é
-  // comportamento já estabelecido, não uma tela nova; ver pendingPin).
-  async function handleQ3Change(text) {
-    setQ3Text(text)
+  // Só o texto cru (nota combinada de Q1/Q2, nota de Q3, ou o livre) —
+  // sem o fluxo de confirmação de pin. Usado como rede de segurança (não
+  // perder o que foi escrito) ao terminar o dia ou sair da tela, onde não
+  // dá pra esperar a pessoa responder "trocar o card do Início?".
+  async function saveNoteText() {
     try {
-      await saveNote(email, applicationPhraseKey, text)
-      if (!text.trim()) return
-      const currentPinned = await getPinnedApplicationPhrase(email)
-      if (!currentPinned) { await setPinnedApplicationPhrase(email, text); onApplicationChanged?.() }
-      else if (currentPinned !== text) setPendingPin(text)
+      if (effectiveMethod === 'questions') {
+        await saveNote(email, noteKey, combineQaText(questions, q1Text, q2Text))
+        await saveNote(email, applicationPhraseKey, q3Text)
+      } else {
+        await saveNote(email, noteKey, freeText)
+      }
     } catch (err) {
-      console.error('Failed to persist application phrase', err)
+      console.error('Failed to persist reflection note', err)
     }
+  }
+
+  // Botão "Salvar" explícito — único lugar que ainda dispara a
+  // confirmação de trocar a frase fixada no Início (pendingPin), porque é
+  // o único momento em que a pessoa está mesmo olhando pra tela pra
+  // responder. A 1a frase de todas fixa sozinha (nada pra comparar
+  // ainda); da 2a em diante só troca com confirmação (mesmo mecanismo do
+  // antigo ApplicationStepCard.jsx, apagado nesta reescrita).
+  async function persistAnswers() {
+    setSaveState('saving')
+    await saveNoteText()
+    if (effectiveMethod === 'questions' && q3Text.trim()) {
+      try {
+        const currentPinned = await getPinnedApplicationPhrase(email)
+        if (!currentPinned) { await setPinnedApplicationPhrase(email, q3Text); onApplicationChanged?.() }
+        else if (currentPinned !== q3Text) { setPendingPin(q3Text); setSaveState('idle'); return }
+      } catch (err) { console.error('Failed to persist application phrase', err) }
+    }
+    setSaveState('saved')
+    setTimeout(() => setSaveState('idle'), 1800)
   }
   async function confirmPinUpdate(accept) {
     const text = pendingPin
@@ -203,13 +231,11 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
     getNotes(email).then(map => setFreeText(noteTextOf(map[noteKey]))).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, effectiveMethod])
-  function handleFreeChange(text) {
-    setFreeText(text)
-    saveNote(email, noteKey, text).catch(err => console.error('Failed to persist reflection note', err))
-  }
+  function handleFreeChange(text) { setFreeText(text) }
 
-  function finishDay() {
+  async function finishDay() {
     pause()
+    await saveNoteText()
     logSessionSeconds('reflection', elapsed).catch(err => console.error('Failed to log reflection session seconds', err))
     onReflectionCompleted?.()
   }
@@ -222,10 +248,18 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
   }
   useEffect(() => { onTimerRunningChange?.(running) }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sair sem terminar o dia (Voltar) também não pode perder o que foi
+  // escrito — mesma rede de segurança de finishDay, sem esperar a volta
+  // do servidor antes de navegar (saveNoteText roda em paralelo).
+  function handleBack() {
+    saveNoteText()
+    ;(guided ? onExitGuided : onBack)?.()
+  }
+
   return (
     <div style={styles.screen}>
       <div style={styles.header}>
-        <button style={styles.backBtn} onClick={guided ? onExitGuided : onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+        <button style={styles.backBtn} onClick={handleBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -309,6 +343,12 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
                 value={q3Text}
                 onChange={e => handleQ3Change(e.target.value)}
               />
+              <div style={styles.saveRow}>
+                <button type="button" style={{ ...styles.saveBtn, ...(saveState === 'saved' ? styles.saveBtnSaved : {}) }} onClick={persistAnswers} disabled={saveState === 'saving'}>
+                  {saveState === 'saved' && <AppIcon name="Check" size={13} strokeWidth={3} color="var(--bento-ink)" />}
+                  <span>{saveState === 'saved' ? L('savedAnswersBtn') : saveState === 'saving' ? t('groups.loading', undefined, lang) : L('saveAnswersBtn')}</span>
+                </button>
+              </div>
               {pendingPin && (
                 <div style={styles.pinConfirmCard}>
                   <p style={styles.pinConfirmText}>{L('pinConfirmText')}</p>
@@ -346,6 +386,12 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
                 value={freeText}
                 onChange={e => handleFreeChange(e.target.value)}
               />
+              <div style={styles.saveRow}>
+                <button type="button" style={{ ...styles.saveBtn, ...(saveState === 'saved' ? styles.saveBtnSaved : {}) }} onClick={persistAnswers} disabled={saveState === 'saving'}>
+                  {saveState === 'saved' && <AppIcon name="Check" size={13} strokeWidth={3} color="var(--bento-ink)" />}
+                  <span>{saveState === 'saved' ? L('savedAnswersBtn') : saveState === 'saving' ? t('groups.loading', undefined, lang) : L('saveAnswersBtn')}</span>
+                </button>
+              </div>
             </div>
 
             <div style={styles.privacyCard}>
@@ -406,6 +452,10 @@ const styles = {
   q3Sub: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: 'var(--bento-sand-ink)', margin: 0 },
   q3Question: { fontFamily: FONT, fontSize: 16, fontWeight: 800, lineHeight: 1.35, color: 'var(--bento-sand-ink-strong)', margin: '0 0 10px' },
   q3Textarea: { width: '100%', minHeight: 60, boxSizing: 'border-box', border: 'none', borderRadius: 14, background: 'var(--bento-card)', padding: '12px 14px', fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'vertical' },
+
+  saveRow: { display: 'flex', justifyContent: 'flex-end', marginTop: 10 },
+  saveBtn: { height: 36, padding: '0 16px', borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-t2)' },
+  saveBtnSaved: { background: 'var(--bento-accent)', color: 'var(--bento-ink)' },
 
   pinConfirmCard: { marginTop: 10, borderRadius: 14, background: 'var(--bento-card)', padding: '12px 14px' },
   pinConfirmText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-ink)', margin: '0 0 8px' },
