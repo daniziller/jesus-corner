@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { generateGroupChallenge } from '../groups/groupChallengesStore'
+import { dateKey } from '../utils/dateKey'
 import { getGroupDetail } from '../groups/groupsStore'
 
 const FONT = 'var(--font-bento)'
@@ -20,10 +21,12 @@ const STARTERS = [
   { key: 'wedding', label: 'starterWedding', text: 'Tem um casal do grupo se casando — queria uma leitura sobre amor e aliança no casamento.' },
 ]
 
+// dateKey (data local), não toISOString (UTC) — depois das 21h no Brasil
+// o "amanhã" pré-preenchido caía dois dias à frente (varredura 2026-10-25).
 function tomorrowISO() {
   const d = new Date()
   d.setDate(d.getDate() + 1)
-  return d.toISOString().slice(0, 10)
+  return dateKey(d)
 }
 
 export default function CreateGroupChallengeScreen({ session, groupId, onBack, onProposalReady }) {

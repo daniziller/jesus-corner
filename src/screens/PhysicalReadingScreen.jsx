@@ -5,18 +5,35 @@
 // Marcar passa por finishPhysicalReading (App.jsx), que marca os
 // capítulos da sessão como lidos igual ao "Concluir" do leitor (conta no
 // progresso, no passo do dia e no encadeamento guiado).
+import { useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
-export default function PhysicalReadingScreen({ session, done, onMarkDone, onReadInApp, onBack }) {
-  const { lang, todaySession, guided } = session
+export default function PhysicalReadingScreen({ session, done: doneProp, onMarkDone, onReadInApp, onBack }) {
+  const { lang, guided } = session
   const L = (k, vars) => t(`physicalReading.${k}`, vars, lang)
+
+  // Foto da sessão de hoje tirada na montagem (varredura 2026-10-25): assim
+  // que "Marcar como lida" grava, session.todaySession já avança pra
+  // PRÓXIMA sessão no mesmo render — a tela trocava a referência
+  // ("Salmos 25") embaixo da pessoa, `done` voltava a false e o botão
+  // reabria: um 2º toque nos 2,6 s do modo guiado marcava a sessão
+  // seguinte também. `marked` local segura o estado até sair da tela.
+  const [todaySession] = useState(() => session.todaySession)
+  const [marked, setMarked] = useState(false)
+  const done = doneProp || marked
 
   const book = lang === 'en' ? (todaySession?.bookEn || todaySession?.book) : todaySession?.book
   const chStart = todaySession?.chStart
   const chEnd = todaySession?.chEnd ?? chStart
   const reference = chStart == null ? book : (chStart === chEnd ? `${book} ${chStart}` : `${book} ${chStart}–${chEnd}`)
   const chapterCount = chStart == null ? 0 : chEnd - chStart + 1
+
+  function handleMark() {
+    if (done) return
+    setMarked(true)
+    onMarkDone?.()
+  }
 
   // Em modo guiado, marcar dispara o avanço automático pro próximo passo
   // (advanceGuided via toggleSession) — a tela só mostra o "marcada" até
@@ -50,7 +67,7 @@ export default function PhysicalReadingScreen({ session, done, onMarkDone, onRea
       </div>
 
       <div style={styles.footer}>
-        <button style={{ ...styles.markBtn, ...(done ? styles.markBtnDone : {}) }} onClick={onMarkDone} disabled={done}>
+        <button style={{ ...styles.markBtn, ...(done ? styles.markBtnDone : {}) }} onClick={handleMark} disabled={done}>
           <AppIcon name="Check" size={16} strokeWidth={2.6} color="var(--bento-ink)" />
           <span>{done ? L('markedBtn') : L('markBtn')}</span>
         </button>

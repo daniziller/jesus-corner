@@ -27,7 +27,10 @@ export default async function handler(req, res) {
     .select('id, kind, status')
     .eq('kind', 'free')
     .eq('status', 'pending')
-    .ilike('email', caller.email)
+    // eq em minúsculas, não ilike — `_` e `%` no e-mail do próprio usuário
+    // viravam curinga e casavam convites de OUTRA pessoa (varredura
+    // 2026-10-25; o índice em lower(email) já existe, 0021).
+    .eq('email', caller.email.toLowerCase())
     .maybeSingle()
 
   if (fetchErr) {

@@ -121,6 +121,9 @@ export default function AddFriendsScreen({ session, authUser, onBack, onChange }
       onChange?.()
     } catch (err) {
       console.error('Failed to send friend request', err)
+      // Reverte o "Enviado" otimista — ficava marcado mesmo com a
+      // requisição falhando (varredura 2026-10-25).
+      setSentIds(prev => { const next = new Set(prev); next.delete(userId); return next })
     }
   }
 

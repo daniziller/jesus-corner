@@ -18,7 +18,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'method_not_allowed' })
   }
-  if (req.query?.token !== process.env.GOOGLE_PLAY_RTDN_SECRET) {
+  // Falha FECHADA sem o secret configurado — `undefined !== undefined` era
+  // false e qualquer POST passava (varredura 2026-10-25).
+  if (!process.env.GOOGLE_PLAY_RTDN_SECRET || req.query?.token !== process.env.GOOGLE_PLAY_RTDN_SECRET) {
     return res.status(401).json({ error: 'unauthorized' })
   }
 

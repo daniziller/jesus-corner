@@ -76,7 +76,10 @@ export async function toggleCommentLike(commentId) {
     .eq('comment_id', commentId)
     .eq('user_id', userId)
     .maybeSingle()
-  if (fetchError) { console.error('[commentsStore] toggleCommentLike fetch failed:', fetchError.message); return }
+  // Lança em vez de só logar — DiscussionTab.handleLike faz atualização
+  // otimista e reverte no .catch; engolindo o erro aqui a reversão nunca
+  // rodava (varredura 2026-10-25).
+  if (fetchError) throw new Error(`toggleCommentLike fetch failed: ${fetchError.message}`)
 
   if (existing) {
     const { error } = await supabase
@@ -84,11 +87,11 @@ export async function toggleCommentLike(commentId) {
       .delete()
       .eq('comment_id', commentId)
       .eq('user_id', userId)
-    if (error) console.error('[commentsStore] unlike failed:', error.message)
+    if (error) throw new Error(`unlike failed: ${error.message}`)
   } else {
     const { error } = await supabase
       .from('group_comment_likes')
       .insert({ comment_id: commentId, user_id: userId })
-    if (error) console.error('[commentsStore] like failed:', error.message)
+    if (error) throw new Error(`like failed: ${error.message}`)
   }
 }

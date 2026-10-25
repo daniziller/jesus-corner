@@ -16,11 +16,14 @@ function check(label, actual, expected) {
 
 check('1 dia (singular, pt)', daysOrMonthsSpan(1, 'pt'), '1 dia')
 check('24 dias (exemplo do quadro, pt)', daysOrMonthsSpan(24, 'pt'), '24 dias')
-check('61 dias fica em dias, não vira meses (exemplo do quadro, pt)', daysOrMonthsSpan(61, 'pt'), '61 dias')
-check('89 dias ainda em dias', daysOrMonthsSpan(89, 'pt'), '89 dias')
-check('90 dias já vira meses (3 meses)', daysOrMonthsSpan(90, 'pt'), '3 meses')
+// Corte em 60 dias (Regra 4 do handoff-oracao-pedidos, MONTH_THRESHOLD_DAYS)
+// — o teste ainda esperava o corte antigo de 90 e falhava (varredura 2026-10-25).
+check('59 dias ainda em dias', daysOrMonthsSpan(59, 'pt'), '59 dias')
+check('60 dias já vira meses (2 meses)', daysOrMonthsSpan(60, 'pt'), '2 meses')
+check('61 dias vira meses (exemplo do quadro, pt)', daysOrMonthsSpan(61, 'pt'), '2 meses')
+check('90 dias = 3 meses', daysOrMonthsSpan(90, 'pt'), '3 meses')
 check('1 mês (singular, pt)', daysOrMonthsSpan(30, 'pt'), '30 dias')
-check('~1 mês vira meses quando >= 90', daysOrMonthsSpan(95, 'pt'), '3 meses')
+check('95 dias = 3 meses', daysOrMonthsSpan(95, 'pt'), '3 meses')
 check('~8 meses (exemplo do quadro, pt)', daysOrMonthsSpan(240, 'pt'), '8 meses')
 check('0 dias', daysOrMonthsSpan(0, 'pt'), '0 dias')
 check('en: 1 day singular', daysOrMonthsSpan(1, 'en'), '1 day')

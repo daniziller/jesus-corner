@@ -35,10 +35,13 @@ export async function grantFreeAccessFromInvite(invite, userId) {
   if (upsertErr) {
     // Não deixa o convite "queimado" sem ninguém ter recebido o benefício —
     // devolve pro estado pendente pra próxima tentativa poder reivindicar.
-    await supabaseAdmin.from('admin_invites')
+    // Sem `.catch` encadeado: o builder do PostgREST não tem .catch (só
+    // then) — era TypeError e o convite ficava "queimado" exatamente no
+    // caso que este bloco quer evitar (varredura 2026-10-25).
+    const { error: rollbackErr } = await supabaseAdmin.from('admin_invites')
       .update({ status: 'pending', claimed_by: null, claimed_at: null })
       .eq('id', invite.id)
-      .catch(() => {})
+    if (rollbackErr) console.error('[invites] rollback failed:', rollbackErr.message)
     throw new Error(`grant_failed: ${upsertErr.message}`)
   }
 }

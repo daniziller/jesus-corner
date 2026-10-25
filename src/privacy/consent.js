@@ -30,10 +30,29 @@ export const REQUIRED_PURPOSES = [PURPOSES.TERMS, PURPOSES.SENSITIVE_DATA]
 // Envia o conjunto de escolhas para registro no servidor. Falha em silêncio
 // de propósito: um erro de rede aqui não pode travar o cadastro de quem já
 // concordou na tela. O retry acontece no próximo login (ver ensureConsents).
+// Sem sessão ainda (cadastro com confirmação de e-mail ligada: signup() não
+// devolve sessão), as escolhas ficam guardadas no aparelho e são enviadas
+// na primeira entrada com sessão (flushPendingConsents, chamada por
+// App.jsx) — antes se perdiam e toda conta nova caía na tela de
+// reconsentimento (varredura 2026-10-25).
+const PENDING_KEY = 'jc_pending_consents'
+
+export async function flushPendingConsents() {
+  let pending = null
+  try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || 'null') } catch { /* sem localStorage */ }
+  if (!Array.isArray(pending) || pending.length === 0) return false
+  const ok = await recordConsents(pending)
+  if (ok) { try { localStorage.removeItem(PENDING_KEY) } catch { /* ignora */ } }
+  return ok
+}
+
 export async function recordConsents(consents, { silent = true } = {}) {
   try {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('not_authenticated')
+    if (!session) {
+      try { localStorage.setItem(PENDING_KEY, JSON.stringify(consents)) } catch { /* sem localStorage */ }
+      throw new Error('not_authenticated')
+    }
 
     const res = await fetch('/api/record-consent', {
       method: 'POST',
@@ -60,7 +79,10 @@ export async function getMyConsents() {
     .select('purpose, granted, policy_version, created_at')
     .order('created_at', { ascending: false })
 
-  if (error) { console.error('Falha ao ler consentimentos', error); return {} }
+  // Lança (não devolve {}) — devolver vazio virava "falta consentir" e
+  // mandava quem já consentiu pra tela de reconsentimento a cada falha de
+  // rede; os chamadores já têm .catch(() => false) (varredura 2026-10-25).
+  if (error) throw new Error(`consents_read_failed: ${error.message}`)
 
   const latest = {}
   for (const row of data ?? []) {

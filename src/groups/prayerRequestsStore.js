@@ -23,6 +23,7 @@
 // verdade. Toda tela que chama essas funções já tinha um `.catch()`
 // escrito esperando por isso; só nunca disparava.
 import { supabase } from '../lib/supabaseClient'
+import { dateKey } from '../utils/dateKey'
 
 async function getUserId() {
   const { data } = await supabase.auth.getUser()
@@ -131,10 +132,15 @@ export async function markPraying(requestId) {
   const { error } = await supabase
     .from('group_prayer_intentions')
     .upsert(
-      { prayer_request_id: requestId, user_id: userId, prayed_date: new Date().toISOString().slice(0, 10) },
+      // Data LOCAL (dateKey), não UTC — "uma vez por dia" virava às 21h no
+      // Brasil (varredura 2026-10-25).
+      { prayer_request_id: requestId, user_id: userId, prayed_date: dateKey() },
       { onConflict: 'prayer_request_id,user_id,prayed_date', ignoreDuplicates: true },
     )
-  if (error) console.error('[prayerRequestsStore] mark praying failed:', error.message)
+  // Lança (não só loga) — quem chama faz atualização otimista e reverte no
+  // .catch; engolindo o erro aqui, a reversão nunca rodava e "orei" ficava
+  // marcado na tela sem ter sido gravado (varredura 2026-10-25).
+  if (error) throw new Error(`mark praying failed: ${error.message}`)
 }
 
 function mapMyRequestRow(row) {

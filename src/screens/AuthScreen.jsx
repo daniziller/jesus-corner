@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { logout, isValidPassword, needsPasswordChange, changePassword } from '../auth/authStore'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
-import { needsConsentRefresh } from '../privacy/consent'
+import { needsConsentRefresh, flushPendingConsents } from '../privacy/consent'
 import ConsentRefreshScreen from './ConsentRefreshScreen'
 import LoginScreen from './LoginScreen'
 import SignupScreen from './SignupScreen'
@@ -46,6 +46,9 @@ export default function AuthScreen({ onAuthenticated, initialMode, onBack, planI
     // Quem se cadastrou agora mesmo já sai com o consentimento em dia (ver
     // SignupStep), então isso na prática só pega quem loga numa conta criada
     // antes desse sistema existir, ou depois de a política mudar de versão.
+    // Consentimento guardado no aparelho num cadastro sem sessão (confirmação
+    // de e-mail) — envia agora que existe sessão (ver consent.js).
+    await flushPendingConsents().catch(() => false)
     const needsRefresh = await needsConsentRefresh().catch(() => false)
     if (needsRefresh) {
       setPendingUser(user)

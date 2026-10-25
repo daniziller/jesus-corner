@@ -64,7 +64,9 @@ function isReminderTimeFor(sub, now) {
 
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Falha fechada sem CRON_SECRET — senão "Bearer undefined" autenticava
+  // (varredura 2026-10-25; mesmo padrão de expire-access-grants).
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'unauthorized' })
   }
 

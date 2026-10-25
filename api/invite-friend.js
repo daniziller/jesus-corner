@@ -111,7 +111,12 @@ export default async function handler(request) {
 
   const country = request.headers.get('x-vercel-ip-country')
   const lang = country === 'BR' ? 'pt' : 'en'
-  const inviterName = caller.user_metadata?.name?.trim() || COPY[lang].defaultName
+  // Escapa HTML — o nome vem de user_metadata (editável pelo próprio
+  // usuário) e entrava cru no <h1> do e-mail: dava pra mandar HTML
+  // arbitrário (links/botões falsos) do remetente oficial pra qualquer
+  // endereço (varredura 2026-10-25).
+  const rawName = caller.user_metadata?.name?.trim().slice(0, 80) || COPY[lang].defaultName
+  const inviterName = rawName.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
   const emailRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',

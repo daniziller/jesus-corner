@@ -554,7 +554,10 @@ function StatusBadge({ status, lang }) {
   const isGood = status === 'active' || status === 'trialing'
   return (
     <span style={{ ...styles.statusBadge, ...(isGood ? styles.statusBadgeGood : styles.statusBadgeBad) }}>
-      {t(`admin.users.status.${status}`, undefined, lang)}
+      {/* Status do Stripe fora do dicionário (incomplete, unpaid, paused…)
+          mostrava a chave crua (varredura 2026-10-25) — cai no próprio
+          status. */}
+      {(() => { const label = t(`admin.users.status.${status}`, undefined, lang); return label.startsWith('admin.users.status.') ? status : label })()}
     </span>
   )
 }

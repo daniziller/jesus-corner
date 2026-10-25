@@ -27,9 +27,12 @@ function keyFor(text, lang) {
   return `https://tts.jc/${lang}-${(h >>> 0).toString(36)}-${s.length}`
 }
 
+// Sem memoizar o token (varredura 2026-10-25): guardado na 1ª chamada, ele
+// expirava em ~1h e todo pedido seguinte dava 401 → a voz premium caía
+// em silêncio pra voz do aparelho até recarregar; e sobrevivia a trocar
+// de conta. getSession() já é local e renova sozinho.
 let _authToken = null
 async function authToken() {
-  if (_authToken) return _authToken
   const { data } = await supabase.auth.getSession()
   _authToken = data?.session?.access_token ?? null
   return _authToken

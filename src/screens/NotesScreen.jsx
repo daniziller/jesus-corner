@@ -122,7 +122,11 @@ function dateFilterRangeFor(key, customFrom, customTo) {
   return { from: customFrom || null, to: customTo || null }
 }
 
-export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, onOpenBiblePassage, onOpenStudy, onOpenThemePlan, onUseBankStudy, onOpenSermonNote, onCreateSermonNote }) {
+// refreshKey (varredura 2026-10-25): a tela fica sempre montada (App.jsx/
+// notesVisitedRef) e só carregava uma vez — anotação/grifo/sermão feitos
+// depois não apareciam até recarregar o app. App.jsx incrementa a cada
+// visita à aba.
+export default function NotesScreen({ session, authUser, blocks, sessionsByBlock, refreshKey = 0, onOpenBiblePassage, onOpenStudy, onOpenThemePlan, onUseBankStudy, onOpenSermonNote, onCreateSermonNote }) {
   const { lang } = session
   const [state, setState] = useState({ status: 'loading', notes: [] })
   // Painel de filtros (origem/livro/cor/data) minimizado por padrão — só
@@ -356,7 +360,9 @@ export default function NotesScreen({ session, authUser, blocks, sessionsByBlock
         if (!cancelled) setState({ status: 'error', notes: [] })
       })
     return () => { cancelled = true }
-  }, [authUser?.email])
+    // refreshKey: recarrega a cada visita à aba (ver cabeçalho do componente).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.email, refreshKey])
 
   // "Meus estudos" (4c, Bloco 12) — à parte do carregamento de notas acima
   // (dado/formato bem diferente: planos por tema com `passages`, não

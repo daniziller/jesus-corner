@@ -156,6 +156,11 @@ async function performAction(req, res, callerId) {
 
   if (action === 'change_admin') {
     if (!newAdminUserId) return res.status(400).json({ error: 'missing_new_admin' })
+    // Confere que o novo admin é membro ATIVO antes de rebaixar os atuais —
+    // senão um id errado deixava o grupo sem moderador nenhum e respondia
+    // ok (varredura 2026-10-25).
+    const { data: target } = await supabaseAdmin.from('reading_group_members').select('user_id').eq('group_id', groupId).eq('user_id', newAdminUserId).eq('status', 'joined').maybeSingle()
+    if (!target) return res.status(400).json({ error: 'not_a_member' })
     await supabaseAdmin.from('reading_group_members').update({ role: 'member' }).eq('group_id', groupId).eq('role', 'moderator')
     const { error } = await supabaseAdmin.from('reading_group_members').update({ role: 'moderator' }).eq('group_id', groupId).eq('user_id', newAdminUserId)
     if (error) return res.status(500).json({ error: 'update_failed' })

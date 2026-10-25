@@ -79,7 +79,10 @@ export async function getNote(_email, key) {
 export function saveNote(_email, key, text, extra = {}) {
   return withRowLock(async () => {
     const notes = await getNotes(_email)
-    if (text.trim()) notes[key] = { text, updatedAt: new Date().toISOString(), ...extra }
+    // Preserva campos já gravados na entrada (fulfilled/sessionTitle da
+    // frase de aplicação) — editar o texto na Biblioteca apagava o
+    // "Cumpri" da semana e do recap do mês (varredura 2026-10-25).
+    if (text.trim()) notes[key] = { ...(notes[key] ?? {}), text, updatedAt: new Date().toISOString(), ...extra }
     else delete notes[key]
     const updated = await updateRow({ notes })
     return updated?.notes ?? notes

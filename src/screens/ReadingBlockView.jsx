@@ -172,15 +172,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // no Pentateuco), pula pro 1o capítulo do próximo bloco.
   function getNextSessionFor(fromSession) {
     const idx = sessions.findIndex(s => s.id === fromSession.id)
-    let next = sessions[idx + 1]
-    if (!next) {
-      // Próximo bloco na ordem de PERCURSO atual (blocks já vem ordenado
-      // conforme reading_order, ver src/utils/progress.js) — não
-      // necessariamente id+1.
-      const nextBlock = blocks[blocks.indexOf(block) + 1]
-      next = nextBlock ? sessionsByBlock[nextBlock.id]?.[0] ?? null : null
-    }
-    return next ?? null
+    // Só dentro do bloco atual (varredura 2026-10-25): os ids de sessão
+    // recomeçam em 1 a cada bloco, e featureSession/heroSession procuram
+    // por id SÓ em `sessions` (deste bloco) — "continuar" no fim de
+    // Deuteronômio prometia Josué 1 e abria Gênesis 1–2. Fim do bloco =
+    // sem próximo (a TimeUpSheet já tem o texto de "acabou").
+    return sessions[idx + 1] ?? null
   }
 
   // Clicar num capítulo/sessão na lista NÃO rola a página em modo 'browse'
@@ -2515,6 +2512,8 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
   // a seleção começa/termina (ver mais abaixo), e limpa a seleção nativa
   // do navegador — a marcação visual daqui pra frente é toda nossa (ver
   // isSelected/isHighlighted mais abaixo).
+  const onTextSelectionRangeRef = useRef(onTextSelectionRange)
+  onTextSelectionRangeRef.current = onTextSelectionRange
   useEffect(() => {
     let timer = null
     function handleSelectionChange() {
@@ -2541,12 +2540,16 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         // mais coordenadas úteis.
         const rect = sel.getRangeAt(0).getBoundingClientRect()
         sel.removeAllRanges()
-        onTextSelectionRange?.(Number(chapterEl.dataset.chapter), verses, rect)
+        onTextSelectionRangeRef.current?.(Number(chapterEl.dataset.chapter), verses, rect)
       }, 250)
     }
     document.addEventListener('selectionchange', handleSelectionChange)
     return () => { document.removeEventListener('selectionchange', handleSelectionChange); clearTimeout(timer) }
-  }, [onTextSelectionRange])
+    // Sem depender de onTextSelectionRange (lido via ref acima) — a função
+    // muda a cada render do pai, e com o relógio batendo todo segundo o
+    // efeito reiniciava e cancelava o timer de 250 ms no meio de ~1 em 4
+    // seleções (varredura 2026-10-25).
+  }, [])
 
   function highlightForVerse(ch, v) {
     return highlights?.find(h => !h.hidden && h.book === session.book && h.chapter === ch && h.verses.includes(v))
