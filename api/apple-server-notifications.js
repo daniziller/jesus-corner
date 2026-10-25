@@ -7,7 +7,7 @@
 // uma notificação de verdade da Apple — revisar com cuidado, principalmente
 // a forma de extrair os campos da notificação decodificada.
 import { createClient } from '@supabase/supabase-js'
-import { decodeSignedNotification, decodeSignedTransaction, getSubscriptionStatuses, mapAppleSubscriptionState } from './_lib/apple.js'
+import { decodeSignedNotification, decodeSignedTransaction, getSubscriptionStatuses, mapAppleSubscriptionState, findSubscriptionStatus, Environment } from './_lib/apple.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -48,14 +48,15 @@ export default async function handler(req, res) {
   // Nunca confia no notificationType sozinho — sempre re-busca o estado
   // real na API antes de gravar (mesma filosofia do stripe-webhook.js e do
   // api/google-play-rtdn.js).
+  const environment = String(transaction.environment ?? notification.data?.environment ?? '').toLowerCase() === 'sandbox' ? Environment.SANDBOX : Environment.PRODUCTION
   let statusResponse
   try {
-    statusResponse = await getSubscriptionStatuses(originalTransactionId)
+    statusResponse = await getSubscriptionStatuses(originalTransactionId, environment)
   } catch (err) {
     console.error('Failed to re-fetch Apple subscription for notification:', err.message)
     return res.status(500).json({ error: 'refetch_failed' })
   }
-  const rawStatus = statusResponse?.data?.[0]?.lastTransactions?.[0]?.status
+  const rawStatus = findSubscriptionStatus(statusResponse, originalTransactionId)
   const status = mapAppleSubscriptionState(rawStatus)
   const currentPeriodEnd = transaction.expiresDate ? new Date(transaction.expiresDate).toISOString() : null
 
