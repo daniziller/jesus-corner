@@ -23,6 +23,8 @@ import PrayerScreen from './screens/PrayerScreen'
 import PrayerRequestsScreen from './screens/PrayerRequestsScreen'
 import PrayerRequestDetailScreen from './screens/PrayerRequestDetailScreen'
 import BlessingScreen from './screens/BlessingScreen'
+import ReadingChoiceScreen from './screens/ReadingChoiceScreen'
+import PhysicalReadingScreen from './screens/PhysicalReadingScreen'
 import ReadingSummaryScreen from './screens/ReadingSummaryScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import FloatingTimerPill from './components/timer/FloatingTimerPill'
@@ -1008,7 +1010,7 @@ export default function App() {
     if (lockedTabs.includes(tab)) { goToTab('upgrade'); return }
     // Sair do modo guiado se a pessoa navegar explicitamente pra fora do
     // fluxo (Oração/Leitura/Reflexão) — ex: tocar em Início ou Comunidade.
-    if (guidedFlowRef.current && !['prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
+    if (guidedFlowRef.current && !['prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'reflection', 'journey', 'themePlan', 'chronologicalPlan'].includes(tab)) {
       setGuidedFlow(null)
     }
     if (tab === 'journey') setJourneyEntryMode('overview')
@@ -1108,7 +1110,7 @@ export default function App() {
     const today = dailyRoutine[dateKey()] ?? {}
     let startIdx = steps.findIndex(s => !today[s])
     if (startIdx < 0) startIdx = steps.length - 1
-    const openStep = step => step === 'reading' ? continueToday() : step === 'study' ? openActiveStudy() : goToTab(step)
+    const openStep = step => step === 'reading' ? goToReadingStep() : step === 'study' ? openActiveStudy() : goToTab(step)
     // Sem passos pra encadear a partir daqui (só sobrou 1) — abre direto,
     // sem o "modo guiado". Estudo entra na CONTAGEM (Oração/Reflexão
     // mostram "passo N de M" certo em dia de Estudo ativo), mas não no
@@ -1159,7 +1161,7 @@ export default function App() {
         return
       }
       setGuidedFlow({ steps: gf.steps, idx: nextIdx })
-      if (nextStep === 'reading') continueToday()
+      if (nextStep === 'reading') goToReadingStep()
       else goToTab(guidedTabFor(nextStep))
     }, GUIDED_ADVANCE_MS)
   }
@@ -1308,7 +1310,50 @@ export default function App() {
   // brecha; um wrapper sem parâmetro nenhum não tem esse risco.
   function continueSessionFromBlessing() {
     setForceChapterContextNext(true)
-    continueToday()
+    goToReadingStep()
+  }
+
+  // "Onde você vai ler hoje?" (pedido dela, 2026-10-25) — toda vez que o
+  // PLANO manda pra Leitura (Começar meu plano, encadeamento guiado, "Ir
+  // para a leitura" na Bênção, "Continuar meu plano" no fim do Estudo/
+  // Reflexão), passa primeiro por ReadingChoiceScreen: ler no app (o
+  // continueToday de sempre) ou na Bíblia física (PhysicalReadingScreen —
+  // só o que ler e o botão de marcar). Só faz sentido no plano fixo com
+  // sessão de leitura de verdade: tema/cronológico/grupo têm seus próprios
+  // leitores, "sem plano" não tem sessão de hoje, e reflexão de fim de
+  // livro não tem capítulo pra ler fora do app — esses seguem direto.
+  // Atalhos de leitura fora do plano ("Continue sua leitura" na Home,
+  // reabrir um passo já feito) continuam em continueToday, sem a pergunta.
+  function readingChoiceApplies() {
+    if (activeAltPlan || planId === 'none') return false
+    const ts = sessionRef.current?.todaySession
+    return !!ts && !ts.needsThemePick && ts.type !== 'reflection' && ts.chStart != null
+  }
+  function goToReadingStep() {
+    if (!readingChoiceApplies()) { continueToday(); return }
+    goToTab('readingChoice')
+  }
+  function chooseReadPhysical() {
+    // Contexto do capítulo é coisa do leitor do app — se a pessoa vier da
+    // Bênção e escolher a Bíblia física, não deixa a flag armada pra
+    // aparecer numa abertura futura qualquer do leitor.
+    setForceChapterContextNext(false)
+    goToTab('physicalReading')
+  }
+  // "Marcar como lida" na Bíblia física — mesmo efeito do "Concluir" do
+  // leitor: marca todos os capítulos da sessão de hoje (toggleSession →
+  // progresso, passo do dia, "último lido", e advanceGuided em modo
+  // guiado). lastReadSession é preenchido pra o fecho do dia (37c) saber
+  // qual capítulo foi lido, como quando se lê no app. Fora do modo guiado
+  // ninguém encadeia o próximo passo, então volta pra Meu Plano.
+  function finishPhysicalReading() {
+    const { session: s, block } = findCurrentReadingSession(blocks, sessionsByBlock)
+    if (!s || s.type === 'reflection') return
+    setLastReadSession({ tab: 'journey', blockId: block.id, sessionId: s.id, book: s.book, bookEn: s.bookEn, chStart: s.chStart, chEnd: s.chEnd, words: s.words, type: s.type })
+    toggleSession(s, true)
+    const gf = guidedFlowRef.current
+    if (gf && gf.steps[gf.idx] === 'reading') return
+    goToTab('routine')
   }
 
   // Tocar numa sessão específica na aba Plano (ver PlanScreen.jsx) — mesmo
@@ -2429,7 +2474,7 @@ export default function App() {
       goToTab('routineComplete')
       return
     }
-    if (nextKey === 'reading') { continueToday(); return }
+    if (nextKey === 'reading') { goToReadingStep(); return }
     if (nextKey === 'study') { openActiveStudy(); return }
     goToTab(guidedTabFor(nextKey))
   }
@@ -2455,7 +2500,7 @@ export default function App() {
       goToTab('routineComplete')
       return
     }
-    if (nextKey === 'reading') { continueToday(); return }
+    if (nextKey === 'reading') { goToReadingStep(); return }
     if (nextKey === 'study') { openActiveStudy(); return }
     goToTab(guidedTabFor(nextKey))
   }
@@ -3033,6 +3078,17 @@ export default function App() {
       onFinishDay={finishDayFromBlessing} onBackToPlan={backToPlanFromBlessing}
       onOpenActiveStudy={openActiveStudy}
     />,
+    // "Onde você vai ler hoje?" + Bíblia física (ver goToReadingStep).
+    // "Voltar ao meu plano" sai do modo guiado igual à Bênção.
+    readingChoice: <ReadingChoiceScreen
+      session={session}
+      onReadInApp={continueToday} onReadPhysical={chooseReadPhysical}
+      onBackToPlan={backToPlanFromBlessing}
+    />,
+    physicalReading: <PhysicalReadingScreen
+      session={session} done={guidedReadingComplete(completedSet)}
+      onMarkDone={finishPhysicalReading} onReadInApp={continueToday} onBack={goBack}
+    />,
     // Pacote 36-37, 36d — "Pedidos de oração" (linha em 36b/36c). Push
     // dentro de Meu Plano: fica fora de navHidden de propósito (barra de
     // abas continua fixa no rodapé, ver handoff).
@@ -3155,7 +3211,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3172,7 +3228,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se

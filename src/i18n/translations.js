@@ -1530,6 +1530,30 @@ export const STRINGS = {
       finishDayBtn: 'Terminar o dia',
       backToPlanLink: 'Voltar ao meu plano',
     },
+    // "Onde você vai ler hoje?" (pedido dela, 2026-10-25) — ver
+    // ReadingChoiceScreen.jsx / PhysicalReadingScreen.jsx.
+    readingChoice: {
+      pageTitle: 'Leitura de hoje',
+      question: 'Onde você vai ler hoje?',
+      appTitle: 'Ler no app',
+      appSub: 'O texto aqui mesmo, com marcações, anotações e contexto do capítulo.',
+      physicalTitle: 'Ler na Bíblia física',
+      physicalSub: 'Só o que ler hoje e um botão pra marcar quando terminar.',
+      backToPlanLink: 'Voltar ao meu plano',
+    },
+    physicalReading: {
+      pageTitle: 'Leitura de hoje',
+      eyebrow: 'Na sua Bíblia',
+      readLabel: 'O que ler hoje',
+      chaptersOne: '1 capítulo',
+      chaptersMany: '{n} capítulos',
+      hint: 'Leia com calma. Quando terminar, volte aqui e marque.',
+      doneLine: 'Leitura de hoje marcada.',
+      nextLine: 'Indo para o próximo passo...',
+      markBtn: 'Marcar como lida',
+      markedBtn: 'Leitura marcada',
+      readInAppLink: 'Prefiro ler no app',
+    },
     // 37e (pacote 36-37, Bloco 3) — fecho da leitura, entre "Concluir" e a
     // Reflexão. Cabeçalho segue o PNG, não o texto do handoff (divergiam —
     // ela escolheu o PNG: "Antes de refletir" + "N min lidos", sem "passo
@@ -5011,6 +5035,28 @@ export const STRINGS = {
       goToReflectionBtn: 'Go to reflection',
       finishDayBtn: 'Finish the day',
       backToPlanLink: 'Back to my plan',
+    },
+    readingChoice: {
+      pageTitle: "Today's reading",
+      question: 'Where will you read today?',
+      appTitle: 'Read in the app',
+      appSub: 'The text right here, with highlights, notes and chapter context.',
+      physicalTitle: 'Read in my physical Bible',
+      physicalSub: "Just today's passage and a button to mark it when you're done.",
+      backToPlanLink: 'Back to my plan',
+    },
+    physicalReading: {
+      pageTitle: "Today's reading",
+      eyebrow: 'In your Bible',
+      readLabel: 'What to read today',
+      chaptersOne: '1 chapter',
+      chaptersMany: '{n} chapters',
+      hint: "Take your time. When you're done, come back here and mark it.",
+      doneLine: "Today's reading marked.",
+      nextLine: 'Going to the next step...',
+      markBtn: 'Mark as read',
+      markedBtn: 'Reading marked',
+      readInAppLink: "I'd rather read in the app",
     },
     readingSummary: {
       pageTitle: 'Before you reflect',
