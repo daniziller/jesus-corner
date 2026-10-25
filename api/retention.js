@@ -56,7 +56,9 @@ const POLICIES = [
 
 export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+  // Falha fechada sem o secret — este cron APAGA dados; não pode ficar
+  // aberto por falta de configuração (varredura 2026-10-25).
+  if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).json({ error: 'unauthorized' })
   }
 

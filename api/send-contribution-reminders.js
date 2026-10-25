@@ -37,7 +37,8 @@ function monthlyEquivalentCents(sub) {
 
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Falha fechada sem CRON_SECRET (varredura 2026-10-25).
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'unauthorized' })
   }
 

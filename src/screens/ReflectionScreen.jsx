@@ -17,7 +17,7 @@
 // quem escolheu perguntas em 35c mas não tem o tier certo cai em livre
 // (nunca uma tela quebrada) — o quadro não cobre esse caso, mas alguma
 // tela precisa abrir.
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
 import { fetchReflectionQuestionPair } from '../aiChat/reflectionQuestionsStore'
 import { getNotes, saveNote, noteTextOf } from '../notes/notesStore'
@@ -180,13 +180,20 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
   // sem o fluxo de confirmação de pin. Usado como rede de segurança (não
   // perder o que foi escrito) ao terminar o dia ou sair da tela, onde não
   // dá pra esperar a pessoa responder "trocar o card do Início?".
-  async function saveNoteText() {
+  // `keepExisting` (rede de segurança de Voltar/Terminar o dia): nunca
+  // grava texto VAZIO — saveNote apaga a chave quando o texto é vazio, e
+  // Q1/Q2 não são recarregadas da nota existente ao reabrir a tela
+  // (varredura 2026-10-25: reabrir a Reflexão depois de um reload e tocar
+  // Voltar apagava a nota do dia da Biblioteca). O "Salvar" explícito
+  // continua podendo limpar de propósito.
+  async function saveNoteText({ keepExisting = false } = {}) {
     try {
       if (effectiveMethod === 'questions') {
-        await saveNote(email, noteKey, combineQaText(questions, q1Text, q2Text))
-        await saveNote(email, applicationPhraseKey, q3Text)
+        const qa = combineQaText(questions, q1Text, q2Text)
+        if (!keepExisting || qa.trim()) await saveNote(email, noteKey, qa)
+        if (!keepExisting || q3Text.trim()) await saveNote(email, applicationPhraseKey, q3Text)
       } else {
-        await saveNote(email, noteKey, freeText)
+        if (!keepExisting || freeText.trim()) await saveNote(email, noteKey, freeText)
       }
     } catch (err) {
       console.error('Failed to persist reflection note', err)
@@ -233,11 +240,21 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
   }, [email, effectiveMethod])
   function handleFreeChange(text) { setFreeText(text) }
 
+  // finishingRef: o save é assíncrono e os botões continuavam ativos —
+  // dois toques gravavam os segundos 2x e fechavam o passo 2x
+  // (varredura 2026-10-25).
+  const finishingRef = useRef(false)
   async function finishDay() {
+    if (finishingRef.current) return
+    finishingRef.current = true
     pause()
-    await saveNoteText()
-    logSessionSeconds('reflection', elapsed).catch(err => console.error('Failed to log reflection session seconds', err))
-    onReflectionCompleted?.()
+    try {
+      await saveNoteText({ keepExisting: true })
+      logSessionSeconds('reflection', elapsed).catch(err => console.error('Failed to log reflection session seconds', err))
+      onReflectionCompleted?.()
+    } finally {
+      finishingRef.current = false
+    }
   }
 
   // Pedido dela (2026-10-22): mesmo pill flutuante global de PrayerScreen.jsx
@@ -252,8 +269,11 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
   // escrito — mesma rede de segurança de finishDay, sem esperar a volta
   // do servidor antes de navegar (saveNoteText roda em paralelo).
   function handleBack() {
-    saveNoteText()
-    ;(guided ? onExitGuided : onBack)?.()
+    saveNoteText({ keepExisting: true })
+    // onExitGuided só zera o fluxo, não navega — a seta parecia morta no
+    // 1º toque em modo guiado (varredura 2026-10-25).
+    if (guided) onExitGuided?.()
+    onBack?.()
   }
 
   return (

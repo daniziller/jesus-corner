@@ -413,7 +413,10 @@ function ResultScreen({ L, lang, answers, blocks, projection, onStart, starting 
   const rest = 7 - answers.days
   const startKey = answers.history === 'never' ? 'resultStartNever' : answers.history === 'done' ? 'resultStartDone' : 'resultStartStopped'
   // Parte o texto em volta de {ref} pra pôr a referência em negrito.
-  const [startA, startB] = isNoPlan ? [null, null] : L(startKey, { ref: ' ' }).split(' ')
+  // Parte no marcador, não em espaços — split(' ') quebrava em TODO espaço
+  // e sobravam só as 2 primeiras palavras ("Começo Gênesis 1 em",
+  // varredura 2026-10-25).
+  const [startA, startB] = isNoPlan ? [null, null] : L(startKey, { ref: '\u0000' }).split('\u0000')
   const perDay = Math.max(1, Math.round(projection.chaptersPerDay ?? 0))
 
   const rows = [

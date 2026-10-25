@@ -78,6 +78,10 @@ export default function BibleAudioPlayer({ session, lang, hasNext, onAdvance, al
     if (chunks.length === 0) { setStatus('error'); return }
 
     const total = chunks.length
+    // Para a sequência anterior antes de começar outra — trocar de capítulo
+    // com o player tocando/carregando deixava duas rodando ao mesmo tempo
+    // (varredura 2026-10-25).
+    ctlRef.current?.stop?.()
     setStatus('playing')
     const ctl = speakSequence(chunks, {
       lang,

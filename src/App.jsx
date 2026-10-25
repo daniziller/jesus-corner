@@ -12,7 +12,7 @@ import BrandMark from './components/BrandMark'
 import BrandLogo from './components/BrandLogo'
 import SignupScreen from './screens/SignupScreen'
 import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
-import { needsConsentRefresh } from './privacy/consent'
+import { needsConsentRefresh, flushPendingConsents } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import { migrateGuestRow } from './backend/userDataStore'
 import { migrateGuestExtraTables } from './backend/guestTableStore'
@@ -87,6 +87,7 @@ import { getStudyFinishPrefs } from './studies/studyFinishPrefsStore'
 import { WEEKDAY_FULL } from './routine/weeklyDaysMath'
 import { STEP_ORDER } from './routine/planTodayRows'
 import { dateKey } from './utils/dateKey'
+import { resetPremiumSpeechAuth } from './audio/premiumSpeech'
 import { getSelectedPlanId, setSelectedPlanId } from './plan/planStore'
 import { getActiveAltPlan, setActiveAltPlan as persistActiveAltPlan } from './plan/activePlanStore'
 import { resolveActivePlanSessions } from './plan/resolveActivePlan'
@@ -539,6 +540,20 @@ export default function App() {
   // advanceGuided) precisam ler a sessão de hoje sem depender da ordem em
   // que são declaradas (session só é montada bem mais abaixo, no render).
   const sessionRef = useRef(null)
+  // Espelhos síncronos de estado lidos por handlers (ver goBack,
+  // toggleSession/toggleChapter/markChaptersManuallyFor, advanceGuided).
+  const tabHistoryRef = useRef([])
+  tabHistoryRef.current = tabHistory
+  const screensRef = useRef(null)
+  const completedSetRef = useRef(completedSet)
+  completedSetRef.current = completedSet
+  const guidedAdvanceTimerRef = useRef(null)
+  // Remonta Oração/Reflexão a cada passo concluído (ver o key no JSX).
+  const [prayerRunKey, setPrayerRunKey] = useState(0)
+  const [reflectionRunKey, setReflectionRunKey] = useState(0)
+  // Biblioteca recarrega a cada visita à aba (ver NotesScreen/refreshKey).
+  const [notesRefreshKey, setNotesRefreshKey] = useState(0)
+  useEffect(() => { if (activeTab === 'notes') setNotesRefreshKey(k => k + 1) }, [activeTab])
   // Oração e Reflexão têm cronômetro rodando de verdade (setInterval, wake
   // lock) — se a tela desmontasse ao trocar de aba, como as outras, o
   // cronômetro perderia todo o progresso (useState/useRef voltam do zero ao
@@ -947,10 +962,19 @@ export default function App() {
       // travando a leitura ANTES de existir conta — exatamente o que essa
       // etapa existe pra evitar. Consentimento entra só no cadastro de
       // verdade (ver SignupStep, que já grava tudo antes de liberar o app).
+      if (!user.isGuest) await flushPendingConsents().catch(() => false)
       setConsentRefreshNeeded(user.isGuest ? false : await needsConsentRefresh().catch(() => false))
       setBootstrapped(true)
     }
-    bootstrap()
+    // Sem .catch, qualquer falha (sem rede no PWA instalado, 5xx do
+    // Supabase) deixava o splash pra sempre (varredura 2026-10-25). Cai
+    // na tela de entrada sem estado parcial — entrar de novo refaz tudo.
+    bootstrap().catch(err => {
+      console.error('Bootstrap failed', err)
+      if (cancelled) return
+      setAuthUser(null)
+      setBootstrapped(true)
+    })
     return () => { cancelled = true }
   }, [])
 
@@ -1036,12 +1060,19 @@ export default function App() {
   // de leitura (ex: "Continuar sessão" → trocar de aba → Voltar caía no
   // mapa geral, não no capítulo que estava lendo) — removido de propósito.
   function goBack() {
-    setTabHistory(prev => {
-      if (prev.length === 0) return prev
-      const target = prev[prev.length - 1]
-      setActiveTab(target)
-      return prev.slice(0, -1)
-    })
+    // Pula entradas do histórico cuja tela não existe mais (varredura
+    // 2026-10-25): várias saídas zeram o estado que sustenta a tela e só
+    // então navegam (ex.: setAiStudyDraft(null) + goToTab — ou
+    // routineComplete depois de "Voltar para Hoje"), deixando no histórico
+    // uma aba cujo `screens[...]` virou null. Voltar pra ela dava página em
+    // branco sem cabeçalho nem barra (navHidden), sem saída a não ser
+    // recarregar. Nada mais salvou? Vai pra Home.
+    const hist = tabHistoryRef.current
+    let i = hist.length - 1
+    while (i >= 0 && screensRef.current?.[hist[i]] == null) i--
+    const target = i >= 0 ? hist[i] : 'home'
+    setTabHistory(i >= 0 ? hist.slice(0, i) : [])
+    setActiveTab(target)
   }
 
   // "Voltar pro app normal" (AdminMobileShell, handoff-admin-42 Bloco 5 —
@@ -1139,8 +1170,9 @@ export default function App() {
     if (!gf || guidedAdvancingRef.current || gf.steps[gf.idx] !== fromStep) return
     guidedAdvancingRef.current = true
     const nextIdx = gf.idx + 1
-    setTimeout(() => {
+    guidedAdvanceTimerRef.current = setTimeout(() => {
       guidedAdvancingRef.current = false
+      guidedAdvanceTimerRef.current = null
       if (guidedFlowRef.current !== gf) return // pessoa saiu do modo guiado nesse meio-tempo
       if (nextIdx >= gf.steps.length) {
         setGuidedFlow(null)
@@ -1175,10 +1207,19 @@ export default function App() {
   // próximo passo, contra o quadro (36b/36c → 36f → 35f/37c).
   function finishPrayerStep() {
     markRoutineStep('prayer')
+    setPrayerRunKey(k => k + 1)
     const gf = guidedFlowRef.current
     if (gf && gf.steps[gf.idx] === 'prayer') {
-      const nextIdx = gf.idx + 1
-      setGuidedFlow(nextIdx >= gf.steps.length ? null : { steps: gf.steps, idx: nextIdx })
+      // Próximo passo ainda NÃO feito hoje (varredura 2026-10-25) — quem
+      // leu antes de orar não pode ser mandado de volta pra Leitura; a
+      // Bênção faz a mesma conta (BlessingScreen/nextStepKey). Estudo
+      // encerra o modo guiado, igual a advanceGuided (não há sinal de
+      // conclusão do Estudo — o fluxo ficaria preso apontando pra ele).
+      const today = dailyRoutine[dateKey()] ?? {}
+      let nextIdx = gf.idx + 1
+      while (nextIdx < gf.steps.length && today[gf.steps[nextIdx]]) nextIdx++
+      const nextStep = gf.steps[nextIdx]
+      setGuidedFlow(nextIdx >= gf.steps.length || nextStep === 'study' ? null : { steps: gf.steps, idx: nextIdx })
     }
     goToTab('blessing')
   }
@@ -1188,7 +1229,10 @@ export default function App() {
   // desta leva (37c/37d) trazer o fecho de verdade.
   function finishDayFromBlessing() {
     setGuidedFlow(null)
-    setRoutineCompleteInfo({ steps: session.todaysSteps ?? ['prayer'], readingSession: lastReadSession })
+    // `?.length` e não `??` — num dia de folga todaysSteps é [] (não
+    // null), e o fecho escrevia "Nenhum passos feitos" (varredura
+    // 2026-10-25) pra quem repôs a Oração num dia sem passos.
+    setRoutineCompleteInfo({ steps: session.todaysSteps?.length ? session.todaysSteps : ['prayer'], readingSession: lastReadSession })
     goToTab('routineComplete')
   }
 
@@ -1766,7 +1810,9 @@ export default function App() {
   // então a pergunta já aparece em 17a sem nenhum código novo lá.
   async function sendGeneratedGroupPlan(plan, question) {
     if (!authUser) return
-    const startsAt = new Date().toISOString().slice(0, 10)
+    // dateKey() (data local), não toISOString() (UTC) — depois das 21h no
+    // Brasil o plano começava "amanhã" (varredura 2026-10-25).
+    const startsAt = dateKey()
     const created = await sendGroupReadingPlan({
       groupId: plan.groupId, book: plan.book, bookEn: plan.bookEn, title: plan.title,
       overview: plan.overview ?? null, weeks: plan.weeks, passages: plan.passages, startsAt,
@@ -1817,6 +1863,22 @@ export default function App() {
   // gatilhos específicos.
   function goToReflectionFrom(descriptor) {
     setLastReadSession(descriptor)
+    // Modo guiado (varredura 2026-10-25): "Concluir" acabou de marcar a
+    // sessão (toggleSession → advanceGuided), que agendou abrir a Reflexão
+    // em GUIDED_ADVANCE_MS — e arrancava a pessoa de 37e no meio do resumo.
+    // Aqui a transição é a própria 37e, então cancela o timer e avança o
+    // bookkeeping na hora (mesma ideia de finishPrayerStep com a Bênção);
+    // "Começar a reflexão" leva pra Reflexão já no passo certo. Se a
+    // Leitura era o último passo, o modo guiado só termina — a Reflexão
+    // extra que 37e oferece segue fora do fluxo, como sempre foi.
+    const gf = guidedFlowRef.current
+    if (gf && gf.steps[gf.idx] === 'reading' && guidedAdvancingRef.current) {
+      clearTimeout(guidedAdvanceTimerRef.current)
+      guidedAdvanceTimerRef.current = null
+      guidedAdvancingRef.current = false
+      const nextIdx = gf.idx + 1
+      setGuidedFlow(nextIdx >= gf.steps.length || gf.steps[nextIdx] === 'study' ? null : { steps: gf.steps, idx: nextIdx })
+    }
     goToTab('readingSummary')
   }
 
@@ -2056,6 +2118,27 @@ export default function App() {
     setGeneratedGroupPlan(null)
     setChapterRoom(null)
     setMonthRecap(null)
+    // Estado transitório por pessoa (varredura 2026-10-25) — sem zerar,
+    // outra conta no mesmo aparelho herdava faixa de modo guiado, rascunho
+    // de estudo, perfil aberto, "último lido" etc.
+    setGuidedFlow(null)
+    guidedAdvancingRef.current = false
+    setRoutineCompleteInfo(null)
+    setLastReadSession(null)
+    setAiStudyDraft(null)
+    setGeneratedStudyPlan(null)
+    setJustCompletedStudyDay(null)
+    setProfileOpen(false)
+    setStepDaysState(null)
+    setDailyRoutine({})
+    resetPremiumSpeechAuth()
+    // Caches por pessoa no localStorage (sem namespace por conta): a
+    // próxima conta no mesmo aparelho via as perguntas à IA, o "você parou
+    // em…" e os capítulos recentes de quem saiu.
+    try {
+      for (const k of ['jc_passage_questions', 'jc_last_read_position', 'jc_recent_chapters', 'jc_free_reading_position']) localStorage.removeItem(k)
+    } catch { /* sem localStorage */ }
+    setLastReadPositionState(null)
     setActiveTab('home')
     setTabHistory([])
   }
@@ -2492,6 +2575,7 @@ export default function App() {
   // reler session.todayRoutine.reflection.
   function finishReflectionStep() {
     markRoutineStep('reflection')
+    setReflectionRunKey(k => k + 1)
     const gf = guidedFlowRef.current
     if (gf && gf.steps[gf.idx] === 'reflection') { advanceGuided('reflection'); return }
     const nextKey = (session.todaysSteps ?? []).find(k => k !== 'reflection' && !session.todayRoutine?.[k])
@@ -2513,10 +2597,18 @@ export default function App() {
   function toggleSession(session, done) {
     if (!authUser) return
     const keys = sessionKeys(session)
-    const newlyDoneKeys = done ? keys.filter(k => !completedSet.has(k)) : []
-    const nextSet = new Set(completedSet)
+    // completedSetRef (e não o `completedSet` do render) — varredura
+    // 2026-10-25: chamadas em sequência síncrona (applyReadingStartPosition
+    // marca livro por livro; offerUnmarkAlreadyRead desmarca vários textos)
+    // partiam todas do mesmo Set antigo e só a última sobrevivia na tela,
+    // até recarregar (o servidor gravava cada uma). O ref é atualizado na
+    // hora, então a próxima chamada já vê a anterior.
+    const base = completedSetRef.current
+    const newlyDoneKeys = done ? keys.filter(k => !base.has(k)) : []
+    const nextSet = new Set(base)
     keys.forEach(k => done ? nextSet.add(k) : nextSet.delete(k))
-    if (done && hasPremium) detectAndLogMilestones(completedSet, nextSet)
+    if (done && hasPremium) detectAndLogMilestones(base, nextSet)
+    completedSetRef.current = nextSet
     setCompletedSet(nextSet)
     const persist = done ? markKeysDone(authUser.email, keys) : markKeysUndone(authUser.email, keys)
     persist.catch(err => console.error('Failed to persist session progress', err))
@@ -2542,8 +2634,13 @@ export default function App() {
   // Modo mãos-livres terminou de ler a leitura do dia em voz alta — marca
   // essa sessão como concluída, igual a marcar pelo fluxo guiado normal.
   function finishReadingFromHandsFree() {
-    const { session: s } = findCurrentReadingSession(blocks, sessionsByBlock)
-    if (s && s.type !== 'reflection') toggleSession(s, true)
+    // A MESMA sessão que o mãos-livres leu em voz alta (session.todaySession,
+    // que já resolve plano por tema/cronológico/grupo) — não a do plano fixo
+    // (varredura 2026-10-25: com plano alternativo ativo, marcava capítulos
+    // que a pessoa nunca ouviu e deixava a sessão de hoje pendente).
+    const ts = sessionRef.current?.todaySession
+    if (!ts || ts.needsThemePick || ts.type === 'reflection' || ts.chStart == null) return
+    toggleSession({ book: ts.book, chStart: ts.chStart, chEnd: ts.chEnd, type: ts.type }, true)
   }
 
   // Marca (ou desmarca) um único capítulo dentro de uma sessão — permite
@@ -2552,11 +2649,13 @@ export default function App() {
   function toggleChapter(session, chapter, done) {
     if (!authUser) return
     const key = `${session.book}:${chapter}`
-    const newlyDoneKeys = done && !completedSet.has(key) ? [key] : []
-    const nextSet = new Set(completedSet)
+    const base = completedSetRef.current
+    const newlyDoneKeys = done && !base.has(key) ? [key] : []
+    const nextSet = new Set(base)
     if (done) nextSet.add(key)
     else nextSet.delete(key)
-    if (done && hasPremium) detectAndLogMilestones(completedSet, nextSet)
+    if (done && hasPremium) detectAndLogMilestones(base, nextSet)
+    completedSetRef.current = nextSet
     setCompletedSet(nextSet)
     const persist = done ? markKeysDone(authUser.email, [key]) : markKeysUndone(authUser.email, [key])
     persist.catch(err => console.error('Failed to persist chapter progress', err))
@@ -2579,10 +2678,12 @@ export default function App() {
   function markChaptersManuallyFor(book, chapters, done) {
     if (!authUser || chapters.length === 0) return
     const keys = chapters.map(ch => `${book}:${ch}`)
-    const newlyDoneKeys = done ? keys.filter(k => !completedSet.has(k)) : []
-    const nextSet = new Set(completedSet)
+    const base = completedSetRef.current
+    const newlyDoneKeys = done ? keys.filter(k => !base.has(k)) : []
+    const nextSet = new Set(base)
     keys.forEach(k => done ? nextSet.add(k) : nextSet.delete(k))
-    if (done && hasPremium) detectAndLogMilestones(completedSet, nextSet)
+    if (done && hasPremium) detectAndLogMilestones(base, nextSet)
+    completedSetRef.current = nextSet
     setCompletedSet(nextSet)
     const persist = done ? markChaptersManually(book, chapters) : unmarkChaptersManually(book, chapters)
     persist.catch(err => console.error('Failed to persist manual chapter marks', err))
@@ -3166,6 +3267,7 @@ export default function App() {
       studies: <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />,
     }),
   }
+  screensRef.current = screens
 
   // Leitura imersiva (redesign 1b) — a leitura guiada de hoje ocupa a tela
   // inteira, sem barra de navegação nem sidebar: só a Palavra e os
@@ -3266,19 +3368,24 @@ export default function App() {
                 notesVisitedRef/studiesVisitedRef) — display:'contents' faz o
                 wrapper "sumir" do layout quando oculto, sem atrapalhar o
                 height:100% que a tela em si já assume. */}
+            {/* key por sessão (varredura 2026-10-25): as telas ficam
+                montadas pra sempre, então o relógio/etapa do ACTS/notas
+                do dia nunca zeravam — a 2ª oração do dia (ou a de amanhã)
+                começava com os minutos da anterior e gravava a soma. O
+                key troca ao concluir o passo e na virada do dia. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen session={session} authUser={authUser} stepMinutes={stepMinutes} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
+                <PrayerScreen key={`${dateKey()}-${prayerRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
               </div>
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
+                <ReflectionScreen key={`${dateKey()}-${reflectionRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
-                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} onOpenSermonNote={editSermonNoteFromLibrary} onCreateSermonNote={openSermonNoteFromHome} />
+                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} refreshKey={notesRefreshKey} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} onOpenSermonNote={editSermonNoteFromLibrary} onCreateSermonNote={openSermonNoteFromHome} />
               </div>
             )}
             {hasPremium && studiesVisitedRef.current && (

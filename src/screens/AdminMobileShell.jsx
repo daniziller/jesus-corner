@@ -365,6 +365,13 @@ function AlertsMobile({ lang, openCase, onOpenCase, onOpenGroup, onChanged }) {
   )
 }
 
+// Mesmo answerText() de AdminScreen.jsx — `answer` é jsonb {outcome, reply, nearTopic}.
+function aiAnswerText(answer) {
+  if (!answer || typeof answer !== 'object') return typeof answer === 'string' ? answer : ''
+  if (answer.outcome === 'answer') return answer.reply ?? ''
+  return `[${answer.outcome}] ${answer.reply ?? answer.nearTopic ?? ''}`.trim()
+}
+
 function ModerationCaseMobile({ lang, kind, id, onBack, onDecided }) {
   const [detail, setDetail] = useState(null)
   const [reason, setReason] = useState('')
@@ -432,7 +439,12 @@ function ModerationCaseMobile({ lang, kind, id, onBack, onDecided }) {
             <p style={styles.cardKicker}>{M('aiQuestionTitle', undefined, lang)}</p>
             <p style={styles.cardDetail}>{detail.question}</p>
             <p style={styles.cardKicker}>{M('aiAnswerTitle', undefined, lang)}</p>
-            <p style={styles.cardDetail}>{detail.answer}</p>
+            {/* `answer` é um objeto ({outcome, reply, ...}, ver
+                api/report-ai-answer.js) — renderizar direto derrubava o
+                app inteiro ("Objects are not valid as a React child",
+                varredura 2026-10-25). Mesmo texto de answerText() no
+                AdminScreen de desktop. */}
+            <p style={styles.cardDetail}>{aiAnswerText(detail.answer)}</p>
             <p style={styles.mutedLine}>{M('aiReportReason', { reason: detail.reason }, lang)}</p>
           </div>
         )}

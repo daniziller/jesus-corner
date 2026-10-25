@@ -120,7 +120,7 @@ export default function StudyDetailScreen({ session, study, stepDays, onBack, on
                   <span style={s.dayNumToday}>{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={s.dayTitleToday}>{passageLabel}</p>
-                    <p style={s.daySubToday}>{L('todayLabel', { min: Math.max(1, sess.minutes ?? studyMinutes) })}{sess.draft ? ` · ${L('draftSaved')}` : ''}</p>
+                    <p style={s.daySubToday}>{L('todayLabel', { min: Math.max(1, sess.minutes ?? study.minutesPerDay ?? 15) })}{sess.draft ? ` · ${L('draftSaved')}` : ''}</p>
                   </div>
                 </div>
                 <button style={s.resumeBtn} onClick={onOpenDay}>{sess.draft ? L('resumeDay', { n: i + 1 }) : L('doDay', { n: i + 1 })}</button>

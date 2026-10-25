@@ -87,7 +87,10 @@ export default function StudyDayScreen({ session, authUser, study, day, dayIndex
     let cancelled = false
     setGenerating(true)
     setGenError('')
-    generateStudyDayContent({ book: day.book, bookEn: day.bookEn, chStart: day.chStart, chEnd: day.chEnd, scope: study.scope || study.overview || study.title, lang })
+    // slice(0, 200) = MAX_SCOPE_LENGTH do servidor — estudos adotados do
+    // banco só têm `overview` (2 a 4 frases, passa fácil de 200) e o dia
+    // nunca gerava (400 invalid_scope, varredura 2026-10-25).
+    generateStudyDayContent({ book: day.book, bookEn: day.bookEn, chStart: day.chStart, chEnd: day.chEnd, scope: (study.scope || study.overview || study.title || '').slice(0, 200), lang })
       .then(async result => {
         if (cancelled) return
         try {
@@ -105,14 +108,19 @@ export default function StudyDayScreen({ session, authUser, study, day, dayIndex
 
   // Rascunho salvo automaticamente (regra 4 §4) — não soma tempo aqui
   // (só ao sair), evita gravar a cada tecla.
+  // draftTimerRef: handleComplete cancela o autosave pendente — senão um
+  // rascunho disparado 1 s depois de "Concluir" podia regravar o dia como
+  // não concluído (varredura 2026-10-25).
+  const draftTimerRef = useRef(null)
   useEffect(() => {
     if (answer === answerAtMountRef.current) return
-    const handle = setTimeout(() => {
+    draftTimerRef.current = setTimeout(() => {
+      draftTimerRef.current = null
       saveStudyDayDraft(authUser.email, study.id, day.id, answer, 0)
         .then(updated => onStudyUpdated?.(updated))
         .catch(err => console.error('Failed to autosave study day draft', err))
     }, 1200)
-    return () => clearTimeout(handle)
+    return () => clearTimeout(draftTimerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answer])
 
@@ -154,6 +162,7 @@ export default function StudyDayScreen({ session, authUser, study, day, dayIndex
     if (completing) return
     if (!answer.trim() && !confirmSkip) { setConfirmSkip(true); return }
     setCompleting(true)
+    clearTimeout(draftTimerRef.current); draftTimerRef.current = null
     try {
       const updated = await completeStudyDay(authUser.email, study.id, day.id, { answer, skippedQuestion: !answer.trim(), elapsedSeconds })
       onStudyUpdated?.(updated)

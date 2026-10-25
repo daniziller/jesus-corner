@@ -175,6 +175,14 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
     setStageNotes(prev => ({ ...prev, [stage.id]: text }))
   }
 
+  // Seta de voltar em modo guiado (varredura 2026-10-25): onExitGuided só
+  // zera o fluxo, não navega — parecia morta no 1º toque. Sai do modo
+  // guiado E volta.
+  function handleBack() {
+    if (guided) onExitGuided?.()
+    onBack?.()
+  }
+
   function finishPrayer() {
     pause()
     logSessionSeconds('prayer', elapsed).catch(err => console.error('Failed to log prayer session seconds', err))
@@ -212,7 +220,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
         // "Oração · passo N de M" + "Pular" à direita, sem o título/
         // subtítulo empilhado das outras 3 etapas.
         <div style={styles.header}>
-          <button style={styles.backBtn} onClick={guided ? onExitGuided : onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <button style={styles.backBtn} onClick={handleBack} aria-label={t('a11y.goBack', undefined, lang)}>
             <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
           </button>
           <div style={styles.stepPill}>
@@ -228,7 +236,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
         </div>
       ) : (
         <div style={styles.header}>
-          <button style={styles.backBtn} onClick={guided ? onExitGuided : onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <button style={styles.backBtn} onClick={handleBack} aria-label={t('a11y.goBack', undefined, lang)}>
             <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>

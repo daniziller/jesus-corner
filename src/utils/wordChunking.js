@@ -47,7 +47,7 @@ export function mergeAdjacentPassages(passages) {
 // relevante (chStart..chEnd de uma passagem/livro). targetWords <= 0
 // (ritmo Livre) devolve 1 grupo por capítulo — mesma regra do plano fixo
 // Livre e do cronológico.
-export function chunkChaptersByWords(chapters, targetWords) {
+export function chunkChaptersByWords(chapters, targetWords, maxChapters = 0) {
   if (chapters.length === 0) return []
   if (targetWords <= 0) return chapters.map(c => ({ chStart: c.ch, chEnd: c.ch }))
 
@@ -69,5 +69,17 @@ export function chunkChaptersByWords(chapters, targetWords) {
   }
   // filter(Boolean) — um capítulo muito mais longo que o normal pode pular
   // mais de um índice de uma vez, deixando grupos vazios no meio.
-  return groups.filter(Boolean).map(g => ({ chStart: g[0].ch, chEnd: g[g.length - 1].ch }))
+  const ranges = groups.filter(Boolean).map(g => ({ chStart: g[0].ch, chEnd: g[g.length - 1].ch }))
+  if (!maxChapters) return ranges
+  // Teto de capítulos por grupo (varredura 2026-10-25): Salmos tem
+  // capítulos tão curtos que o alvo de palavras juntava 11 (1–11, 130–140)
+  // e api/generate-study-day.js recusa trechos de mais de 10 — o dia do
+  // estudo "Livro · Salmos" nunca gerava. Reparte o que passar do teto.
+  const out = []
+  for (const r of ranges) {
+    let start = r.chStart
+    while (r.chEnd - start + 1 > maxChapters) { out.push({ chStart: start, chEnd: start + maxChapters - 1 }); start += maxChapters }
+    out.push({ chStart: start, chEnd: r.chEnd })
+  }
+  return out
 }

@@ -178,7 +178,10 @@ export default function GroupMembersScreen({ session, authUser, groupId, onBack 
     if (m.silencedUntil) return { text: L('silencedUntil', { date: formatShortDate(m.silencedUntil, lang) }), color: 'var(--bento-destructive)' }
     const act = activityByUserId.get(m.userId)
     if (act?.status === 'stopped') {
-      const n = act.daysSinceLastRead ?? 0
+      // daysSinceLastRead null = nunca leu — mostrava "parou há 0 dias"
+      // (varredura 2026-10-25).
+      if (act.daysSinceLastRead == null) return { text: L('neverReadNote'), color: 'var(--bento-t3)' }
+      const n = act.daysSinceLastRead
       return { text: L(n === 1 ? 'stoppedDaysAgoOne' : 'stoppedDaysAgoMany', { n }), color: 'var(--bento-t3)' }
     }
     const days = act?.planDayCount ?? 0

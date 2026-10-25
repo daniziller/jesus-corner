@@ -173,7 +173,11 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
             </button>
           ))}
 
-          {[...STUDIES, ...aiStudies].map(study => (
+          {/* Só estudos no formato ANTIGO (sessões com `sections`) — os do
+              turno 41 (ai_studies com book/chStart/teaching, sem sections)
+              abriam aqui e quebravam o app em `sections.map` ao tocar num
+              dia (varredura 2026-10-25); eles vivem em StudyDetail/StudyDay. */}
+          {[...STUDIES, ...aiStudies.filter(s => (s.sessions ?? []).every(x => Array.isArray(x.sections)))].map(study => (
             <StudyCard
               key={study.id}
               study={study}

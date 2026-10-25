@@ -30,6 +30,7 @@ import { getLatestGroupPlan } from '../groups/groupPlansStore'
 import { getActiveGroupChallenge } from '../groups/groupChallengesStore'
 import { getPendingGroupReports } from '../groups/reportsStore'
 import { getGroupReadingActivity } from '../groups/readingActivityStore'
+import { parseLocalDateKey } from '../utils/dateKey'
 
 const FONT = 'var(--font-bento)'
 
@@ -207,7 +208,10 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
   let planTodayRef = null
   if (groupPlan) {
     planTotalDays = groupPlan.passages?.length ?? 0
-    const elapsedDays = Math.floor((Date.now() - new Date(groupPlan.starts_at).getTime()) / 86400000) + 1
+    // parseLocalDateKey, não `new Date(starts_at)` — starts_at é coluna
+    // `date`, e lida como UTC virava o dia seguinte às 21h no Brasil
+    // (varredura 2026-10-25; mesma correção já feita em groupChallengesStore).
+    const elapsedDays = Math.floor((Date.now() - parseLocalDateKey(groupPlan.starts_at).getTime()) / 86400000) + 1
     planDayIndex = Math.min(Math.max(elapsedDays, 1), planTotalDays)
     const todayPassage = groupPlan.passages?.[planDayIndex - 1]
     if (todayPassage) {

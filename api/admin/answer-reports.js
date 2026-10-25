@@ -20,7 +20,10 @@ export default async function handler(req, res) {
 
   let query = supabaseAdmin
     .from('ai_answer_reports')
-    .select('id, user_id, passage_key, lang, tone, question, answer, reason, status, created_at, reviewed_at, reporter:profiles!ai_answer_reports_user_id_fkey(name)')
+    // Sem embed de profiles: ai_answer_reports.user_id aponta pra
+    // auth.users (0044), não pra profiles — o PostgREST devolvia PGRST200 e
+    // a aba nunca carregava (varredura 2026-10-25). Nomes buscados à parte.
+    .select('id, user_id, passage_key, lang, tone, question, answer, reason, status, created_at, reviewed_at')
     .order('created_at', { ascending: false })
     .range(safeOffset, safeOffset + safeLimit - 1)
   if (filter === 'pending') query = query.eq('status', 'pending')
@@ -34,16 +37,21 @@ export default async function handler(req, res) {
   // E-mails via auth admin, um por usuário distinto (poucas dezenas por página).
   const ids = [...new Set((data ?? []).map(r => r.user_id))]
   const emails = {}
+  const names = {}
   await Promise.all(ids.map(async id => {
     const { data: u } = await supabaseAdmin.auth.admin.getUserById(id).catch(() => ({ data: null }))
     if (u?.user?.email) emails[id] = u.user.email
   }))
+  if (ids.length) {
+    const { data: profs } = await supabaseAdmin.from('profiles').select('user_id, name').in('user_id', ids)
+    for (const p of profs ?? []) names[p.user_id] = p.name
+  }
 
   return res.status(200).json({
     reports: (data ?? []).map(r => ({
       id: r.id,
       userId: r.user_id,
-      reporterName: r.reporter?.name ?? '',
+      reporterName: names[r.user_id] ?? '',
       reporterEmail: emails[r.user_id] ?? null,
       passageKey: r.passage_key,
       lang: r.lang,

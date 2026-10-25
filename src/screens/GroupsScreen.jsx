@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { parseLocalDateKey } from '../utils/dateKey'
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks'
 import { computeBookChapterCounts } from '../utils/progress'
 import { getFriends, getPendingRequests } from '../friends/friendsStore'
@@ -1025,7 +1026,12 @@ function ProposeChallengeForm({ groupId, lang, onDone, onCancel }) {
     let endsAt
     if (duration === 'custom') {
       if (!customDate) { setError(t('groups.pickEndDate', undefined, lang)); return }
-      endsAt = new Date(customDate).toISOString()
+      // Fim do dia escolhido no fuso LOCAL — `new Date('AAAA-MM-DD')` é
+      // meia-noite UTC, e o desafio "até 30/10" acabava às 21h de 29/10 no
+      // Brasil (varredura 2026-10-25).
+      const endDay = parseLocalDateKey(customDate)
+      endDay.setHours(23, 59, 59, 999)
+      endsAt = endDay.toISOString()
     } else {
       const preset = DURATION_PRESETS.find(p => p.id === duration)
       endsAt = new Date(Date.now() + preset.days * 24 * 60 * 60 * 1000).toISOString()

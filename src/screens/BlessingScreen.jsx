@@ -19,13 +19,20 @@ export default function BlessingScreen({ session, stepMinutes, onContinueSession
   const totalMinutes = stepMinutes?.prayer ?? session.plan.prayerMinutes
 
   const todaysSteps = session.todaysSteps ?? []
-  const nextStepKey = todaysSteps[todaysSteps.indexOf('prayer') + 1] ?? null
+  // Próximo passo ainda NÃO feito hoje (varredura 2026-10-25) — antes era
+  // só "o de depois da Oração na lista", e quem tinha lido antes de orar
+  // era mandado de volta pra Leitura em vez da Reflexão. Mesma conta de
+  // finishPrayerStep em App.jsx.
+  const todayRoutine = session.todayRoutine ?? {}
+  const nextStepKey = todaysSteps.slice(todaysSteps.indexOf('prayer') + 1).find(k => !todayRoutine[k]) ?? null
 
   function stepName(k) { return t(`home.routine${cap(k)}`, undefined, lang) }
   function stepMinutesFor(k) {
     if (k === 'reading') return stepMinutes?.reading ?? session.plan.readingMinutes
     if (k === 'reflection') return stepMinutes?.reflection ?? session.plan.reflectionMinutes
-    if (k === 'study') return stepMinutes?.reading ?? session.plan.readingMinutes
+    // Mesmo fallback de Home/App (stepMinutes.study ?? 15) — mostrava os
+    // minutos de Leitura (varredura 2026-10-25).
+    if (k === 'study') return stepMinutes?.study ?? 15
     return null
   }
   function stepDetail(k) {

@@ -33,7 +33,8 @@ export function buildBookPlan(canonicalBook, lang) {
   const words = getChapterWords(canonicalBook)
   const chapters = words.map((w, i) => ({ ch: i + 1, words: w }))
   const targetWords = STANDARD_READING_MINUTES * WORDS_PER_MINUTE
-  const chunks = chunkChaptersByWords(chapters, targetWords)
+  // 10 = MAX_CHAPTER_SPAN de api/generate-study-day.js (ver wordChunking).
+  const chunks = chunkChaptersByWords(chapters, targetWords, 10)
 
   const passages = chunks.map(c => {
     let chWords = 0

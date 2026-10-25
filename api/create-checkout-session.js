@@ -111,7 +111,9 @@ export default async function handler(req, res) {
     .select('id, stripe_coupon_id')
     .eq('kind', 'discount')
     .eq('status', 'pending')
-    .ilike('email', caller.email)
+    // eq em minúsculas, não ilike — `_`/`%` no próprio e-mail casavam o
+    // desconto pendente de outra pessoa (varredura 2026-10-25).
+    .eq('email', caller.email.toLowerCase())
     .maybeSingle()
 
   const { data: existing } = await supabase
@@ -142,16 +144,23 @@ export default async function handler(req, res) {
   // Sem essa checagem, contas que assinaram antes de uma troca de chave
   // ficam travadas: o checkout tentaria reaproveitar um customer inválido.
   let customerId = existing?.stripe_customer_id
-  if (customerId) {
-    const stillValid = await stripe.customers.retrieve(customerId).then(c => !c.deleted).catch(() => false)
-    if (!stillValid) customerId = null
-  }
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: caller.email,
-      metadata: { supabase_user_id: caller.id },
-    })
-    customerId = customer.id
+  // Dentro do try — uma queda do Stripe aqui virava rejeição sem corpo
+  // JSON, que o cliente não sabe mostrar (varredura 2026-10-25).
+  try {
+    if (customerId) {
+      const stillValid = await stripe.customers.retrieve(customerId).then(c => !c.deleted).catch(() => false)
+      if (!stillValid) customerId = null
+    }
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: caller.email,
+        metadata: { supabase_user_id: caller.id },
+      })
+      customerId = customer.id
+    }
+  } catch (err) {
+    console.error('Stripe customer lookup failed', err)
+    return res.status(500).json({ error: 'checkout_failed' })
   }
 
   try {

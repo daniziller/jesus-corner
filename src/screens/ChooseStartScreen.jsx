@@ -38,8 +38,18 @@ export default function ChooseStartScreen({ session, completedSet, bookChapterCo
 
   const atBlock1 = blocks.find(b => b.id === 1)
   const ntBlock1 = blocks.find(b => b.id === 5)
-  const genesisName = lang === 'en' ? atBlock1.booksEn[0] : atBlock1.books[0]
-  const matthewName = lang === 'en' ? ntBlock1.booksEn[0] : ntBlock1.books[0]
+  // `book` guarda SEMPRE a chave canônica (pt) — é o que App.jsx/
+  // applyStartChoice, bookChapterCounts e completedSet usam. Em inglês a
+  // tela guardava o nome traduzido ("Matthew") e "Start at Matthew" caía
+  // em ot_first/Gênesis, sem detectar progresso (varredura 2026-10-25).
+  // O nome exibido vem de displayNameOf().
+  const genesisName = atBlock1.books[0]
+  const matthewName = ntBlock1.books[0]
+  function displayNameOf(canonical) {
+    if (lang !== 'en') return canonical
+    for (const b of blocks) { const i = b.books.indexOf(canonical); if (i >= 0) return b.booksEn?.[i] ?? canonical }
+    return canonical
+  }
 
   // Estado inicial: reflete o que já está ativo (readingOrder/hasNoPlan/
   // cronológica) na primeira vez, ou o que a pessoa tinha escolhido antes
@@ -75,7 +85,7 @@ export default function ChooseStartScreen({ session, completedSet, bookChapterCo
           <Radio on={order !== 'none' && book === genesisName} dark={order !== 'none' && book === genesisName} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <p style={{ ...s.optionTitle, color: order !== 'none' && book === genesisName ? '#fff' : 'var(--bento-ink)' }}>{L('genesisTitle', { book: genesisName })}</p>
+              <p style={{ ...s.optionTitle, color: order !== 'none' && book === genesisName ? '#fff' : 'var(--bento-ink)' }}>{L('genesisTitle', { book: displayNameOf(genesisName) })}</p>
               <span style={s.suggestedBadge}>{L('suggested')}</span>
             </div>
             <p style={{ ...s.optionSub, color: order !== 'none' && book === genesisName ? 'rgba(255,255,255,.5)' : 'var(--bento-t3)' }}>{L('genesisSub')}</p>
@@ -85,7 +95,7 @@ export default function ChooseStartScreen({ session, completedSet, bookChapterCo
         <button style={s.optionCardLight} onClick={() => { setBook(matthewName); if (order === 'none') setOrder('biblical') }}>
           <Radio on={order !== 'none' && book === matthewName} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={s.optionTitleLight}>{L('matthewTitle', { book: matthewName })}</p>
+            <p style={s.optionTitleLight}>{L('matthewTitle', { book: displayNameOf(matthewName) })}</p>
             <p style={s.optionSubLight}>{L('matthewSub')}</p>
           </div>
         </button>
@@ -94,7 +104,7 @@ export default function ChooseStartScreen({ session, completedSet, bookChapterCo
           <button style={s.optionCardLight} onClick={() => setPickerOpen(true)}>
             <Radio on />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={s.optionTitleLight}>{book}</p>
+              <p style={s.optionTitleLight}>{displayNameOf(book)}</p>
               <p style={s.optionSubLight}>{L('customBookSub')}</p>
             </div>
           </button>
@@ -139,7 +149,7 @@ export default function ChooseStartScreen({ session, completedSet, bookChapterCo
 
         {book && bookDone > 0 && (
           <div style={s.progressCard}>
-            <p style={s.progressTitle}>{L('progressTitle', { n: bookDone, book })}</p>
+            <p style={s.progressTitle}>{L('progressTitle', { n: bookDone, book: displayNameOf(book) })}</p>
             <p style={s.progressSub}>{L('progressSub')}</p>
           </div>
         )}

@@ -142,7 +142,9 @@ export default async function handler(req, res) {
 
   // contact_messages guarda nome e email sem FK — só dá pra achar pelo email.
   try {
-    await supabaseAdmin.from('contact_messages').delete().ilike('email', email)
+    // eq, não ilike — `_` no e-mail apagava mensagens de outra pessoa
+    // (varredura 2026-10-25).
+    await supabaseAdmin.from('contact_messages').delete().eq('email', email.toLowerCase())
     ok('contact_messages_purged')
   } catch (err) { warn('contact_messages_purged', err) }
 

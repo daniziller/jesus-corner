@@ -40,7 +40,9 @@ export default function GroupReadingActivityScreen({ session, groupId, onBack })
 
   useEffect(() => {
     if (!groupId) return
-    getGroupReadingActivity(groupId).then(setActivity)
+    // .catch — sem ele, qualquer falha deixava a tela no esqueleto pra
+    // sempre (varredura 2026-10-25); lista vazia ao menos tem saída.
+    getGroupReadingActivity(groupId).then(setActivity).catch(err => { console.error('Failed to load group reading activity', err); setActivity([]) })
   }, [groupId])
 
   if (!activity) {
