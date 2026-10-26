@@ -82,9 +82,14 @@ function getRootCertificates() {
   for (const b64 of fromEnv) certs.push(Buffer.from(b64, 'base64'))
   // Caminho literal (não readdir) de propósito — é o que o empacotador da
   // Vercel consegue rastrear e incluir na função.
-  try {
-    certs.push(fs.readFileSync(path.join(__dirname, 'apple-roots', 'AppleRootCA-G3.cer')))
-  } catch { /* sem arquivo versionado — fica só com o env */ }
+  // Dois lugares aceitos: direto em api/_lib/ (dá pra subir pelo site do
+  // GitHub sem criar pasta) ou em api/_lib/apple-roots/.
+  for (const rel of [['AppleRootCA-G3.cer'], ['apple-roots', 'AppleRootCA-G3.cer']]) {
+    try {
+      certs.push(fs.readFileSync(path.join(__dirname, ...rel)))
+      break
+    } catch { /* tenta o próximo */ }
+  }
   if (certs.length === 0) {
     throw new Error('apple_root_certs_missing: defina APPLE_ROOT_CERTS_BASE64 (ver api/_lib/apple.js)')
   }
