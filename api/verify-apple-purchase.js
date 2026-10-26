@@ -10,7 +10,7 @@
 // confiar em produção (ver aviso em api/_lib/apple.js).
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { getSubscriptionStatuses, decodeSignedTransaction, mapAppleSubscriptionState } from './_lib/apple.js'
+import { getSubscriptionStatuses, decodeSignedTransaction, mapAppleSubscriptionState, findSubscriptionStatus, Environment } from './_lib/apple.js'
 import { findTierByAppleProductId } from '../src/billing/storeTiers.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
@@ -58,24 +58,25 @@ export default async function handler(req, res) {
   // appAccountToken foi mandado no momento da compra (ver startIOSPurchase)
   // exatamente pra permitir essa checagem — a compra precisa pertencer a
   // quem está chamando.
-  if (decoded.appAccountToken && decoded.appAccountToken !== caller.id) {
+  // Comparação sem diferenciar maiúsculas — é um UUID, e a Apple pode
+  // devolvê-lo em caixa diferente da que o Supabase usa.
+  if (decoded.appAccountToken && String(decoded.appAccountToken).toLowerCase() !== String(caller.id).toLowerCase()) {
     return res.status(403).json({ error: 'account_mismatch' })
   }
 
   const originalTransactionId = decoded.originalTransactionId
+  // Ambiente da própria transação (Sandbox em TestFlight/revisão da Apple,
+  // Production na loja) — a API de status tem URL própria por ambiente.
+  const environment = String(decoded.environment ?? '').toLowerCase() === 'sandbox' ? Environment.SANDBOX : Environment.PRODUCTION
   let statusResponse
   try {
-    statusResponse = await getSubscriptionStatuses(originalTransactionId)
+    statusResponse = await getSubscriptionStatuses(originalTransactionId, environment)
   } catch (err) {
     console.error('Failed to fetch Apple subscription status:', err.message)
     return res.status(400).json({ error: 'verification_failed' })
   }
 
-  // FLAG: a forma exata de achar "o status relevante" dentro da resposta
-  // de getAllSubscriptionStatuses (agrupada por subscription group, pode
-  // ter mais de um item) precisa ser confirmada contra a documentação —
-  // aqui assume o primeiro item do primeiro grupo.
-  const rawStatus = statusResponse?.data?.[0]?.lastTransactions?.[0]?.status
+  const rawStatus = findSubscriptionStatus(statusResponse, originalTransactionId)
   const status = mapAppleSubscriptionState(rawStatus)
 
   const { data: existing } = await supabase
