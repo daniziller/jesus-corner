@@ -19,13 +19,14 @@
 // na aba Bíblia. Decisão da autora (2026-11-11): manter a grafia do app,
 // pra estante e aba Bíblia nunca discordarem. As contagens de capítulo
 // são idênticas às de computeBookChapterCounts (verificado em
-// scripts/test-gamificacao.mjs).
+// scripts/test-gamificacao.mjs). `artigo` serve às frases em que o bloco
+// é sujeito ("a Lei acende quando...", G5).
 export const BIBLE_CHAPTERS = 1189
 export const BIBLE_BOOKS_TOTAL = 66
 
 export const GAMIFICATION_BLOCKS = [
   {
-    id: 'lei', nome: 'Lei', cor: '#8E3B2A', tom: '#EDDAD3', capitulos: 187,
+    id: 'lei', artigo: 'a', nome: 'Lei', cor: '#8E3B2A', tom: '#EDDAD3', capitulos: 187,
     livros: [
       { posicao: 1, sigla: 'Gn', nome: 'Gênesis', capitulos: 50 },
       { posicao: 2, sigla: 'Êx', nome: 'Êxodo', capitulos: 40 },
@@ -35,7 +36,7 @@ export const GAMIFICATION_BLOCKS = [
     ],
   },
   {
-    id: 'historicos', nome: 'Históricos', cor: '#D0822A', tom: '#F3E3CC', capitulos: 249,
+    id: 'historicos', artigo: 'os', nome: 'Históricos', cor: '#D0822A', tom: '#F3E3CC', capitulos: 249,
     livros: [
       { posicao: 6, sigla: 'Js', nome: 'Josué', capitulos: 24 },
       { posicao: 7, sigla: 'Jz', nome: 'Juízes', capitulos: 21 },
@@ -52,7 +53,7 @@ export const GAMIFICATION_BLOCKS = [
     ],
   },
   {
-    id: 'poeticos', nome: 'Poéticos', cor: '#B3922A', tom: '#EFE7CB', capitulos: 243,
+    id: 'poeticos', artigo: 'os', nome: 'Poéticos', cor: '#B3922A', tom: '#EFE7CB', capitulos: 243,
     livros: [
       { posicao: 18, sigla: 'Jó', nome: 'Jó', capitulos: 42 },
       { posicao: 19, sigla: 'Sl', nome: 'Salmos', capitulos: 150 },
@@ -62,7 +63,7 @@ export const GAMIFICATION_BLOCKS = [
     ],
   },
   {
-    id: 'profetas-maiores', nome: 'Profetas maiores', cor: '#6E8A3C', tom: '#DFE6D2', capitulos: 183,
+    id: 'profetas-maiores', artigo: 'os', nome: 'Profetas maiores', cor: '#6E8A3C', tom: '#DFE6D2', capitulos: 183,
     livros: [
       { posicao: 23, sigla: 'Is', nome: 'Isaías', capitulos: 66 },
       { posicao: 24, sigla: 'Jr', nome: 'Jeremias', capitulos: 52 },
@@ -72,7 +73,7 @@ export const GAMIFICATION_BLOCKS = [
     ],
   },
   {
-    id: 'profetas-menores', nome: 'Profetas menores', cor: '#3E7A62', tom: '#D2E3DB', capitulos: 67,
+    id: 'profetas-menores', artigo: 'os', nome: 'Profetas menores', cor: '#3E7A62', tom: '#D2E3DB', capitulos: 67,
     livros: [
       { posicao: 28, sigla: 'Os', nome: 'Oseias', capitulos: 14 },
       { posicao: 29, sigla: 'Jl', nome: 'Joel', capitulos: 3 },
@@ -89,7 +90,7 @@ export const GAMIFICATION_BLOCKS = [
     ],
   },
   {
-    id: 'evangelhos-atos', nome: 'Evangelhos e Atos', cor: '#F0662B', tom: '#FCDFCF', capitulos: 117,
+    id: 'evangelhos-atos', artigo: 'os', nome: 'Evangelhos e Atos', cor: '#F0662B', tom: '#FCDFCF', capitulos: 117,
     livros: [
       { posicao: 40, sigla: 'Mt', nome: 'Mateus', capitulos: 28 },
       { posicao: 41, sigla: 'Mc', nome: 'Marcos', capitulos: 16 },
@@ -99,7 +100,7 @@ export const GAMIFICATION_BLOCKS = [
     ],
   },
   {
-    id: 'cartas-paulo', nome: 'Cartas de Paulo', cor: '#3D6C8E', tom: '#D5E0E9', capitulos: 87,
+    id: 'cartas-paulo', artigo: 'as', nome: 'Cartas de Paulo', cor: '#3D6C8E', tom: '#D5E0E9', capitulos: 87,
     livros: [
       { posicao: 45, sigla: 'Rm', nome: 'Romanos', capitulos: 16 },
       { posicao: 46, sigla: '1Co', nome: '1 Coríntios', capitulos: 16 },
@@ -117,7 +118,7 @@ export const GAMIFICATION_BLOCKS = [
     ],
   },
   {
-    id: 'gerais-apocalipse', nome: 'Gerais e Apocalipse', cor: '#6A5A8E', tom: '#E0DBE9', capitulos: 56,
+    id: 'gerais-apocalipse', artigo: 'as', nome: 'Gerais e Apocalipse', cor: '#6A5A8E', tom: '#E0DBE9', capitulos: 56,
     livros: [
       { posicao: 58, sigla: 'Hb', nome: 'Hebreus', capitulos: 13 },
       { posicao: 59, sigla: 'Tg', nome: 'Tiago', capitulos: 5 },

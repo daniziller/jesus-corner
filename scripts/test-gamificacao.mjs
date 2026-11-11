@@ -17,6 +17,7 @@ import { readingRatePerDay, projectPercentInOneYear, estimateBibleCompletion, pr
 import { computeSlices, fillPath, markerAngle, USABLE_DEGREES, START_DEGREES, GAP_BLOCK, sectorPath } from '../src/gamification/wheelGeometry.js'
 import { formatInt, formatPct, faltamPhrase, deOf, monthYearShort, dayMonthLong, formatDuration, monthYearLong } from '../src/gamification/format.js'
 import { dateKey } from '../src/utils/dateKey.js'
+import { familyCelebrationPhrase, blockCelebrationPhrase, closestPhrase, nextBlockFooter, thresholdLabel } from '../src/gamification/celebrationText.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -219,6 +220,17 @@ check('fill livros: 25 de 50 vai até r = 108', fillPath(sl[0], 25, 'livros').in
 check('fill capítulos: metade da largura', Math.round((sc[0].a0 + (sc[0].a1 - sc[0].a0) / 2) * 1000) / 1000, Math.round(markerAngle(sc[0], 25, 'capitulos') * 1000) / 1000)
 check('marcador livros: meio da fatia', markerAngle(sl[0], 10, 'livros'), (sl[0].a0 + sl[0].a1) / 2)
 check('trilho inteiro existe pra todo livro', sl.every(x => x.trail.length > 0) && sc.every(x => x.trail.length > 0), true)
+
+// ── Frases das conquistas (G4/G5) ──────────────────────────────────────
+check('frase tempo com desde', familyCelebrationPhrase('tempo', { nome: 'Diego', value: 10, sinceMonth: 'março' }), 'Parabéns, Diego. Desde março, somando oração, leitura e reflexão, foram 10 horas inteiras.')
+check('frase sem mês conhecido começa com maiúscula', familyCelebrationPhrase('leitura', { nome: 'Ana', value: 10, sinceMonth: null }), 'Parabéns, Ana. Você marcou 10 capítulos como lidos.')
+check('frase constância no singular', familyCelebrationPhrase('constancia', { nome: 'Ana', value: 1, sinceMonth: 'maio' }), 'Parabéns, Ana. Desde maio, você cumpriu o seu plano em 1 semana — sem precisar que fossem seguidas.')
+check('frase de bloco', blockCelebrationPhrase('profetas-menores', { nome: 'Diego', ultimoLivro: 'Malaquias' }), 'Parabéns, Diego. Com Malaquias, você completou todos os 12 livros de Profetas menores.')
+check('a mais perto: plural e singular', [closestPhrase({ nome: 'Meio ano', remaining: 8, unidade: 'semanas na meta', unidadeSingular: 'semana na meta' }), closestPhrase({ nome: 'Dez capítulos', remaining: 1, unidade: 'capítulos', unidadeSingular: 'capítulo' })], ['Meio ano — faltam 8 semanas na meta', 'Dez capítulos — falta 1 capítulo'])
+check('rodapé dos blocos: um livro faltando', nextBlockFooter({ livrosCompletos: 1, totalLivros: 66 }, { id: 'lei', livrosFaltantes: ['Deuteronômio'] }), 'Livros completos: 1 de 66 · a Lei acende quando você terminar Deuteronômio')
+check('rodapé dos blocos: vários faltando', nextBlockFooter({ livrosCompletos: 1, totalLivros: 66 }, { id: 'cartas-paulo', livrosFaltantes: ['Romanos', 'Tito'] }), 'Livros completos: 1 de 66 · faltam 2 livros para as Cartas de Paulo acenderem')
+check('rodapé dos blocos: tudo aceso', nextBlockFooter({ livrosCompletos: 66, totalLivros: 66 }, null), 'Livros completos: 66 de 66 · todos os blocos acesos')
+check('limiar da escada: tempo em horas, leitura com milhar', [thresholdLabel('tempo', 10), thresholdLabel('leitura', 1189)], ['10 h', '1.189'])
 
 // ── Formatação pt-BR ───────────────────────────────────────────────────
 check('1.189 com ponto de milhar', formatInt(1189), '1.189')

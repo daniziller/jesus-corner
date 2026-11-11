@@ -128,6 +128,11 @@
   --bloco-cartas-paulo-tom: #D5E0E9;
   --bloco-gerais-apocalipse: #6A5A8E;
   --bloco-gerais-apocalipse-tom: #E0DBE9;
+  /* Medalha (HANDOFF §5.2): glifo e pontos de uma conquista ainda não
+     ganha, e o tile preto quando a medalha fica sobre fundo preto (G4,
+     topo de G5/G9) — os dois únicos valores do quadro que não existiam. */
+  --medalha-glifo-apagado: #E4DED7;
+  --medalha-tile-escuro: #3A352F;
 }
 
 html, body, #root {

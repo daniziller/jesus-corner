@@ -33,5 +33,11 @@ alter table public.user_data
 alter table public.session_seconds
   add column if not exists livro text;
 
+-- Quando a migração retroativa silenciosa (HANDOFF §7) rodou nesta
+-- conta: tudo o que a pessoa já tinha foi gravado como ganho e já visto,
+-- sem fila de parabéns. Nulo = ainda não rodou (roda na próxima abertura).
+alter table public.user_data
+  add column if not exists gamification_migrated_at timestamptz;
+
 alter table public.user_data
   drop column if exists completed_goals;

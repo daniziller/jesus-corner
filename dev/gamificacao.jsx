@@ -9,8 +9,10 @@
 // 2026-09-07), e assim dá pra pôr cada tela e cada estado do HANDOFF §8
 // ao lado do PNG sem login.
 //
-// Uso: ?tela=hoje|suaBiblia&estado=exemplo|nova|inteira|carregando
-//      &modo=livros|capitulos
+// Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista
+//      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
+//      &familia=constancia|leitura|tempo|oracao|livros (G6)
+//      &id=tempo:2|bloco:profetas-menores (G4) &novas=1 (pontos de "nova" em G5)
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import '../src/index.css'
@@ -20,6 +22,10 @@ import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
 import { setWheelMode } from '../src/gamification/wheelModeStore'
 import { dateKey } from '../src/utils/dateKey'
+import ConquistasScreen from '../src/screens/ConquistasScreen'
+import FamiliaScreen from '../src/screens/FamiliaScreen'
+import NovaConquistaScreen from '../src/screens/NovaConquistaScreen'
+import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
 
 const params = new URLSearchParams(location.search)
 const tela = params.get('tela') ?? 'hoje'
@@ -86,12 +92,44 @@ const session = {
 }
 const authUser = { email: 'preview@example.com' }
 
+// Conquistas: a migração silenciosa roda uma vez sobre os dados semeados
+// (guest row) e devolve a linha; com `novas=1`, duas ficam como não vistas
+// pra mostrar o ponto laranja de G5.
+function useGamificationRow() {
+  const [row, setRow] = useState(null)
+  const [data, setData] = useState(null)
+  useState(() => {
+    localStorage.removeItem('jc_guest_gami_done')
+    evaluateGamification({ completedSet, dailyRoutine, weeklyGoalDays: 4, silent: true }).then(async res => {
+      let r = res.row
+      if (params.get('novas') === '1') {
+        const raw = JSON.parse(localStorage.getItem('jc_guest_data'))
+        for (const id of ['leitura:2', 'constancia:3']) if (raw.achievements[id]) raw.achievements[id].seen = false
+        localStorage.setItem('jc_guest_data', JSON.stringify(raw))
+        r = { ...r, achievements: raw.achievements }
+      }
+      setRow(r)
+      setData(await loadGamificationStats({ completedSet, dailyRoutine, weeklyGoalDays: 4 }))
+    })
+  })
+  return [row, setRow, data]
+}
+
 function Preview() {
   const [screen, setScreen] = useState(tela)
+  const [gami, setGami, gamiData] = useGamificationRow()
+  const familia = params.get('familia') ?? 'constancia'
+  const celebId = params.get('id') ?? 'tempo:2'
   const [forceLoading] = useState(estado === 'carregando')
   const common = { session, authUser, completedSet }
   let body
-  if (screen === 'suaBiblia') {
+  if (screen === 'conquistas') {
+    body = <ConquistasScreen {...common} gamification={gami} onBack={() => setScreen('hoje')} onOpenFamilia={id => alert(`família ${id}`)} onSeen={ids => markAchievementsSeen(ids).then(setGami)} />
+  } else if (screen === 'familia') {
+    body = <FamiliaScreen {...common} familyId={familia} gamification={gami} onBack={() => setScreen('conquistas')} />
+  } else if (screen === 'novaConquista') {
+    body = gamiData ? <NovaConquistaScreen celebration={{ kind: celebId.startsWith('bloco:') ? 'bloco' : 'degrau', id: celebId }} data={gamiData} userName="Diego" onContinue={() => setScreen('hoje')} onOpenConquistas={() => setScreen('conquistas')} /> : null
+  } else if (screen === 'suaBiblia') {
     body = <SuaBibliaScreen {...common} onBack={() => setScreen('hoje')} onOpenBook={nome => alert(`abrir ${nome} na Bíblia`)} />
   } else {
     body = (

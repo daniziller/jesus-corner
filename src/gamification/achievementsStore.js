@@ -13,6 +13,7 @@ export async function getGamificationRow() {
     achievements: row?.achievements ?? {},
     bookSeals: row?.book_seals ?? {},
     goalHistory: Array.isArray(row?.weekly_goal_history) ? row.weekly_goal_history : [],
+    migratedAt: row?.gamification_migrated_at ?? null,
   }
 }
 
@@ -40,12 +41,14 @@ export function updateGamification(mutate) {
     const patch = {}
     if (next.achievements) patch.achievements = next.achievements
     if (next.bookSeals) patch.book_seals = next.bookSeals
+    if (next.migratedAt) patch.gamification_migrated_at = next.migratedAt
     if (Object.keys(patch).length === 0) return current
     const updated = await updateRow(patch)
     return {
       ...current,
       achievements: updated?.achievements ?? next.achievements ?? current.achievements,
       bookSeals: updated?.book_seals ?? next.bookSeals ?? current.bookSeals,
+      migratedAt: updated?.gamification_migrated_at ?? next.migratedAt ?? current.migratedAt,
     }
   })
 }

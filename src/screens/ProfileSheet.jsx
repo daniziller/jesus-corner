@@ -255,7 +255,9 @@ export default function ProfileSheet({
           {/* "Minhas métricas" (30b, Bloco 7) — acima de conta/preferências
               (Card 1 logo abaixo), como pede o handoff. */}
           <div style={s.card}>
-            <Row icon="BarChart3" label={L('metricsLabel')} sub={L('metricsSub')} onPress={() => go('metrics')} last />
+            <Row icon="BarChart3" label={L('metricsLabel')} sub={L('metricsSub')} onPress={() => go('metrics')} />
+            {/* Gamificação (handoff-gamificacao-43-46): G5 também pelo Perfil. */}
+            <Row icon="Award" label={L('achievementsLabel')} sub={L('achievementsSub')} onPress={() => go('conquistas')} last />
           </div>
 
           {/* Card 1 — Meus dados / Lembrete / Idioma / Versão da Bíblia. */}

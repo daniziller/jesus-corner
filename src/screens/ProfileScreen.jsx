@@ -299,7 +299,9 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
         {/* "Minhas métricas" (30b, Bloco 7) — acima de conta/preferências
             (Configurações, logo abaixo), como pede o handoff. */}
         <div style={s.card}>
-          <Row icon="BarChart3" label={t('profile.metricsLabel', undefined, lang)} sub={t('profile.metricsSub', undefined, lang)} onPress={() => onNavigate('metrics')} last />
+          <Row icon="BarChart3" label={t('profile.metricsLabel', undefined, lang)} sub={t('profile.metricsSub', undefined, lang)} onPress={() => onNavigate('metrics')} />
+          {/* Gamificação (handoff-gamificacao-43-46): G5 também pelo Perfil. */}
+          <Row icon="Award" label={t('profile.achievementsLabel', undefined, lang)} sub={t('profile.achievementsSub', undefined, lang)} onPress={() => onNavigate('conquistas')} last />
         </div>
 
         {/* Configurações — mesmo padrão Row/Switch de ProfileSheet.jsx, sem
