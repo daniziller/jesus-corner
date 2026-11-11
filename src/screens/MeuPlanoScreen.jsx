@@ -27,9 +27,10 @@ import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
 import { currentDayOf } from '../studies/estudosStore'
 import { dateKey } from '../utils/dateKey'
+import { dayMonthLong } from '../gamification/format'
 import {
   computeMeuPlano, resolveMinutes, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria,
-  doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay, doneTitle, weekCountSentence, STEP_ORDER,
+  doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay, doneTitle, weekCountSentence, STEP_ORDER, studyReturnDate,
 } from '../meuPlano/meuPlanoMath'
 
 const FONT = 'var(--font-bento)'
@@ -68,7 +69,7 @@ async function loadStudiesSummary(activeStudyId) {
   return { saved: Math.max(0, all.length - completed - (activeStudyId ? 1 : 0)), completed }
 }
 
-export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onStartGuided, onNavigate, onOpenSeuPlano }) {
+export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onStartGuided, onNavigate, onOpenSeuPlano, onEndStudy }) {
   const { lang, plan, routineModules, activeStudyId, dailyRoutine, currentBlock, hasNoPlan, lastReadPosition } = session
   const [stepDays, setStepDays] = useState(null)
   const [methods, setMethods] = useState({ prayer: 'acts', reflection: 'questions' })
@@ -121,6 +122,20 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
   // P3: "{Dia} já conta para a sua semana: {feitos} de {meta} dias" — a
   // mesma conta de meta semanal que o app já usa (dias com algo marcado).
   const weekGoal = stepDays ? computeStepWeekGoal(dailyRoutine, stepDays, STEP_ORDER.filter(k => (routineModules ?? []).includes(k)), today) : null
+
+  // P5 — cartão de pausa da leitura: só em dia de estudo (estudo no
+  // caminho e leitura fora dele), com estudo ativo e plano de leitura.
+  const studyOnly = isStudyOnlyDay(state)
+  const pause = studyOnly && activeStudy && !hasNoPlan && currentBlock?.book
+    ? {
+        title: `${currentBlock.book} pausado em ${currentBlock.chapter}`,
+        returnDate: stepDays ? studyReturnDate(today, stepDays.study, activeStudy.dayTotal - activeStudy.dayDone, !!dayEntry?.study) : null,
+      }
+    : null
+  function resumeReading() {
+    if (!window.confirm(`Retomar ${currentBlock.book} agora? O estudo fica salvo na Biblioteca.`)) return
+    onEndStudy?.()
+  }
 
   // Trecho da linha de passo feito: a leitura mostra o capítulo LIDO
   // (lastReadPosition), não o próximo (que é o do cartão "Seu plano").
@@ -245,14 +260,24 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
                 </div>
               )}
 
+              {pause && (
+                <div style={{ ...s.pauseCard, marginTop: state.kind === 'during' || state.kind === 'before' ? 6 : 0 }}>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={s.pauseTitle}>{pause.title}</span>
+                    {pause.returnDate && <span style={s.pauseSub}>Volta em {dayMonthLong(pause.returnDate.toISOString())}, quando o estudo terminar</span>}
+                  </span>
+                  <button type="button" style={s.resumeBtn} onClick={resumeReading}>Retomar já</button>
+                </div>
+              )}
+
               {tomorrow && (
-                <div style={{ ...s.tomorrow, marginTop: state.kind === 'during' || state.kind === 'before' ? 6 : 0 }}>
+                <div style={{ ...s.tomorrow, marginTop: !pause && (state.kind === 'during' || state.kind === 'before') ? 6 : 0 }}>
                   <p style={s.tomorrowLabel}>{tomorrow.label}</p>
                   <p style={s.tomorrowText}>{tomorrow.text}</p>
                 </div>
               )}
 
-              {!isStudyOnlyDay(state) && (
+              {!studyOnly && (
                 <button type="button" style={s.planRow} onClick={() => onOpenSeuPlano?.()}>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={s.planLabel}>SEU PLANO</span>
@@ -329,6 +354,10 @@ const s = {
   restTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: '0 0 6px' },
   bigText: { fontFamily: FONT, fontSize: 13, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-t2)', margin: '0 0 14px' },
   secondary: { width: '100%', height: 46, borderRadius: 15, border: 'none', background: 'var(--bento-line)', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+  pauseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '15px 18px', display: 'flex', alignItems: 'center', gap: 12 },
+  pauseTitle: { display: 'block', fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)' },
+  pauseSub: { display: 'block', fontFamily: FONT, fontSize: 12, fontWeight: 500, lineHeight: 1.35, color: 'var(--bento-t3)', marginTop: 3 },
+  resumeBtn: { flexShrink: 0, minHeight: 44, border: 'none', background: 'none', padding: '0 4px', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-accent)', cursor: 'pointer' },
   tomorrow: { borderRadius: 24, background: 'var(--bento-sand)', padding: '15px 18px' },
   tomorrowLabel: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 7px' },
   tomorrowText: { fontFamily: FONT, fontSize: 14, fontWeight: 700, lineHeight: 1.25, color: 'var(--bento-sand-ink-strong)', margin: 0 },

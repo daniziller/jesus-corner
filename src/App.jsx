@@ -3140,7 +3140,7 @@ export default function App() {
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
     // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
     routine: hasPremium
-      ? <MeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
+      ? <MeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onEndStudy={() => selectActiveStudy(null)} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;

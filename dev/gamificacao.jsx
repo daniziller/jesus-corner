@@ -84,9 +84,20 @@ function seedGuestTables(estado) {
   const all = [true, true, true, true, true, true, true]
   const semHoje = all.map((_, i) => i !== todayIdx)
   const planoState = params.get('plano') ?? 'p1'
+  const soHoje = all.map((_, i) => i === todayIdx)
   const stepDays = planoState === 'p4'
     ? { prayer: semHoje, reading: semHoje, study: [false, false, false, false, false, false, false], reflection: semHoje }
-    : { prayer: all, reading: all, study: [false, false, false, false, false, false, false], reflection: all }
+    : planoState === 'p5'
+      ? { prayer: all, reading: semHoje, study: soHoje.map((v, i) => v || i === (todayIdx + 2) % 7 || i === (todayIdx + 4) % 7), reflection: all }
+      : planoState === 'quatro'
+        ? { prayer: all, reading: all, study: soHoje, reflection: all }
+        : { prayer: all, reading: all, study: [false, false, false, false, false, false, false], reflection: all }
+  // Estudo ativo de exemplo (formato novo, 7 dias, dia 1 feito) pra p5/quatro.
+  const estudo = {
+    id: 'est-ansiedade', title: 'Ansiedade', createdAt: day(10),
+    sessions: [[4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4]].map(([a, b], i) => ({ id: i + 1, book: 'Filipenses', chStart: a, chEnd: b, passage: `Filipenses 4:${4 + i}-${6 + i}`, completedAt: i === 0 ? day(2) : undefined })),
+  }
+  const comEstudo = planoState === 'p5' || planoState === 'quatro'
   const hoje = new Date(); hoje.setHours(6, 42, 0, 0)
   const atH = (h, m) => { const d = new Date(hoje); d.setHours(h, m, 0, 0); return d.toISOString() }
   const todayEntry = {
@@ -94,10 +105,10 @@ function seedGuestTables(estado) {
     p1i: { prayer: true, prayerAt: atH(6, 42), readingProgress: { startedAt: atH(7, 0), elapsedSeconds: 372 } },
     p2: {},
     p3: { prayer: true, prayerAt: atH(6, 42), reading: true, readingAt: atH(7, 1), reflection: true, reflectionAt: atH(7, 8) },
-    p4: {}, um: {}, quatro: {},
+    p4: {}, um: {}, quatro: {}, p5: { prayer: true, prayerAt: atH(6, 40) },
   }[planoState] ?? {}
   routine[dateKey(new Date())] = { ...(routine[dateKey(new Date())] ?? {}), ...todayEntry }
-  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays }))
+  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null }))
   return nova ? {} : routine
 }
 const dailyRoutine = seedGuestTables(estado)
@@ -109,10 +120,10 @@ const todaySession = estado === 'inteira'
 
 const session = {
   lang: 'pt', userName: 'Diego', avatarInitials: 'DZ', todaySession,
-  routineModules: planoState === 'um' ? ['prayer'] : ['prayer', 'reading', 'reflection'], plan,
+  routineModules: planoState === 'um' ? ['prayer'] : ['prayer', 'reading', 'study', 'reflection'], plan,
   todayRoutine: {}, dailyRoutine,
   lastReadPosition: { book: 'Gênesis', chapter: 41 },
-  biblePercent: 4.2, activeStudyId: null,
+  biblePercent: 4.2, activeStudyId: (planoState === 'p5' || planoState === 'quatro') ? 'est-ansiedade' : null,
   chaptersRead: completedSet.size, booksCompleted: 1,
   myGroups: [], hasNoPlan: false, hasPremium: true, weeklyGoalDays: 4, weeklyDays: [true, true, false, true, false, true, false],
   currentBlock: { book: 'Gênesis', chapter: 42, bookChapters: 50, bookPercent: 82 },
@@ -152,7 +163,7 @@ function Preview() {
   let body
   const livro = params.get('livro') ?? 'Jonas'
   if (screen === 'meuPlano') {
-    body = <MeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')} onNavigate={t => alert(`navegar: ${t}`)} />
+    body = <MeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')} onNavigate={t => alert(`navegar: ${t}`)} onEndStudy={() => alert('encerrar o estudo e devolver a leitura')} />
   } else if (screen === 'estante') {
     body = <EstanteScreen {...common} gamification={gami} scrollToBlock={params.get('bloco')} onBack={() => setScreen('hoje')} onOpenSelo={n => alert(`selo ${n}`)} onOpenBook={n => alert(`abrir ${n}`)} onOpenBookAt={(n, c) => alert(`abrir ${n} ${c}`)} />
   } else if (screen === 'selo') {

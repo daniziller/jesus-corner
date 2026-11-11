@@ -4,7 +4,7 @@
 // interrompido; tudo feito; dia de descanso; todos os passos desligados;
 // dia de estudo; leitura + estudo no mesmo dia; um passo só; virada de
 // dia; rótulo do botão; texto da direita da barra; plurais.
-import { computeMeuPlano, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria, doneLine, stepDescription, stepsSentence, tomorrowCard, seuPlanoLine, studiesLine, doneTitle, isStudyOnlyDay, formatHour, resolveMinutes, weekCountSentence } from '../src/meuPlano/meuPlanoMath.js'
+import { computeMeuPlano, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria, doneLine, stepDescription, stepsSentence, tomorrowCard, seuPlanoLine, studiesLine, doneTitle, isStudyOnlyDay, formatHour, resolveMinutes, weekCountSentence, studyReturnDate } from '../src/meuPlano/meuPlanoMath.js'
 import { dateKey } from '../src/utils/dateKey.js'
 
 let failures = 0
@@ -68,6 +68,13 @@ check('P5: estudo no lugar da leitura', [p5.steps.map(s => s.key), isStudyOnlyDa
 const both = { ...stepDays, reading: [true, true, false, true, false, true, false] }
 const p4s = computeMeuPlano({ routineModules: ALL, stepDays: both, minutes, dayEntry: {}, todayIdx: MON })
 check('leitura + estudo no mesmo dia: quatro passos, leitura antes do estudo, sem pausa', [p4s.steps.map(s => s.key), isStudyOnlyDay(p4s), nowCardLabel(p4s)], [['prayer', 'reading', 'study', 'reflection'], false, 'AGORA · PASSO 1 DE 4'])
+
+// P5: data de volta da leitura (estudo seg/qua/sex; hoje = quarta 3/9/2026, estudo de hoje pendente; faltam 6 dias → 10/9? não: qua 3, sex 5, seg 8, qua 10, sex 12, seg 15)
+const wed = new Date(2026, 8, 2) // quarta
+check('volta da leitura: 6 dias restantes a partir de hoje (pendente)', dateKey(studyReturnDate(wed, stepDays.study, 6, false)), '2026-09-14')
+check('volta da leitura: estudo de hoje já feito não conta hoje', dateKey(studyReturnDate(wed, stepDays.study, 1, true)), '2026-09-04')
+check('volta da leitura: último dia é hoje', dateKey(studyReturnDate(wed, stepDays.study, 1, false)), '2026-09-02')
+check('volta da leitura: sem dias de estudo → null', studyReturnDate(wed, [false, false, false, false, false, false, false], 3, false), null)
 
 // ── um passo só ────────────────────────────────────────────────────────
 const one = computeMeuPlano({ routineModules: ['prayer'], stepDays, minutes, dayEntry: {}, todayIdx: TUE })

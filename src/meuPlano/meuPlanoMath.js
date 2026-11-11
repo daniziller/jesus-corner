@@ -214,6 +214,23 @@ export function weekCountSentence(todayIdx, feitos, meta) {
   return `${weekdayCapitalized(todayIdx)} já conta para a sua semana: ${feitos} de ${meta} ${meta === 1 ? 'dia' : 'dias'}.`
 }
 
+// P5: a data em que o estudo termina — "Volta em {d} de {mês}, quando o
+// estudo terminar". Conta os dias de estudo (stepDays.study) a partir de
+// hoje: hoje entra se o estudo de hoje ainda não foi feito; `remaining`
+// = dias do estudo ainda não concluídos. Null sem dia de estudo marcado.
+export function studyReturnDate(today, studyDays, remaining, todayStudyDone) {
+  if (!studyDays?.some(Boolean) || remaining <= 0) return null
+  let left = remaining
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  for (let i = 0; i < 7 * 60; i++) {
+    const idx = (d.getDay() + 6) % 7
+    const counts = studyDays[idx] && !(i === 0 && todayStudyDone)
+    if (counts) { left--; if (left === 0) return d }
+    d.setDate(d.getDate() + 1)
+  }
+  return null
+}
+
 // Dia de estudo (P5): estudo no caminho e leitura fora dele.
 export function isStudyOnlyDay(state) {
   const keys = state.steps.map(s => s.key)
