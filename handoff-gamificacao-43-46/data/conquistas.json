@@ -1,0 +1,261 @@
+{
+ "regras": {
+  "nada_se_perde": true,
+  "sem_ranking": true,
+  "sem_pontos": true,
+  "total": 38,
+  "selos_de_livro": 66
+ },
+ "degraus": [
+  {
+   "degrau": 1,
+   "tile": "#1A1714",
+   "glifo": "#A29A91",
+   "ponto": "#A29A91"
+  },
+  {
+   "degrau": 2,
+   "tile": "#1A1714",
+   "glifo": "#D0822A",
+   "ponto": "#D0822A"
+  },
+  {
+   "degrau": 3,
+   "tile": "#1A1714",
+   "glifo": "#F0662B",
+   "ponto": "#F0662B"
+  },
+  {
+   "degrau": 4,
+   "tile": "#1A1714",
+   "glifo": "#F0662B",
+   "ponto": "#F0662B",
+   "borda_interna": "#F0662B"
+  },
+  {
+   "degrau": 5,
+   "tile": "#F0662B",
+   "glifo": "#1A1714",
+   "ponto": "#1A1714"
+  },
+  {
+   "degrau": 6,
+   "tile": "#F0662B",
+   "glifo": "#1A1714",
+   "ponto": "#1A1714",
+   "halo": "#F0662B"
+  }
+ ],
+ "familias": [
+  {
+   "id": "constancia",
+   "nome": "Constância",
+   "unidade": "semanas na meta",
+   "mede": "semanas (segunda a domingo, fuso do usuário) em que os dias com plano cumprido atingiram a meta semanal vigente naquela semana; não precisam ser seguidas",
+   "degraus": [
+    [
+     1,
+     "Primeira semana"
+    ],
+    [
+     4,
+     "Um mês fiel"
+    ],
+    [
+     12,
+     "Uma estação"
+    ],
+    [
+     26,
+     "Meio ano"
+    ],
+    [
+     52,
+     "Um ano inteiro"
+    ],
+    [
+     104,
+     "Dois anos"
+    ]
+   ]
+  },
+  {
+   "id": "leitura",
+   "nome": "Leitura",
+   "unidade": "capítulos lidos",
+   "mede": "capítulos distintos marcados como lidos; releitura não conta de novo",
+   "degraus": [
+    [
+     10,
+     "Dez capítulos"
+    ],
+    [
+     50,
+     "Cinquenta capítulos"
+    ],
+    [
+     150,
+     "Um saltério"
+    ],
+    [
+     300,
+     "Um quarto da Bíblia"
+    ],
+    [
+     600,
+     "Metade da Bíblia"
+    ],
+    [
+     1189,
+     "A Bíblia inteira"
+    ]
+   ]
+  },
+  {
+   "id": "tempo",
+   "nome": "Tempo com Deus",
+   "unidade": "horas",
+   "mede": "soma da duração das sessões de oração, leitura e reflexão, em horas inteiras",
+   "degraus": [
+    [
+     1,
+     "A primeira hora"
+    ],
+    [
+     10,
+     "Dez horas"
+    ],
+    [
+     25,
+     "Vinte e cinco horas"
+    ],
+    [
+     50,
+     "Cinquenta horas"
+    ],
+    [
+     100,
+     "Cem horas"
+    ],
+    [
+     250,
+     "Duzentas e cinquenta horas"
+    ]
+   ]
+  },
+  {
+   "id": "oracao",
+   "nome": "Oração pelos outros",
+   "unidade": "pedidos orados",
+   "mede": "toques em \"Orei\" em pedidos de outras pessoas; no máximo um por pedido por dia",
+   "degraus": [
+    [
+     10,
+     "Dez orações"
+    ],
+    [
+     50,
+     "Cinquenta orações"
+    ],
+    [
+     100,
+     "Cem orações"
+    ],
+    [
+     250,
+     "Duzentas e cinquenta"
+    ],
+    [
+     500,
+     "Quinhentas orações"
+    ],
+    [
+     1000,
+     "Intercessor"
+    ]
+   ]
+  },
+  {
+   "id": "livros",
+   "nome": "Livros completos",
+   "unidade": "livros lidos inteiros",
+   "mede": "livros com todos os capítulos lidos",
+   "degraus": [
+    [
+     1,
+     "Primeiro livro"
+    ],
+    [
+     5,
+     "Cinco livros"
+    ],
+    [
+     12,
+     "Doze livros"
+    ],
+    [
+     27,
+     "Vinte e sete livros"
+    ],
+    [
+     39,
+     "Trinta e nove livros"
+    ],
+    [
+     66,
+     "Os 66 livros"
+    ]
+   ]
+  }
+ ],
+ "blocos": [
+  {
+   "id": "lei",
+   "nome": "Lei",
+   "cor": "#8E3B2A",
+   "mede": "todos os livros do bloco completos"
+  },
+  {
+   "id": "historicos",
+   "nome": "Históricos",
+   "cor": "#D0822A",
+   "mede": "todos os livros do bloco completos"
+  },
+  {
+   "id": "poeticos",
+   "nome": "Poéticos",
+   "cor": "#B3922A",
+   "mede": "todos os livros do bloco completos"
+  },
+  {
+   "id": "profetas-maiores",
+   "nome": "Profetas maiores",
+   "cor": "#6E8A3C",
+   "mede": "todos os livros do bloco completos"
+  },
+  {
+   "id": "profetas-menores",
+   "nome": "Profetas menores",
+   "cor": "#3E7A62",
+   "mede": "todos os livros do bloco completos"
+  },
+  {
+   "id": "evangelhos-atos",
+   "nome": "Evangelhos e Atos",
+   "cor": "#F0662B",
+   "mede": "todos os livros do bloco completos"
+  },
+  {
+   "id": "cartas-paulo",
+   "nome": "Cartas de Paulo",
+   "cor": "#3D6C8E",
+   "mede": "todos os livros do bloco completos"
+  },
+  {
+   "id": "gerais-apocalipse",
+   "nome": "Gerais e Apocalipse",
+   "cor": "#6A5A8E",
+   "mede": "todos os livros do bloco completos"
+  }
+ ]
+}
