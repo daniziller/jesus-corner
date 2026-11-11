@@ -9,7 +9,8 @@
 // cartão preto, os resumos e o rodapé são derivados dele a cada toque;
 // nada é gravado antes de "Salvar plano" (onSave grava pelas mesmas
 // funções que 35c já usava). Voltar com mudanças pede "Sair sem salvar?".
-// Um passo aberto por vez (A2/A3); A4 é a folha do cronômetro.
+// Um passo aberto por vez (A2/A3); A4 é a folha do cronômetro, desenhada
+// aqui mesmo (mexe no mesmo rascunho; "1 mudança · cronômetro").
 // Cálculo em src/meuPlano/ajustarMath.js (puro, testado).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AppIcon from '../icons/AppIcon'
@@ -31,7 +32,7 @@ import { reminderLine } from '../meuPlano/seuPlanoMath'
 import { stepName } from '../meuPlano/meuPlanoMath'
 import {
   buildPlan, weekMinutes, daysWithSomethingCount, barHeight, stepSummary, clockSummary, canDisable, LAST_BIBLE_STEP_MESSAGE,
-  withEnabled, withMinutes, withMethod, withDayToggled, diffPlans, changesLine, reconcileDraft, weekFooter,
+  withEnabled, withMinutes, withMethod, withDayToggled, withClock, diffPlans, changesLine, reconcileDraft, weekFooter,
   chaptersApprox, stageMinutes, perWeekLabel, MIN_MINUTES, MAX_MINUTES, MINUTES_STEP,
 } from '../meuPlano/ajustarMath'
 import { STEP_KEYS } from '../routine/stepDaysMath'
@@ -40,7 +41,7 @@ import { daysWithSomething } from '../meuPlano/seuPlanoMath'
 const FONT = 'var(--font-bento)'
 const AVG_WORDS_PER_CHAPTER = BIBLE_TOTAL_WORDS / totalBibleChapters()
 
-export default function AjustarPlanoScreen({ session, completedSet, stepMinutes, draftState, onDraftChange, onClearDraft, onSave, onBack, onNavigate, initialOpenStep = null, scrollToDays = false, onOpenClock }) {
+export default function AjustarPlanoScreen({ session, completedSet, stepMinutes, draftState, onDraftChange, onClearDraft, onSave, onBack, onNavigate, initialOpenStep = null, scrollToDays = false }) {
   const { lang, plan, routineModules, activeStudyId, currentBlock, hasNoPlan } = session
   const [saved, setSaved] = useState(null)
   const [activeStudy, setActiveStudy] = useState(null)
@@ -50,6 +51,8 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [leaveAsk, setLeaveAsk] = useState(false)
+  const [clockOpen, setClockOpen] = useState(false)
+  const clockRowRef = useRef(null)
   const [pace, setPace] = useState(null) // { wordsPerMinute, isColdStart } quando o ritmo aprendido está ligado
   const bodyRef = useRef(null)
   const rowRefs = useRef({})
@@ -164,6 +167,7 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
   }
 
   function back() {
+    if (clockOpen) { setClockOpen(false); return }
     if (changes.length > 0) { setLeaveAsk(true); return }
     onClearDraft?.()
     onBack?.()
@@ -302,7 +306,7 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
             })}
 
             <div style={s.list}>
-              <button type="button" style={{ ...s.listRow, borderBottom: '1px solid var(--bento-line)' }} onClick={() => onOpenClock?.()}>
+              <button ref={clockRowRef} type="button" style={{ ...s.listRow, borderBottom: '1px solid var(--bento-line)' }} onClick={() => setClockOpen(true)} aria-haspopup="dialog" aria-expanded={clockOpen}>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={s.listTitle}>Cronômetro</span>
                   <span style={s.listSub}>{clockSummary(draft.clock)}</span>
@@ -329,6 +333,15 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
           : <button type="button" style={{ ...s.saveOn, opacity: saving ? 0.7 : 1 }} onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar plano'}</button>}
       </div>
 
+      {clockOpen && draft && (
+        <ClockSheet
+          lang={lang}
+          clock={draft.clock}
+          onToggle={key => update(withClock(draft, key, !draft.clock[key]))}
+          onClose={() => { setClockOpen(false); clockRowRef.current?.focus?.() }}
+        />
+      )}
+
       {leaveAsk && (
         <div style={s.veil} onClick={() => setLeaveAsk(false)}>
           <div style={s.dialog} role="dialog" aria-modal="true" aria-label="Sair sem salvar?" onClick={e => e.stopPropagation()}>
@@ -340,6 +353,90 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// A4 — folha do cronômetro (HANDOFF §12.5). Os três interruptores de 35c,
+// com os mesmos textos (routine.*) e os mesmos efeitos em 35f/35g; aqui
+// mexem só no rascunho. Fecha por "Pronto", toque no véu, arrastar para
+// baixo, Esc ou o voltar da tela (back() de quem a abriu). Prende o foco:
+// Tab circula só dentro da folha; ao fechar, o foco volta à linha
+// "Cronômetro".
+const CLOCK_ROWS = [
+  { key: 'showOnReading', title: 'routine.showOnReadingTitle', sub: 'routine.showOnReadingSub' },
+  { key: 'warnAtZero', title: 'routine.warnAtZeroTitle', sub: 'routine.warnAtZeroSub' },
+  { key: 'askToContinue', title: 'routine.askContinueTitle', sub: 'routine.askContinueSub' },
+]
+const DRAG_CLOSE_PX = 80
+
+function ClockSheet({ lang, clock, onToggle, onClose }) {
+  const sheetRef = useRef(null)
+  const dragRef = useRef({ startY: null, dy: 0 })
+  const [dragY, setDragY] = useState(0)
+
+  useEffect(() => {
+    sheetRef.current?.querySelector('[role="switch"]')?.focus?.()
+  }, [])
+
+  function onKeyDown(e) {
+    if (e.key === 'Escape') { e.preventDefault(); onClose(); return }
+    if (e.key !== 'Tab') return
+    const focusables = [...(sheetRef.current?.querySelectorAll('button:not([disabled])') ?? [])]
+    if (focusables.length === 0) return
+    const first = focusables[0], last = focusables[focusables.length - 1]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+  }
+
+  function onTouchStart(e) { dragRef.current = { startY: e.touches[0].clientY, dy: 0 } }
+  function onTouchMove(e) {
+    if (dragRef.current.startY == null) return
+    const dy = Math.max(0, e.touches[0].clientY - dragRef.current.startY)
+    dragRef.current.dy = dy
+    setDragY(dy)
+  }
+  function onTouchEnd() {
+    const { dy } = dragRef.current
+    dragRef.current = { startY: null, dy: 0 }
+    if (dy > DRAG_CLOSE_PX) onClose()
+    else setDragY(0)
+  }
+
+  return (
+    <div style={{ ...s.veil, ...s.veilBlur }} onClick={onClose}>
+      <div
+        ref={sheetRef}
+        role="dialog" aria-modal="true" aria-labelledby="ajustar-cronometro-titulo"
+        style={{ ...s.sheet, transform: dragY ? `translateY(${dragY}px)` : 'none', transition: dragY ? 'none' : 'transform .18s ease-out' }}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={onKeyDown}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={onTouchEnd}
+      >
+        <div style={s.handle} aria-hidden="true" />
+        <p id="ajustar-cronometro-titulo" style={s.sheetTitle}>Cronômetro</p>
+        <p style={s.sheetSub}>Vale para a leitura e para o estudo.</p>
+        {CLOCK_ROWS.map((row, i) => {
+          const on = !!clock[row.key]
+          const title = t(row.title, undefined, lang)
+          return (
+            <div key={row.key} style={{ ...s.sheetRow, borderTop: i > 0 ? '1px solid var(--bento-line)' : 'none' }}>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={s.sheetRowTitle}>{title}</span>
+                <span style={s.sheetRowSub}>{t(row.sub, undefined, lang)}</span>
+              </span>
+              <button
+                type="button" role="switch" aria-checked={on} aria-label={`${title}: ${on ? 'ligado' : 'desligado'}`}
+                onClick={() => onToggle(row.key)}
+                style={{ ...s.switch, background: on ? 'var(--bento-ink)' : 'var(--bento-t6)', justifyContent: on ? 'flex-end' : 'flex-start' }}
+              >
+                <span style={{ ...s.thumb, background: on ? 'var(--bento-accent)' : '#fff' }} />
+              </button>
+            </div>
+          )
+        })}
+        <button type="button" style={s.sheetDone} onClick={onClose}>Pronto</button>
+      </div>
     </div>
   )
 }
@@ -408,6 +505,15 @@ const s = {
   saveOff: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--medalha-glifo-apagado)', fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-t4)' },
   saveOn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   veil: { position: 'absolute', inset: 0, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', zIndex: 5 },
+  veilBlur: { backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
+  sheet: { width: '100%', background: 'var(--bento-card)', borderRadius: '32px 32px 0 0', padding: '10px 20px calc(24px + var(--safe-bottom))', boxShadow: '0 -18px 40px rgba(0,0,0,.18)', boxSizing: 'border-box', touchAction: 'pan-y' },
+  handle: { width: 44, height: 5, borderRadius: 99, background: 'var(--bento-t6)', margin: '0 auto 16px' },
+  sheetTitle: { fontFamily: FONT, fontSize: 20, fontWeight: 800, letterSpacing: '-0.6px', color: 'var(--bento-ink)', margin: 0 },
+  sheetSub: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '4px 0 6px' },
+  sheetRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0' },
+  sheetRowTitle: { display: 'block', fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)' },
+  sheetRowSub: { display: 'block', fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', marginTop: 2 },
+  sheetDone: { width: '100%', height: 52, borderRadius: 17, border: 'none', background: 'var(--bento-ink)', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: '#fff', cursor: 'pointer', marginTop: 10 },
   dialog: { width: '100%', background: '#fff', borderRadius: '32px 32px 0 0', padding: '24px 20px calc(24px + var(--safe-bottom))', boxShadow: '0 -18px 40px rgba(0,0,0,.18)' },
   dialogTitle: { fontFamily: FONT, fontSize: 20, fontWeight: 800, letterSpacing: '-0.6px', color: 'var(--bento-ink)', margin: '0 0 16px' },
   dialogRow: { display: 'flex', gap: 10 },
