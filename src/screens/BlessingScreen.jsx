@@ -45,7 +45,7 @@ export default function BlessingScreen({ session, stepMinutes, onContinueSession
     if (nextStepKey === 'reading') { onContinueSession?.(); return }
     // Bug real (varredura geral, 2026-09-19): 'study' não é uma chave de
     // tela em App.jsx (a tela real é 'studyDay', aberta só via
-    // openActiveStudy() — ver o mesmo caso especial em RoutineScreen.jsx/
+    // openActiveStudy() — ver o mesmo caso especial em
     // App.jsx startGuidedRoutine). Caía direto no onNavigate('study')
     // abaixo e abria tela em branco pra quem tem Oração+Estudo mas não
     // Leitura agendados hoje.

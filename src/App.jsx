@@ -28,8 +28,6 @@ import PhysicalReadingScreen from './screens/PhysicalReadingScreen'
 import ReadingSummaryScreen from './screens/ReadingSummaryScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import FloatingTimerPill from './components/timer/FloatingTimerPill'
-import RoutineScreen from './screens/RoutineScreen'
-import AdjustPlanScreen from './screens/AdjustPlanScreen'
 import ReadingOrganizeScreen from './screens/ReadingOrganizeScreen'
 import StudyOrganizeScreen from './screens/StudyOrganizeScreen'
 import ChooseStartScreen from './screens/ChooseStartScreen'
@@ -646,7 +644,7 @@ export default function App() {
   // fixos (Leve/Padrão/Intensivo), mantidos só pro plano Livre/navegação.
   const [stepMinutes, setStepMinutesState] = useState({ prayer: null, reading: null, reflection: null })
   // Dias por passo (turno 35, stepDaysStore.js) — precisado aqui (não só em
-  // HomeScreen/RoutineScreen) pra "Começar meu plano" (startGuidedRoutine
+  // HomeScreen/MeuPlanoScreen) pra "Começar meu plano" (startGuidedRoutine
   // abaixo) encadear os passos de HOJE de verdade, incluindo Estudo — antes
   // usava um GUIDED_STEPS fixo [oração,leitura,reflexão] que ignorava
   // stepDays e nunca sabia de Estudo, discordando do que Meu Plano/Home já
@@ -1152,7 +1150,7 @@ export default function App() {
   }
 
   // Passos de HOJE, na ordem em que a rotina guiada os encadeia — MESMA
-  // conta de RoutineScreen.jsx/HomeScreen.jsx (stepDays por passo). Antes
+  // conta de MeuPlanoScreen.jsx/HomeScreen.jsx (stepDays por passo). Antes
   // disto, "Começar meu plano" usava um GUIDED_STEPS fixo [oração,leitura,
   // reflexão] que ignorava stepDays e nunca incluía Estudo — discordando
   // do que a própria lista de Meu Plano/Home já mostravam (achado
@@ -1162,7 +1160,7 @@ export default function App() {
   // A substituição leitura→estudo daqui (quando havia activeStudyId) saiu
   // em 2026-09-09: era resquício do modelo antigo de "estudo ativo
   // substitui a leitura", já abandonado pelas trilhas independentes
-  // (RoutineScreen.jsx/HomeScreen.jsx não fazem mais essa troca desde o
+  // (Meu Plano/HomeScreen.jsx não fazem mais essa troca desde o
   // handoff-app-completo) — só este arquivo ainda fazia, e junto com o
   // mesmo achado dela (toggle desligado não pausava o Estudo de verdade)
   // podia encadear pro passo Estudo mesmo com o toggle dele desligado.
@@ -1719,7 +1717,7 @@ export default function App() {
   // tema novo (ver ThemePlanScreen.jsx) — diferente de openThemePlanToday
   // acima, não pula direto pra leitura: torna o plano ativo, grava a
   // escolha de hoje e manda pra aba Rotina, já mostrando o tempo calculado
-  // (activePlan.readingMinutes, ver resolveActivePlan.js/RoutineScreen.jsx).
+  // (activePlan.readingMinutes, ver resolveActivePlan.js).
   function addThemePlanToRoutine(planId, keys) {
     selectActivePlan({ type: 'theme', planId })
     chooseThemeTexts(planId, keys)
@@ -2683,8 +2681,8 @@ export default function App() {
   // "Ler agora" em Meu Plano (35b) quando o passo de hoje é o Estudo ativo —
   // mesmo mecanismo que a Biblioteca já usa pra abrir um estudo específico
   // (ver libraryOpenStudyId/NotesScreen.jsx).
-  // Botão "Começar/Continuar" do passo Estudo (RoutineScreen.startStep/
-  // openDoneStep) — antes, sem nenhum estudo ativo escolhido ainda (o
+  // Botão "Começar/Continuar" do passo Estudo (hoje o cartão preto de
+  // MeuPlanoScreen.jsx) — antes, sem nenhum estudo ativo escolhido ainda (o
   // toggle de Estudo pode estar ligado sem study nenhum selecionado, ver
   // PR #132), essa função só dava `return` e o botão não fazia nada
   // (bug real, 2026-09-09). Agora leva pra "Adicionar estudo" pra
@@ -3031,7 +3029,7 @@ export default function App() {
   // passo restante hoje, então nunca entra em guidedFlow — ver
   // startGuidedRoutine). Independe de session.guided de propósito.
   session.todaysSteps = todaysGuidedSteps()
-  // RoutineScreen.jsx/HomeScreen.jsx recomputam "passos de hoje" cada uma
+  // MeuPlanoScreen.jsx/HomeScreen.jsx recomputam "passos de hoje" cada uma
   // com o próprio fetch de stepDays (não leem session.todaysSteps direto),
   // mas chamam a mesma stepsScheduledForWeekday pura — sem 4º argumento,
   // Leitura e Estudo são independentes (ver stepDaysMath.js).
@@ -3227,7 +3225,7 @@ export default function App() {
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
     // 26e — entrada real de "Adicionar estudo" (pelo botão "Criar" em Meu
-    // Plano/RoutineScreen.jsx): prontos + banco da comunidade não pedem IA
+    // Plano/MeuPlanoScreen.jsx): prontos + banco da comunidade não pedem IA
     // nenhuma, só o cartão "Criar com a IA" lá dentro pede session.hasAI —
     // por isso esta aba só trava por hasPremium (a rotina inteira já é
     // hasPremium), não por hasAI.

@@ -1,9 +1,7 @@
 // WeeklyDaysPicker.jsx — grade dos 7 dias + atalhos (quadro 27a, Bloco 8).
-// Compartilhado entre o onboarding (OnboardingFlow.jsx, pergunta 4) e
-// "Ritmo da semana" em Ajustar meu plano (AdjustPlanScreen.jsx) — mesmo
-// componente nos dois lugares, como o handoff pede explicitamente ("os dias
-// aparecem como a linha 'Seg · Qua · Sex · Dom', editável no mesmo
-// componente desta tela").
+// Usado no onboarding (OnboardingFlow.jsx, pergunta 4); já foi compartilhado
+// com o "Ritmo da semana" do Ajustar antigo (35c) — o Ajustar atual edita os
+// dias por passo com WeekdayChipRow.
 //
 // `days` é o array de 7 booleanos de sempre (índice 0 = segunda, ver
 // weeklyDaysMath.js); `onChange(nextDays)` dispara a cada toque, num tile

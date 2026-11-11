@@ -75,7 +75,7 @@ export function countMarkedWeekdays(resolvedStepDays, activeSteps) {
 // stepsScheduledForWeekday devolve) foram concluídos naquele dia
 // (dailyRoutine[dateKey]). Dia sem nada marcado nunca é "cumprido" nem
 // "perdido" — não entra na conta (é descanso). Continua exportada (usada
-// em outros lugares/testes) — computeStepWeekGoal/computeWeekPillStates
+// em outros lugares/testes) — computeStepWeekGoal
 // agora usam stepSatisfiedDays abaixo, que permite REPOSIÇÃO; esta função
 // fica como o cheque simples "esse dia específico, sozinho, bateu?".
 export function isStepDayFulfilled(dayRoutineEntry, scheduledSteps) {
@@ -145,26 +145,3 @@ export function computeStepWeekGoal(dailyRoutine, resolvedStepDays, activeSteps,
   return { doneCount, markedCount }
 }
 
-// Estado de cada uma das 7 pílulas do cartão "Esta semana" (35a) — 'done'
-// (cumprido, direto ou por reposição), 'today' (hoje, ainda não cumprido),
-// 'upcoming' (marcado, não cumprido — vale tanto pro futuro quanto pra um
-// dia passado perdido: "um dia perdido não zera nada" nunca vira um estado
-// visual de culpa, e se for reposto depois vira 'done' igual) e 'rest'
-// (nada marcado nesse dia). `done` tem prioridade sobre `today` — se hoje já
-// foi cumprido, mostra cumprido, não "ainda hoje".
-export function computeWeekPillStates(dailyRoutine, resolvedStepDays, activeSteps, today = new Date()) {
-  const monday = mondayOf(today)
-  const todayIdx = (today.getDay() + 6) % 7
-  const satisfiedByStep = {}
-  for (const step of activeSteps) {
-    satisfiedByStep[step] = stepSatisfiedDays(resolvedStepDays[step], dailyRoutine, step, monday, today).satisfied
-  }
-  const states = []
-  for (let i = 0; i < 7; i++) {
-    const scheduled = stepsScheduledForWeekday(resolvedStepDays, activeSteps, i)
-    if (scheduled.length === 0) { states.push('rest'); continue }
-    if (scheduled.every(step => satisfiedByStep[step][i])) { states.push('done'); continue }
-    states.push(i === todayIdx ? 'today' : 'upcoming')
-  }
-  return states
-}
