@@ -561,6 +561,9 @@ export default function App() {
   // { saved, draft } vive aqui, não na tela, pra sobreviver à ida e volta
   // a 35i/35j/lembrete. Limpo ao salvar ou descartar.
   const [adjustDraft, setAdjustDraft] = useState(null)
+  // "Mudar meus dias" (P6) abre o Ajustar já com a Leitura aberta em "EM QUE
+  // DIAS"; o botão Ajustar dos cabeçalhos abre tudo fechado.
+  const [adjustOpenStep, setAdjustOpenStep] = useState(null)
   const [gamification, setGamification] = useState(null)
   const gamificationRef = useRef(null)
   gamificationRef.current = gamification
@@ -1072,6 +1075,9 @@ export default function App() {
   // justamente pra resolver o bloqueio.
   function navigateTo(tab) {
     if (disabledTabs.includes(tab) && tab !== 'upgrade') return
+    // Ajustar aberto pelo botão dos cabeçalhos: tudo fechado (A1). Só
+    // "Mudar meus dias" pede um passo aberto, e ele chama setAdjustOpenStep
+    // antes de navegar — por isso o reset fica em goToTab, não aqui.
     // Aba que existe mas exige Premium (Meu Plano, Comunidade pra quem não
     // assina) — o clique leva pra tela de assinar em vez de abrir.
     if (lockedTabs.includes(tab)) { goToTab('upgrade'); return }
@@ -1091,6 +1097,7 @@ export default function App() {
   // tabHistory acima) — sem isso, "Voltar" só funcionaria depois de cliques
   // no menu, não depois de atalhos como "Continuar sessão".
   function goToTab(tab) {
+    if (tab !== 'adjustPlan' && adjustOpenStep) setAdjustOpenStep(null)
     // Parabéns pendente da gamificação (ver pendingCelebration): aparece
     // na volta ao Hoje, fora do fluxo guiado — nunca no meio de uma sessão.
     if (tab === 'home' && pendingCelebrationRef.current && !guidedFlowRef.current) tab = pendingCelebrationRef.current.kind === 'livro' ? 'livroCompleto' : 'novaConquista'
@@ -3186,13 +3193,13 @@ export default function App() {
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // "Seu plano" (handoff-meu-plano-47, P6) — push a partir da linha
     // "Seu plano" do Meu Plano; sem barra de abas.
-    seuPlano: <SeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onBack={goBack} onNavigate={navigateTo} onChangeDays={() => navigateTo('adjustPlan')} />,
+    seuPlano: <SeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onBack={goBack} onNavigate={navigateTo} onChangeDays={() => { setAdjustOpenStep('reading'); navigateTo('adjustPlan') }} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;
     // "onde começar/ordem/ritmo" e "estudo atual/banco/dias" saíram pras
     // telas próprias readingOrganize (35i) e studyOrganize (35j) abaixo.
     adjustPlan: hasPremium
-      ? <AjustarPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} />
+      ? <AjustarPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} initialOpenStep={adjustOpenStep} scrollToDays={!!adjustOpenStep} key={adjustOpenStep ?? 'fechado'} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     readingOrganize: hasPremium
       ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} onSaveBibleOrderMode={saveBibleOrderMode} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />

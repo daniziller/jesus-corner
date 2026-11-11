@@ -218,4 +218,30 @@ export function weekFooter(plan, hasActiveStudy, finishLabel) {
   return plan.enabled.reading && finishLabel ? `${left} · a Bíblia termina em ${finishLabel}` : left
 }
 
+// ── Textos do passo aberto (A2/A3) ─────────────────────────────────────
+const NUMBER_WORDS = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez']
+
+// "Cerca de um capítulo e meio no seu ritmo" — arredonda a meio capítulo.
+export function chaptersApprox(n) {
+  const half = Math.round(n * 2) / 2
+  const whole = Math.floor(half)
+  const isHalf = half - whole === 0.5
+  if (half <= 0) return null
+  if (whole === 0) return 'Cerca de meio capítulo no seu ritmo'
+  const word = NUMBER_WORDS[whole] ?? String(whole)
+  const noun = whole === 1 ? 'capítulo' : 'capítulos'
+  return `Cerca de ${word} ${noun}${isHalf ? ' e meio' : ''} no seu ritmo`
+}
+
+// "2,5 min por etapa" (tempo ÷ 4, vírgula decimal, sem ",0")
+export function stageMinutes(minutes) {
+  const n = Math.round((minutes / 4) * 10) / 10
+  return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} min por etapa`
+}
+
+// "{n} por semana"
+export function perWeekLabel(days) {
+  return `${days.filter(Boolean).length} por semana`
+}
+
 export { stepName }

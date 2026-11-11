@@ -1,6 +1,6 @@
 // Testa a parte pura de "Ajustar meu plano" (handoff-meu-plano-47, A1–A4):
 // src/meuPlano/ajustarMath.js. Roda com: node scripts/test-ajustar.mjs
-import { buildPlan, weekMinutes, daysWithSomethingCount, weekTotalLabel, barHeight, daysLabel, stepSummary, clockSummary, canDisable, withEnabled, withMinutes, withDayToggled, withMethod, withClock, diffPlans, changesLine, reconcileDraft, weekFooter, clampMinutes } from '../src/meuPlano/ajustarMath.js'
+import { buildPlan, weekMinutes, daysWithSomethingCount, weekTotalLabel, barHeight, daysLabel, stepSummary, clockSummary, canDisable, withEnabled, withMinutes, withDayToggled, withMethod, withClock, diffPlans, changesLine, reconcileDraft, weekFooter, clampMinutes, chaptersApprox, stageMinutes, perWeekLabel } from '../src/meuPlano/ajustarMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -60,6 +60,11 @@ check('ligar: "estudo ligado", "oração ligada"', [diffPlans(withEnabled(saved,
 const newSaved = { ...saved, stepDays: { ...saved.stepDays, reading: [true, true, false, true, false, true, false] } }
 const back = reconcileDraft(draftA2, saved, newSaved)
 check('volta de 35i: dias da leitura vêm do salvo novo, minutos do rascunho ficam', [back.stepDays.reading, back.minutes.reading], [[true, true, false, true, false, true, false], 20])
+
+// ── textos do passo aberto ─────────────────────────────────────────────
+check('capítulos no ritmo', [chaptersApprox(1.4), chaptersApprox(1), chaptersApprox(2.6), chaptersApprox(0.4), chaptersApprox(0.1)], ['Cerca de um capítulo e meio no seu ritmo', 'Cerca de um capítulo no seu ritmo', 'Cerca de dois capítulos e meio no seu ritmo', 'Cerca de meio capítulo no seu ritmo', null])
+check('min por etapa com vírgula', [stageMinutes(10), stageMinutes(20), stageMinutes(15)], ['2,5 min por etapa', '5 min por etapa', '3,8 min por etapa'])
+check('"{n} por semana"', perWeekLabel(saved.stepDays.reading), '3 por semana')
 
 if (failures > 0) { console.error(`\n${failures} verificação(ões) falharam.`); process.exit(1) }
 console.log('\nTodos os testes do Ajustar (parte pura) passaram.')

@@ -22,18 +22,25 @@ import { getMyReminderSchedule } from '../notifications/pushStore'
 import { computeProjection } from '../plan/readingProjection'
 import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath'
 import { loadActiveStudy } from '../meuPlano/activeStudy'
+import WeekdayChipRow from '../components/WeekdayChipRow'
+import { getReadingPaceSessions, getUseLearnedPace } from '../reading/readingPaceStore'
+import { estimateReadingPace, chaptersPerSession } from '../reading/readingPaceMath'
+import { BIBLE_TOTAL_WORDS } from '../data/bibleBlocks'
+import { totalBibleChapters } from '../plan/readingProjection'
 import { reminderLine } from '../meuPlano/seuPlanoMath'
 import { stepName } from '../meuPlano/meuPlanoMath'
 import {
   buildPlan, weekMinutes, daysWithSomethingCount, barHeight, stepSummary, clockSummary, canDisable, LAST_BIBLE_STEP_MESSAGE,
-  withEnabled, diffPlans, changesLine, reconcileDraft, weekFooter,
+  withEnabled, withMinutes, withMethod, withDayToggled, diffPlans, changesLine, reconcileDraft, weekFooter,
+  chaptersApprox, stageMinutes, perWeekLabel, MIN_MINUTES, MAX_MINUTES, MINUTES_STEP,
 } from '../meuPlano/ajustarMath'
 import { STEP_KEYS } from '../routine/stepDaysMath'
 import { daysWithSomething } from '../meuPlano/seuPlanoMath'
 
 const FONT = 'var(--font-bento)'
+const AVG_WORDS_PER_CHAPTER = BIBLE_TOTAL_WORDS / totalBibleChapters()
 
-export default function AjustarPlanoScreen({ session, completedSet, stepMinutes, draftState, onDraftChange, onClearDraft, onSave, onBack, onNavigate, initialOpenStep = null, onOpenClock }) {
+export default function AjustarPlanoScreen({ session, completedSet, stepMinutes, draftState, onDraftChange, onClearDraft, onSave, onBack, onNavigate, initialOpenStep = null, scrollToDays = false, onOpenClock }) {
   const { lang, plan, routineModules, activeStudyId, currentBlock, hasNoPlan } = session
   const [saved, setSaved] = useState(null)
   const [activeStudy, setActiveStudy] = useState(null)
@@ -43,7 +50,11 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [leaveAsk, setLeaveAsk] = useState(false)
+  const [pace, setPace] = useState(null) // { wordsPerMinute, isColdStart } quando o ritmo aprendido está ligado
   const bodyRef = useRef(null)
+  const rowRefs = useRef({})
+  const daysRefs = useRef({})
+  const pendingScrollRef = useRef(initialOpenStep ? { key: initialOpenStep, days: scrollToDays } : null)
 
   // Carrega o salvo e monta (ou reconcilia) o rascunho — ver reconcileDraft.
   useEffect(() => {
@@ -51,14 +62,26 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
     // O lembrete vem à parte: depende do service worker e nunca pode
     // segurar o rascunho (sem push, a promessa pode nem resolver).
     getMyReminderSchedule().then(r => { if (alive) setReminder(r) }).catch(() => {})
+    Promise.all([getUseLearnedPace(), getReadingPaceSessions()]).then(([on, sessions]) => {
+      if (!alive) return
+      const est = estimateReadingPace(sessions)
+      setPace(on && !est.isColdStart ? est : null)
+    }).catch(() => {})
     Promise.all([getStepDays(), getReadingClockPrefs().catch(() => ({})), loadActiveStudy(activeStudyId, lang).catch(() => null)])
       .then(([stepDays, clockPrefs, study]) => {
         if (!alive) return
         const fresh = buildPlan({ routineModules, stepMinutes, plan, prayerMethod: getPrayerMethod(), reflectionMethod: getReflectionMethod(), stepDays, clockPrefs })
         setSaved(fresh)
         setActiveStudy(study)
-        if (draftState?.draft) onDraftChange?.({ saved: fresh, draft: reconcileDraft(draftState.draft, draftState.saved, fresh) })
-        else onDraftChange?.({ saved: fresh, draft: fresh })
+        const d = draftState?.draft ? reconcileDraft(draftState.draft, draftState.saved, fresh) : fresh
+        onDraftChange?.({ saved: fresh, draft: d })
+        // "Mudar meus dias" (P6): abre a Leitura; desligada, o primeiro
+        // passo ligado (HANDOFF §12.4).
+        if (initialOpenStep) {
+          const target = d.enabled[initialOpenStep] ? initialOpenStep : STEP_KEYS.find(k => d.enabled[k]) ?? null
+          setOpenKey(target)
+          pendingScrollRef.current = target ? { key: target, days: scrollToDays } : null
+        }
       })
       .catch(err => console.error('[ajustar] carregar', err))
     return () => { alive = false }
@@ -88,7 +111,42 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
 
   function toggleOpen(key) {
     if (!draft?.enabled[key]) return
-    setOpenKey(k => (k === key ? null : key))
+    const opening = openKey !== key
+    setOpenKey(opening ? key : null)
+    if (opening) pendingScrollRef.current = { key, days: false }
+  }
+
+  // Ao abrir, a tela rola pro topo do cartão ficar visível (ou até "EM
+  // QUE DIAS", vindo de "Mudar meus dias"). Sem animação forçada: o
+  // navegador respeita prefers-reduced-motion com behavior 'auto'.
+  useEffect(() => {
+    const p = pendingScrollRef.current
+    if (!p || openKey !== p.key) return
+    pendingScrollRef.current = null
+    const el = p.days ? daysRefs.current[p.key] : rowRefs.current[p.key]
+    el?.scrollIntoView({ block: p.days ? 'center' : 'start', behavior: 'auto' })
+  }, [openKey, draft])
+
+  function setMinutes(key, delta) {
+    if (!draft) return
+    update(withMinutes(draft, key, draft.minutes[key] + delta))
+  }
+  function setDays(key, days) {
+    if (!draft) return
+    // Desmarcar o último dia desliga o passo e fecha (HANDOFF §12.3).
+    const idx = days.findIndex((v, i) => v !== draft.stepDays[key][i])
+    if (idx < 0) return
+    const r = withDayToggled(draft, key, idx)
+    update(r.plan)
+    if (r.disabled) setOpenKey(null)
+  }
+
+  // Texto de apoio de QUANTO TEMPO (HANDOFF §12.3).
+  function timeHint(key) {
+    if (key === 'prayer') return draft.prayerMethod === 'acts' ? stageMinutes(draft.minutes.prayer) : null
+    if (key === 'reading') return pace ? chaptersApprox(chaptersPerSession(pace.wordsPerMinute, draft.minutes.reading, AVG_WORDS_PER_CHAPTER)) : null
+    if (key === 'reflection') return draft.reflectionMethod === 'questions' ? 'Perguntas geradas do trecho do dia' : null
+    return null
   }
 
   async function save() {
@@ -158,7 +216,7 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
               const name = stepName(key)
               const summary = stepSummary(key, draft, summaryCtx)
               return (
-                <div key={key} style={{ ...s.row, ...(on ? {} : s.rowOff), ...(open ? s.rowOpen : {}) }}>
+                <div key={key} ref={el => { rowRefs.current[key] = el }} style={{ ...s.row, ...(on ? {} : s.rowOff), ...(open ? s.rowOpen : {}) }}>
                   <div
                     style={s.rowHead} role="button" tabIndex={on ? 0 : -1} aria-expanded={on ? open : undefined}
                     aria-label={`${name}, ${on ? `${draft.minutes[key]} minutos, ligado, ${open ? 'aberto' : 'fechado'}` : 'desligado'}`}
@@ -183,6 +241,61 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
                   </div>
                   {warningKey === key && (
                     <p style={s.warning}>{LAST_BIBLE_STEP_MESSAGE}</p>
+                  )}
+                  {open && (key === 'prayer' || key === 'reflection') && (
+                    <div style={s.section}>
+                      <p style={s.sectionTitle}>COMO</p>
+                      <div style={s.modeRow} role="radiogroup" aria-label="Como">
+                        {(key === 'prayer'
+                          ? [['acts', 'ACTS', '4 etapas guiadas'], ['free', 'Livre', 'só o cronômetro']]
+                          : [['questions', 'Com perguntas', 'três sobre o texto'], ['free', 'Livre', 'só a folha em branco']]
+                        ).map(([id, title, sub]) => {
+                          const active = (key === 'prayer' ? draft.prayerMethod : draft.reflectionMethod) === id
+                          return (
+                            <button key={id} type="button" role="radio" aria-checked={active} style={{ ...s.modeBtn, ...(active ? s.modeBtnOn : {}) }} onClick={() => update(withMethod(draft, key, id))}>
+                              <span style={{ ...s.modeTitle, color: active ? '#fff' : 'var(--bento-ink)' }}>{title}</span>
+                              <span style={{ ...s.modeSub, color: active ? 'rgba(255,255,255,.55)' : 'var(--bento-t3)' }}>{sub}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {open && !(key === 'study' && !activeStudy) && (
+                    <div style={s.section}>
+                      <p style={s.sectionTitle}>QUANTO TEMPO</p>
+                      <div style={s.timeRow}>
+                        <span style={s.timeHint}>{timeHint(key) ?? ''}</span>
+                        <div style={s.stepper}>
+                          <button type="button" aria-label="Menos 5 minutos" style={{ ...s.stepMinus, opacity: draft.minutes[key] <= MIN_MINUTES ? 0.4 : 1 }} disabled={draft.minutes[key] <= MIN_MINUTES} onClick={() => setMinutes(key, -MINUTES_STEP)}>
+                            <AppIcon name="Minus" size={16} strokeWidth={2.4} color="var(--bento-ink)" />
+                          </button>
+                          <span style={s.stepValue}><span style={s.stepNum}>{draft.minutes[key]}</span><span style={s.stepUnit}> min</span></span>
+                          <button type="button" aria-label="Mais 5 minutos" style={{ ...s.stepPlus, opacity: draft.minutes[key] >= MAX_MINUTES ? 0.4 : 1 }} disabled={draft.minutes[key] >= MAX_MINUTES} onClick={() => setMinutes(key, MINUTES_STEP)}>
+                            <AppIcon name="Plus" size={16} strokeWidth={2.4} color="var(--bento-accent)" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {open && !(key === 'study' && !activeStudy) && (
+                    <div style={s.section} ref={el => { daysRefs.current[key] = el }}>
+                      <div style={s.sectionHead}>
+                        <p style={{ ...s.sectionTitle, margin: 0 }}>EM QUE DIAS</p>
+                        <span style={s.sectionValue}>{perWeekLabel(draft.stepDays[key])}</span>
+                      </div>
+                      <WeekdayChipRow days={draft.stepDays[key]} onChange={days => setDays(key, days)} lang="pt" tone="ajustar" />
+                      {key === 'reading' && <p style={s.daysNote}>Os outros dias podem ser do estudo.</p>}
+                    </div>
+                  )}
+                  {open && (key === 'reading' || key === 'study') && (
+                    <button type="button" style={{ ...s.shortcut, ...(key === 'study' && !activeStudy ? { marginTop: 14 } : {}) }} onClick={() => onNavigate?.(key === 'reading' ? 'readingOrganize' : 'studyOrganize')}>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={s.shortcutTitle}>{key === 'reading' ? 'Organizar a leitura' : 'Organizar o estudo'}</span>
+                        <span style={s.shortcutSub}>{key === 'reading' ? 'Onde começar, ordem e ritmo' : 'Estudo atual e banco de estudos'}</span>
+                      </span>
+                      <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
+                    </button>
                   )}
                 </div>
               )
@@ -263,6 +376,27 @@ const s = {
   rowSummary: { display: 'block', fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.25, marginTop: 3 },
   switch: { width: 46, height: 28, borderRadius: 99, border: 'none', padding: 3, display: 'flex', alignItems: 'center', flexShrink: 0, cursor: 'pointer', boxSizing: 'border-box' },
   thumb: { width: 22, height: 22, borderRadius: '50%', display: 'block' },
+  section: { borderTop: '1px solid var(--bento-line)', paddingTop: 14, marginTop: 14 },
+  sectionTitle: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 9px' },
+  sectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 9 },
+  sectionValue: { fontFamily: FONT, fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)' },
+  modeRow: { display: 'flex', gap: 8 },
+  modeBtn: { flex: 1, minWidth: 0, borderRadius: 14, border: 'none', background: 'var(--bento-line)', padding: '10px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', minHeight: 44 },
+  modeBtnOn: { background: 'var(--bento-ink)' },
+  modeTitle: { fontFamily: FONT, fontSize: 13, fontWeight: 800 },
+  modeSub: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500 },
+  timeRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  timeHint: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 12, fontWeight: 500, lineHeight: 1.35, color: 'var(--bento-t3)' },
+  stepper: { display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 },
+  stepMinus: { width: 40, height: 40, borderRadius: 13, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 },
+  stepPlus: { width: 40, height: 40, borderRadius: 13, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 },
+  stepValue: { minWidth: 54, textAlign: 'center', whiteSpace: 'nowrap' },
+  stepNum: { fontFamily: FONT, fontSize: 22, fontWeight: 800, letterSpacing: '-0.8px', color: 'var(--bento-ink)' },
+  stepUnit: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-t3)' },
+  daysNote: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '9px 0 0' },
+  shortcut: { width: '100%', display: 'flex', alignItems: 'center', gap: 10, height: 52, border: 'none', borderTop: '1px solid var(--bento-line)', background: 'none', padding: '4px 0 0', marginTop: 14, textAlign: 'left', cursor: 'pointer' },
+  shortcutTitle: { display: 'block', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)' },
+  shortcutSub: { display: 'block', fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', marginTop: 2 },
   warning: { margin: '12px 0 0', borderRadius: 12, background: 'var(--bento-sand)', padding: '10px 12px', fontFamily: FONT, fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-sand-ink-strong)' },
   list: { borderRadius: 24, background: 'var(--bento-card)', padding: '6px 18px', marginTop: 2, flexShrink: 0 },
   listRow: { width: '100%', height: 56, display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' },
