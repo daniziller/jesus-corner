@@ -26,10 +26,8 @@ import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import TimePerStepSheet from '../components/TimePerStepSheet'
 import { DEFAULT_ROUTINE_MODULES, mondayOf } from '../routine/routineStreak'
-import { WEEKDAY_ABBR3, WEEKDAY_FULL } from '../routine/weeklyDaysMath'
-import { isStepEnabled } from '../plan/stepMinutesStore'
+import { WEEKDAY_FULL } from '../routine/weeklyDaysMath'
 import { getAllSessions } from '../metrics/sessionDurationStore'
-import { totalsByStep } from '../metrics/sessionDurationMath'
 import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
@@ -39,7 +37,7 @@ import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { dateKey, parseLocalDateKey } from '../utils/dateKey'
-import { getStepDays, stepsScheduledForWeekday, computeStepWeekGoal, computeWeekPillStates } from '../routine/stepDaysStore'
+import { getStepDays, stepsScheduledForWeekday } from '../routine/stepDaysStore'
 import { STEP_ORDER } from '../routine/planTodayRows'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
@@ -52,8 +50,9 @@ import CartaoSuaBiblia from '../components/gamificacao/CartaoSuaBiblia'
 import { computeBibleProgress } from '../gamification/bibleProgressMath'
 import { bookInfo } from '../data/gamificationBlocks'
 import { getAllChapterReadRows } from '../bible/chapterReadLog'
-
-const STEPS = ['prayer', 'reading', 'reflection']
+import CartaoSuasSemanas from '../components/gamificacao/CartaoSuasSemanas'
+import { getGamificationRow } from '../gamification/achievementsStore'
+import { firstActivityIso } from '../gamification/projectionMath'
 
 function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
@@ -84,7 +83,7 @@ export default function HomeScreen({
   session, authUser, completedSet, stepMinutes,
   onContinueSession, onNavigate, onOpenProfile,
   onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
-  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante,
+  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, onOpenConquistas,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -102,7 +101,11 @@ export default function HomeScreen({
   // a própria falha (RPC ainda sem migration, rede fora) devolvendo um
   // default seguro — uma falha isolada nunca derruba a tela inteira.
   const [loading, setLoading] = useState(true)
-  const [sessionRows, setSessionRows] = useState([])
+  // SUAS SEMANAS (G1/G3): meta vigente por semana e primeiro registro de
+  // atividade (cápsulas anteriores ao cadastro ficam transparentes) —
+  // carregados junto com o resto, em paralelo, nunca depois de pintar
+  // com dado errado.
+  const [weeksInfo, setWeeksInfo] = useState({ goalHistory: [], firstActivityKey: null })
   const [pinnedEntry, setPinnedEntry] = useState(null)
   const [weekAppStatus, setWeekAppStatus] = useState({ total: 0, fulfilled: 0 })
   const [messagesSummary, setMessagesSummary] = useState([])
@@ -232,9 +235,16 @@ export default function HomeScreen({
       getGroupMessagesSummary(),
       chapterForVerse ? getHomeVerse({ ...chapterForVerse, lang }) : Promise.resolve(null),
       lastReadPosition ? getContinuityExcerpt(lastReadPosition.book, lastReadPosition.chapter, lang) : Promise.resolve(null),
-    ]).then(([rows, pinned, weekStatus, msgSummary, homeVerse, excerpt]) => {
+      getGamificationRow(),
+      getAllChapterReadRows(),
+    ]).then(([rows, pinned, weekStatus, msgSummary, homeVerse, excerpt, gami, chapterRows]) => {
       if (!alive) return
-      if (rows.status === 'fulfilled') setSessionRows(rows.value)
+      const sessionRows = rows.status === 'fulfilled' ? rows.value : []
+      const first = firstActivityIso(chapterRows.status === 'fulfilled' ? chapterRows.value : [], sessionRows, dailyRoutine)
+      setWeeksInfo({
+        goalHistory: gami.status === 'fulfilled' ? gami.value.goalHistory : [],
+        firstActivityKey: first ? dateKey(new Date(first)) : null,
+      })
       if (pinned.status === 'fulfilled') setPinnedEntry(pinned.value)
       if (weekStatus.status === 'fulfilled') setWeekAppStatus(weekStatus.value)
       if (msgSummary.status === 'fulfilled') setMessagesSummary(msgSummary.value)
@@ -302,20 +312,6 @@ export default function HomeScreen({
   }
 
   // ── Bloco 2 — SEU PLANO DE HOJE ──
-  // "Esta semana" (Bloco 5) migrado pro mesmo modelo por passo de Meu
-  // Plano (2026-09-09, achado dela: os dois divergiam — Início ainda
-  // usava um weeklyDays só, contando o dia como cumprido só com a
-  // Leitura feita, ignorando os outros passos agendados; Meu Plano já
-  // usava stepDays/computeStepWeekGoal, exigindo TODOS os passos
-  // agendados daquele dia. Ela confirmou: o critério certo é o de Meu
-  // Plano — ver computeWeekPillStates/computeStepWeekGoal mais abaixo.
-  // enabledSteps/minutesFor continuam servindo só a faixa de minutos do
-  // Bloco 5 (weekTimeRow), não a contagem de dias.
-  const enabledSteps = STEPS.filter(s => {
-    const inRoutine = (routineModules ?? DEFAULT_ROUTINE_MODULES).includes(s)
-    const minutesMap = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
-    return inRoutine && isStepEnabled(minutesMap[s])
-  })
   const minutesFor = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
   const todayKeyStr = dateKey()
   const mondayKeyStr = dateKey(mondayOf(new Date()))
@@ -529,32 +525,6 @@ export default function HomeScreen({
       console.error('Failed to mark application phrase as fulfilled', err)
     }
   }
-
-  // ── Bloco 5 — ESTA SEMANA ──
-  // Pedido explícito da Daniela (2026-09-07, comparando com screens/34a.png):
-  // o bloco fica sempre na tela, com o dado real que existir (mesmo que seja
-  // zero) — sem estado "primeiros 7 dias" escondendo o quadro inteiro.
-  //
-  // Migrado pro modelo por passo de Meu Plano (2026-09-09, achado dela —
-  // ver comentário no Bloco 2 acima): dias sem NENHUM passo agendado saem
-  // do total (computeWeekPillStates devolve 'rest' pra eles, nem entram
-  // na lista); um dia com passo agendado só conta "cumprido" quando TODOS
-  // os passos daquele dia foram feitos (isStepDayFulfilled em
-  // stepDaysMath.js), não só a Leitura.
-  const monday = mondayOf(new Date())
-  const pillStates = stepDays ? computeWeekPillStates(dailyRoutine, stepDays, activeStepsToday, new Date()) : []
-  const weekDayCells = pillStates
-    .map((state, i) => ({ state, weekdayIdx: i }))
-    .filter(c => c.state !== 'rest')
-    .map(c => {
-      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + c.weekdayIdx)
-      return { key: dateKey(d), isToday: c.state === 'today', done: c.state === 'done', weekdayIdx: c.weekdayIdx }
-    })
-  const weekGoal = stepDays ? computeStepWeekGoal(dailyRoutine, stepDays, activeStepsToday, new Date()) : { doneCount: 0, markedCount: 0 }
-  const daysMetThisWeek = weekGoal.doneCount
-  const weekTotals = totalsByStep(sessionRows, dateKey(monday))
-  const weekTotalSeconds = weekTotals.prayer + weekTotals.reading + weekTotals.reflection
-  const weekdayAbbr = WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt
 
   // ── Bloco 6 — dois quadrados ──
   const unreadMessagesTotal = messagesSummary.reduce((sum, g) => sum + (g.unreadCount || 0), 0)
@@ -849,55 +819,15 @@ export default function HomeScreen({
           onOpen={onOpenSuaBiblia} onOpenEstante={onOpenEstante}
         />
 
-        {/* Bloco 5 — ESTA SEMANA. Clicável (pedido dela, 2026-09-15) — abre
-            WeekScheduleScreen.jsx, um dia por dia da programação do plano
-            (o que já foi cumprido, o que ainda falta), não só a grade
-            resumida daqui. */}
-        <div
-          style={{ ...styles.weekCard, cursor: 'pointer' }}
-          role="button" tabIndex={0}
-          onClick={() => onNavigate?.('weekSchedule')}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onNavigate?.('weekSchedule') }}
-        >
-          <div style={styles.weekHead}>
-            <p style={styles.weekLabel}>{L('weekLabel')}</p>
-            <p style={styles.weekCount}>
-              <span style={styles.weekCountStrong}>{daysMetThisWeek}</span> {L('ofDaysSuffix', { total: weekGoal.markedCount })}
-            </p>
-          </div>
-          <div style={styles.weekGridRow}>
-            <div style={styles.weekGrid}>
-              {weekDayCells.map(c => {
-                const state = c.done ? 'done' : c.isToday ? 'today' : 'other'
-                return (
-                  <div key={c.key} style={styles.weekDayCol}>
-                    <span style={{ ...styles.weekDaySquare, ...styles.weekDaySquare_[state] }}>
-                      {state === 'done' && <AppIcon name="Check" size={14} color="var(--bento-ink)" strokeWidth={2.8} />}
-                      {state === 'today' && <span style={styles.weekTodayDot} />}
-                    </span>
-                    <span style={{ ...styles.weekDayLetter, ...styles.weekDayLetter_[state] }}>{weekdayAbbr[c.weekdayIdx]}</span>
-                  </div>
-                )
-              })}
-            </div>
-            <p style={styles.weekNote}>{L('weekNote', { day: weekdayFull[todayWeekdayIdx] })}</p>
-          </div>
-
-          {enabledSteps.length > 0 && (
-            <div style={styles.weekTimeRow}>
-              {STEPS.filter(s => enabledSteps.includes(s)).map(s => (
-                <div key={s} style={styles.weekTimeCol}>
-                  <p style={styles.weekTimeValue}>{Math.round((weekTotals[s] || 0) / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
-                  <p style={styles.weekTimeLabel}>{L(`step${cap(s)}`)}</p>
-                </div>
-              ))}
-              <div style={{ ...styles.weekTimeCol, alignItems: 'flex-end', textAlign: 'right' }}>
-                <p style={styles.weekTimeValue}>{Math.round(weekTotalSeconds / 60)}<span style={styles.weekTimeUnit}>{L('minUnit')}</span></p>
-                <p style={styles.weekTimeLabel}>{L('inTotal')}</p>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Bloco 5 — SUAS SEMANAS (G1/G3, handoff-gamificacao-43-46 §3.2):
+            o contador de semanas na meta, no lugar do antigo "ESTA
+            SEMANA" (os minutos por passo continuam em Métricas). Toque →
+            Minhas conquistas (G5). */}
+        <CartaoSuasSemanas
+          dailyRoutine={dailyRoutine} goalHistory={weeksInfo.goalHistory}
+          weeklyGoalDays={session.weeklyGoalDays} weeklyDays={session.weeklyDays}
+          firstActivityKey={weeksInfo.firstActivityKey} onOpen={onOpenConquistas}
+        />
 
         {/* Bloco 6 — dois quadrados. Pedido dela (2026-09-12): "Anotar uma
             pregação" virou quadrado pra ficar do lado do de mensagens —
@@ -1087,35 +1017,6 @@ const styles = {
   fulfillBtn: { height: 34, padding: '0 14px', borderRadius: 12, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: 'pointer' },
   fulfillBtnDone: { opacity: 0.6, cursor: 'default' },
   applyWeekCount: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-sand-ink)' },
-
-  // Bloco 5.
-  weekCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 20px' },
-  weekHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 },
-  weekLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
-  weekCount: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-t2)', margin: 0 },
-  weekCountStrong: { fontWeight: 800, color: 'var(--bento-ink)' },
-  weekGridRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
-  weekGrid: { display: 'flex', gap: 8, flexShrink: 0 },
-  weekDayCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
-  weekDaySquare: { width: 30, height: 30, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' },
-  weekDaySquare_: {
-    done: { background: 'var(--bento-accent)' },
-    today: { background: 'var(--bento-ink)' },
-    other: { background: 'var(--bento-bg)' },
-  },
-  weekTodayDot: { width: 6, height: 6, borderRadius: 99, background: 'var(--bento-accent)' },
-  weekDayLetter: { fontFamily: FONT, fontSize: 9.5, lineHeight: 1 },
-  weekDayLetter_: {
-    done: { fontWeight: 800, color: 'var(--bento-ink)' },
-    today: { fontWeight: 800, color: 'var(--bento-ink)' },
-    other: { fontWeight: 700, color: 'var(--bento-t2)' },
-  },
-  weekNote: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 11.5, fontWeight: 600, lineHeight: 1.35, color: 'var(--bento-t2)', margin: 0 },
-  weekTimeRow: { display: 'flex', gap: 10, borderTop: '1px solid var(--bento-line)', marginTop: 14, paddingTop: 12 },
-  weekTimeCol: { flex: 1, minWidth: 0 },
-  weekTimeValue: { fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 2px' },
-  weekTimeUnit: { fontSize: 10, fontWeight: 600, color: 'var(--bento-t2)' },
-  weekTimeLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 600, color: 'var(--bento-t2)', margin: 0 },
 
   // Bloco 6.
   squaresRow: { display: 'flex', gap: 10 },

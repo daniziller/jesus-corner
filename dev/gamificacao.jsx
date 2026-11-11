@@ -19,6 +19,7 @@ import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
 import { setWheelMode } from '../src/gamification/wheelModeStore'
+import { dateKey } from '../src/utils/dateKey'
 
 const params = new URLSearchParams(location.search)
 const tela = params.get('tela') ?? 'hoje'
@@ -51,9 +52,23 @@ function seedGuestTables(estado) {
   for (let d = 70; d >= 0; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d) })
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
-  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: { '2026-11-09': { reading: true } } }))
+  // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
+  const routine = {}
+  const monday = new Date(); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+  for (let w = 20; w >= 1; w--) {
+    const miss = w === 10 || w === 3
+    for (const i of miss ? [0, 3] : [0, 1, 3, 5]) {
+      const d = new Date(monday); d.setDate(d.getDate() - 7 * w + i)
+      routine[dateKey(d)] = { reading: true, prayer: true }
+    }
+  }
+  routine[dateKey(monday)] = { reading: true }
+  const history = [{ desde: dateKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * 20)), dias: 4 }]
+  const nova = estado === 'nova'
+  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history }))
+  return nova ? {} : routine
 }
-seedGuestTables(estado)
+const dailyRoutine = seedGuestTables(estado)
 const plan = PLANS.find(p => p.id === 'standard')
 const todaySession = estado === 'inteira'
   ? { book: 'Apocalipse', chStart: 22, chEnd: 22, type: 'reading', needsThemePick: false, title: 'Apocalipse 22', id: 1 }
@@ -62,11 +77,11 @@ const todaySession = estado === 'inteira'
 const session = {
   lang: 'pt', userName: 'Diego', avatarInitials: 'DZ', todaySession,
   routineModules: ['prayer', 'reading', 'reflection'], plan,
-  todayRoutine: {}, dailyRoutine: { '2026-11-09': { reading: true, prayer: true } },
+  todayRoutine: {}, dailyRoutine,
   lastReadPosition: { book: 'Gênesis', chapter: 41 },
   biblePercent: 4.2, activeStudyId: null,
   chaptersRead: completedSet.size, booksCompleted: 1,
-  myGroups: [], hasNoPlan: false, hasPremium: true, weeklyGoalDays: 4,
+  myGroups: [], hasNoPlan: false, hasPremium: true, weeklyGoalDays: 4, weeklyDays: [true, true, false, true, false, true, false],
   currentBlock: { book: 'Gênesis', chapter: 42, bookChapters: 50, bookPercent: 82 },
 }
 const authUser = { email: 'preview@example.com' }
