@@ -58,3 +58,20 @@ export function estimateBibleCompletion(capitulosLidos, ratePerDay, today = new 
   d.setDate(d.getDate() + Math.ceil(remaining / ratePerDay))
   return d
 }
+
+// Primeiro registro de atividade da conta (ISO) — o mais antigo entre
+// capítulos lidos datados, sessões cronometradas e dias do plano; null se
+// não há nada. Base de "desde {mês}" (G5), de "semanas anteriores ao
+// cadastro" (G3) e do "dias de uso" acima.
+export function firstActivityIso(chapterRows, sessionRows, dailyRoutine) {
+  let min = null
+  const consider = iso => { if (iso && (!min || iso < min)) min = iso }
+  for (const r of chapterRows ?? []) if (r?.created_at) consider(new Date(r.created_at).toISOString())
+  for (const r of sessionRows ?? []) if (r?.created_at) consider(new Date(r.created_at).toISOString())
+  for (const key in dailyRoutine ?? {}) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue
+    const [y, m, d] = key.split('-').map(Number)
+    consider(new Date(y, m - 1, d, 12).toISOString())
+  }
+  return min
+}

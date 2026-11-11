@@ -107,6 +107,7 @@ import { getReadingOrder, setReadingOrder as persistReadingOrder } from './readi
 import { getReadingSeconds } from './reading/readingTimeStore'
 import ChapterRoomScreen from './screens/ChapterRoomScreen'
 import DayCompleteScreen from './screens/DayCompleteScreen'
+import SuaBibliaScreen from './screens/SuaBibliaScreen'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
 import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRecapStore'
 import WeeklySummaryNumbersScreen from './screens/WeeklySummaryNumbersScreen'
@@ -1427,6 +1428,16 @@ export default function App() {
     )
     if (!targetSession) return
     setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id })
+    goToTab('journey')
+  }
+
+  // Abre um LIVRO na aba Bíblia (grade de capítulos, BookChapterScreen),
+  // não um capítulo — toque numa fatia da roda (G2) e, nas etapas
+  // seguintes da gamificação, selo em andamento/"O próximo selo" (G9).
+  // Mesmo mecanismo de browseJumpTarget de openBiblePassage, com
+  // `bookName` em vez de blockId/sessionId (ver JourneyScreen.jsx).
+  function openBibleBook(book) {
+    setBrowseJumpTarget({ bookName: book })
     goToTab('journey')
   }
 
@@ -2939,7 +2950,12 @@ export default function App() {
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
       applicationRefreshKey={applicationRefreshVersion}
+      onOpenSuaBiblia={() => goToTab('suaBiblia')}
     />,
+    // Gamificação (handoff-gamificacao-43-46) — Sua Bíblia (G2), aberta
+    // pelo cartão SUA BÍBLIA do Hoje. Tela empilhada sem barra de abas,
+    // mesmo padrão de metrics.
+    suaBiblia: <SuaBibliaScreen session={session} completedSet={completedSet} onBack={goBack} onOpenBook={openBibleBook} />,
     // Turno 35, Bloco 2 (handoff-meu-plano-35/) — 35a/35b substituem a 4b
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
     // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
@@ -3313,7 +3329,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'suaBiblia', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3330,7 +3346,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'suaBiblia', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se

@@ -21,7 +21,7 @@
 // (ProgressScreen.jsx) saiu de vez — já estava supersedida por Métricas
 // (MetricsScreen.jsx, 30b), que é pra onde o quadrado "Minhas métricas"
 // desta tela leva.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import TimePerStepSheet from '../components/TimePerStepSheet'
@@ -48,6 +48,10 @@ import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
+import CartaoSuaBiblia from '../components/gamificacao/CartaoSuaBiblia'
+import { computeBibleProgress } from '../gamification/bibleProgressMath'
+import { bookInfo } from '../data/gamificationBlocks'
+import { getAllChapterReadRows } from '../bible/chapterReadLog'
 
 const STEPS = ['prayer', 'reading', 'reflection']
 
@@ -80,7 +84,7 @@ export default function HomeScreen({
   session, authUser, completedSet, stepMinutes,
   onContinueSession, onNavigate, onOpenProfile,
   onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
-  applicationRefreshKey,
+  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -567,6 +571,34 @@ export default function HomeScreen({
 
   const initialStepMinutes = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
 
+  // ── Bloco 4.5 — SUA BÍBLIA (G1, handoff-gamificacao-43-46) ──
+  // Só completedSet (síncrono, 1.189 consultas num Set) — nada de rede,
+  // nada que atrase a primeira pintura. Memo: recalcula só quando o
+  // progresso muda. Marcador = livro da sessão de hoje, se for um livro
+  // da Bíblia (sem plano de leitura ativo, sem marcador).
+  const bibleProgress = useMemo(() => computeBibleProgress(completedSet), [completedSet])
+  const bibleReads = useMemo(() => {
+    const out = {}
+    for (const nome in bibleProgress.porLivro) out[nome] = bibleProgress.porLivro[nome].lidos
+    return out
+  }, [bibleProgress])
+  const currentBibleBook = todaySession?.type !== 'reflection' && todaySession?.book && bookInfo(todaySession.book) ? todaySession.book : null
+  // Bíblia inteira (HANDOFF §8): o rodapé mostra a data de término — a
+  // maior data de chapters_read. Buscada só nesse caso (raro), fora da
+  // primeira pintura; sem linha datada, o rodapé fica sem data.
+  const [bibleCompletedAt, setBibleCompletedAt] = useState(null)
+  useEffect(() => {
+    if (!bibleProgress.bibliaInteira) return
+    let alive = true
+    getAllChapterReadRows().then(rows => {
+      if (!alive) return
+      let max = null
+      for (const r of rows ?? []) if (r?.created_at && (!max || r.created_at > max)) max = r.created_at
+      setBibleCompletedAt(max)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [bibleProgress.bibliaInteira])
+
   if (loading) {
     return (
       <div style={styles.screen}>
@@ -583,6 +615,7 @@ export default function HomeScreen({
           <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 210 }} />
           <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 130 }} />
           <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 110 }} />
+          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 470 }} />
           <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 180 }} />
           <div style={{ display: 'flex', gap: 10 }}>
             <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
@@ -807,6 +840,14 @@ export default function HomeScreen({
             )}
           </div>
         )}
+
+        {/* Bloco 4.5 — SUA BÍBLIA (G1, handoff-gamificacao-43-46 §3.1):
+            a roda. Toque no cartão → Sua Bíblia (G2); "Ver livros" →
+            Minha estante (G9). */}
+        <CartaoSuaBiblia
+          progress={bibleProgress} reads={bibleReads} currentBook={currentBibleBook} completedAtIso={bibleCompletedAt}
+          onOpen={onOpenSuaBiblia} onOpenEstante={onOpenEstante}
+        />
 
         {/* Bloco 5 — ESTA SEMANA. Clicável (pedido dela, 2026-09-15) — abre
             WeekScheduleScreen.jsx, um dia por dia da programação do plano

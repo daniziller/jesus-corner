@@ -13,7 +13,8 @@ import { computeBibleProgress, closestSeal, nextUnreadChapter, nextBlockToLight 
 import { goalForWeek, appendGoalHistory, computeMetWeeks, computeWeeksInGoal, computeWeekCapsules, computeWeekDayStates, computeCurrentWeekGoal } from '../src/gamification/weeksMath.js'
 import { computeFamilyStates, thresholdDate, tempoStats, oracaoStats, dayKeyToIso, familyRatePerMonth, monthsToNext, bookPosition } from '../src/gamification/familiesMath.js'
 import { computeEarnedAchievements, mergeAchievementStore, mergeBookSeals, markSeen, unseenIds, countEarned, pickClosest, pickCelebration, startReread, recordRereadChapter } from '../src/gamification/achievementsMath.js'
-import { readingRatePerDay, projectPercentInOneYear, estimateBibleCompletion, projectBookReads } from '../src/gamification/projectionMath.js'
+import { readingRatePerDay, projectPercentInOneYear, estimateBibleCompletion, projectBookReads, firstActivityIso } from '../src/gamification/projectionMath.js'
+import { computeSlices, fillPath, markerAngle, USABLE_DEGREES, START_DEGREES, GAP_BLOCK, sectorPath } from '../src/gamification/wheelGeometry.js'
 import { formatInt, formatPct, faltamPhrase, deOf, monthYearShort, dayMonthLong, formatDuration, monthYearLong } from '../src/gamification/format.js'
 import { dateKey } from '../src/utils/dateKey.js'
 
@@ -200,6 +201,24 @@ check('em um ano a 0,5/dia: 30 + 182,5 = 212,5 → 17,9%', projectPercentInOneYe
 check('Bíblia inteira a 0,5/dia: 2.318 dias depois', dateKey(estimateBibleCompletion(30, 0.5, today)), dateKey(new Date(2026, 10, 10 + 2318)))
 check('Bíblia inteira já lida → sem data', estimateBibleCompletion(1189, 0.5, today), null)
 check('projectBookReads avança na ordem canônica', projectBookReads({ 'Gênesis': { lidos: 48 } }, GAMIFICATION_BOOKS, 10 / 365)['Êxodo'], 8)
+
+check('firstActivityIso: o mais antigo entre as 3 fontes', firstActivityIso([{ created_at: '2026-03-10T10:00:00Z' }], [{ created_at: '2026-02-01T10:00:00Z' }], { '2026-02-15': R }), '2026-02-01T10:00:00.000Z')
+check('firstActivityIso: nada → null', firstActivityIso([], [], {}), null)
+
+// ── Geometria da roda (HANDOFF §2) ─────────────────────────────────────
+check('ângulo útil 292,2° e início 1,7°', [Math.round(USABLE_DEGREES * 10) / 10, START_DEGREES], [292.2, 1.7])
+const sl = computeSlices('livros')
+const sc = computeSlices('capitulos')
+check('66 fatias nos dois modos', [sl.length, sc.length], [66, 66])
+check('modo livros: todas as fatias iguais (292,2/66)', sl.every(x => Math.abs((x.a1 - x.a0) - USABLE_DEGREES / 66) < 1e-9), true)
+check('modo capítulos: Salmos é a maior, Obadias a menor', [sc.reduce((m, x) => (x.a1 - x.a0 > m.a1 - m.a0 ? x : m)).nome, sc.reduce((m, x) => (x.a1 - x.a0 < m.a1 - m.a0 ? x : m)).nome], ['Salmos', 'Obadias'])
+check('a última fatia termina 1,7° antes do topo (fecha os 360°)', Math.round((sl[65].a1 + GAP_BLOCK / 2) * 1000) / 1000, 360)
+check('folga de bloco entre Deuteronômio e Josué = 3,4°; entre livros 0,7°', [Math.round((sl[5].a0 - sl[4].a1) * 10) / 10, Math.round((sl[1].a0 - sl[0].a1) * 10) / 10], [3.4, 0.7])
+check('setor abaixo de 0,04° não é desenhado', sectorPath(0, 0.03, 80, 136), '')
+check('fill livros: 25 de 50 vai até r = 108', fillPath(sl[0], 25, 'livros').includes('A108 108'), true)
+check('fill capítulos: metade da largura', Math.round((sc[0].a0 + (sc[0].a1 - sc[0].a0) / 2) * 1000) / 1000, Math.round(markerAngle(sc[0], 25, 'capitulos') * 1000) / 1000)
+check('marcador livros: meio da fatia', markerAngle(sl[0], 10, 'livros'), (sl[0].a0 + sl[0].a1) / 2)
+check('trilho inteiro existe pra todo livro', sl.every(x => x.trail.length > 0) && sc.every(x => x.trail.length > 0), true)
 
 // ── Formatação pt-BR ───────────────────────────────────────────────────
 check('1.189 com ponto de milhar', formatInt(1189), '1.189')

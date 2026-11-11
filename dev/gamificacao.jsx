@@ -1,0 +1,96 @@
+// dev/gamificacao.jsx — pré-visualização das telas da gamificação SÓ em
+// desenvolvimento (handoff-gamificacao-43-46, PROMPT-CODE "deixe um seletor
+// de debug (só em desenvolvimento)"). Entrada à parte do Vite
+// (dev/gamificacao.html → http://localhost:5173/dev/gamificacao.html);
+// `vite build` só empacota index.html, então nada daqui vai pra produção.
+//
+// Renderiza as telas REAIS (HomeScreen, SuaBibliaScreen) com uma sessão
+// de exemplo montada aqui — o app de verdade exige conta (decisão de
+// 2026-09-07), e assim dá pra pôr cada tela e cada estado do HANDOFF §8
+// ao lado do PNG sem login.
+//
+// Uso: ?tela=hoje|suaBiblia&estado=exemplo|nova|inteira|carregando
+//      &modo=livros|capitulos
+import { StrictMode, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import '../src/index.css'
+import HomeScreen from '../src/screens/HomeScreen'
+import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
+import { PLANS } from '../src/data/bibleBlocks'
+import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
+import { setWheelMode } from '../src/gamification/wheelModeStore'
+
+const params = new URLSearchParams(location.search)
+const tela = params.get('tela') ?? 'hoje'
+const estado = params.get('estado') ?? 'exemplo'
+if (params.get('modo')) setWheelMode(params.get('modo'))
+
+function keysFor(estado) {
+  const set = new Set()
+  const add = (nome, ate) => { for (let c = 1; c <= ate; c++) set.add(`${nome}:${c}`) }
+  if (estado === 'exemplo') { add('Gênesis', 41); add('Salmos', 5); add('Jonas', 4) }
+  if (estado === 'inteira') for (const b of GAMIFICATION_BOOKS) add(b.nome, b.capitulos)
+  return set
+}
+
+const completedSet = keysFor(estado)
+
+// Linhas locais de convidado (guestTableStore.js lê daqui sem conta) com
+// DATAS — é o que alimenta ritmo/projeção (G2) e, nas etapas seguintes,
+// as datas das conquistas. Semeadas uma vez por estado.
+function seedGuestTables(estado) {
+  const day = n => new Date(Date.now() - n * 86400000).toISOString()
+  const chapters = []
+  const sessions = []
+  let i = 0
+  for (const key of completedSet) {
+    const [livro, cap] = key.split(':')
+    chapters.push({ livro, capitulo: Number(cap), origem: 'sessao', created_at: day(estado === 'inteira' ? Math.floor(i / 4) : 70 - i) })
+    i++
+  }
+  for (let d = 70; d >= 0; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d) })
+  localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
+  localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
+  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: { '2026-11-09': { reading: true } } }))
+}
+seedGuestTables(estado)
+const plan = PLANS.find(p => p.id === 'standard')
+const todaySession = estado === 'inteira'
+  ? { book: 'Apocalipse', chStart: 22, chEnd: 22, type: 'reading', needsThemePick: false, title: 'Apocalipse 22', id: 1 }
+  : { book: 'Gênesis', chStart: 42, chEnd: 42, type: 'reading', needsThemePick: false, title: 'Gênesis 42', id: 1 }
+
+const session = {
+  lang: 'pt', userName: 'Diego', avatarInitials: 'DZ', todaySession,
+  routineModules: ['prayer', 'reading', 'reflection'], plan,
+  todayRoutine: {}, dailyRoutine: { '2026-11-09': { reading: true, prayer: true } },
+  lastReadPosition: { book: 'Gênesis', chapter: 41 },
+  biblePercent: 4.2, activeStudyId: null,
+  chaptersRead: completedSet.size, booksCompleted: 1,
+  myGroups: [], hasNoPlan: false, hasPremium: true, weeklyGoalDays: 4,
+  currentBlock: { book: 'Gênesis', chapter: 42, bookChapters: 50, bookPercent: 82 },
+}
+const authUser = { email: 'preview@example.com' }
+
+function Preview() {
+  const [screen, setScreen] = useState(tela)
+  const [forceLoading] = useState(estado === 'carregando')
+  const common = { session, authUser, completedSet }
+  let body
+  if (screen === 'suaBiblia') {
+    body = <SuaBibliaScreen {...common} onBack={() => setScreen('hoje')} onOpenBook={nome => alert(`abrir ${nome} na Bíblia`)} />
+  } else {
+    body = (
+      <HomeScreen
+        {...common} stepMinutes={{ prayer: 10, reading: 15, reflection: 8 }} weeklySummaries={[]}
+        onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}} onSaveStepMinutes={() => {}}
+        onOpenWeeklySummary={() => {}} onOpenBiblePassage={() => {}} onOpenSermonNote={() => {}}
+        applicationRefreshKey={0}
+        onOpenSuaBiblia={() => setScreen('suaBiblia')}
+        key={forceLoading ? 'loading' : 'ready'}
+      />
+    )
+  }
+  return <div style={{ height: '100%' }}>{body}</div>
+}
+
+createRoot(document.getElementById('root')).render(<StrictMode><Preview /></StrictMode>)

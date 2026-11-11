@@ -103,6 +103,31 @@
   --bento-quote-ink: #4A423A;
   --bento-destructive: #C24E19;
   --font-bento: 'Manrope', sans-serif;
+
+  /* ── Gamificação (handoff-gamificacao-43-46, HANDOFF §1) — cor cheia e
+     tom claro dos OITO blocos da roda/estante/selos/medalha de bloco. São
+     um contrato: o mesmo bloco tem exatamente a mesma cor em toda tela, e
+     só por estas variáveis (fonte: src/data/gamificationBlocks.js).
+     Evangelhos e Atos usa o laranja da marca de propósito, e o tom dele
+     (#FCDFCF) é também o "laranja claro" do HANDOFF (cápsula da semana
+     atual, G3). O âmbar do degrau 2 das medalhas (#D0822A) é a cor de
+     Históricos. */
+  --bloco-lei: #8E3B2A;
+  --bloco-lei-tom: #EDDAD3;
+  --bloco-historicos: #D0822A;
+  --bloco-historicos-tom: #F3E3CC;
+  --bloco-poeticos: #B3922A;
+  --bloco-poeticos-tom: #EFE7CB;
+  --bloco-profetas-maiores: #6E8A3C;
+  --bloco-profetas-maiores-tom: #DFE6D2;
+  --bloco-profetas-menores: #3E7A62;
+  --bloco-profetas-menores-tom: #D2E3DB;
+  --bloco-evangelhos-atos: var(--bento-accent);
+  --bloco-evangelhos-atos-tom: #FCDFCF;
+  --bloco-cartas-paulo: #3D6C8E;
+  --bloco-cartas-paulo-tom: #D5E0E9;
+  --bloco-gerais-apocalipse: #6A5A8E;
+  --bloco-gerais-apocalipse-tom: #E0DBE9;
 }
 
 html, body, #root {
@@ -298,6 +323,18 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .rb-context-skeleton { animation: none; opacity: 0.6; }
+}
+
+/* Roda da Bíblia (RodaDaBiblia.jsx, HANDOFF §2): ao abrir, nenhuma
+   animação; quando um capítulo é marcado e a pessoa volta ao Hoje, o
+   preenchimento daquela fatia cresce em 400ms ease-out. O `d` da fatia é
+   dado como propriedade CSS (não só atributo) justamente pra transição
+   funcionar; navegador sem suporte a `d` em CSS só pula a animação. */
+.roda-fatia-fill {
+  transition: d .4s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .roda-fatia-fill { transition: none; }
 }
 
 /* ── Botões do painel do admin (AdminScreen.jsx, 23a-d) — únicos
