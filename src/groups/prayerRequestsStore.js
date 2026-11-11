@@ -12,7 +12,10 @@
 // acrescenta o ciclo de resposta ("Como Deus respondeu?", 36e) e vira
 // "Orei por isso" de toggle em marca-por-dia — em TODO lugar que usa
 // group_prayer_intentions, inclusive aqui (markPraying substitui o antigo
-// togglePraying; não existe mais "desmarcar" pelo client).
+// togglePraying). Desmarcar só existe num lugar: a Súplica (S2, pacote
+// 53-54), e só a marca de HOJE feita naquela mesma oração
+// (unmarkPrayingToday) — as telas chamam pedidos/orei.js, nunca daqui
+// direto.
 //
 // As 3 funções de LEITURA (getMyPrayerRequests/getSupplicationRequests/
 // getPrayerRequestsFeed) relançam o erro do RPC em vez de engolir e
@@ -141,6 +144,21 @@ export async function markPraying(requestId) {
   // .catch; engolindo o erro aqui, a reversão nunca rodava e "orei" ficava
   // marcado na tela sem ter sido gravado (varredura 2026-10-25).
   if (error) throw new Error(`mark praying failed: ${error.message}`)
+}
+
+// Desfaz a marca de HOJE (dia do aparelho) num pedido — só a própria
+// (policy "desmarcar e so meu"). Usado só pela Súplica, pra quem tocou no
+// check errado; as marcas de outros dias nunca saem.
+export async function unmarkPrayingToday(requestId) {
+  const userId = await getUserId()
+  if (!userId) return
+  const { error } = await supabase
+    .from('group_prayer_intentions')
+    .delete()
+    .eq('prayer_request_id', requestId)
+    .eq('user_id', userId)
+    .eq('prayed_date', dateKey())
+  if (error) throw new Error(`unmark praying failed: ${error.message}`)
 }
 
 // ── Gamificação (família "Oração pelos outros") ──────────────────────

@@ -334,13 +334,31 @@ body {
 /* Bíblia — controles de 38px do cabeçalho (voltar, pílulas, três pontos):
    a área de toque avança 3px pra cada lado e chega a 44px, sem mexer no
    desenho (os vãos entre eles são de 8px ou mais). */
-.biblia-alvo {
+.biblia-alvo,
+.passo-alvo {
   position: relative;
 }
-.biblia-alvo::after {
+.biblia-alvo::after,
+.passo-alvo::after {
   content: '';
   position: absolute;
   inset: -3px;
+}
+
+/* Passos do plano (handoff-passos-pedidos-53-54): as pastilhas de frase
+   têm 34px de altura no desenho e 44px de área de toque; e o texto de
+   apoio do campo de escrita. */
+.passo-pastilha {
+  position: relative;
+}
+.passo-pastilha::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
+}
+.passo-campo::placeholder {
+  color: var(--bento-t4);
+  opacity: 1;
 }
 
 /* Busca da Bíblia (BuscaScreen.jsx, handoff-biblia-52 §6) — o texto de

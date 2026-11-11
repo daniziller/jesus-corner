@@ -1,141 +1,99 @@
-// PrayerScreen.jsx — Oração (pacote 36-37, handoff-passos-36-37/, quadros
-// 36b ACTS e 36c livre). Reescreve por inteiro a versão anterior (26a/26h):
-// o método (ACTS ou livre) agora é decidido em Meu Plano/Ajustar (35c) e só
-// LIDO aqui — sem chip pra trocar dentro da execução —, cada etapa do ACTS
-// ganha sua PRÓPRIA tela em vez de aparecer como 4 linhas juntas, e o
-// relógio se divide em dois: a pílula do cabeçalho conta a ETAPA, o filete
-// abaixo conta a ORAÇÃO INTEIRA. RoutineStepSwitcher saiu — o quadro não
-// mostra (o botão único de Meu Plano já emenda os passos sozinho).
+// PrayerScreen.jsx — Oração. Dois jeitos, decididos em Meu Plano/Ajustar e
+// só LIDOS aqui:
 //
-// Sem persistência ainda para o que a pessoa escreve nos campos "comece
-// assim"/"anote algo" — o quadro só promete privacidade ("é só seu"), não
-// pede uma Biblioteca de orações; fica como texto local da sessão, perdido
-// ao sair da tela. Se ela quiser guardar isso de verdade depois, é um
-// pacote à parte (store novo).
+//   · ACTS (S1/S2, handoff-passos-pedidos-53-54 §2–§3): cada etapa numa
+//     tela — cabeçalho com o relógio da oração inteira e a barra do dia, a
+//     trilha das quatro etapas, o cartão preto com a orientação e, embaixo,
+//     o cartão de escrita (Adoração, Confissão, Gratidão) ou a lista de
+//     pedidos (Súplica). O botão laranja leva à etapa seguinte e, na
+//     última, termina a oração.
+//   · livre (36c, handoff-passos-36-37): sem etapas — não mudou.
+//
+// O motor é o mesmo dos dois: o relógio (useStepTimer), o aviso quando uma
+// etapa zera, o tempo que sobra de uma etapa pulada indo para as
+// seguintes, e o que acontece ao terminar (finishPrayer).
+//
+// Privacidade: o que a pessoa escreve nas etapas vive só no estado desta
+// tela (stageNotes) — não é gravado nem enviado a lugar nenhum, e some
+// quando a oração termina.
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { PRAYER_STAGES } from '../prayer/prayerStages'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
-import { getMyPrayerRequests, getSupplicationRequests, markPraying } from '../groups/prayerRequestsStore'
-import { originTimeLabel } from '../prayer/prayerRequestFormat'
-import { avatarInitialsOf } from '../utils/avatarInitials'
+import { getMyPrayerRequests } from '../groups/prayerRequestsStore'
 import { incrementPrayerStat } from '../prayer/prayerStatsStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { playStageChime } from '../utils/chime'
 import { useStepTimer } from '../timer/useStepTimer'
 import { usePlanTotalToday } from '../timer/usePlanTotalToday'
+import { resolveMinutes } from '../meuPlano/meuPlanoMath'
+import { dayBarSegments, dayBarAria, stepSubtitle, actsTrail, actsTrailAria, stageCardLabel, actsFooter } from '../passos/passosMath'
+import { useKeyboardInset } from '../passos/useKeyboardInset'
+import { usePedidos } from '../pedidos/usePedidos'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
-import PrayerRequestCard from '../components/prayer/PrayerRequestCard'
 import PremiumLockCard from '../components/PremiumLockCard'
 import StepTimerCard from '../components/timer/StepTimerCard'
+import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
+import RelogioDoPasso from '../components/passos/RelogioDoPasso'
+import TrilhaActs from '../components/passos/TrilhaActs'
+import CartaoAgora from '../components/passos/CartaoAgora'
+import CartaoDeEscrita from '../components/passos/CartaoDeEscrita'
+import PedidosDaSuplica from '../components/passos/PedidosDaSuplica'
+import RodapeDoPasso from '../components/passos/RodapeDoPasso'
 
-// Avatar da linha de Súplica (PD3) — cor pelo ORIGEM do pedido, não por
-// quem é (areia grupo, pêssego amigo, F2EEE9 anônimo — handoff). Anônimo
-// usa "AN" fixo (as duas primeiras letras da palavra em si, não iniciais
-// de nome nenhum — não existe nome pra tirar iniciais de um anônimo).
-function suplicaAvatar(r) {
-  if (r.anonymous) return { initials: 'AN', bg: 'var(--bento-line)', color: 'var(--bento-t3)' }
-  if (r.scope === 'friends') return { initials: avatarInitialsOf(r.authorName), bg: 'var(--bento-mark)', color: 'var(--bento-sand-icon)' }
-  return { initials: avatarInitialsOf(r.authorName), bg: 'var(--bento-sand)', color: 'var(--bento-sand-ink)' }
-}
-
-export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerCompleted, onContinueSession, onNavigate, onExitGuided, onBack, timerControlsRef, onTimerRunningChange }) {
+// `active`: a tela está na frente (ela fica montada, escondida, depois da
+// primeira visita — ver prayerVisitedRef em App.jsx). `pedidosApi` e
+// `initialStage` só existem para a pré-visualização de desenvolvimento.
+export default function PrayerScreen({ session, authUser, stepMinutes, active = true, onPrayerCompleted, onNavigate, onExitGuided, onBack, timerControlsRef, onTimerRunningChange, pedidosApi, initialStage = 0 }) {
   const { lang } = session
   const guided = session.guided?.step === 'prayer'
   const L = (k, vars) => t(`prayer.${k}`, vars, lang)
   const email = authUser?.email
   const method = useMemo(getPrayerMethod, [])
+  const acts = method === 'acts'
   const totalMinutes = stepMinutes?.prayer ?? session.plan.prayerMinutes
   const TOTAL_SECONDS = totalMinutes * 60
 
-  // "passo N de M" do cabeçalho — sempre os passos de HOJE (session.
-  // todaysSteps, App.jsx), não só dentro do modo guiado: Oração pode ser o
-  // único passo restante hoje e nunca entrar em guidedFlow (ver
-  // startGuidedRoutine em App.jsx), mas o cabeçalho do quadro sempre mostra
-  // a posição mesmo assim.
-  const todaysSteps = session.todaysSteps ?? ['prayer']
-  const stepIdx = Math.max(0, todaysSteps.indexOf('prayer'))
-
   // ACTS: duração de cada etapa (segundos) — começa igual (total ÷ 4),
-  // "Pular etapa" redistribui o que sobrou da etapa atual pelas seguintes
-  // (ver skipStage abaixo). currentStageIdx só avança por toque (etapa que
-  // zera não avança sozinha — só passa a contar pra cima).
+  // "Pular" redistribui o que sobrou da etapa atual pelas seguintes (ver
+  // advanceStage abaixo). currentStageIdx só avança por toque (etapa que
+  // zera não avança sozinha — o relógio só segue contando).
   const baseStageSeconds = Math.round(TOTAL_SECONDS / 4)
   const [stageDurations, setStageDurations] = useState(() => [baseStageSeconds, baseStageSeconds, baseStageSeconds, baseStageSeconds])
-  const [currentStageIdx, setCurrentStageIdx] = useState(0)
+  const [currentStageIdx, setCurrentStageIdx] = useState(initialStage)
   const [stageElapsedBefore, setStageElapsedBefore] = useState(0)
   const [stageNotes, setStageNotes] = useState({})
   const [freeNote, setFreeNote] = useState('')
   const [justZeroed, setJustZeroed] = useState(false)
 
-  // Pedidos de oração — a linha-resumo (fora da Súplica) usa "meus + do meu
-  // grupo" (mesma fonte de PD1). A etapa Súplica em si (PD3, handoff-
-  // oracao-pedidos) é uma tela DIFERENTE — pedidos de OUTRAS pessoas
-  // esperando oração, no máximo três, ordenados por quem recebeu menos
-  // (getSupplicationRequests, RPC própria pra isso — nunca a mesma lista
-  // de PD1, que é "os meus", não "pra eu orar").
-  // Bug real (varredura geral, 2026-09-19): o próprio store
-  // (prayerRequestsStore.js, comentário no topo do arquivo) já foi
-  // corrigido nesta mesma sessão pra LANÇAR em vez de engolir erro de
-  // leitura — exatamente pra distinguir "vazio de verdade" de "falha de
-  // leitura". Mas esta tela (o passo Súplica da Oração) continuava com
-  // `.catch(() => setX([]))`, jogando fora essa distinção de novo — uma
-  // falha real mostrava "ninguém esperando oração" (suplicaEmpty), o
-  // mesmo texto de "não tem pedido nenhum mesmo", sem aviso nenhum.
+  // ACTS — os pedidos da Súplica (S2): os meus, os dos meus grupos e os dos
+  // meus amigos, com o mesmo "orei" da lista de pedidos. Pedidos de oração
+  // são da Comunidade, então Premium: quem não assina não carrega a lista.
+  const pedidos = usePedidos({ api: pedidosApi, enabled: acts && !!session.hasPremium })
+
+  // Oração livre — a linha-resumo "Pedidos de oração" (36c, sem mudança).
+  // Falha de leitura não é "nenhum pedido": o store lança, e a linha avisa.
   const [requests, setRequests] = useState([])
   const [requestsLoadError, setRequestsLoadError] = useState(false)
   useEffect(() => {
+    if (acts) return
     getMyPrayerRequests().then(setRequests).catch(err => { console.error('Failed to load prayer requests', err); setRequestsLoadError(true) })
-  }, [])
+  }, [acts])
   const activeRequests = requests.filter(r => r.status !== 'closed')
-  // "Pedidos dos grupos" (pedido dela, 2026-09-22: mesma aba que já existe
-  // em Pedidos de oração, PD1) — mesmos dados de `requests` acima, só
-  // filtrados; não precisa de uma chamada nova, já está tudo carregado.
-  const groupRequests = activeRequests.filter(r => !r.isMine)
-  const requestCounts = { active: activeRequests.length, group: groupRequests.length }
+  const requestCounts = { active: activeRequests.length, group: activeRequests.filter(r => !r.isMine).length }
 
-  const [suplicaTab, setSuplicaTab] = useState('waiting')
-  const [suplicaRequests, setSuplicaRequests] = useState([])
-  const [suplicaLoadError, setSuplicaLoadError] = useState(false)
-  useEffect(() => {
-    getSupplicationRequests(3).then(setSuplicaRequests).catch(err => { console.error('Failed to load supplication requests', err); setSuplicaLoadError(true) })
-  }, [])
-
-  // "Fazer pedido" direto na Súplica (pedido dela, 2026-09-12: "deixar o
-  // campo de pedidos de oração aberto para adicionar novos") — antes esse
-  // botão navegava pra fora (PrayerRequestsScreen, 36d) só pra abrir a
-  // MESMA folha que já existia pronta (AddPrayerRequestSheet.jsx, comentário
-  // dela mesma já dizia "aberta a partir da Súplica" — nunca tinha sido
-  // ligada aqui). Reload da lista local ao criar, sem sair da oração.
+  // "Fazer um pedido" sem sair da oração — ao guardar, a lista recarrega
+  // com o pedido novo.
   const [addRequestOpen, setAddRequestOpen] = useState(false)
-
-  function handlePray(request) {
-    setRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayedToday: true, prayCount: r.isMine || r.prayedEver ? r.prayCount : r.prayCount + 1, prayedEver: true, diasOrados: r.isMine ? r.diasOrados + 1 : r.diasOrados }
-      : r))
-    markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
-  }
-
-  // "Um toque marca que você orou" (PD3) — mesma marca-por-dia de sempre
-  // (markPraying), só que na lista de Súplica, não na de PD1. pray_count
-  // é POR PESSOA, nunca por dia (bug real, 2026-10-19): só soma na
-  // primeira vez que esta pessoa marca pra este pedido — orar de novo num
-  // dia seguinte não é gente nova.
-  function handleSuplicaPray(request) {
-    setSuplicaRequests(prev => prev.map(r => r.id === request.id
-      ? { ...r, prayingByMe: true, prayCount: r.prayedEver ? r.prayCount : r.prayCount + 1, prayedEver: true }
-      : r))
-    markPraying(request.id).catch(err => console.error('Failed to mark praying (suplica)', err))
-  }
 
   const zeroedStagesRef = useRef(new Set())
 
   // Detecta quando a etapa ACTS atual zera, pra tocar o chime — a lógica
-  // de motor (running/elapsed/pausa por aba oculta/wake lock) agora é do
-  // hook compartilhado (src/timer/useStepTimer.js).
+  // de motor (running/elapsed/pausa por aba oculta/wake lock) é do hook
+  // compartilhado (src/timer/useStepTimer.js).
   function handleTick(now) {
-    if (method !== 'acts') return
+    if (!acts) return
     const stageLocal = now - stageElapsedBefore
     const remaining = stageDurations[currentStageIdx] - stageLocal
     if (remaining <= 0 && !zeroedStagesRef.current.has(currentStageIdx)) {
@@ -146,12 +104,22 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
       setTimeout(() => setJustZeroed(false), 700)
     }
   }
-  const { running, elapsedSeconds: elapsed, toggle: toggleRunning, pause, computeElapsed } = useStepTimer({ onTick: handleTick })
+  const { running, elapsedSeconds: elapsed, start, toggle: toggleRunning, pause, computeElapsed } = useStepTimer({ onTick: handleTick })
   const planPriorSeconds = usePlanTotalToday()
   const planSeconds = planPriorSeconds + elapsed
 
-  // Avança pra próxima etapa. `redistribute`=true (Pular etapa) devolve o
-  // que sobrou da etapa atual pras seguintes; o botão nomeado (ex.:
+  // ACTS: o relógio começa a contar quando a tela aparece — o cabeçalho
+  // novo não tem botão de iniciar, só a pílula, que pausa e retoma. Uma
+  // vez só: quem pausa (ou sai do app, que pausa) retoma pelo toque.
+  const autoStartedRef = useRef(false)
+  useEffect(() => {
+    if (!acts || !active || autoStartedRef.current) return
+    autoStartedRef.current = true
+    start()
+  }, [acts, active, start])
+
+  // Avança pra próxima etapa. `redistribute`=true (Pular) devolve o que
+  // sobrou da etapa atual pras seguintes; o botão nomeado (ex.:
   // "Gratidão →") não mexe nas durações — só carrega o tempo REAL gasto.
   function advanceStage(redistribute) {
     const now = computeElapsed()
@@ -170,7 +138,11 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
     setCurrentStageIdx(idx => idx + 1)
   }
 
-  function saveStageNote(text) {
+  // Ao trocar de etapa, a tela volta ao topo.
+  const bodyRef = useRef(null)
+  useEffect(() => { bodyRef.current?.scrollTo?.(0, 0) }, [currentStageIdx])
+
+  function setStageNote(text) {
     const stage = PRAYER_STAGES[currentStageIdx]
     setStageNotes(prev => ({ ...prev, [stage.id]: text }))
   }
@@ -203,286 +175,132 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
   }
   useEffect(() => { onTimerRunningChange?.(running) }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const stage = PRAYER_STAGES[currentStageIdx]
-  const stageTitle = stage.title[lang] ?? stage.title.pt
-  const isLastStage = currentStageIdx === PRAYER_STAGES.length - 1
-  const isSuplica = method === 'acts' && stage.id === 'suplica'
-  const stageLocalElapsed = method === 'acts' ? elapsed - stageElapsedBefore : 0
-  const wholeProgress = Math.min(1, elapsed / TOTAL_SECONDS)
-  // Chips do cronômetro compartilhado (StepTimerCard) — mesmos 4 estágios
-  // do ACTS, usados tanto na etapa normal quanto na Súplica.
-  const actsChipSteps = PRAYER_STAGES.map(s => ({ id: s.id, title: s.title[lang] ?? s.title.pt }))
+  // O teclado passa por cima da página: o fundo da tela sobe com ele, e o
+  // rodapé e o campo ficam à vista.
+  const keyboardInset = useKeyboardInset()
 
+  if (acts) {
+    const stage = PRAYER_STAGES[currentStageIdx]
+    const isSuplica = stage.id === 'suplica'
+    const footer = actsFooter(PRAYER_STAGES, currentStageIdx, lang)
+    return (
+      <div style={{ ...styles.screen, paddingBottom: keyboardInset, boxSizing: 'border-box' }}>
+        <CabecalhoDoPasso
+          title="Oração" subtitle={stepSubtitle(session.todaysSteps, 'prayer', 'ACTS')}
+          onBack={handleBack} backLabel={t('a11y.goBack', undefined, lang)}
+          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} flash={justZeroed} />}
+          segments={dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'prayer' })}
+          barLabel={dayBarAria(session.todaysSteps, 'prayer')}
+        />
+
+        <div ref={bodyRef} style={styles.actsBody}>
+          <TrilhaActs trail={actsTrail(PRAYER_STAGES, currentStageIdx, lang)} ariaLabel={actsTrailAria(PRAYER_STAGES, currentStageIdx, lang)} />
+          <CartaoAgora
+            label={stageCardLabel(currentStageIdx, PRAYER_STAGES.length, stageDurations[currentStageIdx])}
+            title={stage.title[lang] ?? stage.title.pt}
+            text={stage.explanation[lang] ?? stage.explanation.pt}
+          />
+          {!isSuplica ? (
+            <CartaoDeEscrita
+              key={stage.id}
+              starters={stage.starters[lang] ?? stage.starters.pt}
+              value={stageNotes[stage.id] ?? ''} onChange={setStageNote}
+            />
+          ) : !session.hasPremium ? (
+            <PremiumLockCard lang={lang} onNavigate={onNavigate} title={L('suplicaLockTitle')} sub={L('suplicaLockSub')} />
+          ) : (
+            <PedidosDaSuplica
+              list={pedidos.list} loading={pedidos.loading} error={pedidos.error} sessionMarks={pedidos.sessionMarks}
+              onOrar={pedidos.orar} onDesfazer={pedidos.desfazer} onAdd={() => setAddRequestOpen(true)}
+            />
+          )}
+        </div>
+
+        <RodapeDoPasso
+          secondary={{ label: footer.skip, onClick: footer.last ? finishPrayer : () => advanceStage(true) }}
+          primary={{ label: footer.primary, onClick: footer.last ? finishPrayer : () => advanceStage(false) }}
+        />
+
+        {addRequestOpen && (
+          <AddPrayerRequestSheet
+            lang={lang} authUser={authUser} hasAI={session.hasAI}
+            onClose={() => setAddRequestOpen(false)}
+            onCreated={() => { setAddRequestOpen(false); pedidos.reload() }}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // ── Oração livre (36c) — sem mudança ──────────────────────────────────
+  // "passo N de M" do cabeçalho — sempre os passos de HOJE (session.
+  // todaysSteps, App.jsx), não só dentro do modo guiado: Oração pode ser o
+  // único passo restante hoje e nunca entrar em guidedFlow (ver
+  // startGuidedRoutine em App.jsx), mas o cabeçalho sempre mostra a
+  // posição mesmo assim.
+  const todaysSteps = session.todaysSteps ?? ['prayer']
+  const stepIdx = Math.max(0, todaysSteps.indexOf('prayer'))
   return (
     <div style={styles.screen}>
-      {isSuplica ? (
-        // PD3 — cabeçalho próprio (pd3-suplica-pedidos.png): pílula preta
-        // "Oração · passo N de M" + "Pular" à direita, sem o título/
-        // subtítulo empilhado das outras 3 etapas.
-        <div style={styles.header}>
-          <button style={styles.backBtn} onClick={handleBack} aria-label={t('a11y.goBack', undefined, lang)}>
-            <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-          </button>
-          <div style={styles.stepPill}>
-            <span style={styles.stepPillTitle}>{L('pageTitle')}</span>
-            <span style={styles.stepPillSub}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })}</span>
-          </div>
-          <div style={{ flex: 1 }} />
-          {/* "Pular avança sem marcar oração" (handoff Regra 5.8) — Súplica
-              é sempre a última etapa do ACTS, então pular ela é terminar a
-              oração sem interagir com a lista de pedidos (mesma ação de
-              "Concluir", só que sem exigir que a pessoa veja a lista antes). */}
-          <button style={styles.pularBtn} onClick={finishPrayer}>{L('pularBtn')}</button>
+      <div style={styles.header}>
+        <button style={styles.backBtn} onClick={handleBack} aria-label={t('a11y.goBack', undefined, lang)}>
+          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={styles.title}>{L('pageTitle')}</p>
+          <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {L('methodSuffixFree')}</p>
         </div>
-      ) : (
-        <div style={styles.header}>
-          <button style={styles.backBtn} onClick={handleBack} aria-label={t('a11y.goBack', undefined, lang)}>
-            <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-          </button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={styles.title}>{L('pageTitle')}</p>
-            <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {method === 'acts' ? L('methodSuffixActs') : L('methodSuffixFree')}</p>
-          </div>
-        </div>
-      )}
-
-      {method === 'acts' && (
-        <div style={styles.wholeTrack}>
-          <div style={{ ...styles.wholeFill, width: `${wholeProgress * 100}%` }} />
-        </div>
-      )}
+      </div>
 
       <div style={styles.body}>
-        {/* Frase fixa — idêntica em 36b/36c, mas PD3 (Súplica) não a mostra
-            (pd3-suplica-pedidos.png começa direto no cartão de progresso). */}
-        {!isSuplica && (
-          <div style={styles.fixedCard}>
-            <p style={styles.fixedText}>{L('fixedVerse')}</p>
+        <div style={styles.fixedCard}>
+          <p style={styles.fixedText}>{L('fixedVerse')}</p>
+        </div>
+
+        {/* Sem etapas: o cronômetro compartilhado conta o passo inteiro,
+            em contagem regressiva contra o total configurado. */}
+        <StepTimerCard
+          lang={lang} steps={null}
+          planSeconds={planSeconds} etapaSeconds={elapsed}
+          etapaDurationSeconds={TOTAL_SECONDS}
+          running={running} onToggle={toggleRunning} onStop={finishPrayer}
+          playLabel={L('playBtn')} pauseLabel={L('pauseBtn')}
+        />
+
+        <div style={styles.helpCard}>
+          <p style={styles.helpLabel}>{L('freeNoteLabel')}</p>
+          <textarea
+            style={styles.textarea}
+            placeholder={L('freeWritePlaceholder')}
+            value={freeNote}
+            onChange={e => setFreeNote(e.target.value)}
+          />
+        </div>
+
+        {/* Pedidos de oração — linha navegável → PrayerRequestsScreen. */}
+        <button type="button" style={styles.requestsRow} onClick={() => onNavigate?.('prayerRequests')}>
+          <span style={styles.requestsIcon}><AppIcon name="Heart" size={16} color="var(--bento-sand-icon)" /></span>
+          <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <p style={styles.requestsTitle}>{L('requestsRowTitle')}</p>
+            <p style={styles.requestsSub}>
+              {requestsLoadError ? L('suplicaLoadError') : (
+                <>
+                  {L(requestCounts.active === 1 ? 'requestsCountActiveOne' : 'requestsCountActiveMany', { n: requestCounts.active })}
+                  {requestCounts.group > 0 ? ` · ${L(requestCounts.group === 1 ? 'requestsCountGroupOne' : 'requestsCountGroupMany', { n: requestCounts.group })}` : ''}
+                </>
+              )}
+            </p>
           </div>
-        )}
-
-        {isSuplica ? (
-          <>
-            <StepTimerCard
-              lang={lang} steps={actsChipSteps} currentIndex={currentStageIdx}
-              planSeconds={planSeconds} etapaSeconds={stageLocalElapsed}
-              etapaDurationSeconds={stageDurations[currentStageIdx]}
-              running={running} onToggle={toggleRunning} onStop={finishPrayer}
-              playLabel={L('playBtn')} pauseLabel={L('pauseBtn')} justZeroed={justZeroed}
-            />
-
-            <div style={styles.suplicaBlackCard}>
-              <p style={styles.suplicaBlackLabel}>{L('suplicaTodayLabel')}</p>
-              <p style={styles.suplicaBlackBody}>{L('suplicaTodayBody')}</p>
-            </div>
-
-            {/* Divisão de planos (2026): pedidos de oração é parte da
-                Comunidade, então Premium — quem não assina vê só a frase
-                fixa acima; a lista de pedidos de outras pessoas e "Fazer um
-                pedido" ficam atrás deste cartão. */}
-            {!session.hasPremium ? (
-              <PremiumLockCard lang={lang} onNavigate={onNavigate} title={L('suplicaLockTitle')} sub={L('suplicaLockSub')} />
-            ) : (
-              <>
-                <div style={styles.suplicaWaitingCard}>
-                  <div style={styles.suplicaWaitingHead}>
-                    {/* Duas abas (pedido dela, 2026-09-22) — mesmo padrão de
-                        PrayerRequestsScreen.jsx (PD1): "Pra orar" é a lista
-                        curada de sempre (getSupplicationRequests — de
-                        qualquer origem, incl. anônimo/amigos, ordenada por
-                        quem recebeu menos oração); "Pedidos dos grupos"
-                        reaproveita os mesmos dados já carregados pra linha-
-                        resumo fora da Súplica (getMyPrayerRequests, só os
-                        `!isMine`) — sem chamada nova. */}
-                    <div style={styles.suplicaTabsRow}>
-                      <button type="button" style={{ ...styles.suplicaTab, ...(suplicaTab === 'waiting' ? styles.suplicaTabOn : {}) }} onClick={() => setSuplicaTab('waiting')}>
-                        {L('suplicaTabWaiting')}
-                      </button>
-                      <button type="button" style={{ ...styles.suplicaTab, ...(suplicaTab === 'group' ? styles.suplicaTabOn : {}) }} onClick={() => setSuplicaTab('group')}>
-                        {t('prayerRequests.tabGroup', undefined, lang)}
-                      </button>
-                    </div>
-                    <button type="button" style={styles.seeAllBtn} onClick={() => { pause(); onNavigate?.('prayerRequests') }}>{L('seeAllBtn')}</button>
-                  </div>
-                  {suplicaTab === 'waiting' ? (
-                    suplicaLoadError ? (
-                      <p style={styles.requestsSub}>{L('suplicaLoadError')}</p>
-                    ) : suplicaRequests.length === 0 ? (
-                      <p style={styles.requestsSub}>{L('suplicaEmpty')}</p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        {suplicaRequests.map((r, i) => {
-                          const avatar = suplicaAvatar(r)
-                          const origin = r.anonymous ? '' : r.scope === 'group' ? r.groupName : r.scope === 'friends' ? L('originFriend') : L('originDiary')
-                          return (
-                            <div key={r.id} style={{ ...styles.suplicaRow, ...(i > 0 ? { borderTop: '1px solid var(--bento-line)' } : {}) }}>
-                              <div style={styles.suplicaRowHead}>
-                                <span style={{ ...styles.suplicaAvatar, background: avatar.bg, color: avatar.color }}>{avatar.initials}</span>
-                                <p style={styles.suplicaName}>
-                                  {r.anonymous ? L('anonymousLabel') : r.authorName}
-                                  <span style={styles.suplicaOrigin}> · {origin ? `${origin} · ` : ''}{originTimeLabel(r.createdAt, lang)}</span>
-                                </p>
-                              </div>
-                              <p style={styles.suplicaBody}>{r.body}</p>
-                              <div style={styles.suplicaActionRow}>
-                                {r.prayingByMe ? (
-                                  <span style={styles.suplicaPrayedBtn}>
-                                    <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-sand-icon)" />
-                                    {t('prayerRequests.prayedTodayBtn', undefined, lang)}
-                                  </span>
-                                ) : (
-                                  <button type="button" style={styles.suplicaPrayBtn} onClick={() => handleSuplicaPray(r)}>
-                                    <AppIcon name="Check" size={12} strokeWidth={3} color="var(--bento-accent)" />
-                                    {L('prayShortBtn')}
-                                  </button>
-                                )}
-                                <span style={styles.suplicaPrayedCount}>{L(r.prayCount === 1 ? 'prayedCountOne' : 'prayedCountMany', { n: r.prayCount })}</span>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  ) : requestsLoadError ? (
-                    <p style={styles.requestsSub}>{L('suplicaLoadError')}</p>
-                  ) : groupRequests.length === 0 ? (
-                    <p style={styles.requestsSub}>{t('prayerRequests.emptyGroup', undefined, lang)}</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {groupRequests.map(r => (
-                        <PrayerRequestCard key={r.id} request={r} lang={lang} onPray={handlePray} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <button type="button" style={styles.suplicaComposeRow} onClick={() => setAddRequestOpen(true)}>
-                  <span style={styles.requestsIcon}><AppIcon name="Plus" size={16} strokeWidth={2.4} color="var(--bento-sand-icon)" /></span>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <p style={styles.requestsTitle}>{t('addPrayerRequest.title', undefined, lang)}</p>
-                    <p style={styles.requestsSub}>{L('suplicaComposeSub')}</p>
-                  </div>
-                  <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
-                </button>
-              </>
-            )}
-          </>
-        ) : method === 'acts' ? (
-          <>
-            {/* Cronômetro compartilhado (mesmo padrão de Reflexão/Leitura
-                agora) — chips de etapa + os três tempos (plano/passo/
-                etapa) + tocar/pausar/parar. Nome e explicação da etapa
-                atual entram como children, dentro do mesmo cartão. */}
-            <StepTimerCard
-              lang={lang} steps={actsChipSteps} currentIndex={currentStageIdx}
-              planSeconds={planSeconds} etapaSeconds={stageLocalElapsed}
-              etapaDurationSeconds={stageDurations[currentStageIdx]}
-              running={running} onToggle={toggleRunning} onStop={finishPrayer}
-              playLabel={L('playBtn')} pauseLabel={L('pauseBtn')} justZeroed={justZeroed}
-            >
-              <p style={styles.stageTitle}>{stageTitle}</p>
-              <p style={styles.stageExplanation}>{stage.explanation[lang] ?? stage.explanation.pt}</p>
-            </StepTimerCard>
-
-            {/* "Se ajudar, comece assim" — 3 frases fixas + campo opcional. */}
-            <div style={styles.helpCard}>
-              <p style={styles.helpLabel}>{L('starterLabel')}</p>
-              {(stage.starters[lang] ?? stage.starters.pt).map((line, i) => (
-                <p key={i} style={styles.starterLine}>&ldquo;{line}&rdquo;</p>
-              ))}
-              <textarea
-                style={styles.textarea}
-                placeholder={L('writePlaceholder')}
-                value={stageNotes[stage.id] ?? ''}
-                onChange={e => saveStageNote(e.target.value)}
-              />
-              <p style={styles.privacyNote}>{L('privacyNote')}</p>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Oração livre — sem etapas, mesmo cronômetro compartilhado
-                (etapa = o passo inteiro, contagem regressiva contra o
-                total configurado, igual sempre foi). */}
-            <StepTimerCard
-              lang={lang} steps={null}
-              planSeconds={planSeconds} etapaSeconds={elapsed}
-              etapaDurationSeconds={TOTAL_SECONDS}
-              running={running} onToggle={toggleRunning} onStop={finishPrayer}
-              playLabel={L('playBtn')} pauseLabel={L('pauseBtn')}
-            />
-
-            <div style={styles.helpCard}>
-              <p style={styles.helpLabel}>{L('freeNoteLabel')}</p>
-              <textarea
-                style={styles.textarea}
-                placeholder={L('freeWritePlaceholder')}
-                value={freeNote}
-                onChange={e => setFreeNote(e.target.value)}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Pedidos de oração — linha navegável → PrayerRequestsScreen (PD1).
-            Na etapa Súplica (PD3) o corpo inteiro já é outro (acima) — essa
-            linha-resumo só aparece nas outras 3 etapas do ACTS/oração livre. */}
-        {!isSuplica && (
-          <button type="button" style={styles.requestsRow} onClick={() => onNavigate?.('prayerRequests')}>
-            <span style={styles.requestsIcon}><AppIcon name="Heart" size={16} color="var(--bento-sand-icon)" /></span>
-            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-              <p style={styles.requestsTitle}>{L('requestsRowTitle')}</p>
-              <p style={styles.requestsSub}>
-                {requestsLoadError ? L('suplicaLoadError') : (
-                  <>
-                    {L(requestCounts.active === 1 ? 'requestsCountActiveOne' : 'requestsCountActiveMany', { n: requestCounts.active })}
-                    {requestCounts.group > 0 ? ` · ${L(requestCounts.group === 1 ? 'requestsCountGroupOne' : 'requestsCountGroupMany', { n: requestCounts.group })}` : ''}
-                  </>
-                )}
-              </p>
-            </div>
-            <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
-          </button>
-        )}
+          <AppIcon name="ChevronRight" size={15} color="var(--bento-t5)" />
+        </button>
       </div>
 
       <div style={styles.footer}>
-        {isSuplica ? (
-          // PD3 — "Concluir e ir para a leitura" (fixo), sempre um botão só
-          // (Súplica é a última etapa do ACTS, não tem "próxima etapa").
-          <button style={{ ...styles.nextBtn, flex: 1 }} onClick={finishPrayer}>
-            <span>{L('finishToReadingBtn')}</span>
-            <span>→</span>
-          </button>
-        ) : method === 'acts' && !isLastStage ? (
-          <>
-            <button style={styles.skipBtn} onClick={() => advanceStage(true)}>{L('skipStageBtn')}</button>
-            <button style={styles.nextBtn} onClick={() => advanceStage(false)}>
-              <span>{PRAYER_STAGES[currentStageIdx + 1].title[lang] ?? PRAYER_STAGES[currentStageIdx + 1].title.pt}</span>
-              <span>→</span>
-            </button>
-          </>
-        ) : (
-          <button style={{ ...styles.nextBtn, flex: 1 }} onClick={finishPrayer}>
-            <span>{L('finishPrayingBtn')}</span>
-            <span>→</span>
-          </button>
-        )}
+        <button style={{ ...styles.nextBtn, flex: 1 }} onClick={finishPrayer}>
+          <span>{L('finishPrayingBtn')}</span>
+          <span>→</span>
+        </button>
       </div>
-
-      {addRequestOpen && (
-        <AddPrayerRequestSheet
-          lang={lang}
-          authUser={authUser}
-          hasAI={session.hasAI}
-          onClose={() => setAddRequestOpen(false)}
-          onCreated={() => {
-            setAddRequestOpen(false)
-            getMyPrayerRequests().then(setRequests).catch(() => {})
-            getSupplicationRequests(3).then(setSuplicaRequests).catch(() => {})
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -490,30 +308,24 @@ export default function PrayerScreen({ session, authUser, stepMinutes, onPrayerC
 const FONT = 'var(--font-bento)'
 const styles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+
+  // ACTS (S1/S2): o corpo rola entre o cabeçalho e o rodapé presos.
+  actsBody: { flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '14px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 },
+
+  // Oração livre (36c).
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.3px', margin: 0 },
   subtitle: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
-
-  wholeTrack: { flexShrink: 0, height: 4, background: 'var(--bento-line)', margin: '0 20px' },
-  wholeFill: { height: '100%', background: 'var(--bento-accent)', borderRadius: 99 },
 
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '14px 20px 4px', display: 'flex', flexDirection: 'column', gap: 10 },
 
   fixedCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '16px 18px', borderLeft: '3px solid var(--bento-sand-icon)' },
   fixedText: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.4, color: 'var(--bento-sand-ink-strong)', margin: 0 },
 
-  // Chips de etapa, cartão do cronômetro (relógio grande, tocar/pausar,
-  // parar, progresso) agora moram em StepTimerCard.jsx — só o título e a
-  // explicação de cada etapa continuam aqui, como children do card.
-  stageTitle: { fontFamily: FONT, fontSize: 26, fontWeight: 800, letterSpacing: '-.8px', color: '#fff', margin: '0 0 12px' },
-  stageExplanation: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'rgba(255,255,255,.75)', margin: 0 },
-
   helpCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px' },
   helpLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
-  starterLine: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, fontStyle: 'italic', color: 'var(--bento-t2)', margin: '0 0 8px' },
   textarea: { width: '100%', minHeight: 84, boxSizing: 'border-box', border: 'none', borderRadius: 14, background: 'var(--bento-line)', padding: '12px 14px', fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'vertical', margin: '4px 0 10px' },
-  privacyNote: { fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t4)', margin: 0 },
 
   requestsRow: { width: '100%', boxSizing: 'border-box', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bento-card)', borderRadius: 22, padding: '16px 18px' },
   requestsIcon: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, background: 'var(--bento-mark)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -521,40 +333,5 @@ const styles = {
   requestsSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
 
   footer: { flexShrink: 0, display: 'flex', gap: 10, padding: '12px 20px calc(20px + var(--safe-bottom))' },
-  skipBtn: { flexShrink: 0, height: 54, padding: '0 18px', borderRadius: 18, border: 'none', background: 'var(--bento-card)', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
   nextBtn: { flex: 1, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
-
-  // PD3 — Súplica (pd3-suplica-pedidos.png), casca própria.
-  stepPill: { flexShrink: 0, height: 34, borderRadius: 14, background: 'var(--bento-ink)', display: 'flex', alignItems: 'baseline', gap: 6, padding: '0 14px' },
-  stepPillTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 800, color: '#fff' },
-  stepPillSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.55)' },
-  pularBtn: { flexShrink: 0, height: 34, padding: '0 16px', borderRadius: 14, border: 'none', background: 'var(--bento-card)', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
-
-  // Barras de progresso da Súplica (4 etapas) e o relógio próprio dela
-  // também saíram — usa o mesmo StepTimerCard das outras etapas agora.
-  suplicaBlackCard: { borderRadius: 22, background: 'var(--bento-ink)', padding: '16px 18px' },
-  suplicaBlackLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: '0 0 8px' },
-  suplicaBlackBody: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, lineHeight: 1.5, color: '#fff', margin: 0 },
-
-  suplicaWaitingCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px' },
-  suplicaWaitingHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, margin: '0 0 10px' },
-  seeAllBtn: { flexShrink: 0, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)' },
-  // Abas "Pra orar" / "Pedidos dos grupos" (pedido dela, 2026-09-22) —
-  // mesmo conceito de PrayerRequestsScreen.jsx (tabsRow/tab/tabOn), só
-  // compactas (não flex:1) porque dividem a linha com o botão "ver tudo".
-  suplicaTabsRow: { display: 'flex', gap: 6, minWidth: 0 },
-  suplicaTab: { flexShrink: 0, height: 30, padding: '0 12px', borderRadius: 11, border: 'none', background: 'var(--bento-line)', cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t2)' },
-  suplicaTabOn: { background: 'var(--bento-ink)', color: '#fff' },
-  suplicaRow: { padding: '12px 0' },
-  suplicaRowHead: { display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 8px' },
-  suplicaAvatar: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 12.5, fontWeight: 800 },
-  suplicaName: { fontFamily: FONT, fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  suplicaOrigin: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t4)' },
-  suplicaBody: { fontFamily: FONT, fontSize: 13, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t2)', margin: '0 0 10px' },
-  suplicaActionRow: { display: 'flex', alignItems: 'center', gap: 10 },
-  suplicaPrayBtn: { flexShrink: 0, height: 32, padding: '0 14px', borderRadius: 11, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: '#fff' },
-  suplicaPrayedBtn: { flexShrink: 0, height: 32, padding: '0 14px', borderRadius: 11, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', gap: 6, fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-sand-ink)' },
-  suplicaPrayedCount: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t5)' },
-
-  suplicaComposeRow: { width: '100%', boxSizing: 'border-box', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, background: 'var(--bento-card-soft)', borderRadius: 22, padding: '16px 18px' },
 }

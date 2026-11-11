@@ -112,6 +112,7 @@ import EstanteScreen from './screens/EstanteScreen'
 import SeloScreen from './screens/SeloScreen'
 import LivroCompletoScreen from './screens/LivroCompletoScreen'
 import { onChapterOpened } from './gamification/rereadTracker'
+import { onOreiPelosOutros } from './pedidos/orei'
 import { startReread, recordRereadChapter } from './gamification/achievementsMath'
 import { updateGamification } from './gamification/achievementsStore'
 import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
@@ -1483,6 +1484,16 @@ export default function App() {
       updateGamification(row => ({ bookSeals: recordRereadChapter(row.bookSeals, book, chapter, total).seals }))
         .then(setGamification).catch(err => console.error('[releitura] capítulo', err))
     })
+  }, [authUser])
+
+  // "Orei" por um pedido de outra pessoa (Súplica ou lista de pedidos, ver
+  // pedidos/orei.js) conta na família "Oração pelos outros": reavalia as
+  // conquistas, como qualquer outro passo que soma.
+  const scheduleGamificationCheckRef = useRef(null)
+  scheduleGamificationCheckRef.current = scheduleGamificationCheck
+  useEffect(() => {
+    if (!authUser) return
+    return onOreiPelosOutros(() => scheduleGamificationCheckRef.current?.())
   }, [authUser])
 
   // "Salvar plano" do Ajustar novo: grava só o que mudou, pelas mesmas
@@ -3611,7 +3622,7 @@ export default function App() {
                 key troca ao concluir o passo e na virada do dia. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen key={`${dateKey()}-${prayerRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
+                <PrayerScreen key={`${dateKey()}-${prayerRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'prayer'} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
               </div>
             )}
             {reflectionVisitedRef.current && (

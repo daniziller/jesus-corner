@@ -24,6 +24,7 @@ import { computeProjection } from '../plan/readingProjection'
 import { loadActiveStudy, loadStudiesSummary } from '../meuPlano/activeStudy'
 import { dateKey } from '../utils/dateKey'
 import { dayMonthLong } from '../gamification/format'
+import BarraDoDia from '../components/passos/BarraDoDia'
 import {
   computeMeuPlano, resolveMinutes, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria,
   doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay, doneTitle, weekCountSentence, STEP_ORDER, studyReturnDate,
@@ -133,11 +134,7 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
             <>
               {state.kind !== 'rest' && (
                 <div>
-                  <div style={s.bar} role="progressbar" aria-valuemin={0} aria-valuemax={state.total} aria-valuenow={state.doneCount} aria-label={stepsCountText(state.doneCount, state.total)}>
-                    {state.steps.map(st => (
-                      <span key={st.key} style={{ ...s.segment, flex: st.minutes, background: st.status === 'done' ? 'var(--bento-sand-icon)' : st.status === 'now' ? 'var(--bento-accent)' : 'var(--bento-t6)' }} />
-                    ))}
-                  </div>
+                  <BarraDoDia segments={state.steps} height={6} role="progressbar" aria-valuemin={0} aria-valuemax={state.total} aria-valuenow={state.doneCount} aria-label={stepsCountText(state.doneCount, state.total)} />
                   <div style={s.barText}>
                     <span style={s.barLeft}>{stepsCountText(state.doneCount, state.total)}</span>
                     <span style={s.barRight}>{barRightText(state)}</span>
@@ -281,8 +278,6 @@ const s = {
   adjustBtn: { height: 34, flexShrink: 0, padding: '0 12px', borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
   body: { padding: '18px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 },
   skeleton: { borderRadius: 99, background: 'var(--bento-line)' },
-  bar: { display: 'flex', gap: 5 },
-  segment: { height: 6, borderRadius: 99, minWidth: 0 },
   barText: { display: 'flex', justifyContent: 'space-between', marginTop: 9 },
   barLeft: { fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)' },
   barRight: { fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--bento-t3)' },

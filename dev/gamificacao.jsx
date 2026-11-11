@@ -21,6 +21,10 @@
 //      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &busca=pastor (B6) &recentes=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
+//      Passos do plano (handoff-passos-pedidos-53-54): tela=oracao — a oração ACTS (S1/S2), com os pedidos na memória.
+//      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
+//      7 inclui amigo e anônimo) · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
+//      · &feitos=prayer,reading (passos já feitos hoje) · &minutos=12 (duração da oração) · &metodo=livre (36c, sem mudança)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
 //      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
@@ -59,6 +63,9 @@ import MeuPlanoScreen from '../src/screens/MeuPlanoScreen'
 import SeuPlanoScreen from '../src/screens/SeuPlanoScreen'
 import AjustarPlanoScreen from '../src/screens/AjustarPlanoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
+import PrayerScreen from '../src/screens/PrayerScreen'
+import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
+import { mergePedidos } from '../src/pedidos/pedidosMath'
 
 const params = new URLSearchParams(location.search)
 const tela = params.get('tela') ?? 'hoje'
@@ -314,6 +321,55 @@ function BibliaPreview({ onPastRootChange }) {
   )
 }
 
+// Oração ACTS (S1/S2): a tela de verdade, com os pedidos na memória — os
+// da captura S2 e, com &pedidos=7, mais quatro (um de amigo, um anônimo).
+if (tela === 'oracao') setPrayerMethod(params.get('metodo') === 'livre' ? 'free' : 'acts')
+function pedidosDeExemplo() {
+  const ha = dias => new Date(Date.now() - dias * 86400000).toISOString()
+  const meu = (id, body, dias, extra = {}) => ({ id, body, scope: 'only_me', groupId: null, groupName: '', isMine: true, status: 'open', resposta: null, notaResposta: null, createdAt: ha(dias), respondidoEm: null, prayCount: 0, diasOrados: 0, prayedToday: false, prayedEver: false, commentCount: 0, ...extra })
+  const tres = [
+    meu('p1', 'Sabedoria para decidir sobre a mudança de cidade', 24, { diasOrados: 9, prayedToday: true, prayedEver: true }),
+    { ...meu('p2', 'A cirurgia da mãe da Marina, na quinta', 2), scope: 'group', groupId: 'g1', groupName: 'Grupo Semente', isMine: false, prayCount: 5 },
+    meu('p3', 'Meu pai voltar a falar com meu irmão', 92),
+  ]
+  const mais = [
+    { ...meu('p4', 'Emprego para o Lucas, que está há oito meses procurando', 5), scope: 'group', groupId: 'g2', groupName: 'Batista Central', isMine: false, prayCount: 1 },
+    meu('p5', 'Paciência com as crianças nas manhãs', 11),
+  ]
+  const amigos = [
+    { id: 'p6', authorName: 'Marina Alves', body: 'Prova de residência no sábado', anonymous: false, scope: 'friends', createdAt: ha(1), prayCount: 0, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
+    { id: 'p7', authorName: null, body: 'Um diagnóstico que ainda não contei a ninguém', anonymous: true, scope: 'friends', createdAt: ha(3), prayCount: 12, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
+  ]
+  const qual = params.get('pedidos') ?? '3'
+  const mine = qual === '0' ? [] : qual === '7' ? [...tres, ...mais] : tres
+  return mergePedidos({ mine, feed: qual === '7' ? amigos : [], intentions: null, todayKey: dateKey() })
+}
+const pedidosDePreview = {
+  load: () => {
+    const qual = params.get('pedidos')
+    if (qual === 'carregando') return new Promise(() => {})
+    if (qual === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
+    return new Promise(resolve => setTimeout(() => resolve(pedidosDeExemplo()), 150))
+  },
+  orar: p => { console.log('[preview] orei:', p.id, p.isMine ? '(meu: só a data)' : '(de outra pessoa: conta em "Oração pelos outros")'); return Promise.resolve() },
+  desfazer: p => { console.log('[preview] desfiz o orei:', p.id); return Promise.resolve() },
+}
+function OracaoPreview() {
+  const dia = params.get('dia')
+  const steps = dia === 'um' ? ['prayer'] : dia === 'estudo' ? ['prayer', 'reading', 'study', 'reflection'] : ['prayer', 'reading', 'reflection']
+  const feitos = Object.fromEntries((params.get('feitos') ?? '').split(',').filter(Boolean).map(k => [k, true]))
+  const minutos = Number(params.get('minutos')) || 10
+  const s = { ...session, hasPremium: params.get('premium') !== 'nao', todaysSteps: steps, todayRoutine: feitos }
+  return (
+    <PrayerScreen
+      session={s} authUser={authUser} stepMinutes={{ prayer: minutos, reading: 15, study: 15, reflection: 5 }}
+      initialStage={Math.min(4, Math.max(1, Number(params.get('etapa')) || 1)) - 1} pedidosApi={pedidosDePreview}
+      onPrayerCompleted={() => alert('oração terminada → bênção (36f)')} onNavigate={t => alert(`navegar: ${t}`)}
+      onExitGuided={() => {}} onBack={() => alert('voltar')}
+    />
+  )
+}
+
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
@@ -324,7 +380,9 @@ function Preview() {
   let body
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
-  if (screen === 'ajustar') {
+  if (screen === 'oracao') {
+    body = <OracaoPreview />
+  } else if (screen === 'ajustar') {
     body = <AjustarPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} draftState={draftState} onDraftChange={setDraftState} onClearDraft={() => setDraftState(null)} onSave={async () => { await new Promise(r => setTimeout(r, 800)) }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} initialOpenStep={params.get('abrir')} scrollToDays={!!params.get('abrir')} />
   } else if (screen === 'seuPlano') {
     body = <SeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} onChangeDays={() => alert('Ajustar com a Leitura aberta')} />

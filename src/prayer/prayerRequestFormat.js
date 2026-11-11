@@ -33,8 +33,9 @@ export function calendarDaysSince(iso) {
 // pronto), pra "há {span}" (tempo desde a publicação de um pedido de
 // outra pessoa). Nunca mostra "0 h": um pedido postado agora mesmo já
 // mostra "1 h", como o resto do app faz em textos de "há pouco".
-export function relativeTimeSpan(iso, lang) {
-  const diffMs = Math.max(0, Date.now() - new Date(iso).getTime())
+// `now` é opcional (padrão: agora) — só existe pra dar pra testar.
+export function relativeTimeSpan(iso, lang, now = Date.now()) {
+  const diffMs = Math.max(0, now - new Date(iso).getTime())
   const hours = Math.floor(diffMs / 3600000)
   if (hours < 24) return `${Math.max(1, hours)} h`
   const days = Math.floor(diffMs / 86400000)
