@@ -1724,9 +1724,8 @@ export default function App() {
     goToTab('routine')
   }
 
-  // "Começar a leitura" no mesmo checklist (ThemeTextsChecklist, usado tanto
-  // em PlanScreen.jsx — plano já ativo — quanto em ThemePlanScreen.jsx —
-  // plano recém-gerado, ainda não ativo). selectActivePlan é idempotente
+  // "Começar a leitura" do plano por tema (ThemePlanScreen.jsx — plano
+  // recém-gerado, ainda não ativo). selectActivePlan é idempotente
   // (reselecionar o mesmo plano não tem efeito colateral), então esta MESMA
   // função serve pros dois casos: garante que o plano está ativo e já pula
   // pra leitura, restrita aos textos escolhidos (ver openThemePlanToday).

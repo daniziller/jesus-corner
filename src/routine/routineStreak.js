@@ -21,8 +21,7 @@ export function isDayComplete(day, modules = DEFAULT_ROUTINE_MODULES) {
 // reescrever retroativamente se um dia passado foi "completo" ou não (ex:
 // ligar "Estudo guiado" não pode derrubar da meta um dia de semana passada
 // que já tinha oração+leitura+reflexão feitos, só porque agora "completo"
-// também exige estudo). Usado por toda função abaixo que varre dias —
-// mesmo critério do RoutineDayRing.jsx/RoutineCalendar.jsx.
+// também exige estudo). Usado por toda função abaixo que varre dias.
 export function modulesForDay(dayKeyStr, modules, todayKeyStr) {
   return dayKeyStr >= todayKeyStr ? modules : DEFAULT_ROUTINE_MODULES
 }
