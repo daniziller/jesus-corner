@@ -5,6 +5,7 @@
 // stores — testado em scripts/test-hoje.mjs.
 import { formatInt, formatPct, deOf, monthYearLong } from '../gamification/format.js'
 import { footerBook } from '../gamification/bibleProgressMath.js'
+import { familyById } from '../data/achievements.js'
 import { STEP_ORDER, stepName, doneWord, stepsCountText, stepShortDetail } from '../meuPlano/meuPlanoMath.js'
 import { markedWeekdayUnion } from '../routine/stepDaysMath.js'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
@@ -154,5 +155,22 @@ export function buildPlanCard({ loadError, stepDays, routineModules, state, ctx,
     line: planLine(kind, nextWeekdayIdx),
     steps: withSteps ? planSteps(state, ctx) : [],
     button: planButton(kind),
+  }
+}
+
+// ── Bloco 3: Próxima conquista (HANDOFF §5) ─────────────────────────────
+// `closest` é o que pickClosest devolve — "a mais perto" de Minhas
+// conquistas, a mesma função. Aqui só entram as palavras: quanto falta,
+// na unidade curta da família ("falta 1 h", "faltam 8 semanas"). Null
+// com tudo conquistado: o cartão não aparece.
+export function nextAchievement(closest) {
+  if (!closest) return null
+  const fam = familyById(closest.familyId)
+  const n = closest.remaining
+  const remaining = n === 1 ? `falta 1 ${fam.unidadeCurtaSingular}` : `faltam ${formatInt(n)} ${fam.unidadeCurta}`
+  return {
+    familyId: closest.familyId, degrau: closest.degrau, nome: closest.nome,
+    remaining, progress: closest.progress,
+    aria: `Próxima conquista: ${closest.nome}, ${remaining}`,
   }
 }

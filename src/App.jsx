@@ -3164,6 +3164,7 @@ export default function App() {
       applicationRefreshKey={applicationRefreshVersion}
       onOpenSuaBiblia={() => goToTab('suaBiblia')}
       onOpenEstante={() => openEstante()}
+      onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }}
       gamification={gamification}
     />,
     // Gamificação (handoff-gamificacao-43-46) — Sua Bíblia (G2), aberta

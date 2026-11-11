@@ -228,6 +228,7 @@ function Preview() {
         onOpenWeeklySummary={() => {}} onOpenBiblePassage={() => {}} onOpenSermonNote={() => {}}
         applicationRefreshKey={0}
         onOpenSuaBiblia={() => setScreen('suaBiblia')} onOpenEstante={() => setScreen('estante')}
+        onOpenFamilia={id => alert(`família ${id}`)}
         gamification={gami}
       />
     )

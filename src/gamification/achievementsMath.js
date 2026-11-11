@@ -74,12 +74,13 @@ export function earnedAtOf(store, id) {
 
 // "A mais perto" (G5): entre os próximos degraus de todas as famílias, o
 // de maior value/limiar; empate → ordem das famílias. Null se tudo
-// completo.
+// completo. `progress` (0–1) é o avanço entre o degrau atual e o próximo —
+// a barra do cartão "Próxima conquista" do Hoje.
 export function pickClosest(families) {
   let best = null
   for (const fam of families) {
     if (!fam.next) continue
-    if (!best || fam.ratio > best.ratio) best = { familyId: fam.id, ratio: fam.ratio, ...fam.next, remaining: fam.remaining, unidade: fam.unidade, unidadeSingular: fam.unidadeSingular }
+    if (!best || fam.ratio > best.ratio) best = { familyId: fam.id, ratio: fam.ratio, ...fam.next, remaining: fam.remaining, progress: fam.progress, unidade: fam.unidade, unidadeSingular: fam.unidadeSingular }
   }
   return best
 }

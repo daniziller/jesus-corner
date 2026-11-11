@@ -7,8 +7,11 @@ import { recentSeals } from '../src/gamification/sealDetails.js'
 import { computeMeuPlano, stepShortDetail, tomorrowCard } from '../src/meuPlano/meuPlanoMath.js'
 import {
   chaptersLine, bibleBookLine, bibleFinishedIso, bibleCardAria, weeksAria, daysAria, sealsAria, dayDotKind,
-  buildPlanCard, planCardKind,
+  buildPlanCard, planCardKind, nextAchievement,
 } from '../src/hoje/hojeMath.js'
+import { FAMILIES } from '../src/data/achievements.js'
+import { pickClosest } from '../src/gamification/achievementsMath.js'
+import { familyState } from '../src/gamification/familiesMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -147,6 +150,22 @@ check('carregando: dias do plano ainda não chegaram', buildPlanCard({ loadError
 const erro = buildPlanCard({ loadError: true, stepDays: null, routineModules: TRES, state: null, ctx, nextWeekdayIdx: null })
 check('erro ao carregar: título, dica e "Tentar novamente" secundário', [erro.kind, erro.title, erro.line, erro.button.label, erro.button.primary, erro.button.action, erro.steps], ['error', 'Não foi possível carregar seu plano', 'Verifique sua conexão e tente de novo.', 'Tentar novamente', false, 'retry', []])
 check('erro tem precedência sobre o resto', planCardKind({ loadError: true, stepDays, routineModules: TRES, state: {} }), 'error')
+
+// ── Próxima conquista (HANDOFF §5) ──────────────────────────────────────
+const fam = id => FAMILIES.find(f => f.id === id)
+const estados = valores => FAMILIES.map(f => familyState(f, valores[f.id] ?? 0, () => null))
+// 9 h de 10: a mais perto é "Dez horas", falta 1 h, barra entre 1 h e 10 h.
+const h1 = nextAchievement(pickClosest(estados({ constancia: 18, leitura: 50, tempo: 9, oracao: 3, livros: 1 })))
+check('H1: tempo 9/10 é a mais perto — nome, "falta 1 h", degrau 2', [h1.familyId, h1.nome, h1.remaining, h1.degrau], ['tempo', fam('tempo').degraus[1].nome, 'falta 1 h', 2])
+check('H1: barra = progresso entre o degrau atual e o próximo (8 de 9)', h1.progress, 8 / 9)
+check('H1: rótulo pra leitor de tela', h1.aria, `Próxima conquista: ${fam('tempo').degraus[1].nome}, falta 1 h`)
+check('horas no plural: "faltam 3 h"', nextAchievement(pickClosest(estados({ tempo: 7 }))).remaining, 'faltam 3 h')
+check('semanas: unidade curta, plural e singular', [nextAchievement(pickClosest(estados({ constancia: 18 }))).remaining, nextAchievement(pickClosest(estados({ constancia: 3 }))).remaining], ['faltam 8 semanas', 'falta 1 semana'])
+check('capítulos: "falta 1 capítulo" e milhar com ponto', [nextAchievement(pickClosest(estados({ leitura: 49 }))).remaining, nextAchievement({ familyId: 'leitura', degrau: 6, nome: 'A Bíblia inteira', remaining: 1089, progress: 0 }).remaining], ['falta 1 capítulo', 'faltam 1.089 capítulos'])
+check('pedidos e livros', [nextAchievement(pickClosest(estados({ oracao: 9 }))).remaining, nextAchievement(pickClosest(estados({ livros: 4 }))).remaining], ['falta 1 pedido', 'falta 1 livro'])
+const novaConta = nextAchievement(pickClosest(estados({})))
+check('conta nova: a primeira família, no menor limiar, barra vazia', [novaConta.familyId, novaConta.degrau, novaConta.remaining, novaConta.progress], ['constancia', 1, 'falta 1 semana', 0])
+check('tudo conquistado (38 de 38): sem cartão', nextAchievement(pickClosest(estados({ constancia: 104, leitura: 1189, tempo: 250, oracao: 1000, livros: 66 }))), null)
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes do Hoje (parte pura) passaram.')

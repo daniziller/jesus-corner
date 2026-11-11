@@ -40,13 +40,15 @@ import { getReflectionMethod } from '../reflection/reflectionMethodStore'
 import { computeMeuPlano, resolveMinutes, tomorrowCard } from '../meuPlano/meuPlanoMath'
 import { loadActiveStudy } from '../meuPlano/activeStudy'
 import CartaoPlano from '../components/hoje/CartaoPlano'
+import ProximaConquista from '../components/hoje/ProximaConquista'
+import { pickClosest } from '../gamification/achievementsMath'
 import CartaoBiblia from '../components/hoje/CartaoBiblia'
 import QuadradosCaminhada from '../components/hoje/QuadradosCaminhada'
 import { computeBibleProgress } from '../gamification/bibleProgressMath'
 import { bookInfo } from '../data/gamificationBlocks'
 import { loadGamificationStats } from '../gamification/evaluate'
 import { recentSeals } from '../gamification/sealDetails'
-import { bibleFinishedIso, buildPlanCard } from '../hoje/hojeMath'
+import { bibleFinishedIso, buildPlanCard, nextAchievement } from '../hoje/hojeMath'
 
 
 // "Terça, 2 de setembro" / "Tuesday, September 2" — mesmo formato de
@@ -76,7 +78,7 @@ export default function HomeScreen({
   session, authUser, completedSet, stepMinutes,
   onStartGuided, onNavigate, onOpenProfile,
   onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
-  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, gamification,
+  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, onOpenFamilia, gamification,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -383,6 +385,10 @@ export default function HomeScreen({
   // avaliação) quando existe; senão a que veio na carga acima.
   const bookSeals = gamification?.bookSeals ?? gami?.row.bookSeals ?? null
   const sealNames = useMemo(() => (bookSeals ? recentSeals(bibleProgress.completos, bookSeals) : null), [bibleProgress, bookSeals])
+  // Bloco 3 — PRÓXIMA CONQUISTA: "a mais perto", a mesma função de
+  // Minhas conquistas, sobre a mesma carga. Null = tudo conquistado (ou a
+  // carga falhou): o cartão não aparece.
+  const nextConquista = useMemo(() => (gami?.states ? nextAchievement(pickClosest(gami.states.families)) : null), [gami])
   const bibleFinishedAt = useMemo(
     () => (bibleProgress.bibliaInteira && gami ? bibleFinishedIso(gami.stats.chapterRows) : null),
     [bibleProgress.bibliaInteira, gami],
@@ -432,6 +438,12 @@ export default function HomeScreen({
         {/* Bloco 2 — SEU PLANO DE HOJE (handoff-hoje-50 §4). Pinta assim que
             os dias do plano chegam, sem esperar o resto da tela. */}
         <CartaoPlano card={planCard} onOpenPlan={() => onNavigate?.('routine')} onAction={handlePlanAction} />
+
+        {/* Bloco 3 — PRÓXIMA CONQUISTA (handoff-hoje-50 §5). Chega logo
+            depois do plano, com esqueleto enquanto a carga não vem. */}
+        {!gami
+          ? <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 84 }} />
+          : nextConquista && <ProximaConquista next={nextConquista} onOpen={onOpenFamilia} />}
 
         {loading ? pendingBlocks : (<>
         {/* Desafio de leitura por IA do grupo (handoff-admin-42, 42n) —
