@@ -3,7 +3,7 @@
 // buscas recentes e as passagens com nome.
 // node scripts/test-busca.mjs
 import { readFileSync } from 'node:fs'
-import { interpretReference, booksForToken, formatReference, openReferenceLabel, referencePreview, referenceKind, wholeChapterRow, bookDisplayName } from '../src/busca/referencia.js'
+import { interpretReference, formatReference, openReferenceLabel, referencePreview, referenceKind, wholeChapterRow, bookDisplayName } from '../src/busca/referencia.js'
 import { SEARCH_HINT, TYPE_FILTERS, REFERENCE_EXAMPLES, whenPhrase, whereYouWere, addRecentSearch, passageReference, passageStart, featuredPassages, bookRow } from '../src/busca/buscaMath.js'
 import { computeBibleProgress } from '../src/gamification/bibleProgressMath.js'
 import { MIN_QUERY_LENGTH, VERSES_PREVIEW, VERSES_PAGE, TESTAMENT_FILTERS, queryWords, buildMatcher, matchesText, highlightSegments, searchVerses, searchBooks, searchPassages, searchThemes, themeSub, searchNotes, searchCounts, filterPills, effectiveFilter, versesLabel, seeAllVersesLabel, themeRecentSub, emptyMessage } from '../src/busca/palavra.js'
@@ -67,9 +67,9 @@ check('livro de um capítulo: o número sozinho é o versículo', [read('ob 4'),
 check('capítulo que não existe → nada', [read('ap 23'), read('jo 0'), read('gn 51')], [null, null, null])
 check('versículo que não existe → nada', [read('sl 23 7'), read('ob 1 22')], [null, null])
 check('sem número do livro: os dois entram ("cor 13", "samuel 3")', [read('cor 13'), read('samuel 3')], [['1 Coríntios 13', '2 Coríntios 13'], ['1 Samuel 3', '2 Samuel 3']])
-check('exato antes de prefixo; prefixo em ordem canônica', booksForToken('joao'), ['João', '1 João', '2 João', '3 João'])
-check('prefixo do nome ("gen", "apoc", "tess")', [booksForToken('gene'), booksForToken('apocal'), booksForToken('tess')], [['Gênesis'], ['Apocalipse'], ['1 Tessalonicenses', '2 Tessalonicenses']])
-check('uma letra só não é livro; palavra comum não é livro', [booksForToken('j'), read('amor'), read('deus'), read('fe'), read('paz 3')], [[], null, null, null, null])
+check('exato antes de prefixo; prefixo em ordem canônica', read('joao'), 'livros: João, 1 João, 2 João, 3 João')
+check('prefixo do nome ("gene", "apocal", "tess")', [read('gene'), read('apocal'), read('tess')], ['livros: Gênesis', 'livros: Apocalipse', 'livros: 1 Tessalonicenses, 2 Tessalonicenses'])
+check('uma letra só não é livro; palavra comum não é livro', [read('j'), read('amor'), read('deus'), read('fe'), read('paz 3')], [null, null, null, null, null])
 check('texto com outra coisa depois dos números não é referência', [read('jo 3 16 amor'), read('3 16'), read('')], [null, null, null])
 check('conta em inglês: nomes e abreviações do inglês primeiro', [read('john 3 16', 'en'), read('jn 3 16', 'en'), read('ps 23', 'en'), read('rev 22', 'en')], [['John 3:16', '1 John 3:16'], ['John 3:16'], ['Psalms 23'], ['Revelation 22']])
 check('conta em português também entende o inglês', read('john 3 16'), ['João 3:16', '1 João 3:16'])

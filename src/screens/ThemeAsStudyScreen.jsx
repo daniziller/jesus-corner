@@ -1,5 +1,5 @@
 // ThemeAsStudyScreen.jsx — "Um tema" (39l, Bloco 6/último do pacote 39).
-// Aberta de um tema em 39k (SearchResultsScreen.jsx). Dado do tema em si:
+// Aberta de um tema da busca (BuscaScreen.jsx, B6). Dado do tema em si:
 // src/bible/themes.js (autoria própria, conjunto modesto e verificado —
 // ver comentário lá).
 //
@@ -41,7 +41,7 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
   }, [lang])
 
   // Mapa book:chapter:verse -> texto, só pra achar rápido o 1º versículo de
-  // cada trecho (ver passageCard abaixo) — o mesmo índice agregado de 39k,
+  // cada trecho (ver passageCard abaixo) — o mesmo índice agregado da busca,
   // cacheado em memória do módulo (loadSearchIndex), então reabrir esta
   // tela de novo não busca nada de novo.
   const verseByKey = useMemo(() => {
@@ -91,7 +91,7 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
     }
   }
 
-  // O cartão mostra só 1 versículo (mesmo padrão de 39k) — mas o trecho
+  // O cartão mostra só 1 versículo — mas o trecho
   // costuma cobrir vários, e o quadro sempre exibe o QUE TEM o termo em
   // destaque (ex: "Ezequiel 34:12", não o 34:11 onde o trecho começa).
   // Em vez de fixar sempre o 1º versículo do trecho, procura dentro do

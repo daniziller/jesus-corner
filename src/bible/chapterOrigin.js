@@ -1,6 +1,6 @@
 // chapterOrigin.js — separa, dentro de um livro já lido (completedSet), o
-// que veio de sessão de leitura ('sessao', preto na grade de 39c) do que
-// foi marcado à mão ('manual', cinza escuro `#6E655C`) — pacote 39, regra
+// que veio de sessão de leitura ('sessao', a cor do bloco na grade de
+// capítulos, B2) do que foi marcado à mão ('manual', o tom do bloco) — regra
 // "duas origens distintas... contam igual na porcentagem, mas aparecem
 // separadas". A fonte é chapters_read (migration 0049,
 // bible/chapterReadLog.js), um traço de auditoria "1ª vez que este
@@ -21,18 +21,4 @@ export function buildChapterOriginMap(rows) {
 
 export function originOf(originMap, book, chapter) {
   return originMap.get(`${book}:${chapter}`) ?? 'sessao'
-}
-
-// Conta, dentro de UM livro, quantos capítulos lidos (completedSet) vieram
-// de cada origem — base da linha "N lidos no app · M marcados por você"
-// (39c) e da cor de cada célula da grade.
-export function bookOriginCounts(bookName, completedSet, total, originMap) {
-  let app = 0
-  let manual = 0
-  for (let ch = 1; ch <= total; ch++) {
-    if (!completedSet.has(`${bookName}:${ch}`)) continue
-    if (originOf(originMap, bookName, ch) === 'manual') manual++
-    else app++
-  }
-  return { app, manual }
 }

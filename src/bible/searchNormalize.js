@@ -1,4 +1,4 @@
-// Normalização de busca (39k/39l) — minúsculas, sem acento, com o MESMO
+// Normalização de busca (a busca, B6, e a tela do tema, 39l) — minúsculas, sem acento, com o MESMO
 // comprimento do texto original. NFD quebra cada caractere acentuado em
 // base + marca(s) de combinação (ex: "á" -> "a" + ´); removendo só as
 // marcas (o mesmo intervalo Unicode que src/utils/slugify.js já usa, sem

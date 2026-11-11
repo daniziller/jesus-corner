@@ -1,4 +1,4 @@
-// Temas (39k bloco 6 / 39l) — agrupamentos por assunto, com as referências
+// Temas (busca, B6, e a tela do tema, 39l) — agrupamentos por assunto, com as referências
 // CONFERIDAS no texto real (script de verificação rodado à parte, não
 // commitado: confirma que cada trecho abaixo existe de verdade no arquivo
 // de texto e que o `term` de destaque aparece em pelo menos um versículo

@@ -1,13 +1,12 @@
-// freeReadingPositionStore.js — "Continuar a leitura livre" (39a, pacote
-// 39): onde a pessoa parou especificamente numa leitura LIVRE (39d), com
-// o versículo — diferente de reading/lastReadPositionStore.js, que grava
-// em QUALQUER modo (guiado OU livre, sem versículo) e alimenta o card do
-// Início/findCurrentReadingSession. Os dois continuam sendo gravados em
-// paralelo por quem lê livremente (ver BibleReadingScreen.jsx): este é só
-// pro cartão novo de 39a, que precisa mostrar uma posição PRÓPRIA da aba
-// Bíblia, podendo ser um livro diferente do que o plano está lendo agora
-// (é exatamente o exemplo do quadro: plano em Gênesis, leitura livre em
-// Salmos). Por dispositivo (localStorage), como o outro.
+// freeReadingPositionStore.js — "Continuar a leitura livre" (a raiz da aba
+// Bíblia, B1, e "Onde você estava" na busca, B5): onde a pessoa parou
+// especificamente numa leitura LIVRE (B3), com o versículo — diferente de
+// reading/lastReadPositionStore.js, que grava em QUALQUER modo (guiado OU
+// livre, sem versículo) e alimenta findCurrentReadingSession. Os dois são
+// gravados em paralelo por quem lê livremente (ver ReadingBlockView.jsx):
+// este mostra uma posição PRÓPRIA da aba Bíblia, que pode ser um livro
+// diferente do que o plano está lendo agora (plano em Gênesis, leitura
+// livre em Salmos). Por dispositivo (localStorage), como o outro.
 const KEY = 'jc_free_reading_position'
 
 export function getFreeReadingPosition() {

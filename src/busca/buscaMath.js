@@ -55,7 +55,7 @@ export function whereYouWere({ sessionTitle, free, now = new Date() }) {
 
 // ── Buscas recentes ─────────────────────────────────────────────────────
 
-export const MAX_RECENT_SEARCHES = 5
+const MAX_RECENT_SEARCHES = 5
 
 const sameText = text => String(text ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
 

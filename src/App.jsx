@@ -776,9 +776,9 @@ export default function App() {
   // dela, 2026-09-12) — id da anotação a carregar, ou null nos outros
   // dois casos (nova/retomar). Ver editSermonNoteFromLibrary.
   const [sermonNoteEditId, setSermonNoteEditId] = useState(null)
-  // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
-  // quando a navegação livre passa da raiz (lista de livros, grade de
-  // capítulos, leitura embutida), pra esconder a barra igual à leitura
+  // Barra de abas fixa só na raiz da aba Bíblia (B1) — JourneyScreen.jsx
+  // avisa quando a navegação livre passa dela (o livro, a leitura, a
+  // busca), pra esconder a barra igual à leitura
   // guiada (immersiveReading abaixo), sem precisar de um activeTab à parte
   // pra cada tela empilhada dentro da aba.
   const [journeyPastRoot, setJourneyPastRoot] = useState(false)

@@ -150,7 +150,7 @@ export default function JourneyScreen({
   const [expandedBookKey, setExpandedBookKey] = useState(null)
   const [expandedInitialSessionId, setExpandedInitialSessionId] = useState(null)
   const [expandedInitialTextOpen, setExpandedInitialTextOpen] = useState(false)
-  // 39k/39l (Bloco 6): tocar um cartão de busca/tema chega aqui já com um
+  // Busca (B5–B7) e tema (39l): tocar um resultado chega aqui já com um
   // versículo pra focar — ver initialFocusVerse em ReadingBlockView.jsx.
   const [expandedInitialFocusVerse, setExpandedInitialFocusVerse] = useState(null)
 
@@ -1054,7 +1054,7 @@ export default function JourneyScreen({
   }
 
   // Abre um capítulo/versículo específico vindo de FORA da navegação livre
-  // normal (39k/39l, Bloco 6: cartão de versículo/trecho) — acha o bloco a
+  // normal (um resultado da busca ou um trecho do tema, 39l) — acha o bloco a
   // partir do NOME do livro (`blocks` já é a lista fixa de sempre) e cai
   // direto na leitura, no capítulo certo, com o versículo em foco.
   // `extra.noteId` (resultado "Nas suas notas" da busca): a leitura abre
@@ -1805,8 +1805,8 @@ export default function JourneyScreen({
     )
   }
 
-  // 39l empilha por cima de 39k (não substitui) — "‹" de 39l volta pra 39k
-  // com a MESMA busca; "‹" de 39k volta pro mapa/lista de livros de sempre.
+  // O tema (39l) empilha por cima da busca (não substitui) — "‹" do tema
+  // volta pra busca com o MESMO texto; "‹" da busca volta pra raiz.
   if (themeOpenId != null) {
     const theme = getThemeById(themeOpenId)
     if (theme) {

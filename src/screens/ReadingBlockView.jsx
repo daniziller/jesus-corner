@@ -3767,9 +3767,6 @@ const styles = {
     border: 'none', borderRadius: 12, background: 'var(--bento-ink)', padding: '0 12px 0 14px', cursor: 'pointer',
   },
   readerChapterChipText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  // Variante clara do chip de capítulo, só pra 39d (leitura livre) — o
-  // quadro mostra esse chip em branco com texto escuro, diferente do chip
-  // escuro da leitura do plano (35f); mesma geometria (altura/raio/gap).
   readerStepBadge: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t4)' },
   readerHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.2, margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   readerTextCardWrap: { padding: '0 20px 4px' },

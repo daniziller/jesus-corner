@@ -102,9 +102,6 @@ function matchBooks(token, lang, written = token) {
   const roman = key.match(/^(i{1,3}) ([a-z].*)$/)
   return roman ? lookup(`${roman[1].length} ${roman[2]}`) : []
 }
-export function booksForToken(token, lang = 'pt') {
-  return matchBooks(token, lang, token).map(m => m.book)
-}
 
 // Os números depois do livro: capítulo, versículo, fim do intervalo.
 function parseNumbers(rest) {

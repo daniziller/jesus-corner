@@ -10,7 +10,7 @@ import {
   bookFooterButton, bookActions,
   readingThread, chapterLabel, markButton, topVisibleVerse, markedCard, nextLeituraStep, markOutcome,
 } from '../src/biblia/bibliaMath.js'
-import { buildChapterOriginMap } from '../src/bible/chapterOrigin.js'
+import { buildChapterOriginMap, originOf } from '../src/bible/chapterOrigin.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -110,6 +110,10 @@ check('sem tempo registrado: o número do tempo some', bookNumbers({ nome: 'Gên
 check('sem data do primeiro capítulo: os dias somem', bookNumbers({ nome: 'Jonas', sessionRows: sessoes, chapterRows: linhas, notes: {}, highlights: [], today: hojeB2 }).map(n => [n.key, n.value]), [['notes', '0']])
 check('primeiro capítulo hoje ou ontem: "1 dia"', [bookNumbers({ nome: 'Gênesis', sessionRows: [], chapterRows: [{ livro: 'Gênesis', capitulo: 1, created_at: hojeB2.toISOString() }], notes: {}, highlights: [], today: hojeB2 })[0].value, bookNumbers({ nome: 'Gênesis', sessionRows: [], chapterRows: [{ livro: 'Gênesis', capitulo: 1, created_at: new Date(2026, 8, 23, 22, 0).toISOString() }], notes: {}, highlights: [], today: hojeB2 })[0].value], ['1 dia', '1 dia'])
 check('tempo abaixo de uma hora: "52 min"', bookNumbers({ nome: 'Salmos', sessionRows: [{ livro: 'Salmos', passo: 'reading', segundos: 52 * 60 }], chapterRows: [], notes: {}, highlights: [], today: hojeB2 })[0].value, '52 min')
+
+// Origem de um capítulo lido (chapters_read): no app ou marcado à mão.
+const origens = buildChapterOriginMap([{ livro: 'Gênesis', capitulo: 1, origem: 'sessao' }, { livro: 'Gênesis', capitulo: 2, origem: 'manual' }, { livro: null, capitulo: 3 }])
+check('origem: linha de sessão, linha manual, e sem linha nenhuma cai em sessão', [originOf(origens, 'Gênesis', 1), originOf(origens, 'Gênesis', 2), originOf(origens, 'Gênesis', 3)], ['sessao', 'manual', 'sessao'])
 
 // Grade: Gênesis 1–38 no app, 39 e 40 à mão, 41 é o próximo.
 const gen = setOf({ 'Gênesis': 40 })
