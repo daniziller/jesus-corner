@@ -110,6 +110,13 @@ import SuaBibliaScreen from './screens/SuaBibliaScreen'
 import ConquistasScreen from './screens/ConquistasScreen'
 import FamiliaScreen from './screens/FamiliaScreen'
 import NovaConquistaScreen from './screens/NovaConquistaScreen'
+import EstanteScreen from './screens/EstanteScreen'
+import SeloScreen from './screens/SeloScreen'
+import LivroCompletoScreen from './screens/LivroCompletoScreen'
+import { onChapterOpened } from './gamification/rereadTracker'
+import { startReread, recordRereadChapter } from './gamification/achievementsMath'
+import { updateGamification } from './gamification/achievementsStore'
+import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
 import { evaluateGamification, markAchievementsSeen } from './gamification/evaluate'
 import { getGamificationRow } from './gamification/achievementsStore'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
@@ -544,7 +551,12 @@ export default function App() {
   // tela de conclusão (DayCompleteScreen) ou, fora do fluxo guiado, na
   // próxima volta ao Hoje — nunca no meio de uma sessão.
   const [gamification, setGamification] = useState(null)
+  const gamificationRef = useRef(null)
+  gamificationRef.current = gamification
   const [familiaId, setFamiliaId] = useState(null)
+  // Estante (G9) rolada até uma prateleira, e o livro aberto em G10.
+  const [estanteScroll, setEstanteScroll] = useState(null)
+  const [seloBook, setSeloBook] = useState(null)
   const [pendingCelebration, setPendingCelebration] = useState(null)
   const pendingCelebrationRef = useRef(null)
   pendingCelebrationRef.current = pendingCelebration
@@ -1070,7 +1082,7 @@ export default function App() {
   function goToTab(tab) {
     // Parabéns pendente da gamificação (ver pendingCelebration): aparece
     // na volta ao Hoje, fora do fluxo guiado — nunca no meio de uma sessão.
-    if (tab === 'home' && pendingCelebrationRef.current && !guidedFlowRef.current && pendingCelebrationRef.current.kind !== 'livro') tab = 'novaConquista'
+    if (tab === 'home' && pendingCelebrationRef.current && !guidedFlowRef.current) tab = pendingCelebrationRef.current.kind === 'livro' ? 'livroCompleto' : 'novaConquista'
     if (tab !== activeTab) setTabHistory(prev => [...prev.slice(-19), activeTab])
     setActiveTab(tab)
   }
@@ -1350,6 +1362,41 @@ export default function App() {
         .catch(err => console.error('[gamificação] avaliar', err))
     }, 1500)
   }
+
+  // Selos (G9/G10, HANDOFF §6): abrir a estante (rolada até um bloco, vindo
+  // de G2), abrir o selo de um livro completo, "Ler {Livro} de novo"
+  // (abre um rastro de releitura e leva ao capítulo 1) e abrir um livro
+  // num capítulo específico ("O próximo selo").
+  function openEstante(blockId = null) {
+    setEstanteScroll(blockId)
+    goToTab('estante')
+  }
+  function openSelo(nome) {
+    setSeloBook(nome)
+    goToTab('selo')
+  }
+  function readBookAgain(nome) {
+    updateGamification(row => ({ bookSeals: startReread(row.bookSeals, nome, { now: new Date().toISOString() }) }))
+      .then(setGamification).catch(err => console.error('[releitura] iniciar', err))
+    openBiblePassage(nome, 1)
+  }
+  function openBookAt(nome, chapter) {
+    openBiblePassage(nome, chapter ?? 1)
+  }
+
+  // Releitura: cada capítulo aberto na leitura livre de um livro com rastro
+  // em andamento entra no rastro; ao completar, o selo ganha um ponto
+  // (até três). Não mexe em roda, Leitura nem Livros completos.
+  useEffect(() => {
+    if (!authUser) return
+    return onChapterOpened((book, chapter) => {
+      if (!gamificationRef.current?.bookSeals?.[book]?.reread) return
+      const total = gamificationBookInfo(book)?.capitulos
+      if (!total) return
+      updateGamification(row => ({ bookSeals: recordRereadChapter(row.bookSeals, book, chapter, total).seals }))
+        .then(setGamification).catch(err => console.error('[releitura] capítulo', err))
+    })
+  }, [authUser])
 
   function finishCelebration(nextTab = 'home') {
     setPendingCelebration(null)
@@ -3029,17 +3076,24 @@ export default function App() {
       applicationRefreshKey={applicationRefreshVersion}
       onOpenSuaBiblia={() => goToTab('suaBiblia')}
       onOpenConquistas={() => goToTab('conquistas')}
+      onOpenEstante={() => openEstante()}
     />,
     // Gamificação (handoff-gamificacao-43-46) — Sua Bíblia (G2), aberta
     // pelo cartão SUA BÍBLIA do Hoje. Tela empilhada sem barra de abas,
     // mesmo padrão de metrics.
-    suaBiblia: <SuaBibliaScreen session={session} completedSet={completedSet} onBack={goBack} onOpenBook={openBibleBook} />,
+    suaBiblia: <SuaBibliaScreen session={session} completedSet={completedSet} onBack={goBack} onOpenBook={openBibleBook} onOpenSelo={openSelo} onOpenEstante={id => openEstante(id)} />,
     // Minhas conquistas (G5), uma família (G6) e o parabéns (G4).
-    conquistas: <ConquistasScreen session={session} completedSet={completedSet} gamification={gamification} onBack={goBack} onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }} onSeen={markGamificationSeen} />,
+    conquistas: <ConquistasScreen session={session} completedSet={completedSet} gamification={gamification} onBack={goBack} onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }} onOpenEstante={() => openEstante()} onSeen={markGamificationSeen} />,
     familia: familiaId ? <FamiliaScreen familyId={familiaId} session={session} completedSet={completedSet} gamification={gamification} onBack={goBack} /> : null,
     novaConquista: pendingCelebration && pendingCelebration.kind !== 'livro'
       ? <NovaConquistaScreen celebration={pendingCelebration} data={pendingCelebration.data} userName={session.userName} onContinue={() => finishCelebration('home')} onOpenConquistas={() => finishCelebration('conquistas')} />
       : null,
+    // Selos: Livro completo (G8), Minha estante (G9) e Um selo (G10).
+    livroCompleto: pendingCelebration && pendingCelebration.kind === 'livro'
+      ? <LivroCompletoScreen nome={pendingCelebration.nome} data={pendingCelebration.data} onVerEstante={() => { setPendingCelebration(null); pendingCelebrationRef.current = null; openEstante() }} onContinuar={() => finishCelebration('home')} />
+      : null,
+    estante: <EstanteScreen session={session} completedSet={completedSet} gamification={gamification} scrollToBlock={estanteScroll} onBack={goBack} onOpenSelo={openSelo} onOpenBook={openBibleBook} onOpenBookAt={openBookAt} />,
+    selo: seloBook ? <SeloScreen nome={seloBook} session={session} gamification={gamification} onBack={goBack} onReadAgain={readBookAgain} onOpenNotes={() => navigateTo('notes')} /> : null,
     // Turno 35, Bloco 2 (handoff-meu-plano-35/) — 35a/35b substituem a 4b
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
     // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
@@ -3412,7 +3466,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3429,7 +3483,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se

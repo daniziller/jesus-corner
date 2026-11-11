@@ -9,7 +9,8 @@
 // 2026-09-07), e assim dá pra pôr cada tela e cada estado do HANDOFF §8
 // ao lado do PNG sem login.
 //
-// Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista
+// Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista|estante|selo|livroCompleto
+//      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
 //      &id=tempo:2|bloco:profetas-menores (G4) &novas=1 (pontos de "nova" em G5)
@@ -25,6 +26,9 @@ import { dateKey } from '../src/utils/dateKey'
 import ConquistasScreen from '../src/screens/ConquistasScreen'
 import FamiliaScreen from '../src/screens/FamiliaScreen'
 import NovaConquistaScreen from '../src/screens/NovaConquistaScreen'
+import EstanteScreen from '../src/screens/EstanteScreen'
+import SeloScreen from '../src/screens/SeloScreen'
+import LivroCompletoScreen from '../src/screens/LivroCompletoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
 
 const params = new URLSearchParams(location.search)
@@ -55,7 +59,7 @@ function seedGuestTables(estado) {
     chapters.push({ livro, capitulo: Number(cap), origem: 'sessao', created_at: day(estado === 'inteira' ? Math.floor(i / 4) : 70 - i) })
     i++
   }
-  for (let d = 70; d >= 0; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d) })
+  for (let d = 70; d >= 0; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
   // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
@@ -71,7 +75,9 @@ function seedGuestTables(estado) {
   routine[dateKey(monday)] = { reading: true }
   const history = [{ desde: dateKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * 20)), dias: 4 }]
   const nova = estado === 'nova'
-  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history }))
+  const highlights = nova ? [] : [{ id: 'hl-1', book: 'Jonas', bookEn: 'Jonah', chapter: 2, verses: [2], text: '', color: 'amarelo', createdAt: day(30), date: day(30).slice(0, 10) }]
+  const notes = nova ? {} : { 'Jonas:1-2': { text: 'nota', updatedAt: day(33) }, 'Jonas:3-4': { text: 'nota', updatedAt: day(30) }, 'Jonas:4-4': { text: 'nota', updatedAt: day(30) } }
+  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes }))
   return nova ? {} : routine
 }
 const dailyRoutine = seedGuestTables(estado)
@@ -123,7 +129,14 @@ function Preview() {
   const [forceLoading] = useState(estado === 'carregando')
   const common = { session, authUser, completedSet }
   let body
-  if (screen === 'conquistas') {
+  const livro = params.get('livro') ?? 'Jonas'
+  if (screen === 'estante') {
+    body = <EstanteScreen {...common} gamification={gami} scrollToBlock={params.get('bloco')} onBack={() => setScreen('hoje')} onOpenSelo={n => alert(`selo ${n}`)} onOpenBook={n => alert(`abrir ${n}`)} onOpenBookAt={(n, c) => alert(`abrir ${n} ${c}`)} />
+  } else if (screen === 'selo') {
+    body = gami ? <SeloScreen {...common} nome={livro} gamification={gami} onBack={() => setScreen('estante')} onReadAgain={n => alert(`ler ${n} de novo`)} onOpenNotes={() => alert('notas')} /> : null
+  } else if (screen === 'livroCompleto') {
+    body = gamiData && gami ? <LivroCompletoScreen nome={livro} data={{ ...gamiData, row: gami, newIds: [] }} onVerEstante={() => setScreen('estante')} onContinuar={() => setScreen('hoje')} /> : null
+  } else if (screen === 'conquistas') {
     body = <ConquistasScreen {...common} gamification={gami} onBack={() => setScreen('hoje')} onOpenFamilia={id => alert(`família ${id}`)} onSeen={ids => markAchievementsSeen(ids).then(setGami)} />
   } else if (screen === 'familia') {
     body = <FamiliaScreen {...common} familyId={familia} gamification={gami} onBack={() => setScreen('conquistas')} />

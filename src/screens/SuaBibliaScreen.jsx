@@ -4,9 +4,9 @@
 // cartão SUA BÍBLIA do Hoje. Mesmo padrão de tela empilhada de
 // MetricsScreen.jsx (cabeçalho com voltar, sem barra de abas).
 //
-// Toque numa fatia → abre o livro na aba Bíblia (G10 quando o livro está
-// completo entra com a etapa dos selos). Linha de um bloco → Minha
-// estante rolada até a prateleira daquele bloco (etapa dos selos).
+// Toque numa fatia → G10 se o livro está completo, senão abre o livro na
+// aba Bíblia. Linha de um bloco → Minha estante rolada até a prateleira
+// daquele bloco.
 import { useEffect, useMemo, useState } from 'react'
 import AppIcon from '../icons/AppIcon'
 import RodaDaBiblia from '../components/gamificacao/RodaDaBiblia'
@@ -40,7 +40,7 @@ function lastCompletedBook(progress, completionDates) {
   return best?.nome ?? progress.completos[progress.completos.length - 1] ?? null
 }
 
-export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenBook, onOpenEstante }) {
+export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenBook, onOpenSelo, onOpenEstante }) {
   const { lang, todaySession, dailyRoutine } = session
   const [mode, setMode] = useState(getWheelMode)
   const [rows, setRows] = useState(null) // { chapterRows, sessionRows } — só pra datas/ritmo
@@ -100,7 +100,7 @@ export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenB
             currentBook={currentBook} highlightBook={highlightBook}
             centerLine1={pct} centerLine2="da Bíblia lida" centerSize={44}
             ariaLabel={`${pct} da Bíblia lida, ${deOf(progress.capitulosLidos, progress.totalCapitulos)} capítulos`}
-            onSliceClick={nome => onOpenBook?.(nome)}
+            onSliceClick={nome => (progress.porLivro[nome].completo ? onOpenSelo?.(nome) : onOpenBook?.(nome))}
           />
         </div>
 
