@@ -75,7 +75,7 @@ import { logChaptersRead } from './bible/chapterReadLog'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
 import { isAtLeast } from './utils/age'
 import { getPrayerStats } from './prayer/prayerStatsStore'
-import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
+import { getDailyRoutine, setStepDone, setThemePicks, setStepProgress } from './routine/dailyRoutineStore'
 import { DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, DEFAULT_WEEKLY_GOAL_DAYS } from './routine/routineStreak'
 import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
@@ -117,6 +117,7 @@ import { onChapterOpened } from './gamification/rereadTracker'
 import { startReread, recordRereadChapter } from './gamification/achievementsMath'
 import { updateGamification } from './gamification/achievementsStore'
 import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
+import MeuPlanoScreen from './screens/MeuPlanoScreen'
 import { evaluateGamification, markAchievementsSeen } from './gamification/evaluate'
 import { getGamificationRow } from './gamification/achievementsStore'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
@@ -1161,6 +1162,46 @@ export default function App() {
     return stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
   }
 
+  // Passo aberto (handoff-meu-plano-47, HANDOFF §3.4/§10): grava
+  // `${step}Progress.startedAt` na entrada de hoje na 1ª abertura do passo
+  // — é o que faz o botão do Meu Plano dizer "Continuar …" se a pessoa sair
+  // no meio. Não mexe em nada de constância (ver dailyRoutineStore.js).
+  function markStepOpened(step) {
+    if (!authUser) return
+    const key = dateKey()
+    const today = dailyRoutineRef.current[key] ?? {}
+    if (today[step] || today[`${step}Progress`]?.startedAt) return
+    const startedAt = new Date().toISOString()
+    setDailyRoutine(prev => ({ ...prev, [key]: { ...prev[key], [`${step}Progress`]: { ...(prev[key]?.[`${step}Progress`] ?? {}), startedAt } } }))
+    setStepProgress(step, { startedAt }).catch(err => console.error('Failed to persist step progress', err))
+  }
+
+  // Relógio de Oração/Reflexão pausou (sair da tela também pausa): guarda
+  // os segundos já corridos em `${step}Progress.elapsedSeconds`, pra o
+  // cartão do Meu Plano mostrar o que falta. A leitura não passa por aqui:
+  // os segundos dela já vão pra session_seconds em lotes (ReadingBlockView).
+  function persistStepElapsed(step, controlsRef) {
+    if (!authUser) return
+    const elapsed = Math.round(controlsRef.current?.computeElapsed?.() ?? 0)
+    if (elapsed <= 0) return
+    const key = dateKey()
+    if (dailyRoutineRef.current[key]?.[step]) return
+    setDailyRoutine(prev => ({ ...prev, [key]: { ...prev[key], [`${step}Progress`]: { ...(prev[key]?.[`${step}Progress`] ?? {}), elapsedSeconds: elapsed } } }))
+    setStepProgress(step, { elapsedSeconds: elapsed }).catch(err => console.error('Failed to persist step elapsed', err))
+  }
+  const prayerWasRunningRef = useRef(false)
+  const reflectionWasRunningRef = useRef(false)
+  useEffect(() => {
+    if (prayerWasRunningRef.current && !prayerTimerRunning) persistStepElapsed('prayer', prayerTimerControlsRef)
+    prayerWasRunningRef.current = prayerTimerRunning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prayerTimerRunning])
+  useEffect(() => {
+    if (reflectionWasRunningRef.current && !reflectionTimerRunning) persistStepElapsed('reflection', reflectionTimerControlsRef)
+    reflectionWasRunningRef.current = reflectionTimerRunning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reflectionTimerRunning])
+
   // Iniciar em Meu Plano — encadeia os passos ligados. Com 0 ou 1 passo não
   // há o que encadear: só abre aquele passo (ou nada), sem o "modo guiado".
   function startGuidedRoutine() {
@@ -1176,7 +1217,7 @@ export default function App() {
     const today = dailyRoutine[dateKey()] ?? {}
     let startIdx = steps.findIndex(s => !today[s])
     if (startIdx < 0) startIdx = steps.length - 1
-    const openStep = step => step === 'reading' ? goToReadingStep() : step === 'study' ? openActiveStudy() : goToTab(step)
+    const openStep = step => { markStepOpened(step); return step === 'reading' ? goToReadingStep() : step === 'study' ? openActiveStudy() : goToTab(step) }
     // Sem passos pra encadear a partir daqui (só sobrou 1) — abre direto,
     // sem o "modo guiado". Estudo entra na CONTAGEM (Oração/Reflexão
     // mostram "passo N de M" certo em dia de Estudo ativo), mas não no
@@ -1228,6 +1269,7 @@ export default function App() {
         return
       }
       setGuidedFlow({ steps: gf.steps, idx: nextIdx })
+      markStepOpened(nextStep)
       if (nextStep === 'reading') goToReadingStep()
       else goToTab(guidedTabFor(nextStep))
     }, GUIDED_ADVANCE_MS)
@@ -3098,7 +3140,7 @@ export default function App() {
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
     // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
     routine: hasPremium
-      ? <RoutineScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onContinueSession={continueToday} onOpenActiveStudy={openActiveStudy} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
+      ? <MeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;
