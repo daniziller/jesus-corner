@@ -149,7 +149,7 @@ const session = {
   todayRoutine: {}, dailyRoutine,
   lastReadPosition: { book: 'Gênesis', chapter: 41 },
   biblePercent: 4.2, activeStudyId: (planoState === 'p5' || planoState === 'quatro') ? 'est-ansiedade' : null,
-  chaptersRead: completedSet.size, booksCompleted: 1,
+  chaptersRead: completedSet.size,
   myGroups: [], hasNoPlan: false, hasPremium: true, weeklyGoalDays: 4, weeklyDays: [true, true, false, true, false, true, false],
   currentBlock: { name: 'Pentateuco', book: 'Gênesis', chapter: 42, bookChapters: 50, bookPercent: 82 },
 }

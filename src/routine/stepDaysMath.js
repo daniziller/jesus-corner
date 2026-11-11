@@ -113,14 +113,6 @@ export function stepSatisfiedDays(oneStepDays, dailyRoutine, step, monday, today
   return { satisfied, pendingMissed }
 }
 
-// Dias (índices, mais antigo primeiro) que UM passo específico ainda deve
-// da semana atual, como de hoje — usado pra decidir se um dia de folga
-// daquele passo mostra "Repor {dia}" em vez do "fora de hoje" de sempre
-// (ver planTodayRows.js/HomeScreen.jsx).
-export function pendingMakeupWeekdays(oneStepDays, dailyRoutine, step, today = new Date()) {
-  return stepSatisfiedDays(oneStepDays, dailyRoutine, step, mondayOf(today), today).pendingMissed
-}
-
 // { doneCount, markedCount } da semana ATUAL (segunda até hoje) — mesma
 // fonte pras 3 leituras que o HANDOFF exige que batam (grade 35a, pílula
 // 35c, cartão "Esta semana"). markedCount conta a semana inteira (7 dias),

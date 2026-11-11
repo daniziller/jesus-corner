@@ -10,8 +10,6 @@
 //   de todas fixa sozinha, sem perguntar, já que não tem o que comparar.
 import { getNotes, saveNote, noteTextOf, noteSessionTitleOf, noteReminderRequestedOf, parseNoteKey } from '../notes/notesStore'
 import { dateKey } from '../utils/dateKey'
-import { mondayOf } from '../routine/routineStreak'
-import { countWeekApplications } from './applicationPhraseMath'
 
 export const PINNED_APPLICATION_KEY = 'application:pinned'
 
@@ -70,18 +68,3 @@ export async function markPinnedApplicationFulfilled(email, entry) {
     fulfilled: true,
   })
 }
-
-// "{N} de {N} cumprida(s) nesta semana" (34a) — quantas frases de
-// aplicação esta semana (segunda até hoje) existem no histórico, e
-// quantas foram marcadas cumpridas. Mesma convenção de semana de
-// mondayOf/isDayGoalMet (routine/routineStreak.js) — reusada de propósito
-// (ver comentário lá: "pra applicationPhraseMath.js usar a MESMA
-// convenção de semana").
-export async function getWeekApplicationStatus(email, today = new Date()) {
-  const notes = await getNotes(email)
-  const entries = Object.entries(notes)
-    .map(([key, entry]) => ({ ...parseNoteKey(key), fulfilled: typeof entry === 'object' && !!entry.fulfilled, hasText: !!noteTextOf(entry) }))
-    .filter(e => e.type === 'application-phrase' && e.hasText)
-  return countWeekApplications(entries, dateKey(mondayOf(today)), dateKey(today))
-}
-

@@ -13,7 +13,7 @@ import { messagesBadgeText, communityTabLabel } from '../groups/messagesBadge'
 // marcações, sermões e estudos — ver NotesScreen.jsx.
 // O que mais saiu da barra e onde vive agora:
 //  - Estudos → dentro da própria Biblioteca (não tem slot próprio) + card
-//    em "Meu Plano" (RoutineScreen) + item em Perfil.
+//    em "Meu Plano" (MeuPlanoScreen) + item em Perfil.
 //  - Oração → dentro de "Meu Plano" (é o passo 1 do dia) e do card de
 //    rotina da Home.
 // Todas continuam navegáveis por navigateTo(), só não ocupam mais um

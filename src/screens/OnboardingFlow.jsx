@@ -512,8 +512,7 @@ const s = {
   totalValue: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1, letterSpacing: '-.8px', color: 'var(--bento-sand-ink-strong)' },
   totalUnit: { fontFamily: FONT, fontSize: 11, fontWeight: 700, color: 'var(--bento-sand-label)' },
   // Projeção (15f/27a) — cartão tan mais escuro sobre o sand claro do
-  // totalCard, e a versão translúcida-laranja sobre o darkCard de 27a
-  // (mesmo padrão de TimePerStepSheet.jsx, pra não inventar um 3º estilo).
+  // totalCard, e a versão translúcida-laranja sobre o darkCard de 27a.
   projSubCard: { borderRadius: 13, background: 'rgba(90,67,39,.12)', padding: '10px 12px' },
   projText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-sand-ink-strong)', margin: '0 0 2px' },
   projSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-sand-ink-mid)', margin: 0 },

@@ -17,8 +17,7 @@ export function countTrue(days) {
 // Abreviação de 3 letras (Seg/Ter/Qua…) e nome cheio — usados no grid "Esta
 // semana" de HomeDashboard.jsx (30a), que agora mostra só os dias marcados
 // em vez de sempre 7, então precisa do nome de cada um, não só uma letra
-// ambígua (WEEKDAY_LETTERS em weekRings.js continua existindo pra outros
-// widgets que ainda mostram os 7 dias sempre).
+// ambígua.
 export const WEEKDAY_ABBR3 = {
   pt: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
   en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],

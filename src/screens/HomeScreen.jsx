@@ -96,11 +96,10 @@ export default function HomeScreen({
   const [sharingVerse, setSharingVerse] = useState(false)
   const [verseOpen, setVerseOpen] = useState(false)
 
-  // ── Bloco 2, dados do modelo de passos com dias próprios (2026-09-08) —
-  // mesmas fontes de RoutineScreen.jsx/Meu Plano, pra "Seu plano de hoje"
-  // nunca discordar de "Meu Plano" sobre o que é hoje. Sem gate de loading
-  // próprio (mesmo padrão de RoutineScreen.jsx): assume o fallback até
-  // resolver, sem travar o resto da tela.
+  // ── Bloco 2, dados dos passos com dias próprios — as mesmas fontes do
+  // Meu Plano (MeuPlanoScreen.jsx), pra "Seu plano de hoje" nunca discordar
+  // dele sobre o que é hoje. Enquanto os dias não chegam, o cartão do plano
+  // fica em esqueleto, sem travar o resto da tela.
   const [stepDays, setStepDaysState] = useState(null)
   const [prayerMethod, setPrayerMethodState] = useState('acts')
   const [reflectionMethod, setReflectionMethodState] = useState('questions')

@@ -291,7 +291,6 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     ntPercent: overall.ntPercent,
     chaptersRead: gami.chaptersRead,
     totalChapters: gami.totalChapters,
-    booksCompleted: gami.booksCompleted,
     totalBooks: gami.totalBooks,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     // "Sem plano" (28d) — a pessoa escolheu não ter um trecho do dia pra
@@ -2549,33 +2548,6 @@ export default function App() {
     }
   }
 
-  // Minutos de cada passo (26d/5a, Bloco 4) — patch: { prayer?, reading?,
-  // reflection? }, cada um null (sem preferência) ou 0-60 (0 desliga o
-  // passo, exceto Leitura — ver validação em stepMinutesStore.js). UI
-  // otimista: session.plan.*Minutes reflete a mudança antes do save
-  // terminar (buildSession lê stepMinutes direto do estado).
-  //
-  // "Zerar um passo o remove da rotina" (nota do quadro 26d) — cruzar de/pra
-  // 0 também liga/desliga o módulo em routineModules (a mesma chave que
-  // Home/Rotina/Reflexão já filtram por routineModules.includes), pra não
-  // ter dois interruptores contando histórias diferentes sobre o mesmo
-  // passo. Leitura nunca cruza (mínimo 1, ver stepMinutesStore.js).
-  function saveStepMinutes(patch) {
-    setStepMinutesState(prev => {
-      const next = { ...prev, ...patch }
-      for (const key of ['prayer', 'reflection']) {
-        if (!(key in patch)) continue
-        const wasOn = (prev[key] ?? 1) > 0
-        const isOn = (patch[key] ?? 1) > 0
-        if (wasOn !== isOn) toggleRoutineModule(key, isOn)
-      }
-      return next
-    })
-    if (authUser) {
-      persistStepMinutes(patch).catch(err => console.error('Failed to persist step minutes', err))
-    }
-  }
-
   // Troca o idioma do app (chamado a partir do seletor na aba Perfil) —
   // atualiza o estado local na hora (UI otimista) e salva em segundo plano.
   function changeLanguage(language) {
@@ -2655,19 +2627,6 @@ export default function App() {
     // depois disso, então some sozinho em vez de continuar apontando pra
     // uma sessão já fechada.
     if (step === 'reflection' && done) setLastReadSession(null)
-  }
-
-  // Liga/desliga um passo da rotina diária (Oração/Leitura/Estudo guiado/
-  // Reflexão) — independente de qual plano de leitura está ativo (ver
-  // "Meu Plano"/routineModulesStore.js). Atualiza o estado local na hora,
-  // persiste em segundo plano.
-  function toggleRoutineModule(key, on) {
-    if (!authUser) return
-    setRoutineModulesState(prev => {
-      const next = on ? [...new Set([...prev, key])] : prev.filter(m => m !== key)
-      persistRoutineModules(authUser.email, next).catch(err => console.error('Failed to persist routine modules', err))
-      return next
-    })
   }
 
   // Qual Estudo guiado está ativo (ver activeStudyStore.js) — passar null
