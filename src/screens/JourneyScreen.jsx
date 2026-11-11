@@ -78,7 +78,7 @@ function sermonDateShort(dateStr, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
+  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
   // Anotação de sermão — tela própria (pedido dela, 2026-09-10). Quando
   // sermonNoteMode, esta tela renderiza SÓ a anotação (nada de mapa da
   // Bíblia/busca/livro/capítulo) como página normal, sem barra de
@@ -139,11 +139,6 @@ export default function JourneyScreen({
   const [expandedBlockId, setExpandedBlockId] = useState(entryMode === 'reading' ? initialBlockId : null)
   const [initialSessionId, setInitialSessionId] = useState(entryMode === 'reading' ? resumeSessionId : null)
   const [readingMode, setReadingMode] = useState(entryMode === 'reading' ? 'session' : 'browse')
-  // Só true quando abrindo um capítulo que a pessoa JÁ tinha escolhido ler
-  // antes (ver RecentChaptersRow/openRecentChapter abaixo) — nesse caso faz
-  // sentido já cair lendo, diferente de abrir um livro do zero (onOpenBook),
-  // que mostra só os números dos capítulos pra escolher (ver ReadingBlockView.jsx).
-  const [initialTextOpen, setInitialTextOpen] = useState(false)
   // Livro aberto (quadro 18a: Página do livro) — chave `${blockId}:${bookName}`,
   // navega pra uma tela própria (BookChapterScreen) em vez de expandir
   // inline na lista, como antes do reskin Bento.
@@ -1078,7 +1073,7 @@ export default function JourneyScreen({
 
   // Tocar um card de "lido recentemente" (RecentChaptersRow) — diferente de
   // abrir um livro do zero, aqui já cai lendo o capítulo exato, sem passar
-  // pela lista de números primeiro (ver initialTextOpen acima).
+  // pela lista de números primeiro (ver expandedInitialTextOpen acima).
   function openRecentChapter(blockId, sessionId) {
     const block = blocks.find(b => b.id === blockId)
     const targetSession = browseSessionsByBlock[blockId]?.find(s => s.id === sessionId)
@@ -1750,7 +1745,6 @@ export default function JourneyScreen({
           onToggleSession={onToggleSession}
           onToggleChapter={onToggleChapter}
           initialSessionId={initialSessionId}
-          initialTextOpen={initialTextOpen}
           // Só força o recap "onde a história está" no caminho de sessão
           // guiada (vindo da Bênção) — nunca em modo browse (tocar um
           // capítulo qualquer no mapa não deve reabrir o recap de um
@@ -1759,7 +1753,6 @@ export default function JourneyScreen({
           onBack={closeBlock}
           onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
           onJumpToChapter={openRecentChapter}
-          onExitGuided={onExitGuided}
           onOpenGroupRoom={onOpenGroupRoom}
         />
         {renderSermonFab()}

@@ -1,12 +1,9 @@
 // Cards estilo "stories" (Instagram) com os últimos capítulos abertos na
 // navegação livre pela Bíblia — deixa voltar direto a um deles com um
 // toque, sem precisar re-navegar pelo mapa de Antigo/Novo Testamento. Ver
-// src/reading/recentChaptersStore.js. Os dois usos atuais (dentro de
-// ReadingBlockView.jsx, ramos "mode='browse' && !embedded" pro desktop e
-// pra tela cheia antiga) são código morto — nenhum call site de hoje passa
-// por ali (ver auditoria de identidade, Bloco 1) — mas o componente
-// continua existindo (e na identidade Bento) pra quando esse caminho
-// master-detail for retomado.
+// src/reading/recentChaptersStore.js. Uso atual: a leitura livre
+// (ReadingBlockView.jsx, mode 'browse') em tela larga (≥768px), entre o
+// cabeçalho e o texto.
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 
