@@ -9,7 +9,7 @@
 // Bíblia inteira têm as frases de HANDOFF §8.
 import RodaDaBiblia from './RodaDaBiblia'
 import { GAMIFICATION_BLOCKS, blockColorVar, bookInfo } from '../../data/gamificationBlocks'
-import { closestSeal } from '../../gamification/bibleProgressMath'
+import { footerBook } from '../../gamification/bibleProgressMath'
 import { formatInt, formatPct, deOf, faltamPhrase, dayMonthLong } from '../../gamification/format'
 
 const FONT = 'var(--font-bento)'
