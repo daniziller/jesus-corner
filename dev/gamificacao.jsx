@@ -180,7 +180,7 @@ function seedGuestTables(estado) {
     p4: {}, um: {}, quatro: {}, p5: { prayer: true, prayerAt: atH(6, 40) },
   }[planoState] ?? {}
   routine[dateKey(new Date())] = { ...(routine[dateKey(new Date())] ?? {}), ...todayEntry }
-  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null }))
+  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null, reading_clock_prefs: { showOnReading: params.get('relogio') !== 'nao', warnAtZero: true, askToContinue: params.get('perguntar') === 'sim' } }))
   return nova ? {} : routine
 }
 const dailyRoutine = seedGuestTables(estado)
@@ -308,15 +308,26 @@ function BibliaPreview({ onPastRootChange }) {
   // primeiro bloco) — pra conferir que ela não muda quando a leitura livre muda.
   const planReading = params.get('leitura') === 'plano'
   const planSession = planReading ? (sessionsByBlock[blocks[0].id].find(x => x.status === 'current') ?? sessionsByBlock[blocks[0].id].find(x => x.status !== 'done')) : null
+  // S3: os passos de hoje (barra do dia), o plano da Bíblia contínua (é ele
+  // que tem relógio) e, com &grupo=sim, um grupo.
+  const dia = params.get('dia')
+  const planSessionData = !planReading ? session : {
+    ...session,
+    activePlan: { kind: 'fixed' },
+    todaysSteps: dia === 'um' ? ['reading'] : dia === 'estudo' ? ['prayer', 'reading', 'study', 'reflection'] : ['prayer', 'reading', 'reflection'],
+    todayRoutine: Object.fromEntries((params.get('feitos') ?? 'prayer').split(',').filter(Boolean).map(k => [k, true])),
+    myGroups: params.get('grupo') === 'sim' ? [{ groupId: 'g1', name: 'Grupo Semente' }] : [],
+  }
   return (
     <JourneyScreen
-      session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock}
+      session={planSessionData} authUser={authUser} stepMinutes={{ prayer: 10, reading: 15, study: 15, reflection: 5 }} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock}
       completedSet={done} entryMode={planReading ? 'reading' : 'overview'} initialBlockId={planReading ? blocks[0].id : undefined} resumeSessionId={planSession?.id}
       onGoToReflectionFrom={() => alert('ir pra reflexão')} onExitReading={() => alert('sair da leitura')}
       onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
       onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}
       onNavigate={t => alert(`navegar: ${t}`)} onContinueSession={() => alert('ler a sessão de hoje (conta no plano)')}
       onOpenSuaBiblia={() => alert('abrir Sua Bíblia')} onPastRootChange={onPastRootChange} onCelebrateNow={celebrarAgora}
+      onOpenGroupRoom={alvo => alert(`abrir a sala do grupo: ${alvo.book} ${alvo.chapter}`)}
     />
   )
 }

@@ -7,6 +7,7 @@ import {
   actsTrail, actsTrailAria, stageMinutes, stageCardLabel, actsFooter, starterText, insertStarter,
 } from '../src/passos/passosMath.js'
 import { PRAYER_STAGES } from '../src/prayer/prayerStages.js'
+import { readingThread } from '../src/biblia/bibliaMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -61,6 +62,18 @@ check('campo com texto: a frase entra numa linha nova', insertStarter('Hoje foi 
 check('a mesma frase de novo, logo depois de posta, não repete', [insertStarter('Senhor, eu errei em ', 'Senhor, eu errei em…'), insertStarter('Hoje foi difícil.\nMe ajuda a largar ', 'Me ajuda a largar…')], ['Senhor, eu errei em ', 'Hoje foi difícil.\nMe ajuda a largar '])
 check('a mesma frase depois de a pessoa completar entra de novo, em linha nova', insertStarter('Senhor, eu errei em casa.', 'Senhor, eu errei em…'), 'Senhor, eu errei em casa.\nSenhor, eu errei em ')
 check('duas frases diferentes em sequência', insertStarter(insertStarter('', 'Senhor, eu errei em…'), 'Tenho carregado sozinho…'), 'Senhor, eu errei em\nTenho carregado sozinho ')
+
+// ── S3: a leitura com relógio ───────────────────────────────────────────
+check('fio da leitura do plano: "Passo 2 de 3 · 40 de 50 lidos"', readingThread({ lidos: 40, total: 50 }, { step: stepSubtitle(hoje, 'reading') }), { ratio: 0.8, text: 'Passo 2 de 3 · 40 de 50 lidos' })
+check('fio: singular, nada lido e leitura fora dos passos de hoje', [readingThread({ lidos: 1, total: 4 }, { step: stepSubtitle(hoje, 'reading') }).text, readingThread({ lidos: 0, total: 150 }, { step: stepSubtitle(['prayer', 'reading', 'study', 'reflection'], 'reading') }).text, readingThread({ lidos: 3, total: 3 }, { step: stepSubtitle(['prayer'], 'reading') }).text], ['Passo 2 de 3 · 1 de 4 lido', 'Passo 2 de 4 · 0 de 150 lidos', 'Passo 1 de 1 · 3 de 3 lidos'])
+check('fio da leitura livre continua como era', [readingThread({ lidos: 6, total: 150 }, { free: true }).text, readingThread({ lidos: 6, total: 150 }).text], ['6 de 150 lidos · leitura livre', '6 de 150 lidos'])
+check('relógio da leitura: 15 min, 3:28 lidos → "11:32"', clockDisplay(900, 208).text, '11:32')
+// Uma tela de leitura só: a do plano é a da aba Bíblia, com o mesmo topo e
+// o mesmo rodapé, em outro modo.
+const leitura = readFileSync(new URL('../src/screens/ReadingBlockView.jsx', import.meta.url), 'utf8')
+check('a leitura do plano usa o topo e o rodapé da leitura da Bíblia', [(leitura.match(/<LeituraTopo\b/g) ?? []).length, (leitura.match(/<LeituraRodape\b/g) ?? []).length, /StepTimerPill|readerDoneBtn|readerToolsBtn/.test(leitura)], [1, 2, false])
+check('o texto bíblico é o mesmo componente nos dois modos', (leitura.match(/<BibleTextPanel\b/g) ?? []).length, 1)
+check('"Concluir a leitura" chama o caminho de sempre', /<LeituraRodape ref=\{measureFooter\} onTools=\{[^}]*\} onConclude=\{handleConcludePress\} \/>/.test(leitura), true)
 
 // ── Privacidade: o que se escreve na oração não sai da tela ─────────────
 // O cartão de escrita e a tela da oração não importam nenhum lugar de

@@ -77,7 +77,7 @@ function sermonDateShort(dateStr, lang) {
 }
 
 export default function JourneyScreen({
-  session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
+  session, authUser, stepMinutes, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
   onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
   // Anotação de sermão — tela própria (pedido dela, 2026-09-10). Quando
   // sermonNoteMode, esta tela renderiza SÓ a anotação (nada de mapa da
@@ -1732,6 +1732,7 @@ export default function JourneyScreen({
           key={`${expandedBlockId}-${initialSessionId}`}
           session={session}
           authUser={authUser}
+          stepMinutes={stepMinutes}
           onNavigate={onNavigate}
           blockId={expandedBlockId}
           blocks={blocks}

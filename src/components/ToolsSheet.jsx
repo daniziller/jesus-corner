@@ -35,7 +35,9 @@ const GRID_STYLE = {
 const ROW_STYLE = { bg: 'var(--bento-line)', icon: 'var(--bento-ink)' }
 
 // items: [{ key, icon, label, sub, node }] — `node` é o conteúdo do painel
-// daquela ferramenta (só montado quando aberto). extra: nós avulsos no fim
+// daquela ferramenta (só montado quando aberto). Um item com `onPress` no
+// lugar de `node` é uma linha que leva a outra tela (ex: a sala do grupo).
+// extra: nós avulsos no fim
 // da lista (ex: "Perguntar à IA"). subtitle: linha "{livro} {capítulo} ·
 // tudo que era barra lateral" do quadro — montada por quem chama, que é
 // quem sabe a referência da sessão.
@@ -88,7 +90,7 @@ export default function ToolsSheet({ open, onClose, lang, items = [], extra = nu
             </div>
 
             {rowItems.map(item => (
-              <button key={item.key} style={styles.row} onClick={() => setOpenKey(item.key)}>
+              <button key={item.key} style={styles.row} onClick={() => (item.onPress ? item.onPress() : setOpenKey(item.key))}>
                 <span style={{ ...styles.rowIcon, background: ROW_STYLE.bg }}>
                   <AppIcon name={item.icon} size={15} color={ROW_STYLE.icon} />
                 </span>
