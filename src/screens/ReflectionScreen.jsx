@@ -1,22 +1,21 @@
-// ReflectionScreen.jsx — Reflexão (pacote 36-37, handoff-passos-36-37/,
-// quadros 37a com perguntas e 37b livre). Reescreve por inteiro a versão
-// anterior (26c/29b, fases Reviver/Entender/Aplicar com cronômetro OU 3
-// perguntas geradas + parágrafo final aprovado): o método (perguntas ou
-// livre) agora é decidido em Meu Plano/Ajustar (35c,
-// reflectionMethodStore.js) e só LIDO aqui — sem chip pra trocar dentro
-// da execução, mesmo padrão de PrayerScreen.jsx (Bloco 1 do pacote).
+// ReflectionScreen.jsx — Reflexão. Dois jeitos, decididos em Meu Plano/
+// Ajustar (reflectionMethodStore.js) e só LIDOS aqui:
 //
-// Unificação dos cronômetros (2026-09-21, pedido dela): Reviver/Entender/
-// Aplicar voltaram, como chips do cronômetro compartilhado
-// (StepTimerCard.jsx) avançando sozinhos por TEMPO — não como telas
-// separadas por etapa (isso ela decidiu explicitamente não fazer: as 3
-// perguntas continuam juntas, na mesma tela, só rolagem).
+//   · com perguntas (S4, handoff-passos-pedidos-53-54 §5): UMA pergunta por
+//     vez no cartão preto, com o campo dentro. As perguntas são as de
+//     sempre — duas geradas do trecho, opcionais, e a terceira, fixa, que
+//     vira a frase do dia. Embaixo, as que faltam ("Depois") ou, na
+//     última, as anteriores ("Já respondidas", tocáveis). "Trocar" troca
+//     só a pergunta atual. Cabeçalho com o relógio e a barra do dia.
+//   · livre (37b, handoff-passos-36-37): uma folha em branco — não mudou.
 //
-// "questions" exige session.hasAI (é IA de verdade, gerada por
-// requisição, não cacheada — ver aiChat/reflectionQuestionsStore.js);
-// quem escolheu perguntas em 35c mas não tem o tier certo cai em livre
-// (nunca uma tela quebrada) — o quadro não cobre esse caso, mas alguma
-// tela precisa abrir.
+// "Com perguntas" exige session.hasAI (as perguntas são geradas por
+// requisição, não guardadas — ver aiChat/reflectionQuestionsStore.js);
+// quem escolheu perguntas mas não tem o plano certo cai em livre.
+//
+// Privacidade: o que se escreve vai para a Biblioteca da própria pessoa
+// (notesStore) — a nota do dia e a frase de aplicação. Nada daqui vai a
+// grupo nenhum.
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
 import { fetchReflectionQuestionPair } from '../aiChat/reflectionQuestionsStore'
@@ -25,173 +24,181 @@ import { getHighlights } from '../highlights/highlightsStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase, dailyApplicationKeyFor } from '../reflection/applicationPhraseStore'
-import { REFLECTION_DATA } from '../data/reflectionGuide'
 import { dateKey } from '../utils/dateKey'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { useStepTimer } from '../timer/useStepTimer'
 import { usePlanTotalToday } from '../timer/usePlanTotalToday'
+import { resolveMinutes } from '../meuPlano/meuPlanoMath'
+import { dayBarSegments, dayBarAria, stepSubtitle } from '../passos/passosMath'
+import { reflectionQuestions, reflectionView, passageCard, combineQaText } from '../passos/reflexaoMath'
+import { useKeyboardInset } from '../passos/useKeyboardInset'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import StepTimerCard from '../components/timer/StepTimerCard'
+import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
+import RelogioDoPasso from '../components/passos/RelogioDoPasso'
+import CartaoPergunta from '../components/passos/CartaoPergunta'
+import ListaDePerguntas from '../components/passos/ListaDePerguntas'
+import RodapeDoPasso from '../components/passos/RodapeDoPasso'
 
 function verseSpan(start, end) {
   return start === end ? `${start}` : `${start}-${end}`
 }
 
-// Combina as duas perguntas geradas + respostas num texto corrido só —
-// mesma chave de nota que o fluxo livre usa (reflection:{dia}, ver
-// notesStore.js), pra "Suas anotações" (NotesScreen.jsx/37e) mostrar uma
-// entrada por dia, questão ou livre, sem precisar de um formato à parte.
-function combineQaText(questions, a1, a2) {
-  const parts = []
-  if (questions?.[0] && a1.trim()) parts.push(`${questions[0]}\n${a1.trim()}`)
-  if (questions?.[1] && a2.trim()) parts.push(`${questions[1]}\n${a2.trim()}`)
-  return parts.join('\n\n')
-}
-
-export default function ReflectionScreen({ session, authUser, stepMinutes, lastReadChapterInfo, onReflectionCompleted, onNavigate, onContinueSession, onExitGuided, onBack, onApplicationChanged, timerControlsRef, onTimerRunningChange }) {
+// `active`: a tela está na frente (ela fica montada, escondida, depois da
+// primeira visita — ver reflectionVisitedRef em App.jsx). `questionsApi` e
+// `initialQuestion` só existem para a pré-visualização de desenvolvimento.
+export default function ReflectionScreen({ session, authUser, stepMinutes, active = true, lastReadChapterInfo, onReflectionCompleted, onExitGuided, onBack, onApplicationChanged, timerControlsRef, onTimerRunningChange, questionsApi = fetchReflectionQuestionPair, initialQuestion = 0 }) {
   const { lang } = session
   const guided = session.guided?.step === 'reflection'
   const L = (k, vars) => t(`reflection.${k}`, vars, lang)
   const email = authUser?.email
   const method = useMemo(getReflectionMethod, [])
   const effectiveMethod = method === 'questions' && session.hasAI ? 'questions' : 'free'
+  const withQuestions = effectiveMethod === 'questions'
   const totalMinutes = stepMinutes?.reflection ?? session.plan.reflectionMinutes
   const TOTAL_SECONDS = totalMinutes * 60
-
-  // "passo N de M" — mesma lógica de PrayerScreen.jsx (session.
-  // todaysSteps, sempre mostrado, dentro ou fora do modo guiado).
-  const todaysSteps = session.todaysSteps ?? ['reflection']
-  const stepIdx = Math.max(0, todaysSteps.indexOf('reflection'))
 
   const hasChapter = !!lastReadChapterInfo?.book
   const chapterLabel = hasChapter ? `${lastReadChapterInfo.book} ${verseSpan(lastReadChapterInfo.chStart, lastReadChapterInfo.chEnd)}` : ''
 
-  const { running, elapsedSeconds: elapsed, toggle: toggleRunning, pause, computeElapsed } = useStepTimer()
+  const { running, elapsedSeconds: elapsed, start, toggle: toggleRunning, pause, computeElapsed } = useStepTimer()
   const planPriorSeconds = usePlanTotalToday()
   const planSeconds = planPriorSeconds + elapsed
 
-  // Etapas Reviver/Entender/Aplicar (REFLECTION_DATA) reaparecem como
-  // chips + relógio de etapa no cronômetro compartilhado — mas as 3
-  // perguntas continuam todas na mesma tela (decisão dela: não vale a
-  // pena redesenhar a tela pra uma pergunta por vez, só pelo cronômetro).
-  // A etapa "atual" avança sozinha por TEMPO decorrido, não por clique —
-  // não existe botão de avançar etapa aqui, diferente da Oração.
-  const reflectionWeightSum = REFLECTION_DATA.reduce((sum, s) => sum + s.durationMin, 0)
-  const reflectionStageDurations = REFLECTION_DATA.map(s => (s.durationMin / reflectionWeightSum) * TOTAL_SECONDS)
-  let reflectionStageIdx = reflectionStageDurations.length - 1
-  let reflectionStageElapsedBefore = 0
-  {
-    let acc = 0
-    for (let i = 0; i < reflectionStageDurations.length; i++) {
-      if (elapsed < acc + reflectionStageDurations[i]) { reflectionStageIdx = i; reflectionStageElapsedBefore = acc; break }
-      acc += reflectionStageDurations[i]
-    }
-  }
-
-  // "Você acabou de ler" — o texto BÍBLICO do primeiro trecho marcado
-  // hoje durante a sessão guiada (não a nota pessoal do highlight — ver
-  // PrayerRequestCard/ReadingSummaryScreen.jsx pro mesmo padrão de buscar
-  // o texto real a partir de book+chapter+verses de um highlight).
-  const [todayQuote, setTodayQuote] = useState(null)
+  // Com perguntas: o relógio começa a contar quando a tela aparece — o
+  // cabeçalho novo não tem botão de iniciar, só a pílula, que pausa e
+  // retoma. Uma vez só: quem pausa (ou sai do app, que pausa) retoma pelo
+  // toque.
+  const autoStartedRef = useRef(false)
   useEffect(() => {
-    if (!email) return
-    getHighlights(email).then(async list => {
-      const today = list.find(h => !h.hidden && h.date === dateKey() && h.sessionMode === 'session')
-      if (!today) { setTodayQuote(null); return }
+    if (!withQuestions || !active || autoStartedRef.current) return
+    autoStartedRef.current = true
+    start()
+  }, [withQuestions, active, start])
+
+  // O cartão areia do trecho (S4): o texto BÍBLICO do primeiro trecho
+  // marcado hoje na leitura do plano ou, sem marcação, o primeiro
+  // versículo do que a pessoa acabou de ler (num dia de estudo, o trecho
+  // do estudo — é ele que chega em lastReadChapterInfo).
+  const [passage, setPassage] = useState(null)
+  useEffect(() => {
+    if (!withQuestions) return undefined
+    let cancelled = false
+    async function load() {
       const versionId = getSelectedVersionId(lang)
-      const bookKey = lang === 'en' ? (today.bookEn || today.book) : today.book
+      const list = email ? await getHighlights(email).catch(() => []) : []
+      const today = list.find(h => !h.hidden && h.date === dateKey() && h.sessionMode === 'session')
+      if (today) {
+        const bookKey = lang === 'en' ? (today.bookEn || today.book) : today.book
+        const chapters = await fetchBookText(versionId, bookKey).catch(() => null)
+        const chapterData = chapters?.[String(today.chapter)]
+        const quote = [...today.verses].sort((a, b) => a - b).map(v => chapterData?.verses?.[String(v)]).filter(Boolean).join(' ')
+        if (quote) return { reference: `${today.book} ${today.chapter}`, text: quote, marked: true }
+      }
+      if (!hasChapter) return null
+      const bookKey = lang === 'en' ? (lastReadChapterInfo.bookEn || lastReadChapterInfo.book) : lastReadChapterInfo.book
       const chapters = await fetchBookText(versionId, bookKey).catch(() => null)
-      const chapterData = chapters?.[String(today.chapter)]
-      const sorted = [...today.verses].sort((a, b) => a - b)
-      const quote = sorted.map(v => chapterData?.verses?.[String(v)]).filter(Boolean).join(' ')
-      setTodayQuote(quote || null)
-    }).catch(() => setTodayQuote(null))
+      const first = chapters?.[String(lastReadChapterInfo.chStart)]?.verses?.['1']
+      return first ? { reference: chapterLabel, text: first, marked: false } : null
+    }
+    load().then(p => { if (!cancelled) setPassage(p) }).catch(() => {})
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email])
+  }, [email, withQuestions])
 
   const noteKey = `reflection:${dateKey()}`
 
-  // ── Perguntas (37a) ────────────────────────────────────────────────
+  // Só grava o que a pessoa mexeu NESTA visita: as respostas das perguntas
+  // geradas não voltam da nota ao reabrir a tela (as perguntas são outras),
+  // e gravar um campo intocado vazio apagaria a nota do dia da Biblioteca.
+  const qaTouchedRef = useRef(false)
+  const q3TouchedRef = useRef(false)
+
+  // ── As duas perguntas geradas ───────────────────────────────────────
   const [questions, setQuestions] = useState(null)
   const [questionsError, setQuestionsError] = useState('')
   const [q1Text, setQ1Text] = useState('')
   const [q2Text, setQ2Text] = useState('')
   const [swapping, setSwapping] = useState(false)
+  // Todas as perguntas que já apareceram hoje — "Trocar" pede perguntas
+  // diferentes de todas elas.
+  const seenQuestionsRef = useRef([])
 
-  async function loadQuestions(avoid) {
-    setQuestionsError('')
-    try {
-      const qs = await fetchReflectionQuestionPair({
-        book: lastReadChapterInfo.book, bookEn: lastReadChapterInfo.bookEn,
-        chStart: lastReadChapterInfo.chStart, chEnd: lastReadChapterInfo.chEnd,
-        lang, avoidQuestions: avoid,
-      })
-      setQuestions(qs)
-    } catch (err) {
-      setQuestionsError(err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang) : L('questionsError'))
-    }
+  function questionsErrorText(err) {
+    return err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang) : L('questionsError')
+  }
+  function fetchPair() {
+    return questionsApi({
+      book: lastReadChapterInfo.book, bookEn: lastReadChapterInfo.bookEn,
+      chStart: lastReadChapterInfo.chStart, chEnd: lastReadChapterInfo.chEnd,
+      lang, avoidQuestions: seenQuestionsRef.current,
+    }).then(pair => { seenQuestionsRef.current = [...seenQuestionsRef.current, ...pair]; return pair })
   }
   useEffect(() => {
-    if (effectiveMethod !== 'questions' || !hasChapter) return
-    loadQuestions([])
+    if (!withQuestions || !hasChapter) return
+    setQuestionsError('')
+    fetchPair().then(setQuestions).catch(err => setQuestionsError(questionsErrorText(err)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveMethod, hasChapter])
+  }, [withQuestions, hasChapter])
 
-  // Bug real (2026-10-22, "a frase do dia fica cortada"): salvar a cada
-  // tecla (onChange chamando saveNote/getPinnedApplicationPhrase direto)
-  // abria uma corrida — num texto digitado rápido, uma requisição mais
-  // antiga (texto mais curto) podia responder DEPOIS de uma mais nova e
-  // sobrescrever a frase fixada com uma versão truncada, fora o lag de
-  // digitação de um round-trip ao servidor por tecla. onChange agora só
-  // atualiza o estado local — salvar de verdade só acontece (a) no botão
-  // "Salvar" explícito (persistAnswers, com a confirmação de troca do
-  // card do Início) ou (b) ao sair da tela/terminar o dia (saveNoteText,
-  // sem a confirmação — não dá tempo da pessoa responder o banner antes
-  // de navegar pra outro lugar).
-  function handleQ1Change(text) { setQ1Text(text) }
-  function handleQ2Change(text) { setQ2Text(text) }
-
-  // "Trocar perguntas" troca só as duas primeiras — nunca a 3ª (fixa) —
-  // e limpa as respostas de 1/2 (não fazem mais sentido pras perguntas
-  // novas); a nota combinada acompanha (fica vazia até responder de novo).
-  async function swapQuestions() {
-    if (swapping) return
-    setSwapping(true)
-    await loadQuestions(questions ?? [])
-    setSwapping(false)
-    setQ1Text(''); setQ2Text('')
-    saveNote(email, noteKey, '').catch(() => {})
-  }
-
-  // ── Pergunta 3 — sempre a mesma, vira a frase de aplicação ─────────
+  // ── A pergunta fixa — sempre a mesma, vira a frase de aplicação ─────
   const applicationPhraseKey = dailyApplicationKeyFor()
   const [q3Text, setQ3Text] = useState('')
   const [pendingPin, setPendingPin] = useState(null)
-  const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved'
   useEffect(() => {
     if (!email) return
-    getNotes(email).then(map => setQ3Text(noteTextOf(map[applicationPhraseKey]))).catch(() => {})
+    getNotes(email).then(map => { if (!q3TouchedRef.current) setQ3Text(noteTextOf(map[applicationPhraseKey])) }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email])
-  function handleQ3Change(text) { setQ3Text(text) }
 
-  // Só o texto cru (nota combinada de Q1/Q2, nota de Q3, ou o livre) —
-  // sem o fluxo de confirmação de pin. Usado como rede de segurança (não
-  // perder o que foi escrito) ao terminar o dia ou sair da tela, onde não
-  // dá pra esperar a pessoa responder "trocar o card do Início?".
-  // `keepExisting` (rede de segurança de Voltar/Terminar o dia): nunca
-  // grava texto VAZIO — saveNote apaga a chave quando o texto é vazio, e
-  // Q1/Q2 não são recarregadas da nota existente ao reabrir a tela
-  // (varredura 2026-10-25: reabrir a Reflexão depois de um reload e tocar
-  // Voltar apagava a nota do dia da Biblioteca). O "Salvar" explícito
-  // continua podendo limpar de propósito.
+  // ── Uma pergunta por vez (S4) ───────────────────────────────────────
+  const list = reflectionQuestions(questions, L('question3Fixed'))
+  const answers = questions ? [q1Text, q2Text, q3Text] : [q3Text]
+  const [current, setCurrent] = useState(initialQuestion)
+  // Enquanto as perguntas geradas não chegam, a tela espera na primeira.
+  const loadingQuestions = withQuestions && hasChapter && !questions && !questionsError
+  const view = reflectionView({ questions: list, current, answers, todaysSteps: session.todaysSteps, dayEntry: session.todayRoutine })
+
+  function setAnswer(text) {
+    if (list[view.index].fixed) { q3TouchedRef.current = true; setQ3Text(text); return }
+    qaTouchedRef.current = true
+    if (view.index === 0) setQ1Text(text)
+    else setQ2Text(text)
+  }
+
+  // "Trocar" — troca só a pergunta atual (nunca a fixa) por uma nova do
+  // mesmo trecho, e limpa a resposta dela, que não serve mais.
+  async function swapCurrent() {
+    if (swapping || !questions) return
+    const idx = view.index
+    setSwapping(true)
+    setQuestionsError('')
+    try {
+      const pair = await fetchPair()
+      setQuestions(prev => prev.map((q, i) => (i === idx ? (pair[idx] ?? pair[0]) : q)))
+      qaTouchedRef.current = true
+      if (idx === 0) setQ1Text('')
+      else setQ2Text('')
+    } catch (err) {
+      setQuestionsError(questionsErrorText(err))
+    }
+    setSwapping(false)
+  }
+
+  // Grava o texto cru na Biblioteca — a nota do dia (as perguntas geradas
+  // respondidas, ou a folha livre) e a frase de aplicação de hoje. Sem
+  // mexer na frase fixada no Início (ver finishQuestions).
+  // `keepExisting` (livre: rede de segurança de Voltar/Terminar o dia)
+  // nunca grava texto VAZIO — saveNote apaga a chave quando o texto é
+  // vazio (varredura 2026-10-25: reabrir a Reflexão depois de um reload e
+  // tocar Voltar apagava a nota do dia da Biblioteca). O "Salvar"
+  // explícito da folha livre continua podendo limpar de propósito.
   async function saveNoteText({ keepExisting = false } = {}) {
     try {
-      if (effectiveMethod === 'questions') {
-        const qa = combineQaText(questions, q1Text, q2Text)
-        if (!keepExisting || qa.trim()) await saveNote(email, noteKey, qa)
-        if (!keepExisting || q3Text.trim()) await saveNote(email, applicationPhraseKey, q3Text)
+      if (withQuestions) {
+        if (qaTouchedRef.current) await saveNote(email, noteKey, combineQaText(questions, [q1Text, q2Text]))
+        if (q3TouchedRef.current) await saveNote(email, applicationPhraseKey, q3Text)
       } else {
         if (!keepExisting || freeText.trim()) await saveNote(email, noteKey, freeText)
       }
@@ -200,25 +207,21 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
     }
   }
 
-  // Botão "Salvar" explícito — único lugar que ainda dispara a
-  // confirmação de trocar a frase fixada no Início (pendingPin), porque é
-  // o único momento em que a pessoa está mesmo olhando pra tela pra
-  // responder. A 1a frase de todas fixa sozinha (nada pra comparar
-  // ainda); da 2a em diante só troca com confirmação (mesmo mecanismo do
-  // antigo ApplicationStepCard.jsx, apagado nesta reescrita).
-  async function persistAnswers() {
-    setSaveState('saving')
-    await saveNoteText()
-    if (effectiveMethod === 'questions' && q3Text.trim()) {
-      try {
-        const currentPinned = await getPinnedApplicationPhrase(email)
-        if (!currentPinned) { await setPinnedApplicationPhrase(email, q3Text); onApplicationChanged?.() }
-        else if (currentPinned !== q3Text) { setPendingPin(q3Text); setSaveState('idle'); return }
-      } catch (err) { console.error('Failed to persist application phrase', err) }
-    }
-    setSaveState('saved')
-    setTimeout(() => setSaveState('idle'), 1800)
+  // Com perguntas, o texto é salvo ao pausar e ao avançar (S4).
+  const wasRunningRef = useRef(false)
+  useEffect(() => {
+    if (withQuestions && wasRunningRef.current && !running) saveNoteText()
+    wasRunningRef.current = running
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running])
+
+  const bodyRef = useRef(null)
+  function goToQuestion(idx) {
+    saveNoteText()
+    setCurrent(idx)
+    bodyRef.current?.scrollTo?.(0, 0)
   }
+
   async function confirmPinUpdate(accept) {
     const text = pendingPin
     setPendingPin(null)
@@ -233,12 +236,20 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
 
   // ── Livre (37b) ─────────────────────────────────────────────────────
   const [freeText, setFreeText] = useState('')
+  const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved'
   useEffect(() => {
     if (!email || effectiveMethod !== 'free') return
     getNotes(email).then(map => setFreeText(noteTextOf(map[noteKey]))).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, effectiveMethod])
   function handleFreeChange(text) { setFreeText(text) }
+  // Botão "Salvar" explícito da folha livre.
+  async function persistAnswers() {
+    setSaveState('saving')
+    await saveNoteText()
+    setSaveState('saved')
+    setTimeout(() => setSaveState('idle'), 1800)
+  }
 
   // finishingRef: o save é assíncrono e os botões continuavam ativos —
   // dois toques gravavam os segundos 2x e fechavam o passo 2x
@@ -255,6 +266,33 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
     } finally {
       finishingRef.current = false
     }
+  }
+
+  // Com perguntas, o botão laranja da última pergunta. A frase de hoje
+  // vira a frase fixada no Início pela regra de sempre: a primeira de
+  // todas fixa sozinha; havendo outra fixada, pergunta antes de trocar
+  // (pendingPin) — e só quando a frase foi escrita nesta visita. Campo
+  // vazio: a frase anterior permanece.
+  const checkingPinRef = useRef(false)
+  async function finishQuestions() {
+    if (checkingPinRef.current || finishingRef.current) return
+    if (q3Text.trim() && q3TouchedRef.current) {
+      checkingPinRef.current = true
+      try {
+        const currentPinned = await getPinnedApplicationPhrase(email)
+        if (!currentPinned) { await setPinnedApplicationPhrase(email, q3Text); onApplicationChanged?.() }
+        else if (currentPinned !== q3Text) { saveNoteText(); setPendingPin(q3Text); return }
+      } catch (err) {
+        console.error('Failed to persist application phrase', err)
+      } finally {
+        checkingPinRef.current = false
+      }
+    }
+    finishDay()
+  }
+  async function answerPin(accept) {
+    await confirmPinUpdate(accept)
+    finishDay()
   }
 
   // Pedido dela (2026-10-22): mesmo pill flutuante global de PrayerScreen.jsx
@@ -276,6 +314,79 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
     onBack?.()
   }
 
+  // O teclado passa por cima da página: o fundo da tela sobe com ele, e o
+  // rodapé e o campo ficam à vista.
+  const keyboardInset = useKeyboardInset()
+
+  if (withQuestions) {
+    const card = passageCard(passage ?? {})
+    return (
+      <div style={{ ...styles.screen, paddingBottom: keyboardInset, boxSizing: 'border-box' }}>
+        <CabecalhoDoPasso
+          title="Reflexão" subtitle={stepSubtitle(session.todaysSteps, 'reflection', 'com perguntas')}
+          onBack={handleBack} backLabel={t('a11y.goBack', undefined, lang)}
+          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} />}
+          segments={dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'reflection' })}
+          barLabel={dayBarAria(session.todaysSteps, 'reflection')}
+        />
+
+        <div ref={bodyRef} style={styles.questionsBody}>
+          {card && (
+            <div style={styles.passageCard}>
+              <p style={styles.passageLabel}>{card.label}</p>
+              <p style={styles.passageText}>{card.text}</p>
+            </div>
+          )}
+
+          {questionsError && <p style={styles.errorText} role="status">{questionsError}</p>}
+
+          {loadingQuestions ? (
+            <>
+              <CartaoPergunta label="Pergunta 1 de 3" markers={[true, false, false]} question="Preparando as perguntas deste trecho…" />
+              <ListaDePerguntas list={{ title: 'Depois', rows: [{ index: 2, n: 3, text: L('question3Fixed'), sub: 'Vira a sua frase do dia', tappable: false }] }} />
+            </>
+          ) : (
+            <>
+              <CartaoPergunta
+                key={view.index}
+                label={view.label} markers={view.markers} question={view.question} placeholder={view.placeholder}
+                value={answers[view.index]} onChange={setAnswer}
+              />
+              {pendingPin ? (
+                <div style={styles.pinCard} role="status">
+                  <p style={styles.pinText}>{L('pinConfirmText')}</p>
+                </div>
+              ) : view.list && (
+                <ListaDePerguntas list={view.list} onOpen={goToQuestion} />
+              )}
+            </>
+          )}
+
+          <p style={styles.privacyLine}>Fica na sua Biblioteca. Nada vai ao grupo sem você compartilhar.</p>
+        </div>
+
+        {pendingPin ? (
+          <RodapeDoPasso
+            secondary={{ label: L('pinConfirmNo'), onClick: () => answerPin(false) }}
+            primary={{ label: L('pinConfirmYes'), onClick: () => answerPin(true) }}
+          />
+        ) : (
+          <RodapeDoPasso
+            secondary={view.secondary && !loadingQuestions ? { label: swapping ? 'Trocando…' : view.secondary, onClick: swapCurrent, disabled: swapping } : null}
+            primary={loadingQuestions
+              ? { label: 'Próxima pergunta', disabled: true }
+              : { label: view.primary, onClick: view.last ? finishQuestions : () => goToQuestion(view.index + 1) }}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // ── Livre (37b) — sem mudança ─────────────────────────────────────────
+  // "passo N de M" — sempre os passos de HOJE (session.todaysSteps),
+  // dentro ou fora do modo guiado.
+  const todaysSteps = session.todaysSteps ?? ['reflection']
+  const stepIdx = Math.max(0, todaysSteps.indexOf('reflection'))
   return (
     <div style={styles.screen}>
       <div style={styles.header}>
@@ -284,149 +395,46 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={styles.title}>{L('pageTitle')}</p>
-          <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {effectiveMethod === 'questions' ? L('methodSuffixQuestions') : L('methodSuffixFree')}</p>
+          <p style={styles.subtitle}>{L('stepOf', { n: stepIdx + 1, total: todaysSteps.length })} · {L('methodSuffixFree')}</p>
         </div>
       </div>
 
       <div style={styles.body}>
-        {effectiveMethod === 'questions' ? (
-          <>
-            {/* Cronômetro compartilhado (mesmo padrão de Oração/Leitura) —
-                chips Reviver/Entender/Aplicar avançam sozinhos por tempo
-                (sem botão de próxima etapa: as 3 perguntas continuam
-                todas na mesma tela, decisão dela — não criar uma tela por
-                etapa só por causa do relógio). */}
-            <StepTimerCard
-              lang={lang}
-              steps={REFLECTION_DATA.map(s => ({ id: s.id, title: s.title[lang] ?? s.title.pt }))}
-              currentIndex={reflectionStageIdx}
-              planSeconds={planSeconds}
-              etapaSeconds={elapsed - reflectionStageElapsedBefore}
-              etapaDurationSeconds={reflectionStageDurations[reflectionStageIdx]}
-              running={running} onToggle={toggleRunning} onStop={finishDay}
-            />
+        {/* Livre — sem etapas, mesmo cronômetro compartilhado. */}
+        <StepTimerCard
+          lang={lang} steps={null}
+          planSeconds={planSeconds} etapaSeconds={elapsed}
+          etapaDurationSeconds={TOTAL_SECONDS}
+          running={running} onToggle={toggleRunning} onStop={finishDay}
+        />
 
-            {hasChapter && (
-              <div style={styles.justReadCard}>
-                <div style={styles.justReadHeader}>
-                  <p style={styles.justReadLabel}>{L('justReadLabel')}</p>
-                  <p style={styles.justReadRef}>{chapterLabel}</p>
-                </div>
-                {todayQuote && (
-                  <p style={styles.justReadQuote}>{L('justReadMarkedText', { quote: todayQuote })}</p>
-                )}
-              </div>
-            )}
+        <div style={styles.freeWriteCard}>
+          <div style={styles.freeWriteHeader}>
+            <p style={styles.freeWriteLabel}>{hasChapter ? L('freeChapterToday', { chapter: chapterLabel }) : L('todayOnly')}</p>
+            <p style={styles.optionalTag}>{L('optionalTag')}</p>
+          </div>
+          <textarea
+            style={styles.freeWriteTextarea}
+            placeholder={L('freeWritePlaceholder')}
+            value={freeText}
+            onChange={e => handleFreeChange(e.target.value)}
+          />
+          <div style={styles.saveRow}>
+            <button type="button" style={{ ...styles.saveBtn, ...(saveState === 'saved' ? styles.saveBtnSaved : {}) }} onClick={persistAnswers} disabled={saveState === 'saving'}>
+              {saveState === 'saved' && <AppIcon name="Check" size={13} strokeWidth={3} color="var(--bento-ink)" />}
+              <span>{saveState === 'saved' ? L('savedAnswersBtn') : saveState === 'saving' ? t('groups.loading', undefined, lang) : L('saveAnswersBtn')}</span>
+            </button>
+          </div>
+        </div>
 
-            {questionsError && <p style={styles.errorText}>{questionsError}</p>}
-
-            {questions && (
-              <>
-                <div style={styles.q1Card}>
-                  <div style={styles.q1Header}>
-                    <p style={styles.q1Label}>{L('question1Of3')}</p>
-                    <p style={styles.optionalTag}>{L('optionalTag')}</p>
-                  </div>
-                  <p style={styles.q1Text}>{questions[0]}</p>
-                  <textarea
-                    style={styles.q1Textarea}
-                    placeholder={L('writePlaceholder')}
-                    value={q1Text}
-                    onChange={e => handleQ1Change(e.target.value)}
-                  />
-                </div>
-
-                <div style={styles.q2Card}>
-                  <span style={styles.q2Number}>2</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={styles.q2Text}>{questions[1]}</p>
-                    <textarea
-                      style={styles.q2Textarea}
-                      placeholder={L('writePlaceholder')}
-                      value={q2Text}
-                      onChange={e => handleQ2Change(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div style={styles.q3Card}>
-              <div style={styles.q3Header}>
-                <p style={styles.q3Label}><span style={styles.q3Diamond} />{L('question3Label')}</p>
-                <p style={styles.q3Sub}>{L('question3Sub')}</p>
-              </div>
-              <p style={styles.q3Question}>{L('question3Fixed')}</p>
-              <textarea
-                style={styles.q3Textarea}
-                placeholder={L('question3Placeholder')}
-                value={q3Text}
-                onChange={e => handleQ3Change(e.target.value)}
-              />
-              <div style={styles.saveRow}>
-                <button type="button" style={{ ...styles.saveBtn, ...(saveState === 'saved' ? styles.saveBtnSaved : {}) }} onClick={persistAnswers} disabled={saveState === 'saving'}>
-                  {saveState === 'saved' && <AppIcon name="Check" size={13} strokeWidth={3} color="var(--bento-ink)" />}
-                  <span>{saveState === 'saved' ? L('savedAnswersBtn') : saveState === 'saving' ? t('groups.loading', undefined, lang) : L('saveAnswersBtn')}</span>
-                </button>
-              </div>
-              {pendingPin && (
-                <div style={styles.pinConfirmCard}>
-                  <p style={styles.pinConfirmText}>{L('pinConfirmText')}</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button style={styles.pinConfirmYes} onClick={() => confirmPinUpdate(true)}>{L('pinConfirmYes')}</button>
-                    <button style={styles.pinConfirmNo} onClick={() => confirmPinUpdate(false)}>{L('pinConfirmNo')}</button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={styles.privacyCard}>
-              <span style={styles.privacyIcon}><AppIcon name="BookMarked" size={15} strokeWidth={2} color="var(--bento-t4)" /></span>
-              <p style={styles.privacyText}>{L('privacyNote')}</p>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Livre — sem etapas, mesmo cronômetro compartilhado. */}
-            <StepTimerCard
-              lang={lang} steps={null}
-              planSeconds={planSeconds} etapaSeconds={elapsed}
-              etapaDurationSeconds={TOTAL_SECONDS}
-              running={running} onToggle={toggleRunning} onStop={finishDay}
-            />
-
-            <div style={styles.freeWriteCard}>
-              <div style={styles.freeWriteHeader}>
-                <p style={styles.freeWriteLabel}>{hasChapter ? L('freeChapterToday', { chapter: chapterLabel }) : L('todayOnly')}</p>
-                <p style={styles.optionalTag}>{L('optionalTag')}</p>
-              </div>
-              <textarea
-                style={styles.freeWriteTextarea}
-                placeholder={L('freeWritePlaceholder')}
-                value={freeText}
-                onChange={e => handleFreeChange(e.target.value)}
-              />
-              <div style={styles.saveRow}>
-                <button type="button" style={{ ...styles.saveBtn, ...(saveState === 'saved' ? styles.saveBtnSaved : {}) }} onClick={persistAnswers} disabled={saveState === 'saving'}>
-                  {saveState === 'saved' && <AppIcon name="Check" size={13} strokeWidth={3} color="var(--bento-ink)" />}
-                  <span>{saveState === 'saved' ? L('savedAnswersBtn') : saveState === 'saving' ? t('groups.loading', undefined, lang) : L('saveAnswersBtn')}</span>
-                </button>
-              </div>
-            </div>
-
-            <div style={styles.privacyCard}>
-              <span style={styles.privacyIcon}><AppIcon name="BookMarked" size={15} strokeWidth={2} color="var(--bento-t4)" /></span>
-              <p style={styles.privacyText}>{L('freePrivacyNote')}</p>
-            </div>
-          </>
-        )}
+        <div style={styles.privacyCard}>
+          <span style={styles.privacyIcon}><AppIcon name="BookMarked" size={15} strokeWidth={2} color="var(--bento-t4)" /></span>
+          <p style={styles.privacyText}>{L('freePrivacyNote')}</p>
+        </div>
       </div>
 
       <div style={styles.footer}>
-        {effectiveMethod === 'questions' && (
-          <button style={styles.skipBtn} onClick={swapQuestions} disabled={swapping}>{swapping ? L('swapping') : L('swapQuestionsBtn')}</button>
-        )}
-        <button style={{ ...styles.nextBtn, ...(effectiveMethod === 'free' ? { flex: 1 } : {}) }} onClick={finishDay}>
+        <button style={{ ...styles.nextBtn, flex: 1 }} onClick={finishDay}>
           <span>{L('finishDayBtn')}</span>
           <span>→</span>
         </button>
@@ -438,49 +446,31 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, lastR
 const FONT = 'var(--font-bento)'
 const styles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+
+  // Com perguntas (S4): o corpo rola entre o cabeçalho e o rodapé presos.
+  questionsBody: { flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '14px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 },
+  passageCard: { flexShrink: 0, borderRadius: 20, background: 'var(--bento-sand)', padding: '13px 16px' },
+  passageLabel: { fontFamily: FONT, fontSize: 9, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 7px' },
+  // Um trecho marcado pode ter vários versículos: o cartão mostra até
+  // quatro linhas, pra pergunta não sair da tela.
+  passageText: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.45, color: 'var(--bento-sand-ink-strong)', margin: 0, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' },
+  errorText: { flexShrink: 0, fontFamily: FONT, fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: '0 2px' },
+  pinCard: { flexShrink: 0, borderRadius: 24, background: 'var(--bento-card)', padding: '15px 16px' },
+  pinText: { fontFamily: FONT, fontSize: 13, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-ink)', margin: 0 },
+  privacyLine: { flexShrink: 0, fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t4)', margin: '0 2px', textAlign: 'center' },
+
+  // Livre (37b).
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.3px', margin: 0 },
   subtitle: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
 
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '14px 20px 4px', display: 'flex', flexDirection: 'column', gap: 10 },
-
-  justReadCard: { borderRadius: 20, background: 'var(--bento-sand)', padding: '16px 18px' },
-  justReadHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  justReadLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-sand-ink)', margin: 0 },
-  justReadRef: { fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-sand-ink-strong)', margin: 0 },
-  justReadQuote: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.4, color: 'var(--bento-sand-ink-strong)', margin: 0 },
-
-  errorText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-accent)', margin: 0 },
-
-  q1Card: { borderRadius: 24, background: 'var(--bento-ink)', padding: '20px 22px' },
-  q1Header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  q1Label: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
   optionalTag: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t4)', margin: 0 },
-  q1Text: { fontFamily: FONT, fontSize: 21, fontWeight: 800, lineHeight: 1.35, letterSpacing: '-.4px', color: '#fff', margin: '0 0 14px' },
-  q1Textarea: { width: '100%', minHeight: 84, boxSizing: 'border-box', border: 'none', borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '12px 14px', fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: '#fff', resize: 'vertical' },
-
-  q2Card: { display: 'flex', gap: 14, borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px' },
-  q2Number: { flexShrink: 0, width: 30, height: 30, borderRadius: 9, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: 'var(--bento-t3)' },
-  q2Text: { fontFamily: FONT, fontSize: 14.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-ink)', margin: '2px 0 10px' },
-  q2Textarea: { width: '100%', minHeight: 60, boxSizing: 'border-box', border: 'none', borderRadius: 12, background: 'var(--bento-line)', padding: '10px 12px', fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'var(--bento-ink)', resize: 'vertical' },
-
-  q3Card: { borderRadius: 22, background: 'var(--bento-sand)', padding: '16px 18px' },
-  q3Header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  q3Label: { display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bento-sand-ink)', margin: 0 },
-  q3Diamond: { width: 7, height: 7, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
-  q3Sub: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: 'var(--bento-sand-ink)', margin: 0 },
-  q3Question: { fontFamily: FONT, fontSize: 16, fontWeight: 800, lineHeight: 1.35, color: 'var(--bento-sand-ink-strong)', margin: '0 0 10px' },
-  q3Textarea: { width: '100%', minHeight: 60, boxSizing: 'border-box', border: 'none', borderRadius: 14, background: 'var(--bento-card)', padding: '12px 14px', fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: 'var(--bento-ink)', resize: 'vertical' },
 
   saveRow: { display: 'flex', justifyContent: 'flex-end', marginTop: 10 },
   saveBtn: { height: 36, padding: '0 16px', borderRadius: 12, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, color: 'var(--bento-t2)' },
   saveBtnSaved: { background: 'var(--bento-accent)', color: 'var(--bento-ink)' },
-
-  pinConfirmCard: { marginTop: 10, borderRadius: 14, background: 'var(--bento-card)', padding: '12px 14px' },
-  pinConfirmText: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: 'var(--bento-ink)', margin: '0 0 8px' },
-  pinConfirmYes: { height: 34, padding: '0 14px', borderRadius: 10, border: 'none', background: 'var(--bento-accent)', cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)' },
-  pinConfirmNo: { height: 34, padding: '0 14px', borderRadius: 10, border: 'none', background: 'var(--bento-line)', cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t2)' },
 
   privacyCard: { borderRadius: 20, background: 'var(--bento-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
   privacyIcon: { width: 30, height: 30, flexShrink: 0, borderRadius: 10, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -492,6 +482,5 @@ const styles = {
   freeWriteTextarea: { width: '100%', minHeight: 190, boxSizing: 'border-box', border: 'none', borderRadius: 14, background: 'var(--bento-line)', padding: '14px', fontFamily: FONT, fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-ink)', resize: 'vertical' },
 
   footer: { flexShrink: 0, display: 'flex', gap: 10, padding: '12px 20px calc(20px + var(--safe-bottom))' },
-  skipBtn: { flexShrink: 0, height: 54, padding: '0 18px', borderRadius: 18, border: 'none', background: 'var(--bento-card)', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
   nextBtn: { flex: 1, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
 }

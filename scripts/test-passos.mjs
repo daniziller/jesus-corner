@@ -8,6 +8,7 @@ import {
 } from '../src/passos/passosMath.js'
 import { PRAYER_STAGES } from '../src/prayer/prayerStages.js'
 import { readingThread } from '../src/biblia/bibliaMath.js'
+import { reflectionQuestions, reflectionView, answerPreview, reflectionFinishLabel, passageCard, combineQaText } from '../src/passos/reflexaoMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -74,6 +75,41 @@ const leitura = readFileSync(new URL('../src/screens/ReadingBlockView.jsx', impo
 check('a leitura do plano usa o topo e o rodapé da leitura da Bíblia', [(leitura.match(/<LeituraTopo\b/g) ?? []).length, (leitura.match(/<LeituraRodape\b/g) ?? []).length, /StepTimerPill|readerDoneBtn|readerToolsBtn/.test(leitura)], [1, 2, false])
 check('o texto bíblico é o mesmo componente nos dois modos', (leitura.match(/<BibleTextPanel\b/g) ?? []).length, 1)
 check('"Concluir a leitura" chama o caminho de sempre', /<LeituraRodape ref=\{measureFooter\} onTools=\{[^}]*\} onConclude=\{handleConcludePress\} \/>/.test(leitura), true)
+
+// ── S4: a reflexão com perguntas ────────────────────────────────────────
+const fixa = 'Em uma frase: resuma seu estudo de hoje.'
+const geradas = ['José passou treze anos entre o poço e o palácio. O que você está esperando há mais tempo do que gostaria?', 'Quem Deus usou na sua vida por um caminho que você não escolheria?']
+const tres = reflectionQuestions(geradas, fixa)
+check('as três perguntas: duas geradas e a fixa por último', tres.map(q => q.fixed), [false, false, true])
+check('sem perguntas geradas (sem trecho, ou a geração falhou): só a fixa', [reflectionQuestions(null, fixa), reflectionQuestions([], fixa).length], [[{ text: fixa, fixed: true }], 1])
+const fim = { todaysSteps: hoje, dayEntry: { prayer: true, reading: true } }
+const p1 = reflectionView({ questions: tres, current: 0, answers: ['', '', ''], ...fim })
+check('pergunta 1 (o quadro S4): rótulo, marcadores, apoio e botões', [p1.label, p1.markers, p1.question, p1.placeholder, p1.secondary, p1.primary], ['Pergunta 1 de 3', [true, false, false], geradas[0], 'Escreva se quiser. Pensar também conta.', 'Trocar', 'Próxima pergunta'])
+check('pergunta 1: cartão "Depois" com a 2 (Opcional) e a 3 (Vira a sua frase do dia), sem toque', p1.list, { title: 'Depois', rows: [{ index: 1, n: 2, text: geradas[1], sub: 'Opcional', tappable: false }, { index: 2, n: 3, text: fixa, sub: 'Vira a sua frase do dia', tappable: false }] })
+const p2 = reflectionView({ questions: tres, current: 1, answers: ['Um emprego.', '', ''], ...fim })
+check('pergunta 2: "Depois" só com a 3; "Trocar" continua', [p2.label, p2.markers, p2.secondary, p2.primary, p2.list.title, p2.list.rows.map(r => r.n)], ['Pergunta 2 de 3', [false, true, false], 'Trocar', 'Próxima pergunta', 'Depois', [3]])
+const p3 = reflectionView({ questions: tres, current: 2, answers: ['Um emprego.\nHá dois anos.', '  ', ''], ...fim })
+check('pergunta 3: é a frase do dia, "Trocar" some, o botão termina o dia', [p3.label, p3.placeholder, p3.secondary, p3.primary, p3.last], ['Pergunta 3 de 3 · sua frase do dia', 'Sua frase de aplicação — aparece no Início até você trocar.', null, 'Terminar o dia', true])
+check('pergunta 3: cartão "Já respondidas", com o começo da resposta ou "Sem resposta", e toque que volta', p3.list, { title: 'Já respondidas', rows: [{ index: 0, n: 1, text: geradas[0], sub: 'Um emprego.', tappable: true }, { index: 1, n: 2, text: geradas[1], sub: 'Sem resposta', tappable: true }] })
+check('avançar com o campo vazio é permitido em todas (o botão nunca depende do texto)', [0, 1, 2].map(i => reflectionView({ questions: tres, current: i, answers: [], ...fim }).primary), ['Próxima pergunta', 'Próxima pergunta', 'Terminar o dia'])
+check('a reflexão não é o último passo de hoje: "Terminar a reflexão"', [reflectionFinishLabel(hoje, { prayer: true }), reflectionFinishLabel(hoje, {}), reflectionView({ questions: tres, current: 2, todaysSteps: hoje, dayEntry: { reading: true } }).primary], ['Terminar a reflexão', 'Terminar a reflexão', 'Terminar a reflexão'])
+check('é o último passo: "Terminar o dia" (também sozinha, e refeita com o dia já completo)', [reflectionFinishLabel(hoje, { prayer: true, reading: true }), reflectionFinishLabel(['reflection'], {}), reflectionFinishLabel([], null), reflectionFinishLabel(hoje, { prayer: true, reading: true, reflection: true })], ['Terminar o dia', 'Terminar o dia', 'Terminar o dia', 'Terminar o dia'])
+const so = reflectionView({ questions: reflectionQuestions(null, fixa), current: 0, ...fim })
+check('só a pergunta fixa: "Pergunta 1 de 1 · sua frase do dia", sem "Trocar", sem cartão de lista', [so.label, so.markers, so.secondary, so.primary, so.list], ['Pergunta 1 de 1 · sua frase do dia', [true], null, 'Terminar o dia', null])
+check('índice fora da lista não quebra', [reflectionView({ questions: tres, current: 9, ...fim }).index, reflectionView({ questions: tres, current: -1, ...fim }).index], [2, 0])
+check('começo da resposta: a primeira linha com texto', [answerPreview('\n  Esperar sem cobrar.  \nResto'), answerPreview(''), answerPreview(undefined), answerPreview('   \n ')], ['Esperar sem cobrar.', 'Sem resposta', 'Sem resposta', 'Sem resposta'])
+check('cartão do trecho: marcado', passageCard({ reference: 'Gênesis 41', text: 'Deus me fez esquecer todo o meu sofrimento.', marked: true }), { label: 'Gênesis 41 · o trecho que você marcou', text: '"Deus me fez esquecer todo o meu sofrimento."' })
+check('cartão do trecho: sem marcação, o primeiro versículo', passageCard({ reference: 'Gênesis 40-41', text: ' Algum tempo depois… ', marked: false }), { label: 'Gênesis 40-41 · você acabou de ler', text: '"Algum tempo depois…"' })
+check('cartão do trecho: sem trecho ou sem texto, não aparece', [passageCard({ reference: '', text: 'x', marked: false }), passageCard({ reference: 'Gênesis 41', text: '', marked: true })], [null, null])
+check('nota do dia: perguntas respondidas, uma embaixo da outra', combineQaText(geradas, ['Um emprego.', ' Minha avó. ']), `${geradas[0]}\nUm emprego.\n\n${geradas[1]}\nMinha avó.`)
+check('nota do dia: pergunta sem resposta não entra; nada respondido, nota vazia', [combineQaText(geradas, ['', 'Minha avó.']), combineQaText(geradas, ['', '  ']), combineQaText(null, [])], [`${geradas[1]}\nMinha avó.`, '', ''])
+
+// A tela: um campo só por vez, e nada da reflexão vai a grupo.
+const reflexao = readFileSync(new URL('../src/screens/ReflectionScreen.jsx', import.meta.url), 'utf8')
+const comPerguntas = reflexao.slice(reflexao.indexOf('if (withQuestions) {'), reflexao.indexOf('// ── Livre (37b) — sem mudança'))
+check('com perguntas: um cartão de pergunta (um campo) por vez', [(comPerguntas.match(/<CartaoPergunta\b/g) ?? []).length, /<textarea/.test(comPerguntas)], [2, false])
+check('a reflexão só grava na Biblioteca da própria pessoa — nada de grupo, sala ou comentário', /groupsStore|chapterRoomStore|commentsStore|messagesStore|postToRoom|shareTo/.test(reflexao), false)
+check('"Trocar" não aparece na pergunta fixa e a troca mexe só na pergunta atual', [/secondary: q\.fixed \? null : 'Trocar'/.test(readFileSync(new URL('../src/passos/reflexaoMath.js', import.meta.url), 'utf8')), /prev\.map\(\(q, i\) => \(i === idx \? \(pair\[idx\] \?\? pair\[0\]\) : q\)\)/.test(reflexao)], [true, true])
 
 // ── Privacidade: o que se escreve na oração não sai da tela ─────────────
 // O cartão de escrita e a tela da oração não importam nenhum lugar de

@@ -360,6 +360,10 @@ body {
   color: var(--bento-t4);
   opacity: 1;
 }
+.passo-campo-escuro::placeholder {
+  color: rgba(255, 255, 255, .45);
+  opacity: 1;
+}
 
 /* Busca da Bíblia (BuscaScreen.jsx, handoff-biblia-52 §6) — o texto de
    apoio do campo, e a área de toque de 44px dos controles pequenos

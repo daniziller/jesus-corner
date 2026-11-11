@@ -3627,7 +3627,7 @@ export default function App() {
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen key={`${dateKey()}-${reflectionRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
+                <ReflectionScreen key={`${dateKey()}-${reflectionRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'reflection'} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (

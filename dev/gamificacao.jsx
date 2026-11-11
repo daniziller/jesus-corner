@@ -25,6 +25,10 @@
 //      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
 //      7 inclui amigo e anônimo) · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
 //      · &feitos=prayer,reading (passos já feitos hoje) · &minutos=12 (duração da oração) · &metodo=livre (36c, sem mudança)
+//      tela=reflexao — a reflexão com perguntas (S4), com as perguntas na memória. &pergunta=1|2|3 (a pergunta aberta)
+//      · &perguntas=ok|erro|carregando|limite (a geração) · &trecho=marcado|lido|nenhum (o cartão areia)
+//      · &feitos=prayer,reading (com um passo faltando, "Terminar a reflexão") · &dia=estudo|um · &metodo=livre (37b, sem mudança)
+//      · &aplicacao=ontem|nenhuma (com frase já fixada no Início, terminar pergunta se troca)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
 //      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
@@ -64,6 +68,8 @@ import SeuPlanoScreen from '../src/screens/SeuPlanoScreen'
 import AjustarPlanoScreen from '../src/screens/AjustarPlanoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
 import PrayerScreen from '../src/screens/PrayerScreen'
+import ReflectionScreen from '../src/screens/ReflectionScreen'
+import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
 import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
 
@@ -141,6 +147,8 @@ function seedGuestTables(estado) {
     for (let n = 1; n <= 7; n++) highlights.push({ id: `hl-gn-${n}`, book: 'Gênesis', bookEn: 'Genesis', chapter: n, verses: [1], text: '', color: 'amarelo', createdAt: day(20 - n), date: day(20 - n).slice(0, 10) })
   }
   // Sua aplicação (Para hoje): a frase fixada + a entrada do dia em que foi escrita.
+  // Reflexão (S4): um trecho marcado hoje na leitura do plano (Gênesis 41:51).
+  if (tela === 'reflexao' && (params.get('trecho') ?? 'marcado') === 'marcado') highlights.push({ id: 'hl-hoje', book: 'Gênesis', bookEn: 'Genesis', chapter: 41, verses: [51], text: '', color: 'amarelo', createdAt: new Date().toISOString(), date: dateKey(), sessionMode: 'session' })
   const aplicacao = params.get('aplicacao') ?? (nova ? 'nenhuma' : 'ontem')
   if (aplicacao !== 'nenhuma') {
     const frase = 'Hoje eu espero sem cobrar resposta.'
@@ -381,6 +389,42 @@ function OracaoPreview() {
   )
 }
 
+// Reflexão com perguntas (S4): a tela de verdade, com perguntas de exemplo
+// no lugar da geração (cada "Trocar" traz um par novo).
+if (tela === 'reflexao') setReflectionMethod(params.get('metodo') === 'livre' ? 'free' : 'questions')
+const paresDeExemplo = [
+  ['José passou treze anos entre o poço e o palácio. O que você está esperando há mais tempo do que gostaria?', 'Quem Deus usou na sua vida por um caminho que você não escolheria?'],
+  ['O faraó sonhou e ninguém soube explicar. Que pergunta sua ainda está sem resposta?', 'José deu a Deus o crédito pela resposta. Onde você tem ficado com um crédito que não é seu?'],
+  ['Sete anos de fartura antes de sete de fome. O que você pode guardar agora para os dias difíceis?', 'José perdoou sem esquecer o que viveu. Que lembrança você ainda precisa entregar?'],
+]
+function perguntasDePreview({ avoidQuestions }) {
+  const como = params.get('perguntas') ?? 'ok'
+  if (como === 'carregando') return new Promise(() => {})
+  if (como === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
+  if (como === 'limite') return Promise.reject(new Error('daily_limit_reached'))
+  // O primeiro par que ainda não apareceu (o pedido diz quais evitar).
+  const par = paresDeExemplo.find(p => !p.some(q => avoidQuestions.includes(q))) ?? paresDeExemplo[0]
+  console.log('[preview] perguntas pedidas; evitar', avoidQuestions.length)
+  return new Promise(resolve => setTimeout(() => resolve(par), 250))
+}
+function ReflexaoPreview() {
+  const dia = params.get('dia')
+  const steps = dia === 'um' ? ['reflection'] : dia === 'estudo' ? ['prayer', 'reading', 'study', 'reflection'] : ['prayer', 'reading', 'reflection']
+  const feitos = Object.fromEntries((params.get('feitos') ?? 'prayer,reading,study').split(',').filter(Boolean).map(k => [k, true]))
+  const s = { ...session, hasAI: true, todaysSteps: steps, todayRoutine: feitos }
+  const trecho = params.get('trecho') ?? 'marcado'
+  return (
+    <ReflectionScreen
+      session={s} authUser={authUser} stepMinutes={{ prayer: 10, reading: 15, study: 15, reflection: 5 }}
+      lastReadChapterInfo={trecho === 'nenhum' ? null : { book: 'Gênesis', bookEn: 'Genesis', chStart: 41, chEnd: 41 }}
+      initialQuestion={Math.min(3, Math.max(1, Number(params.get('pergunta')) || 1)) - 1} questionsApi={perguntasDePreview}
+      onReflectionCompleted={() => alert('reflexão terminada → dia concluído (ou o passo que falta)')}
+      onApplicationChanged={() => console.log('[preview] a frase fixada no Início mudou')}
+      onExitGuided={() => {}} onBack={() => alert('voltar')}
+    />
+  )
+}
+
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
@@ -393,6 +437,8 @@ function Preview() {
   const [draftState, setDraftState] = useState(null)
   if (screen === 'oracao') {
     body = <OracaoPreview />
+  } else if (screen === 'reflexao') {
+    body = <ReflexaoPreview />
   } else if (screen === 'ajustar') {
     body = <AjustarPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} draftState={draftState} onDraftChange={setDraftState} onClearDraft={() => setDraftState(null)} onSave={async () => { await new Promise(r => setTimeout(r, 800)) }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} initialOpenStep={params.get('abrir')} scrollToDays={!!params.get('abrir')} />
   } else if (screen === 'seuPlano') {
