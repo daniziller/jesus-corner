@@ -143,6 +143,34 @@ export async function markPraying(requestId) {
   if (error) throw new Error(`mark praying failed: ${error.message}`)
 }
 
+// ── Gamificação (família "Oração pelos outros") ──────────────────────
+// As PRÓPRIAS marcas de "Orei" (policy "so vejo minha propria intencao",
+// migration 0052) e os ids dos próprios pedidos, abertos ou arquivados —
+// a família conta só pedidos de OUTRAS pessoas, então quem calcula
+// (gamification/familiesMath.js) subtrai um do outro. Convidado não tem
+// comunidade: devolve vazio.
+export async function getMyPrayerIntentions() {
+  const userId = await getUserId()
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('group_prayer_intentions')
+    .select('prayer_request_id, prayed_date')
+    .eq('user_id', userId)
+  if (error) throw new Error(`load my prayer intentions failed: ${error.message}`)
+  return data ?? []
+}
+
+export async function getMyPrayerRequestIds() {
+  const userId = await getUserId()
+  if (!userId) return new Set()
+  const { data, error } = await supabase
+    .from('group_prayer_requests')
+    .select('id')
+    .eq('user_id', userId)
+  if (error) throw new Error(`load my prayer request ids failed: ${error.message}`)
+  return new Set((data ?? []).map(r => r.id))
+}
+
 function mapMyRequestRow(row) {
   return {
     id: row.id,

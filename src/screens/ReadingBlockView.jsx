@@ -18,6 +18,7 @@ import { setLastReadPosition } from '../reading/lastReadPositionStore'
 import { setFreeReadingPosition } from '../bible/freeReadingPositionStore'
 import { addReadingSeconds } from '../reading/readingTimeStore'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
+import { notifyChapterOpened } from '../gamification/rereadTracker'
 import { getReadingClockPrefs } from '../reading/readingClockPrefsStore'
 import { addReadingPaceSession } from '../reading/readingPaceStore'
 import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible, postToRoom } from '../groups/chapterRoomStore'
@@ -463,6 +464,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         // seleção de trecho na leitura livre); cai no padrão (1) da
         // store até lá.
         setFreeReadingPosition(s.book, s.bookEn, s.chStart, null)
+        // Releitura de um livro já completo (gamificação, G10) — ver
+        // gamification/rereadTracker.js.
+        notifyChapterOpened(s.book, s.chStart)
       }
     } else if (openPanel === 'texto' && heroSession) {
       setLastReadPosition(heroSession.book, heroSession.chStart)
@@ -492,7 +496,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     const flush = () => {
       if (pending >= 1) {
         addReadingSeconds(pending).catch(() => {})
-        logSessionSeconds('reading', pending).catch(() => {})
+        logSessionSeconds('reading', pending, undefined, session?.book ?? null).catch(() => {})
         pending = 0
       }
     }

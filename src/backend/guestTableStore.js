@@ -41,7 +41,11 @@ function writeGuestRows(table, rows) {
 export async function insertRow(table, row) {
   const userId = await getUserId()
   if (!userId) {
-    const stored = { ...row, _localId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
+    // created_at local também pro convidado — sem isso, capítulos lidos
+    // antes do cadastro ficavam sem data (e a gamificação, que reconstrói
+    // "quando" a partir daqui, não tinha como saber). Vai junto na
+    // migração pra conta (migrateGuestTable manda a linha inteira).
+    const stored = { created_at: new Date().toISOString(), ...row, _localId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
     writeGuestRows(table, [...readGuestRows(table), stored])
     return stored
   }

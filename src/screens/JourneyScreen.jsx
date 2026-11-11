@@ -1186,6 +1186,12 @@ export default function JourneyScreen({
   useEffect(() => {
     if (browseJumpTarget) {
       if (browseJumpTarget.blockId != null) openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+      // Livro inteiro (grade de capítulos), não um capítulo — roda da
+      // Bíblia/estante (gamificação, App.openBibleBook).
+      else if (browseJumpTarget.bookName) {
+        const block = blocks.find(b => b.books.includes(browseJumpTarget.bookName))
+        if (block) openBook(block, browseJumpTarget.bookName)
+      }
       onBrowseJumpConsumed?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

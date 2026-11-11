@@ -1,0 +1,161 @@
+// gamificationBlocks.js — os OITO blocos da gamificação (handoff-gamificacao-
+// 43-46/data/blocos-da-biblia.json): roda da Bíblia, legenda, estante de
+// selos, selo e medalha de bloco. Cor e tom de cada bloco são um contrato
+// (HANDOFF §1): o mesmo bloco tem exatamente a mesma cor em toda tela —
+// por isso os valores vivem aqui UMA vez e viram tokens `--bloco-*` em
+// src/index.css (ver BLOCK_COLOR_VAR/BLOCK_TONE_VAR abaixo).
+//
+// Esta é uma TERCEIRA divisão, diferente das duas que já existem e que
+// NÃO mudam: BIBLE_BLOCKS (src/data/bibleBlocks.js — a divisão do PLANO de
+// leitura, "Bloco 1 de 8" em Meu Plano, com Profetas juntos e Cartas com
+// 21 livros) e METRICS_BLOCKS (src/data/metricsBlocks.js — tela 30c, igual
+// a esta nos seis primeiros blocos, mas com Cartas/Apocalipse divididos de
+// outro jeito). Mesmo princípio de metricsBlocks.js: agrupamento novo e
+// independente, reaproveitando os MESMOS nomes de livro de BIBLE_BLOCKS
+// (a chave de completed_keys) — nunca a lista de sessões.
+//
+// Nomes de livro: o JSON escreve "Cantares", "Miqueias" e "Filemom"; o app
+// usa "Cântico dos Cânticos", "Miquéias" e "Filemon" em completed_keys e
+// na aba Bíblia. Decisão da autora (2026-11-11): manter a grafia do app,
+// pra estante e aba Bíblia nunca discordarem. As contagens de capítulo
+// são idênticas às de computeBookChapterCounts (verificado em
+// scripts/test-gamificacao.mjs). `artigo` serve às frases em que o bloco
+// é sujeito ("a Lei acende quando...", G5).
+export const BIBLE_CHAPTERS = 1189
+export const BIBLE_BOOKS_TOTAL = 66
+
+export const GAMIFICATION_BLOCKS = [
+  {
+    id: 'lei', artigo: 'a', nome: 'Lei', cor: '#8E3B2A', tom: '#EDDAD3', capitulos: 187,
+    livros: [
+      { posicao: 1, sigla: 'Gn', nome: 'Gênesis', capitulos: 50 },
+      { posicao: 2, sigla: 'Êx', nome: 'Êxodo', capitulos: 40 },
+      { posicao: 3, sigla: 'Lv', nome: 'Levítico', capitulos: 27 },
+      { posicao: 4, sigla: 'Nm', nome: 'Números', capitulos: 36 },
+      { posicao: 5, sigla: 'Dt', nome: 'Deuteronômio', capitulos: 34 },
+    ],
+  },
+  {
+    id: 'historicos', artigo: 'os', nome: 'Históricos', cor: '#D0822A', tom: '#F3E3CC', capitulos: 249,
+    livros: [
+      { posicao: 6, sigla: 'Js', nome: 'Josué', capitulos: 24 },
+      { posicao: 7, sigla: 'Jz', nome: 'Juízes', capitulos: 21 },
+      { posicao: 8, sigla: 'Rt', nome: 'Rute', capitulos: 4 },
+      { posicao: 9, sigla: '1Sm', nome: '1 Samuel', capitulos: 31 },
+      { posicao: 10, sigla: '2Sm', nome: '2 Samuel', capitulos: 24 },
+      { posicao: 11, sigla: '1Rs', nome: '1 Reis', capitulos: 22 },
+      { posicao: 12, sigla: '2Rs', nome: '2 Reis', capitulos: 25 },
+      { posicao: 13, sigla: '1Cr', nome: '1 Crônicas', capitulos: 29 },
+      { posicao: 14, sigla: '2Cr', nome: '2 Crônicas', capitulos: 36 },
+      { posicao: 15, sigla: 'Ed', nome: 'Esdras', capitulos: 10 },
+      { posicao: 16, sigla: 'Ne', nome: 'Neemias', capitulos: 13 },
+      { posicao: 17, sigla: 'Et', nome: 'Ester', capitulos: 10 },
+    ],
+  },
+  {
+    id: 'poeticos', artigo: 'os', nome: 'Poéticos', cor: '#B3922A', tom: '#EFE7CB', capitulos: 243,
+    livros: [
+      { posicao: 18, sigla: 'Jó', nome: 'Jó', capitulos: 42 },
+      { posicao: 19, sigla: 'Sl', nome: 'Salmos', capitulos: 150 },
+      { posicao: 20, sigla: 'Pv', nome: 'Provérbios', capitulos: 31 },
+      { posicao: 21, sigla: 'Ec', nome: 'Eclesiastes', capitulos: 12 },
+      { posicao: 22, sigla: 'Ct', nome: 'Cântico dos Cânticos', capitulos: 8 },
+    ],
+  },
+  {
+    id: 'profetas-maiores', artigo: 'os', nome: 'Profetas maiores', cor: '#6E8A3C', tom: '#DFE6D2', capitulos: 183,
+    livros: [
+      { posicao: 23, sigla: 'Is', nome: 'Isaías', capitulos: 66 },
+      { posicao: 24, sigla: 'Jr', nome: 'Jeremias', capitulos: 52 },
+      { posicao: 25, sigla: 'Lm', nome: 'Lamentações', capitulos: 5 },
+      { posicao: 26, sigla: 'Ez', nome: 'Ezequiel', capitulos: 48 },
+      { posicao: 27, sigla: 'Dn', nome: 'Daniel', capitulos: 12 },
+    ],
+  },
+  {
+    id: 'profetas-menores', artigo: 'os', nome: 'Profetas menores', cor: '#3E7A62', tom: '#D2E3DB', capitulos: 67,
+    livros: [
+      { posicao: 28, sigla: 'Os', nome: 'Oseias', capitulos: 14 },
+      { posicao: 29, sigla: 'Jl', nome: 'Joel', capitulos: 3 },
+      { posicao: 30, sigla: 'Am', nome: 'Amós', capitulos: 9 },
+      { posicao: 31, sigla: 'Ob', nome: 'Obadias', capitulos: 1 },
+      { posicao: 32, sigla: 'Jn', nome: 'Jonas', capitulos: 4 },
+      { posicao: 33, sigla: 'Mq', nome: 'Miquéias', capitulos: 7 },
+      { posicao: 34, sigla: 'Na', nome: 'Naum', capitulos: 3 },
+      { posicao: 35, sigla: 'Hc', nome: 'Habacuque', capitulos: 3 },
+      { posicao: 36, sigla: 'Sf', nome: 'Sofonias', capitulos: 3 },
+      { posicao: 37, sigla: 'Ag', nome: 'Ageu', capitulos: 2 },
+      { posicao: 38, sigla: 'Zc', nome: 'Zacarias', capitulos: 14 },
+      { posicao: 39, sigla: 'Ml', nome: 'Malaquias', capitulos: 4 },
+    ],
+  },
+  {
+    id: 'evangelhos-atos', artigo: 'os', nome: 'Evangelhos e Atos', cor: '#F0662B', tom: '#FCDFCF', capitulos: 117,
+    livros: [
+      { posicao: 40, sigla: 'Mt', nome: 'Mateus', capitulos: 28 },
+      { posicao: 41, sigla: 'Mc', nome: 'Marcos', capitulos: 16 },
+      { posicao: 42, sigla: 'Lc', nome: 'Lucas', capitulos: 24 },
+      { posicao: 43, sigla: 'Jo', nome: 'João', capitulos: 21 },
+      { posicao: 44, sigla: 'At', nome: 'Atos', capitulos: 28 },
+    ],
+  },
+  {
+    id: 'cartas-paulo', artigo: 'as', nome: 'Cartas de Paulo', cor: '#3D6C8E', tom: '#D5E0E9', capitulos: 87,
+    livros: [
+      { posicao: 45, sigla: 'Rm', nome: 'Romanos', capitulos: 16 },
+      { posicao: 46, sigla: '1Co', nome: '1 Coríntios', capitulos: 16 },
+      { posicao: 47, sigla: '2Co', nome: '2 Coríntios', capitulos: 13 },
+      { posicao: 48, sigla: 'Gl', nome: 'Gálatas', capitulos: 6 },
+      { posicao: 49, sigla: 'Ef', nome: 'Efésios', capitulos: 6 },
+      { posicao: 50, sigla: 'Fp', nome: 'Filipenses', capitulos: 4 },
+      { posicao: 51, sigla: 'Cl', nome: 'Colossenses', capitulos: 4 },
+      { posicao: 52, sigla: '1Ts', nome: '1 Tessalonicenses', capitulos: 5 },
+      { posicao: 53, sigla: '2Ts', nome: '2 Tessalonicenses', capitulos: 3 },
+      { posicao: 54, sigla: '1Tm', nome: '1 Timóteo', capitulos: 6 },
+      { posicao: 55, sigla: '2Tm', nome: '2 Timóteo', capitulos: 4 },
+      { posicao: 56, sigla: 'Tt', nome: 'Tito', capitulos: 3 },
+      { posicao: 57, sigla: 'Fm', nome: 'Filemon', capitulos: 1 },
+    ],
+  },
+  {
+    id: 'gerais-apocalipse', artigo: 'as', nome: 'Gerais e Apocalipse', cor: '#6A5A8E', tom: '#E0DBE9', capitulos: 56,
+    livros: [
+      { posicao: 58, sigla: 'Hb', nome: 'Hebreus', capitulos: 13 },
+      { posicao: 59, sigla: 'Tg', nome: 'Tiago', capitulos: 5 },
+      { posicao: 60, sigla: '1Pe', nome: '1 Pedro', capitulos: 5 },
+      { posicao: 61, sigla: '2Pe', nome: '2 Pedro', capitulos: 3 },
+      { posicao: 62, sigla: '1Jo', nome: '1 João', capitulos: 5 },
+      { posicao: 63, sigla: '2Jo', nome: '2 João', capitulos: 1 },
+      { posicao: 64, sigla: '3Jo', nome: '3 João', capitulos: 1 },
+      { posicao: 65, sigla: 'Jd', nome: 'Judas', capitulos: 1 },
+      { posicao: 66, sigla: 'Ap', nome: 'Apocalipse', capitulos: 22 },
+    ],
+  },
+]
+
+// Os 66 livros em ordem canônica (Gênesis → Apocalipse), cada um já com o
+// bloco a que pertence — o que a roda, a estante e os cálculos percorrem.
+export const GAMIFICATION_BOOKS = GAMIFICATION_BLOCKS.flatMap(block =>
+  block.livros.map(livro => ({ ...livro, blocoId: block.id, blocoNome: block.nome, cor: block.cor, tom: block.tom }))
+)
+
+const BOOK_BY_NAME = new Map(GAMIFICATION_BOOKS.map(b => [b.nome, b]))
+const BLOCK_BY_ID = new Map(GAMIFICATION_BLOCKS.map(b => [b.id, b]))
+
+export function bookInfo(nome) {
+  return BOOK_BY_NAME.get(nome) ?? null
+}
+
+export function blockById(id) {
+  return BLOCK_BY_ID.get(id) ?? null
+}
+
+// Nome da variável CSS (src/index.css) com a cor/tom de um bloco — o único
+// caminho pelo qual um componente deve pintar um bloco (regra: nenhuma cor
+// solta no meio de componente).
+export function blockColorVar(blocoId) {
+  return `var(--bloco-${blocoId})`
+}
+export function blockToneVar(blocoId) {
+  return `var(--bloco-${blocoId}-tom)`
+}

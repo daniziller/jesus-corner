@@ -38,7 +38,6 @@ import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
-import WeekScheduleScreen from './screens/WeekScheduleScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
 import AddStudyScreen from './screens/AddStudyScreen'
 import PublicStudiesScreen from './screens/PublicStudiesScreen'
@@ -107,6 +106,19 @@ import { getReadingOrder, setReadingOrder as persistReadingOrder } from './readi
 import { getReadingSeconds } from './reading/readingTimeStore'
 import ChapterRoomScreen from './screens/ChapterRoomScreen'
 import DayCompleteScreen from './screens/DayCompleteScreen'
+import SuaBibliaScreen from './screens/SuaBibliaScreen'
+import ConquistasScreen from './screens/ConquistasScreen'
+import FamiliaScreen from './screens/FamiliaScreen'
+import NovaConquistaScreen from './screens/NovaConquistaScreen'
+import EstanteScreen from './screens/EstanteScreen'
+import SeloScreen from './screens/SeloScreen'
+import LivroCompletoScreen from './screens/LivroCompletoScreen'
+import { onChapterOpened } from './gamification/rereadTracker'
+import { startReread, recordRereadChapter } from './gamification/achievementsMath'
+import { updateGamification } from './gamification/achievementsStore'
+import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
+import { evaluateGamification, markAchievementsSeen } from './gamification/evaluate'
+import { getGamificationRow } from './gamification/achievementsStore'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
 import { ensureSnapshotAndGetDueRecap, markRecapShown } from './recap/monthlyRecapStore'
 import WeeklySummaryNumbersScreen from './screens/WeeklySummaryNumbersScreen'
@@ -532,6 +544,23 @@ export default function App() {
   // readingSession é lastReadSession capturado ANTES de session.todaySession
   // avançar pra próxima sessão.
   const [routineCompleteInfo, setRoutineCompleteInfo] = useState(null)
+  // Gamificação (handoff-gamificacao-43-46, HANDOFF §7): a linha gravada
+  // (conquistas ganhas, selos, histórico de meta), a família aberta em G6
+  // e o parabéns pendente desta sessão — UM só, escolhido por prioridade
+  // (livro → bloco → maior degrau) em pickCelebration, mostrado depois da
+  // tela de conclusão (DayCompleteScreen) ou, fora do fluxo guiado, na
+  // próxima volta ao Hoje — nunca no meio de uma sessão.
+  const [gamification, setGamification] = useState(null)
+  const gamificationRef = useRef(null)
+  gamificationRef.current = gamification
+  const [familiaId, setFamiliaId] = useState(null)
+  // Estante (G9) rolada até uma prateleira, e o livro aberto em G10.
+  const [estanteScroll, setEstanteScroll] = useState(null)
+  const [seloBook, setSeloBook] = useState(null)
+  const [pendingCelebration, setPendingCelebration] = useState(null)
+  const pendingCelebrationRef = useRef(null)
+  pendingCelebrationRef.current = pendingCelebration
+  const gamificationTimerRef = useRef(null)
   // Trava enquanto a transição de um passo pro próximo está agendada (ver
   // advanceGuided) — evita agendar duas vezes se markRoutineStep disparar
   // mais de uma vez pro mesmo passo.
@@ -676,6 +705,9 @@ export default function App() {
   // (isDayGoalMet/computeWeeksInGoal, routineStreak.js), não mais um login
   // diário.
   const [dailyRoutine, setDailyRoutine] = useState({})
+  // Espelho síncrono pra callbacks agendados (avaliação da gamificação).
+  const dailyRoutineRef = useRef({})
+  dailyRoutineRef.current = dailyRoutine
   // Quais passos entram na rotina diária (ver routineModulesStore.js) — e
   // qual Estudo guiado está ativo no momento (activeStudyStore.js), pro
   // passo "study" saber pra onde continuar. Ambos independentes do plano de
@@ -1048,6 +1080,9 @@ export default function App() {
   // tabHistory acima) — sem isso, "Voltar" só funcionaria depois de cliques
   // no menu, não depois de atalhos como "Continuar sessão".
   function goToTab(tab) {
+    // Parabéns pendente da gamificação (ver pendingCelebration): aparece
+    // na volta ao Hoje, fora do fluxo guiado — nunca no meio de uma sessão.
+    if (tab === 'home' && pendingCelebrationRef.current && !guidedFlowRef.current) tab = pendingCelebrationRef.current.kind === 'livro' ? 'livroCompleto' : 'novaConquista'
     if (tab !== activeTab) setTabHistory(prev => [...prev.slice(-19), activeTab])
     setActiveTab(tab)
   }
@@ -1290,6 +1325,89 @@ export default function App() {
     return () => { cancelled = true }
   }, [authUser])
 
+  // Gamificação — na primeira abertura depois da atualização, a migração
+  // retroativa silenciosa (tudo que a pessoa já tem vira ganho e já
+  // visto, sem fila de parabéns; idempotente, marcada por
+  // gamification_migrated_at). Nas seguintes, só carrega a linha. Roda
+  // depois da primeira pintura (efeito), nunca no caminho do boot.
+  useEffect(() => {
+    if (!authUser) return
+    let cancelled = false
+    getGamificationRow().then(row => {
+      if (cancelled) return
+      if (row.migratedAt) { setGamification(row); return }
+      return evaluateGamification({ completedSet: completedSetRef.current, dailyRoutine, weeklyGoalDays, silent: true })
+        .then(res => { if (!cancelled) setGamification(res.row) })
+    }).catch(err => console.error('[gamificação] carregar/migrar', err))
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser])
+
+  // Avaliação das conquistas depois de uma ação que muda o que a pessoa
+  // tem (sessão concluída, capítulo marcado) — com um pequeno atraso pra
+  // as gravações em paralelo (chapters_read, session_seconds) chegarem
+  // antes da leitura, e pra várias marcações seguidas virarem uma
+  // avaliação só. O parabéns fica pendente até o momento certo (ver
+  // showAfterDayComplete/goToTab).
+  function scheduleGamificationCheck() {
+    if (!authUser) return
+    if (gamificationTimerRef.current) clearTimeout(gamificationTimerRef.current)
+    gamificationTimerRef.current = setTimeout(() => {
+      gamificationTimerRef.current = null
+      evaluateGamification({ completedSet: completedSetRef.current, dailyRoutine: dailyRoutineRef.current, weeklyGoalDays })
+        .then(res => {
+          setGamification(res.row)
+          if (res.celebration && !pendingCelebrationRef.current) setPendingCelebration({ ...res.celebration, data: res })
+        })
+        .catch(err => console.error('[gamificação] avaliar', err))
+    }, 1500)
+  }
+
+  // Selos (G9/G10, HANDOFF §6): abrir a estante (rolada até um bloco, vindo
+  // de G2), abrir o selo de um livro completo, "Ler {Livro} de novo"
+  // (abre um rastro de releitura e leva ao capítulo 1) e abrir um livro
+  // num capítulo específico ("O próximo selo").
+  function openEstante(blockId = null) {
+    setEstanteScroll(blockId)
+    goToTab('estante')
+  }
+  function openSelo(nome) {
+    setSeloBook(nome)
+    goToTab('selo')
+  }
+  function readBookAgain(nome) {
+    updateGamification(row => ({ bookSeals: startReread(row.bookSeals, nome, { now: new Date().toISOString() }) }))
+      .then(setGamification).catch(err => console.error('[releitura] iniciar', err))
+    openBiblePassage(nome, 1)
+  }
+  function openBookAt(nome, chapter) {
+    openBiblePassage(nome, chapter ?? 1)
+  }
+
+  // Releitura: cada capítulo aberto na leitura livre de um livro com rastro
+  // em andamento entra no rastro; ao completar, o selo ganha um ponto
+  // (até três). Não mexe em roda, Leitura nem Livros completos.
+  useEffect(() => {
+    if (!authUser) return
+    return onChapterOpened((book, chapter) => {
+      if (!gamificationRef.current?.bookSeals?.[book]?.reread) return
+      const total = gamificationBookInfo(book)?.capitulos
+      if (!total) return
+      updateGamification(row => ({ bookSeals: recordRereadChapter(row.bookSeals, book, chapter, total).seals }))
+        .then(setGamification).catch(err => console.error('[releitura] capítulo', err))
+    })
+  }, [authUser])
+
+  function finishCelebration(nextTab = 'home') {
+    setPendingCelebration(null)
+    pendingCelebrationRef.current = null
+    goToTab(nextTab)
+  }
+
+  function markGamificationSeen(ids) {
+    markAchievementsSeen(ids).then(setGamification).catch(err => console.error('[gamificação] marcar vistas', err))
+  }
+
   // Botão "Continue sua leitura" da Home/Rotina: reabre exatamente o
   // último capítulo que a pessoa estava lendo (lastReadPosition, ver
   // findCurrentReadingSession) — no plano fixo. Nos planos alternativos
@@ -1427,6 +1545,16 @@ export default function App() {
     )
     if (!targetSession) return
     setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id })
+    goToTab('journey')
+  }
+
+  // Abre um LIVRO na aba Bíblia (grade de capítulos, BookChapterScreen),
+  // não um capítulo — toque numa fatia da roda (G2) e, nas etapas
+  // seguintes da gamificação, selo em andamento/"O próximo selo" (G9).
+  // Mesmo mecanismo de browseJumpTarget de openBiblePassage, com
+  // `bookName` em vez de blockId/sessionId (ver JourneyScreen.jsx).
+  function openBibleBook(book) {
+    setBrowseJumpTarget({ bookName: book })
     goToTab('journey')
   }
 
@@ -2425,6 +2553,7 @@ export default function App() {
       return { ...prev, [key]: today }
     })
     setStepDone(step, done, planId).catch(err => console.error('Failed to persist routine step', err))
+    if (done) scheduleGamificationCheck()
     // Reflexão concluída — "Voltar à sessão de leitura" (ver
     // lastReadSession/backToLastReadSession abaixo) deixa de fazer sentido
     // depois disso, então some sozinho em vez de continuar apontando pra
@@ -2618,6 +2747,7 @@ export default function App() {
     // como filtrar por período (completed_keys não guarda quando cada
     // capítulo foi lido). Best-effort, não bloqueia a marcação em si.
     if (done && newlyDoneKeys.length) logChaptersRead(newlyDoneKeys, 'sessao')
+    if (done && newlyDoneKeys.length) scheduleGamificationCheck()
     if (done) {
       markRoutineStep('reading')
       // Marcar uma sessão como lida também conta como "último texto lido"
@@ -2661,6 +2791,7 @@ export default function App() {
     persist.catch(err => console.error('Failed to persist chapter progress', err))
     recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
     if (done && newlyDoneKeys.length) logChaptersRead(newlyDoneKeys, 'sessao')
+    if (done && newlyDoneKeys.length) scheduleGamificationCheck()
     if (done) {
       markRoutineStep('reading')
       setLastReadPosition(session.book, chapter)
@@ -2688,6 +2819,7 @@ export default function App() {
     const persist = done ? markChaptersManually(book, chapters) : unmarkChaptersManually(book, chapters)
     persist.catch(err => console.error('Failed to persist manual chapter marks', err))
     recordChallengeProgressForNewlyDoneKeys(newlyDoneKeys)
+    if (done && newlyDoneKeys.length) scheduleGamificationCheck()
   }
 
   // "Escolher" em 35i (Onde começar) — turno 35, Bloco 1. Diferente do
@@ -2823,6 +2955,9 @@ export default function App() {
   // weekGoalDaysMet: dias já lidos esta semana. weeksInGoal: contador
   // histórico de semanas que bateram a meta (nunca reseta).
   session.weeklyGoalDays = weeklyGoalDays
+  // Os 7 dias escolhidos (weekly_days) — o cartão SUAS SEMANAS do Hoje
+  // (gamificação) desenha a semana atual com eles.
+  session.weeklyDays = weeklyDays
   session.weekGoalDaysMet = computeWeekGoalProgress(dailyRoutine)
   session.weeksInGoal = computeWeeksInGoal(dailyRoutine, weeklyGoalDays)
   sessionRef.current = session
@@ -2939,7 +3074,26 @@ export default function App() {
       onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
       applicationRefreshKey={applicationRefreshVersion}
+      onOpenSuaBiblia={() => goToTab('suaBiblia')}
+      onOpenConquistas={() => goToTab('conquistas')}
+      onOpenEstante={() => openEstante()}
     />,
+    // Gamificação (handoff-gamificacao-43-46) — Sua Bíblia (G2), aberta
+    // pelo cartão SUA BÍBLIA do Hoje. Tela empilhada sem barra de abas,
+    // mesmo padrão de metrics.
+    suaBiblia: <SuaBibliaScreen session={session} completedSet={completedSet} onBack={goBack} onOpenBook={openBibleBook} onOpenSelo={openSelo} onOpenEstante={id => openEstante(id)} />,
+    // Minhas conquistas (G5), uma família (G6) e o parabéns (G4).
+    conquistas: <ConquistasScreen session={session} completedSet={completedSet} gamification={gamification} onBack={goBack} onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }} onOpenEstante={() => openEstante()} onSeen={markGamificationSeen} />,
+    familia: familiaId ? <FamiliaScreen familyId={familiaId} session={session} completedSet={completedSet} gamification={gamification} onBack={goBack} /> : null,
+    novaConquista: pendingCelebration && pendingCelebration.kind !== 'livro'
+      ? <NovaConquistaScreen celebration={pendingCelebration} data={pendingCelebration.data} userName={session.userName} onContinue={() => finishCelebration('home')} onOpenConquistas={() => finishCelebration('conquistas')} />
+      : null,
+    // Selos: Livro completo (G8), Minha estante (G9) e Um selo (G10).
+    livroCompleto: pendingCelebration && pendingCelebration.kind === 'livro'
+      ? <LivroCompletoScreen nome={pendingCelebration.nome} data={pendingCelebration.data} onVerEstante={() => { setPendingCelebration(null); pendingCelebrationRef.current = null; openEstante() }} onContinuar={() => finishCelebration('home')} />
+      : null,
+    estante: <EstanteScreen session={session} completedSet={completedSet} gamification={gamification} scrollToBlock={estanteScroll} onBack={goBack} onOpenSelo={openSelo} onOpenBook={openBibleBook} onOpenBookAt={openBookAt} />,
+    selo: seloBook ? <SeloScreen nome={seloBook} session={session} gamification={gamification} onBack={goBack} onReadAgain={readBookAgain} onOpenNotes={() => navigateTo('notes')} /> : null,
     // Turno 35, Bloco 2 (handoff-meu-plano-35/) — 35a/35b substituem a 4b
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
     // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
@@ -2975,7 +3129,6 @@ export default function App() {
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} />,
     // "Esta semana" por dentro (pedido dela, 2026-09-15) — aberta pelo
     // cartão ESTA SEMANA da Home (Bloco 5, HomeScreen.jsx).
-    weekSchedule: <WeekScheduleScreen session={session} onBack={goBack} />,
     themePlan: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
@@ -3313,7 +3466,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3330,7 +3483,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'weekSchedule', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se
