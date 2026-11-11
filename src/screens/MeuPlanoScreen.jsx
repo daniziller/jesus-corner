@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AppIcon from '../icons/AppIcon'
 import { t } from '../i18n'
 import { formatToday } from './HomeScreen'
-import { getStepDays } from '../routine/stepDaysStore'
+import { getStepDays, computeStepWeekGoal } from '../routine/stepDaysStore'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
 import { getAllSessions } from '../metrics/sessionDurationStore'
@@ -29,7 +29,7 @@ import { currentDayOf } from '../studies/estudosStore'
 import { dateKey } from '../utils/dateKey'
 import {
   computeMeuPlano, resolveMinutes, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria,
-  doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay,
+  doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay, doneTitle, weekCountSentence, STEP_ORDER,
 } from '../meuPlano/meuPlanoMath'
 
 const FONT = 'var(--font-bento)'
@@ -69,7 +69,7 @@ async function loadStudiesSummary(activeStudyId) {
 }
 
 export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onStartGuided, onNavigate, onOpenSeuPlano }) {
-  const { lang, plan, routineModules, activeStudyId, dailyRoutine, currentBlock, hasNoPlan } = session
+  const { lang, plan, routineModules, activeStudyId, dailyRoutine, currentBlock, hasNoPlan, lastReadPosition } = session
   const [stepDays, setStepDays] = useState(null)
   const [methods, setMethods] = useState({ prayer: 'acts', reflection: 'questions' })
   const [activeStudy, setActiveStudy] = useState(null)
@@ -118,9 +118,14 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
   const proj = stepDays ? computeProjection({ completedSet, readingMinutesPerDay: minutes.reading, weeklyDays: stepDays.reading, lang }) : null
   const readingDays = stepDays ? stepDays.reading.filter(Boolean).length : 0
   const planName = t('routine.bibleWholeLabel', undefined, lang)
+  // P3: "{Dia} já conta para a sua semana: {feitos} de {meta} dias" — a
+  // mesma conta de meta semanal que o app já usa (dias com algo marcado).
+  const weekGoal = stepDays ? computeStepWeekGoal(dailyRoutine, stepDays, STEP_ORDER.filter(k => (routineModules ?? []).includes(k)), today) : null
 
+  // Trecho da linha de passo feito: a leitura mostra o capítulo LIDO
+  // (lastReadPosition), não o próximo (que é o do cartão "Seu plano").
   function passageFor(key) {
-    if (key === 'reading') return readingPassage
+    if (key === 'reading') return lastReadPosition?.book && lastReadPosition?.chapter ? `${lastReadPosition.book} ${lastReadPosition.chapter}` : readingPassage
     if (key === 'study') return activeStudy?.reference ?? ''
     return ''
   }
@@ -222,8 +227,26 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
                 </div>
               )}
 
+              {state.kind === 'done' && (
+                <div style={{ ...s.bigCard, marginTop: 6 }}>
+                  <p style={{ ...s.bigLabel, color: 'var(--bento-sand-icon)' }}>PLANO DE HOJE COMPLETO</p>
+                  <p style={s.doneTitle}>{doneTitle(state.total)}</p>
+                  {weekGoal && <p style={s.bigText}>{weekCountSentence(todayIdx, weekGoal.doneCount, weekGoal.markedCount)}</p>}
+                  <button type="button" style={s.secondary} onClick={() => onNavigate?.('journey')}>Ler mais, por conta própria</button>
+                </div>
+              )}
+
+              {state.kind === 'rest' && (
+                <div style={{ ...s.bigCard, padding: '20px 18px 16px' }}>
+                  <p style={s.bigLabel}>HOJE É DESCANSO</p>
+                  <p style={s.restTitle}>Nada marcado para hoje.</p>
+                  <p style={{ ...s.bigText, marginBottom: 16 }}>Descanso faz parte do plano. A sua semana não perde nada por isso.</p>
+                  <button type="button" style={s.secondary} onClick={() => onNavigate?.(hasNoPlan ? 'adjustPlan' : 'journey')}>Quero ler hoje mesmo assim</button>
+                </div>
+              )}
+
               {tomorrow && (
-                <div style={{ ...s.tomorrow, marginTop: state.kind === 'rest' ? 0 : 6 }}>
+                <div style={{ ...s.tomorrow, marginTop: state.kind === 'during' || state.kind === 'before' ? 6 : 0 }}>
                   <p style={s.tomorrowLabel}>{tomorrow.label}</p>
                   <p style={s.tomorrowText}>{tomorrow.text}</p>
                 </div>
@@ -300,6 +323,12 @@ const s = {
   trailDash: { flex: 1, height: 5, borderRadius: 99 },
   cta: { width: '100%', height: 52, borderRadius: 17, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   listen: { width: '100%', height: 40, margin: '6px 0 -6px', border: 'none', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'rgba(255,255,255,.7)', cursor: 'pointer' },
+  bigCard: { borderRadius: 26, background: 'var(--bento-card)', padding: '18px 18px 16px' },
+  bigLabel: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 10px' },
+  doneTitle: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.6px', color: 'var(--bento-ink)', margin: '0 0 6px' },
+  restTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: '0 0 6px' },
+  bigText: { fontFamily: FONT, fontSize: 13, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-t2)', margin: '0 0 14px' },
+  secondary: { width: '100%', height: 46, borderRadius: 15, border: 'none', background: 'var(--bento-line)', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
   tomorrow: { borderRadius: 24, background: 'var(--bento-sand)', padding: '15px 18px' },
   tomorrowLabel: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 7px' },
   tomorrowText: { fontFamily: FONT, fontSize: 14, fontWeight: 700, lineHeight: 1.25, color: 'var(--bento-sand-ink-strong)', margin: 0 },

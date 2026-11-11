@@ -208,6 +208,12 @@ export function doneTitle(total) {
   return `Você fez os ${word} passos.`
 }
 
+// P3: "Terça já conta para a sua semana: 2 de 6 dias." — a meta é o número
+// de dias com algo marcado (computeStepWeekGoal, a regra que já existe).
+export function weekCountSentence(todayIdx, feitos, meta) {
+  return `${weekdayCapitalized(todayIdx)} já conta para a sua semana: ${feitos} de ${meta} ${meta === 1 ? 'dia' : 'dias'}.`
+}
+
 // Dia de estudo (P5): estudo no caminho e leitura fora dele.
 export function isStudyOnlyDay(state) {
   const keys = state.steps.map(s => s.key)

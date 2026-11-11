@@ -4,7 +4,7 @@
 // interrompido; tudo feito; dia de descanso; todos os passos desligados;
 // dia de estudo; leitura + estudo no mesmo dia; um passo só; virada de
 // dia; rótulo do botão; texto da direita da barra; plurais.
-import { computeMeuPlano, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria, doneLine, stepDescription, stepsSentence, tomorrowCard, seuPlanoLine, studiesLine, doneTitle, isStudyOnlyDay, formatHour, resolveMinutes } from '../src/meuPlano/meuPlanoMath.js'
+import { computeMeuPlano, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria, doneLine, stepDescription, stepsSentence, tomorrowCard, seuPlanoLine, studiesLine, doneTitle, isStudyOnlyDay, formatHour, resolveMinutes, weekCountSentence } from '../src/meuPlano/meuPlanoMath.js'
 import { dateKey } from '../src/utils/dateKey.js'
 
 let failures = 0
@@ -54,6 +54,8 @@ const p3 = computeMeuPlano({ routineModules: ALL, stepDays, minutes, dayEntry: {
 check('P3: tudo feito, sem agora, sem botão', [p3.kind, p3.now, buttonLabel(p3), barRightText(p3)], ['done', null, null, '30 min com Deus hoje'])
 check('P3: linha da leitura com trecho', doneLine(p3.steps[1], 'Gênesis 41'), 'Gênesis 41 · feita às 7:01')
 check('P3: título por extenso', [doneTitle(3), doneTitle(1), doneTitle(4)], ['Você fez os três passos.', 'Você fez o passo de hoje.', 'Você fez os quatro passos.'])
+
+check('P3: frase da semana, plural e singular', [weekCountSentence(1, 2, 6), weekCountSentence(0, 1, 1)], ['Terça já conta para a sua semana: 2 de 6 dias.', 'Segunda já conta para a sua semana: 1 de 1 dia.'])
 
 // ── dia de descanso (P4) e todos desligados ───────────────────────────
 check('P4: domingo sem nada', computeMeuPlano({ routineModules: ALL, stepDays, minutes, dayEntry: {}, todayIdx: SUN }).kind, 'rest')
