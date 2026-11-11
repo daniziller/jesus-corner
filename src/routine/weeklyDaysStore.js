@@ -14,8 +14,9 @@
 // As constantes e o cálculo puro (sem I/O) vivem em weeklyDaysMath.js, pra
 // dar pra testar com `node` puro sem sessão Supabase — ver
 // scripts/test-weekly-days.mjs.
-import { fetchRow, updateRow } from '../backend/userDataStore'
+import { fetchRow, updateRow, withRowLock } from '../backend/userDataStore'
 import { countTrue } from './weeklyDaysMath'
+import { appendGoalHistory } from '../gamification/weeksMath'
 
 export { DAY_KEYS, WEEKLY_DAYS_PRESETS, WEEKDAY_ABBR3, WEEKDAY_FULL, countTrue, daysArrayForCount } from './weeklyDaysMath'
 
@@ -28,7 +29,17 @@ export async function getWeeklyDays() {
     : DEFAULT_WEEKLY_DAYS
 }
 
-export async function setWeeklyDays(days) {
+// Também registra, em user_data.weekly_goal_history (migration 0075), que
+// a partir desta semana a meta é countTrue(days) — a gamificação avalia
+// cada semana passada pela meta que VALIA nela, nunca pela atual
+// ("mudar a meta depois não reavalia semanas passadas", HANDOFF §3.2).
+// Dentro do lock porque lê o histórico antes de acrescentar.
+export function setWeeklyDays(days) {
   if (!Array.isArray(days) || days.length !== 7) throw new Error('weekly_days precisa ter 7 posições')
-  await updateRow({ weekly_days: days, weekly_goal_days: countTrue(days) })
+  return withRowLock(async () => {
+    const row = await fetchRow()
+    const dias = countTrue(days)
+    const history = appendGoalHistory(Array.isArray(row?.weekly_goal_history) ? row.weekly_goal_history : [], dias)
+    await updateRow({ weekly_days: days, weekly_goal_days: dias, weekly_goal_history: history })
+  })
 }

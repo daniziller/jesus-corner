@@ -34,11 +34,17 @@ function todayStr() {
 // ex: alguém que abriu e fechou sem fazer nada) — a checagem >0 também
 // existe no banco (constraint), isto é só pra não gastar uma chamada de
 // rede à toa.
-export async function logSessionSeconds(passo, segundos, dateStr = todayStr()) {
+//
+// `livro` (migration 0075, só pro passo 'reading'): o livro que estava
+// aberto — é o que dá o "Tempo" de um livro terminado (G8/G10 da
+// gamificação). Null quando não se sabe (oração, reflexão, ou leitura
+// registrada antes dessa coluna existir) — nesse caso a tela esconde o
+// cartão em vez de inventar um número.
+export async function logSessionSeconds(passo, segundos, dateStr = todayStr(), livro = null) {
   if (!PASSOS.includes(passo)) throw new Error(`passo inválido: ${passo}`)
   const n = Math.round(segundos)
   if (n <= 0) return null
-  return insertRow(TABLE, { passo, segundos: n, data: dateStr })
+  return insertRow(TABLE, { passo, segundos: n, data: dateStr, livro: passo === 'reading' ? livro : null })
 }
 
 // Todas as linhas do usuário (autenticado ou convidado) — base para as

@@ -492,7 +492,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     const flush = () => {
       if (pending >= 1) {
         addReadingSeconds(pending).catch(() => {})
-        logSessionSeconds('reading', pending).catch(() => {})
+        logSessionSeconds('reading', pending, undefined, session?.book ?? null).catch(() => {})
         pending = 0
       }
     }
