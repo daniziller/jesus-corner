@@ -79,7 +79,10 @@ export function computeWeeksInGoal(dailyRoutine, history, currentGoal, today = n
 // As últimas `n` semanas, mais antiga primeiro, a atual por último —
 // as cápsulas de G3. `beforeStart`: a semana inteira é anterior ao
 // primeiro registro de atividade da conta (`firstActivityKey`), então o
-// lugar existe mas fica transparente. `fill` (0–1) só na semana atual.
+// lugar existe mas fica transparente — e, numa conta sem nenhum registro
+// ainda (`firstActivityKey` nulo), toda semana passada sem dia cumprido
+// é anterior ao começo: só a cápsula atual aparece (handoff-hoje-50 §8).
+// `fill` (0–1) só na semana atual.
 export function computeWeekCapsules(dailyRoutine, history, currentGoal, firstActivityKey, today = new Date(), n = 12) {
   const todayKey = dateKey(today)
   const currentMonday = mondayOf(today)
@@ -95,7 +98,7 @@ export function computeWeekCapsules(dailyRoutine, history, currentGoal, firstAct
       mondayKey, daysMet, goal,
       met: daysMet >= goal,
       isCurrent,
-      beforeStart: !!firstActivityKey && sundayKey < firstActivityKey,
+      beforeStart: !isCurrent && (firstActivityKey ? sundayKey < firstActivityKey : daysMet === 0),
       fill: isCurrent ? Math.min(daysMet / goal, 1) : null,
     })
   }

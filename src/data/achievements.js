@@ -12,10 +12,14 @@ export const DEGRAUS_POR_FAMILIA = 6
 
 // unidade: plural e singular — "faltam 8 semanas na meta" / "falta 1
 // semana na meta" (G5, G6, G9). `mede` é a frase do cartão areia de G6.
+// unidadeCurta: a forma curta que cabe ao lado do rótulo "PRÓXIMA
+// CONQUISTA" no Hoje (handoff-hoje-50 §5) — "falta 1 h", "faltam 8
+// semanas".
 export const FAMILIES = [
   {
     id: 'constancia', nome: 'Constância',
     unidade: 'semanas na meta', unidadeSingular: 'semana na meta',
+    unidadeCurta: 'semanas', unidadeCurtaSingular: 'semana',
     mede: 'Conta as semanas em que você cumpriu o seu plano — não precisam ser seguidas. Uma semana fraca não tira nada daqui.',
     degraus: [
       { degrau: 1, limiar: 1, nome: 'Primeira semana' },
@@ -29,6 +33,7 @@ export const FAMILIES = [
   {
     id: 'leitura', nome: 'Leitura',
     unidade: 'capítulos', unidadeSingular: 'capítulo',
+    unidadeCurta: 'capítulos', unidadeCurtaSingular: 'capítulo',
     mede: 'Conta os capítulos distintos que você marcou como lidos. Reler um capítulo não conta de novo.',
     degraus: [
       { degrau: 1, limiar: 10, nome: 'Dez capítulos' },
@@ -42,6 +47,7 @@ export const FAMILIES = [
   {
     id: 'tempo', nome: 'Tempo com Deus',
     unidade: 'horas', unidadeSingular: 'hora',
+    unidadeCurta: 'h', unidadeCurtaSingular: 'h',
     mede: 'Soma a duração das suas sessões de oração, leitura e reflexão, em horas inteiras.',
     degraus: [
       { degrau: 1, limiar: 1, nome: 'A primeira hora' },
@@ -55,6 +61,7 @@ export const FAMILIES = [
   {
     id: 'oracao', nome: 'Oração pelos outros',
     unidade: 'pedidos orados', unidadeSingular: 'pedido orado',
+    unidadeCurta: 'pedidos', unidadeCurtaSingular: 'pedido',
     mede: 'Conta os toques em "Orei" em pedidos de outras pessoas — no máximo um por pedido por dia.',
     degraus: [
       { degrau: 1, limiar: 10, nome: 'Dez orações' },
@@ -68,6 +75,7 @@ export const FAMILIES = [
   {
     id: 'livros', nome: 'Livros completos',
     unidade: 'livros', unidadeSingular: 'livro',
+    unidadeCurta: 'livros', unidadeCurtaSingular: 'livro',
     mede: 'Conta os livros em que você leu todos os capítulos.',
     degraus: [
       { degrau: 1, limiar: 1, nome: 'Primeiro livro' },

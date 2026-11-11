@@ -342,6 +342,20 @@ body {
   .roda-fatia-fill { transition: none; }
 }
 
+/* Hoje — círculo de um passo do plano (CartaoPlano.jsx, handoff-hoje-50
+   §4): quando a pessoa volta ao Hoje com um passo recém-concluído, o
+   círculo enche em 200ms. Na primeira abertura nada anima. */
+.hoje-passo-circulo {
+  transition: background-color .2s ease-out, box-shadow .2s ease-out;
+}
+.hoje-passo-circulo svg {
+  transition: opacity .2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hoje-passo-circulo,
+  .hoje-passo-circulo svg { transition: none; }
+}
+
 /* ── Botões do painel do admin (AdminScreen.jsx, 23a-d) — únicos
    consumidores destas duas classes hoje (grep confirmado). Convertidos pra
    identidade Bento na varredura: laranja sólido `--bento-accent`, tinta
@@ -511,6 +525,26 @@ body {
 }
 
 /* ── Indicador de pendência (pedido de amizade / convite de grupo) ── */
+/* Número de mensagens novas sobre o ícone da Comunidade (BottomNav.jsx,
+   handoff-hoje-50 §7): pílula laranja 5px acima do topo do ícone, à
+   direita dele; texto escuro (nunca branco sobre laranja). */
+.nav-unread-count {
+  position: absolute;
+  top: -5px;
+  left: calc(100% - 5px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 99px;
+  background: var(--bento-accent);
+  color: var(--bento-ink);
+  font-family: var(--font-bento);
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
 .nav-pending-dot {
   position: absolute;
   top: -2px;

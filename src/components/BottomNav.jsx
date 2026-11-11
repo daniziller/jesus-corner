@@ -1,5 +1,6 @@
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { messagesBadgeText, communityTabLabel } from '../groups/messagesBadge'
 
 // 5 abas — o máximo que cabe com alvos de toque e rótulos legíveis nessa
 // largura. "journey" (Bíblia) fica no centro da fileira. À esquerda dela:
@@ -12,7 +13,7 @@ import AppIcon from '../icons/AppIcon'
 // marcações, sermões e estudos — ver NotesScreen.jsx.
 // O que mais saiu da barra e onde vive agora:
 //  - Estudos → dentro da própria Biblioteca (não tem slot próprio) + card
-//    em "Meu Plano" (RoutineScreen) + item em Perfil.
+//    em "Meu Plano" (MeuPlanoScreen) + item em Perfil.
 //  - Oração → dentro de "Meu Plano" (é o passo 1 do dia) e do card de
 //    rotina da Home.
 // Todas continuam navegáveis por navigateTo(), só não ocupam mais um
@@ -40,7 +41,13 @@ const ROUTINE_ALIAS_TABS = ['addStudy']
 // lockedTabs — a aba existe mas exige Premium (App.navigateTo encaminha o
 // clique pra 'upgrade'); o cadeado em si NÃO aparece aqui (redesign 1e —
 // "tirar os cadeados da barra", confirmado com a autora).
-export default function BottomNav({ activeTab, onNavigate, groupsHasPending, disabledTabs = [], lang }) {
+// groupsUnread — total de mensagens novas (handoff-hoje-50 §7): número
+// laranja sobre o ícone da Comunidade ("99+" acima de 99, nada com zero),
+// no lugar do quadrado "Mensagens novas" que o Hoje tinha. É a ÚNICA
+// mudança da barra; a bolinha de pedidos/convites (groupsHasPending)
+// continua igual quando não há mensagem nova.
+export default function BottomNav({ activeTab, onNavigate, groupsHasPending, groupsUnread = 0, disabledTabs = [], lang }) {
+  const unread = messagesBadgeText(groupsUnread)
   return (
     <nav className="bottom-nav">
       {TAB_IDS.map(id => {
@@ -58,12 +65,14 @@ export default function BottomNav({ activeTab, onNavigate, groupsHasPending, dis
             className={`nav-item ${active ? 'active' : ''}`}
             onClick={() => !disabled && onNavigate(id)}
             disabled={disabled}
-            aria-label={label}
+            aria-label={id === 'groups' && !disabled ? communityTabLabel(label, groupsUnread) : label}
             style={{ border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 }}
           >
             <span className="nav-icon" style={{ position: 'relative' }}>
               <AppIcon name={TAB_ICONS[id]} size={20} strokeWidth={1.9} color={active ? 'var(--bento-ink)' : 'var(--bento-t5)'} />
-              {id === 'groups' && groupsHasPending && !disabled && <span className="nav-pending-dot" />}
+              {id === 'groups' && !disabled && (unread
+                ? <span className="nav-unread-count" aria-hidden="true">{unread}</span>
+                : groupsHasPending && <span className="nav-pending-dot" />)}
             </span>
             <span className="nav-label">{label}</span>
           </button>

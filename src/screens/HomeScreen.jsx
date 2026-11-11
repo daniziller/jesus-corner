@@ -1,60 +1,51 @@
-// HomeScreen.jsx — Hoje (rodada 34, handoff-hoje-34/HANDOFF-34a-hoje.md),
-// rota `/`. Substitui TODAS as versões anteriores de Início — a 3c antiga
-// (ação única) e o painel de métricas (HomeDashboard.jsx, apagado em
-// 2026-09-07 quando a Home virou sempre 3c) já tinham saído; esta rodada
-// troca a própria 3c pelo quadro novo. Ordem dos blocos, fixa (handoff:
-// "ação → alimento → informação → o que espera", não reordenar): plano de
-// hoje → versículo do dia → aplicação de ontem → esta semana (com tempo
-// por passo) → dois quadrados (mensagens/métricas) → resumo da semana →
-// barra de abas (fora deste arquivo, App.jsx). ÚNICA exceção (pedido dela,
-// 2026-09-13, handoff-admin-42 42n: "aparece no Hoje... acima da leitura
-// do plano"): o card do desafio de leitura por IA do grupo, quando ativo,
-// vem ANTES até do plano de hoje — ver groupChallenge mais abaixo.
+// HomeScreen.jsx — Hoje (handoff-hoje-50, H1), rota `/`. Quatro blocos,
+// nesta ordem e nada entre eles:
+//   1. Sua caminhada — o cartão da Bíblia (a roda em 132px) e os três
+//      quadrados Semanas · Dias · Selos;
+//   2. Seu plano de hoje — os passos de hoje com círculos e o único botão
+//      laranja da tela (o mesmo "abrir o passo de agora e emendar os
+//      seguintes" do Meu Plano);
+//   3. Próxima conquista — "a mais perto" de Minhas conquistas;
+//   4. Para hoje — resumo da semana (só não lido), versículo do dia,
+//      aplicação de ontem com "Cumpri", anotar uma pregação (e o desafio
+//      de leitura do grupo, quando há um ativo).
+// As mensagens novas viraram o número na aba Comunidade (BottomNav.jsx).
 //
-// Os quatro dados que não existiam em lugar nenhum do código antes desta
-// rodada (frase de aplicação com estado "cumpri", versículo do trecho em
-// leitura, resumo de continuidade, tempo real do dia) ganharam módulos
-// próprios em vez de serem inventados aqui: applicationPhraseStore.js
-// (getWeekApplicationStatus/markPinnedApplicationFulfilled),
-// home/homeVerseStore.js (getHomeVerse/getContinuityExcerpt),
-// metrics/sessionDurationStore.js (totalsForDay, novo). "Sua caminhada"
-// (ProgressScreen.jsx) saiu de vez — já estava supersedida por Métricas
-// (MetricsScreen.jsx, 30b), que é pra onde o quadrado "Minhas métricas"
-// desta tela leva.
+// Nada aqui é calculado de novo: percentual, semanas, cápsulas, selos,
+// passos de hoje e "a mais perto" vêm das funções da gamificação
+// (src/gamification) e do Meu Plano (src/meuPlano); src/hoje/hojeMath.js
+// só dá as palavras de cada bloco. A tela pinta em camadas: a roda e o
+// cartão do plano primeiro; semanas, selos, conquista e as linhas que
+// dependem de busca chegam logo depois, com esqueleto — nunca um spinner
+// de tela cheia.
 import { useEffect, useMemo, useState } from 'react'
 import { t as translate } from '../i18n'
-import AppIcon from '../icons/AppIcon'
-import TimePerStepSheet from '../components/TimePerStepSheet'
-import { DEFAULT_ROUTINE_MODULES, mondayOf } from '../routine/routineStreak'
-import { WEEKDAY_FULL } from '../routine/weeklyDaysMath'
-import { getAllSessions } from '../metrics/sessionDurationStore'
-import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
+import { getPinnedApplicationEntry, markPinnedApplicationFulfilled } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
-import { getGroupMessagesSummary } from '../groups/messagesStore'
 import { getActiveGroupChallenge, getMyGroupChallengeProgress, markGroupChallengeDayDone } from '../groups/groupChallengesStore'
-import { getHomeVerse, getContinuityExcerpt } from '../home/homeVerseStore'
+import { getHomeVerse } from '../home/homeVerseStore'
 import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { dateKey, parseLocalDateKey } from '../utils/dateKey'
-import { getStepDays, stepsScheduledForWeekday } from '../routine/stepDaysStore'
-import { STEP_ORDER } from '../routine/planTodayRows'
+import { getStepDays } from '../routine/stepDaysStore'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
-import { nextScheduledWeekday, pendingMakeupWeekdays } from '../routine/stepDaysStore'
-import { STUDIES } from '../data/studies'
-import { getAiStudies } from '../studies/aiStudiesStore'
-import { getInductiveStudies } from '../studies/inductiveStudiesStore'
-import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
-import CartaoSuaBiblia from '../components/gamificacao/CartaoSuaBiblia'
+import { computeMeuPlano, resolveMinutes, tomorrowCard } from '../meuPlano/meuPlanoMath'
+import { loadActiveStudy } from '../meuPlano/activeStudy'
+import CartaoPlano from '../components/hoje/CartaoPlano'
+import ProximaConquista from '../components/hoje/ProximaConquista'
+import ParaHoje from '../components/hoje/ParaHoje'
+import FolhaVersiculo from '../components/hoje/FolhaVersiculo'
+import { pickClosest } from '../gamification/achievementsMath'
+import CartaoBiblia from '../components/hoje/CartaoBiblia'
+import QuadradosCaminhada from '../components/hoje/QuadradosCaminhada'
 import { computeBibleProgress } from '../gamification/bibleProgressMath'
 import { bookInfo } from '../data/gamificationBlocks'
-import { getAllChapterReadRows } from '../bible/chapterReadLog'
-import CartaoSuasSemanas from '../components/gamificacao/CartaoSuasSemanas'
-import { getGamificationRow } from '../gamification/achievementsStore'
-import { firstActivityIso } from '../gamification/projectionMath'
+import { loadGamificationStats } from '../gamification/evaluate'
+import { recentSeals } from '../gamification/sealDetails'
+import { bibleFinishedIso, buildPlanCard, nextAchievement, paraHojeRows } from '../hoje/hojeMath'
 
-function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
 // "Terça, 2 de setembro" / "Tuesday, September 2" — mesmo formato de
 // sempre (3c), a base da linha "{dia da semana}, {D} de {mês} · {tipo do
@@ -81,18 +72,16 @@ function weekdayIndexMonday(date) {
 
 export default function HomeScreen({
   session, authUser, completedSet, stepMinutes,
-  onContinueSession, onNavigate, onOpenProfile,
-  onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
-  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, onOpenConquistas,
+  onStartGuided, onNavigate, onOpenProfile,
+  onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
+  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, onOpenFamilia, gamification,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
-    routineModules, plan, todayRoutine, dailyRoutine,
-    lastReadPosition, biblePercent, activeStudyId,
-    chaptersRead, booksCompleted,
+    routineModules, plan, dailyRoutine, currentBlock, hasNoPlan,
+    lastReadPosition, activeStudyId,
   } = session
   const L = (k, vars) => translate(`home.${k}`, vars, lang)
-  const R = (k, vars) => translate(`routine.${k}`, vars, lang) // metas de passo compartilhadas com Meu Plano
   const email = authUser?.email
 
   // ── Dados que só existem via I/O (rede/Supabase) — um flag de
@@ -101,25 +90,16 @@ export default function HomeScreen({
   // a própria falha (RPC ainda sem migration, rede fora) devolvendo um
   // default seguro — uma falha isolada nunca derruba a tela inteira.
   const [loading, setLoading] = useState(true)
-  // SUAS SEMANAS (G1/G3): meta vigente por semana e primeiro registro de
-  // atividade (cápsulas anteriores ao cadastro ficam transparentes) —
-  // carregados junto com o resto, em paralelo, nunca depois de pintar
-  // com dado errado.
-  const [weeksInfo, setWeeksInfo] = useState({ goalHistory: [], firstActivityKey: null })
   const [pinnedEntry, setPinnedEntry] = useState(null)
-  const [weekAppStatus, setWeekAppStatus] = useState({ total: 0, fulfilled: 0 })
-  const [messagesSummary, setMessagesSummary] = useState([])
   const [verse, setVerse] = useState(null)
-  const [continuityExcerpt, setContinuityExcerpt] = useState(null)
-  const [timeSheetOpen, setTimeSheetOpen] = useState(false)
   const [verseSaved, setVerseSaved] = useState(false)
   const [sharingVerse, setSharingVerse] = useState(false)
+  const [verseOpen, setVerseOpen] = useState(false)
 
-  // ── Bloco 2, dados do modelo de passos com dias próprios (2026-09-08) —
-  // mesmas fontes de RoutineScreen.jsx/Meu Plano, pra "Seu plano de hoje"
-  // nunca discordar de "Meu Plano" sobre o que é hoje. Sem gate de loading
-  // próprio (mesmo padrão de RoutineScreen.jsx): assume o fallback até
-  // resolver, sem travar o resto da tela.
+  // ── Bloco 2, dados dos passos com dias próprios — as mesmas fontes do
+  // Meu Plano (MeuPlanoScreen.jsx), pra "Seu plano de hoje" nunca discordar
+  // dele sobre o que é hoje. Enquanto os dias não chegam, o cartão do plano
+  // fica em esqueleto, sem travar o resto da tela.
   const [stepDays, setStepDaysState] = useState(null)
   const [prayerMethod, setPrayerMethodState] = useState('acts')
   const [reflectionMethod, setReflectionMethodState] = useState('questions')
@@ -135,12 +115,16 @@ export default function HomeScreen({
 
   // Bug real (varredura geral, 2026-09-19): `.catch(() => {})` deixava
   // `stepDays` em `null` pra sempre se a busca falhasse de verdade (não só
-  // "ainda carregando") — `todaysSteps` cai pra `[]` nesse caso (linha
-  // abaixo), e o card "Seu plano de hoje" mostra "Dia off" pra sessão
+  // "ainda carregando") e o cartão do plano mostrava descanso pra sessão
   // inteira, indistinguível de um dia sem nenhum passo agendado mesmo.
+  // Hoje o erro tem estado próprio no cartão, com "Tentar novamente".
   const [stepDaysLoadError, setStepDaysLoadError] = useState(false)
-  useEffect(() => {
+  function loadStepDays() {
+    setStepDaysLoadError(false)
     getStepDays().then(setStepDaysState).catch(err => { console.error('Failed to load step days', err); setStepDaysLoadError(true) })
+  }
+  useEffect(() => {
+    loadStepDays()
     setPrayerMethodState(getPrayerMethod())
     setReflectionMethodState(getReflectionMethod())
   }, [])
@@ -182,29 +166,11 @@ export default function HomeScreen({
     }
   }
 
+  // Estudo ativo — a mesma carga do Meu Plano (título, dia atual).
   useEffect(() => {
-    if (!activeStudyId) { setActiveStudy(null); return }
-    // Bug real (varredura geral, 2026-09-19): faltava o mesmo guard
-    // `cancelled`/`alive` que os efeitos vizinhos (groupChallenge acima,
-    // o efeito principal da tela) já usam — trocar de estudo ativo
-    // rapidamente podia deixar uma resposta ANTIGA (de um activeStudyId
-    // anterior) resolver depois da mais nova e sobrescrever o card com o
-    // estudo errado.
-    let cancelled = false
-    Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
-      if (cancelled) return
-      const study = [...STUDIES, ...ai, ...inductive].find(s => s.id === activeStudyId)
-      if (!study) return
-      const total = study.sessions?.length ?? 0
-      const done = (study.sessions ?? []).filter(s => isStudySessionDone(doneSet, study.id, s.id)).length
-      const current = (study.sessions ?? [])[Math.min(done, total - 1)]
-      setActiveStudy({
-        title: study.title ?? study.titleEn ?? '',
-        passage: current ? (lang === 'en' ? (current.passageEn ?? current.passage) : current.passage) : '',
-        dayDone: done, dayTotal: total,
-      })
-    }).catch(() => {})
-    return () => { cancelled = true }
+    let alive = true
+    loadActiveStudy(activeStudyId, lang).then(st => { if (alive) setActiveStudy(st) }).catch(() => {})
+    return () => { alive = false }
   }, [activeStudyId, lang])
 
   // `applicationRefreshKey` (bug real, 2026-09-14, reportado por ela: "salvei
@@ -222,39 +188,21 @@ export default function HomeScreen({
     const chapterForVerse = !todaySession.needsThemePick && todaySession.type !== 'reflection'
       ? { book: todaySession.book, chapter: todaySession.chStart }
       : null
-    // getAllSessions/getPinnedApplicationEntry/getWeekApplicationStatus
-    // funcionam pra convidado também (guestTableStore.js/userDataStore.js
-    // resolvem local vs. Supabase por dentro — ver comentário de cada um);
-    // só getGroupMessagesSummary exige conta de verdade (chama RPC direto),
-    // e ela mesma já trata a falha (console.error + []), então nem precisa
-    // de guarda aqui — uma falha isolada não derruba o resto da tela.
+    // getPinnedApplicationEntry funciona pra convidado também
+    // (userDataStore.js resolve local vs. Supabase por dentro); uma falha
+    // isolada não derruba a outra busca nem o resto da tela.
     Promise.allSettled([
-      getAllSessions(),
       getPinnedApplicationEntry(email),
-      getWeekApplicationStatus(email),
-      getGroupMessagesSummary(),
       chapterForVerse ? getHomeVerse({ ...chapterForVerse, lang }) : Promise.resolve(null),
-      lastReadPosition ? getContinuityExcerpt(lastReadPosition.book, lastReadPosition.chapter, lang) : Promise.resolve(null),
-      getGamificationRow(),
-      getAllChapterReadRows(),
-    ]).then(([rows, pinned, weekStatus, msgSummary, homeVerse, excerpt, gami, chapterRows]) => {
+    ]).then(([pinned, homeVerse]) => {
       if (!alive) return
-      const sessionRows = rows.status === 'fulfilled' ? rows.value : []
-      const first = firstActivityIso(chapterRows.status === 'fulfilled' ? chapterRows.value : [], sessionRows, dailyRoutine)
-      setWeeksInfo({
-        goalHistory: gami.status === 'fulfilled' ? gami.value.goalHistory : [],
-        firstActivityKey: first ? dateKey(new Date(first)) : null,
-      })
       if (pinned.status === 'fulfilled') setPinnedEntry(pinned.value)
-      if (weekStatus.status === 'fulfilled') setWeekAppStatus(weekStatus.value)
-      if (msgSummary.status === 'fulfilled') setMessagesSummary(msgSummary.value)
       if (homeVerse.status === 'fulfilled') setVerse(homeVerse.value)
-      if (excerpt.status === 'fulfilled') setContinuityExcerpt(excerpt.value)
       setLoading(false)
     })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, todaySession.book, todaySession.chStart, lastReadPosition?.book, lastReadPosition?.chapter, lang, applicationRefreshKey])
+  }, [email, todaySession.book, todaySession.chStart, lang, applicationRefreshKey])
 
   const verseData = verse ?? { text: '', ref: '', version: null }
   const dateLabel = formatToday(lang)
@@ -311,214 +259,50 @@ export default function HomeScreen({
     onOpenBiblePassage?.(verseData.bookPt, verseData.chapter)
   }
 
-  // ── Bloco 2 — SEU PLANO DE HOJE ──
-  const minutesFor = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
   const todayKeyStr = dateKey()
-  const mondayKeyStr = dateKey(mondayOf(new Date()))
+
+  // ── Bloco 2 — SEU PLANO DE HOJE (handoff-hoje-50 §4) ──
+  // Os passos de hoje e o estado de cada um saem do MESMO computeMeuPlano
+  // do Meu Plano (mesmos dias por passo, mesmos minutos, mesma entrada de
+  // hoje) — o Hoje nunca discorda da aba Meu Plano sobre o que é hoje.
+  // buildPlanCard só escolhe as palavras do cartão.
   const todayWeekdayIdx = weekdayIndexMonday(new Date())
-  // 2026-09-09 — tela branca real em produção (2ª vez, mesma classe de
-  // bug de continuityLine acima): `weekdayFull` era declarada só perto
-  // do "Bloco 5" (~180 linhas abaixo), mas `nextWeekdayLabel` (função
-  // hoisted, ok) já era CHAMADA dentro de planSubtitleText bem antes —
-  // `ReferenceError: Cannot access 'weekdayFull' before initialization`
-  // de verdade. Passou a disparar de verdade com o modo "substitui" do
-  // turno 41 (Estudo tira a Leitura do dia — activeStepsToday.includes
-  // ('reading') && !readingToday vira um caminho comum), mas o bug já
-  // existia antes disso (mesma condição também batia sem "substitui",
-  // com Leitura e Estudo em dias diferentes há muito tempo) — só não
-  // tinha sido pego ainda.
-  const weekdayFull = WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt
-
-  // 2026-09-08 — "Seu plano de hoje" passa a usar o MESMO modelo de dias
-  // por passo de Meu Plano (stepDays), em vez do STEPS fixo
-  // [oração,leitura,reflexão] antigo (que não sabia de Estudo nem de dias
-  // por passo, e usava um weeklyDays só pra "descanso"). Trilhas
-  // independentes (handoff-app-completo, 34b/34c venceram sobre a
-  // substituição antiga): Leitura e Estudo têm dias próprios e podem cair
-  // no mesmo dia. `activeStepsToday` segue só o toggle (routineModules) —
-  // achado dela (2026-09-09): "study" chegou a contar como ativo com o
-  // toggle desligado, contanto que houvesse um `activeStudyId` — mesmo bug
-  // de RoutineScreen.jsx, mesma correção (toggle desligado = passo pausado,
-  // sem exceção; `activeStudyId` só decide o CONTEÚDO do passo quando ele
-  // já está ligado pelo toggle).
-  const routineModulesSet = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
-  const activeStepsToday = STEP_ORDER.filter(k => routineModulesSet.has(k))
-  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx) : []
-
-  const stepMinutesAll = {
-    prayer: minutesFor.prayer, reading: minutesFor.reading,
-    study: stepMinutes?.study ?? 15, reflection: minutesFor.reflection,
-  }
-  function minutesForStep(key) { return stepMinutesAll[key] }
-  const totalPlanMin = todaysSteps.reduce((sum, k) => sum + (minutesForStep(k) || 0), 0)
-  const currentKey = todaysSteps.find(k => !todayRoutine[k]) ?? null
-  const allDoneToday = todaysSteps.length > 0 && !currentKey
-
-  const planState = stepDaysLoadError ? 'loadError' : session.hasNoPlan ? 'noPlan' : todaysSteps.length === 0 ? 'dayOff' : 'normal'
-
-  const stepTitle = k => translate(`home.routine${cap(k)}`, undefined, lang)
-
-  // Reposição (pedido dela, 2026-09-12, com o ajuste do mesmo dia: "não
-  // repor só a leitura, repor todos os passos do dia") — checa CADA passo
-  // ativo de folga hoje, não só Leitura. Card/tiles continuam só um
-  // resumo/aviso aqui; a ação de repor de verdade (cada passo tem sua
-  // própria tela) mora em Meu Plano (RoutineScreen.jsx, PR #168), que já
-  // sabe fazer isso por passo — daí o CTA de reposição navegar pra lá em
-  // vez de repetir a ação aqui.
-  const makeupWeekdaysByStep = {}
-  for (const k of activeStepsToday) {
-    if (!stepDays || todaysSteps.includes(k)) continue
-    const pending = pendingMakeupWeekdays(stepDays[k], dailyRoutine, k, new Date())
-    if (pending.length > 0) makeupWeekdaysByStep[k] = pending
-  }
-  const makeupStepsToday = Object.keys(makeupWeekdaysByStep)
-  const hasMakeupToday = makeupStepsToday.length > 0
-  // Dia mais antigo perdido entre TODOS os passos de folga — nomeia o
-  // card de "Dia off" quando ele vira reposição (fila de cada passo já é
-  // FIFO, ver pendingMakeupWeekdays/stepDaysMath.js — [0] é sempre o mais
-  // antigo daquele passo; aqui pega o mais antigo entre todos os passos).
-  const earliestMakeupWeekdayIdx = hasMakeupToday
-    ? Math.min(...makeupStepsToday.map(k => makeupWeekdaysByStep[k][0]))
-    : null
-
-  function handleOnlyRead() {
-    if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
-    onContinueSession?.()
+  const planMinutes = useMemo(() => resolveMinutes(stepMinutes, plan), [stepMinutes, plan])
+  const planDayEntry = dailyRoutine?.[todayKeyStr]
+  const planState = useMemo(
+    () => (stepDays ? computeMeuPlano({ routineModules, stepDays, minutes: planMinutes, dayEntry: planDayEntry, todayIdx: todayWeekdayIdx }) : null),
+    [routineModules, stepDays, planMinutes, planDayEntry, todayWeekdayIdx],
+  )
+  const planCard = buildPlanCard({
+    loadError: stepDaysLoadError, stepDays, routineModules, state: planState,
+    ctx: {
+      prayerMethod, reflectionMethod, study: activeStudy,
+      readingPassage: !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${currentBlock.book} ${currentBlock.chapter}` : '',
+      readingDonePassage: lastReadPosition?.book && lastReadPosition?.chapter ? `${lastReadPosition.book} ${lastReadPosition.chapter}` : '',
+    },
+    nextWeekdayIdx: stepDays ? (tomorrowCard({ routineModules, stepDays, minutes: planMinutes, todayIdx: todayWeekdayIdx })?.weekdayIdx ?? null) : null,
+  })
+  // O botão do cartão: 'start' é a MESMA função do botão do Meu Plano
+  // (abre o passo de agora e emenda os seguintes); as outras só navegam.
+  function handlePlanAction(action) {
+    if (action === 'start') onStartGuided?.()
+    else if (action === 'plan') onNavigate?.('routine')
+    else if (action === 'read') onNavigate?.(hasNoPlan ? 'adjustPlan' : 'journey')
+    else if (action === 'adjust') onNavigate?.('adjustPlan')
+    else if (action === 'retry') loadStepDays()
   }
 
-  // ── Bloco 2, quadro novo (34a/34b/34c) — título grande, subtítulo de
-  // continuidade e a grade de tiles (um por passo ATIVO, ligado ou
-  // "desligado hoje" — nenhum tile some, ver 34c). Só entra quando o dia
-  // NÃO está com a rotina inteira cumprida (esse estado mantém a lista
-  // antiga acima, sem quadro de referência próprio — ver comentário mais
-  // abaixo, junto do JSX).
-  const readingChapterLabel = todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title
-  const readingToday = todaysSteps.includes('reading')
-  const studyToday = todaysSteps.includes('study')
-  const studyTitleDay = activeStudy ? `${activeStudy.title} · ${R('dayXofY', { n: activeStudy.dayDone + 1, total: activeStudy.dayTotal })}` : stepTitle('study')
+  // ── Bloco 4 — PARA HOJE (handoff-hoje-50 §6) ──
+  // A frase escrita na Reflexão de HOJE só vira "aplicação de ontem"
+  // amanhã; e a preferência de mostrar/esconder (Perfil → ProfileSheet,
+  // por dispositivo, applicationCardVisibilityStore.js) continua valendo.
+  const wroteApplicationToday = pinnedEntry?.key === `application:${todayKeyStr}`
 
-  const planTitleText = readingToday && studyToday
-    ? L('planTitleBoth', { chapter: readingChapterLabel })
-    : readingToday
-      ? readingChapterLabel
-      : studyToday
-        ? studyTitleDay
-        : (todaysSteps.length > 0 ? joinNames(todaysSteps.map(k => stepTitle(k))) : '')
-
-  // "Volta {dia}" — dia da semana em que um passo OFF hoje volta a cair,
-  // a partir de stepDays[passo] (ver nextScheduledWeekday, stepDaysMath.js).
-  function nextWeekdayLabel(key) {
-    const days = stepDays?.[key]
-    if (!days) return null
-    const idx = nextScheduledWeekday(days, todayWeekdayIdx)
-    return idx == null ? null : weekdayFull[idx]
-  }
-
-  // Continuidade — "Ontem às 6:48 você parou em: '...'" (só quando existe
-  // um último texto lido de verdade — sem isso, a linha simplesmente não
-  // aparece, nunca um texto inventado). O dia (Hoje/Ontem/dia da semana) é
-  // calculado a partir de readAt real, não fixado em "Ontem" — a cópia do
-  // handoff usa "Ontem" como exemplo mais comum, mas o dado é real.
-  //
-  // Precisa vir ANTES de planSubtitleText (acha aqui embaixo) — achado
-  // reparando o "tela branca" real em produção (2026-09-09):
-  // `continuityLine` era usada em planSubtitleText mais de 40 linhas antes
-  // de ser declarada nesta mesma função, um `ReferenceError: Cannot access
-  // 'continuityLine' before initialization` de verdade (TDZ de `const`),
-  // não um efeito de bundler/dependência circular — só derrubava quem já
-  // tinha sessão (Home só renderiza autenticado, por isso nunca aparecia
-  // testando sem login).
-  function continuityDayWord(readAtIso) {
-    const readDate = new Date(readAtIso)
-    const diffDays = Math.round((new Date(dateKey()) - new Date(dateKey(readDate))) / 86400000)
-    if (diffDays <= 0) return L('continuityToday')
-    if (diffDays === 1) return L('continuityYesterday')
-    return readDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'long' })
-  }
-  const continuityHour = lastReadPosition?.readAt
-    ? new Date(lastReadPosition.readAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: 'numeric', minute: '2-digit' })
-    : null
-  const continuityLine = (lastReadPosition && continuityHour)
-    ? L('continuityLine', { day: continuityDayWord(lastReadPosition.readAt), hour: continuityHour })
-      + (continuityExcerpt ? ' ' + L('continuityExcerpt', { text: continuityExcerpt }) : '')
-    : null
-
-  const planSubtitleText = readingToday
-    ? continuityLine
-    : (studyToday && activeStepsToday.includes('reading') && nextWeekdayLabel('reading'))
-      ? L('planSubtitleStudyOnly', { weekday: nextWeekdayLabel('reading'), ref: readingChapterLabel })
-      : null
-
-  // Detalhe (3ª linha) de cada tile — sempre presente (pedido dela,
-  // 2026-09-08: "sempre com a 3ª linha"), mesmo nos 3 tiles de 34a (o
-  // quadro de referência só não mostra por acaso, com todos os passos
-  // ligados hoje). Reflexão sempre "Três perguntas do dia" e Estudo
-  // sempre "{título} · dia N de M" — mesmo com estudo ativo mostrando
-  // passagem em 34c, ela escolheu padronizar no formato de 34b pros dois.
-  // Dia perdido a repor PARA ESSE PASSO especificamente (generalização do
-  // pedido dela, 2026-09-12 — "repor todos os passos do dia", não só
-  // Leitura) — null quando não há reposição pendente pra ele.
-  function makeupWeekdayFor(key) {
-    const pending = makeupWeekdaysByStep[key]
-    return pending ? weekdayFull[pending[0]] : null
-  }
-
-  function tileDetailFor(key, on) {
-    if (key === 'prayer') {
-      if (on) return prayerMethod === 'acts' ? L('tilePrayerActs') : L('tilePrayerFree')
-      const makeupWd = makeupWeekdayFor('prayer')
-      if (makeupWd) return L('tileReporWeekday', { weekday: makeupWd })
-      const wd = nextWeekdayLabel('prayer')
-      return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
-    }
-    if (key === 'reading') {
-      if (on) return `${readingChapterLabel} · ${L('tileBibleContinuous')}`
-      const makeupWd = makeupWeekdayFor('reading')
-      if (makeupWd) return L('tileReporWeekdayRef', { weekday: makeupWd, ref: readingChapterLabel })
-      const wd = nextWeekdayLabel('reading')
-      return wd ? L('tileVoltaWeekdayRef', { weekday: wd, ref: readingChapterLabel }) : null
-    }
-    if (key === 'study') {
-      if (on) return activeStudy ? studyTitleDay : null
-      const makeupWd = makeupWeekdayFor('study')
-      const wd = makeupWd ?? nextWeekdayLabel('study')
-      if (!wd) return null
-      const refKey = makeupWd ? 'tileReporWeekdayRef' : 'tileVoltaWeekdayRef'
-      const plainKey = makeupWd ? 'tileReporWeekday' : 'tileVoltaWeekday'
-      return activeStudy ? L(refKey, { weekday: wd, ref: activeStudy.title }) : L(plainKey, { weekday: wd })
-    }
-    // reflection
-    if (on) return L('tileReflectionOn')
-    const makeupWd = makeupWeekdayFor('reflection')
-    if (makeupWd) return L('tileReporWeekday', { weekday: makeupWd })
-    const wd = nextWeekdayLabel('reflection')
-    return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
-  }
-
-  // ── Bloco 4 — SUA APLICAÇÃO DE ONTEM ──
-  // Estado especial de "rotina cumprida": se a Reflexão de HOJE já
-  // escreveu uma frase nova, ela sobe pro 2º lugar em bloco escuro (a
-  // frase de ontem, já tratada, sai de cena) — sem botão "Cumpri" ainda
-  // (só volta amanhã).
-  const todayApplicationKey = `application:${todayKeyStr}`
-  const wroteApplicationToday = pinnedEntry?.key === todayApplicationKey
-  // Respeita a preferência de mostrar/esconder o card (Perfil → ProfileSheet,
-  // por dispositivo — ver applicationCardVisibilityStore.js, pré-existente
-  // à rodada 34, não inventada aqui).
-  const showApplicationCard = !!pinnedEntry?.text && getShowApplicationCard()
-
+  // "Cumpri": exatamente o que o botão do cartão antigo fazia — a mesma
+  // chamada, o mesmo dado gravado. Marca sem navegar.
   async function handleFulfillApplication() {
     if (!pinnedEntry?.key || pinnedEntry.fulfilled) return
     setPinnedEntry(prev => prev ? { ...prev, fulfilled: true } : prev)
-    // Só soma na contagem semanal se a frase em si foi ESCRITA nesta
-    // semana (mesmo critério de getWeekApplicationStatus/mondayOf) — uma
-    // frase de semana passada, ainda fixada por falta de uma nova, pode
-    // ser marcada cumprida sem contar como "1 de 1" numa semana que não é
-    // a dela (bug encontrado testando: sem essa checagem, a Home mostrava
-    // "1 de 1" por um instante e voltava pra "0 de 0" ao recarregar).
-    if (pinnedEntry.date && pinnedEntry.date >= mondayKeyStr && pinnedEntry.date <= todayKeyStr) {
-      setWeekAppStatus(prev => ({ total: Math.max(prev.total, 1), fulfilled: prev.fulfilled + 1 }))
-    }
     try {
       await markPinnedApplicationFulfilled(email, pinnedEntry)
     } catch (err) {
@@ -526,23 +310,31 @@ export default function HomeScreen({
     }
   }
 
-  // ── Bloco 6 — dois quadrados ──
-  const unreadMessagesTotal = messagesSummary.reduce((sum, g) => sum + (g.unreadCount || 0), 0)
-  const messageGroupNames = messagesSummary.filter(g => g.unreadCount > 0).map(g => g.groupName)
-  function joinNames(names) {
-    if (names.length <= 1) return names[0] ?? ''
-    const sep = lang === 'en' ? ' and ' : ' e '
-    return `${names.slice(0, -1).join(', ')}${sep}${names[names.length - 1]}`
-  }
-  const biblePctLabel = biblePercent.toLocaleString(lang === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: 1 }) + '%'
-
-  // ── Bloco 7 — SUA SEMANA (resumo) ──
   const latestSummary = (weeklySummaries ?? [])[0]
+  const challengeDay = groupChallenge?.day
+  const paraHoje = paraHojeRows({
+    challenge: groupChallenge ? {
+      title: groupChallenge.title, dayTitle: challengeDay.dayTitle, done: groupChallenge.doneToday,
+      ref: `${lang === 'en' ? (challengeDay.bookEn ?? challengeDay.book) : challengeDay.book} ${challengeDay.chStart === challengeDay.chEnd ? challengeDay.chStart : `${challengeDay.chStart}-${challengeDay.chEnd}`}`,
+    } : null,
+    summary: latestSummary ? { seen: !!latestSummary.seen, period: recapPeriodLabel(latestSummary, lang) } : null,
+    verse: verseData, verseLoading: loading,
+    application: pinnedEntry ? { text: pinnedEntry.text, fulfilled: !!pinnedEntry.fulfilled, writtenToday: wroteApplicationToday, visible: getShowApplicationCard() } : null,
+  })
+  function handleParaHojeOpen(key) {
+    if (key === 'challenge') onOpenBiblePassage?.(challengeDay.book, challengeDay.chStart)
+    else if (key === 'summary') onOpenWeeklySummary?.(latestSummary.weekKey)
+    else if (key === 'verse') { if (verseData.text) setVerseOpen(true) }
+    else if (key === 'application') onNavigate?.('applicationPhrases')
+    else if (key === 'sermon') onOpenSermonNote?.()
+  }
+  function handleParaHojeAction(key) {
+    if (key === 'challenge') handleMarkChallengeDone()
+    else if (key === 'application') handleFulfillApplication()
+  }
 
-  const initialStepMinutes = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
-
-  // ── Bloco 4.5 — SUA BÍBLIA (G1, handoff-gamificacao-43-46) ──
-  // Só completedSet (síncrono, 1.189 consultas num Set) — nada de rede,
+  // ── Bloco 1 — SUA CAMINHADA (handoff-hoje-50 §3) ──
+  // A roda: só completedSet (síncrono, 1.189 consultas num Set) — nada de rede,
   // nada que atrase a primeira pintura. Memo: recalcula só quando o
   // progresso muda. Marcador = livro da sessão de hoje, se for um livro
   // da Bíblia (sem plano de leitura ativo, sem marcador).
@@ -553,49 +345,35 @@ export default function HomeScreen({
     return out
   }, [bibleProgress])
   const currentBibleBook = todaySession?.type !== 'reflection' && todaySession?.book && bookInfo(todaySession.book) ? todaySession.book : null
-  // Bíblia inteira (HANDOFF §8): o rodapé mostra a data de término — a
-  // maior data de chapters_read. Buscada só nesse caso (raro), fora da
-  // primeira pintura; sem linha datada, o rodapé fica sem data.
-  const [bibleCompletedAt, setBibleCompletedAt] = useState(null)
+  // Semanas, selos e a data de término vêm de UMA carga das fontes da
+  // gamificação (a mesma de Minhas conquistas), que não segura o resto da
+  // tela: enquanto não chega, só os números e complementos que dependem
+  // dela ficam em esqueleto. Uma falha cai no mesmo default seguro de
+  // antes (sem histórico de meta, sem datas).
+  const [gami, setGami] = useState(null)
   useEffect(() => {
-    if (!bibleProgress.bibliaInteira) return
     let alive = true
-    getAllChapterReadRows().then(rows => {
-      if (!alive) return
-      let max = null
-      for (const r of rows ?? []) if (r?.created_at && (!max || r.created_at > max)) max = r.created_at
-      setBibleCompletedAt(max)
-    }).catch(() => {})
+    loadGamificationStats({ completedSet, dailyRoutine, weeklyGoalDays: session.weeklyGoalDays })
+      .then(d => { if (alive) setGami(d) })
+      .catch(err => {
+        console.error('[hoje] gamificação', err)
+        if (alive) setGami({ row: { goalHistory: [], bookSeals: {} }, firstActivityIso: null, stats: { chapterRows: [] }, states: null })
+      })
     return () => { alive = false }
-  }, [bibleProgress.bibliaInteira])
-
-  if (loading) {
-    return (
-      <div style={styles.screen}>
-        <div style={styles.header}>
-          <div>
-            <p style={styles.greeting}>{greeting}</p>
-            <p style={styles.date}>{dateLabel}</p>
-          </div>
-          <button style={styles.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
-            {avatarInitials}
-          </button>
-        </div>
-        <div style={styles.body}>
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 210 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 130 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 110 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 470 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 180 }} />
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
-            <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
-          </div>
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 90 }} />
-        </div>
-      </div>
-    )
-  }
+  }, [completedSet, dailyRoutine, session.weeklyGoalDays])
+  const firstActivityKey = gami?.firstActivityIso ? dateKey(new Date(gami.firstActivityIso)) : null
+  // Selos: a linha que o App mantém (atualizada logo depois de cada
+  // avaliação) quando existe; senão a que veio na carga acima.
+  const bookSeals = gamification?.bookSeals ?? gami?.row.bookSeals ?? null
+  const sealNames = useMemo(() => (bookSeals ? recentSeals(bibleProgress.completos, bookSeals) : null), [bibleProgress, bookSeals])
+  // Bloco 3 — PRÓXIMA CONQUISTA: "a mais perto", a mesma função de
+  // Minhas conquistas, sobre a mesma carga. Null = tudo conquistado (ou a
+  // carga falhou): o cartão não aparece.
+  const nextConquista = useMemo(() => (gami?.states ? nextAchievement(pickClosest(gami.states.families)) : null), [gami])
+  const bibleFinishedAt = useMemo(
+    () => (bibleProgress.bibliaInteira && gami ? bibleFinishedIso(gami.stats.chapterRows) : null),
+    [bibleProgress.bibliaInteira, gami],
+  )
 
   return (
     <div style={styles.screen}>
@@ -610,307 +388,41 @@ export default function HomeScreen({
       </div>
 
       <div style={styles.body}>
-
-        {/* Desafio de leitura por IA do grupo (handoff-admin-42, 42n) —
-            pedido dela (2026-09-13): fica ACIMA do plano de hoje, exceção
-            deliberada à ordem fixa desta tela (comentário do topo do
-            arquivo, "não reordenar") — o próprio HANDOFF pede essa posição
-            especificamente pra este card. Só aparece com um desafio
-            ativo E dentro da janela de dias (ver useEffect acima). */}
-        {groupChallenge && (
-          <div style={styles.challengeCard}>
-            <p style={styles.challengeKicker}>{L('challengeKicker', { title: groupChallenge.title })}</p>
-            <p style={styles.challengeRef}>
-              {(lang === 'en' ? (groupChallenge.day.bookEn ?? groupChallenge.day.book) : groupChallenge.day.book)}
-              {' '}{groupChallenge.day.chStart === groupChallenge.day.chEnd ? groupChallenge.day.chStart : `${groupChallenge.day.chStart}-${groupChallenge.day.chEnd}`}
-            </p>
-            <p style={styles.challengeDayTitle}>{groupChallenge.day.dayTitle}</p>
-            {groupChallenge.day.reflectionQuestion && <p style={styles.challengeQuestion}>{groupChallenge.day.reflectionQuestion}</p>}
-            <div style={styles.challengeBtnRow}>
-              <button
-                type="button" style={styles.challengeReadBtn}
-                onClick={() => onOpenBiblePassage?.(groupChallenge.day.book, groupChallenge.day.chStart)}
-              >
-                {L('challengeReadBtn')}
-              </button>
-              <button
-                type="button" style={{ ...styles.challengeDoneBtn, ...(groupChallenge.doneToday ? styles.challengeDoneBtnOn : {}) }}
-                onClick={handleMarkChallengeDone} disabled={groupChallenge.doneToday}
-              >
-                {groupChallenge.doneToday ? L('challengeDoneLabel') : L('challengeMarkDoneBtn')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Bloco 2 — SEU PLANO DE HOJE (2026-09-08: passos com dias
-            próprios, mesmo modelo de Meu Plano — ver planTodayRows.js).
-            Concluído (2026-09-09, pedido dela): o card fica com as MESMAS
-            cores de sempre (nada de fundo/kicker próprios pro estado
-            "feito" — tirado o cinza-ardósia que tinha antes) e a MESMA
-            estrutura (título + grade de tiles), só troca o texto de cima
-            e acrescenta um check em cada tile já feito — ver isDone dentro
-            do .map() dos tiles, mais abaixo. */}
-        <div style={styles.planCard}>
-          <div style={styles.planHead}>
-            <p style={styles.planLabel}>
-              {planState === 'normal' && allDoneToday ? L('planDoneLabel') : L('planLabel')}
-            </p>
-            {planState === 'normal' && !allDoneToday && totalPlanMin > 0 && (
-              <button style={styles.planMin} onClick={() => setTimeSheetOpen(true)}>{L('minShort', { n: totalPlanMin })}</button>
-            )}
-          </div>
-
-          {planState === 'noPlan' && (
-            <>
-              <p style={styles.planTitle}>{L('noPlanTitle')}</p>
-              <button style={styles.startBtn} onClick={() => onNavigate?.('chooseStart')}>
-                <span style={styles.startBtnText}>{L('noPlanCta')}</span>
-                <span style={styles.startBtnArrow}>→</span>
-              </button>
-            </>
-          )}
-
-          {/* "Dia off" — nenhum passo do plano cai hoje (stepDays de todos
-              os passos ativos desmarcados pra hoje). "Adiantar" reaproveita
-              o mesmo onContinueSession de "Só ler": abre a próxima leitura
-              pendente de verdade, sem mexer nos dias configurados.
-              Reposição (pedido dela, 2026-09-12, ajustado no mesmo dia:
-              "não repor só a leitura, repor todos os passos do dia") — se
-              QUALQUER passo ativo tem um dia perdido em aberto (não só
-              Leitura), o card troca de "adiantar" pra "repor" e leva pra
-              Meu Plano em vez de abrir a leitura direto — só lá dá pra
-              repor cada passo de verdade (cada um tem sua própria tela). */}
-          {planState === 'dayOff' && (
-            <>
-              <p style={styles.planTitle}>{hasMakeupToday ? L('dayOffMakeupTitle', { weekday: weekdayFull[earliestMakeupWeekdayIdx] }) : L('dayOffTitle')}</p>
-              <p style={styles.continuityLine}>{hasMakeupToday ? L('dayOffMakeupSub', { weekday: weekdayFull[earliestMakeupWeekdayIdx] }) : L('dayOffSub')}</p>
-              <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={hasMakeupToday ? () => onNavigate?.('routine') : handleOnlyRead}>
-                <span style={styles.onlyReadBtnText}>{hasMakeupToday ? L('dayOffMakeupCta') : L('dayOffCta')}</span>
-              </button>
-            </>
-          )}
-
-          {planState === 'loadError' && (
-            <>
-              <p style={styles.planTitle}>{L('planLoadErrorTitle')}</p>
-              <p style={styles.continuityLine}>{L('planLoadErrorSub')}</p>
-              <button
-                style={{ ...styles.onlyReadBtn, width: '100%' }}
-                onClick={() => { setStepDaysLoadError(false); getStepDays().then(setStepDaysState).catch(err => { console.error('Failed to load step days', err); setStepDaysLoadError(true) }) }}
-              >
-                <span style={styles.onlyReadBtnText}>{L('planLoadErrorRetry')}</span>
-              </button>
-            </>
-          )}
-
-          {/* Dia em andamento OU concluído (34a/34b/34c) — título grande
-              (capítulo, ou capítulo + estudo, ou estudo sozinho quando a
-              Leitura não cai hoje), subtítulo de continuidade, e a grade
-              de tiles: um por passo ATIVO, sempre 3 linhas, nunca some
-              (passo fora de hoje vira "dia off" + "Volta {dia}"). Um botão
-              só, "Ir para meu plano" — nenhum PNG mostra "Começar agora"/
-              "Só ler" mais. Concluído (2026-09-09, pedido dela): mesmo
-              card de sempre, só troca o texto de cima (ver planHead acima)
-              e cada tile já feito ganha um check no canto — nenhum PNG
-              desenha esse estado, mas ela decidiu que o card "quase igual"
-              é melhor que o desenho próprio (linhas + "capítulo extra"/
-              "ver no grupo") que existia aqui antes. */}
-          {planState === 'normal' && (
-            <>
-              <p style={styles.planTitle}>{planTitleText}</p>
-              {planSubtitleText && <p style={styles.continuityLine}>{planSubtitleText}</p>}
-
-              {/* README (fluxo de 34a): "quadros de tempo ► 35c Ajustar
-                  meu plano" — cada tile abre o ajuste de tempo/dias do
-                  passo, mesmo destino pros quatro. Exceção (pedido dela,
-                  2026-09-12): um tile com reposição pendente leva pra Meu
-                  Plano em vez do ajuste de horário — é lá que dá pra repor
-                  de verdade. */}
-              <div style={{ ...styles.tilesRow, ...(activeStepsToday.length >= 4 ? styles.tilesGrid4 : null) }}>
-                {activeStepsToday.map(k => {
-                  const on = todaysSteps.includes(k)
-                  const detail = tileDetailFor(k, on)
-                  const isDone = on && !!todayRoutine[k]
-                  const hasMakeup = !!makeupWeekdaysByStep[k]
-                  return (
-                    <button key={k} type="button" style={{ ...styles.tile, position: 'relative' }} onClick={() => onNavigate?.(hasMakeup ? 'routine' : 'adjustPlan')}>
-                      {isDone ? (
-                        <span style={styles.tileCheck}>
-                          <AppIcon name="Check" size={11} strokeWidth={3} color="var(--bento-ink)" />
-                        </span>
-                      ) : on && (
-                        <span style={styles.tileCirclePending} />
-                      )}
-                      <p style={styles.tileTop}>
-                        {on ? <>{minutesForStep(k)}<span style={styles.tileTopUnit}> min</span></> : L('tileDayOff')}
-                      </p>
-                      <p style={styles.tileStepName}>{stepTitle(k)}</p>
-                      {detail && <p style={styles.tileDetail}>{detail}</p>}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <button style={{ ...styles.startBtn, width: '100%' }} onClick={() => onNavigate?.('routine')}>
-                <span style={styles.startBtnText}>{L('goToMyPlan')}</span>
-                <span style={styles.startBtnArrow}>→</span>
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Bloco 3 — VERSÍCULO DO DIA. */}
-        <div style={styles.verseCard}>
-          <div style={styles.verseHead}>
-            <p style={styles.verseLabel}>{L('verseOfDay')}</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={styles.verseIconBtn} aria-label={L(verseSaved ? 'verseSaved' : 'saveVerse')} onClick={handleSaveVerse}>
-                <AppIcon name="BookMarked" size={13} color={verseSaved ? 'var(--bento-accent)' : 'var(--bento-t2)'} strokeWidth={2} />
-              </button>
-              <button style={styles.verseIconBtn} aria-label={L('shareVerse')} onClick={handleShareVerse} disabled={sharingVerse}>
-                <AppIcon name="Share2" size={13} color="var(--bento-t2)" strokeWidth={2} />
-              </button>
-            </div>
-          </div>
-          {/* Toca no texto pra abrir o capítulo na aba Bíblia — mesmo
-              padrão dos tiles do plano de hoje (tocar abre algo, sem
-              chrome visual extra pra não fugir do layout do 34a.png). */}
-          <button style={styles.verseTextBtn} onClick={handleOpenVerseText} aria-label={L('openVerseText')}>
-            <p style={styles.verseText}>&ldquo;{verseData.text}&rdquo;</p>
-            <p style={styles.verseRef}>{verseData.ref}{verseData.version ? ` · ${verseData.version}` : ''}</p>
-          </button>
-        </div>
-
-        {/* Bloco 4 — SUA APLICAÇÃO DE ONTEM. */}
-        {showApplicationCard && (
-          <div style={{ ...styles.applyCard, ...(wroteApplicationToday ? styles.applyCardDark : {}) }}>
-            <div style={styles.applyHead}>
-              <p style={{ ...styles.applyLabel, ...(wroteApplicationToday ? styles.applyLabelDark : {}) }}>{L('applyLabel')}</p>
-              {!wroteApplicationToday && (
-                <button style={styles.applyChangeBtn} onClick={() => onNavigate?.('applicationPhrases')}>{L('applyChange')}</button>
-              )}
-            </div>
-            <p style={{ ...styles.applyText, ...(wroteApplicationToday ? styles.applyTextDark : {}) }}>{pinnedEntry.text}</p>
-            {wroteApplicationToday ? (
-              <p style={styles.applyPendingNote}>{L('applyPendingNote')}</p>
-            ) : (
-              <div style={styles.applyFootRow}>
-                <button
-                  style={{ ...styles.fulfillBtn, ...(pinnedEntry.fulfilled ? styles.fulfillBtnDone : {}) }}
-                  onClick={handleFulfillApplication}
-                  disabled={pinnedEntry.fulfilled}
-                >
-                  {pinnedEntry.fulfilled ? L('fulfilledDone') : L('fulfillBtn')}
-                </button>
-                <span style={styles.applyWeekCount}>
-                  {L(weekAppStatus.total === 1 ? 'applyWeekCountOne' : 'applyWeekCountMany', { done: weekAppStatus.fulfilled, total: weekAppStatus.total })}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Bloco 4.5 — SUA BÍBLIA (G1, handoff-gamificacao-43-46 §3.1):
-            a roda. Toque no cartão → Sua Bíblia (G2); "Ver livros" →
-            Minha estante (G9). */}
-        <CartaoSuaBiblia
-          progress={bibleProgress} reads={bibleReads} currentBook={currentBibleBook} completedAtIso={bibleCompletedAt}
-          onOpen={onOpenSuaBiblia} onOpenEstante={onOpenEstante}
+        {/* Bloco 1 — SUA CAMINHADA (handoff-hoje-50 §3): o cartão da Bíblia
+            e os três quadrados Semanas · Dias · Selos. */}
+        <CartaoBiblia
+          progress={bibleProgress} reads={bibleReads} currentBook={currentBibleBook}
+          finishedIso={bibleFinishedAt} onOpen={onOpenSuaBiblia}
+        />
+        <QuadradosCaminhada
+          dailyRoutine={dailyRoutine} goalHistory={gami ? gami.row.goalHistory : null}
+          weeklyGoalDays={session.weeklyGoalDays} weeklyDays={session.weeklyDays} firstActivityKey={firstActivityKey}
+          livrosCompletos={bibleProgress.livrosCompletos} totalLivros={bibleProgress.totalLivros} sealNames={sealNames}
+          onOpenMetrics={() => onNavigate?.('metrics')} onOpenEstante={onOpenEstante}
         />
 
-        {/* Bloco 5 — SUAS SEMANAS (G1/G3, handoff-gamificacao-43-46 §3.2):
-            o contador de semanas na meta, no lugar do antigo "ESTA
-            SEMANA" (os minutos por passo continuam em Métricas). Toque →
-            Minhas conquistas (G5). */}
-        <CartaoSuasSemanas
-          dailyRoutine={dailyRoutine} goalHistory={weeksInfo.goalHistory}
-          weeklyGoalDays={session.weeklyGoalDays} weeklyDays={session.weeklyDays}
-          firstActivityKey={weeksInfo.firstActivityKey} onOpen={onOpenConquistas}
-        />
+        {/* Bloco 2 — SEU PLANO DE HOJE (handoff-hoje-50 §4). Pinta assim que
+            os dias do plano chegam, sem esperar o resto da tela. */}
+        <CartaoPlano card={planCard} onOpenPlan={() => onNavigate?.('routine')} onAction={handlePlanAction} />
 
-        {/* Bloco 6 — dois quadrados. Pedido dela (2026-09-12): "Anotar uma
-            pregação" virou quadrado pra ficar do lado do de mensagens —
-            Métricas saiu daqui, agora é o card cheio logo abaixo, com mais
-            destaque. "Mensagens novas" com badge/nomes só quando há de
-            verdade algo não lido (nunca um "0" fingido). */}
-        <div style={styles.squaresRow}>
-          <button style={styles.squareDark} onClick={() => onNavigate?.('groupMessages')}>
-            <div style={styles.squareTopRow}>
-              <AppIcon name="Users" size={16} color="rgba(255,255,255,.55)" strokeWidth={2} />
-              {unreadMessagesTotal > 0 && <span style={styles.squareBadge}>{unreadMessagesTotal > 99 ? '99+' : unreadMessagesTotal}</span>}
-            </div>
-            <div>
-              <p style={styles.squareTitleDark}>{L('newMessages')}</p>
-              <p style={styles.squareSubDark}>{unreadMessagesTotal > 0 ? joinNames(messageGroupNames) : L('noNewMessages')}</p>
-            </div>
-          </button>
-          <button style={styles.squareLight} onClick={() => onOpenSermonNote?.()}>
-            <div style={styles.squareTopRow}>
-              <AppIcon name="FileText" size={16} color="var(--bento-accent)" strokeWidth={2} />
-            </div>
-            <div>
-              <p style={styles.squareTitleLight}>{L('annotateSermonTitle')}</p>
-              <p style={styles.squareSubLight}>{L('annotateSermonSub')}</p>
-            </div>
-          </button>
-        </div>
+        {/* Bloco 3 — PRÓXIMA CONQUISTA (handoff-hoje-50 §5). Chega logo
+            depois do plano, com esqueleto enquanto a carga não vem. */}
+        {!gami
+          ? <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 84 }} />
+          : nextConquista && <ProximaConquista next={nextConquista} onOpen={onOpenFamilia} />}
 
-        {/* Bloco 6.5 — Minhas métricas, esticado pra largura da tela
-            (pedido dela, 2026-09-12: "mais visibilidade") — três números
-            de cara (% da Bíblia, capítulos lidos, livros completos) em vez
-            do quadrado pequeno de antes. Toque continua levando pra
-            MetricsScreen (detalhe completo: tempo com Deus, sessão média,
-            horário mais comum etc.). */}
-        <button style={styles.metricsCard} onClick={() => onNavigate?.('metrics')}>
-          <div style={styles.metricsCardHead}>
-            <span style={styles.metricsCardIcon}><AppIcon name="BarChart3" size={15} color="var(--bento-accent)" strokeWidth={2} /></span>
-            <p style={styles.metricsCardLabel}>{L('myMetrics')}</p>
-            <span style={styles.metricsCardChevron}>›</span>
-          </div>
-          <div style={styles.metricsStatsRow}>
-            <div style={styles.metricsStatItem}>
-              <p style={styles.metricsStatValue}>{biblePctLabel}</p>
-              <p style={styles.metricsStatLabel}>{L('metricsStatBible')}</p>
-            </div>
-            <div style={styles.metricsStatDivider} />
-            <div style={styles.metricsStatItem}>
-              <p style={styles.metricsStatValue}>{chaptersRead}</p>
-              <p style={styles.metricsStatLabel}>{L('metricsStatChapters')}</p>
-            </div>
-            <div style={styles.metricsStatDivider} />
-            <div style={styles.metricsStatItem}>
-              <p style={styles.metricsStatValue}>{booksCompleted}</p>
-              <p style={styles.metricsStatLabel}>{L('metricsStatBooks')}</p>
-            </div>
-          </div>
-        </button>
-
-        {/* Bloco 7 — SUA SEMANA (resumo). Sempre visível — antes do 1º
-            resumo gerado (cron de domingo à noite) mostra um aviso honesto
-            em vez de fingir um resumo pronto; depois, mostra sempre (não
-            só "não lido ainda") com o botão "Ler" sempre disponível. */}
-        <div style={styles.recapCard}>
-          <p style={styles.recapLabel}>{L('recapLabel')}</p>
-          {latestSummary ? (
-            <div style={styles.recapRow}>
-              <p style={styles.recapText}>{L('recapReady', { period: recapPeriodLabel(latestSummary, lang) })}</p>
-              <button style={styles.recapBtn} onClick={() => onOpenWeeklySummary?.(latestSummary.weekKey)}>{L('recapRead')}</button>
-            </div>
-          ) : (
-            <p style={styles.recapPendingText}>{L('recapPending')}</p>
-          )}
-        </div>
+        {/* Bloco 4 — PARA HOJE (handoff-hoje-50 §6). */}
+        <ParaHoje rows={paraHoje} onOpen={handleParaHojeOpen} onAction={handleParaHojeAction} />
       </div>
 
-      <TimePerStepSheet
-        open={timeSheetOpen}
-        onClose={() => setTimeSheetOpen(false)}
-        initialMinutes={initialStepMinutes}
-        completedSet={completedSet}
-        onSave={onSaveStepMinutes}
-        lang={lang}
-      />
+      {verseOpen && verseData.text && (
+        <FolhaVersiculo
+          verse={verseData} saved={verseSaved} sharing={sharingVerse}
+          onSave={handleSaveVerse} onShare={handleShareVerse}
+          onOpenText={() => { setVerseOpen(false); handleOpenVerseText() }}
+          onClose={() => setVerseOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -938,7 +450,7 @@ const FONT = 'var(--font-bento)'
 const styles = {
   screen: { background: 'var(--bento-bg)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column' },
   header: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 20px 0' },
-  body: { padding: '20px 20px calc(var(--nav-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 12 },
+  body: { padding: '14px 20px calc(var(--nav-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 10 },
   greeting: { fontFamily: FONT, fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   date: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t2)', margin: '4px 0 0' },
   avatar: {
@@ -948,114 +460,4 @@ const styles = {
   },
 
   skeletonBlock: { borderRadius: 24, background: 'var(--bento-line)' },
-
-  // Bloco 2.
-  // Desafio de leitura por IA do grupo (handoff-admin-42, 42n) — laranja
-  // sólido com texto escuro (regra do app inteiro pra ação/destaque em
-  // cima do acento, ver index.css: "ação primária é laranja sólido com
-  // texto ESCURO, não branco"), pra se diferenciar do plano de hoje logo
-  // abaixo (que é preto) e sinalizar "isto é novo/especial".
-  challengeCard: { borderRadius: 28, background: 'var(--bento-accent)', padding: 20 },
-  challengeKicker: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(26,23,20,.6)', margin: '0 0 10px' },
-  challengeRef: { fontFamily: FONT, fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 2px' },
-  challengeDayTitle: { fontFamily: FONT, fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 8px' },
-  challengeQuestion: { fontFamily: FONT, fontSize: 13, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.4, color: 'rgba(26,23,20,.7)', margin: '0 0 14px' },
-  challengeBtnRow: { display: 'flex', gap: 8 },
-  challengeReadBtn: { flex: 1, height: 44, border: 'none', borderRadius: 14, background: 'var(--bento-ink)', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff', cursor: 'pointer' },
-  challengeDoneBtn: { flex: 1, height: 44, border: 'none', borderRadius: 14, background: 'rgba(26,23,20,.12)', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
-  challengeDoneBtnOn: { background: 'rgba(26,23,20,.2)', cursor: 'default' },
-  planCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 20 },
-  planHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  planLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
-  planMin: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.42)', border: 'none', background: 'none', padding: 0, cursor: 'pointer' },
-  planTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
-  continuityLine: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
-
-  // Grade de tiles (34a/34b/34c) — uma linha só quando cabem ≤3 passos
-  // ativos (34a), 2×2 quando são 4 (34b/34c); nunca some um tile, o
-  // "desligado hoje" vira "dia off" no lugar do número. Plano concluído
-  // (2026-09-09): mesmo grid, cada tile já feito ganha o selinho
-  // `tileCheck` no canto — nenhuma outra mudança de cor/estrutura.
-  tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
-  tilesGrid4: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
-  tile: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', boxSizing: 'border-box', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: FONT },
-  tileTop: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: '#fff', margin: 0 },
-  tileTopUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
-  tileStepName: { fontFamily: FONT, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.02em', color: 'rgba(255,255,255,.55)', margin: '2px 0 0' },
-  tileDetail: { fontFamily: FONT, fontSize: 9.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.4)', margin: '4px 0 0' },
-  tileCheck: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  // Círculo pontilhado cinza = passo agendado pra hoje mas ainda não
-  // concluído; vira o tileCheck (laranja) assim que é feito.
-  tileCirclePending: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', border: '1.5px dashed rgba(255,255,255,.3)' },
-
-  startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },
-  startBtnText: { fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
-  startBtnArrow: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
-  onlyReadBtn: { height: 48, padding: '0 16px', borderRadius: 16, border: 'none', background: 'rgba(255,255,255,.08)', cursor: 'pointer', fontFamily: FONT },
-  onlyReadBtnText: { fontSize: 12.5, fontWeight: 700, color: '#fff' },
-
-  // Bloco 3.
-  verseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px' },
-  verseHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  verseLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
-  verseIconBtn: { width: 28, height: 28, borderRadius: 10, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  verseTextBtn: { display: 'block', width: '100%', border: 'none', background: 'none', padding: 0, margin: 0, textAlign: 'left', cursor: 'pointer' },
-  verseText: { fontFamily: FONT, fontStyle: 'italic', fontWeight: 500, fontSize: 16.5, lineHeight: 1.5, color: 'var(--bento-ink)', textWrap: 'pretty', margin: '0 0 8px' },
-  verseRef: { fontFamily: FONT, fontSize: 11.5, fontWeight: 800, color: 'var(--bento-accent)', margin: 0 },
-
-  // Bloco 4.
-  applyCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '16px 20px' },
-  applyCardDark: { background: 'var(--bento-ink)' },
-  applyHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  applyLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: 0 },
-  applyLabelDark: { color: 'rgba(255,255,255,.42)' },
-  applyChangeBtn: { border: 'none', background: 'none', padding: 0, fontFamily: FONT, fontSize: 10.5, fontWeight: 700, color: 'var(--bento-sand-ink-mid)', cursor: 'pointer' },
-  applyText: { fontFamily: FONT, fontSize: 15, fontWeight: 700, lineHeight: 1.45, color: 'var(--bento-sand-ink-strong)', margin: '0 0 14px' },
-  applyTextDark: { color: '#fff' },
-  applyPendingNote: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', margin: 0 },
-  applyFootRow: { display: 'flex', alignItems: 'center', gap: 10 },
-  fulfillBtn: { height: 34, padding: '0 14px', borderRadius: 12, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: 'pointer' },
-  fulfillBtnDone: { opacity: 0.6, cursor: 'default' },
-  applyWeekCount: { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-sand-ink)' },
-
-  // Bloco 6.
-  squaresRow: { display: 'flex', gap: 10 },
-  squareDark: {
-    flex: 1, minWidth: 0, minHeight: 132, borderRadius: 24, background: 'var(--bento-ink)', border: 'none', cursor: 'pointer',
-    padding: 18, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'left', fontFamily: FONT,
-  },
-  squareLight: {
-    flex: 1, minWidth: 0, minHeight: 132, borderRadius: 24, background: 'var(--bento-card)', border: 'none', cursor: 'pointer',
-    padding: 18, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'left', fontFamily: FONT,
-  },
-  squareTopRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  squareBadge: { minWidth: 20, height: 20, padding: '0 6px', borderRadius: 99, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 10.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  squareTitleDark: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.15, color: '#fff', margin: '0 0 4px' },
-  squareSubDark: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  squareTitleLight: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.15, color: 'var(--bento-ink)', margin: '0 0 4px' },
-  squareSubLight: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t2)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-
-  // Bloco 6.5 — Minhas métricas, esticado (pedido dela, 2026-09-12).
-  metricsCard: {
-    display: 'flex', flexDirection: 'column', gap: 16, width: '100%',
-    background: 'var(--bento-card)', borderRadius: 24, border: 'none', cursor: 'pointer',
-    padding: '16px 20px 18px', textAlign: 'left', fontFamily: FONT,
-  },
-  metricsCardHead: { display: 'flex', alignItems: 'center', gap: 10 },
-  metricsCardIcon: { width: 28, height: 28, flexShrink: 0, borderRadius: 10, background: 'var(--bento-sand)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  metricsCardLabel: { flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
-  metricsCardChevron: { fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t5)', flexShrink: 0 },
-  metricsStatsRow: { display: 'flex', alignItems: 'stretch' },
-  metricsStatItem: { flex: 1, minWidth: 0, textAlign: 'center' },
-  metricsStatValue: { fontSize: 20, fontWeight: 800, color: 'var(--bento-ink)', margin: '0 0 3px', fontVariantNumeric: 'tabular-nums' },
-  metricsStatLabel: { fontSize: 10.5, fontWeight: 600, color: 'var(--bento-t3)', margin: 0 },
-  metricsStatDivider: { width: 1, alignSelf: 'stretch', background: 'var(--bento-line)' },
-
-  // Bloco 7.
-  recapCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '14px 20px' },
-  recapLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 6px' },
-  recapRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  recapText: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 14, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-sand-ink-strong)', margin: 0 },
-  recapBtn: { flexShrink: 0, height: 36, padding: '0 14px', borderRadius: 13, border: 'none', background: 'var(--bento-sand-icon)', color: 'var(--bento-sand)', fontFamily: FONT, fontSize: 12, fontWeight: 800, cursor: 'pointer' },
-  recapPendingText: { fontFamily: FONT, fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-sand-ink)', margin: 0 },
 }

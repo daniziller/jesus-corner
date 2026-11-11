@@ -161,6 +161,17 @@ export function stepsSentence(keys) {
   return `${[first, ...rest.slice(0, -1)].join(', ')} e ${rest[rest.length - 1]}`
 }
 
+// Detalhe curto de um passo, pra lista do cartão do plano no Hoje
+// (handoff-hoje-50 §4): "ACTS" ou "livre" · "{Livro} {cap}" · "{nome},
+// dia {n}" · "com perguntas" ou "livre". Mesmo `ctx` de stepDescription;
+// sem trecho de leitura ou sem estudo ativo, não há detalhe.
+export function stepShortDetail(key, ctx) {
+  if (key === 'prayer') return ctx.prayerMethod === 'free' ? 'livre' : 'ACTS'
+  if (key === 'reading') return ctx.readingPassage || ''
+  if (key === 'study') return ctx.study ? `${ctx.study.title}, dia ${ctx.study.dayN}` : ''
+  return ctx.reflectionMethod === 'free' ? 'livre' : 'com perguntas'
+}
+
 // Cartão "Amanhã" (HANDOFF §3.5): o próximo dia com algo marcado a partir
 // de amanhã; rótulo "AMANHÃ · DIA" ou "PRÓXIMO DIA · DIA". Null quando
 // nenhum dia tem nada.

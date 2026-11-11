@@ -118,6 +118,8 @@ import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
 import MeuPlanoScreen from './screens/MeuPlanoScreen'
 import SeuPlanoScreen from './screens/SeuPlanoScreen'
 import AjustarPlanoScreen from './screens/AjustarPlanoScreen'
+import { getGroupMessagesSummary } from './groups/messagesStore'
+import { totalUnreadMessages } from './groups/messagesBadge'
 import { setPrayerMethod as persistPrayerMethod } from './prayer/prayerMethodStore'
 import { setReflectionMethod as persistReflectionMethod } from './reflection/reflectionMethodStore'
 import { setReadingClockPrefs as persistReadingClockPrefs } from './reading/readingClockPrefsStore'
@@ -289,7 +291,6 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     ntPercent: overall.ntPercent,
     chaptersRead: gami.chaptersRead,
     totalChapters: gami.totalChapters,
-    booksCompleted: gami.booksCompleted,
     totalBooks: gami.totalBooks,
     sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
     // "Sem plano" (28d) — a pessoa escolheu não ter um trecho do dia pra
@@ -757,6 +758,9 @@ export default function App() {
   // Pedidos de amizade + convites de grupo pendentes — alimenta o sino de
   // notificações e a bolinha na aba Comunidade.
   const [pendingSocialCount, setPendingSocialCount] = useState(0)
+  // Total de mensagens novas dos grupos — o número sobre a aba Comunidade
+  // (handoff-hoje-50 §7), no lugar do quadrado "Mensagens novas" do Hoje.
+  const [unreadMessages, setUnreadMessages] = useState(0)
   // Controla se a aba Jornada (agora também dona da Leitura) abre no mapa de
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
@@ -1049,6 +1053,8 @@ export default function App() {
     getPendingSocialCount().then(setPendingSocialCount).catch(err => {
       console.error('Failed to refresh pending social indicator', err)
     })
+    // getGroupMessagesSummary trata a própria falha (devolve []).
+    getGroupMessagesSummary().then(summary => setUnreadMessages(totalUnreadMessages(summary)))
     getMyActiveChallenges().then(setActiveChallenges).catch(err => {
       console.error('Failed to refresh active challenges', err)
     })
@@ -2325,6 +2331,7 @@ export default function App() {
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
     setPendingSocialCount(0)
+    setUnreadMessages(0)
     setMyAvatarUrl(null)
     setSubscription(null)
     setIsAdmin(false)
@@ -2541,33 +2548,6 @@ export default function App() {
     }
   }
 
-  // Minutos de cada passo (26d/5a, Bloco 4) — patch: { prayer?, reading?,
-  // reflection? }, cada um null (sem preferência) ou 0-60 (0 desliga o
-  // passo, exceto Leitura — ver validação em stepMinutesStore.js). UI
-  // otimista: session.plan.*Minutes reflete a mudança antes do save
-  // terminar (buildSession lê stepMinutes direto do estado).
-  //
-  // "Zerar um passo o remove da rotina" (nota do quadro 26d) — cruzar de/pra
-  // 0 também liga/desliga o módulo em routineModules (a mesma chave que
-  // Home/Rotina/Reflexão já filtram por routineModules.includes), pra não
-  // ter dois interruptores contando histórias diferentes sobre o mesmo
-  // passo. Leitura nunca cruza (mínimo 1, ver stepMinutesStore.js).
-  function saveStepMinutes(patch) {
-    setStepMinutesState(prev => {
-      const next = { ...prev, ...patch }
-      for (const key of ['prayer', 'reflection']) {
-        if (!(key in patch)) continue
-        const wasOn = (prev[key] ?? 1) > 0
-        const isOn = (patch[key] ?? 1) > 0
-        if (wasOn !== isOn) toggleRoutineModule(key, isOn)
-      }
-      return next
-    })
-    if (authUser) {
-      persistStepMinutes(patch).catch(err => console.error('Failed to persist step minutes', err))
-    }
-  }
-
   // Troca o idioma do app (chamado a partir do seletor na aba Perfil) —
   // atualiza o estado local na hora (UI otimista) e salva em segundo plano.
   function changeLanguage(language) {
@@ -2647,19 +2627,6 @@ export default function App() {
     // depois disso, então some sozinho em vez de continuar apontando pra
     // uma sessão já fechada.
     if (step === 'reflection' && done) setLastReadSession(null)
-  }
-
-  // Liga/desliga um passo da rotina diária (Oração/Leitura/Estudo guiado/
-  // Reflexão) — independente de qual plano de leitura está ativo (ver
-  // "Meu Plano"/routineModulesStore.js). Atualiza o estado local na hora,
-  // persiste em segundo plano.
-  function toggleRoutineModule(key, on) {
-    if (!authUser) return
-    setRoutineModulesState(prev => {
-      const next = on ? [...new Set([...prev, key])] : prev.filter(m => m !== key)
-      persistRoutineModules(authUser.email, next).catch(err => console.error('Failed to persist routine modules', err))
-      return next
-    })
   }
 
   // Qual Estudo guiado está ativo (ver activeStudyStore.js) — passar null
@@ -3157,14 +3124,15 @@ export default function App() {
     // conflito entre as duas decisões, só uma sequência.
     home: <HomeScreen
       session={session} authUser={authUser} completedSet={completedSet} stepMinutes={stepMinutes}
-      weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
+      weeklySummaries={weeklySummaries} onStartGuided={startGuidedRoutine} onNavigate={navigateTo}
       onOpenProfile={() => setProfileOpen(true)}
-      onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
+      onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
       applicationRefreshKey={applicationRefreshVersion}
       onOpenSuaBiblia={() => goToTab('suaBiblia')}
-      onOpenConquistas={() => goToTab('conquistas')}
       onOpenEstante={() => openEstante()}
+      onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }}
+      gamification={gamification}
     />,
     // Gamificação (handoff-gamificacao-43-46) — Sua Bíblia (G2), aberta
     // pelo cartão SUA BÍBLIA do Hoje. Tela empilhada sem barra de abas,
@@ -3642,7 +3610,7 @@ export default function App() {
 
         {/* Navegação inferior — só em telas <768px; some na leitura imersiva */}
         {!navHidden && (
-          <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
+          <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} groupsUnread={unreadMessages} disabledTabs={disabledTabs} lang={session.lang} />
         )}
       </div>
 

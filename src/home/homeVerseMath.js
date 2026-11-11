@@ -15,15 +15,3 @@ export function dailyVerseIndex(verseCount, date = new Date()) {
   const dayOfYear = Math.floor((date - start) / 86400000)
   return dayOfYear % verseCount
 }
-
-// "Ontem às 6:48 você parou em: '...'" — trecho curto do versículo onde a
-// pessoa parou, cortado numa fronteira de palavra (nunca no meio de uma),
-// com reticências quando cortado. Sem corte se já cabe inteiro.
-export function excerptOf(text, maxLen = 90) {
-  if (!text) return ''
-  if (text.length <= maxLen) return text
-  const cut = text.slice(0, maxLen)
-  const lastSpace = cut.lastIndexOf(' ')
-  const base = lastSpace > 40 ? cut.slice(0, lastSpace) : cut
-  return `${base.trim()}…`
-}

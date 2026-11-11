@@ -1,16 +1,14 @@
-// homeVerseStore.js — I/O do "Versículo do dia" e da linha de continuidade
-// da Home (34a): tenta puxar um versículo real do capítulo em foco (regra
+// homeVerseStore.js — I/O do "Versículo do dia" do Hoje: tenta puxar um versículo real do capítulo em foco (regra
 // do handoff: "prefira um versículo do trecho que a pessoa está lendo; só
 // use a lista curada como fallback"), caindo pra lista curada
 // (utils/upliftingVerse.js) só se o texto do capítulo não estiver
-// disponível — nunca deixa o cartão vazio. Parte pura (índice do dia,
-// corte do trecho) mora em homeVerseMath.js, testada em node puro (ver
-// scripts/test-home-verse.mjs).
+// disponível. Parte pura (índice do dia) mora em homeVerseMath.js,
+// testada em node puro (ver scripts/test-home-verse.mjs).
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { BIBLE_VERSIONS } from '../data/bibleVersions'
 import { BIBLE_BLOCKS } from '../data/bibleBlocks'
 import { getTodayUpliftingVerse } from '../utils/upliftingVerse'
-import { dailyVerseIndex, excerptOf } from './homeVerseMath'
+import { dailyVerseIndex } from './homeVerseMath'
 
 // pt → en, pra buscar o arquivo certo em /bible-text quando lang é 'en' e
 // só se tem o nome canônico (pt) do livro à mão — ex: lastReadPosition,
@@ -61,23 +59,4 @@ export async function getHomeVerse({ book, chapter, lang }) {
   if (fromChapter) return fromChapter
   const fallback = getTodayUpliftingVerse(lang)
   return { ...fallback, version: null, chapter: fallback.chapter }
-}
-
-// "você parou em: '...'" (34a, bloco 2) — trecho real do 1º versículo do
-// capítulo em `lastReadPosition`, cortado curto (ver excerptOf). null
-// quando o texto não está disponível — a linha de continuidade some
-// nesse caso em vez de mostrar algo inventado (só a hora da sessão fica).
-export async function getContinuityExcerpt(bookPt, chapter, lang) {
-  try {
-    const version = defaultVersion(lang)
-    const bookKey = lang === 'en' ? (BOOK_EN_BY_PT[bookPt] ?? bookPt) : bookPt
-    const bookJson = await fetchBookText(version.id, bookKey)
-    const verses = bookJson?.[String(chapter)]?.verses
-    if (!verses) return null
-    const firstNum = Object.keys(verses)[0]
-    return excerptOf(verses[firstNum])
-  } catch (err) {
-    console.error('[homeVerseStore] Failed to fetch continuity excerpt', err)
-    return null
-  }
 }

@@ -11,6 +11,10 @@
 //
 // Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista|estante|selo|livroCompleto|meuPlano
 //      Meu Plano (handoff-meu-plano-47): &plano=p1|p2|p1i|p3|p4|um|quatro · tela=seuPlano · tela=ajustar&abrir=reading (Mudar meus dias)
+//      Hoje (handoff-hoje-50): os mesmos &plano= valem pro cartão do plano (p1 no meio · p2 nada feito ·
+//      p1i interrompido · p3 tudo feito · p4 descanso · um · quatro · p5 dia de estudo) + semplano · erro · carregando
+//      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
+//      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
@@ -19,6 +23,13 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import '../src/index.css'
 import HomeScreen from '../src/screens/HomeScreen'
+import CartaoBiblia from '../src/components/hoje/CartaoBiblia'
+import QuadradosCaminhada from '../src/components/hoje/QuadradosCaminhada'
+import { computeBibleProgress } from '../src/gamification/bibleProgressMath'
+import CartaoPlano from '../src/components/hoje/CartaoPlano'
+import { buildPlanCard, paraHojeRows } from '../src/hoje/hojeMath'
+import ParaHoje from '../src/components/hoje/ParaHoje'
+import BottomNav from '../src/components/BottomNav'
 import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
@@ -63,7 +74,8 @@ function seedGuestTables(estado) {
     chapters.push({ livro, capitulo: Number(cap), origem: 'sessao', created_at: day(estado === 'inteira' ? Math.floor(i / 4) : 70 - i) })
     i++
   }
-  for (let d = 70; d >= 2; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
+  // Conta nova: nenhum registro de atividade (nem sessão, nem capítulo).
+  if (estado !== 'nova') for (let d = 70; d >= 2; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
   // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
@@ -81,13 +93,24 @@ function seedGuestTables(estado) {
   const nova = estado === 'nova'
   const highlights = nova ? [] : [{ id: 'hl-1', book: 'Jonas', bookEn: 'Jonah', chapter: 2, verses: [2], text: '', color: 'amarelo', createdAt: day(30), date: day(30).slice(0, 10) }]
   const notes = nova ? {} : { 'Jonas:1-2': { text: 'nota', updatedAt: day(33) }, 'Jonas:3-4': { text: 'nota', updatedAt: day(30) }, 'Jonas:4-4': { text: 'nota', updatedAt: day(30) } }
+  // Sua aplicação (Para hoje): a frase fixada + a entrada do dia em que foi escrita.
+  const aplicacao = params.get('aplicacao') ?? (nova ? 'nenhuma' : 'ontem')
+  if (aplicacao !== 'nenhuma') {
+    const frase = 'Hoje eu espero sem cobrar resposta.'
+    const quando = dateKey(new Date(Date.now() - (aplicacao === 'hoje' ? 0 : 86400000)))
+    notes['application:pinned'] = { text: frase, updatedAt: day(1) }
+    notes[`application:${quando}`] = { text: frase, updatedAt: day(1), fulfilled: aplicacao === 'cumprida' }
+  }
   // Meu Plano (P1–P5): dias por passo e a entrada de HOJE conforme `plano`.
   const todayIdx = (new Date().getDay() + 6) % 7
   const all = [true, true, true, true, true, true, true]
   const semHoje = all.map((_, i) => i !== todayIdx)
   const planoState = params.get('plano') ?? 'p1'
   const soHoje = all.map((_, i) => i === todayIdx)
-  const stepDays = planoState === 'p4'
+  const nenhumDia = [false, false, false, false, false, false, false]
+  const stepDays = planoState === 'semplano'
+    ? { prayer: nenhumDia, reading: nenhumDia, study: nenhumDia, reflection: nenhumDia }
+    : planoState === 'p4'
     ? { prayer: semHoje, reading: semHoje, study: [false, false, false, false, false, false, false], reflection: semHoje }
     : planoState === 'p5'
       ? { prayer: all, reading: semHoje, study: soHoje.map((v, i) => v || i === (todayIdx + 2) % 7 || i === (todayIdx + 4) % 7), reflection: all }
@@ -126,11 +149,14 @@ const session = {
   todayRoutine: {}, dailyRoutine,
   lastReadPosition: { book: 'Gênesis', chapter: 41 },
   biblePercent: 4.2, activeStudyId: (planoState === 'p5' || planoState === 'quatro') ? 'est-ansiedade' : null,
-  chaptersRead: completedSet.size, booksCompleted: 1,
+  chaptersRead: completedSet.size,
   myGroups: [], hasNoPlan: false, hasPremium: true, weeklyGoalDays: 4, weeklyDays: [true, true, false, true, false, true, false],
   currentBlock: { name: 'Pentateuco', book: 'Gênesis', chapter: 42, bookChapters: 50, bookPercent: 82 },
 }
 const authUser = { email: 'preview@example.com' }
+// Resumo da semana (Para hoje): pronto e não lido, já lido, ou nenhum.
+const resumo = params.get('resumo') ?? 'nenhum'
+const weeklySummaries = resumo === 'nenhum' ? [] : [{ weekKey: '2026-08-25', startKey: '2026-08-25', endKey: '2026-08-31', seen: resumo === 'lido' }]
 
 // Conquistas: a migração silenciosa roda uma vez sobre os dados semeados
 // (guest row) e devolve a linha; com `novas=1`, duas ficam como não vistas
@@ -160,7 +186,6 @@ function Preview() {
   const [gami, setGami, gamiData] = useGamificationRow()
   const familia = params.get('familia') ?? 'constancia'
   const celebId = params.get('id') ?? 'tempo:2'
-  const [forceLoading] = useState(estado === 'carregando')
   const common = { session, authUser, completedSet }
   let body
   const livro = params.get('livro') ?? 'Jonas'
@@ -185,19 +210,63 @@ function Preview() {
     body = gamiData ? <NovaConquistaScreen celebration={{ kind: celebId.startsWith('bloco:') ? 'bloco' : 'degrau', id: celebId }} data={gamiData} userName="Diego" onContinue={() => setScreen('hoje')} onOpenConquistas={() => setScreen('conquistas')} /> : null
   } else if (screen === 'suaBiblia') {
     body = <SuaBibliaScreen {...common} onBack={() => setScreen('hoje')} onOpenBook={nome => alert(`abrir ${nome} na Bíblia`)} />
+  } else if (params.get('parahoje') === 'todas') {
+    // As cinco linhas de "Para hoje" juntas (o desafio do grupo depende de
+    // um grupo de verdade, então a lista é montada aqui com paraHojeRows).
+    const rows = paraHojeRows({
+      challenge: { title: 'Romanos em 16 dias', ref: 'Romanos 8', dayTitle: 'Nenhuma condenação', done: false },
+      summary: { seen: false, period: '25 a 31 de agosto' },
+      verse: { text: 'O Senhor estava com José e lhe mostrou sua fiel bondade.', bookPt: 'Gênesis', chapter: 39, verseNum: 21 },
+      application: { text: 'Hoje eu espero sem cobrar resposta — ligo para o meu irmão e não falo do processo.', fulfilled: false, writtenToday: false, visible: true },
+    })
+    body = (
+      <div style={{ background: 'var(--bento-bg)', height: '100%', padding: '14px 20px', boxSizing: 'border-box' }}>
+        <ParaHoje rows={rows} onOpen={k => alert(`abrir: ${k}`)} onAction={k => alert(`marcar: ${k}`)} />
+      </div>
+    )
+  } else if (planoState === 'erro' || planoState === 'carregando') {
+    // Cartão do plano sem os dias do plano: ainda carregando, ou a busca
+    // falhou (os dados locais do preview nunca falham, então monta aqui).
+    const card = buildPlanCard({ loadError: planoState === 'erro', stepDays: null, routineModules: session.routineModules, state: null, ctx: {}, nextWeekdayIdx: null })
+    body = (
+      <div style={{ background: 'var(--bento-bg)', height: '100%', padding: '14px 20px', boxSizing: 'border-box' }}>
+        <CartaoPlano card={card} onAction={a => alert(`ação: ${a}`)} />
+      </div>
+    )
+  } else if (estado === 'carregando') {
+    // Hoje carregando (handoff-hoje-50 §8): os dados locais do preview
+    // chegam na hora, então o esqueleto da caminhada é montado aqui com os
+    // mesmos componentes e nada carregado ainda.
+    const progress = computeBibleProgress(completedSet)
+    const reads = Object.fromEntries(Object.entries(progress.porLivro).map(([nome, p]) => [nome, p.lidos]))
+    body = (
+      <div style={{ background: 'var(--bento-bg)', height: '100%', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 10, boxSizing: 'border-box' }}>
+        <CartaoBiblia progress={progress} reads={reads} currentBook="Gênesis" finishedIso={null} />
+        <QuadradosCaminhada
+          dailyRoutine={dailyRoutine} goalHistory={null} weeklyGoalDays={4} weeklyDays={session.weeklyDays} firstActivityKey={null}
+          livrosCompletos={progress.livrosCompletos} totalLivros={progress.totalLivros} sealNames={null}
+        />
+      </div>
+    )
   } else {
     body = (
       <HomeScreen
-        {...common} stepMinutes={{ prayer: 10, reading: 15, reflection: 8 }} weeklySummaries={[]}
-        onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}} onSaveStepMinutes={() => {}}
-        onOpenWeeklySummary={() => {}} onOpenBiblePassage={() => {}} onOpenSermonNote={() => {}}
+        {...common} stepMinutes={{ prayer: 10, reading: 15, reflection: 8 }} weeklySummaries={weeklySummaries}
+        onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}}
+        onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')}
+        onOpenWeeklySummary={k => alert(`resumo ${k}`)} onOpenBiblePassage={(b, c) => alert(`abrir ${b} ${c}`)} onOpenSermonNote={() => alert('anotar pregação')}
         applicationRefreshKey={0}
-        onOpenSuaBiblia={() => setScreen('suaBiblia')}
-        key={forceLoading ? 'loading' : 'ready'}
+        onOpenSuaBiblia={() => setScreen('suaBiblia')} onOpenEstante={() => setScreen('estante')}
+        onOpenFamilia={id => alert(`família ${id}`)}
+        gamification={gami}
       />
     )
   }
-  return <div style={{ height: '100%' }}>{body}</div>
+  // A barra de abas de verdade, só no Hoje — pra ver o número da Comunidade.
+  const nav = screen === 'hoje' && params.get('msgs') != null
+    ? <BottomNav activeTab="home" onNavigate={t => alert(`aba: ${t}`)} groupsUnread={Number(params.get('msgs'))} groupsHasPending={params.get('pendente') === '1'} lang="pt" />
+    : null
+  return <div style={{ height: '100%' }}>{body}{nav}</div>
 }
 
 createRoot(document.getElementById('root')).render(<StrictMode><Preview /></StrictMode>)

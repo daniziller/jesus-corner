@@ -2,6 +2,9 @@
 // (viewBox 100×100) pra toda tela — G4 (168px), G5 (47px e 50px nos
 // blocos), G6 (58px), G9 (42px), escadas (40px). Recebe família ou bloco,
 // degrau (1–6), tamanho, se está ganha e se fica sobre fundo escuro.
+// `tracejadoLaranja` é a não ganha "mais perto": sobre escuro (G5) só o
+// traço fica laranja; sobre claro (Hoje, handoff-hoje-50 §5) o glifo
+// também, com os degraus já ganhos acesos em laranja.
 //
 // O símbolo nunca muda; o que evolui é o material (DEGRAU_MATERIAL em
 // src/data/achievements.js). Formas exatas dos cinco glifos: referência
@@ -88,6 +91,14 @@ export default function Medalha({ familia = null, bloco = null, degrau = 1, size
         {m.bordaInterna && <rect x="11" y="11" width="78" height="78" rx="21" fill="none" stroke="var(--bento-accent)" strokeWidth="2.5" />}
         <Glifo familia={familia} cor={m.glifo} />
         {DOTS_X.map((x, i) => <circle key={x} cx={x} cy="77" r="2.4" fill={i < degrau ? m.glifo : pontoApagado} />)}
+      </>
+    )
+  } else if (tracejadoLaranja && !sobreEscuro) {
+    body = (
+      <>
+        <rect x="6" y="6" width="88" height="88" rx="26" fill="#fff" stroke="var(--bento-accent)" strokeWidth="2.5" strokeDasharray="5 4" />
+        <Glifo familia={familia} cor="var(--bento-accent)" />
+        {DOTS_X.map((x, i) => <circle key={x} cx={x} cy="77" r="2.4" fill={i < degrau - 1 ? 'var(--bento-accent)' : 'var(--medalha-glifo-apagado)'} />)}
       </>
     )
   } else {

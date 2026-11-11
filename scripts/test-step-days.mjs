@@ -2,7 +2,7 @@
 // (getStepDays/setStepDays, em stepDaysStore.js, fazem I/O — verificados
 // manualmente no navegador, não aqui). Roda com:
 // node scripts/test-step-days.mjs
-import { resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal, stepSatisfiedDays, pendingMakeupWeekdays } from '../src/routine/stepDaysMath.js'
+import { resolveStepDays, stepsScheduledForWeekday, markedWeekdayUnion, countMarkedWeekdays, isStepDayFulfilled, computeStepWeekGoal, stepSatisfiedDays } from '../src/routine/stepDaysMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -63,7 +63,7 @@ check('segunda sozinha: 1 dia cumprido de 6 marcados', goalMonday, { doneCount: 
 const goalTuesday = computeStepWeekGoal(routine, resolved, active, tuesday)
 check('até terça: ainda 1 cumprido (terça não fechou reflexão)', goalTuesday, { doneCount: 1, markedCount: 6 })
 
-// stepSatisfiedDays / pendingMakeupWeekdays / repor no dia de folga
+// stepSatisfiedDays / repor no dia de folga
 // (pedido dela, 2026-09-12): "leitura" cai só segunda (índice 0) nesta
 // mini-agenda; ela perdeu segunda, mas leu mesmo assim na quarta (índice
 // 2, dia de folga da leitura) — segunda passa a contar como cumprida, sem
@@ -78,8 +78,6 @@ const satisfiedBeforeMakeup = stepSatisfiedDays(readingMondayOnly, missedThenMad
 check('sem chegar na quarta ainda, segunda continua em aberto', satisfiedBeforeMakeup, { satisfied: [false, false, false, false, false, false, false], pendingMissed: [0] })
 const satisfiedAfterMakeup = stepSatisfiedDays(readingMondayOnly, missedThenMadeUp, 'reading', monday, wednesday)
 check('reposição na quarta quita a segunda perdida', satisfiedAfterMakeup, { satisfied: [true, false, false, false, false, false, false], pendingMissed: [] })
-check('pendingMakeupWeekdays antes da reposição aponta segunda (índice 0)', pendingMakeupWeekdays(readingMondayOnly, missedThenMadeUp, 'reading', monday), [0])
-check('pendingMakeupWeekdays depois da reposição fica vazio', pendingMakeupWeekdays(readingMondayOnly, missedThenMadeUp, 'reading', wednesday), [])
 
 // Reposição só vale DENTRO da mesma semana (pedido dela, 2026-09-12):
 // mudou a semana, os dias pendentes da semana ANTERIOR zeram — mesmo que
@@ -90,7 +88,7 @@ const missedAcrossWeeks = {
   '2026-09-07': {}, // segunda desta semana — perdida também
 }
 const tuesdayThisWeek = new Date(2026, 8, 8) // 8 de setembro, terça DESTA semana
-check('reposição não atravessa semana: só a segunda desta semana conta como pendente', pendingMakeupWeekdays(readingMondayOnly, missedAcrossWeeks, 'reading', tuesdayThisWeek), [0])
+check('reposição não atravessa semana: só a segunda desta semana conta como pendente', stepSatisfiedDays(readingMondayOnly, missedAcrossWeeks, 'reading', new Date(2026, 8, 7), tuesdayThisWeek).pendingMissed, [0])
 
 // A reposição também precisa aparecer em computeStepWeekGoal (métrica da
 // semana) — só "reading" ativo, pra isolar o efeito (markedCount = só a

@@ -6,14 +6,17 @@
 //   andamento    — fundo branco, borda 2px na cor, preenchimento no TOM do
 //                  bloco subindo de baixo (lidos/capítulos), sigla na cor;
 //   nao-comecado — fundo branco, borda 1,5px tracejada, sigla cinza.
-// Raio = 30% do lado; sigla 800 em 36% do lado (30% com 3 caracteres).
+// Raio = 30% do lado; sigla 800 em 36% do lado (30% com 3 caracteres) —
+// ou os valores de `radius`/`siglaSize`, quando o quadro dá medidas
+// próprias pra um tamanho (22px no quadrado "Selos" do Hoje: raio 7,
+// sigla 9px). Sem sigla, o selo não começado é só o contorno tracejado.
 import { blockColorVar, blockToneVar } from '../../data/gamificationBlocks'
 import { sealState } from '../../gamification/sealDetails'
 
-export default function SeloDeLivro({ sigla, blocoId, lidos = 0, total = 1, size = 44, ariaLabel, onClick }) {
+export default function SeloDeLivro({ sigla = '', blocoId, lidos = 0, total = 1, size = 44, radius: radiusProp, siglaSize, ariaLabel, onClick }) {
   const state = sealState(lidos, total)
-  const radius = size * 0.3
-  const fontSize = size * (sigla.length >= 3 ? 0.3 : 0.36)
+  const radius = radiusProp ?? size * 0.3
+  const fontSize = siglaSize ?? size * (sigla.length >= 3 ? 0.3 : 0.36)
   const base = {
     position: 'relative', width: size, height: size, borderRadius: radius, boxSizing: 'border-box', overflow: 'hidden',
     display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none',
