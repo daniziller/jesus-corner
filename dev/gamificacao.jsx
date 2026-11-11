@@ -10,7 +10,7 @@
 // ao lado do PNG sem login.
 //
 // Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista|estante|selo|livroCompleto|meuPlano
-//      Meu Plano (handoff-meu-plano-47): &plano=p1|p2|p1i|p3|p4|um|quatro · tela=seuPlano
+//      Meu Plano (handoff-meu-plano-47): &plano=p1|p2|p1i|p3|p4|um|quatro · tela=seuPlano · tela=ajustar
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
@@ -32,6 +32,7 @@ import SeloScreen from '../src/screens/SeloScreen'
 import LivroCompletoScreen from '../src/screens/LivroCompletoScreen'
 import MeuPlanoScreen from '../src/screens/MeuPlanoScreen'
 import SeuPlanoScreen from '../src/screens/SeuPlanoScreen'
+import AjustarPlanoScreen from '../src/screens/AjustarPlanoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
 
 const params = new URLSearchParams(location.search)
@@ -163,7 +164,10 @@ function Preview() {
   const common = { session, authUser, completedSet }
   let body
   const livro = params.get('livro') ?? 'Jonas'
-  if (screen === 'seuPlano') {
+  const [draftState, setDraftState] = useState(null)
+  if (screen === 'ajustar') {
+    body = <AjustarPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} draftState={draftState} onDraftChange={setDraftState} onClearDraft={() => setDraftState(null)} onSave={async () => { await new Promise(r => setTimeout(r, 800)) }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} />
+  } else if (screen === 'seuPlano') {
     body = <SeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} onChangeDays={() => alert('Ajustar com a Leitura aberta')} />
   } else if (screen === 'meuPlano') {
     body = <MeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')} onNavigate={t => alert(`navegar: ${t}`)} onEndStudy={() => alert('encerrar o estudo e devolver a leitura')} />

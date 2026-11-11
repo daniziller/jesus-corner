@@ -119,6 +119,11 @@ import { updateGamification } from './gamification/achievementsStore'
 import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
 import MeuPlanoScreen from './screens/MeuPlanoScreen'
 import SeuPlanoScreen from './screens/SeuPlanoScreen'
+import AjustarPlanoScreen from './screens/AjustarPlanoScreen'
+import { setPrayerMethod as persistPrayerMethod } from './prayer/prayerMethodStore'
+import { setReflectionMethod as persistReflectionMethod } from './reflection/reflectionMethodStore'
+import { setReadingClockPrefs as persistReadingClockPrefs } from './reading/readingClockPrefsStore'
+import { STEP_KEYS as PLAN_STEP_KEYS } from './routine/stepDaysMath'
 import { evaluateGamification, markAchievementsSeen } from './gamification/evaluate'
 import { getGamificationRow } from './gamification/achievementsStore'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
@@ -552,6 +557,10 @@ export default function App() {
   // (livro → bloco → maior degrau) em pickCelebration, mostrado depois da
   // tela de conclusão (DayCompleteScreen) ou, fora do fluxo guiado, na
   // próxima volta ao Hoje — nunca no meio de uma sessão.
+  // Rascunho de "Ajustar meu plano" (handoff-meu-plano-47, HANDOFF §12.1):
+  // { saved, draft } vive aqui, não na tela, pra sobreviver à ida e volta
+  // a 35i/35j/lembrete. Limpo ao salvar ou descartar.
+  const [adjustDraft, setAdjustDraft] = useState(null)
   const [gamification, setGamification] = useState(null)
   const gamificationRef = useRef(null)
   gamificationRef.current = gamification
@@ -1440,6 +1449,38 @@ export default function App() {
         .then(setGamification).catch(err => console.error('[releitura] capítulo', err))
     })
   }, [authUser])
+
+  // "Salvar plano" do Ajustar novo: grava só o que mudou, pelas mesmas
+  // gravações que 35c já usava (routine_modules, *_minutes, modos,
+  // step_days, reading_clock_prefs) — formato intacto, nenhum campo novo.
+  async function saveAdjustedPlan(saved, draft) {
+    if (!authUser) return
+    const jobs = []
+    const modulesChanged = PLAN_STEP_KEYS.some(k => saved.enabled[k] !== draft.enabled[k])
+    if (modulesChanged) {
+      const next = PLAN_STEP_KEYS.filter(k => draft.enabled[k])
+      setRoutineModulesState(next)
+      jobs.push(persistRoutineModules(authUser.email, next))
+    }
+    const minutesPatch = {}
+    for (const k of PLAN_STEP_KEYS) if (saved.minutes[k] !== draft.minutes[k]) minutesPatch[k] = draft.minutes[k]
+    if (Object.keys(minutesPatch).length) {
+      setStepMinutesState(prev => ({ ...prev, ...minutesPatch }))
+      jobs.push(persistStepMinutes(minutesPatch))
+    }
+    if (saved.prayerMethod !== draft.prayerMethod) persistPrayerMethod(draft.prayerMethod)
+    if (saved.reflectionMethod !== draft.reflectionMethod) persistReflectionMethod(draft.reflectionMethod)
+    const daysPatch = {}
+    for (const k of PLAN_STEP_KEYS) if (JSON.stringify(saved.stepDays[k]) !== JSON.stringify(draft.stepDays[k])) daysPatch[k] = draft.stepDays[k]
+    if (Object.keys(daysPatch).length) {
+      setStepDaysState(prev => (prev ? { ...prev, ...daysPatch } : prev))
+      jobs.push(persistStepDays(daysPatch))
+    }
+    const clockPatch = {}
+    for (const c of ['showOnReading', 'warnAtZero', 'askToContinue']) if (saved.clock[c] !== draft.clock[c]) clockPatch[c] = draft.clock[c]
+    if (Object.keys(clockPatch).length) jobs.push(persistReadingClockPrefs(clockPatch))
+    await Promise.all(jobs)
+  }
 
   function finishCelebration(nextTab = 'home') {
     setPendingCelebration(null)
@@ -3151,7 +3192,7 @@ export default function App() {
     // "onde começar/ordem/ritmo" e "estudo atual/banco/dias" saíram pras
     // telas próprias readingOrganize (35i) e studyOrganize (35j) abaixo.
     adjustPlan: hasPremium
-      ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} onToggleRoutineModule={toggleRoutineModule} bookChapterCounts={bookChapterCounts} onNavigate={navigateTo} onBack={goBack} />
+      ? <AjustarPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     readingOrganize: hasPremium
       ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} onSaveBibleOrderMode={saveBibleOrderMode} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
