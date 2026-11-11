@@ -484,6 +484,10 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const readingActive = mode === 'browse'
     ? expandedChapterId != null
     : (openPanel === 'texto' && !!heroSession && heroSession.type !== 'reflection')
+  // O livro que está aberto (o capítulo da navegação livre, ou a sessão em
+  // destaque na leitura do plano) — vai junto do tempo, pra dar o "tempo de
+  // leitura neste livro" (selo, livro completo, B2).
+  const readingBook = (mode === 'browse' ? sessions.find(x => x.id === expandedChapterId) : heroSession)?.book ?? null
   useEffect(() => {
     if (!readingActive) return
     let last = Date.now()
@@ -496,7 +500,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     const flush = () => {
       if (pending >= 1) {
         addReadingSeconds(pending).catch(() => {})
-        logSessionSeconds('reading', pending, undefined, session?.book ?? null).catch(() => {})
+        logSessionSeconds('reading', pending, undefined, readingBook).catch(() => {})
         pending = 0
       }
     }

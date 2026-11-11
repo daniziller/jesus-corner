@@ -6,7 +6,10 @@ import { computeBibleProgress } from '../src/gamification/bibleProgressMath.js'
 import {
   TESTAMENTS, blocksOfTestament, testamentOfBook, initialTestament, testamentProgress, testamentTexts,
   progressCardTexts, blockBarSegments, blockBooksCount, bookTile, readingSessionToday, continueCard,
+  bookHeaderSub, bookSealLine, firstChapterIso, countBookMarks, bookNumbers, chapterCells, chapterCellAria, chapterLegend,
+  bookFooterButton, bookActions,
 } from '../src/biblia/bibliaMath.js'
+import { buildChapterOriginMap } from '../src/bible/chapterOrigin.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -83,6 +86,49 @@ check('sem sessão: a leitura livre ocupa o cartão, com outro rótulo', continu
 check('sem leitura livre anterior: só a sessão', continueCard({ sessionTitle: 'Gênesis 41', free: null }), { label: 'SESSÃO DE HOJE · CONTA NO PLANO', sessionTitle: 'Gênesis 41', free: null })
 check('sem nenhuma das duas: o cartão não aparece', continueCard({ sessionTitle: null, free: null }), null)
 check('versículo desconhecido (1 ou vazio) não entra na frase', [continueCard({ sessionTitle: null, free: { book: 'Salmos', chapter: 23, verse: 1 } }).free.verse, continueCard({ sessionTitle: null, free: { book: 'Salmos', chapter: 23 } }).free.verse], [null, null])
+
+// ── B2: o livro ─────────────────────────────────────────────────────────
+check('cabeçalho: "Lei · livro 1 de 66"', [bookHeaderSub('Gênesis'), bookHeaderSub('Jonas'), bookHeaderSub('Apocalipse')], ['Lei · livro 1 de 66', 'Profetas menores · livro 32 de 66', 'Gerais e Apocalipse · livro 66 de 66'])
+const gen40 = exemplo.porLivro['Gênesis']
+check('B2: "Faltam 10 capítulos para o selo"', bookSealLine(gen40, null), 'Faltam 10 capítulos para o selo')
+check('singular: "Falta 1 capítulo para o selo"', bookSealLine(computeBibleProgress(setOf({ 'Gênesis': 49 })).porLivro['Gênesis'], null), 'Falta 1 capítulo para o selo')
+check('nada lido: "{n} capítulos para o selo" (e "1 capítulo")', [bookSealLine(exemplo.porLivro['Êxodo'], null), bookSealLine(exemplo.porLivro['Obadias'], null)], ['40 capítulos para o selo', '1 capítulo para o selo'])
+check('completo: "Selo ganho em 14 de setembro"', bookSealLine(exemplo.porLivro['Jonas'], { completedAt: '2026-09-14T12:00:00', dateKnown: true }), 'Selo ganho em 14 de setembro')
+check('completo sem data conhecida (ou ainda sem linha gravada): "Selo ganho"', [bookSealLine(exemplo.porLivro['Jonas'], { completedAt: '2026-09-14T12:00:00', dateKnown: false }), bookSealLine(exemplo.porLivro['Jonas'], null)], ['Selo ganho', 'Selo ganho'])
+
+const hojeB2 = new Date(2026, 8, 24, 10, 0)
+const linhas = [{ livro: 'Gênesis', capitulo: 1, created_at: new Date(2026, 8, 1, 7, 0).toISOString() }, { livro: 'Gênesis', capitulo: 2, created_at: new Date(2026, 8, 3, 7, 0).toISOString() }, { livro: 'Salmos', capitulo: 1, created_at: new Date(2026, 7, 1, 7, 0).toISOString() }, { livro: 'Gênesis', capitulo: 9, created_at: null }]
+check('primeiro capítulo do livro = registro mais antigo dele', firstChapterIso('Gênesis', linhas), linhas[0].created_at)
+check('livro sem registro datado: sem data', [firstChapterIso('Jonas', linhas), firstChapterIso('Gênesis', [])], [null, null])
+const sessoes = [{ livro: 'Gênesis', passo: 'reading', segundos: 6 * 3600 + 10 * 60 }, { livro: 'Salmos', passo: 'reading', segundos: 600 }, { livro: null, passo: 'reading', segundos: 999 }]
+const notas = { 'Gênesis:1-2': { text: 'a' }, 'Gênesis:3-3': { text: 'b' }, 'Salmos:23-23': { text: 'c' }, 'application:pinned': { text: 'x' } }
+const marcas = [{ book: 'Gênesis', chapter: 1, verses: [1] }, { book: 'Gênesis', chapter: 2, verses: [3], hidden: true }, { book: 'Salmos', chapter: 23, verses: [4] }]
+check('marcações do livro (as escondidas não contam)', [countBookMarks('Gênesis', marcas), countBookMarks('Jonas', marcas)], [1, 0])
+check('B2: três números — "6 h 10" · "23 dias" · notas + marcações', bookNumbers({ nome: 'Gênesis', sessionRows: sessoes, chapterRows: linhas, notes: notas, highlights: marcas, today: hojeB2 }), [{ key: 'time', value: '6 h 10', caption: 'de leitura' }, { key: 'days', value: '23 dias', caption: 'desde o primeiro' }, { key: 'notes', value: '3', caption: 'notas e marcações' }])
+check('sem tempo registrado: o número do tempo some', bookNumbers({ nome: 'Gênesis', sessionRows: [], chapterRows: linhas, notes: {}, highlights: [], today: hojeB2 }).map(n => n.key), ['days', 'notes'])
+check('sem data do primeiro capítulo: os dias somem', bookNumbers({ nome: 'Jonas', sessionRows: sessoes, chapterRows: linhas, notes: {}, highlights: [], today: hojeB2 }).map(n => [n.key, n.value]), [['notes', '0']])
+check('primeiro capítulo hoje ou ontem: "1 dia"', [bookNumbers({ nome: 'Gênesis', sessionRows: [], chapterRows: [{ livro: 'Gênesis', capitulo: 1, created_at: hojeB2.toISOString() }], notes: {}, highlights: [], today: hojeB2 })[0].value, bookNumbers({ nome: 'Gênesis', sessionRows: [], chapterRows: [{ livro: 'Gênesis', capitulo: 1, created_at: new Date(2026, 8, 23, 22, 0).toISOString() }], notes: {}, highlights: [], today: hojeB2 })[0].value], ['1 dia', '1 dia'])
+check('tempo abaixo de uma hora: "52 min"', bookNumbers({ nome: 'Salmos', sessionRows: [{ livro: 'Salmos', passo: 'reading', segundos: 52 * 60 }], chapterRows: [], notes: {}, highlights: [], today: hojeB2 })[0].value, '52 min')
+
+// Grade: Gênesis 1–38 no app, 39 e 40 à mão, 41 é o próximo.
+const gen = setOf({ 'Gênesis': 40 })
+const origem = buildChapterOriginMap([{ livro: 'Gênesis', capitulo: 39, origem: 'manual' }, { livro: 'Gênesis', capitulo: 40, origem: 'manual' }, { livro: 'Gênesis', capitulo: 1, origem: 'sessao' }])
+const casas = chapterCells('Gênesis', 50, gen, origem)
+check('grade: 50 casas', casas.length, 50)
+check('grade: estados — app, à mão, próximo, não lido', [casas[0].state, casas[37].state, casas[38].state, casas[39].state, casas[40].state, casas[41].state, casas[49].state], ['app', 'app', 'manual', 'manual', 'next', 'none', 'none'])
+check('grade: um "próximo" só, o primeiro não lido', casas.filter(c => c.state === 'next').map(c => c.ch), [41])
+const comBuraco = new Set(gen); comBuraco.delete('Gênesis:5')
+check('próximo é o primeiro não lido, mesmo no meio', chapterCells('Gênesis', 50, comBuraco, origem).filter(c => c.state === 'next').map(c => c.ch), [5])
+check('capítulo sem registro de origem conta como lido no app', chapterCells('Gênesis', 50, gen, new Map())[38].state, 'app')
+check('legenda: só os estados presentes, na ordem', [chapterLegend(casas).map(l => l.label), chapterLegend(chapterCells('Êxodo', 40, gen, origem)).map(l => l.label), chapterLegend(chapterCells('Jonas', 4, setOf({ Jonas: 4 }), new Map())).map(l => l.label)], [['lido no app', 'marcado à mão', 'próximo'], ['próximo'], ['lido no app']])
+check('rótulo da casa pra leitor de tela', [chapterCellAria(casas[0]), chapterCellAria(casas[38]), chapterCellAria(casas[40]), chapterCellAria(casas[49])], ['Capítulo 1, lido no app', 'Capítulo 39, marcado à mão', 'Capítulo 41, próximo', 'Capítulo 50, não lido'])
+
+check('rodapé: "Abrir Gênesis 41"', bookFooterButton('Gênesis', gen40, gen), { label: 'Abrir Gênesis 41', chapter: 41 })
+check('rodapé, livro não começado: "Começar Êxodo"', bookFooterButton('Êxodo', exemplo.porLivro['Êxodo'], gen), { label: 'Começar Êxodo', chapter: 1 })
+check('rodapé, livro completo: "Ler Jonas de novo" abre o capítulo 1', bookFooterButton('Jonas', exemplo.porLivro['Jonas'], setOf({ Jonas: 4 })), { label: 'Ler Jonas de novo', chapter: 1 })
+check('rodapé: o próximo é o primeiro não lido, não o último + 1', bookFooterButton('Gênesis', computeBibleProgress(comBuraco).porLivro['Gênesis'], comBuraco).label, 'Abrir Gênesis 5')
+check('ações: marcar o livro inteiro e começar o plano aqui', bookActions('Gênesis', gen40).map(a => [a.key, a.title, a.sub]), [['mark', 'Marcar o livro inteiro como lido', 'Para quem já leu Gênesis antes do app'], ['plan', 'Começar meu plano aqui', 'Faz de Gênesis o ponto de partida']])
+check('ações, livro completo: a primeira vira "Desmarcar o livro"', [bookActions('Jonas', exemplo.porLivro['Jonas'])[0].key, bookActions('Jonas', exemplo.porLivro['Jonas'])[0].title, bookActions('Jonas', exemplo.porLivro['Jonas'])[0].sub, bookActions('Obadias', computeBibleProgress(setOf({ Obadias: 1 })).porLivro['Obadias'])[0].sub], ['unmark', 'Desmarcar o livro', 'Os 4 capítulos voltam a não lidos', 'O capítulo volta a não lido'])
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes da aba Bíblia (parte pura) passaram.')

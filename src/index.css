@@ -342,6 +342,18 @@ body {
   .roda-fatia-fill { transition: none; }
 }
 
+/* Bíblia — casa de capítulo na grade do livro (BookChapterScreen.jsx,
+   handoff-biblia-52 §3): 40px de altura visual; a área de toque avança
+   3px pra dentro do vão de cima e de baixo (46px), sem mexer no desenho. */
+.biblia-casa {
+  position: relative;
+}
+.biblia-casa::after {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+}
+
 /* Hoje — círculo de um passo do plano (CartaoPlano.jsx, handoff-hoje-50
    §4): quando a pessoa volta ao Hoje com um passo recém-concluído, o
    círculo enche em 200ms. Na primeira abertura nada anima. */

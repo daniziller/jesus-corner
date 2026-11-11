@@ -103,6 +103,8 @@ export default function JourneyScreen({
   onOpenBiblePassage,
   // Cartão de progresso da raiz (B1) → Sua Bíblia (G2).
   onOpenSuaBiblia,
+  // Selo de um livro completo (B2) → Um selo (G10).
+  onOpenSelo,
 }) {
   const { lang } = session
   // "Sessão de hoje" do cartão preto da raiz (B1) — hook, então fica antes
@@ -1776,12 +1778,12 @@ export default function JourneyScreen({
           block={block}
           bookName={bookName}
           displayName={displayName}
-          sessionsByBlock={sessionsByBlock}
           browseSessionsByBlock={browseSessionsByBlock}
           completedSet={completedSet}
           onToggleSession={onToggleSession}
           onToggleChapter={onToggleChapter}
           onMarkChaptersManually={onMarkChaptersManually}
+          onOpenSelo={onOpenSelo}
           onGoToReflectionFrom={onGoToReflectionFrom}
           onNavigate={onNavigate}
           onBack={closeBook}

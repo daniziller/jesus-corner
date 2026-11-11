@@ -4,9 +4,12 @@
 // roda, da estante e do Hoje) e o estado de cada livro é o do selo
 // (sealState). Estas funções só agrupam por testamento e escolhem as
 // palavras. Testes em scripts/test-biblia.mjs.
-import { GAMIFICATION_BLOCKS, bookInfo, blockById } from '../data/gamificationBlocks.js'
-import { sealState } from '../gamification/sealDetails.js'
-import { formatInt, formatPct, deOf } from '../gamification/format.js'
+import { GAMIFICATION_BLOCKS, BIBLE_BOOKS_TOTAL, bookInfo, blockById } from '../data/gamificationBlocks.js'
+import { sealState, readingSecondsOf, countBookNotes } from '../gamification/sealDetails.js'
+import { nextUnreadChapter } from '../gamification/bibleProgressMath.js'
+import { formatInt, formatPct, deOf, formatDuration, dayMonthLong } from '../gamification/format.js'
+import { originOf } from '../bible/chapterOrigin.js'
+import { dateKey, parseLocalDateKey } from '../utils/dateKey.js'
 import { todaysSteps } from '../meuPlano/meuPlanoMath.js'
 
 // ── B1: a raiz (HANDOFF §2) ─────────────────────────────────────────────
@@ -123,4 +126,95 @@ export function continueCard({ sessionTitle, free }) {
     sessionTitle: sessionTitle || null,
     free: freeLine,
   }
+}
+
+// ── B2: o livro (HANDOFF §3) ────────────────────────────────────────────
+
+// "Lei · livro 1 de 66"
+export function bookHeaderSub(nome) {
+  const info = bookInfo(nome)
+  return `${blockById(info.blocoId).nome} · livro ${info.posicao} de ${BIBLE_BOOKS_TOTAL}`
+}
+
+// A frase ao lado do selo: "Faltam 10 capítulos para o selo" · "Falta 1
+// capítulo para o selo" · "50 capítulos para o selo" (nada lido) · "Selo
+// ganho em 14 de setembro" (completo; sem a data conhecida, "Selo ganho").
+// `seal` é a entrada do livro na linha gravada ({ completedAt, dateKnown }).
+export function bookSealLine(p, seal) {
+  if (p.completo) return seal?.completedAt && seal.dateKnown !== false ? `Selo ganho em ${dayMonthLong(seal.completedAt)}` : 'Selo ganho'
+  if (p.lidos === 0) return `${chaptersWord(p.total)} para o selo`
+  return p.faltam === 1 ? 'Falta 1 capítulo para o selo' : `Faltam ${formatInt(p.faltam)} capítulos para o selo`
+}
+
+// Data do primeiro capítulo lido do livro (o registro mais antigo em
+// chapters_read); null quando nenhum capítulo dele tem data registrada.
+export function firstChapterIso(nome, chapterRows) {
+  let min = null
+  for (const r of chapterRows ?? []) if (r?.livro === nome && r.created_at && (!min || r.created_at < min)) min = r.created_at
+  return min
+}
+
+// Marcações (não escondidas) feitas neste livro.
+export function countBookMarks(nome, highlights) {
+  return (highlights ?? []).filter(h => h && !h.hidden && h.book === nome).length
+}
+
+// Os três números do livro. Cada um só aparece quando existe de verdade:
+// tempo de leitura (zero = nada registrado, some), dias desde o primeiro
+// capítulo (sem data registrada, some) e notas + marcações (sempre).
+export function bookNumbers({ nome, sessionRows, chapterRows, notes, highlights, today = new Date() }) {
+  const out = []
+  const seconds = readingSecondsOf(nome, sessionRows)
+  if (seconds > 0) out.push({ key: 'time', value: formatDuration(seconds), caption: 'de leitura' })
+  const first = firstChapterIso(nome, chapterRows)
+  if (first) {
+    const days = Math.max(1, Math.round((parseLocalDateKey(dateKey(today)) - parseLocalDateKey(dateKey(new Date(first)))) / 86400000))
+    out.push({ key: 'days', value: `${formatInt(days)} ${days === 1 ? 'dia' : 'dias'}`, caption: 'desde o primeiro' })
+  }
+  out.push({ key: 'notes', value: formatInt(countBookNotes(nome, notes) + countBookMarks(nome, highlights)), caption: 'notas e marcações' })
+  return out
+}
+
+// As casas da grade: 'app' (lido no app, cor do bloco) · 'manual' (marcado
+// à mão, tom do bloco) · 'next' (o primeiro não lido, laranja) · 'none'.
+// `originMap` vem de buildChapterOriginMap (chapters_read).
+export function chapterCells(nome, total, completedSet, originMap) {
+  const next = nextUnreadChapter(nome, total, completedSet)
+  return Array.from({ length: total }, (_, i) => {
+    const ch = i + 1
+    const done = completedSet.has(`${nome}:${ch}`)
+    const state = done ? (originOf(originMap, nome, ch) === 'manual' ? 'manual' : 'app') : ch === next ? 'next' : 'none'
+    return { ch, state }
+  })
+}
+
+const CELL_WORDS = { app: 'lido no app', manual: 'marcado à mão', next: 'próximo', none: 'não lido' }
+export function chapterCellAria(cell) {
+  return `Capítulo ${cell.ch}, ${CELL_WORDS[cell.state]}`
+}
+
+// A legenda: só os estados que existem na grade, nesta ordem.
+export function chapterLegend(cells) {
+  return ['app', 'manual', 'next'].filter(st => cells.some(c => c.state === st)).map(st => ({ state: st, label: CELL_WORDS[st] }))
+}
+
+// O botão fixo do rodapé: "Abrir Gênesis 41" (o próximo não lido) ·
+// "Começar Gênesis" (nada lido) · "Ler Gênesis de novo" (completo, abre o
+// capítulo 1).
+export function bookFooterButton(nome, p, completedSet) {
+  if (p.completo) return { label: `Ler ${nome} de novo`, chapter: 1 }
+  if (p.lidos === 0) return { label: `Começar ${nome}`, chapter: 1 }
+  const next = nextUnreadChapter(nome, p.total, completedSet)
+  return { label: `Abrir ${nome} ${next}`, chapter: next }
+}
+
+// As duas linhas da lista de ações. Livro completo: a primeira vira
+// "Desmarcar o livro".
+export function bookActions(nome, p) {
+  return [
+    p.completo
+      ? { key: 'unmark', title: 'Desmarcar o livro', sub: p.total === 1 ? 'O capítulo volta a não lido' : `Os ${formatInt(p.total)} capítulos voltam a não lidos` }
+      : { key: 'mark', title: 'Marcar o livro inteiro como lido', sub: `Para quem já leu ${nome} antes do app` },
+    { key: 'plan', title: 'Começar meu plano aqui', sub: `Faz de ${nome} o ponto de partida` },
+  ]
 }

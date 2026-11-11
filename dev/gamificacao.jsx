@@ -15,6 +15,7 @@
 //      p1i interrompido · p3 tudo feito · p4 descanso · um · quatro · p5 dia de estudo) + semplano · erro · carregando
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
+//      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
@@ -40,6 +41,7 @@ import { deriveProgress } from '../src/utils/progress'
 import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
+import BookChapterScreen from '../src/screens/BookChapterScreen'
 import { setWheelMode } from '../src/gamification/wheelModeStore'
 import { dateKey } from '../src/utils/dateKey'
 import ConquistasScreen from '../src/screens/ConquistasScreen'
@@ -68,6 +70,13 @@ function keysFor(estado) {
 }
 
 const completedSet = keysFor(estado)
+// B2 (o livro): &livro=Rute abre o livro direto; &lidos=3 força quantos
+// capítulos dele estão lidos (0 = não começado, o total = completo).
+if (tela === 'biblia' && params.get('livro') && params.get('lidos') != null) {
+  const nome = params.get('livro')
+  for (let c = 1; c <= bookInfo(nome).capitulos; c++) completedSet.delete(`${nome}:${c}`)
+  for (let c = 1; c <= Math.min(Number(params.get('lidos')), bookInfo(nome).capitulos); c++) completedSet.add(`${nome}:${c}`)
+}
 
 // Linhas locais de convidado (guestTableStore.js lê daqui sem conta) com
 // DATAS — é o que alimenta ritmo/projeção (G2) e, nas etapas seguintes,
@@ -79,11 +88,22 @@ function seedGuestTables(estado) {
   let i = 0
   for (const key of completedSet) {
     const [livro, cap] = key.split(':')
-    chapters.push({ livro, capitulo: Number(cap), origem: 'sessao', created_at: day(estado === 'inteira' ? Math.floor(i / 4) : 70 - i) })
+    // estado=b1 é a conta dos quadros da aba Bíblia: Gênesis começado há
+    // 23 dias, com os capítulos 39 e 40 marcados à mão (B2).
+    const b1Genesis = estado === 'b1' && livro === 'Gênesis'
+    chapters.push({
+      livro, capitulo: Number(cap), origem: b1Genesis && Number(cap) >= 39 ? 'manual' : 'sessao',
+      created_at: day(estado === 'inteira' ? Math.floor(i / 4) : b1Genesis ? Math.max(1, 23 - Math.floor(i / 2)) : 70 - i),
+    })
     i++
   }
   // Conta nova: nenhum registro de atividade (nem sessão, nem capítulo).
-  if (estado !== 'nova') for (let d = 70; d >= 2; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
+  if (estado !== 'nova') for (let d = 70; d >= 2; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: estado === 'b1' ? 600 : 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
+  // B2: 6 h 10 de leitura em Gênesis (as sessões acima já somam parte).
+  if (estado === 'b1') {
+    const jaTem = sessions.filter(x => x.livro === 'Gênesis').reduce((t, x) => t + x.segundos, 0)
+    sessions.push({ data: day(1).slice(0, 10), passo: 'reading', segundos: Math.max(0, 22200 - jaTem), created_at: day(1), livro: 'Gênesis' })
+  }
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
   // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
@@ -101,6 +121,11 @@ function seedGuestTables(estado) {
   const nova = estado === 'nova'
   const highlights = nova ? [] : [{ id: 'hl-1', book: 'Jonas', bookEn: 'Jonah', chapter: 2, verses: [2], text: '', color: 'amarelo', createdAt: day(30), date: day(30).slice(0, 10) }]
   const notes = nova ? {} : { 'Jonas:1-2': { text: 'nota', updatedAt: day(33) }, 'Jonas:3-4': { text: 'nota', updatedAt: day(30) }, 'Jonas:4-4': { text: 'nota', updatedAt: day(30) } }
+  // B2: 12 notas e marcações em Gênesis (5 notas + 7 marcações).
+  if (estado === 'b1') {
+    for (let n = 1; n <= 5; n++) notes[`Gênesis:${n}-${n}`] = { text: 'nota', updatedAt: day(20 - n) }
+    for (let n = 1; n <= 7; n++) highlights.push({ id: `hl-gn-${n}`, book: 'Gênesis', bookEn: 'Genesis', chapter: n, verses: [1], text: '', color: 'amarelo', createdAt: day(20 - n), date: day(20 - n).slice(0, 10) })
+  }
   // Sua aplicação (Para hoje): a frase fixada + a entrada do dia em que foi escrita.
   const aplicacao = params.get('aplicacao') ?? (nova ? 'nenhuma' : 'ontem')
   if (aplicacao !== 'nenhuma') {
@@ -199,7 +224,7 @@ if (tela === 'biblia') {
   if (params.get('testamento')) localStorage.setItem('jc_bible_testament', params.get('testamento'))
   else localStorage.removeItem('jc_bible_testament')
 }
-function BibliaPreview() {
+function BibliaPreview({ onPastRootChange }) {
   const [done, setDone] = useState(completedSet)
   const { blocks, sessionsByBlock } = deriveProgress(done, 'standard')
   const { sessionsByBlock: browseSessionsByBlock } = deriveProgress(done, 'free')
@@ -212,20 +237,35 @@ function BibliaPreview() {
     // Os dias do plano chegam na hora no preview — o esqueleto do cartão preto é montado aqui.
     return <BibliaRaiz lang="pt" completedSet={done} versionId="pt-nvt" sessionTitle={undefined} free={null} currentBook="Gênesis" />
   }
+  const livro = params.get('livro')
+  if (livro) {
+    // B2 direto: a tela do livro de verdade, sem passar pela raiz.
+    const block = blocks.find(x => x.books.includes(livro))
+    return (
+      <BookChapterScreen
+        session={session} authUser={authUser} block={block} bookName={livro} displayName={livro}
+        browseSessionsByBlock={browseSessionsByBlock} completedSet={done}
+        onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
+        onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}
+        onNavigate={t => alert(`navegar: ${t}`)} onBack={() => alert('voltar à raiz da Bíblia')}
+      />
+    )
+  }
   return (
     <JourneyScreen
       session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock}
       completedSet={done} entryMode="overview"
       onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
-      onMarkChaptersManually={(book, chapters) => mark(book, chapters, true)}
+      onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}
       onNavigate={t => alert(`navegar: ${t}`)} onContinueSession={() => alert('ler a sessão de hoje (conta no plano)')}
-      onOpenSuaBiblia={() => alert('abrir Sua Bíblia')} onPastRootChange={() => {}}
+      onOpenSuaBiblia={() => alert('abrir Sua Bíblia')} onPastRootChange={onPastRootChange}
     />
   )
 }
 
 function Preview() {
   const [screen, setScreen] = useState(tela)
+  const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro'))
   const [gami, setGami, gamiData] = useGamificationRow()
   const familia = params.get('familia') ?? 'constancia'
   const celebId = params.get('id') ?? 'tempo:2'
@@ -305,12 +345,13 @@ function Preview() {
       />
     )
   }
-  // A barra de abas de verdade, só no Hoje — pra ver o número da Comunidade.
+  // A aba Bíblia com a barra de abas de verdade — que some fora da raiz
+  // (livro, leitura, busca), como no App.
   if (screen === 'biblia') {
     return (
       <div style={{ height: '100%' }}>
-        <BibliaPreview />
-        <BottomNav activeTab="journey" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />
+        <BibliaPreview onPastRootChange={setBibliaPastRoot} />
+        {!bibliaPastRoot && <BottomNav activeTab="journey" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />}
       </div>
     )
   }
