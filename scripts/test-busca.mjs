@@ -6,6 +6,9 @@ import { readFileSync } from 'node:fs'
 import { interpretReference, booksForToken, formatReference, openReferenceLabel, referencePreview, referenceKind, wholeChapterRow, bookDisplayName } from '../src/busca/referencia.js'
 import { SEARCH_HINT, TYPE_FILTERS, REFERENCE_EXAMPLES, whenPhrase, whereYouWere, addRecentSearch, passageReference, passageStart, featuredPassages, bookRow } from '../src/busca/buscaMath.js'
 import { computeBibleProgress } from '../src/gamification/bibleProgressMath.js'
+import { MIN_QUERY_LENGTH, VERSES_PREVIEW, VERSES_PAGE, TESTAMENT_FILTERS, queryWords, buildMatcher, matchesText, highlightSegments, searchVerses, searchBooks, searchPassages, searchThemes, themeSub, searchNotes, searchCounts, filterPills, effectiveFilter, versesLabel, seeAllVersesLabel, themeRecentSub, emptyMessage } from '../src/busca/palavra.js'
+import { normalizeForSearch } from '../src/bible/searchNormalize.js'
+import { THEMES } from '../src/bible/themes.js'
 import { NAMED_PASSAGES } from '../src/data/passagensComNome.js'
 import { VERSES_PER_CHAPTER, verseCount } from '../src/data/versiculosPorCapitulo.js'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks.js'
@@ -136,6 +139,87 @@ const prog = computeBibleProgress(lidos)
 check('linha de livro: bloco · capítulos · lidos', [bookRow('João', prog), bookRow('1 João', prog)], [{ book: 'João', title: 'João', sub: 'Evangelhos e Atos · 21 capítulos · 3 lidos' }, { book: '1 João', title: '1 João', sub: 'Gerais e Apocalipse · 5 capítulos · 0 lidos' }])
 check('linha de livro: singular nos dois ("1 capítulo · 1 lido")', bookRow('Obadias', prog).sub, 'Profetas menores · 1 capítulo · 1 lido')
 check('linha de livro: nome no idioma da conta', bookRow('João', prog, 'en').title, 'John')
+
+// ── Busca por palavra: comparação ───────────────────────────────────────
+check('palavras da busca: sem acento, sem caixa, sem pontuação', [queryWords('Não temerei, MAL!'), queryWords('  bem-aventurados '), queryWords('“pastor”'), queryWords('...')], [['nao', 'temerei', 'mal'], ['bem', 'aventurados'], ['pastor'], []])
+check('começa a responder com 2 caracteres', [MIN_QUERY_LENGTH, buildMatcher('p'), buildMatcher(' , '), buildMatcher('pa')?.term, buildMatcher('a b')?.term], [2, null, null, 'pa', 'a b'])
+const norma = t => normalizeForSearch(t)
+const trechos = (busca, texto) => highlightSegments(texto, buildMatcher(busca).ranges(norma(texto))).filter(x => x.highlighted).map(x => x.text)
+check('acha com acento e caixa diferentes, e realça o texto original', trechos('SENHOR e', 'O Senhor é o meu pastor'), ['Senhor é'])
+check('todas as ocorrências', trechos('pastor', 'Eu sou o bom pastor. O bom pastor sacrifica sua vida pelas ovelhas.'), ['pastor', 'pastor'])
+check('ocorrência dentro de outra palavra também conta', trechos('pastor', 'Os pastores voltaram; o Pastor também.'), ['pastor', 'Pastor'])
+check('pontuação do texto entre as palavras da busca não atrapalha', [trechos('medo pois', 'não terei medo, pois tu estás ao meu lado'), trechos('bem aventurados', 'Bem-aventurados os pobres'), trechos('disse haja luz', 'Então Deus disse: “Haja luz”, e houve luz.')], [['medo, pois'], ['Bem-aventurados'], ['disse: “Haja luz']])
+check('pontuação na busca não atrapalha', [trechos('medo, pois', 'não terei medo pois tu estás'), trechos('"Haja luz"', 'disse: “Haja luz”, e houve')], [['medo pois'], ['Haja luz']])
+check('pedaços: antes, realce, depois — e o texto inteiro volta ao juntar', [highlightSegments('O Senhor é o meu pastor; de nada', buildMatcher('pastor').ranges(norma('O Senhor é o meu pastor; de nada'))), highlightSegments('abc', []).length], [[{ text: 'O Senhor é o meu ', highlighted: false }, { text: 'pastor', highlighted: true }, { text: '; de nada', highlighted: false }], 1])
+check('texto que não tem o termo', [matchesText(buildMatcher('pastor'), 'O filho pródigo'), matchesText(buildMatcher('prodigo'), 'O filho pródigo'), matchesText(buildMatcher('pastor'), null)], [false, true, false])
+
+// ── Versículos, no texto de verdade (NVT) ───────────────────────────────
+const indice = JSON.parse(readFileSync(new URL('../public/bible-text/search-index/pt-nvt.json', import.meta.url), 'utf8')).map(e => ({ ...e, norm: norma(e.text) }))
+const pastor = searchVerses(buildMatcher('pastor'), indice)
+const posicao = e => bookInfo(e.book).posicao * 1e6 + e.chapter * 1e3 + e.verse
+check('versículos: em ordem canônica', pastor.every((e, i) => i === 0 || posicao(e) > posicao(pastor[i - 1])), true)
+check('versículos: todos têm o termo, e nenhum fica de fora', [pastor.every(e => e.norm.includes('pastor')), pastor.length === indice.filter(e => e.norm.includes('pastor')).length, pastor.length > VERSES_PREVIEW], [true, true, true])
+check('versículos: Salmos 23:1 está lá, com o realce no lugar', trechos('pastor', pastor.find(e => e.book === 'Salmos' && e.chapter === 23 && e.verse === 1).text), ['pastor'])
+const at = searchVerses(buildMatcher('pastor'), indice, 'at')
+const nt = searchVerses(buildMatcher('pastor'), indice, 'nt')
+check('filtro de testamento recalcula: Antigo + Novo = tudo, e não se misturam', [at.length + nt.length === pastor.length, at.every(e => bookInfo(e.book).posicao <= 39), nt.every(e => bookInfo(e.book).posicao >= 40), at.length > 0 && nt.length > 0], [true, true, true, true])
+check('expressão com pontuação no meio: "bondade e amor" acha', searchVerses(buildMatcher('nao terei medo pois'), indice).map(e => `${e.book} ${e.chapter}:${e.verse}`).includes('Salmos 23:4'), true)
+check('nada encontrado', searchVerses(buildMatcher('xyzzyplugh'), indice).length, 0)
+check('quatro primeiros em "Tudo", páginas de 30 em "Versículos"', [VERSES_PREVIEW, VERSES_PAGE], [4, 30])
+
+// ── Livros ──────────────────────────────────────────────────────────────
+const todos = GAMIFICATION_BOOKS.map(b => b.nome)
+const livros = (texto, testamento) => searchBooks(buildMatcher(texto), interpretReference(texto)?.books ?? [], todos, prog, 'pt', testamento).map(r => r.title)
+check('livros: "joão" → João, 1 João, 2 João, 3 João', livros('joão'), ['João', '1 João', '2 João', '3 João'])
+check('livros: termo no meio do nome ("cânticos"), e sem repetir', [livros('canticos'), livros('reis'), livros('pastor')], [['Cântico dos Cânticos'], ['1 Reis', '2 Reis'], []])
+check('livros: filtro de testamento (os do interpretador primeiro, depois os que têm o termo no nome)', [livros('jo', 'at'), livros('jo', 'nt')], [['Jó', 'Joel', 'Jonas', 'Josué'], ['João', '1 João', '2 João', '3 João']])
+check('livros: a linha traz bloco, capítulos e lidos', searchBooks(buildMatcher('joão'), ['João'], todos, prog)[0], { book: 'João', title: 'João', sub: 'Evangelhos e Atos · 21 capítulos · 3 lidos' })
+
+// ── Passagens ───────────────────────────────────────────────────────────
+const passagens = (texto, testamento) => searchPassages(buildMatcher(texto), NAMED_PASSAGES, 'pt', testamento).map(r => [r.title, r.sub])
+check('passagens: pelo nome e pelas palavras alternativas', passagens('pastor'), [['O Senhor é o meu pastor', 'Salmos 23 · 6 versículos'], ['O bom pastor', 'João 10:1-18']])
+check('passagens: palavra alternativa ("prodigo", "natal")', [passagens('prodigo'), passagens('natal')], [[['O filho pródigo', 'Lucas 15:11-32']], [['O nascimento de Jesus', 'Lucas 2:1-20']]])
+check('passagens: filtro de testamento', [passagens('pastor', 'at').map(r => r[0]), passagens('pastor', 'nt').map(r => r[0])], [['O Senhor é o meu pastor'], ['O bom pastor']])
+check('passagens: vários capítulos não dizem quantos versículos', passagens('sermão do monte'), [['O sermão do monte', 'Mateus 5–7']])
+check('passagens: lista vazia não dá erro', searchPassages(buildMatcher('pastor'), []), [])
+
+// ── Temas ───────────────────────────────────────────────────────────────
+const temaPastor = THEMES.find(th => th.id === 'pastor')
+check('tema: "{n} trechos · do Salmo 23 a Apocalipse 7"', themeSub(temaPastor), '5 trechos · do Salmo 23 a Apocalipse 7')
+check('tema: singular, e Salmos no fim ("ao Salmo")', [themeSub({ passages: [{ book: 'João', chStart: 3 }] }), themeSub({ passages: [{ book: 'Gênesis', chStart: 1 }, { book: 'Salmos', chStart: 19 }] }), themeSub({ passages: [] })], ['1 trecho · de João 3 a João 3', '2 trechos · de Gênesis 1 ao Salmo 19', '0 trechos'])
+check('temas: pelo título ou por palavra-chave', [searchThemes(buildMatcher('pastor'), THEMES).map(t => [t.id, t.title, t.count]), searchThemes(buildMatcher('ovelhas'), THEMES).map(t => t.id), searchThemes(buildMatcher('xyzzy'), THEMES)], [[['pastor', 'O bom pastor', 5]], ['pastor'], []])
+check('temas: com filtro de testamento, fica o que tem trecho nele', [searchThemes(buildMatcher('pastor'), THEMES, 'pt', 'at').length, searchThemes(buildMatcher('pastor'), [{ id: 'x', title: 'Pastor', passages: [{ book: 'João', chStart: 10 }] }], 'pt', 'at').length], [1, 0])
+check('tema para as buscas recentes', [themeRecentSub(21), themeRecentSub(1)], ['Tema · 21 trechos', 'Tema · 1 trecho'])
+
+// ── Notas ───────────────────────────────────────────────────────────────
+const minhas = {
+  highlights: [
+    { id: 'a', book: 'Salmos', chapter: 23, verses: [4], text: 'O pastor não tira o vale —\nanda comigo nele.', tags: ['Consolo'] },
+    { id: 'b', book: 'João', chapter: 10, verses: [11, 12, 14], text: '', tags: ['Pastor', 'Medo'] },
+    { id: 'c', book: 'Salmos', chapter: 23, verses: [1], text: 'pastor (apagada)', hidden: true },
+    { id: 'd', book: 'Gênesis', chapter: 1, verses: [1], text: '', tags: [] },
+  ],
+  notes: { 'Ezequiel:34-34': { text: 'Deus mesmo é o pastor aqui.' }, 'Gênesis:1-2': 'nota antiga, só texto: pastor', 'reflection:2026-11-01': { text: 'pastor' }, 'application:pinned': { text: 'pastor' } },
+}
+const notas = searchNotes(buildMatcher('pastor'), minhas)
+check('notas: no texto e nas etiquetas, em ordem canônica; apagadas e sem referência ficam de fora', notas.map(n => [n.title, n.sub]), [['Gênesis 1–2', '"nota antiga, só texto: pastor"'], ['Salmos 23:4', '"O pastor não tira o vale — anda comigo nele."'], ['Ezequiel 34', '"Deus mesmo é o pastor aqui."'], ['João 10:11–12, 14', 'Pastor · Medo']])
+check('notas: para onde abrir — o versículo e a nota da marcação; a nota de capítulo abre o capítulo', notas.map(n => [n.book, n.chapter, n.verse, n.noteId]), [['Gênesis', 1, null, null], ['Salmos', 23, 4, 'a'], ['Ezequiel', 34, null, null], ['João', 10, 11, 'b']])
+check('notas: só pela etiqueta', searchNotes(buildMatcher('consolo'), minhas).map(n => n.title), ['Salmos 23:4'])
+check('notas: filtro de testamento e conta sem notas', [searchNotes(buildMatcher('pastor'), minhas, 'pt', 'nt').map(n => n.title), searchNotes(buildMatcher('pastor'), {}), searchNotes(buildMatcher('pastor'))], [['João 10:11–12, 14'], [], []])
+
+// ── Contagens e filtros ─────────────────────────────────────────────────
+const contagem = searchCounts({ books: [], verses: new Array(14), passages: [1, 2], themes: [1], notes: [1] })
+check('contagens: "Tudo" é a soma', contagem, { all: 18, books: 0, verses: 14, passages: 2, themes: 1, notes: 1 })
+check('pastilhas: só os tipos com resultado, na ordem, com o número', filterPills(contagem).map(p => `${p.label} ${p.count}`), ['Tudo 18', 'Versículos 14', 'Passagens 2', 'Temas 1', 'Notas 1'])
+check('pastilhas: nada encontrado → só "Tudo 0"', filterPills(searchCounts({})).map(p => `${p.label} ${p.count}`), ['Tudo 0'])
+check('filtro que vale: o escolhido se tem resultado, senão "Tudo"', [effectiveFilter('verses', contagem), effectiveFilter('books', contagem), effectiveFilter('all', contagem)], ['verses', 'all', 'all'])
+check('filtro de testamento: três opções fixas', TESTAMENT_FILTERS.map(f => f.label), ['Toda a Bíblia', 'Antigo Testamento', 'Novo Testamento'])
+
+// ── Textos ──────────────────────────────────────────────────────────────
+check('"Ver os 14 versículos" e milhar com ponto', [seeAllVersesLabel(14), seeAllVersesLabel(1189)], ['Ver os 14 versículos', 'Ver os 1.189 versículos'])
+check('"14 versículos" / "1 versículo"', [versesLabel(14), versesLabel(1), versesLabel(2500)], ['14 versículos', '1 versículo', '2.500 versículos'])
+check('nada encontrado: o termo como foi digitado e a versão', emptyMessage('  Xyzzy ', 'NVT'), { title: 'Nada com "Xyzzy" na NVT.', sub: 'A busca é no texto desta versão. Tente outra palavra, ou procure por tema.' })
+check('nada encontrado só por causa do filtro de testamento', [emptyMessage('pastor', 'NVT', 'at').title, emptyMessage('pastor', 'NVT', 'nt').title], ['Nada com "pastor" no Antigo Testamento.', 'Nada com "pastor" no Novo Testamento.'])
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes da busca (parte pura) passaram.')

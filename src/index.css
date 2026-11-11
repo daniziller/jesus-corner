@@ -368,8 +368,14 @@ body {
 }
 .busca-filtro,
 .busca-exemplo,
-.busca-limpar {
+.busca-limpar,
+.busca-testamento {
   position: relative;
+}
+.busca-testamento::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
 .busca-filtro::after {
   content: '';

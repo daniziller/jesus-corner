@@ -1057,14 +1057,16 @@ export default function JourneyScreen({
   // normal (39k/39l, Bloco 6: cartão de versículo/trecho) — acha o bloco a
   // partir do NOME do livro (`blocks` já é a lista fixa de sempre) e cai
   // direto na leitura, no capítulo certo, com o versículo em foco.
-  function openChapterFromSearch(book, chapter, verse) {
+  // `extra.noteId` (resultado "Nas suas notas" da busca): a leitura abre
+  // com a nota daquela marcação aberta.
+  function openChapterFromSearch(book, chapter, verse, extra) {
     const block = blocks.find(b => b.books.includes(book))
     if (!block) return
     const sessions = browseSessionsByBlock[block.id] ?? []
     const target = sessions.find(sn => sn.book === book && sn.chStart <= chapter && chapter <= sn.chEnd)
     setSearchOpen(null)
     setThemeOpenId(null)
-    expandBook(block, book, target?.id ?? null, true, verse != null ? { chapter, verse } : null)
+    expandBook(block, book, target?.id ?? null, true, verse != null ? { chapter, verse, openNoteId: extra?.noteId ?? null } : null)
   }
 
   // Pulo pra um livro vindo de FORA da lista de livros visível agora
@@ -1850,6 +1852,7 @@ export default function JourneyScreen({
       <>
         <BuscaScreen
           session={session}
+          authUser={authUser}
           initialQuery={searchOpen}
           completedSet={completedSet}
           sessionTitle={sessionTitle}
@@ -1857,6 +1860,9 @@ export default function JourneyScreen({
           onBack={() => setSearchOpen(null)}
           onOpenChapter={openChapterFromSearch}
           onOpenBook={nome => { setSearchOpen(null); openBookByName(nome) }}
+          // O tema (39l) abre por cima da busca; guardar o que estava
+          // digitado faz o "voltar" de lá cair na mesma busca.
+          onOpenTheme={(id, typed) => { setSearchOpen(typed ?? ''); setThemeOpenId(id) }}
           onReadSession={onContinueSession}
           onOpenFree={openFreeReading}
         />

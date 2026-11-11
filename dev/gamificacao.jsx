@@ -17,7 +17,7 @@
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
 //      &cap=23 (B3, o capítulo direto na leitura livre) &marcar=1 (B4, ou o parabéns) &parabens=nao
-//      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &recentes=nao
+//      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &busca=pastor (B6) &recentes=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
@@ -125,8 +125,8 @@ function seedGuestTables(estado) {
   const nova = estado === 'nova'
   const highlights = nova ? [] : [{ id: 'hl-1', book: 'Jonas', bookEn: 'Jonah', chapter: 2, verses: [2], text: '', color: 'amarelo', createdAt: day(30), date: day(30).slice(0, 10) }]
   const notes = nova ? {} : { 'Jonas:1-2': { text: 'nota', updatedAt: day(33) }, 'Jonas:3-4': { text: 'nota', updatedAt: day(30) }, 'Jonas:4-4': { text: 'nota', updatedAt: day(30) } }
-  // B3: o versículo 4 do Salmo 23 marcado, como no quadro.
-  if (estado === 'b1') highlights.push({ id: 'hl-sl-23', book: 'Salmos', bookEn: 'Psalms', chapter: 23, verses: [4], text: '', color: 'yellow', createdAt: day(2), date: day(2).slice(0, 10) })
+  // B3/B6: o versículo 4 do Salmo 23 marcado, com a nota do quadro da busca.
+  if (estado === 'b1') highlights.push({ id: 'hl-sl-23', book: 'Salmos', bookEn: 'Psalms', chapter: 23, verses: [4], text: 'O pastor não tira o vale — anda comigo nele.', tags: ['Consolo'], color: 'yellow', createdAt: day(2), date: day(2).slice(0, 10) })
   // B2: 12 notas e marcações em Gênesis (5 notas + 7 marcações).
   if (estado === 'b1') {
     for (let n = 1; n <= 5; n++) notes[`Gênesis:${n}-${n}`] = { text: 'nota', updatedAt: day(20 - n) }
@@ -253,10 +253,11 @@ function BibliaPreview({ onPastRootChange }) {
     const freePos = getFreeReadingPosition()
     return (
       <BuscaScreen
-        session={session} initialQuery={params.get('busca')} completedSet={done}
+        session={session} authUser={authUser} initialQuery={params.get('busca')} completedSet={done}
         sessionTitle={planoState === 'semplano' ? null : `${session.currentBlock.book} ${session.currentBlock.chapter}`} free={freePos}
         onBack={() => alert('voltar à raiz da Bíblia')}
-        onOpenChapter={(book, chapter, verse) => alert(`abrir ${book} ${chapter}${verse ? ` no versículo ${verse}` : ''}`)}
+        onOpenChapter={(book, chapter, verse, extra) => alert(`abrir ${book} ${chapter}${verse ? ` no versículo ${verse}` : ''}${extra?.noteId ? ' com a nota aberta' : ''}`)}
+        onOpenTheme={id => alert(`abrir o tema ${id}`)}
         onOpenBook={nome => alert(`abrir o livro ${nome}`)}
         onReadSession={() => alert('ler a sessão de hoje (conta no plano)')}
         onOpenFree={() => alert('continuar a leitura livre')}

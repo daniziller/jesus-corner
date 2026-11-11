@@ -738,6 +738,19 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     initialFocusVerse && !initialFocusVerse.scrollOnly ? { chapter: initialFocusVerse.chapter, verses: new Set([initialFocusVerse.verse]) } : null
   )) // { chapter, verses: Set<number> } | null
   const [highlightEditingId, setHighlightEditingId] = useState(null)
+  // Chegar por um resultado "Nas suas notas" da busca (initialFocusVerse.
+  // openNoteId): assim que as marcações carregam, abre a nota daquela
+  // marcação (a folha de 39f), uma vez só.
+  const noteToOpenRef = useRef(initialFocusVerse?.openNoteId ?? null)
+  useEffect(() => {
+    const id = noteToOpenRef.current
+    if (!id || !highlights?.some(h => h.id === id && !h.hidden)) return
+    noteToOpenRef.current = null
+    setHighlightSelection(null)
+    setHighlightEditingId(id)
+    setWantsToAnnotate(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlights])
 
   // Avisa JourneyScreen.jsx (dono da folha de sermão flutuante, 34d/34e/
   // 34f — README: "vive... na Bíblia inteira", por isso mora lá, não
