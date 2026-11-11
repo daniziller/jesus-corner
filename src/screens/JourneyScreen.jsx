@@ -78,7 +78,7 @@ function sermonDateShort(dateStr, lang) {
 
 export default function JourneyScreen({
   session, authUser, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitGuided, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
+  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
   // Anotação de sermão — tela própria (pedido dela, 2026-09-10). Quando
   // sermonNoteMode, esta tela renderiza SÓ a anotação (nada de mapa da
   // Bíblia/busca/livro/capítulo) como página normal, sem barra de
@@ -132,18 +132,12 @@ export default function JourneyScreen({
   // Bloco "aberto" (visão de leitura) — null significa visão geral (mapa de
   // blocos). Quando entryMode é 'reading' (ex: botão "Continuar sessão" na
   // Home/Rotina), já abre direto no bloco ativo, featurando a mesma sessão
-  // do plano exibida lá (resumeSessionId), em vez do mapa — e nesse caso a
-  // leitura mostra a divisão em sessões do plano ("mode" abaixo). Qualquer
-  // outra forma de entrar (busca, tocar num bloco/livro) é navegação livre
-  // pela Bíblia, sem sessão nenhuma — só capítulo a capítulo.
+  // do plano exibida lá (resumeSessionId), em vez do mapa — é a leitura
+  // pela sessão do plano. Qualquer outra forma de entrar (busca, tocar num
+  // livro) é navegação livre pela Bíblia, capítulo a capítulo, e passa pela
+  // tela do livro (expandedBookKey, abaixo).
   const [expandedBlockId, setExpandedBlockId] = useState(entryMode === 'reading' ? initialBlockId : null)
   const [initialSessionId, setInitialSessionId] = useState(entryMode === 'reading' ? resumeSessionId : null)
-  const [readingMode, setReadingMode] = useState(entryMode === 'reading' ? 'session' : 'browse')
-  // Só true quando abrindo um capítulo que a pessoa JÁ tinha escolhido ler
-  // antes (ver RecentChaptersRow/openRecentChapter abaixo) — nesse caso faz
-  // sentido já cair lendo, diferente de abrir um livro do zero (onOpenBook),
-  // que mostra só os números dos capítulos pra escolher (ver ReadingBlockView.jsx).
-  const [initialTextOpen, setInitialTextOpen] = useState(false)
   // Livro aberto (quadro 18a: Página do livro) — chave `${blockId}:${bookName}`,
   // navega pra uma tela própria (BookChapterScreen) em vez de expandir
   // inline na lista, como antes do reskin Bento.
@@ -1036,7 +1030,6 @@ export default function JourneyScreen({
     if (entryMode === 'reading') {
       setExpandedBlockId(initialBlockId)
       setInitialSessionId(resumeSessionId)
-      setReadingMode('session')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryMode, initialBlockId, resumeSessionId])
@@ -1044,8 +1037,7 @@ export default function JourneyScreen({
   // Expande um livro inline na lista — usado tanto por um toque direto na
   // própria linha (openBook abaixo) quanto por um pulo vindo de fora dela
   // (jumpToBook abaixo). Guarda o bloco real (não um id sintético) pra
-  // manter compatível o "onde parei"/"lidos recentemente" (lastOpenedChapterStore/
-  // recentChaptersStore, gravados por ReadingBlockView.jsx usando block.id).
+  // manter compatível o "onde parei" (gravado por ReadingBlockView.jsx).
   function expandBook(block, bookName, sessionIdToFeature, textOpen, focusVerse) {
     setExpandedBookKey(`${block.id}:${bookName}`)
     setExpandedInitialSessionId(sessionIdToFeature)
@@ -1076,10 +1068,11 @@ export default function JourneyScreen({
     expandBook(block, bookName, sessionIdToFeature, textOpen)
   }
 
-  // Tocar um card de "lido recentemente" (RecentChaptersRow) — diferente de
-  // abrir um livro do zero, aqui já cai lendo o capítulo exato, sem passar
-  // pela lista de números primeiro (ver initialTextOpen acima).
-  function openRecentChapter(blockId, sessionId) {
+  // Abre direto um capítulo (bloco + sessão da navegação livre) — diferente
+  // de abrir um livro do zero, aqui já cai lendo o capítulo exato, sem
+  // passar pela grade de números primeiro. Usado pelos pulos vindos de
+  // fora (browseJumpTarget, abaixo).
+  function openBrowseChapter(blockId, sessionId) {
     const block = blocks.find(b => b.id === blockId)
     const targetSession = browseSessionsByBlock[blockId]?.find(s => s.id === sessionId)
     if (!block || !targetSession) return
@@ -1099,7 +1092,7 @@ export default function JourneyScreen({
   // App.jsx), sem passar por browseJumpTarget nenhum.
   useEffect(() => {
     if (browseJumpTarget) {
-      if (browseJumpTarget.blockId != null) openRecentChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+      if (browseJumpTarget.blockId != null) openBrowseChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
       // Livro inteiro (grade de capítulos), não um capítulo — roda da
       // Bíblia/estante (gamificação, App.openBibleBook).
       else if (browseJumpTarget.bookName) {
@@ -1728,13 +1721,11 @@ export default function JourneyScreen({
   }
 
   if (expandedBlockId != null) {
-    // key inclui initialSessionId, não só expandedBlockId — vários livros
-    // diferentes moram no MESMO bloco (ex: Evangelhos = Matthew+Mark+Luke+
-    // John), então pular de um capítulo de um livro pro de outro dentro do
-    // mesmo bloco (ex: via RecentChaptersRow) também precisa remontar do
-    // zero, senão o estado interno (sessão em destaque, capítulo
-    // expandido, livro aberto na lista) fica preso no livro antigo — ver
-    // comentário em ReadingBlockView.jsx.
+    // A leitura pela sessão do plano. key inclui initialSessionId, não só
+    // expandedBlockId — pular de uma sessão pra outra do MESMO bloco
+    // precisa remontar do zero, senão o estado interno (a sessão em
+    // destaque) fica preso na anterior — ver comentário em
+    // ReadingBlockView.jsx.
     return (
       <>
         <ReadingBlockView
@@ -1744,22 +1735,17 @@ export default function JourneyScreen({
           onNavigate={onNavigate}
           blockId={expandedBlockId}
           blocks={blocks}
-          sessionsByBlock={readingMode === 'session' ? sessionsByBlock : browseSessionsByBlock}
-          mode={readingMode}
+          sessionsByBlock={sessionsByBlock}
+          mode="session"
           completedSet={completedSet}
           onToggleSession={onToggleSession}
           onToggleChapter={onToggleChapter}
           initialSessionId={initialSessionId}
-          initialTextOpen={initialTextOpen}
-          // Só força o recap "onde a história está" no caminho de sessão
-          // guiada (vindo da Bênção) — nunca em modo browse (tocar um
-          // capítulo qualquer no mapa não deve reabrir o recap de um
-          // capítulo que a pessoa já viu, ver comentário em App.jsx).
-          forceChapterContext={readingMode === 'session' ? forceChapterContext : false}
+          // Força o recap "onde a história está" no caminho de sessão
+          // guiada (vindo da Bênção) — ver comentário em App.jsx.
+          forceChapterContext={forceChapterContext}
           onBack={closeBlock}
           onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: expandedBlockId, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
-          onJumpToChapter={openRecentChapter}
-          onExitGuided={onExitGuided}
           onOpenGroupRoom={onOpenGroupRoom}
         />
         {renderSermonFab()}
@@ -1774,10 +1760,9 @@ export default function JourneyScreen({
     const displayName = bookIdx >= 0 ? (lang === 'en' ? block.booksEn[bookIdx] : bookName) : bookName
     return (
       // key inclui expandedInitialSessionId — pular pra um capítulo
-      // DIFERENTE do MESMO livro (ex: via RecentChaptersRow) precisa
-      // remontar do zero, senão o painel de leitura embutido continuaria
-      // preso no capítulo antigo (mesmo raciocínio do ReadingBlockView
-      // acima).
+      // DIFERENTE do MESMO livro precisa remontar do zero, senão a
+      // leitura continuaria presa no capítulo antigo (mesmo raciocínio do
+      // ReadingBlockView acima).
       <>
         <BookChapterScreen
           key={`${expandedBookKey}:${expandedInitialSessionId}`}

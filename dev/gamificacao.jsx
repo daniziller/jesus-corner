@@ -17,6 +17,7 @@
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
 //      &cap=23 (B3, o capítulo direto na leitura livre) &marcar=1 (B4, ou o parabéns) &parabens=nao
+//      &leitura=plano (a leitura pela sessão do plano, sem mudança nesta fase)
 //      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &busca=pastor (B6) &recentes=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
@@ -296,10 +297,15 @@ function BibliaPreview({ onPastRootChange }) {
       />
     )
   }
+  // &leitura=plano: a leitura pela sessão do plano (a sessão em andamento do
+  // primeiro bloco) — pra conferir que ela não muda quando a leitura livre muda.
+  const planReading = params.get('leitura') === 'plano'
+  const planSession = planReading ? (sessionsByBlock[blocks[0].id].find(x => x.status === 'current') ?? sessionsByBlock[blocks[0].id].find(x => x.status !== 'done')) : null
   return (
     <JourneyScreen
       session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock}
-      completedSet={done} entryMode="overview"
+      completedSet={done} entryMode={planReading ? 'reading' : 'overview'} initialBlockId={planReading ? blocks[0].id : undefined} resumeSessionId={planSession?.id}
+      onGoToReflectionFrom={() => alert('ir pra reflexão')} onExitReading={() => alert('sair da leitura')}
       onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
       onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}
       onNavigate={t => alert(`navegar: ${t}`)} onContinueSession={() => alert('ler a sessão de hoje (conta no plano)')}
@@ -396,7 +402,7 @@ function Preview() {
     return (
       <div style={{ height: '100%' }}>
         <BibliaPreview onPastRootChange={setBibliaPastRoot} />
-        {!bibliaPastRoot && <BottomNav activeTab="journey" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />}
+        {!bibliaPastRoot && params.get('leitura') !== 'plano' && <BottomNav activeTab="journey" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />}
       </div>
     )
   }
