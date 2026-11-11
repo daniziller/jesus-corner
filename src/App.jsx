@@ -776,9 +776,9 @@ export default function App() {
   // dela, 2026-09-12) — id da anotação a carregar, ou null nos outros
   // dois casos (nova/retomar). Ver editSermonNoteFromLibrary.
   const [sermonNoteEditId, setSermonNoteEditId] = useState(null)
-  // "Barra de abas fixa só em 39a" (pacote 39) — JourneyScreen.jsx avisa
-  // quando a navegação livre passa da raiz (lista de livros, grade de
-  // capítulos, leitura embutida), pra esconder a barra igual à leitura
+  // Barra de abas fixa só na raiz da aba Bíblia (B1) — JourneyScreen.jsx
+  // avisa quando a navegação livre passa dela (o livro, a leitura, a
+  // busca), pra esconder a barra igual à leitura
   // guiada (immersiveReading abaixo), sem precisar de um activeTab à parte
   // pra cada tela empilhada dentro da aba.
   const [journeyPastRoot, setJourneyPastRoot] = useState(false)
@@ -1413,17 +1413,41 @@ export default function App() {
   // avaliação só. O parabéns fica pendente até o momento certo (ver
   // showAfterDayComplete/goToTab).
   function scheduleGamificationCheck() {
-    if (!authUser) return
+    runGamificationCheck()
+  }
+  // `onDone(celebration)` recebe o parabéns que ficou pendente (ou null).
+  function runGamificationCheck(onDone) {
+    if (!authUser) { onDone?.(null); return }
     if (gamificationTimerRef.current) clearTimeout(gamificationTimerRef.current)
     gamificationTimerRef.current = setTimeout(() => {
       gamificationTimerRef.current = null
       evaluateGamification({ completedSet: completedSetRef.current, dailyRoutine: dailyRoutineRef.current, weeklyGoalDays })
         .then(res => {
           setGamification(res.row)
-          if (res.celebration && !pendingCelebrationRef.current) setPendingCelebration({ ...res.celebration, data: res })
+          if (res.celebration && !pendingCelebrationRef.current) {
+            const celebration = { ...res.celebration, data: res }
+            pendingCelebrationRef.current = celebration
+            setPendingCelebration(celebration)
+          }
+          onDone?.(pendingCelebrationRef.current)
         })
-        .catch(err => console.error('[gamificação] avaliar', err))
+        .catch(err => { console.error('[gamificação] avaliar', err); onDone?.(null) })
     }, 1500)
+  }
+
+  // Leitura livre (handoff-biblia-52 §5): quando marcar o capítulo completa
+  // o livro, um bloco ou sobe um degrau, a tela de parabéns entra na hora,
+  // no lugar do cartão de capítulo marcado — sem esperar a volta ao Hoje.
+  // Devolve uma promessa: true se a tela abriu; false se, feita a
+  // avaliação, não havia parabéns a mostrar (aí a leitura mostra o cartão).
+  function celebrateGamificationNow() {
+    return new Promise(resolve => {
+      runGamificationCheck(celebration => {
+        if (!celebration) { resolve(false); return }
+        goToTab(celebration.kind === 'livro' ? 'livroCompleto' : 'novaConquista')
+        resolve(true)
+      })
+    })
   }
 
   // Selos (G9/G10, HANDOFF §6): abrir a estante (rolada até um bloco, vindo
@@ -3310,7 +3334,7 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
+    journey: <JourneyScreen onOpenSuaBiblia={() => goToTab('suaBiblia')} onOpenSelo={openSelo} onCelebrateNow={celebrateGamificationNow} session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
     // Anotação de sermão — tela própria de verdade (pedido dela,
     // 2026-09-10), não mais uma folha flutuante sobre a Bíblia. Reaproveita
     // JourneyScreen.jsx (dona de toda a lógica/estado da anotação desde o

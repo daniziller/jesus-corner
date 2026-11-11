@@ -1,6 +1,7 @@
-// BibleVersionChip.jsx — o seletor de versão do cabeçalho (39b/39c/39d,
-// pacote 39): "vale para toda a aba, por isso mora no cabeçalho" (regra 3
-// da aba inteira). Hoje o app tem uma versão só por idioma — o chip
+// BibleVersionChip.jsx — o seletor de versão do cabeçalho da aba Bíblia
+// (pacote 39, regra 3: "vale para toda a aba, por isso mora no
+// cabeçalho"). A pílula tem a cara de handoff-biblia-52 (B1/B2/B3: 38px,
+// raio 13, só a sigla); a folha que ela abre não mudou. Hoje o app tem uma versão só por idioma — o chip
 // aparece mesmo assim (é o "já existe na interface" do handoff); a folha
 // que ele abre só teria 1 linha pra tocar, então tocar no chip com 1
 // versão só não abre nada — comparar versões volta como tela própria
@@ -24,9 +25,8 @@ export default function BibleVersionChip({ lang, versionId, onChange }) {
 
   return (
     <>
-      <button type="button" style={s.chip} onClick={() => available.length > 1 && setOpen(true)}>
-        <span>{current?.short ?? ''}</span>
-        <AppIcon name="ChevronDown" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
+      <button type="button" className="biblia-alvo" style={s.chip} onClick={() => available.length > 1 && setOpen(true)}>
+        {current?.short ?? ''}
       </button>
       {open && createPortal(
         <div style={s.backdrop} onClick={() => setOpen(false)}>
@@ -48,7 +48,7 @@ export default function BibleVersionChip({ lang, versionId, onChange }) {
 
 const FONT = 'var(--font-bento)'
 const s = {
-  chip: { flexShrink: 0, height: 34, display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'var(--bento-card)', borderRadius: 12, padding: '0 10px', cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)' },
+  chip: { flexShrink: 0, height: 38, display: 'flex', alignItems: 'center', border: 'none', background: 'var(--bento-card)', borderRadius: 13, padding: '0 13px', cursor: 'pointer', fontFamily: FONT, fontSize: 12, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   backdrop: { position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   sheet: { width: '100%', maxWidth: 'var(--max-width)', background: 'var(--bento-bg)', borderRadius: '28px 28px 0 0', padding: '0 18px calc(18px + var(--safe-bottom))' },
   handleWrap: { display: 'flex', justifyContent: 'center', padding: '14px 0' },

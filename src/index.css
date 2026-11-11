@@ -342,6 +342,69 @@ body {
   .roda-fatia-fill { transition: none; }
 }
 
+/* Bíblia — controles de 38px do cabeçalho (voltar, pílulas, três pontos):
+   a área de toque avança 3px pra cada lado e chega a 44px, sem mexer no
+   desenho (os vãos entre eles são de 8px ou mais). */
+.biblia-alvo {
+  position: relative;
+}
+.biblia-alvo::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+
+/* Busca da Bíblia (BuscaScreen.jsx, handoff-biblia-52 §6) — o texto de
+   apoio do campo, e a área de toque de 44px dos controles pequenos
+   (filtros de 34px, exemplos de 32px, "Limpar") sem mexer no desenho. */
+/* O recuo deixa o texto de apoio depois do cursor (2px + 9px de vão),
+   como no quadro. */
+.busca-campo::placeholder {
+  color: var(--bento-t4);
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 1;
+  text-indent: 11px;
+}
+.busca-filtro,
+.busca-exemplo,
+.busca-limpar,
+.busca-testamento {
+  position: relative;
+}
+.busca-testamento::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+.busca-filtro::after {
+  content: '';
+  position: absolute;
+  inset: -5px -3px;
+}
+.busca-exemplo::after {
+  content: '';
+  position: absolute;
+  inset: -6px -3px;
+}
+.busca-limpar::after {
+  content: '';
+  position: absolute;
+  inset: -17px -10px;
+}
+
+/* Bíblia — casa de capítulo na grade do livro (BookChapterScreen.jsx,
+   handoff-biblia-52 §3): 40px de altura visual; a área de toque avança
+   3px pra dentro do vão de cima e de baixo (46px), sem mexer no desenho. */
+.biblia-casa {
+  position: relative;
+}
+.biblia-casa::after {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+}
+
 /* Hoje — círculo de um passo do plano (CartaoPlano.jsx, handoff-hoje-50
    §4): quando a pessoa volta ao Hoje com um passo recém-concluído, o
    círculo enche em 200ms. Na primeira abertura nada anima. */

@@ -1,6 +1,7 @@
-// Apelidos/abreviações de livro (39k, "palpite de referência") — não existe
-// esse dado em nenhum outro lugar do app (bibleBlocks.js só tem o nome
-// completo, ver comentário em bibleSearch.js). Autoria própria, seguindo as
+// Apelidos/abreviações de livro, para o interpretador de referências da
+// busca (src/busca/referencia.js) — não existe esse dado em nenhum outro
+// lugar do app (bibleBlocks.js só tem o nome completo). Autoria própria,
+// seguindo as
 // abreviações padrão mais usadas em referências bíblicas em português e
 // inglês (as mesmas formas que a própria autora usou como exemplo no
 // pedido: "sl 23" -> Salmos, "jo 3.16" -> João) — não é um dado extraído de
@@ -11,14 +12,13 @@
 // e todo valor é o nome CANÔNICO em português (o mesmo texto usado em
 // `book`/completed_keys em todo o app — ver BIBLE_BLOCKS). O nome completo
 // (português e inglês) de cada livro também vira alias automaticamente
-// (ver bookAliasMap em bibleSearch.js) — este arquivo só guarda as formas
+// (ver buildIndex em referencia.js) — este arquivo só guarda as formas
 // ABREVIADAS, que não dá pra derivar do nome completo.
 //
-// Colisão conhecida e decidida: "Jó" e a abreviação usual de "João" ("Jo")
-// normalizam pro mesmo texto ("jo") depois de tirar o acento — na prática,
-// "Jo" quase sempre quer dizer João (é a forma da própria autora no
-// pedido), então "jo" aponta pra João aqui. Pra Jó, a busca por NOME
-// (não abreviação) continua funcionando normal via a lista de livros.
+// Colisão conhecida: "Jó" e a abreviação usual de "João" ("Jo") dão no
+// mesmo texto ("jo") depois de tirar o acento. Aqui "jo" aponta pra João;
+// o interpretador oferece as outras leituras (1 João, Jó, Joel, Jonas) e
+// põe Jó na frente quando o nome vem escrito com o acento.
 export const PT_BOOK_ABBREVIATIONS = {
   gn: 'Gênesis', gen: 'Gênesis',
   ex: 'Êxodo', exo: 'Êxodo', êx: 'Êxodo',

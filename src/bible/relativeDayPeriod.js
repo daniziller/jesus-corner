@@ -1,5 +1,5 @@
-// relativeDayPeriod.js — "sábado à noite" (39a, "Continuar a leitura
-// livre"). Dia (hoje/ontem/dia da semana, mesmo critério de
+// relativeDayPeriod.js — "sábado à noite" ("Onde você estava", na busca
+// da Bíblia, B5). Dia (hoje/ontem/dia da semana, mesmo critério de
 // continuityDayWord em HomeScreen.jsx) + período do dia (manhã < 12h,
 // tarde 12–18h, noite ≥ 18h) a partir de um readAt real — pura, testável
 // sem relógio de verdade (recebe `now` pra isso).
