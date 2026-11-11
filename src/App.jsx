@@ -118,6 +118,8 @@ import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
 import MeuPlanoScreen from './screens/MeuPlanoScreen'
 import SeuPlanoScreen from './screens/SeuPlanoScreen'
 import AjustarPlanoScreen from './screens/AjustarPlanoScreen'
+import { getGroupMessagesSummary } from './groups/messagesStore'
+import { totalUnreadMessages } from './groups/messagesBadge'
 import { setPrayerMethod as persistPrayerMethod } from './prayer/prayerMethodStore'
 import { setReflectionMethod as persistReflectionMethod } from './reflection/reflectionMethodStore'
 import { setReadingClockPrefs as persistReadingClockPrefs } from './reading/readingClockPrefsStore'
@@ -757,6 +759,9 @@ export default function App() {
   // Pedidos de amizade + convites de grupo pendentes — alimenta o sino de
   // notificações e a bolinha na aba Comunidade.
   const [pendingSocialCount, setPendingSocialCount] = useState(0)
+  // Total de mensagens novas dos grupos — o número sobre a aba Comunidade
+  // (handoff-hoje-50 §7), no lugar do quadrado "Mensagens novas" do Hoje.
+  const [unreadMessages, setUnreadMessages] = useState(0)
   // Controla se a aba Jornada (agora também dona da Leitura) abre no mapa de
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
@@ -1049,6 +1054,8 @@ export default function App() {
     getPendingSocialCount().then(setPendingSocialCount).catch(err => {
       console.error('Failed to refresh pending social indicator', err)
     })
+    // getGroupMessagesSummary trata a própria falha (devolve []).
+    getGroupMessagesSummary().then(summary => setUnreadMessages(totalUnreadMessages(summary)))
     getMyActiveChallenges().then(setActiveChallenges).catch(err => {
       console.error('Failed to refresh active challenges', err)
     })
@@ -2325,6 +2332,7 @@ export default function App() {
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
     setPendingSocialCount(0)
+    setUnreadMessages(0)
     setMyAvatarUrl(null)
     setSubscription(null)
     setIsAdmin(false)
@@ -3643,7 +3651,7 @@ export default function App() {
 
         {/* Navegação inferior — só em telas <768px; some na leitura imersiva */}
         {!navHidden && (
-          <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} disabledTabs={disabledTabs} lang={session.lang} />
+          <BottomNav activeTab={activeTab} onNavigate={navigateTo} groupsHasPending={pendingSocialCount > 0} groupsUnread={unreadMessages} disabledTabs={disabledTabs} lang={session.lang} />
         )}
       </div>
 

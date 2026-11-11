@@ -7,8 +7,9 @@ import { recentSeals } from '../src/gamification/sealDetails.js'
 import { computeMeuPlano, stepShortDetail, tomorrowCard } from '../src/meuPlano/meuPlanoMath.js'
 import {
   chaptersLine, bibleBookLine, bibleFinishedIso, bibleCardAria, weeksAria, daysAria, sealsAria, dayDotKind,
-  buildPlanCard, planCardKind, nextAchievement,
+  buildPlanCard, planCardKind, nextAchievement, paraHojeRows, verseShortRef,
 } from '../src/hoje/hojeMath.js'
+import { messagesBadgeText, communityTabLabel, totalUnreadMessages } from '../src/groups/messagesBadge.js'
 import { FAMILIES } from '../src/data/achievements.js'
 import { pickClosest } from '../src/gamification/achievementsMath.js'
 import { familyState } from '../src/gamification/familiesMath.js'
@@ -166,6 +167,41 @@ check('pedidos e livros', [nextAchievement(pickClosest(estados({ oracao: 9 }))).
 const novaConta = nextAchievement(pickClosest(estados({})))
 check('conta nova: a primeira família, no menor limiar, barra vazia', [novaConta.familyId, novaConta.degrau, novaConta.remaining, novaConta.progress], ['constancia', 1, 'falta 1 semana', 0])
 check('tudo conquistado (38 de 38): sem cartão', nextAchievement(pickClosest(estados({ constancia: 104, leitura: 1189, tempo: 250, oracao: 1000, livros: 66 }))), null)
+
+// ── Para hoje (HANDOFF §6) ──────────────────────────────────────────────
+const versiculo = { text: 'O Senhor estava com José e lhe mostrou sua fiel bondade.', ref: 'Gênesis 39:21', version: 'NVT', bookPt: 'Gênesis', chapter: 39, verseNum: 21 }
+const aplicacao = { text: 'Hoje eu espero sem cobrar resposta.', fulfilled: false, writtenToday: false, visible: true }
+const keys = input => paraHojeRows(input).map(r => r.key)
+const h1rows = paraHojeRows({ challenge: null, summary: null, verse: versiculo, application: aplicacao })
+check('H1: versículo, aplicação e pregação, nesta ordem', h1rows.map(r => r.key), ['verse', 'application', 'sermon'])
+check('versículo: entre aspas + referência abreviada', h1rows[0].subtitle, '"O Senhor estava com José e lhe mostrou sua fiel bondade." Gn 39:21')
+check('aplicação: entre aspas, botão "Cumpri"', [h1rows[1].title, h1rows[1].subtitle, h1rows[1].right], ['Sua aplicação de ontem', '"Hoje eu espero sem cobrar resposta."', { kind: 'button', label: 'Cumpri' }])
+check('pregação: texto fixo e chevron', [h1rows[2].title, h1rows[2].subtitle, h1rows[2].right.kind], ['Anotar uma pregação', 'Abre a Bíblia com a folha de anotação', 'chevron'])
+check('aplicação cumprida: o botão vira o texto "Cumprida"', paraHojeRows({ verse: versiculo, application: { ...aplicacao, fulfilled: true } })[1].right, { kind: 'done', label: 'Cumprida' })
+check('aplicação que já vem com aspas não ganha outras', paraHojeRows({ application: { ...aplicacao, text: '“Ligo para o meu irmão.”' } })[0].subtitle, '“Ligo para o meu irmão.”')
+check('sem aplicação: a linha não aparece', keys({ verse: versiculo, application: null }), ['verse', 'sermon'])
+check('aplicação escrita hoje só aparece amanhã', keys({ verse: versiculo, application: { ...aplicacao, writtenToday: true } }), ['verse', 'sermon'])
+check('cartão da aplicação desligado no Perfil: a linha não aparece', keys({ verse: versiculo, application: { ...aplicacao, visible: false } }), ['verse', 'sermon'])
+check('resumo não lido: primeira linha, "{dia} a {dia} de {mês} está pronto"', (() => { const r = paraHojeRows({ summary: { seen: false, period: '25 a 31 de agosto' }, verse: versiculo, application: aplicacao }); return [r.map(x => x.key), r[0].title, r[0].subtitle] })(), [['summary', 'verse', 'application', 'sermon'], 'Resumo da sua semana', '25 a 31 de agosto está pronto'])
+check('resumo já lido some', keys({ summary: { seen: true, period: '25 a 31 de agosto' }, verse: versiculo }), ['verse', 'sermon'])
+check('só pregação e versículo: duas linhas, nada pra preencher', keys({ verse: versiculo }), ['verse', 'sermon'])
+check('sem versículo disponível: a linha não aparece', keys({ verse: { text: '' } }), ['sermon'])
+check('versículo carregando: a linha fica, sem subtítulo ainda', (() => { const r = paraHojeRows({ verseLoading: true, verse: null }); return [r.map(x => x.key), r[0].subtitle] })(), [['verse', 'sermon'], null])
+const comDesafio = paraHojeRows({ challenge: { title: 'Romanos em 16 dias', ref: 'Romanos 8', dayTitle: 'Nenhuma condenação', done: false }, verse: versiculo })
+check('desafio do grupo: primeira linha, com o botão "Já li"', [comDesafio.map(r => r.key), comDesafio[0].title, comDesafio[0].subtitle, comDesafio[0].right], [['challenge', 'verse', 'sermon'], 'Desafio · Romanos em 16 dias', 'Romanos 8 · Nenhuma condenação', { kind: 'button', label: 'Já li' }])
+check('desafio já lido hoje: "Lida"', paraHojeRows({ challenge: { title: 'Romanos em 16 dias', ref: 'Romanos 8', dayTitle: '', done: true } })[0].right, { kind: 'done', label: 'Lida' })
+check('referência abreviada: sigla dos selos; sem dados crus, por extenso', [verseShortRef(versiculo), verseShortRef({ ref: 'Salmos 23:1' }), verseShortRef({ bookPt: 'Jonas', chapter: 2, verseNum: 2 })], ['Gn 39:21', 'Salmos 23:1', 'Jn 2:2'])
+
+// ── Número na aba Comunidade (HANDOFF §7) ───────────────────────────────
+check('número: 0 não aparece', messagesBadgeText(0), null)
+check('número: 1', messagesBadgeText(1), '1')
+check('número: 99', messagesBadgeText(99), '99')
+check('número: 100 vira "99+"', messagesBadgeText(100), '99+')
+check('número: valores estranhos não aparecem', [messagesBadgeText(undefined), messagesBadgeText(-3), messagesBadgeText(null)], [null, null, null])
+check('rótulo da aba: sem mensagens, só o nome', communityTabLabel('Comunidade', 0), 'Comunidade')
+check('rótulo da aba: "Comunidade, 9 mensagens novas"', communityTabLabel('Comunidade', 9), 'Comunidade, 9 mensagens novas')
+check('rótulo da aba: singular e acima de 99 (o número real)', [communityTabLabel('Comunidade', 1), communityTabLabel('Comunidade', 120)], ['Comunidade, 1 mensagem nova', 'Comunidade, 120 mensagens novas'])
+check('total = soma dos grupos', [totalUnreadMessages([{ unreadCount: 4 }, { unreadCount: 5 }, { unreadCount: 0 }, {}]), totalUnreadMessages([]), totalUnreadMessages(null)], [9, 0, 0])
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes do Hoje (parte pura) passaram.')

@@ -6,6 +6,7 @@
 import { formatInt, formatPct, deOf, monthYearLong } from '../gamification/format.js'
 import { footerBook } from '../gamification/bibleProgressMath.js'
 import { familyById } from '../data/achievements.js'
+import { bookInfo } from '../data/gamificationBlocks.js'
 import { STEP_ORDER, stepName, doneWord, stepsCountText, stepShortDetail } from '../meuPlano/meuPlanoMath.js'
 import { markedWeekdayUnion } from '../routine/stepDaysMath.js'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
@@ -173,4 +174,57 @@ export function nextAchievement(closest) {
     remaining, progress: closest.progress,
     aria: `Próxima conquista: ${closest.nome}, ${remaining}`,
   }
+}
+
+// ── Bloco 4: Para hoje (HANDOFF §6) ─────────────────────────────────────
+// Quais linhas aparecem, nesta ordem — linha sem conteúdo não aparece:
+//   desafio de leitura do grupo (só com desafio ativo no dia);
+//   resumo da semana (só com resumo NÃO lido);
+//   versículo do dia (sempre que houver versículo; enquanto carrega, a
+//     linha fica com o subtítulo em esqueleto);
+//   aplicação de ontem (só com frase fixada que não seja a de hoje, e com
+//     o cartão ligado no Perfil);
+//   anotar uma pregação (sempre).
+// `right`: { kind: 'chevron' } · { kind: 'button', label } · { kind:
+// 'done', label } (o botão depois de marcado vira texto).
+
+// "Gn 39:21" — a sigla do livro (a mesma dos selos) + capítulo:versículo;
+// sem os dados crus, a referência por extenso.
+export function verseShortRef(verse) {
+  const sigla = verse?.bookPt ? bookInfo(verse.bookPt)?.sigla : null
+  if (sigla && verse.chapter && verse.verseNum) return `${sigla} ${verse.chapter}:${verse.verseNum}`
+  return verse?.ref ?? ''
+}
+
+// Entre aspas — sem duplicar as que o texto já traz.
+function quoted(text) {
+  const t = String(text ?? '').trim()
+  return /^["“]/.test(t) ? t : `"${t}"`
+}
+
+export function paraHojeRows({ challenge, summary, verse, verseLoading, application }) {
+  const rows = []
+  if (challenge) {
+    rows.push({
+      key: 'challenge', title: `Desafio · ${challenge.title}`,
+      subtitle: [challenge.ref, challenge.dayTitle].filter(Boolean).join(' · '),
+      right: challenge.done ? { kind: 'done', label: 'Lida' } : { kind: 'button', label: 'Já li' },
+    })
+  }
+  if (summary && !summary.seen) {
+    rows.push({ key: 'summary', title: 'Resumo da sua semana', subtitle: `${summary.period} está pronto`, right: { kind: 'chevron' } })
+  }
+  if (verseLoading) {
+    rows.push({ key: 'verse', title: 'Versículo do dia', subtitle: null, right: { kind: 'chevron' } })
+  } else if (verse?.text) {
+    rows.push({ key: 'verse', title: 'Versículo do dia', subtitle: `${quoted(verse.text)} ${verseShortRef(verse)}`.trim(), right: { kind: 'chevron' } })
+  }
+  if (application?.text && application.visible && !application.writtenToday) {
+    rows.push({
+      key: 'application', title: 'Sua aplicação de ontem', subtitle: quoted(application.text),
+      right: application.fulfilled ? { kind: 'done', label: 'Cumprida' } : { kind: 'button', label: 'Cumpri' },
+    })
+  }
+  rows.push({ key: 'sermon', title: 'Anotar uma pregação', subtitle: 'Abre a Bíblia com a folha de anotação', right: { kind: 'chevron' } })
+  return rows
 }

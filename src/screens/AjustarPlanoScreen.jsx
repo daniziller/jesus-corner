@@ -24,6 +24,7 @@ import { computeProjection } from '../plan/readingProjection'
 import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath'
 import { loadActiveStudy } from '../meuPlano/activeStudy'
 import WeekdayChipRow from '../components/WeekdayChipRow'
+import FolhaInferior from '../components/FolhaInferior'
 import { getReadingPaceSessions, getUseLearnedPace } from '../reading/readingPaceStore'
 import { estimateReadingPace, chaptersPerSession } from '../reading/readingPaceMath'
 import { BIBLE_TOTAL_WORDS } from '../data/bibleBlocks'
@@ -368,76 +369,33 @@ const CLOCK_ROWS = [
   { key: 'warnAtZero', title: 'routine.warnAtZeroTitle', sub: 'routine.warnAtZeroSub' },
   { key: 'askToContinue', title: 'routine.askContinueTitle', sub: 'routine.askContinueSub' },
 ]
-const DRAG_CLOSE_PX = 80
 
 function ClockSheet({ lang, clock, onToggle, onClose }) {
-  const sheetRef = useRef(null)
-  const dragRef = useRef({ startY: null, dy: 0 })
-  const [dragY, setDragY] = useState(0)
-
-  useEffect(() => {
-    sheetRef.current?.querySelector('[role="switch"]')?.focus?.()
-  }, [])
-
-  function onKeyDown(e) {
-    if (e.key === 'Escape') { e.preventDefault(); onClose(); return }
-    if (e.key !== 'Tab') return
-    const focusables = [...(sheetRef.current?.querySelectorAll('button:not([disabled])') ?? [])]
-    if (focusables.length === 0) return
-    const first = focusables[0], last = focusables[focusables.length - 1]
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-  }
-
-  function onTouchStart(e) { dragRef.current = { startY: e.touches[0].clientY, dy: 0 } }
-  function onTouchMove(e) {
-    if (dragRef.current.startY == null) return
-    const dy = Math.max(0, e.touches[0].clientY - dragRef.current.startY)
-    dragRef.current.dy = dy
-    setDragY(dy)
-  }
-  function onTouchEnd() {
-    const { dy } = dragRef.current
-    dragRef.current = { startY: null, dy: 0 }
-    if (dy > DRAG_CLOSE_PX) onClose()
-    else setDragY(0)
-  }
-
   return (
-    <div style={{ ...s.veil, ...s.veilBlur }} onClick={onClose}>
-      <div
-        ref={sheetRef}
-        role="dialog" aria-modal="true" aria-labelledby="ajustar-cronometro-titulo"
-        style={{ ...s.sheet, transform: dragY ? `translateY(${dragY}px)` : 'none', transition: dragY ? 'none' : 'transform .18s ease-out' }}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={onKeyDown}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={onTouchEnd}
-      >
-        <div style={s.handle} aria-hidden="true" />
-        <p id="ajustar-cronometro-titulo" style={s.sheetTitle}>Cronômetro</p>
-        <p style={s.sheetSub}>Vale para a leitura e para o estudo.</p>
-        {CLOCK_ROWS.map((row, i) => {
-          const on = !!clock[row.key]
-          const title = t(row.title, undefined, lang)
-          return (
-            <div key={row.key} style={{ ...s.sheetRow, borderTop: i > 0 ? '1px solid var(--bento-line)' : 'none' }}>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={s.sheetRowTitle}>{title}</span>
-                <span style={s.sheetRowSub}>{t(row.sub, undefined, lang)}</span>
-              </span>
-              <button
-                type="button" role="switch" aria-checked={on} aria-label={`${title}: ${on ? 'ligado' : 'desligado'}`}
-                onClick={() => onToggle(row.key)}
-                style={{ ...s.switch, background: on ? 'var(--bento-ink)' : 'var(--bento-t6)', justifyContent: on ? 'flex-end' : 'flex-start' }}
-              >
-                <span style={{ ...s.thumb, background: on ? 'var(--bento-accent)' : '#fff' }} />
-              </button>
-            </div>
-          )
-        })}
-        <button type="button" style={s.sheetDone} onClick={onClose}>Pronto</button>
-      </div>
-    </div>
+    <FolhaInferior onClose={onClose} labelledBy="ajustar-cronometro-titulo">
+      <p id="ajustar-cronometro-titulo" style={s.sheetTitle}>Cronômetro</p>
+      <p style={s.sheetSub}>Vale para a leitura e para o estudo.</p>
+      {CLOCK_ROWS.map((row, i) => {
+        const on = !!clock[row.key]
+        const title = t(row.title, undefined, lang)
+        return (
+          <div key={row.key} style={{ ...s.sheetRow, borderTop: i > 0 ? '1px solid var(--bento-line)' : 'none' }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={s.sheetRowTitle}>{title}</span>
+              <span style={s.sheetRowSub}>{t(row.sub, undefined, lang)}</span>
+            </span>
+            <button
+              type="button" role="switch" aria-checked={on} aria-label={`${title}: ${on ? 'ligado' : 'desligado'}`}
+              onClick={() => onToggle(row.key)}
+              style={{ ...s.switch, background: on ? 'var(--bento-ink)' : 'var(--bento-t6)', justifyContent: on ? 'flex-end' : 'flex-start' }}
+            >
+              <span style={{ ...s.thumb, background: on ? 'var(--bento-accent)' : '#fff' }} />
+            </button>
+          </div>
+        )
+      })}
+      <button type="button" style={s.sheetDone} onClick={onClose}>Pronto</button>
+    </FolhaInferior>
   )
 }
 
@@ -505,9 +463,6 @@ const s = {
   saveOff: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--medalha-glifo-apagado)', fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-t4)' },
   saveOn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', fontFamily: FONT, fontSize: 14.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   veil: { position: 'absolute', inset: 0, background: 'rgba(26,23,20,.45)', display: 'flex', alignItems: 'flex-end', zIndex: 5 },
-  veilBlur: { backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' },
-  sheet: { width: '100%', background: 'var(--bento-card)', borderRadius: '32px 32px 0 0', padding: '10px 20px calc(24px + var(--safe-bottom))', boxShadow: '0 -18px 40px rgba(0,0,0,.18)', boxSizing: 'border-box', touchAction: 'pan-y' },
-  handle: { width: 44, height: 5, borderRadius: 99, background: 'var(--bento-t6)', margin: '0 auto 16px' },
   sheetTitle: { fontFamily: FONT, fontSize: 20, fontWeight: 800, letterSpacing: '-0.6px', color: 'var(--bento-ink)', margin: 0 },
   sheetSub: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '4px 0 6px' },
   sheetRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0' },
