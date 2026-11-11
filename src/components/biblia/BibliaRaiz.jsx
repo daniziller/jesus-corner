@@ -17,6 +17,7 @@
 // `sessionTitle`: undefined enquanto os dias do plano carregam (o cartão
 // preto fica em esqueleto), null sem sessão hoje, ou o trecho.
 import { useMemo, useState } from 'react'
+import { SEARCH_HINT } from '../../busca/buscaMath'
 import AppIcon from '../../icons/AppIcon'
 import BibleVersionChip from '../bible/BibleVersionChip'
 import { blockColorVar, blockToneVar } from '../../data/gamificationBlocks'
@@ -67,7 +68,7 @@ export default function BibliaRaiz({
       <div style={s.body}>
         <button type="button" style={s.search} onClick={onOpenSearch}>
           <AppIcon name="Search" size={17} strokeWidth={2} color="var(--bento-ink)" style={{ flexShrink: 0 }} />
-          <span style={s.searchText}>Livro, referência, palavra ou tema</span>
+          <span style={s.searchText}>{SEARCH_HINT}</span>
         </button>
 
         <div style={s.progressCard} role="button" tabIndex={0} aria-label={card.aria} onClick={onOpenSuaBiblia} onKeyDown={activate(onOpenSuaBiblia)}>

@@ -24,7 +24,7 @@ import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
 import BookChapterScreen from './BookChapterScreen'
-import SearchResultsScreen from './SearchResultsScreen'
+import BuscaScreen from './BuscaScreen'
 import ThemeAsStudyScreen from './ThemeAsStudyScreen'
 import { getThemeById } from '../bible/themes'
 
@@ -1019,11 +1019,14 @@ export default function JourneyScreen({
   // pra ele esconder a barra igual já faz com a leitura guiada. Roda de
   // novo no desmonte (voltar pra outra aba) — sem isso, journeyPastRoot
   // ficaria "true" preso em App.jsx entre uma visita e a próxima.
+  // A busca (B5–B7) também é fora da raiz, sem barra de abas; a tela do
+  // tema (39l), que abre por cima dela, segue como sempre foi.
+  const searchOnScreen = searchOpen != null && themeOpenId == null
   useEffect(() => {
-    onPastRootChange?.(expandedBookKey != null)
+    onPastRootChange?.(expandedBookKey != null || searchOnScreen)
     return () => onPastRootChange?.(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedBookKey])
+  }, [expandedBookKey, searchOnScreen])
 
   // O botão "Ir para a leitura de hoje" (Rotina) chama onContinueSession
   // mesmo com a tela já montada (usuário já está na aba Bíblia) — os
@@ -1821,18 +1824,41 @@ export default function JourneyScreen({
       )
     }
   }
+  // Leitura livre: a posição PRÓPRIA da aba (freeReadingPositionStore.js),
+  // não a do plano — só vale se o capítulo ainda existe na navegação livre.
+  // Usada pela raiz (B1) e pela busca ("Onde você estava", B5).
+  const freeReadPos = getFreeReadingPosition()
+  const freeReadBlock = freeReadPos ? blocks.find(b => b.books.includes(freeReadPos.book)) : null
+  const freeReadSession = freeReadBlock
+    ? (browseSessionsByBlock[freeReadBlock.id] ?? []).find(sn => sn.book === freeReadPos.book && sn.chStart <= freeReadPos.chapter && sn.chEnd >= freeReadPos.chapter)
+    : null
+  // Abre o livro (B2) pelo nome — da pastilha da raiz ou de um resultado
+  // da busca.
+  function openBookByName(nome) {
+    const block = blocks.find(b => b.books.includes(nome))
+    if (block) openBook(block, nome)
+  }
+  // "Continuar a leitura livre": volta ao versículo onde a pessoa parou
+  // (sem realce) — o mesmo que a linha mostra em ", versículo n".
+  function openFreeReading() {
+    setSearchOpen(null)
+    expandBook(freeReadBlock, freeReadPos.book, freeReadSession.id, true, freeReadPos.verse > 1 ? { chapter: freeReadPos.chapter, verse: freeReadPos.verse, scrollOnly: true } : null)
+  }
+
   if (searchOpen != null) {
     return (
       <>
-        <SearchResultsScreen
+        <BuscaScreen
           session={session}
           initialQuery={searchOpen}
-          sessionsByBlock={browseSessionsByBlock}
           completedSet={completedSet}
+          sessionTitle={sessionTitle}
+          free={freeReadSession ? freeReadPos : null}
           onBack={() => setSearchOpen(null)}
           onOpenChapter={openChapterFromSearch}
-          onOpenBook={(block, bookName) => { setSearchOpen(null); openBook(block, bookName) }}
-          onOpenTheme={id => setThemeOpenId(id)}
+          onOpenBook={nome => { setSearchOpen(null); openBookByName(nome) }}
+          onReadSession={onContinueSession}
+          onOpenFree={openFreeReading}
         />
         {renderSermonFab()}
       </>
@@ -1840,13 +1866,6 @@ export default function JourneyScreen({
   }
 
   // ── A raiz (B1) ──
-  // Leitura livre: a posição PRÓPRIA da aba (freeReadingPositionStore.js),
-  // não a do plano — só vale se o capítulo ainda existe na navegação livre.
-  const freeReadPos = getFreeReadingPosition()
-  const freeReadBlock = freeReadPos ? blocks.find(b => b.books.includes(freeReadPos.book)) : null
-  const freeReadSession = freeReadBlock
-    ? (browseSessionsByBlock[freeReadBlock.id] ?? []).find(sn => sn.book === freeReadPos.book && sn.chStart <= freeReadPos.chapter && sn.chEnd >= freeReadPos.chapter)
-    : null
 
   return (
     <>
@@ -1856,13 +1875,8 @@ export default function JourneyScreen({
         onOpenSearch={() => setSearchOpen('')}
         onOpenSuaBiblia={onOpenSuaBiblia}
         onRead={onContinueSession}
-        // Volta ao versículo onde a pessoa parou (sem realce) — o mesmo
-        // que a linha mostra em ", versículo n".
-        onOpenFree={() => expandBook(freeReadBlock, freeReadPos.book, freeReadSession.id, true, freeReadPos.verse > 1 ? { chapter: freeReadPos.chapter, verse: freeReadPos.verse, scrollOnly: true } : null)}
-        onOpenBook={nome => {
-          const block = blocks.find(b => b.books.includes(nome))
-          if (block) openBook(block, nome)
-        }}
+        onOpenFree={openFreeReading}
+        onOpenBook={openBookByName}
       />
       {renderSermonFab()}
     </>

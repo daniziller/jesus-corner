@@ -17,6 +17,7 @@
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
 //      &cap=23 (B3, o capítulo direto na leitura livre) &marcar=1 (B4, ou o parabéns) &parabens=nao
+//      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &recentes=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
@@ -43,6 +44,8 @@ import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
 import BookChapterScreen from '../src/screens/BookChapterScreen'
+import BuscaScreen from '../src/screens/BuscaScreen'
+import { getFreeReadingPosition } from '../src/bible/freeReadingPositionStore'
 import { setWheelMode } from '../src/gamification/wheelModeStore'
 import { dateKey } from '../src/utils/dateKey'
 import ConquistasScreen from '../src/screens/ConquistasScreen'
@@ -226,6 +229,9 @@ if (tela === 'biblia') {
   else localStorage.setItem('jc_free_reading_position', JSON.stringify({ book: 'Salmos', bookEn: 'Psalms', chapter: 23, verse: livre === 'sem' ? null : Number(livre), readAt: new Date(Date.now() - 2 * 86400000).toISOString() }))
   if (params.get('testamento')) localStorage.setItem('jc_bible_testament', params.get('testamento'))
   else localStorage.removeItem('jc_bible_testament')
+  // Busca (B5): as três buscas recentes do quadro; &recentes=nao começa sem nenhuma.
+  if (params.get('recentes') === 'nao') localStorage.removeItem('jc_bible_recent_searches')
+  else localStorage.setItem('jc_bible_recent_searches', JSON.stringify([{ text: 'pastor', sub: '14 versículos' }, { text: 'Romanos 8', sub: 'Capítulo' }, { text: 'ansiedade', sub: 'Tema · 21 trechos' }]))
 }
 function BibliaPreview({ onPastRootChange }) {
   const [done, setDone] = useState(completedSet)
@@ -239,6 +245,23 @@ function BibliaPreview({ onPastRootChange }) {
   if (estado === 'carregando') {
     // Os dias do plano chegam na hora no preview — o esqueleto do cartão preto é montado aqui.
     return <BibliaRaiz lang="pt" completedSet={done} versionId="pt-nvt" sessionTitle={undefined} free={null} currentBook="Gênesis" />
+  }
+  // B5–B7 direto: &busca= (vazio = ao abrir) ou &busca=jo 3 16 — a tela da
+  // busca de verdade; &plano=semplano tira a sessão de hoje, &livre=nao a
+  // leitura livre e &recentes=nao as buscas recentes.
+  if (params.has('busca')) {
+    const freePos = getFreeReadingPosition()
+    return (
+      <BuscaScreen
+        session={session} initialQuery={params.get('busca')} completedSet={done}
+        sessionTitle={planoState === 'semplano' ? null : `${session.currentBlock.book} ${session.currentBlock.chapter}`} free={freePos}
+        onBack={() => alert('voltar à raiz da Bíblia')}
+        onOpenChapter={(book, chapter, verse) => alert(`abrir ${book} ${chapter}${verse ? ` no versículo ${verse}` : ''}`)}
+        onOpenBook={nome => alert(`abrir o livro ${nome}`)}
+        onReadSession={() => alert('ler a sessão de hoje (conta no plano)')}
+        onOpenFree={() => alert('continuar a leitura livre')}
+      />
+    )
   }
   const livro = params.get('livro')
   // B3/B4: &cap=23 abre o capítulo direto na leitura livre; &marcar=1 toca
@@ -286,7 +309,7 @@ function BibliaPreview({ onPastRootChange }) {
 
 function Preview() {
   const [screen, setScreen] = useState(tela)
-  const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro'))
+  const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
   const [gami, setGami, gamiData] = useGamificationRow()
   const familia = params.get('familia') ?? 'constancia'
   const celebId = params.get('id') ?? 'tempo:2'
