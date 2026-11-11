@@ -25,7 +25,7 @@ export default function BibleVersionChip({ lang, versionId, onChange }) {
 
   return (
     <>
-      <button type="button" style={s.chip} onClick={() => available.length > 1 && setOpen(true)}>
+      <button type="button" className="biblia-alvo" style={s.chip} onClick={() => available.length > 1 && setOpen(true)}>
         {current?.short ?? ''}
       </button>
       {open && createPortal(

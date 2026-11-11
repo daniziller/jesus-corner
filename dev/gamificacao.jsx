@@ -16,6 +16,7 @@
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
+//      &cap=23 (B3, o capítulo direto na leitura livre) &marcar=1 (B4, ou o parabéns) &parabens=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
@@ -24,7 +25,7 @@
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
 //      &id=tempo:2|bloco:profetas-menores (G4) &novas=1 (pontos de "nova" em G5)
-import { StrictMode, useState } from 'react'
+import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import '../src/index.css'
 import HomeScreen from '../src/screens/HomeScreen'
@@ -121,6 +122,8 @@ function seedGuestTables(estado) {
   const nova = estado === 'nova'
   const highlights = nova ? [] : [{ id: 'hl-1', book: 'Jonas', bookEn: 'Jonah', chapter: 2, verses: [2], text: '', color: 'amarelo', createdAt: day(30), date: day(30).slice(0, 10) }]
   const notes = nova ? {} : { 'Jonas:1-2': { text: 'nota', updatedAt: day(33) }, 'Jonas:3-4': { text: 'nota', updatedAt: day(30) }, 'Jonas:4-4': { text: 'nota', updatedAt: day(30) } }
+  // B3: o versículo 4 do Salmo 23 marcado, como no quadro.
+  if (estado === 'b1') highlights.push({ id: 'hl-sl-23', book: 'Salmos', bookEn: 'Psalms', chapter: 23, verses: [4], text: '', color: 'yellow', createdAt: day(2), date: day(2).slice(0, 10) })
   // B2: 12 notas e marcações em Gênesis (5 notas + 7 marcações).
   if (estado === 'b1') {
     for (let n = 1; n <= 5; n++) notes[`Gênesis:${n}-${n}`] = { text: 'nota', updatedAt: day(20 - n) }
@@ -238,6 +241,21 @@ function BibliaPreview({ onPastRootChange }) {
     return <BibliaRaiz lang="pt" completedSet={done} versionId="pt-nvt" sessionTitle={undefined} free={null} currentBook="Gênesis" />
   }
   const livro = params.get('livro')
+  // B3/B4: &cap=23 abre o capítulo direto na leitura livre; &marcar=1 toca
+  // "Marcar como lido" sozinho (o cartão B4, ou o parabéns quando for o
+  // caso); &parabens=nao simula a avaliação que não achou parabéns nenhum.
+  const cap = Number(params.get('cap')) || null
+  const celebrarAgora = () => {
+    if (params.get('parabens') === 'nao') return Promise.resolve(false)
+    alert('parabéns na hora (G8 ou G4)')
+    return Promise.resolve(true)
+  }
+  useEffect(() => {
+    if (!cap || params.get('marcar') !== '1') return undefined
+    const timer = setTimeout(() => [...document.querySelectorAll('button')].find(b => b.textContent === 'Marcar como lido')?.click(), 900)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   if (livro) {
     // B2 direto: a tela do livro de verdade, sem passar pela raiz.
     const block = blocks.find(x => x.books.includes(livro))
@@ -248,6 +266,9 @@ function BibliaPreview({ onPastRootChange }) {
         onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
         onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}
         onNavigate={t => alert(`navegar: ${t}`)} onBack={() => alert('voltar à raiz da Bíblia')}
+        onCelebrateNow={celebrarAgora}
+        initialSessionId={cap ? (browseSessionsByBlock[block.id] ?? []).find(x => x.book === livro && x.chStart <= cap && cap <= x.chEnd)?.id : undefined}
+        initialTextOpen={!!cap}
       />
     )
   }
@@ -258,7 +279,7 @@ function BibliaPreview({ onPastRootChange }) {
       onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
       onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}
       onNavigate={t => alert(`navegar: ${t}`)} onContinueSession={() => alert('ler a sessão de hoje (conta no plano)')}
-      onOpenSuaBiblia={() => alert('abrir Sua Bíblia')} onPastRootChange={onPastRootChange}
+      onOpenSuaBiblia={() => alert('abrir Sua Bíblia')} onPastRootChange={onPastRootChange} onCelebrateNow={celebrarAgora}
     />
   )
 }

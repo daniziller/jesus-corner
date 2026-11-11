@@ -44,7 +44,7 @@ export default function BookChapterScreen({
   session, authUser, block, bookName, displayName,
   browseSessionsByBlock, completedSet,
   onToggleSession, onToggleChapter, onMarkChaptersManually, onGoToReflectionFrom, onNavigate,
-  onBack, onOpenSelo, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange,
+  onBack, onOpenSelo, onCelebrateNow, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange,
 }) {
   const { lang } = session
   const email = authUser?.email
@@ -188,6 +188,7 @@ export default function BookChapterScreen({
         initialTextOpen
         initialFocusVerse={openFocusVerse}
         onActiveChapterChange={onActiveChapterChange}
+        onCelebrateNow={onCelebrateNow}
         onBack={() => { setOpenSessionId(null); setOpenTextOpen(false); setOpenFocusVerse(null) }}
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'journey', blockId: block.id, sessionId: heroSession.id, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
       />
@@ -197,7 +198,7 @@ export default function BookChapterScreen({
   return (
     <div style={s.screen}>
       <div style={s.header}>
-        <button type="button" style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
+        <button type="button" className="biblia-alvo" style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>

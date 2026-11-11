@@ -105,6 +105,9 @@ export default function JourneyScreen({
   onOpenSuaBiblia,
   // Selo de um livro completo (B2) → Um selo (G10).
   onOpenSelo,
+  // Leitura livre (B4): a marcação que completa livro, bloco ou degrau
+  // abre a tela de parabéns na hora (App.jsx, celebrateGamificationNow).
+  onCelebrateNow,
 }) {
   const { lang } = session
   // "Sessão de hoje" do cartão preto da raiz (B1) — hook, então fica antes
@@ -1784,6 +1787,7 @@ export default function JourneyScreen({
           onToggleChapter={onToggleChapter}
           onMarkChaptersManually={onMarkChaptersManually}
           onOpenSelo={onOpenSelo}
+          onCelebrateNow={onCelebrateNow}
           onGoToReflectionFrom={onGoToReflectionFrom}
           onNavigate={onNavigate}
           onBack={closeBook}
@@ -1852,7 +1856,9 @@ export default function JourneyScreen({
         onOpenSearch={() => setSearchOpen('')}
         onOpenSuaBiblia={onOpenSuaBiblia}
         onRead={onContinueSession}
-        onOpenFree={() => jumpToBook(freeReadBlock, freeReadPos.book, freeReadSession.id, true)}
+        // Volta ao versículo onde a pessoa parou (sem realce) — o mesmo
+        // que a linha mostra em ", versículo n".
+        onOpenFree={() => expandBook(freeReadBlock, freeReadPos.book, freeReadSession.id, true, freeReadPos.verse > 1 ? { chapter: freeReadPos.chapter, verse: freeReadPos.verse, scrollOnly: true } : null)}
         onOpenBook={nome => {
           const block = blocks.find(b => b.books.includes(nome))
           if (block) openBook(block, nome)

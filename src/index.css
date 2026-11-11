@@ -342,6 +342,18 @@ body {
   .roda-fatia-fill { transition: none; }
 }
 
+/* Bíblia — controles de 38px do cabeçalho (voltar, pílulas, três pontos):
+   a área de toque avança 3px pra cada lado e chega a 44px, sem mexer no
+   desenho (os vãos entre eles são de 8px ou mais). */
+.biblia-alvo {
+  position: relative;
+}
+.biblia-alvo::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+
 /* Bíblia — casa de capítulo na grade do livro (BookChapterScreen.jsx,
    handoff-biblia-52 §3): 40px de altura visual; a área de toque avança
    3px pra dentro do vão de cima e de baixo (46px), sem mexer no desenho. */

@@ -8,6 +8,7 @@ import {
   progressCardTexts, blockBarSegments, blockBooksCount, bookTile, readingSessionToday, continueCard,
   bookHeaderSub, bookSealLine, firstChapterIso, countBookMarks, bookNumbers, chapterCells, chapterCellAria, chapterLegend,
   bookFooterButton, bookActions,
+  readingThread, chapterLabel, markButton, topVisibleVerse, markedCard, nextLeituraStep, markOutcome,
 } from '../src/biblia/bibliaMath.js'
 import { buildChapterOriginMap } from '../src/bible/chapterOrigin.js'
 
@@ -129,6 +130,50 @@ check('rodapé, livro completo: "Ler Jonas de novo" abre o capítulo 1', bookFoo
 check('rodapé: o próximo é o primeiro não lido, não o último + 1', bookFooterButton('Gênesis', computeBibleProgress(comBuraco).porLivro['Gênesis'], comBuraco).label, 'Abrir Gênesis 5')
 check('ações: marcar o livro inteiro e começar o plano aqui', bookActions('Gênesis', gen40).map(a => [a.key, a.title, a.sub]), [['mark', 'Marcar o livro inteiro como lido', 'Para quem já leu Gênesis antes do app'], ['plan', 'Começar meu plano aqui', 'Faz de Gênesis o ponto de partida']])
 check('ações, livro completo: a primeira vira "Desmarcar o livro"', [bookActions('Jonas', exemplo.porLivro['Jonas'])[0].key, bookActions('Jonas', exemplo.porLivro['Jonas'])[0].title, bookActions('Jonas', exemplo.porLivro['Jonas'])[0].sub, bookActions('Obadias', computeBibleProgress(setOf({ Obadias: 1 })).porLivro['Obadias'])[0].sub], ['unmark', 'Desmarcar o livro', 'Os 4 capítulos voltam a não lidos', 'O capítulo volta a não lido'])
+
+// ── B3: lendo ───────────────────────────────────────────────────────────
+check('B3: fio — "6 de 150 lidos · leitura livre"', readingThread(exemplo.porLivro['Salmos'], { free: true }), { ratio: 6 / 150, text: '6 de 150 lidos · leitura livre' })
+check('B3: fio sem o trecho da leitura livre', readingThread(exemplo.porLivro['Salmos']).text, '6 de 150 lidos')
+check('B3: fio no singular e no zero', [readingThread(computeBibleProgress(setOf({ Rute: 1 })).porLivro['Rute']).text, readingThread(exemplo.porLivro['Êxodo']).text], ['1 de 4 lido', '0 de 40 lidos'])
+check('B3: rótulo — "Salmo 23" em Salmos, "Capítulo 3" nos outros', [chapterLabel('Salmos', 23), chapterLabel('João', 3), chapterLabel('Salmos', 23, 'en'), chapterLabel('João', 3, 'en')], ['Salmo 23', 'Capítulo 3', 'Psalm 23', 'Chapter 3'])
+check('B3: botão da barra', [markButton(false).label, markButton(true).label], ['Marcar como lido', 'Lido · desmarcar'])
+check('B3: versículo no topo — o primeiro que ainda não saiu por cima', [topVisibleVerse([{ verse: 1, bottom: 40 }, { verse: 2, bottom: 90 }, { verse: 3, bottom: 160 }], 80), topVisibleVerse([{ verse: 1, bottom: 40 }], 0), topVisibleVerse([{ verse: 1, bottom: 40 }], 80), topVisibleVerse([], 0)], [2, 1, null, null])
+
+// ── B4: capítulo marcado ────────────────────────────────────────────────
+// A conta do quadro: 50 capítulos lidos, Salmos 6 de 150; marca o Salmo 23.
+const antes = setOf({ 'Gênesis': 40, Salmos: 6, Jonas: 4 })
+const depois = new Set(antes).add('Salmos:23')
+const cartao = markedCard({ nome: 'Salmos', chapter: 23, progress: computeBibleProgress(depois) })
+check('B4: título e linha fixa', [cartao.title, cartao.sub], ['Salmos 23 lido', 'Leitura livre · não mexe no seu plano'])
+check('B4: três números do quadro', cartao.numbers, [{ value: '7 de 150', caption: 'em Salmos' }, { value: '51', caption: 'capítulos na Bíblia' }, { value: 'faltam 99', caption: 'para "Um saltério"' }])
+check('B4: "Seguir para Salmos 24"', cartao.next, { chapter: 24, label: 'Seguir para Salmos 24' })
+check('B4: anúncio pra leitor de tela', cartao.aria, 'Salmos 23 lido. 7 de 150 em Salmos, 51 capítulos na Bíblia, faltam 99 para "Um saltério".')
+check('B4: próximo degrau de Leitura', [nextLeituraStep(0), nextLeituraStep(9), nextLeituraStep(10), nextLeituraStep(1188), nextLeituraStep(1189)], [{ nome: 'Dez capítulos', faltam: 10 }, { nome: 'Dez capítulos', faltam: 1 }, { nome: 'Cinquenta capítulos', faltam: 40 }, { nome: 'A Bíblia inteira', faltam: 1 }, null])
+// Gênesis 47 de 50: a 3 capítulos do selo, o terceiro número vira o selo.
+const gen47 = computeBibleProgress(setOf({ 'Gênesis': 47 }))
+check('B4: a 3 capítulos ou menos, o terceiro vira o selo do livro', markedCard({ nome: 'Gênesis', chapter: 47, progress: gen47 }).numbers[2], { value: 'faltam 3', caption: 'para o selo de Gênesis' })
+check('B4: a 4 capítulos, ainda é a conquista', markedCard({ nome: 'Gênesis', chapter: 46, progress: computeBibleProgress(setOf({ 'Gênesis': 46 })) }).numbers[2], { value: 'faltam 4', caption: 'para "Cinquenta capítulos"' })
+check('B4: singular — "falta 1"', [markedCard({ nome: 'Gênesis', chapter: 49, progress: computeBibleProgress(setOf({ 'Gênesis': 49 })) }).numbers[2], markedCard({ nome: 'Gênesis', chapter: 9, progress: computeBibleProgress(setOf({ 'Gênesis': 9 })) }).numbers[2]], [{ value: 'falta 1', caption: 'para o selo de Gênesis' }, { value: 'falta 1', caption: 'para "Dez capítulos"' }])
+check('B4: um capítulo só na Bíblia — "capítulo na Bíblia"', markedCard({ nome: 'Gênesis', chapter: 1, progress: computeBibleProgress(setOf({ 'Gênesis': 1 })) }).numbers[1], { value: '1', caption: 'capítulo na Bíblia' })
+// Último capítulo marcado com outros ainda por ler: cartão sem "Seguir para".
+const rute4 = new Set(['Rute:1', 'Rute:4'])
+check('B4: no último capítulo não há botão de seguir', markedCard({ nome: 'Rute', chapter: 4, progress: computeBibleProgress(rute4) }).next, null)
+check('B4: nome exibido (idioma da conta) nos textos', [markedCard({ nome: 'Salmos', displayName: 'Psalms', chapter: 23, progress: computeBibleProgress(depois) }).title, markedCard({ nome: 'Salmos', displayName: 'Psalms', chapter: 23, progress: computeBibleProgress(depois) }).numbers[0].caption], ['Psalms 23 lido', 'em Psalms'])
+
+// B4 ou parabéns?
+check('marcar um capítulo qualquer: cartão', markOutcome({ nome: 'Salmos', chapter: 23, completedSet: antes }), 'card')
+check('capítulo que completa o livro: parabéns', markOutcome({ nome: 'Rute', chapter: 4, completedSet: setOf({ Rute: 3 }) }), 'celebration')
+check('último capítulo, mas o livro não fecha: cartão', markOutcome({ nome: 'Rute', chapter: 4, completedSet: new Set(['Rute:1']) }), 'card')
+check('capítulo que sobe um degrau de Leitura (10º capítulo): parabéns', markOutcome({ nome: 'Gênesis', chapter: 10, completedSet: setOf({ 'Gênesis': 9 }) }), 'celebration')
+check('o 50º capítulo: parabéns', markOutcome({ nome: 'Salmos', chapter: 7, completedSet: setOf({ 'Gênesis': 40, Salmos: 6, Jonas: 3 }) }), 'celebration')
+check('degrau já ganho antes (desmarcou e marcou de novo): cartão', markOutcome({ nome: 'Gênesis', chapter: 10, completedSet: setOf({ 'Gênesis': 9 }), earnedIds: new Set(['leitura:1']) }), 'card')
+check('livro que já tem selo (desmarcou e marcou de novo): cartão', markOutcome({ nome: 'Rute', chapter: 4, completedSet: setOf({ Rute: 3 }), sealedBooks: new Set(['Rute']), earnedIds: new Set() }), 'card')
+// Lei: os cinco livros menos o último capítulo de Deuteronômio.
+const quaseLei = setOf({ 'Gênesis': 50, 'Êxodo': 40, 'Levítico': 27, 'Números': 36, 'Deuteronômio': 33 })
+check('capítulo que completa o bloco: parabéns', markOutcome({ nome: 'Deuteronômio', chapter: 34, completedSet: quaseLei, sealedBooks: new Set(), earnedIds: new Set() }), 'celebration')
+check('bloco fecha com livro que já tinha selo: ainda parabéns (o bloco é novo)', markOutcome({ nome: 'Deuteronômio', chapter: 34, completedSet: quaseLei, sealedBooks: new Set(['Deuteronômio']), earnedIds: new Set() }), 'celebration')
+check('bloco e livro já ganhos: cartão', markOutcome({ nome: 'Deuteronômio', chapter: 34, completedSet: quaseLei, sealedBooks: new Set(['Deuteronômio']), earnedIds: new Set(['bloco:lei']) }), 'card')
+check('capítulo que já estava lido: cartão (nada novo)', markOutcome({ nome: 'Salmos', chapter: 1, completedSet: antes }), 'card')
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes da aba Bíblia (parte pura) passaram.')

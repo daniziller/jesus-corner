@@ -6,7 +6,8 @@
 // palavras. Testes em scripts/test-biblia.mjs.
 import { GAMIFICATION_BLOCKS, BIBLE_BOOKS_TOTAL, bookInfo, blockById } from '../data/gamificationBlocks.js'
 import { sealState, readingSecondsOf, countBookNotes } from '../gamification/sealDetails.js'
-import { nextUnreadChapter } from '../gamification/bibleProgressMath.js'
+import { nextUnreadChapter, computeBibleProgress } from '../gamification/bibleProgressMath.js'
+import { FAMILIES, familyAchievementId, blockAchievementId } from '../data/achievements.js'
 import { formatInt, formatPct, deOf, formatDuration, dayMonthLong } from '../gamification/format.js'
 import { originOf } from '../bible/chapterOrigin.js'
 import { dateKey, parseLocalDateKey } from '../utils/dateKey.js'
@@ -218,3 +219,93 @@ export function bookActions(nome, p) {
     { key: 'plan', title: 'Começar meu plano aqui', sub: `Faz de ${nome} o ponto de partida` },
   ]
 }
+
+// ── B3: lendo (HANDOFF §4) ──────────────────────────────────────────────
+
+// O fio de progresso do livro: quanto dele está lido e a frase à direita.
+// "· leitura livre" só entra na leitura livre — e sai enquanto o cartão
+// de capítulo marcado (B4) está na tela, que já diz isso.
+export function readingThread(p, { free = false } = {}) {
+  return {
+    ratio: p.total > 0 ? p.lidos / p.total : 0,
+    text: `${deOf(p.lidos, p.total)} ${p.lidos === 1 ? 'lido' : 'lidos'}${free ? ' · leitura livre' : ''}`,
+  }
+}
+
+// Rótulo do capítulo em cima do texto: "Salmo 23" no livro de Salmos,
+// "Capítulo 3" nos outros (vira maiúscula por CSS).
+export function chapterLabel(nome, chapter, lang = 'pt') {
+  const word = nome === 'Salmos' ? (lang === 'en' ? 'Psalm' : 'Salmo') : (lang === 'en' ? 'Chapter' : 'Capítulo')
+  return `${word} ${chapter}`
+}
+
+// O botão da barra inferior da leitura livre.
+export function markButton(done) {
+  return done ? { done: true, label: 'Lido · desmarcar' } : { done: false, label: 'Marcar como lido' }
+}
+
+// O versículo que está no topo da área de leitura — `items` são os
+// versículos na ordem do texto, cada um com o `bottom` da sua caixa;
+// `edge` é onde a área visível começa (logo abaixo do cabeçalho). É o
+// primeiro que ainda não saiu por cima; nulo sem versículo nenhum.
+export function topVisibleVerse(items, edge) {
+  const hit = (items ?? []).find(it => it.bottom > edge)
+  return hit ? hit.verse : null
+}
+
+// ── B4: capítulo marcado (HANDOFF §5) ───────────────────────────────────
+
+// O próximo degrau da família Leitura para quem tem `lidos` capítulos.
+export function nextLeituraStep(lidos) {
+  const d = FAMILIES.find(f => f.id === 'leitura').degraus.find(x => x.limiar > lidos)
+  return d ? { nome: d.nome, faltam: d.limiar - lidos } : null
+}
+
+const faltamValue = k => (k === 1 ? 'falta 1' : `faltam ${formatInt(k)}`)
+
+// O cartão que entra no lugar da barra quando o capítulo é marcado.
+// `progress` já é o de DEPOIS da marcação. O terceiro número aponta o
+// próximo degrau de Leitura — ou o selo do livro, quando faltam 3
+// capítulos ou menos pra ele. No último capítulo não há "Seguir para".
+export function markedCard({ nome, displayName = nome, chapter, progress }) {
+  const p = progress.porLivro[nome]
+  const numbers = [
+    { value: deOf(p.lidos, p.total), caption: `em ${displayName}` },
+    { value: formatInt(progress.capitulosLidos), caption: progress.capitulosLidos === 1 ? 'capítulo na Bíblia' : 'capítulos na Bíblia' },
+  ]
+  const seal = p.faltam > 0 ? { value: faltamValue(p.faltam), caption: `para o selo de ${displayName}` } : null
+  const step = nextLeituraStep(progress.capitulosLidos)
+  const third = seal && p.faltam <= 3 ? seal : step ? { value: faltamValue(step.faltam), caption: `para "${step.nome}"` } : seal
+  if (third) numbers.push(third)
+  const title = `${displayName} ${chapter} lido`
+  return {
+    title,
+    sub: 'Leitura livre · não mexe no seu plano',
+    numbers,
+    next: chapter < p.total ? { chapter: chapter + 1, label: `Seguir para ${displayName} ${chapter + 1}` } : null,
+    aria: `${title}. ${numbers.map(n => `${n.value} ${n.caption}`).join(', ')}.`,
+  }
+}
+
+// Marcar este capítulo abre o cartão (B4) ou a tela de parabéns? Parabéns
+// quando a marcação completa o livro, completa um bloco ou sobe um degrau
+// de Leitura — e só se isso ainda não foi ganho antes (`sealedBooks`:
+// livros que já têm selo; `earnedIds`: conquistas já gravadas; quem
+// desmarca e marca de novo não ganha duas vezes). As outras famílias
+// (constância, tempo) dependem de dados da conta e seguem pelo caminho de
+// sempre: aparecem ao voltar pro Hoje.
+export function markOutcome({ nome, chapter, completedSet, earnedIds = null, sealedBooks = null }) {
+  const key = `${nome}:${chapter}`
+  if (completedSet.has(key)) return 'card'
+  const before = computeBibleProgress(completedSet)
+  const after = computeBibleProgress(new Set(completedSet).add(key))
+  if (after.porLivro[nome].completo && !sealedBooks?.has(nome)) return 'celebration'
+  const blocoId = bookInfo(nome).blocoId
+  const wasComplete = before.porBloco.find(b => b.id === blocoId).completo
+  if (!wasComplete && after.porBloco.find(b => b.id === blocoId).completo && !earnedIds?.has(blockAchievementId(blocoId))) return 'celebration'
+  for (const d of FAMILIES.find(f => f.id === 'leitura').degraus) {
+    if (before.capitulosLidos < d.limiar && after.capitulosLidos >= d.limiar && !earnedIds?.has(familyAchievementId('leitura', d.degrau))) return 'celebration'
+  }
+  return 'card'
+}
+
