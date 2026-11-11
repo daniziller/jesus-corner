@@ -11,6 +11,8 @@
 //
 // Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista|estante|selo|livroCompleto|meuPlano
 //      Meu Plano (handoff-meu-plano-47): &plano=p1|p2|p1i|p3|p4|um|quatro · tela=seuPlano · tela=ajustar&abrir=reading (Mudar meus dias)
+//      Hoje (handoff-hoje-50): os mesmos &plano= valem pro cartão do plano (p1 no meio · p2 nada feito ·
+//      p1i interrompido · p3 tudo feito · p4 descanso · um · quatro · p5 dia de estudo) + semplano · erro · carregando
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
@@ -22,6 +24,8 @@ import HomeScreen from '../src/screens/HomeScreen'
 import CartaoBiblia from '../src/components/hoje/CartaoBiblia'
 import QuadradosCaminhada from '../src/components/hoje/QuadradosCaminhada'
 import { computeBibleProgress } from '../src/gamification/bibleProgressMath'
+import CartaoPlano from '../src/components/hoje/CartaoPlano'
+import { buildPlanCard } from '../src/hoje/hojeMath'
 import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
@@ -91,7 +95,10 @@ function seedGuestTables(estado) {
   const semHoje = all.map((_, i) => i !== todayIdx)
   const planoState = params.get('plano') ?? 'p1'
   const soHoje = all.map((_, i) => i === todayIdx)
-  const stepDays = planoState === 'p4'
+  const nenhumDia = [false, false, false, false, false, false, false]
+  const stepDays = planoState === 'semplano'
+    ? { prayer: nenhumDia, reading: nenhumDia, study: nenhumDia, reflection: nenhumDia }
+    : planoState === 'p4'
     ? { prayer: semHoje, reading: semHoje, study: [false, false, false, false, false, false, false], reflection: semHoje }
     : planoState === 'p5'
       ? { prayer: all, reading: semHoje, study: soHoje.map((v, i) => v || i === (todayIdx + 2) % 7 || i === (todayIdx + 4) % 7), reflection: all }
@@ -188,6 +195,15 @@ function Preview() {
     body = gamiData ? <NovaConquistaScreen celebration={{ kind: celebId.startsWith('bloco:') ? 'bloco' : 'degrau', id: celebId }} data={gamiData} userName="Diego" onContinue={() => setScreen('hoje')} onOpenConquistas={() => setScreen('conquistas')} /> : null
   } else if (screen === 'suaBiblia') {
     body = <SuaBibliaScreen {...common} onBack={() => setScreen('hoje')} onOpenBook={nome => alert(`abrir ${nome} na Bíblia`)} />
+  } else if (planoState === 'erro' || planoState === 'carregando') {
+    // Cartão do plano sem os dias do plano: ainda carregando, ou a busca
+    // falhou (os dados locais do preview nunca falham, então monta aqui).
+    const card = buildPlanCard({ loadError: planoState === 'erro', stepDays: null, routineModules: session.routineModules, state: null, ctx: {}, nextWeekdayIdx: null })
+    body = (
+      <div style={{ background: 'var(--bento-bg)', height: '100%', padding: '14px 20px', boxSizing: 'border-box' }}>
+        <CartaoPlano card={card} onAction={a => alert(`ação: ${a}`)} />
+      </div>
+    )
   } else if (estado === 'carregando') {
     // Hoje carregando (handoff-hoje-50 §8): os dados locais do preview
     // chegam na hora, então o esqueleto da caminhada é montado aqui com os
@@ -207,7 +223,8 @@ function Preview() {
     body = (
       <HomeScreen
         {...common} stepMinutes={{ prayer: 10, reading: 15, reflection: 8 }} weeklySummaries={[]}
-        onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}} onSaveStepMinutes={() => {}}
+        onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}}
+        onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')}
         onOpenWeeklySummary={() => {}} onOpenBiblePassage={() => {}} onOpenSermonNote={() => {}}
         applicationRefreshKey={0}
         onOpenSuaBiblia={() => setScreen('suaBiblia')} onOpenEstante={() => setScreen('estante')}

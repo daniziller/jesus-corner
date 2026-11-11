@@ -24,36 +24,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import { t as translate } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import TimePerStepSheet from '../components/TimePerStepSheet'
-import { DEFAULT_ROUTINE_MODULES, mondayOf } from '../routine/routineStreak'
-import { WEEKDAY_FULL } from '../routine/weeklyDaysMath'
+import { mondayOf } from '../routine/routineStreak'
 import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
 import { getActiveGroupChallenge, getMyGroupChallengeProgress, markGroupChallengeDayDone } from '../groups/groupChallengesStore'
-import { getHomeVerse, getContinuityExcerpt } from '../home/homeVerseStore'
+import { getHomeVerse } from '../home/homeVerseStore'
 import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { saveHighlight } from '../highlights/highlightsStore'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors'
 import { dateKey, parseLocalDateKey } from '../utils/dateKey'
-import { getStepDays, stepsScheduledForWeekday } from '../routine/stepDaysStore'
-import { STEP_ORDER } from '../routine/planTodayRows'
+import { getStepDays } from '../routine/stepDaysStore'
 import { getPrayerMethod } from '../prayer/prayerMethodStore'
 import { getReflectionMethod } from '../reflection/reflectionMethodStore'
-import { nextScheduledWeekday, pendingMakeupWeekdays } from '../routine/stepDaysStore'
-import { STUDIES } from '../data/studies'
-import { getAiStudies } from '../studies/aiStudiesStore'
-import { getInductiveStudies } from '../studies/inductiveStudiesStore'
-import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
+import { computeMeuPlano, resolveMinutes, tomorrowCard } from '../meuPlano/meuPlanoMath'
+import { loadActiveStudy } from '../meuPlano/activeStudy'
+import CartaoPlano from '../components/hoje/CartaoPlano'
 import CartaoBiblia from '../components/hoje/CartaoBiblia'
 import QuadradosCaminhada from '../components/hoje/QuadradosCaminhada'
 import { computeBibleProgress } from '../gamification/bibleProgressMath'
 import { bookInfo } from '../data/gamificationBlocks'
 import { loadGamificationStats } from '../gamification/evaluate'
 import { recentSeals } from '../gamification/sealDetails'
-import { bibleFinishedIso } from '../hoje/hojeMath'
+import { bibleFinishedIso, buildPlanCard } from '../hoje/hojeMath'
 
-function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
 // "Terça, 2 de setembro" / "Tuesday, September 2" — mesmo formato de
 // sempre (3c), a base da linha "{dia da semana}, {D} de {mês} · {tipo do
@@ -80,18 +74,17 @@ function weekdayIndexMonday(date) {
 
 export default function HomeScreen({
   session, authUser, completedSet, stepMinutes,
-  onContinueSession, onNavigate, onOpenProfile,
-  onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
+  onStartGuided, onNavigate, onOpenProfile,
+  onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
   applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, gamification,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
-    routineModules, plan, todayRoutine, dailyRoutine,
+    routineModules, plan, dailyRoutine, currentBlock, hasNoPlan,
     lastReadPosition, biblePercent, activeStudyId,
     chaptersRead, booksCompleted,
   } = session
   const L = (k, vars) => translate(`home.${k}`, vars, lang)
-  const R = (k, vars) => translate(`routine.${k}`, vars, lang) // metas de passo compartilhadas com Meu Plano
   const email = authUser?.email
 
   // ── Dados que só existem via I/O (rede/Supabase) — um flag de
@@ -104,8 +97,6 @@ export default function HomeScreen({
   const [weekAppStatus, setWeekAppStatus] = useState({ total: 0, fulfilled: 0 })
   const [messagesSummary, setMessagesSummary] = useState([])
   const [verse, setVerse] = useState(null)
-  const [continuityExcerpt, setContinuityExcerpt] = useState(null)
-  const [timeSheetOpen, setTimeSheetOpen] = useState(false)
   const [verseSaved, setVerseSaved] = useState(false)
   const [sharingVerse, setSharingVerse] = useState(false)
 
@@ -129,12 +120,16 @@ export default function HomeScreen({
 
   // Bug real (varredura geral, 2026-09-19): `.catch(() => {})` deixava
   // `stepDays` em `null` pra sempre se a busca falhasse de verdade (não só
-  // "ainda carregando") — `todaysSteps` cai pra `[]` nesse caso (linha
-  // abaixo), e o card "Seu plano de hoje" mostra "Dia off" pra sessão
+  // "ainda carregando") e o cartão do plano mostrava descanso pra sessão
   // inteira, indistinguível de um dia sem nenhum passo agendado mesmo.
+  // Hoje o erro tem estado próprio no cartão, com "Tentar novamente".
   const [stepDaysLoadError, setStepDaysLoadError] = useState(false)
-  useEffect(() => {
+  function loadStepDays() {
+    setStepDaysLoadError(false)
     getStepDays().then(setStepDaysState).catch(err => { console.error('Failed to load step days', err); setStepDaysLoadError(true) })
+  }
+  useEffect(() => {
+    loadStepDays()
     setPrayerMethodState(getPrayerMethod())
     setReflectionMethodState(getReflectionMethod())
   }, [])
@@ -176,29 +171,11 @@ export default function HomeScreen({
     }
   }
 
+  // Estudo ativo — a mesma carga do Meu Plano (título, dia atual).
   useEffect(() => {
-    if (!activeStudyId) { setActiveStudy(null); return }
-    // Bug real (varredura geral, 2026-09-19): faltava o mesmo guard
-    // `cancelled`/`alive` que os efeitos vizinhos (groupChallenge acima,
-    // o efeito principal da tela) já usam — trocar de estudo ativo
-    // rapidamente podia deixar uma resposta ANTIGA (de um activeStudyId
-    // anterior) resolver depois da mais nova e sobrescrever o card com o
-    // estudo errado.
-    let cancelled = false
-    Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
-      if (cancelled) return
-      const study = [...STUDIES, ...ai, ...inductive].find(s => s.id === activeStudyId)
-      if (!study) return
-      const total = study.sessions?.length ?? 0
-      const done = (study.sessions ?? []).filter(s => isStudySessionDone(doneSet, study.id, s.id)).length
-      const current = (study.sessions ?? [])[Math.min(done, total - 1)]
-      setActiveStudy({
-        title: study.title ?? study.titleEn ?? '',
-        passage: current ? (lang === 'en' ? (current.passageEn ?? current.passage) : current.passage) : '',
-        dayDone: done, dayTotal: total,
-      })
-    }).catch(() => {})
-    return () => { cancelled = true }
+    let alive = true
+    loadActiveStudy(activeStudyId, lang).then(st => { if (alive) setActiveStudy(st) }).catch(() => {})
+    return () => { alive = false }
   }, [activeStudyId, lang])
 
   // `applicationRefreshKey` (bug real, 2026-09-14, reportado por ela: "salvei
@@ -227,19 +204,17 @@ export default function HomeScreen({
       getWeekApplicationStatus(email),
       getGroupMessagesSummary(),
       chapterForVerse ? getHomeVerse({ ...chapterForVerse, lang }) : Promise.resolve(null),
-      lastReadPosition ? getContinuityExcerpt(lastReadPosition.book, lastReadPosition.chapter, lang) : Promise.resolve(null),
-    ]).then(([pinned, weekStatus, msgSummary, homeVerse, excerpt]) => {
+    ]).then(([pinned, weekStatus, msgSummary, homeVerse]) => {
       if (!alive) return
       if (pinned.status === 'fulfilled') setPinnedEntry(pinned.value)
       if (weekStatus.status === 'fulfilled') setWeekAppStatus(weekStatus.value)
       if (msgSummary.status === 'fulfilled') setMessagesSummary(msgSummary.value)
       if (homeVerse.status === 'fulfilled') setVerse(homeVerse.value)
-      if (excerpt.status === 'fulfilled') setContinuityExcerpt(excerpt.value)
       setLoading(false)
     })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, todaySession.book, todaySession.chStart, lastReadPosition?.book, lastReadPosition?.chapter, lang, applicationRefreshKey])
+  }, [email, todaySession.book, todaySession.chStart, lang, applicationRefreshKey])
 
   const verseData = verse ?? { text: '', ref: '', version: null }
   const dateLabel = formatToday(lang)
@@ -296,188 +271,38 @@ export default function HomeScreen({
     onOpenBiblePassage?.(verseData.bookPt, verseData.chapter)
   }
 
-  // ── Bloco 2 — SEU PLANO DE HOJE ──
-  const minutesFor = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
   const todayKeyStr = dateKey()
   const mondayKeyStr = dateKey(mondayOf(new Date()))
+
+  // ── Bloco 2 — SEU PLANO DE HOJE (handoff-hoje-50 §4) ──
+  // Os passos de hoje e o estado de cada um saem do MESMO computeMeuPlano
+  // do Meu Plano (mesmos dias por passo, mesmos minutos, mesma entrada de
+  // hoje) — o Hoje nunca discorda da aba Meu Plano sobre o que é hoje.
+  // buildPlanCard só escolhe as palavras do cartão.
   const todayWeekdayIdx = weekdayIndexMonday(new Date())
-  // 2026-09-09 — tela branca real em produção (2ª vez, mesma classe de
-  // bug de continuityLine acima): `weekdayFull` era declarada só perto
-  // do "Bloco 5" (~180 linhas abaixo), mas `nextWeekdayLabel` (função
-  // hoisted, ok) já era CHAMADA dentro de planSubtitleText bem antes —
-  // `ReferenceError: Cannot access 'weekdayFull' before initialization`
-  // de verdade. Passou a disparar de verdade com o modo "substitui" do
-  // turno 41 (Estudo tira a Leitura do dia — activeStepsToday.includes
-  // ('reading') && !readingToday vira um caminho comum), mas o bug já
-  // existia antes disso (mesma condição também batia sem "substitui",
-  // com Leitura e Estudo em dias diferentes há muito tempo) — só não
-  // tinha sido pego ainda.
-  const weekdayFull = WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt
-
-  // 2026-09-08 — "Seu plano de hoje" passa a usar o MESMO modelo de dias
-  // por passo de Meu Plano (stepDays), em vez do STEPS fixo
-  // [oração,leitura,reflexão] antigo (que não sabia de Estudo nem de dias
-  // por passo, e usava um weeklyDays só pra "descanso"). Trilhas
-  // independentes (handoff-app-completo, 34b/34c venceram sobre a
-  // substituição antiga): Leitura e Estudo têm dias próprios e podem cair
-  // no mesmo dia. `activeStepsToday` segue só o toggle (routineModules) —
-  // achado dela (2026-09-09): "study" chegou a contar como ativo com o
-  // toggle desligado, contanto que houvesse um `activeStudyId` — mesmo bug
-  // de RoutineScreen.jsx, mesma correção (toggle desligado = passo pausado,
-  // sem exceção; `activeStudyId` só decide o CONTEÚDO do passo quando ele
-  // já está ligado pelo toggle).
-  const routineModulesSet = new Set(routineModules ?? DEFAULT_ROUTINE_MODULES)
-  const activeStepsToday = STEP_ORDER.filter(k => routineModulesSet.has(k))
-  const todaysSteps = stepDays ? stepsScheduledForWeekday(stepDays, activeStepsToday, todayWeekdayIdx) : []
-
-  const stepMinutesAll = {
-    prayer: minutesFor.prayer, reading: minutesFor.reading,
-    study: stepMinutes?.study ?? 15, reflection: minutesFor.reflection,
-  }
-  function minutesForStep(key) { return stepMinutesAll[key] }
-  const totalPlanMin = todaysSteps.reduce((sum, k) => sum + (minutesForStep(k) || 0), 0)
-  const currentKey = todaysSteps.find(k => !todayRoutine[k]) ?? null
-  const allDoneToday = todaysSteps.length > 0 && !currentKey
-
-  const planState = stepDaysLoadError ? 'loadError' : session.hasNoPlan ? 'noPlan' : todaysSteps.length === 0 ? 'dayOff' : 'normal'
-
-  const stepTitle = k => translate(`home.routine${cap(k)}`, undefined, lang)
-
-  // Reposição (pedido dela, 2026-09-12, com o ajuste do mesmo dia: "não
-  // repor só a leitura, repor todos os passos do dia") — checa CADA passo
-  // ativo de folga hoje, não só Leitura. Card/tiles continuam só um
-  // resumo/aviso aqui; a ação de repor de verdade (cada passo tem sua
-  // própria tela) mora em Meu Plano (RoutineScreen.jsx, PR #168), que já
-  // sabe fazer isso por passo — daí o CTA de reposição navegar pra lá em
-  // vez de repetir a ação aqui.
-  const makeupWeekdaysByStep = {}
-  for (const k of activeStepsToday) {
-    if (!stepDays || todaysSteps.includes(k)) continue
-    const pending = pendingMakeupWeekdays(stepDays[k], dailyRoutine, k, new Date())
-    if (pending.length > 0) makeupWeekdaysByStep[k] = pending
-  }
-  const makeupStepsToday = Object.keys(makeupWeekdaysByStep)
-  const hasMakeupToday = makeupStepsToday.length > 0
-  // Dia mais antigo perdido entre TODOS os passos de folga — nomeia o
-  // card de "Dia off" quando ele vira reposição (fila de cada passo já é
-  // FIFO, ver pendingMakeupWeekdays/stepDaysMath.js — [0] é sempre o mais
-  // antigo daquele passo; aqui pega o mais antigo entre todos os passos).
-  const earliestMakeupWeekdayIdx = hasMakeupToday
-    ? Math.min(...makeupStepsToday.map(k => makeupWeekdaysByStep[k][0]))
-    : null
-
-  function handleOnlyRead() {
-    if (todaySession.needsThemePick) { onNavigate?.('routine'); return }
-    onContinueSession?.()
-  }
-
-  // ── Bloco 2, quadro novo (34a/34b/34c) — título grande, subtítulo de
-  // continuidade e a grade de tiles (um por passo ATIVO, ligado ou
-  // "desligado hoje" — nenhum tile some, ver 34c). Só entra quando o dia
-  // NÃO está com a rotina inteira cumprida (esse estado mantém a lista
-  // antiga acima, sem quadro de referência próprio — ver comentário mais
-  // abaixo, junto do JSX).
-  const readingChapterLabel = todaySession.needsThemePick ? L('noPlanTitle') : todaySession.title
-  const readingToday = todaysSteps.includes('reading')
-  const studyToday = todaysSteps.includes('study')
-  const studyTitleDay = activeStudy ? `${activeStudy.title} · ${R('dayXofY', { n: activeStudy.dayDone + 1, total: activeStudy.dayTotal })}` : stepTitle('study')
-
-  const planTitleText = readingToday && studyToday
-    ? L('planTitleBoth', { chapter: readingChapterLabel })
-    : readingToday
-      ? readingChapterLabel
-      : studyToday
-        ? studyTitleDay
-        : (todaysSteps.length > 0 ? joinNames(todaysSteps.map(k => stepTitle(k))) : '')
-
-  // "Volta {dia}" — dia da semana em que um passo OFF hoje volta a cair,
-  // a partir de stepDays[passo] (ver nextScheduledWeekday, stepDaysMath.js).
-  function nextWeekdayLabel(key) {
-    const days = stepDays?.[key]
-    if (!days) return null
-    const idx = nextScheduledWeekday(days, todayWeekdayIdx)
-    return idx == null ? null : weekdayFull[idx]
-  }
-
-  // Continuidade — "Ontem às 6:48 você parou em: '...'" (só quando existe
-  // um último texto lido de verdade — sem isso, a linha simplesmente não
-  // aparece, nunca um texto inventado). O dia (Hoje/Ontem/dia da semana) é
-  // calculado a partir de readAt real, não fixado em "Ontem" — a cópia do
-  // handoff usa "Ontem" como exemplo mais comum, mas o dado é real.
-  //
-  // Precisa vir ANTES de planSubtitleText (acha aqui embaixo) — achado
-  // reparando o "tela branca" real em produção (2026-09-09):
-  // `continuityLine` era usada em planSubtitleText mais de 40 linhas antes
-  // de ser declarada nesta mesma função, um `ReferenceError: Cannot access
-  // 'continuityLine' before initialization` de verdade (TDZ de `const`),
-  // não um efeito de bundler/dependência circular — só derrubava quem já
-  // tinha sessão (Home só renderiza autenticado, por isso nunca aparecia
-  // testando sem login).
-  function continuityDayWord(readAtIso) {
-    const readDate = new Date(readAtIso)
-    const diffDays = Math.round((new Date(dateKey()) - new Date(dateKey(readDate))) / 86400000)
-    if (diffDays <= 0) return L('continuityToday')
-    if (diffDays === 1) return L('continuityYesterday')
-    return readDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { weekday: 'long' })
-  }
-  const continuityHour = lastReadPosition?.readAt
-    ? new Date(lastReadPosition.readAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'pt-BR', { hour: 'numeric', minute: '2-digit' })
-    : null
-  const continuityLine = (lastReadPosition && continuityHour)
-    ? L('continuityLine', { day: continuityDayWord(lastReadPosition.readAt), hour: continuityHour })
-      + (continuityExcerpt ? ' ' + L('continuityExcerpt', { text: continuityExcerpt }) : '')
-    : null
-
-  const planSubtitleText = readingToday
-    ? continuityLine
-    : (studyToday && activeStepsToday.includes('reading') && nextWeekdayLabel('reading'))
-      ? L('planSubtitleStudyOnly', { weekday: nextWeekdayLabel('reading'), ref: readingChapterLabel })
-      : null
-
-  // Detalhe (3ª linha) de cada tile — sempre presente (pedido dela,
-  // 2026-09-08: "sempre com a 3ª linha"), mesmo nos 3 tiles de 34a (o
-  // quadro de referência só não mostra por acaso, com todos os passos
-  // ligados hoje). Reflexão sempre "Três perguntas do dia" e Estudo
-  // sempre "{título} · dia N de M" — mesmo com estudo ativo mostrando
-  // passagem em 34c, ela escolheu padronizar no formato de 34b pros dois.
-  // Dia perdido a repor PARA ESSE PASSO especificamente (generalização do
-  // pedido dela, 2026-09-12 — "repor todos os passos do dia", não só
-  // Leitura) — null quando não há reposição pendente pra ele.
-  function makeupWeekdayFor(key) {
-    const pending = makeupWeekdaysByStep[key]
-    return pending ? weekdayFull[pending[0]] : null
-  }
-
-  function tileDetailFor(key, on) {
-    if (key === 'prayer') {
-      if (on) return prayerMethod === 'acts' ? L('tilePrayerActs') : L('tilePrayerFree')
-      const makeupWd = makeupWeekdayFor('prayer')
-      if (makeupWd) return L('tileReporWeekday', { weekday: makeupWd })
-      const wd = nextWeekdayLabel('prayer')
-      return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
-    }
-    if (key === 'reading') {
-      if (on) return `${readingChapterLabel} · ${L('tileBibleContinuous')}`
-      const makeupWd = makeupWeekdayFor('reading')
-      if (makeupWd) return L('tileReporWeekdayRef', { weekday: makeupWd, ref: readingChapterLabel })
-      const wd = nextWeekdayLabel('reading')
-      return wd ? L('tileVoltaWeekdayRef', { weekday: wd, ref: readingChapterLabel }) : null
-    }
-    if (key === 'study') {
-      if (on) return activeStudy ? studyTitleDay : null
-      const makeupWd = makeupWeekdayFor('study')
-      const wd = makeupWd ?? nextWeekdayLabel('study')
-      if (!wd) return null
-      const refKey = makeupWd ? 'tileReporWeekdayRef' : 'tileVoltaWeekdayRef'
-      const plainKey = makeupWd ? 'tileReporWeekday' : 'tileVoltaWeekday'
-      return activeStudy ? L(refKey, { weekday: wd, ref: activeStudy.title }) : L(plainKey, { weekday: wd })
-    }
-    // reflection
-    if (on) return L('tileReflectionOn')
-    const makeupWd = makeupWeekdayFor('reflection')
-    if (makeupWd) return L('tileReporWeekday', { weekday: makeupWd })
-    const wd = nextWeekdayLabel('reflection')
-    return wd ? L('tileVoltaWeekday', { weekday: wd }) : null
+  const planMinutes = useMemo(() => resolveMinutes(stepMinutes, plan), [stepMinutes, plan])
+  const planDayEntry = dailyRoutine?.[todayKeyStr]
+  const planState = useMemo(
+    () => (stepDays ? computeMeuPlano({ routineModules, stepDays, minutes: planMinutes, dayEntry: planDayEntry, todayIdx: todayWeekdayIdx }) : null),
+    [routineModules, stepDays, planMinutes, planDayEntry, todayWeekdayIdx],
+  )
+  const planCard = buildPlanCard({
+    loadError: stepDaysLoadError, stepDays, routineModules, state: planState,
+    ctx: {
+      prayerMethod, reflectionMethod, study: activeStudy,
+      readingPassage: !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${currentBlock.book} ${currentBlock.chapter}` : '',
+      readingDonePassage: lastReadPosition?.book && lastReadPosition?.chapter ? `${lastReadPosition.book} ${lastReadPosition.chapter}` : '',
+    },
+    nextWeekdayIdx: stepDays ? (tomorrowCard({ routineModules, stepDays, minutes: planMinutes, todayIdx: todayWeekdayIdx })?.weekdayIdx ?? null) : null,
+  })
+  // O botão do cartão: 'start' é a MESMA função do botão do Meu Plano
+  // (abre o passo de agora e emenda os seguintes); as outras só navegam.
+  function handlePlanAction(action) {
+    if (action === 'start') onStartGuided?.()
+    else if (action === 'plan') onNavigate?.('routine')
+    else if (action === 'read') onNavigate?.(hasNoPlan ? 'adjustPlan' : 'journey')
+    else if (action === 'adjust') onNavigate?.('adjustPlan')
+    else if (action === 'retry') loadStepDays()
   }
 
   // ── Bloco 4 — SUA APLICAÇÃO DE ONTEM ──
@@ -524,7 +349,6 @@ export default function HomeScreen({
   // ── Bloco 7 — SUA SEMANA (resumo) ──
   const latestSummary = (weeklySummaries ?? [])[0]
 
-  const initialStepMinutes = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
 
   // ── Bloco 1 — SUA CAMINHADA (handoff-hoje-50 §3) ──
   // A roda: só completedSet (síncrono, 1.189 consultas num Set) — nada de rede,
@@ -569,7 +393,6 @@ export default function HomeScreen({
   // espera por eles.
   const pendingBlocks = (
     <>
-      <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 210 }} />
       <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 130 }} />
       <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 110 }} />
       <div style={{ display: 'flex', gap: 10 }}>
@@ -606,6 +429,10 @@ export default function HomeScreen({
           onOpenMetrics={() => onNavigate?.('metrics')} onOpenEstante={onOpenEstante}
         />
 
+        {/* Bloco 2 — SEU PLANO DE HOJE (handoff-hoje-50 §4). Pinta assim que
+            os dias do plano chegam, sem esperar o resto da tela. */}
+        <CartaoPlano card={planCard} onOpenPlan={() => onNavigate?.('routine')} onAction={handlePlanAction} />
+
         {loading ? pendingBlocks : (<>
         {/* Desafio de leitura por IA do grupo (handoff-admin-42, 42n) —
             pedido dela (2026-09-13): fica ACIMA do plano de hoje, exceção
@@ -638,123 +465,6 @@ export default function HomeScreen({
             </div>
           </div>
         )}
-
-        {/* Bloco 2 — SEU PLANO DE HOJE (2026-09-08: passos com dias
-            próprios, mesmo modelo de Meu Plano — ver planTodayRows.js).
-            Concluído (2026-09-09, pedido dela): o card fica com as MESMAS
-            cores de sempre (nada de fundo/kicker próprios pro estado
-            "feito" — tirado o cinza-ardósia que tinha antes) e a MESMA
-            estrutura (título + grade de tiles), só troca o texto de cima
-            e acrescenta um check em cada tile já feito — ver isDone dentro
-            do .map() dos tiles, mais abaixo. */}
-        <div style={styles.planCard}>
-          <div style={styles.planHead}>
-            <p style={styles.planLabel}>
-              {planState === 'normal' && allDoneToday ? L('planDoneLabel') : L('planLabel')}
-            </p>
-            {planState === 'normal' && !allDoneToday && totalPlanMin > 0 && (
-              <button style={styles.planMin} onClick={() => setTimeSheetOpen(true)}>{L('minShort', { n: totalPlanMin })}</button>
-            )}
-          </div>
-
-          {planState === 'noPlan' && (
-            <>
-              <p style={styles.planTitle}>{L('noPlanTitle')}</p>
-              <button style={styles.startBtn} onClick={() => onNavigate?.('chooseStart')}>
-                <span style={styles.startBtnText}>{L('noPlanCta')}</span>
-                <span style={styles.startBtnArrow}>→</span>
-              </button>
-            </>
-          )}
-
-          {/* "Dia off" — nenhum passo do plano cai hoje (stepDays de todos
-              os passos ativos desmarcados pra hoje). "Adiantar" reaproveita
-              o mesmo onContinueSession de "Só ler": abre a próxima leitura
-              pendente de verdade, sem mexer nos dias configurados.
-              Reposição (pedido dela, 2026-09-12, ajustado no mesmo dia:
-              "não repor só a leitura, repor todos os passos do dia") — se
-              QUALQUER passo ativo tem um dia perdido em aberto (não só
-              Leitura), o card troca de "adiantar" pra "repor" e leva pra
-              Meu Plano em vez de abrir a leitura direto — só lá dá pra
-              repor cada passo de verdade (cada um tem sua própria tela). */}
-          {planState === 'dayOff' && (
-            <>
-              <p style={styles.planTitle}>{hasMakeupToday ? L('dayOffMakeupTitle', { weekday: weekdayFull[earliestMakeupWeekdayIdx] }) : L('dayOffTitle')}</p>
-              <p style={styles.continuityLine}>{hasMakeupToday ? L('dayOffMakeupSub', { weekday: weekdayFull[earliestMakeupWeekdayIdx] }) : L('dayOffSub')}</p>
-              <button style={{ ...styles.onlyReadBtn, width: '100%' }} onClick={hasMakeupToday ? () => onNavigate?.('routine') : handleOnlyRead}>
-                <span style={styles.onlyReadBtnText}>{hasMakeupToday ? L('dayOffMakeupCta') : L('dayOffCta')}</span>
-              </button>
-            </>
-          )}
-
-          {planState === 'loadError' && (
-            <>
-              <p style={styles.planTitle}>{L('planLoadErrorTitle')}</p>
-              <p style={styles.continuityLine}>{L('planLoadErrorSub')}</p>
-              <button
-                style={{ ...styles.onlyReadBtn, width: '100%' }}
-                onClick={() => { setStepDaysLoadError(false); getStepDays().then(setStepDaysState).catch(err => { console.error('Failed to load step days', err); setStepDaysLoadError(true) }) }}
-              >
-                <span style={styles.onlyReadBtnText}>{L('planLoadErrorRetry')}</span>
-              </button>
-            </>
-          )}
-
-          {/* Dia em andamento OU concluído (34a/34b/34c) — título grande
-              (capítulo, ou capítulo + estudo, ou estudo sozinho quando a
-              Leitura não cai hoje), subtítulo de continuidade, e a grade
-              de tiles: um por passo ATIVO, sempre 3 linhas, nunca some
-              (passo fora de hoje vira "dia off" + "Volta {dia}"). Um botão
-              só, "Ir para meu plano" — nenhum PNG mostra "Começar agora"/
-              "Só ler" mais. Concluído (2026-09-09, pedido dela): mesmo
-              card de sempre, só troca o texto de cima (ver planHead acima)
-              e cada tile já feito ganha um check no canto — nenhum PNG
-              desenha esse estado, mas ela decidiu que o card "quase igual"
-              é melhor que o desenho próprio (linhas + "capítulo extra"/
-              "ver no grupo") que existia aqui antes. */}
-          {planState === 'normal' && (
-            <>
-              <p style={styles.planTitle}>{planTitleText}</p>
-              {planSubtitleText && <p style={styles.continuityLine}>{planSubtitleText}</p>}
-
-              {/* README (fluxo de 34a): "quadros de tempo ► 35c Ajustar
-                  meu plano" — cada tile abre o ajuste de tempo/dias do
-                  passo, mesmo destino pros quatro. Exceção (pedido dela,
-                  2026-09-12): um tile com reposição pendente leva pra Meu
-                  Plano em vez do ajuste de horário — é lá que dá pra repor
-                  de verdade. */}
-              <div style={{ ...styles.tilesRow, ...(activeStepsToday.length >= 4 ? styles.tilesGrid4 : null) }}>
-                {activeStepsToday.map(k => {
-                  const on = todaysSteps.includes(k)
-                  const detail = tileDetailFor(k, on)
-                  const isDone = on && !!todayRoutine[k]
-                  const hasMakeup = !!makeupWeekdaysByStep[k]
-                  return (
-                    <button key={k} type="button" style={{ ...styles.tile, position: 'relative' }} onClick={() => onNavigate?.(hasMakeup ? 'routine' : 'adjustPlan')}>
-                      {isDone ? (
-                        <span style={styles.tileCheck}>
-                          <AppIcon name="Check" size={11} strokeWidth={3} color="var(--bento-ink)" />
-                        </span>
-                      ) : on && (
-                        <span style={styles.tileCirclePending} />
-                      )}
-                      <p style={styles.tileTop}>
-                        {on ? <>{minutesForStep(k)}<span style={styles.tileTopUnit}> min</span></> : L('tileDayOff')}
-                      </p>
-                      <p style={styles.tileStepName}>{stepTitle(k)}</p>
-                      {detail && <p style={styles.tileDetail}>{detail}</p>}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <button style={{ ...styles.startBtn, width: '100%' }} onClick={() => onNavigate?.('routine')}>
-                <span style={styles.startBtnText}>{L('goToMyPlan')}</span>
-                <span style={styles.startBtnArrow}>→</span>
-              </button>
-            </>
-          )}
-        </div>
 
         {/* Bloco 3 — VERSÍCULO DO DIA. */}
         <div style={styles.verseCard}>
@@ -881,15 +591,6 @@ export default function HomeScreen({
         </div>
         </>)}
       </div>
-
-      <TimePerStepSheet
-        open={timeSheetOpen}
-        onClose={() => setTimeSheetOpen(false)}
-        initialMinutes={initialStepMinutes}
-        completedSet={completedSet}
-        onSave={onSaveStepMinutes}
-        lang={lang}
-      />
     </div>
   )
 }
@@ -943,36 +644,6 @@ const styles = {
   challengeReadBtn: { flex: 1, height: 44, border: 'none', borderRadius: 14, background: 'var(--bento-ink)', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff', cursor: 'pointer' },
   challengeDoneBtn: { flex: 1, height: 44, border: 'none', borderRadius: 14, background: 'rgba(26,23,20,.12)', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   challengeDoneBtnOn: { background: 'rgba(26,23,20,.2)', cursor: 'default' },
-  planCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 20 },
-  planHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  planLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', margin: 0 },
-  planMin: { fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.42)', border: 'none', background: 'none', padding: 0, cursor: 'pointer' },
-  planTitle: { fontFamily: FONT, fontSize: 22, fontWeight: 800, lineHeight: 1.12, letterSpacing: '-.8px', color: '#fff', margin: '0 0 8px' },
-  continuityLine: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'rgba(255,255,255,.5)', margin: '0 0 16px' },
-
-  // Grade de tiles (34a/34b/34c) — uma linha só quando cabem ≤3 passos
-  // ativos (34a), 2×2 quando são 4 (34b/34c); nunca some um tile, o
-  // "desligado hoje" vira "dia off" no lugar do número. Plano concluído
-  // (2026-09-09): mesmo grid, cada tile já feito ganha o selinho
-  // `tileCheck` no canto — nenhuma outra mudança de cor/estrutura.
-  tilesRow: { display: 'flex', gap: 6, marginBottom: 16 },
-  tilesGrid4: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
-  tile: { flex: 1, minWidth: 0, borderRadius: 14, background: 'rgba(255,255,255,.08)', padding: '11px 12px', boxSizing: 'border-box', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: FONT },
-  tileTop: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.2, color: '#fff', margin: 0 },
-  tileTopUnit: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)' },
-  tileStepName: { fontFamily: FONT, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.02em', color: 'rgba(255,255,255,.55)', margin: '2px 0 0' },
-  tileDetail: { fontFamily: FONT, fontSize: 9.5, fontWeight: 500, lineHeight: 1.3, color: 'rgba(255,255,255,.4)', margin: '4px 0 0' },
-  tileCheck: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  // Círculo pontilhado cinza = passo agendado pra hoje mas ainda não
-  // concluído; vira o tileCheck (laranja) assim que é feito.
-  tileCirclePending: { position: 'absolute', top: 8, right: 8, width: 16, height: 16, borderRadius: '50%', border: '1.5px dashed rgba(255,255,255,.3)' },
-
-  startBtn: { flex: 1, height: 48, borderRadius: 16, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontFamily: FONT },
-  startBtnText: { fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
-  startBtnArrow: { fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', lineHeight: 1 },
-  onlyReadBtn: { height: 48, padding: '0 16px', borderRadius: 16, border: 'none', background: 'rgba(255,255,255,.08)', cursor: 'pointer', fontFamily: FONT },
-  onlyReadBtnText: { fontSize: 12.5, fontWeight: 700, color: '#fff' },
-
   // Bloco 3.
   verseCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 20px' },
   verseHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },

@@ -5,6 +5,9 @@
 // stores — testado em scripts/test-hoje.mjs.
 import { formatInt, formatPct, deOf, monthYearLong } from '../gamification/format.js'
 import { footerBook } from '../gamification/bibleProgressMath.js'
+import { STEP_ORDER, stepName, doneWord, stepsCountText, stepShortDetail } from '../meuPlano/meuPlanoMath.js'
+import { markedWeekdayUnion } from '../routine/stepDaysMath.js'
+import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
 
 // ── Bloco 1: Sua caminhada (HANDOFF §3) ─────────────────────────────────
 
@@ -54,4 +57,102 @@ export function sealsAria(completos, totalLivros) {
 const DOT_KIND = { leu: 'done', hoje: 'today', plano: 'upcoming' }
 export function dayDotKind(state) {
   return DOT_KIND[state] ?? 'off'
+}
+
+// ── Bloco 2: Seu plano de hoje (HANDOFF §4) ─────────────────────────────
+// Tudo aqui parte do estado que computeMeuPlano já devolve (os mesmos
+// passos de hoje, na mesma ordem, com o mesmo "feito") — o Hoje só escolhe
+// as palavras do seu cartão.
+
+// Em que estado o cartão está:
+//   'loading' — os dias do plano ainda não chegaram;
+//   'error'   — não deu pra carregar os dias (botão de tentar de novo);
+//   'noPlan'  — nenhum passo ligado tem dia marcado na semana;
+//   'rest'    — nada cai hoje;
+//   'before'  — nada feito; 'during' — no meio (ou passo aberto e
+//               interrompido, mesmo sem nenhum feito); 'done' — tudo feito.
+export function planCardKind({ loadError, stepDays, routineModules, state }) {
+  if (loadError) return 'error'
+  if (!stepDays || !state) return 'loading'
+  const active = STEP_ORDER.filter(k => (routineModules ?? []).includes(k))
+  if (!markedWeekdayUnion(stepDays, active).some(Boolean)) return 'noPlan'
+  if (state.kind === 'before' && state.now?.interrupted) return 'during'
+  return state.kind
+}
+
+// As duas linhas à direita do cabeçalho; null onde o quadro não as tem.
+export function planHeaderRight(kind, state) {
+  if (kind === 'before') return [`${state.total} ${state.total === 1 ? 'passo' : 'passos'}`, `${state.totalMinutes} min`]
+  if (kind === 'during') return [stepsCountText(state.doneCount, state.total), state.remainingMinutes === 1 ? 'falta 1 min' : `faltam ${state.remainingMinutes} min`]
+  if (kind === 'done') return ['Plano completo', `${state.totalMinutes} min`]
+  return null
+}
+
+// O botão do cartão. `primary` = o laranja (um só na tela); `action` diz
+// a quem chama o que fazer: 'start' abre o passo de agora e emenda os
+// seguintes (o mesmo do Meu Plano), 'plan' vai pra aba Meu Plano, 'read'
+// é a leitura livre, 'adjust' abre o Ajustar, 'retry' recarrega os dias.
+const PLAN_BUTTONS = {
+  before: { label: 'Começar meu plano', primary: true, arrow: true, action: 'start' },
+  during: { label: 'Continuar meu plano', primary: true, arrow: true, action: 'start' },
+  done: { label: 'Ver meu plano', primary: false, arrow: false, action: 'plan' },
+  rest: { label: 'Quero ler hoje mesmo assim', primary: false, arrow: false, action: 'read' },
+  noPlan: { label: 'Criar meu plano', primary: true, arrow: true, action: 'adjust' },
+  error: { label: 'Tentar novamente', primary: false, arrow: false, action: 'retry' },
+}
+export function planButton(kind) {
+  return PLAN_BUTTONS[kind] ?? null
+}
+
+// Título: a leitura de hoje ("Gênesis 42" — depois de feita, o que foi
+// lido); em dia de estudo, o nome do estudo; sem leitura nem estudo hoje,
+// o nome do primeiro passo.
+export function planTitle(kind, state, ctx) {
+  if (kind === 'rest') return 'Hoje é descanso'
+  if (kind === 'noPlan') return 'Monte seu plano'
+  if (kind === 'error') return 'Não foi possível carregar seu plano'
+  const reading = state.steps.find(s => s.key === 'reading')
+  if (reading) return (reading.status === 'done' ? ctx.readingDonePassage : null) || ctx.readingPassage || stepName('reading')
+  if (state.steps.some(s => s.key === 'study')) return ctx.study?.title || stepName('study')
+  return stepName(state.steps[0].key)
+}
+
+// A linha solta abaixo do título: "Volta quinta." no descanso (o próximo
+// dia com algo marcado) e a dica do erro de carregamento.
+export function planLine(kind, nextWeekdayIdx) {
+  if (kind === 'rest') return nextWeekdayIdx == null ? null : `Volta ${WEEKDAY_FULL.pt[nextWeekdayIdx]}.`
+  if (kind === 'error') return 'Verifique sua conexão e tente de novo.'
+  return null
+}
+
+// As linhas da lista: só os passos de hoje. `right` = "{n} min" a fazer,
+// "feita"/"feito" concordando com o passo; `aria` = nome, minutos e
+// feito/a fazer.
+export function planSteps(state, ctx) {
+  return state.steps.map(step => {
+    const done = step.status === 'done'
+    const detailCtx = step.key === 'reading' && done && ctx.readingDonePassage ? { ...ctx, readingPassage: ctx.readingDonePassage } : ctx
+    const name = stepName(step.key)
+    return {
+      key: step.key, name, done,
+      detail: stepShortDetail(step.key, detailCtx),
+      right: done ? doneWord(step.key) : `${step.minutes} min`,
+      aria: `${name}, ${step.minutes} ${step.minutes === 1 ? 'minuto' : 'minutos'}, ${done ? doneWord(step.key) : 'a fazer'}`,
+    }
+  })
+}
+
+// O cartão inteiro, pronto pra desenhar.
+export function buildPlanCard({ loadError, stepDays, routineModules, state, ctx, nextWeekdayIdx }) {
+  const kind = planCardKind({ loadError, stepDays, routineModules, state })
+  if (kind === 'loading') return { kind }
+  const withSteps = kind === 'before' || kind === 'during' || kind === 'done'
+  return {
+    kind,
+    title: planTitle(kind, state, ctx),
+    right: planHeaderRight(kind, state),
+    line: planLine(kind, nextWeekdayIdx),
+    steps: withSteps ? planSteps(state, ctx) : [],
+    button: planButton(kind),
+  }
 }

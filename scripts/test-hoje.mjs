@@ -4,7 +4,11 @@
 import { GAMIFICATION_BOOKS } from '../src/data/gamificationBlocks.js'
 import { computeBibleProgress, footerBook } from '../src/gamification/bibleProgressMath.js'
 import { recentSeals } from '../src/gamification/sealDetails.js'
-import { chaptersLine, bibleBookLine, bibleFinishedIso, bibleCardAria, weeksAria, daysAria, sealsAria, dayDotKind } from '../src/hoje/hojeMath.js'
+import { computeMeuPlano, stepShortDetail, tomorrowCard } from '../src/meuPlano/meuPlanoMath.js'
+import {
+  chaptersLine, bibleBookLine, bibleFinishedIso, bibleCardAria, weeksAria, daysAria, sealsAria, dayDotKind,
+  buildPlanCard, planCardKind,
+} from '../src/hoje/hojeMath.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -71,6 +75,78 @@ check('nenhum selo', recentSeals([], seals), [])
 check('livro completo ainda sem linha gravada entra como o mais novo', recentSeals(['Jonas', 'Filemom'], seals), ['Filemom', 'Jonas'])
 check('linha gravada de livro que deixou de estar completo não aparece', recentSeals(['Jonas'], seals), ['Jonas'])
 check('empate de data: ordem de entrada', recentSeals(['Rute', 'Jonas'], { Rute: { completedAt: 'x' }, Jonas: { completedAt: 'x' } }), ['Rute', 'Jonas'])
+
+// ── Cartão do plano (HANDOFF §4) ────────────────────────────────────────
+const ALL = ['prayer', 'reading', 'study', 'reflection']
+const TRES = ['prayer', 'reading', 'reflection']
+const todos = [true, true, true, true, true, true, true]
+const nenhum = [false, false, false, false, false, false, false]
+const stepDays = { prayer: todos, reading: todos, study: nenhum, reflection: todos }
+const minutes = { prayer: 10, reading: 15, study: 10, reflection: 8 }
+const TUE = 1
+const at = (h, m) => new Date(2026, 8, 2, h, m).toISOString()
+const ctx = { prayerMethod: 'acts', reflectionMethod: 'questions', readingPassage: 'Gênesis 42', readingDonePassage: 'Gênesis 42', study: null }
+function card(dayEntry, opts = {}) {
+  const sd = opts.stepDays ?? stepDays
+  const mods = opts.routineModules ?? TRES
+  const state = computeMeuPlano({ routineModules: mods, stepDays: sd, minutes: opts.minutes ?? minutes, dayEntry, todayIdx: TUE })
+  const next = tomorrowCard({ routineModules: mods, stepDays: sd, minutes, todayIdx: TUE })
+  return buildPlanCard({ loadError: false, stepDays: sd, routineModules: mods, state, ctx: opts.ctx ?? ctx, nextWeekdayIdx: next?.weekdayIdx ?? null })
+}
+
+const nada = card({})
+check('nada feito: estado, título e direita', [nada.kind, nada.title, nada.right], ['before', 'Gênesis 42', ['3 passos', '33 min']])
+check('nada feito: botão laranja "Começar meu plano"', nada.button, { label: 'Começar meu plano', primary: true, arrow: true, action: 'start' })
+check('nada feito: três linhas abertas, minutos à direita', nada.steps.map(s => [s.name, s.detail, s.done, s.right]), [['Oração', 'ACTS', false, '10 min'], ['Leitura', 'Gênesis 42', false, '15 min'], ['Reflexão', 'com perguntas', false, '8 min']])
+
+const meio = card({ prayer: true, prayerAt: at(6, 42) })
+check('no meio (H1): "1 de 3 passos" / "faltam 23 min"', [meio.kind, meio.right], ['during', ['1 de 3 passos', 'faltam 23 min']])
+check('no meio: "Continuar meu plano"', [meio.button.label, meio.button.primary, meio.button.action], ['Continuar meu plano', true, 'start'])
+check('no meio: oração "feita", as outras a fazer', meio.steps.map(s => [s.done, s.right]), [[true, 'feita'], [false, '15 min'], [false, '8 min']])
+check('cada passo anuncia nome, minutos e feito/a fazer', meio.steps.map(s => s.aria), ['Oração, 10 minutos, feita', 'Leitura, 15 minutos, a fazer', 'Reflexão, 8 minutos, a fazer'])
+
+const interrompido = card({ prayer: true, prayerAt: at(6, 42), readingProgress: { startedAt: at(7, 0), elapsedSeconds: 372 } })
+check('passo interrompido: igual ao meio, o passo continua aberto', [interrompido.kind, interrompido.right, interrompido.steps[1].done, interrompido.button.label], ['during', ['1 de 3 passos', 'faltam 23 min'], false, 'Continuar meu plano'])
+const interrompidoNoPrimeiro = card({ prayerProgress: { startedAt: at(6, 40), elapsedSeconds: 120 } })
+check('interrompido no primeiro passo: "0 de 3 passos" e "Continuar meu plano"', [interrompidoNoPrimeiro.kind, interrompidoNoPrimeiro.right[0], interrompidoNoPrimeiro.button.label], ['during', '0 de 3 passos', 'Continuar meu plano'])
+
+const tudo3 = card({ prayer: true, reading: true, reflection: true })
+check('tudo feito: "Plano completo" / soma, todos feitos', [tudo3.kind, tudo3.right, tudo3.steps.every(s => s.done)], ['done', ['Plano completo', '33 min'], true])
+check('tudo feito: botão secundário "Ver meu plano", sem seta', tudo3.button, { label: 'Ver meu plano', primary: false, arrow: false, action: 'plan' })
+
+const semHoje = todos.map((_, i) => i !== TUE)
+const descanso = card({}, { stepDays: { prayer: semHoje, reading: semHoje, study: nenhum, reflection: semHoje } })
+check('descanso: título, sem direita, sem lista, "Volta quarta."', [descanso.kind, descanso.title, descanso.right, descanso.steps, descanso.line], ['rest', 'Hoje é descanso', null, [], 'Volta quarta.'])
+check('descanso: botão secundário "Quero ler hoje mesmo assim"', [descanso.button.label, descanso.button.primary, descanso.button.action], ['Quero ler hoje mesmo assim', false, 'read'])
+const soSabado = [false, false, false, false, false, true, false]
+check('descanso: o próximo dia com algo, não só amanhã', card({}, { stepDays: { prayer: soSabado, reading: soSabado, study: nenhum, reflection: soSabado } }).line, 'Volta sábado.')
+
+const semPlano = card({}, { stepDays: { prayer: nenhum, reading: nenhum, study: nenhum, reflection: nenhum } })
+check('sem plano: nenhum dia marcado → "Monte seu plano" e "Criar meu plano" laranja → Ajustar', [semPlano.kind, semPlano.title, semPlano.button.label, semPlano.button.primary, semPlano.button.action, semPlano.right, semPlano.steps], ['noPlan', 'Monte seu plano', 'Criar meu plano', true, 'adjust', null, []])
+check('sem plano: dia marcado só em passo desligado também é sem plano', card({}, { routineModules: ['prayer'], stepDays: { prayer: nenhum, reading: todos, study: nenhum, reflection: nenhum } }).kind, 'noPlan')
+
+const um = card({}, { routineModules: ['prayer'] })
+check('um passo só: "1 passo" / "10 min", título = nome do passo', [um.kind, um.right, um.title], ['before', ['1 passo', '10 min'], 'Oração'])
+check('um passo só, interrompido: "0 de 1 passo"', card({ prayerProgress: { startedAt: at(6, 40), elapsedSeconds: 60 } }, { routineModules: ['prayer'] }).right[0], '0 de 1 passo')
+const umMin = card({ prayer: true, reading: true }, { minutes: { prayer: 10, reading: 15, study: 10, reflection: 1 } })
+check('singular: "falta 1 min" e "1 minuto"', [umMin.right[1], umMin.steps[2].aria], ['falta 1 min', 'Reflexão, 1 minuto, a fazer'])
+
+const estudo = { title: 'Ansiedade', dayN: 2, dayTotal: 7 }
+const diaDeEstudo = card({}, { routineModules: ALL, stepDays: { prayer: todos, reading: nenhum, study: todos, reflection: todos }, ctx: { ...ctx, study: estudo } })
+check('dia de estudo: título é o nome do estudo; detalhe "{nome}, dia {n}"; "feito" no masculino', [diaDeEstudo.title, diaDeEstudo.steps[1].detail, card({ prayer: true, study: true }, { routineModules: ALL, stepDays: { prayer: todos, reading: nenhum, study: todos, reflection: todos }, ctx: { ...ctx, study: estudo } }).steps[1].right], ['Ansiedade', 'Ansiedade, dia 2', 'feito'])
+const quatro = card({}, { routineModules: ALL, stepDays: { prayer: todos, reading: todos, study: todos, reflection: todos }, ctx: { ...ctx, study: estudo } })
+check('quatro passos (leitura e estudo no mesmo dia): título é a leitura', [quatro.title, quatro.steps.map(s => s.key), quatro.right], ['Gênesis 42', ALL, ['4 passos', '43 min']])
+check('passo fora do dia não entra na lista', card({}, { routineModules: ALL }).steps.map(s => s.key), TRES)
+
+const livre = { prayerMethod: 'free', reflectionMethod: 'free', readingPassage: '', readingDonePassage: '', study: null }
+check('modos livres e leitura sem trecho: detalhes e título', [card({}, { ctx: livre }).steps.map(s => s.detail), card({}, { ctx: livre }).title], [['livre', '', 'livre'], 'Leitura'])
+check('leitura feita: título e detalhe mostram o que foi lido', (() => { const c = card({ prayer: true, reading: true }, { ctx: { ...ctx, readingPassage: 'Gênesis 43', readingDonePassage: 'Gênesis 42' } }); return [c.title, c.steps[1].detail] })(), ['Gênesis 42', 'Gênesis 42'])
+check('detalhe curto direto', [stepShortDetail('prayer', ctx), stepShortDetail('reading', ctx), stepShortDetail('study', ctx), stepShortDetail('reflection', ctx)], ['ACTS', 'Gênesis 42', '', 'com perguntas'])
+
+check('carregando: dias do plano ainda não chegaram', buildPlanCard({ loadError: false, stepDays: null, routineModules: TRES, state: null, ctx, nextWeekdayIdx: null }), { kind: 'loading' })
+const erro = buildPlanCard({ loadError: true, stepDays: null, routineModules: TRES, state: null, ctx, nextWeekdayIdx: null })
+check('erro ao carregar: título, dica e "Tentar novamente" secundário', [erro.kind, erro.title, erro.line, erro.button.label, erro.button.primary, erro.button.action, erro.steps], ['error', 'Não foi possível carregar seu plano', 'Verifique sua conexão e tente de novo.', 'Tentar novamente', false, 'retry', []])
+check('erro tem precedência sobre o resto', planCardKind({ loadError: true, stepDays, routineModules: TRES, state: {} }), 'error')
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes do Hoje (parte pura) passaram.')

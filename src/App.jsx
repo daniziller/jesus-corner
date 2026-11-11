@@ -3157,9 +3157,9 @@ export default function App() {
     // conflito entre as duas decisões, só uma sequência.
     home: <HomeScreen
       session={session} authUser={authUser} completedSet={completedSet} stepMinutes={stepMinutes}
-      weeklySummaries={weeklySummaries} onContinueSession={continueToday} onNavigate={navigateTo}
+      weeklySummaries={weeklySummaries} onStartGuided={startGuidedRoutine} onNavigate={navigateTo}
       onOpenProfile={() => setProfileOpen(true)}
-      onSaveStepMinutes={saveStepMinutes} onOpenWeeklySummary={openWeeklySummaryFromHome}
+      onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
       applicationRefreshKey={applicationRefreshVersion}
       onOpenSuaBiblia={() => goToTab('suaBiblia')}
