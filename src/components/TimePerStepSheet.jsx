@@ -1,7 +1,6 @@
 // TimePerStepSheet.jsx — "Quanto tempo em cada passo" (quadro 26d), a folha
 // de relógio aberta pelo pílula de tempo do cabeçalho da Oração (26a) e da
-// Leitura (26b), e reaproveitada inteira dentro de AdjustPlanScreen.jsx
-// (5a) como o card "Tempo de cada passo".
+// Leitura (26b).
 //
 // Bloco 4 do redesign, decisão tomada com a autora: os minutos de LEITURA
 // aqui são a fonte REAL do tamanho da sessão (ver dynamicSessions.js/
@@ -27,12 +26,11 @@ const MIN_FOR = { prayer: 0, reading: 1, reflection: 0 }
 // folha: dado real do app, não os números de exemplo do mockup (8/33/60).
 const PRESET_PLAN_IDS = { fast: 'light', standard: 'standard', long: 'intensive' }
 
-// Miolo reaproveitado pela folha (26d) e por AdjustPlanScreen.jsx (5a, sem
-// nenhuma moldura de folha por cima — só o cartão embutido na página).
-// minutes/onChange controlados por quem chama, pra 5a poder salvar direto
-// (sem passo de "abrir folha, confirmar, fechar") e a folha poder manter
-// seu próprio rascunho até "Salvar tempos".
-export function StepMinutesEditor({ minutes, onChange, completedSet, lang, showNoTimer = true }) {
+// Miolo da folha (26d). minutes/onChange controlados por quem chama, pra
+// a folha manter seu próprio rascunho até "Salvar tempos". (Já foi
+// reaproveitado pelo Ajustar antigo, 5a/35c; o Ajustar atual tem o próprio
+// controle de minutos.)
+function StepMinutesEditor({ minutes, onChange, completedSet, lang, showNoTimer = true }) {
   const L = (k, vars) => translate(`timeSheet.${k}`, vars, lang)
   const [weeklyDays, setWeeklyDays] = useState(null)
   const [noTimer, setNoTimer] = useState(getNoTimerMode)

@@ -167,7 +167,7 @@ export default function StudyOrganizeScreen({ session, onEndStudy, onNavigate, o
               lang={lang}
               onChange={days => {
                 // Manda o objeto stepDays local inteiro — mesma corrida de
-                // AdjustPlanScreen.jsx/ReadingOrganizeScreen.jsx (patch
+                // ReadingOrganizeScreen.jsx (patch
                 // parcial deixa o merge no servidor vulnerável a um fetch
                 // desatualizado).
                 const next = { ...(stepDays ?? {}), study: days }

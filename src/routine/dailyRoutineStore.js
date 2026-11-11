@@ -34,6 +34,26 @@ export function setStepDone(step, done = true, planId) {
   })
 }
 
+// Passo aberto e interrompido (handoff-meu-plano-47, HANDOFF §3.4/§10):
+// `${step}Progress` = { startedAt: ISO, elapsedSeconds } na entrada de
+// HOJE — gravado ao abrir o passo pelo Meu Plano e atualizado quando o
+// relógio pausa (ver markStepOpened/efeito dos relógios em App.jsx). É o
+// que faz o botão dizer "Continuar a leitura" e o cartão mostrar o que
+// falta. Nenhuma conta de constância lê esta chave (todas olham só
+// `day[step]`), e ela some sozinha com a virada do dia, como `${step}At`.
+export function setStepProgress(step, patch) {
+  return withRowLock(async () => {
+    const row = await fetchRow()
+    const current = row?.daily_routine ?? {}
+    const key = dateKey()
+    const today = { ...current[key] }
+    today[`${step}Progress`] = { ...(today[`${step}Progress`] ?? {}), ...patch }
+    const next = { ...current, [key]: today }
+    const updated = await updateRow({ daily_routine: next })
+    return updated?.daily_routine ?? next
+  })
+}
+
 // Quais textos de um plano por tema a pessoa escolheu ler HOJE (ver
 // src/themePlans/themeTexts.js/PlanScreen.jsx) — mesmo mapa data → entrada
 // do dia de setStepDone acima, só que guardando `themePicks` em vez de um

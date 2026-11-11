@@ -9,7 +9,8 @@
 // 2026-09-07), e assim dá pra pôr cada tela e cada estado do HANDOFF §8
 // ao lado do PNG sem login.
 //
-// Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista|estante|selo|livroCompleto
+// Uso: ?tela=hoje|suaBiblia|conquistas|familia|novaConquista|estante|selo|livroCompleto|meuPlano
+//      Meu Plano (handoff-meu-plano-47): &plano=p1|p2|p1i|p3|p4|um|quatro · tela=seuPlano · tela=ajustar&abrir=reading (Mudar meus dias)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
@@ -29,6 +30,9 @@ import NovaConquistaScreen from '../src/screens/NovaConquistaScreen'
 import EstanteScreen from '../src/screens/EstanteScreen'
 import SeloScreen from '../src/screens/SeloScreen'
 import LivroCompletoScreen from '../src/screens/LivroCompletoScreen'
+import MeuPlanoScreen from '../src/screens/MeuPlanoScreen'
+import SeuPlanoScreen from '../src/screens/SeuPlanoScreen'
+import AjustarPlanoScreen from '../src/screens/AjustarPlanoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
 
 const params = new URLSearchParams(location.search)
@@ -59,7 +63,7 @@ function seedGuestTables(estado) {
     chapters.push({ livro, capitulo: Number(cap), origem: 'sessao', created_at: day(estado === 'inteira' ? Math.floor(i / 4) : 70 - i) })
     i++
   }
-  for (let d = 70; d >= 0; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
+  for (let d = 70; d >= 2; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
   // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
@@ -77,10 +81,40 @@ function seedGuestTables(estado) {
   const nova = estado === 'nova'
   const highlights = nova ? [] : [{ id: 'hl-1', book: 'Jonas', bookEn: 'Jonah', chapter: 2, verses: [2], text: '', color: 'amarelo', createdAt: day(30), date: day(30).slice(0, 10) }]
   const notes = nova ? {} : { 'Jonas:1-2': { text: 'nota', updatedAt: day(33) }, 'Jonas:3-4': { text: 'nota', updatedAt: day(30) }, 'Jonas:4-4': { text: 'nota', updatedAt: day(30) } }
-  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes }))
+  // Meu Plano (P1–P5): dias por passo e a entrada de HOJE conforme `plano`.
+  const todayIdx = (new Date().getDay() + 6) % 7
+  const all = [true, true, true, true, true, true, true]
+  const semHoje = all.map((_, i) => i !== todayIdx)
+  const planoState = params.get('plano') ?? 'p1'
+  const soHoje = all.map((_, i) => i === todayIdx)
+  const stepDays = planoState === 'p4'
+    ? { prayer: semHoje, reading: semHoje, study: [false, false, false, false, false, false, false], reflection: semHoje }
+    : planoState === 'p5'
+      ? { prayer: all, reading: semHoje, study: soHoje.map((v, i) => v || i === (todayIdx + 2) % 7 || i === (todayIdx + 4) % 7), reflection: all }
+      : planoState === 'quatro'
+        ? { prayer: all, reading: all, study: soHoje, reflection: all }
+        : { prayer: all, reading: all, study: [false, false, false, false, false, false, false], reflection: all }
+  // Estudo ativo de exemplo (formato novo, 7 dias, dia 1 feito) pra p5/quatro.
+  const estudo = {
+    id: 'est-ansiedade', title: 'Ansiedade', createdAt: day(10),
+    sessions: [[4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4]].map(([a, b], i) => ({ id: i + 1, book: 'Filipenses', chStart: a, chEnd: b, passage: `Filipenses 4:${4 + i}-${6 + i}`, completedAt: i === 0 ? day(2) : undefined })),
+  }
+  const comEstudo = planoState === 'p5' || planoState === 'quatro'
+  const hoje = new Date(); hoje.setHours(6, 42, 0, 0)
+  const atH = (h, m) => { const d = new Date(hoje); d.setHours(h, m, 0, 0); return d.toISOString() }
+  const todayEntry = {
+    p1: { prayer: true, prayerAt: atH(6, 42) },
+    p1i: { prayer: true, prayerAt: atH(6, 42), readingProgress: { startedAt: atH(7, 0), elapsedSeconds: 372 } },
+    p2: {},
+    p3: { prayer: true, prayerAt: atH(6, 42), reading: true, readingAt: atH(7, 1), reflection: true, reflectionAt: atH(7, 8) },
+    p4: {}, um: {}, quatro: {}, p5: { prayer: true, prayerAt: atH(6, 40) },
+  }[planoState] ?? {}
+  routine[dateKey(new Date())] = { ...(routine[dateKey(new Date())] ?? {}), ...todayEntry }
+  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null }))
   return nova ? {} : routine
 }
 const dailyRoutine = seedGuestTables(estado)
+const planoState = params.get('plano') ?? 'p1'
 const plan = PLANS.find(p => p.id === 'standard')
 const todaySession = estado === 'inteira'
   ? { book: 'Apocalipse', chStart: 22, chEnd: 22, type: 'reading', needsThemePick: false, title: 'Apocalipse 22', id: 1 }
@@ -88,13 +122,13 @@ const todaySession = estado === 'inteira'
 
 const session = {
   lang: 'pt', userName: 'Diego', avatarInitials: 'DZ', todaySession,
-  routineModules: ['prayer', 'reading', 'reflection'], plan,
+  routineModules: planoState === 'um' ? ['prayer'] : ['prayer', 'reading', 'study', 'reflection'], plan,
   todayRoutine: {}, dailyRoutine,
   lastReadPosition: { book: 'Gênesis', chapter: 41 },
-  biblePercent: 4.2, activeStudyId: null,
+  biblePercent: 4.2, activeStudyId: (planoState === 'p5' || planoState === 'quatro') ? 'est-ansiedade' : null,
   chaptersRead: completedSet.size, booksCompleted: 1,
   myGroups: [], hasNoPlan: false, hasPremium: true, weeklyGoalDays: 4, weeklyDays: [true, true, false, true, false, true, false],
-  currentBlock: { book: 'Gênesis', chapter: 42, bookChapters: 50, bookPercent: 82 },
+  currentBlock: { name: 'Pentateuco', book: 'Gênesis', chapter: 42, bookChapters: 50, bookPercent: 82 },
 }
 const authUser = { email: 'preview@example.com' }
 
@@ -130,7 +164,14 @@ function Preview() {
   const common = { session, authUser, completedSet }
   let body
   const livro = params.get('livro') ?? 'Jonas'
-  if (screen === 'estante') {
+  const [draftState, setDraftState] = useState(null)
+  if (screen === 'ajustar') {
+    body = <AjustarPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} draftState={draftState} onDraftChange={setDraftState} onClearDraft={() => setDraftState(null)} onSave={async () => { await new Promise(r => setTimeout(r, 800)) }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} initialOpenStep={params.get('abrir')} scrollToDays={!!params.get('abrir')} />
+  } else if (screen === 'seuPlano') {
+    body = <SeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} onChangeDays={() => alert('Ajustar com a Leitura aberta')} />
+  } else if (screen === 'meuPlano') {
+    body = <MeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')} onNavigate={t => alert(`navegar: ${t}`)} onEndStudy={() => alert('encerrar o estudo e devolver a leitura')} />
+  } else if (screen === 'estante') {
     body = <EstanteScreen {...common} gamification={gami} scrollToBlock={params.get('bloco')} onBack={() => setScreen('hoje')} onOpenSelo={n => alert(`selo ${n}`)} onOpenBook={n => alert(`abrir ${n}`)} onOpenBookAt={(n, c) => alert(`abrir ${n} ${c}`)} />
   } else if (screen === 'selo') {
     body = gami ? <SeloScreen {...common} nome={livro} gamification={gami} onBack={() => setScreen('estante')} onReadAgain={n => alert(`ler ${n} de novo`)} onOpenNotes={() => alert('notas')} /> : null

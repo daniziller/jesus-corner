@@ -26,7 +26,7 @@ export default function AiSettingsScreen({ session, onBack }) {
 
   // Lidos direto do localStorage no useState inicial (não há backend nem
   // outro lugar que mude esses valores enquanto esta tela está aberta),
-  // mesmo padrão de AdjustPlanScreen.jsx pros próprios campos dela.
+  // lidos uma vez só, na montagem.
   const [askOn, setAskOn] = useState(getAskEnabled)
   const [contextOn, setContextOn] = useState(getChapterContextEnabled)
   // "Perguntas na reflexão" (10f) — mesmo interruptor que já existia em

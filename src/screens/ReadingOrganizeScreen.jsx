@@ -1,6 +1,6 @@
 // ReadingOrganizeScreen.jsx — "Leitura da Bíblia" (turno 35, Bloco 1,
 // handoff-meu-plano-35/, tela 35i). Aberta de "Organizar a leitura" em
-// 35c (AdjustPlanScreen.jsx). Onde começar, em que ordem (canônica/
+// Ajustar meu plano (AjustarPlanoScreen.jsx). Onde começar, em que ordem (canônica/
 // cronológica/minha ordem — NUNCA reseta progresso, ver bibleOrderMath.js),
 // ritmo aprendido e dias da Bíblia.
 //
@@ -239,7 +239,7 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
               lang={lang}
               onChange={days => {
                 // Manda o objeto stepDays local inteiro, não só
-                // `{ reading: days }` — mesma corrida de AdjustPlanScreen.jsx
+                // `{ reading: days }` — mesma corrida de StudyOrganizeScreen.jsx
                 // (setStepDays faz merge buscando o servidor; um patch
                 // parcial corre risco de perder outro passo salvo entre o
                 // fetch e o write). Com o objeto completo o merge no

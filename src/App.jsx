@@ -28,8 +28,6 @@ import PhysicalReadingScreen from './screens/PhysicalReadingScreen'
 import ReadingSummaryScreen from './screens/ReadingSummaryScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import FloatingTimerPill from './components/timer/FloatingTimerPill'
-import RoutineScreen from './screens/RoutineScreen'
-import AdjustPlanScreen from './screens/AdjustPlanScreen'
 import ReadingOrganizeScreen from './screens/ReadingOrganizeScreen'
 import StudyOrganizeScreen from './screens/StudyOrganizeScreen'
 import ChooseStartScreen from './screens/ChooseStartScreen'
@@ -75,7 +73,7 @@ import { logChaptersRead } from './bible/chapterReadLog'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
 import { isAtLeast } from './utils/age'
 import { getPrayerStats } from './prayer/prayerStatsStore'
-import { getDailyRoutine, setStepDone, setThemePicks } from './routine/dailyRoutineStore'
+import { getDailyRoutine, setStepDone, setThemePicks, setStepProgress } from './routine/dailyRoutineStore'
 import { DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, DEFAULT_WEEKLY_GOAL_DAYS } from './routine/routineStreak'
 import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
@@ -117,6 +115,13 @@ import { onChapterOpened } from './gamification/rereadTracker'
 import { startReread, recordRereadChapter } from './gamification/achievementsMath'
 import { updateGamification } from './gamification/achievementsStore'
 import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
+import MeuPlanoScreen from './screens/MeuPlanoScreen'
+import SeuPlanoScreen from './screens/SeuPlanoScreen'
+import AjustarPlanoScreen from './screens/AjustarPlanoScreen'
+import { setPrayerMethod as persistPrayerMethod } from './prayer/prayerMethodStore'
+import { setReflectionMethod as persistReflectionMethod } from './reflection/reflectionMethodStore'
+import { setReadingClockPrefs as persistReadingClockPrefs } from './reading/readingClockPrefsStore'
+import { STEP_KEYS as PLAN_STEP_KEYS } from './routine/stepDaysMath'
 import { evaluateGamification, markAchievementsSeen } from './gamification/evaluate'
 import { getGamificationRow } from './gamification/achievementsStore'
 import MonthRecapScreen, { monthLabel, recapSummary } from './screens/MonthRecapScreen'
@@ -550,6 +555,13 @@ export default function App() {
   // (livro → bloco → maior degrau) em pickCelebration, mostrado depois da
   // tela de conclusão (DayCompleteScreen) ou, fora do fluxo guiado, na
   // próxima volta ao Hoje — nunca no meio de uma sessão.
+  // Rascunho de "Ajustar meu plano" (handoff-meu-plano-47, HANDOFF §12.1):
+  // { saved, draft } vive aqui, não na tela, pra sobreviver à ida e volta
+  // a 35i/35j/lembrete. Limpo ao salvar ou descartar.
+  const [adjustDraft, setAdjustDraft] = useState(null)
+  // "Mudar meus dias" (P6) abre o Ajustar já com a Leitura aberta em "EM QUE
+  // DIAS"; o botão Ajustar dos cabeçalhos abre tudo fechado.
+  const [adjustOpenStep, setAdjustOpenStep] = useState(null)
   const [gamification, setGamification] = useState(null)
   const gamificationRef = useRef(null)
   gamificationRef.current = gamification
@@ -632,7 +644,7 @@ export default function App() {
   // fixos (Leve/Padrão/Intensivo), mantidos só pro plano Livre/navegação.
   const [stepMinutes, setStepMinutesState] = useState({ prayer: null, reading: null, reflection: null })
   // Dias por passo (turno 35, stepDaysStore.js) — precisado aqui (não só em
-  // HomeScreen/RoutineScreen) pra "Começar meu plano" (startGuidedRoutine
+  // HomeScreen/MeuPlanoScreen) pra "Começar meu plano" (startGuidedRoutine
   // abaixo) encadear os passos de HOJE de verdade, incluindo Estudo — antes
   // usava um GUIDED_STEPS fixo [oração,leitura,reflexão] que ignorava
   // stepDays e nunca sabia de Estudo, discordando do que Meu Plano/Home já
@@ -1061,6 +1073,9 @@ export default function App() {
   // justamente pra resolver o bloqueio.
   function navigateTo(tab) {
     if (disabledTabs.includes(tab) && tab !== 'upgrade') return
+    // Ajustar aberto pelo botão dos cabeçalhos: tudo fechado (A1). Só
+    // "Mudar meus dias" pede um passo aberto, e ele chama setAdjustOpenStep
+    // antes de navegar — por isso o reset fica em goToTab, não aqui.
     // Aba que existe mas exige Premium (Meu Plano, Comunidade pra quem não
     // assina) — o clique leva pra tela de assinar em vez de abrir.
     if (lockedTabs.includes(tab)) { goToTab('upgrade'); return }
@@ -1080,6 +1095,7 @@ export default function App() {
   // tabHistory acima) — sem isso, "Voltar" só funcionaria depois de cliques
   // no menu, não depois de atalhos como "Continuar sessão".
   function goToTab(tab) {
+    if (tab !== 'adjustPlan' && adjustOpenStep) setAdjustOpenStep(null)
     // Parabéns pendente da gamificação (ver pendingCelebration): aparece
     // na volta ao Hoje, fora do fluxo guiado — nunca no meio de uma sessão.
     if (tab === 'home' && pendingCelebrationRef.current && !guidedFlowRef.current) tab = pendingCelebrationRef.current.kind === 'livro' ? 'livroCompleto' : 'novaConquista'
@@ -1134,7 +1150,7 @@ export default function App() {
   }
 
   // Passos de HOJE, na ordem em que a rotina guiada os encadeia — MESMA
-  // conta de RoutineScreen.jsx/HomeScreen.jsx (stepDays por passo). Antes
+  // conta de MeuPlanoScreen.jsx/HomeScreen.jsx (stepDays por passo). Antes
   // disto, "Começar meu plano" usava um GUIDED_STEPS fixo [oração,leitura,
   // reflexão] que ignorava stepDays e nunca incluía Estudo — discordando
   // do que a própria lista de Meu Plano/Home já mostravam (achado
@@ -1144,7 +1160,7 @@ export default function App() {
   // A substituição leitura→estudo daqui (quando havia activeStudyId) saiu
   // em 2026-09-09: era resquício do modelo antigo de "estudo ativo
   // substitui a leitura", já abandonado pelas trilhas independentes
-  // (RoutineScreen.jsx/HomeScreen.jsx não fazem mais essa troca desde o
+  // (Meu Plano/HomeScreen.jsx não fazem mais essa troca desde o
   // handoff-app-completo) — só este arquivo ainda fazia, e junto com o
   // mesmo achado dela (toggle desligado não pausava o Estudo de verdade)
   // podia encadear pro passo Estudo mesmo com o toggle dele desligado.
@@ -1161,6 +1177,46 @@ export default function App() {
     return stepDays ? stepsScheduledForWeekday(stepDays, activeSteps, todayIdx) : []
   }
 
+  // Passo aberto (handoff-meu-plano-47, HANDOFF §3.4/§10): grava
+  // `${step}Progress.startedAt` na entrada de hoje na 1ª abertura do passo
+  // — é o que faz o botão do Meu Plano dizer "Continuar …" se a pessoa sair
+  // no meio. Não mexe em nada de constância (ver dailyRoutineStore.js).
+  function markStepOpened(step) {
+    if (!authUser) return
+    const key = dateKey()
+    const today = dailyRoutineRef.current[key] ?? {}
+    if (today[step] || today[`${step}Progress`]?.startedAt) return
+    const startedAt = new Date().toISOString()
+    setDailyRoutine(prev => ({ ...prev, [key]: { ...prev[key], [`${step}Progress`]: { ...(prev[key]?.[`${step}Progress`] ?? {}), startedAt } } }))
+    setStepProgress(step, { startedAt }).catch(err => console.error('Failed to persist step progress', err))
+  }
+
+  // Relógio de Oração/Reflexão pausou (sair da tela também pausa): guarda
+  // os segundos já corridos em `${step}Progress.elapsedSeconds`, pra o
+  // cartão do Meu Plano mostrar o que falta. A leitura não passa por aqui:
+  // os segundos dela já vão pra session_seconds em lotes (ReadingBlockView).
+  function persistStepElapsed(step, controlsRef) {
+    if (!authUser) return
+    const elapsed = Math.round(controlsRef.current?.computeElapsed?.() ?? 0)
+    if (elapsed <= 0) return
+    const key = dateKey()
+    if (dailyRoutineRef.current[key]?.[step]) return
+    setDailyRoutine(prev => ({ ...prev, [key]: { ...prev[key], [`${step}Progress`]: { ...(prev[key]?.[`${step}Progress`] ?? {}), elapsedSeconds: elapsed } } }))
+    setStepProgress(step, { elapsedSeconds: elapsed }).catch(err => console.error('Failed to persist step elapsed', err))
+  }
+  const prayerWasRunningRef = useRef(false)
+  const reflectionWasRunningRef = useRef(false)
+  useEffect(() => {
+    if (prayerWasRunningRef.current && !prayerTimerRunning) persistStepElapsed('prayer', prayerTimerControlsRef)
+    prayerWasRunningRef.current = prayerTimerRunning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prayerTimerRunning])
+  useEffect(() => {
+    if (reflectionWasRunningRef.current && !reflectionTimerRunning) persistStepElapsed('reflection', reflectionTimerControlsRef)
+    reflectionWasRunningRef.current = reflectionTimerRunning
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reflectionTimerRunning])
+
   // Iniciar em Meu Plano — encadeia os passos ligados. Com 0 ou 1 passo não
   // há o que encadear: só abre aquele passo (ou nada), sem o "modo guiado".
   function startGuidedRoutine() {
@@ -1176,7 +1232,7 @@ export default function App() {
     const today = dailyRoutine[dateKey()] ?? {}
     let startIdx = steps.findIndex(s => !today[s])
     if (startIdx < 0) startIdx = steps.length - 1
-    const openStep = step => step === 'reading' ? goToReadingStep() : step === 'study' ? openActiveStudy() : goToTab(step)
+    const openStep = step => { markStepOpened(step); return step === 'reading' ? goToReadingStep() : step === 'study' ? openActiveStudy() : goToTab(step) }
     // Sem passos pra encadear a partir daqui (só sobrou 1) — abre direto,
     // sem o "modo guiado". Estudo entra na CONTAGEM (Oração/Reflexão
     // mostram "passo N de M" certo em dia de Estudo ativo), mas não no
@@ -1228,6 +1284,7 @@ export default function App() {
         return
       }
       setGuidedFlow({ steps: gf.steps, idx: nextIdx })
+      markStepOpened(nextStep)
       if (nextStep === 'reading') goToReadingStep()
       else goToTab(guidedTabFor(nextStep))
     }, GUIDED_ADVANCE_MS)
@@ -1397,6 +1454,38 @@ export default function App() {
         .then(setGamification).catch(err => console.error('[releitura] capítulo', err))
     })
   }, [authUser])
+
+  // "Salvar plano" do Ajustar novo: grava só o que mudou, pelas mesmas
+  // gravações que 35c já usava (routine_modules, *_minutes, modos,
+  // step_days, reading_clock_prefs) — formato intacto, nenhum campo novo.
+  async function saveAdjustedPlan(saved, draft) {
+    if (!authUser) return
+    const jobs = []
+    const modulesChanged = PLAN_STEP_KEYS.some(k => saved.enabled[k] !== draft.enabled[k])
+    if (modulesChanged) {
+      const next = PLAN_STEP_KEYS.filter(k => draft.enabled[k])
+      setRoutineModulesState(next)
+      jobs.push(persistRoutineModules(authUser.email, next))
+    }
+    const minutesPatch = {}
+    for (const k of PLAN_STEP_KEYS) if (saved.minutes[k] !== draft.minutes[k]) minutesPatch[k] = draft.minutes[k]
+    if (Object.keys(minutesPatch).length) {
+      setStepMinutesState(prev => ({ ...prev, ...minutesPatch }))
+      jobs.push(persistStepMinutes(minutesPatch))
+    }
+    if (saved.prayerMethod !== draft.prayerMethod) persistPrayerMethod(draft.prayerMethod)
+    if (saved.reflectionMethod !== draft.reflectionMethod) persistReflectionMethod(draft.reflectionMethod)
+    const daysPatch = {}
+    for (const k of PLAN_STEP_KEYS) if (JSON.stringify(saved.stepDays[k]) !== JSON.stringify(draft.stepDays[k])) daysPatch[k] = draft.stepDays[k]
+    if (Object.keys(daysPatch).length) {
+      setStepDaysState(prev => (prev ? { ...prev, ...daysPatch } : prev))
+      jobs.push(persistStepDays(daysPatch))
+    }
+    const clockPatch = {}
+    for (const c of ['showOnReading', 'warnAtZero', 'askToContinue']) if (saved.clock[c] !== draft.clock[c]) clockPatch[c] = draft.clock[c]
+    if (Object.keys(clockPatch).length) jobs.push(persistReadingClockPrefs(clockPatch))
+    await Promise.all(jobs)
+  }
 
   function finishCelebration(nextTab = 'home') {
     setPendingCelebration(null)
@@ -1628,7 +1717,7 @@ export default function App() {
   // tema novo (ver ThemePlanScreen.jsx) — diferente de openThemePlanToday
   // acima, não pula direto pra leitura: torna o plano ativo, grava a
   // escolha de hoje e manda pra aba Rotina, já mostrando o tempo calculado
-  // (activePlan.readingMinutes, ver resolveActivePlan.js/RoutineScreen.jsx).
+  // (activePlan.readingMinutes, ver resolveActivePlan.js).
   function addThemePlanToRoutine(planId, keys) {
     selectActivePlan({ type: 'theme', planId })
     chooseThemeTexts(planId, keys)
@@ -2592,8 +2681,8 @@ export default function App() {
   // "Ler agora" em Meu Plano (35b) quando o passo de hoje é o Estudo ativo —
   // mesmo mecanismo que a Biblioteca já usa pra abrir um estudo específico
   // (ver libraryOpenStudyId/NotesScreen.jsx).
-  // Botão "Começar/Continuar" do passo Estudo (RoutineScreen.startStep/
-  // openDoneStep) — antes, sem nenhum estudo ativo escolhido ainda (o
+  // Botão "Começar/Continuar" do passo Estudo (hoje o cartão preto de
+  // MeuPlanoScreen.jsx) — antes, sem nenhum estudo ativo escolhido ainda (o
   // toggle de Estudo pode estar ligado sem study nenhum selecionado, ver
   // PR #132), essa função só dava `return` e o botão não fazia nada
   // (bug real, 2026-09-09). Agora leva pra "Adicionar estudo" pra
@@ -2940,7 +3029,7 @@ export default function App() {
   // passo restante hoje, então nunca entra em guidedFlow — ver
   // startGuidedRoutine). Independe de session.guided de propósito.
   session.todaysSteps = todaysGuidedSteps()
-  // RoutineScreen.jsx/HomeScreen.jsx recomputam "passos de hoje" cada uma
+  // MeuPlanoScreen.jsx/HomeScreen.jsx recomputam "passos de hoje" cada uma
   // com o próprio fetch de stepDays (não leem session.todaysSteps direto),
   // mas chamam a mesma stepsScheduledForWeekday pura — sem 4º argumento,
   // Leitura e Estudo são independentes (ver stepDaysMath.js).
@@ -3098,14 +3187,17 @@ export default function App() {
     // por inteiro: rotina do dia consumindo o modelo novo (step_days,
     // estudo com dias/minutos próprios, ordem de leitura) nascido no Bloco 1.
     routine: hasPremium
-      ? <RoutineScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onContinueSession={continueToday} onOpenActiveStudy={openActiveStudy} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} />
+      ? <MeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onNavigate={navigateTo} onStartGuided={startGuidedRoutine} onEndStudy={() => selectActiveStudy(null)} onOpenSeuPlano={() => goToTab('seuPlano')} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
+    // "Seu plano" (handoff-meu-plano-47, P6) — push a partir da linha
+    // "Seu plano" do Meu Plano; sem barra de abas.
+    seuPlano: <SeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onBack={goBack} onNavigate={navigateTo} onChangeDays={() => { setAdjustOpenStep('reading'); navigateTo('adjustPlan') }} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;
     // "onde começar/ordem/ritmo" e "estudo atual/banco/dias" saíram pras
     // telas próprias readingOrganize (35i) e studyOrganize (35j) abaixo.
     adjustPlan: hasPremium
-      ? <AdjustPlanScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onSaveStepMinutes={saveStepMinutes} onToggleRoutineModule={toggleRoutineModule} bookChapterCounts={bookChapterCounts} onNavigate={navigateTo} onBack={goBack} />
+      ? <AjustarPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} initialOpenStep={adjustOpenStep} scrollToDays={!!adjustOpenStep} key={adjustOpenStep ?? 'fechado'} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     readingOrganize: hasPremium
       ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} onSaveBibleOrderMode={saveBibleOrderMode} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
@@ -3133,7 +3225,7 @@ export default function App() {
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
       : <ThemePlanScreen session={session} authUser={authUser} completedSet={completedSet} plans={themePlans} isAdmin={isAdmin} onPlansChanged={setThemePlans} autoOpenPlanId={themeAutoOpenId} autoOpenKeys={themeAutoOpenKeys} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onCreateStudy={() => navigateTo('addStudy')} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
     // 26e — entrada real de "Adicionar estudo" (pelo botão "Criar" em Meu
-    // Plano/RoutineScreen.jsx): prontos + banco da comunidade não pedem IA
+    // Plano/MeuPlanoScreen.jsx): prontos + banco da comunidade não pedem IA
     // nenhuma, só o cartão "Criar com a IA" lá dentro pede session.hasAI —
     // por isso esta aba só trava por hasPremium (a rotina inteira já é
     // hasPremium), não por hasAI.
@@ -3466,7 +3558,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3483,7 +3575,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se
