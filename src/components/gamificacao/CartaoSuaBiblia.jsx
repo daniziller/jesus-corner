@@ -17,14 +17,6 @@ const FONT = 'var(--font-bento)'
 // Livro da linha de rodapé: o atual do plano se ainda falta algo nele;
 // senão o selo em andamento mais adiantado; senão o primeiro livro ainda
 // não lido na ordem canônica.
-export function footerBook(progress, currentBook) {
-  if (currentBook && progress.porLivro[currentBook]?.faltam > 0) return currentBook
-  const seal = closestSeal(progress)
-  if (seal) return seal.nome
-  const next = Object.keys(progress.porLivro).find(nome => !progress.porLivro[nome].completo)
-  return next ?? null
-}
-
 export default function CartaoSuaBiblia({ progress, reads, currentBook, completedAtIso, onOpen, onOpenEstante }) {
   const pct = formatPct(progress.percent)
   const ariaLabel = `${pct} da Bíblia lida, ${deOf(progress.capitulosLidos, progress.totalCapitulos)} capítulos`

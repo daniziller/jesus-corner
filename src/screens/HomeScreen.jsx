@@ -27,7 +27,6 @@ import AppIcon from '../icons/AppIcon'
 import TimePerStepSheet from '../components/TimePerStepSheet'
 import { DEFAULT_ROUTINE_MODULES, mondayOf } from '../routine/routineStreak'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath'
-import { getAllSessions } from '../metrics/sessionDurationStore'
 import { getPinnedApplicationEntry, markPinnedApplicationFulfilled, getWeekApplicationStatus } from '../reflection/applicationPhraseStore'
 import { getShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
@@ -46,13 +45,13 @@ import { STUDIES } from '../data/studies'
 import { getAiStudies } from '../studies/aiStudiesStore'
 import { getInductiveStudies } from '../studies/inductiveStudiesStore'
 import { getCompletedStudySessions, isStudySessionDone } from '../studies/studiesProgressStore'
-import CartaoSuaBiblia from '../components/gamificacao/CartaoSuaBiblia'
+import CartaoBiblia from '../components/hoje/CartaoBiblia'
+import QuadradosCaminhada from '../components/hoje/QuadradosCaminhada'
 import { computeBibleProgress } from '../gamification/bibleProgressMath'
 import { bookInfo } from '../data/gamificationBlocks'
-import { getAllChapterReadRows } from '../bible/chapterReadLog'
-import CartaoSuasSemanas from '../components/gamificacao/CartaoSuasSemanas'
-import { getGamificationRow } from '../gamification/achievementsStore'
-import { firstActivityIso } from '../gamification/projectionMath'
+import { loadGamificationStats } from '../gamification/evaluate'
+import { recentSeals } from '../gamification/sealDetails'
+import { bibleFinishedIso } from '../hoje/hojeMath'
 
 function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
@@ -83,7 +82,7 @@ export default function HomeScreen({
   session, authUser, completedSet, stepMinutes,
   onContinueSession, onNavigate, onOpenProfile,
   onSaveStepMinutes, onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
-  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, onOpenConquistas,
+  applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, gamification,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -101,11 +100,6 @@ export default function HomeScreen({
   // a própria falha (RPC ainda sem migration, rede fora) devolvendo um
   // default seguro — uma falha isolada nunca derruba a tela inteira.
   const [loading, setLoading] = useState(true)
-  // SUAS SEMANAS (G1/G3): meta vigente por semana e primeiro registro de
-  // atividade (cápsulas anteriores ao cadastro ficam transparentes) —
-  // carregados junto com o resto, em paralelo, nunca depois de pintar
-  // com dado errado.
-  const [weeksInfo, setWeeksInfo] = useState({ goalHistory: [], firstActivityKey: null })
   const [pinnedEntry, setPinnedEntry] = useState(null)
   const [weekAppStatus, setWeekAppStatus] = useState({ total: 0, fulfilled: 0 })
   const [messagesSummary, setMessagesSummary] = useState([])
@@ -222,29 +216,20 @@ export default function HomeScreen({
     const chapterForVerse = !todaySession.needsThemePick && todaySession.type !== 'reflection'
       ? { book: todaySession.book, chapter: todaySession.chStart }
       : null
-    // getAllSessions/getPinnedApplicationEntry/getWeekApplicationStatus
+    // getPinnedApplicationEntry/getWeekApplicationStatus
     // funcionam pra convidado também (guestTableStore.js/userDataStore.js
     // resolvem local vs. Supabase por dentro — ver comentário de cada um);
     // só getGroupMessagesSummary exige conta de verdade (chama RPC direto),
     // e ela mesma já trata a falha (console.error + []), então nem precisa
     // de guarda aqui — uma falha isolada não derruba o resto da tela.
     Promise.allSettled([
-      getAllSessions(),
       getPinnedApplicationEntry(email),
       getWeekApplicationStatus(email),
       getGroupMessagesSummary(),
       chapterForVerse ? getHomeVerse({ ...chapterForVerse, lang }) : Promise.resolve(null),
       lastReadPosition ? getContinuityExcerpt(lastReadPosition.book, lastReadPosition.chapter, lang) : Promise.resolve(null),
-      getGamificationRow(),
-      getAllChapterReadRows(),
-    ]).then(([rows, pinned, weekStatus, msgSummary, homeVerse, excerpt, gami, chapterRows]) => {
+    ]).then(([pinned, weekStatus, msgSummary, homeVerse, excerpt]) => {
       if (!alive) return
-      const sessionRows = rows.status === 'fulfilled' ? rows.value : []
-      const first = firstActivityIso(chapterRows.status === 'fulfilled' ? chapterRows.value : [], sessionRows, dailyRoutine)
-      setWeeksInfo({
-        goalHistory: gami.status === 'fulfilled' ? gami.value.goalHistory : [],
-        firstActivityKey: first ? dateKey(new Date(first)) : null,
-      })
       if (pinned.status === 'fulfilled') setPinnedEntry(pinned.value)
       if (weekStatus.status === 'fulfilled') setWeekAppStatus(weekStatus.value)
       if (msgSummary.status === 'fulfilled') setMessagesSummary(msgSummary.value)
@@ -541,8 +526,8 @@ export default function HomeScreen({
 
   const initialStepMinutes = { prayer: plan.prayerMinutes, reading: plan.readingMinutes, reflection: plan.reflectionMinutes }
 
-  // ── Bloco 4.5 — SUA BÍBLIA (G1, handoff-gamificacao-43-46) ──
-  // Só completedSet (síncrono, 1.189 consultas num Set) — nada de rede,
+  // ── Bloco 1 — SUA CAMINHADA (handoff-hoje-50 §3) ──
+  // A roda: só completedSet (síncrono, 1.189 consultas num Set) — nada de rede,
   // nada que atrase a primeira pintura. Memo: recalcula só quando o
   // progresso muda. Marcador = livro da sessão de hoje, se for um livro
   // da Bíblia (sem plano de leitura ativo, sem marcador).
@@ -553,49 +538,47 @@ export default function HomeScreen({
     return out
   }, [bibleProgress])
   const currentBibleBook = todaySession?.type !== 'reflection' && todaySession?.book && bookInfo(todaySession.book) ? todaySession.book : null
-  // Bíblia inteira (HANDOFF §8): o rodapé mostra a data de término — a
-  // maior data de chapters_read. Buscada só nesse caso (raro), fora da
-  // primeira pintura; sem linha datada, o rodapé fica sem data.
-  const [bibleCompletedAt, setBibleCompletedAt] = useState(null)
+  // Semanas, selos e a data de término vêm de UMA carga das fontes da
+  // gamificação (a mesma de Minhas conquistas), que não segura o resto da
+  // tela: enquanto não chega, só os números e complementos que dependem
+  // dela ficam em esqueleto. Uma falha cai no mesmo default seguro de
+  // antes (sem histórico de meta, sem datas).
+  const [gami, setGami] = useState(null)
   useEffect(() => {
-    if (!bibleProgress.bibliaInteira) return
     let alive = true
-    getAllChapterReadRows().then(rows => {
-      if (!alive) return
-      let max = null
-      for (const r of rows ?? []) if (r?.created_at && (!max || r.created_at > max)) max = r.created_at
-      setBibleCompletedAt(max)
-    }).catch(() => {})
+    loadGamificationStats({ completedSet, dailyRoutine, weeklyGoalDays: session.weeklyGoalDays })
+      .then(d => { if (alive) setGami(d) })
+      .catch(err => {
+        console.error('[hoje] gamificação', err)
+        if (alive) setGami({ row: { goalHistory: [], bookSeals: {} }, firstActivityIso: null, stats: { chapterRows: [] }, states: null })
+      })
     return () => { alive = false }
-  }, [bibleProgress.bibliaInteira])
+  }, [completedSet, dailyRoutine, session.weeklyGoalDays])
+  const firstActivityKey = gami?.firstActivityIso ? dateKey(new Date(gami.firstActivityIso)) : null
+  // Selos: a linha que o App mantém (atualizada logo depois de cada
+  // avaliação) quando existe; senão a que veio na carga acima.
+  const bookSeals = gamification?.bookSeals ?? gami?.row.bookSeals ?? null
+  const sealNames = useMemo(() => (bookSeals ? recentSeals(bibleProgress.completos, bookSeals) : null), [bibleProgress, bookSeals])
+  const bibleFinishedAt = useMemo(
+    () => (bibleProgress.bibliaInteira && gami ? bibleFinishedIso(gami.stats.chapterRows) : null),
+    [bibleProgress.bibliaInteira, gami],
+  )
 
-  if (loading) {
-    return (
-      <div style={styles.screen}>
-        <div style={styles.header}>
-          <div>
-            <p style={styles.greeting}>{greeting}</p>
-            <p style={styles.date}>{dateLabel}</p>
-          </div>
-          <button style={styles.avatar} onClick={() => onOpenProfile?.()} aria-label={translate('nav.profile', undefined, lang)}>
-            {avatarInitials}
-          </button>
-        </div>
-        <div style={styles.body}>
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 210 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 130 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 110 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 470 }} />
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 180 }} />
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
-            <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
-          </div>
-          <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 90 }} />
-        </div>
+  // Esqueleto dos blocos que ainda dependem da busca principal (versículo,
+  // aplicação, mensagens) — nunca spinner de tela cheia, e a caminhada não
+  // espera por eles.
+  const pendingBlocks = (
+    <>
+      <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 210 }} />
+      <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 130 }} />
+      <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 110 }} />
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
+        <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 132, flex: 1 }} />
       </div>
-    )
-  }
+      <div className="rb-context-skeleton" style={{ ...styles.skeletonBlock, height: 90 }} />
+    </>
+  )
 
   return (
     <div style={styles.screen}>
@@ -610,7 +593,20 @@ export default function HomeScreen({
       </div>
 
       <div style={styles.body}>
+        {/* Bloco 1 — SUA CAMINHADA (handoff-hoje-50 §3): o cartão da Bíblia
+            e os três quadrados Semanas · Dias · Selos. */}
+        <CartaoBiblia
+          progress={bibleProgress} reads={bibleReads} currentBook={currentBibleBook}
+          finishedIso={bibleFinishedAt} onOpen={onOpenSuaBiblia}
+        />
+        <QuadradosCaminhada
+          dailyRoutine={dailyRoutine} goalHistory={gami ? gami.row.goalHistory : null}
+          weeklyGoalDays={session.weeklyGoalDays} weeklyDays={session.weeklyDays} firstActivityKey={firstActivityKey}
+          livrosCompletos={bibleProgress.livrosCompletos} totalLivros={bibleProgress.totalLivros} sealNames={sealNames}
+          onOpenMetrics={() => onNavigate?.('metrics')} onOpenEstante={onOpenEstante}
+        />
 
+        {loading ? pendingBlocks : (<>
         {/* Desafio de leitura por IA do grupo (handoff-admin-42, 42n) —
             pedido dela (2026-09-13): fica ACIMA do plano de hoje, exceção
             deliberada à ordem fixa desta tela (comentário do topo do
@@ -811,24 +807,6 @@ export default function HomeScreen({
           </div>
         )}
 
-        {/* Bloco 4.5 — SUA BÍBLIA (G1, handoff-gamificacao-43-46 §3.1):
-            a roda. Toque no cartão → Sua Bíblia (G2); "Ver livros" →
-            Minha estante (G9). */}
-        <CartaoSuaBiblia
-          progress={bibleProgress} reads={bibleReads} currentBook={currentBibleBook} completedAtIso={bibleCompletedAt}
-          onOpen={onOpenSuaBiblia} onOpenEstante={onOpenEstante}
-        />
-
-        {/* Bloco 5 — SUAS SEMANAS (G1/G3, handoff-gamificacao-43-46 §3.2):
-            o contador de semanas na meta, no lugar do antigo "ESTA
-            SEMANA" (os minutos por passo continuam em Métricas). Toque →
-            Minhas conquistas (G5). */}
-        <CartaoSuasSemanas
-          dailyRoutine={dailyRoutine} goalHistory={weeksInfo.goalHistory}
-          weeklyGoalDays={session.weeklyGoalDays} weeklyDays={session.weeklyDays}
-          firstActivityKey={weeksInfo.firstActivityKey} onOpen={onOpenConquistas}
-        />
-
         {/* Bloco 6 — dois quadrados. Pedido dela (2026-09-12): "Anotar uma
             pregação" virou quadrado pra ficar do lado do de mensagens —
             Métricas saiu daqui, agora é o card cheio logo abaixo, com mais
@@ -901,6 +879,7 @@ export default function HomeScreen({
             <p style={styles.recapPendingText}>{L('recapPending')}</p>
           )}
         </div>
+        </>)}
       </div>
 
       <TimePerStepSheet
@@ -938,7 +917,7 @@ const FONT = 'var(--font-bento)'
 const styles = {
   screen: { background: 'var(--bento-bg)', height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column' },
   header: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 20px 0' },
-  body: { padding: '20px 20px calc(var(--nav-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 12 },
+  body: { padding: '14px 20px calc(var(--nav-height) + 24px)', display: 'flex', flexDirection: 'column', gap: 10 },
   greeting: { fontFamily: FONT, fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.7px', color: 'var(--bento-ink)', margin: 0, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   date: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t2)', margin: '4px 0 0' },
   avatar: {

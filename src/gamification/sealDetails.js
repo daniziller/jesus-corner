@@ -87,3 +87,21 @@ export function summarizeSeal(nome, { seal, chapterRows, sessionRows }) {
     seconds, timeLabel: seconds > 0 ? formatDuration(seconds) : null,
   }
 }
+
+// Os selos completos mais recentes, o mais novo primeiro (quadrado "Selos"
+// do Hoje). `completos`: nomes dos livros completos (computeBibleProgress);
+// `bookSeals`: { nome: { completedAt } } da linha gravada. Livro completo
+// ainda sem linha gravada (a avaliação roda um instante depois) conta como
+// o mais novo; empate de data → ordem em que `completos` veio.
+export function recentSeals(completos, bookSeals, n = 3) {
+  return (completos ?? [])
+    .map((nome, i) => ({ nome, i, at: bookSeals?.[nome]?.completedAt ?? null }))
+    .sort((a, b) => {
+      if (a.at === b.at) return a.i - b.i
+      if (a.at === null) return -1
+      if (b.at === null) return 1
+      return a.at < b.at ? 1 : -1
+    })
+    .slice(0, n)
+    .map(x => x.nome)
+}

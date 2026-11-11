@@ -19,6 +19,9 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import '../src/index.css'
 import HomeScreen from '../src/screens/HomeScreen'
+import CartaoBiblia from '../src/components/hoje/CartaoBiblia'
+import QuadradosCaminhada from '../src/components/hoje/QuadradosCaminhada'
+import { computeBibleProgress } from '../src/gamification/bibleProgressMath'
 import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
@@ -63,7 +66,8 @@ function seedGuestTables(estado) {
     chapters.push({ livro, capitulo: Number(cap), origem: 'sessao', created_at: day(estado === 'inteira' ? Math.floor(i / 4) : 70 - i) })
     i++
   }
-  for (let d = 70; d >= 2; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
+  // Conta nova: nenhum registro de atividade (nem sessão, nem capítulo).
+  if (estado !== 'nova') for (let d = 70; d >= 2; d -= 2) sessions.push({ data: day(d).slice(0, 10), passo: 'reading', segundos: 900, created_at: day(d), livro: d >= 30 && d <= 36 ? 'Jonas' : 'Gênesis' })
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
   // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
@@ -160,7 +164,6 @@ function Preview() {
   const [gami, setGami, gamiData] = useGamificationRow()
   const familia = params.get('familia') ?? 'constancia'
   const celebId = params.get('id') ?? 'tempo:2'
-  const [forceLoading] = useState(estado === 'carregando')
   const common = { session, authUser, completedSet }
   let body
   const livro = params.get('livro') ?? 'Jonas'
@@ -185,6 +188,21 @@ function Preview() {
     body = gamiData ? <NovaConquistaScreen celebration={{ kind: celebId.startsWith('bloco:') ? 'bloco' : 'degrau', id: celebId }} data={gamiData} userName="Diego" onContinue={() => setScreen('hoje')} onOpenConquistas={() => setScreen('conquistas')} /> : null
   } else if (screen === 'suaBiblia') {
     body = <SuaBibliaScreen {...common} onBack={() => setScreen('hoje')} onOpenBook={nome => alert(`abrir ${nome} na Bíblia`)} />
+  } else if (estado === 'carregando') {
+    // Hoje carregando (handoff-hoje-50 §8): os dados locais do preview
+    // chegam na hora, então o esqueleto da caminhada é montado aqui com os
+    // mesmos componentes e nada carregado ainda.
+    const progress = computeBibleProgress(completedSet)
+    const reads = Object.fromEntries(Object.entries(progress.porLivro).map(([nome, p]) => [nome, p.lidos]))
+    body = (
+      <div style={{ background: 'var(--bento-bg)', height: '100%', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 10, boxSizing: 'border-box' }}>
+        <CartaoBiblia progress={progress} reads={reads} currentBook="Gênesis" finishedIso={null} />
+        <QuadradosCaminhada
+          dailyRoutine={dailyRoutine} goalHistory={null} weeklyGoalDays={4} weeklyDays={session.weeklyDays} firstActivityKey={null}
+          livrosCompletos={progress.livrosCompletos} totalLivros={progress.totalLivros} sealNames={null}
+        />
+      </div>
+    )
   } else {
     body = (
       <HomeScreen
@@ -192,8 +210,8 @@ function Preview() {
         onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}} onSaveStepMinutes={() => {}}
         onOpenWeeklySummary={() => {}} onOpenBiblePassage={() => {}} onOpenSermonNote={() => {}}
         applicationRefreshKey={0}
-        onOpenSuaBiblia={() => setScreen('suaBiblia')}
-        key={forceLoading ? 'loading' : 'ready'}
+        onOpenSuaBiblia={() => setScreen('suaBiblia')} onOpenEstante={() => setScreen('estante')}
+        gamification={gami}
       />
     )
   }

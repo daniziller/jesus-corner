@@ -3163,8 +3163,8 @@ export default function App() {
       onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
       applicationRefreshKey={applicationRefreshVersion}
       onOpenSuaBiblia={() => goToTab('suaBiblia')}
-      onOpenConquistas={() => goToTab('conquistas')}
       onOpenEstante={() => openEstante()}
+      gamification={gamification}
     />,
     // Gamificação (handoff-gamificacao-43-46) — Sua Bíblia (G2), aberta
     // pelo cartão SUA BÍBLIA do Hoje. Tela empilhada sem barra de abas,

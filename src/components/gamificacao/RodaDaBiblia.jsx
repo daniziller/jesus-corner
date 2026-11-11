@@ -1,5 +1,5 @@
 // RodaDaBiblia.jsx — a roda da Bíblia (HANDOFF §2): UM componente SVG,
-// escrito à mão, usado no Hoje (250px), em Sua Bíblia (300px) e nas três
+// escrito à mão, usado no Hoje (132px), em Sua Bíblia (300px) e nas três
 // miniaturas de "Como a roda vai ficando" (92px). Geometria exata em
 // src/gamification/wheelGeometry.js, calculada uma vez por modo (memo) e
 // o preenchimento só quando o progresso muda.
@@ -12,8 +12,14 @@
 //   highlightBook  livro com contorno de destaque — opcional
 //   centerLine1    texto grande do centro — opcional
 //   centerLine2    texto pequeno do centro — opcional
-//   centerSize     tamanho da linha 1 em unidades do viewBox (40 no Hoje,
+//   centerSize     tamanho da linha 1 em unidades do viewBox (54 no Hoje,
 //                  44 em G2)
+//   centerSpacing  letter-spacing da linha 1 (−1.5 por padrão; −2 no Hoje)
+//   centerLine2Size / centerLine2Weight / centerLine2Y
+//                  tamanho, peso e linha de base da linha 2 em unidades do
+//                  viewBox (13 / 600 / 174 por padrão; 24 / 700 / 184 no
+//                  Hoje, onde a roda tem 132px e o texto precisa ser maior
+//                  pra continuar legível)
 //   ariaLabel      resumo pra leitor de tela ("4,2% da Bíblia lida, 50 de
 //                  1.189 capítulos")
 //   onSliceClick   (nome) → fatias viram botões de teclado/toque (G2);
@@ -32,7 +38,9 @@ const lastShown = new Map() // animateKey → reads da última pintura
 
 export default function RodaDaBiblia({
   reads, mode = 'livros', size = 250, currentBook = null, highlightBook = null,
-  centerLine1 = null, centerLine2 = null, centerSize = 40, ariaLabel, onSliceClick, animateKey = null,
+  centerLine1 = null, centerLine2 = null, centerSize = 40, centerSpacing = -1.5,
+  centerLine2Size = 13, centerLine2Weight = 600, centerLine2Y = 174,
+  ariaLabel, onSliceClick, animateKey = null,
 }) {
   const slices = SLICES_BY_MODE[mode] ?? SLICES_BY_MODE.livros
 
@@ -92,10 +100,10 @@ export default function RodaDaBiblia({
         <circle cx={marker[0]} cy={marker[1]} r={5.5} fill="var(--bento-accent)" stroke="#fff" strokeWidth={2.5} />
       )}
       {centerLine1 != null && (
-        <text x={CENTER} y={CENTER} textAnchor="middle" fontSize={centerSize} fontWeight={800} letterSpacing={-1.5} fill="var(--bento-ink)">{centerLine1}</text>
+        <text x={CENTER} y={CENTER} textAnchor="middle" fontSize={centerSize} fontWeight={800} letterSpacing={centerSpacing} fill="var(--bento-ink)">{centerLine1}</text>
       )}
       {centerLine2 != null && (
-        <text x={CENTER} y={174} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--bento-t3)">{centerLine2}</text>
+        <text x={CENTER} y={centerLine2Y} textAnchor="middle" fontSize={centerLine2Size} fontWeight={centerLine2Weight} fill="var(--bento-t3)">{centerLine2}</text>
       )}
     </svg>
   )

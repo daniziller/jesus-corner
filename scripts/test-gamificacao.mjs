@@ -103,6 +103,8 @@ check('cápsulas: semanas 1 e 2 batidas, anteriores ao cadastro transparentes', 
 const fullWeek = { '2026-11-09': R, '2026-11-10': R, '2026-11-06': R }
 check('passa da meta: 2 de 1', computeCurrentWeekGoal(fullWeek, [], 1, today), { feitos: 2, meta: 1, batida: true })
 check('cápsula atual cheia ao bater a meta', computeWeekCapsules({ '2026-11-09': R }, [], 1, null, today, 12)[11].fill, 1)
+const capsNova = computeWeekCapsules({}, [], 4, null, today, 12)
+check('conta nova: só a cápsula atual visível', [capsNova.filter(c => c.beforeStart).length, capsNova[11].beforeStart, capsNova[11].isCurrent, capsNova[11].fill], [11, false, true, 0])
 // Sete dias (PNG G3): meta Seg/Ter/Qui/Sáb; hoje terça; segunda lida.
 const weeklyDays = [true, true, false, true, false, true, false]
 check('sete dias da semana (G3)', computeWeekDayStates({ '2026-11-09': R }, weeklyDays, today).map(d => d.state), ['leu', 'hoje', 'fora', 'plano', 'fora', 'plano', 'descanso'])

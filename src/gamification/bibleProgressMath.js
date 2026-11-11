@@ -82,6 +82,17 @@ export function closestSeal(progress) {
   return best
 }
 
+// Livro mostrado junto da roda no Hoje: o livro atual do plano enquanto
+// faltar capítulo nele; senão o selo mais perto; senão o primeiro livro
+// incompleto na ordem canônica. Null com a Bíblia inteira lida.
+export function footerBook(progress, currentBook) {
+  if (currentBook && progress.porLivro[currentBook]?.faltam > 0) return currentBook
+  const seal = closestSeal(progress)
+  if (seal) return seal.nome
+  const next = Object.keys(progress.porLivro).find(nome => !progress.porLivro[nome].completo)
+  return next ?? null
+}
+
 // Próximo bloco a acender (rodapé do cartão "Blocos da Bíblia", G5): o
 // primeiro bloco incompleto na ordem canônica, com o livro que falta pra
 // fechá-lo quando falta só um; null com a Bíblia inteira lida.
