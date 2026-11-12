@@ -29,6 +29,10 @@
 //      · &perguntas=ok|erro|carregando|limite (a geração) · &trecho=marcado|lido|nenhum (o cartão areia)
 //      · &feitos=prayer,reading (com um passo faltando, "Terminar a reflexão") · &dia=estudo|um · &metodo=livre (37b, sem mudança)
 //      · &aplicacao=ontem|nenhuma (com frase já fixada no Início, terminar pergunta se troca)
+//      tela=dia — o dia concluído (S5), com os tempos de hoje semeados. &tempo=32|1|0 (minutos reais: 10 + 17 + 5,
+//      um minuto só, ou nenhum registrado) · &frase=nao (sem frase escrita hoje) · &dia=estudo (oração, estudo e
+//      reflexão: "Estudo · Ansiedade, dia 2" e "dia 2 de 7 / no estudo") · &dia=um (só a oração)
+//      · "Compartilhar meu dia" abre o editor da imagem (37d)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
 //      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
@@ -68,6 +72,7 @@ import SeuPlanoScreen from '../src/screens/SeuPlanoScreen'
 import AjustarPlanoScreen from '../src/screens/AjustarPlanoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
 import PrayerScreen from '../src/screens/PrayerScreen'
+import DayCompleteScreen from '../src/screens/DayCompleteScreen'
 import ReflectionScreen from '../src/screens/ReflectionScreen'
 import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
 import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
@@ -122,6 +127,15 @@ function seedGuestTables(estado) {
     const jaTem = sessions.filter(x => x.livro === 'Gênesis').reduce((t, x) => t + x.segundos, 0)
     sessions.push({ data: day(1).slice(0, 10), passo: 'reading', segundos: Math.max(0, 22200 - jaTem), created_at: day(1), livro: 'Gênesis' })
   }
+  // Dia concluído (S5): os tempos reais de hoje — 10 + 17 + 5 minutos.
+  if (tela === 'dia') {
+    const tempo = params.get('tempo') ?? '32'
+    const soEstudo = params.get('dia') === 'estudo'
+    const hojeKey = dateKey()
+    const linha = (passo, segundos) => ({ data: hojeKey, passo, segundos, created_at: new Date().toISOString(), livro: passo === 'reading' ? 'Gênesis' : null })
+    if (tempo === '1') sessions.push(linha('prayer', 40))
+    else if (tempo !== '0') sessions.push(linha('prayer', 600), ...(soEstudo || params.get('dia') === 'um' ? [] : [linha('reading', 1020)]), ...(params.get('dia') === 'um' ? [] : [linha('reflection', 300)]))
+  }
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
   // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
@@ -156,6 +170,11 @@ function seedGuestTables(estado) {
     notes['application:pinned'] = { text: frase, updatedAt: day(1) }
     notes[`application:${quando}`] = { text: frase, updatedAt: day(1), fulfilled: aplicacao === 'cumprida' }
   }
+  // Dia concluído (S5): a frase escrita hoje na reflexão (a do quadro).
+  if (tela === 'dia') {
+    if (params.get('frase') === 'nao') delete notes[`application:${dateKey()}`]
+    else notes[`application:${dateKey()}`] = { text: 'Deus não desperdiça a espera — vou parar de cobrar de mim um prazo que não é meu.', updatedAt: new Date().toISOString() }
+  }
   // Meu Plano (P1–P5): dias por passo e a entrada de HOJE conforme `plano`.
   const todayIdx = (new Date().getDay() + 6) % 7
   const all = [true, true, true, true, true, true, true]
@@ -175,9 +194,9 @@ function seedGuestTables(estado) {
   // Estudo ativo de exemplo (formato novo, 7 dias, dia 1 feito) pra p5/quatro.
   const estudo = {
     id: 'est-ansiedade', title: 'Ansiedade', createdAt: day(10),
-    sessions: [[4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4]].map(([a, b], i) => ({ id: i + 1, book: 'Filipenses', chStart: a, chEnd: b, passage: `Filipenses 4:${4 + i}-${6 + i}`, completedAt: i === 0 ? day(2) : undefined })),
+    sessions: [[4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4]].map(([a, b], i) => ({ id: i + 1, book: 'Filipenses', chStart: a, chEnd: b, passage: `Filipenses 4:${4 + i}-${6 + i}`, completedAt: i === 0 ? day(2) : (i === 1 && tela === 'dia') ? new Date().toISOString() : undefined })),
   }
-  const comEstudo = planoState === 'p5' || planoState === 'quatro'
+  const comEstudo = planoState === 'p5' || planoState === 'quatro' || (tela === 'dia' && params.get('dia') === 'estudo')
   const hoje = new Date(); hoje.setHours(6, 42, 0, 0)
   const atH = (h, m) => { const d = new Date(hoje); d.setHours(h, m, 0, 0); return d.toISOString() }
   const todayEntry = {
@@ -425,6 +444,22 @@ function ReflexaoPreview() {
   )
 }
 
+// Dia concluído (S5): a tela de verdade, sobre os dados semeados (tempos de
+// hoje, frase, semana, estudo). Gênesis 41 acabou de ser lido.
+function DiaPreview() {
+  const dia = params.get('dia')
+  const steps = dia === 'um' ? ['prayer'] : dia === 'estudo' ? ['prayer', 'study', 'reflection'] : ['prayer', 'reading', 'reflection']
+  const lidos = new Set([...completedSet, 'Gênesis:41'])
+  const s = { ...session, biblePercent: 4.3, activeStudyId: dia === 'estudo' ? 'est-ansiedade' : null }
+  return (
+    <DayCompleteScreen
+      session={s} authUser={authUser} completedSet={lidos} steps={steps}
+      readingSession={dia === 'estudo' || dia === 'um' ? null : { book: 'Gênesis', bookEn: 'Genesis', chStart: 41, chEnd: 41, type: 'reading' }}
+      onBack={() => alert('voltar ao plano (e, se houver, a tela de parabéns)')}
+    />
+  )
+}
+
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
@@ -439,6 +474,8 @@ function Preview() {
     body = <OracaoPreview />
   } else if (screen === 'reflexao') {
     body = <ReflexaoPreview />
+  } else if (screen === 'dia') {
+    body = <DiaPreview />
   } else if (screen === 'ajustar') {
     body = <AjustarPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} draftState={draftState} onDraftChange={setDraftState} onClearDraft={() => setDraftState(null)} onSave={async () => { await new Promise(r => setTimeout(r, 800)) }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} initialOpenStep={params.get('abrir')} scrollToDays={!!params.get('abrir')} />
   } else if (screen === 'seuPlano') {

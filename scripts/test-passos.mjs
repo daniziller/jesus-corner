@@ -8,6 +8,7 @@ import {
 } from '../src/passos/passosMath.js'
 import { PRAYER_STAGES } from '../src/prayer/prayerStages.js'
 import { readingThread } from '../src/biblia/bibliaMath.js'
+import { minutesHeadline, readingLabel, dayRows, dayNumbers, dayPhrase, studyDayDone } from '../src/passos/diaConcluidoMath.js'
 import { reflectionQuestions, reflectionView, answerPreview, reflectionFinishLabel, passageCard, combineQaText } from '../src/passos/reflexaoMath.js'
 
 let failures = 0
@@ -110,6 +111,31 @@ const comPerguntas = reflexao.slice(reflexao.indexOf('if (withQuestions) {'), re
 check('com perguntas: um cartão de pergunta (um campo) por vez', [(comPerguntas.match(/<CartaoPergunta\b/g) ?? []).length, /<textarea/.test(comPerguntas)], [2, false])
 check('a reflexão só grava na Biblioteca da própria pessoa — nada de grupo, sala ou comentário', /groupsStore|chapterRoomStore|commentsStore|messagesStore|postToRoom|shareTo/.test(reflexao), false)
 check('"Trocar" não aparece na pergunta fixa e a troca mexe só na pergunta atual', [/secondary: q\.fixed \? null : 'Trocar'/.test(readFileSync(new URL('../src/passos/reflexaoMath.js', import.meta.url), 'utf8')), /prev\.map\(\(q, i\) => \(i === idx \? \(pair\[idx\] \?\? pair\[0\]\) : q\)\)/.test(reflexao)], [true, true])
+
+// ── S5: o dia concluído ─────────────────────────────────────────────────
+check('topo: "32 minutos / com Deus." (10 + 17 + 5)', minutesHeadline(600 + 1020 + 300), ['32 minutos', 'com Deus.'])
+check('topo: singular, menos de um minuto conta um, e mil com ponto', [minutesHeadline(60)[0], minutesHeadline(20)[0], minutesHeadline(89)[0], minutesHeadline(61200)[0]], ['1 minuto', '1 minuto', '1 minuto', '1.020 minutos'])
+check('topo: sem tempo registrado, sem número inventado', [minutesHeadline(0), minutesHeadline(undefined)], [['Seu tempo', 'com Deus.'], ['Seu tempo', 'com Deus.']])
+const gn41 = { book: 'Gênesis', chStart: 41, chEnd: 41, type: 'reading' }
+check('trecho lido: um capítulo, um intervalo, reflexão de fechamento, nada', [readingLabel(gn41), readingLabel({ book: 'Gênesis', chStart: 40, chEnd: 41 }), readingLabel({ book: 'Jonas', type: 'reflection' }), readingLabel(null)], ['Gênesis 41', 'Gênesis 40–41', '', ''])
+const segundos = { prayer: 600, reading: 1020, reflection: 300 }
+check('dia com leitura (o quadro S5): três linhas, minutos reais, barra pelos minutos', dayRows({ steps: hoje, seconds: segundos, reading: readingLabel(gn41) }), [{ key: 'prayer', name: 'Oração', minutes: '10 min', flex: 10 }, { key: 'reading', name: 'Leitura · Gênesis 41', minutes: '17 min', flex: 17 }, { key: 'reflection', name: 'Reflexão', minutes: '5 min', flex: 5 }])
+const estudo = { title: 'Ansiedade', dayN: 3, dayTotal: 7, dayDone: 2 }
+check('dia de estudo: "Estudo · Ansiedade, dia 2", sem minutos (o estudo não tem relógio)', dayRows({ steps: ['prayer', 'study', 'reflection'], seconds: { prayer: 480, reading: 0, reflection: 200 }, study: estudo }), [{ key: 'prayer', name: 'Oração', minutes: '8 min', flex: 8 }, { key: 'study', name: 'Estudo · Ansiedade, dia 2', minutes: '', flex: 1 }, { key: 'reflection', name: 'Reflexão', minutes: '3 min', flex: 3 }])
+check('passo sem tempo registrado: sem minutos, um fio na barra; menos de 1 min vale "1 min"', dayRows({ steps: ['prayer', 'reading'], seconds: { prayer: 0, reading: 25 } }).map(r => [r.name, r.minutes, r.flex]), [['Oração', '', 1], ['Leitura', '1 min', 1]])
+check('dia do estudo feito hoje: os dias feitos; antes de concluir, o dia da vez; nunca passa do total', [studyDayDone(estudo), studyDayDone({ title: 'x', dayN: 1, dayTotal: 7, dayDone: 0 }), studyDayDone({ title: 'x', dayN: 8, dayTotal: 7, dayDone: 7 }), studyDayDone(null)], [2, 1, 7, null])
+const livro = { name: 'Gênesis', lidos: 41, total: 50, blocoId: 'pentateuco' }
+check('três números (o quadro S5): semana, livro na cor do bloco, Bíblia', dayNumbers({ week: { feitos: 2, meta: 6 }, book: livro, biblePercent: 4.3 }), [{ key: 'week', value: '2 de 6', caption: 'dias nesta semana' }, { key: 'book', value: '41 de 50', caption: 'em Gênesis', blocoId: 'pentateuco' }, { key: 'bible', value: '4,3%', caption: 'da Bíblia' }])
+check('dia sem leitura: "dia 2 de 7" / "no estudo"', dayNumbers({ week: { feitos: 5, meta: 4 }, study: estudo, biblePercent: 12 }).map(n => [n.value, n.caption]), [['5 de 4', 'dias nesta semana'], ['dia 2 de 7', 'no estudo'], ['12%', 'da Bíblia']])
+check('com leitura E estudo, o do meio é o livro; sem um nem outro, ficam dois', [dayNumbers({ week: { feitos: 1, meta: 4 }, book: livro, study: estudo, biblePercent: 0 })[1].key, dayNumbers({ week: { feitos: 1, meta: 4 }, biblePercent: 0 }).map(n => n.key), dayNumbers({ week: null, biblePercent: 100 }).map(n => n.value)], ['book', ['week', 'bible'], ['100%']])
+check('frase de hoje: entre aspas; sem frase, o cartão não aparece', [dayPhrase(' Deus não desperdiça a espera. '), dayPhrase(''), dayPhrase('   '), dayPhrase(undefined)], ['"Deus não desperdiça a espera."', null, null, null])
+
+// A tela: sem festa, um botão preto, e os controles da imagem só no editor.
+const dia = readFileSync(new URL('../src/screens/DayCompleteScreen.jsx', import.meta.url), 'utf8')
+const editor = readFileSync(new URL('../src/screens/DayShareScreen.jsx', import.meta.url), 'utf8')
+check('S5 não tem confete, "Parabéns" nem emoji', /confet|Parabéns|Incrível|🎉/i.test(dia.replace(/\/\/[^\n]*/g, '')), false)
+check('S5 termina num botão só, preto: "Voltar ao plano"', [(dia.match(/<RodapeDoPasso\b/g) ?? []).length, /primary=\{\{ label: 'Voltar ao plano', onClick: onBack, dark: true \}\}/.test(dia)], [1, true])
+check('compartilhar e salvar a imagem ficam no editor, não no resumo', [/shareDayCompleteImage|downloadDayCompleteImage|renderDayCompleteImage/.test(dia), /shareDayCompleteImage/.test(editor) && /downloadDayCompleteImage/.test(editor)], [false, true])
 
 // ── Privacidade: o que se escreve na oração não sai da tela ─────────────
 // O cartão de escrita e a tela da oração não importam nenhum lugar de

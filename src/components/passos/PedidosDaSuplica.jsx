@@ -8,6 +8,7 @@
 // pessoas oraram — nunca quem.
 import { useState } from 'react'
 import AppIcon from '../../icons/AppIcon'
+import Check from './Check'
 import { suplicaView, originLabel, supportLine, suplicaToggle } from '../../pedidos/pedidosMath.js'
 
 const FONT = 'var(--font-bento)'
@@ -50,7 +51,7 @@ export default function PedidosDaSuplica({ list, loading, error, sessionMarks, o
                 aria-pressed={p.prayedToday} aria-label={`Orei por este pedido: ${p.body}`}
                 onClick={() => toggle(p)}
               >
-                <CheckMark color={p.prayedToday ? '#fff' : 'var(--bento-t5)'} />
+                <Check size={16} color={p.prayedToday ? '#fff' : 'var(--bento-t5)'} />
               </button>
             </div>
           )
@@ -70,15 +71,6 @@ export default function PedidosDaSuplica({ list, loading, error, sessionMarks, o
         <AppIcon name="ChevronRight" size={14} strokeWidth={2.6} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
       </button>
     </section>
-  )
-}
-
-// O check do quadro (16px, traço de 2,6 numa grade de 20).
-function CheckMark({ color }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4.5 10.5l3.5 3.5 7.5-8" />
-    </svg>
   )
 }
 

@@ -1,186 +1,155 @@
-// DayCompleteScreen.jsx — Dia concluído (pacote 36-37, quadro 37c),
-// substitui RoutineCompleteScreen.jsx por inteiro. O cartão dentro da tela
-// NÃO é um painel que depois vira imagem — é a própria imagem (37d, canvas
-// de dayCompleteImage.js), só reduzida por CSS; os 4 chips ligam/desligam
-// blocos e o cartão redesenha na hora.
+// DayCompleteScreen.jsx — Dia concluído (S5, handoff-passos-pedidos-53-54
+// §6). O que a pessoa fez e o que mudou: os minutos reais com Deus, os
+// passos de hoje com o tempo de cada um, a semana, o livro, a Bíblia, e a
+// frase do dia. Sem cabeçalho, sem relógio, sem festa — um botão preto
+// leva de volta ao plano, e é depois dele que entra a tela de parabéns,
+// se o dia rendeu livro completo ou conquista (regra da gamificação, em
+// App.jsx).
+//
+// "Compartilhar meu dia" abre o editor da imagem (DayShareScreen, 37d) por
+// cima desta tela; voltar de lá devolve ao resumo.
 import { useState, useEffect, useMemo } from 'react'
-import { renderDayCompleteImage, shareDayCompleteImage, downloadDayCompleteImage } from '../routine/dayCompleteImage'
 import { getNotes, noteTextOf } from '../notes/notesStore'
 import { getAllSessions, totalsForDay } from '../metrics/sessionDurationStore'
-import { formatWeekdayDate } from '../utils/weekdayDateLabel'
 import { dailyApplicationKeyFor } from '../reflection/applicationPhraseStore'
+import { getGamificationRow } from '../gamification/achievementsStore'
+import { computeCurrentWeekGoal } from '../gamification/weeksMath'
+import { computeBibleProgress } from '../gamification/bibleProgressMath'
+import { bookInfo, blockColorVar } from '../data/gamificationBlocks'
+import { loadActiveStudy } from '../meuPlano/activeStudy'
+import { minutesHeadline, readingLabel, dayRows, dayNumbers, dayPhrase } from '../passos/diaConcluidoMath'
 import { dateKey } from '../utils/dateKey'
-import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import BarraDoDia from '../components/passos/BarraDoDia'
+import Check from '../components/passos/Check'
+import RodapeDoPasso from '../components/passos/RodapeDoPasso'
+import DayShareScreen from './DayShareScreen'
 
-const CHIP_KEYS = ['phrase', 'times', 'whereInBible', 'name']
+const FONT = 'var(--font-bento)'
 
-// "Três passos feitos" (37c) — o quadro escreve por extenso o número de
-// passos (nunca mais que 4: Oração/Leitura/Estudo/Reflexão), diferente dos
-// outros números da mesma frase ("18ª semana"), que ficam em algarismo.
-// Maiúscula porque é sempre a 1ª palavra da frase.
-const STEP_COUNT_WORDS = {
-  pt: { 0: 'Nenhum', 1: 'Um', 2: 'Dois', 3: 'Três', 4: 'Quatro' },
-  en: { 0: 'No', 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four' },
-}
-
-export default function DayCompleteScreen({ session, authUser, steps, readingSession, onBack }) {
-  const { lang, userName, dailyRoutine, weeksInGoal, biblePercent } = session
-  const L = (k, vars) => t(`dayComplete.${k}`, vars, lang)
+export default function DayCompleteScreen({ session, authUser, completedSet, steps, readingSession, onBack }) {
+  const { lang, dailyRoutine, weeklyGoalDays, biblePercent, activeStudyId } = session
   const email = authUser?.email
 
-  const [include, setInclude] = useState({ phrase: true, times: true, whereInBible: true, name: true })
-  function toggle(key) { setInclude(prev => ({ ...prev, [key]: !prev[key] })) }
-
+  // A frase de hoje (pergunta 3 da reflexão), os segundos reais de cada
+  // passo hoje, o histórico da meta semanal e o estudo ativo.
   const [phrase, setPhrase] = useState('')
-  const [minutes, setMinutes] = useState({ prayer: 0, reading: 0, reflection: 0 })
+  const [seconds, setSeconds] = useState({ prayer: 0, reading: 0, reflection: 0 })
+  const [goalHistory, setGoalHistory] = useState(null)
+  const [study, setStudy] = useState(null)
   useEffect(() => {
     if (!email) return
     getNotes(email).then(map => setPhrase(noteTextOf(map[dailyApplicationKeyFor()]))).catch(() => {})
-    getAllSessions().then(rows => setMinutes(totalsForDay(rows, dateKey()))).catch(() => {})
+    getAllSessions().then(rows => setSeconds(totalsForDay(rows, dateKey()))).catch(() => {})
+    getGamificationRow().then(row => setGoalHistory(row.goalHistory ?? [])).catch(() => setGoalHistory([]))
   }, [email])
-
-  const totalSeconds = minutes.prayer + minutes.reading + minutes.reflection
-  const totalMinutes = Math.round(totalSeconds / 60)
-  const dayNumber = Object.keys(dailyRoutine ?? {}).filter(d => d <= dateKey()).length
-  const dateLabel = formatWeekdayDate(dateKey(), lang)
-  const percentRead = `${(biblePercent ?? 0).toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
-  const chapterShort = readingSession && readingSession.type !== 'reflection'
-    ? `${readingSession.book} ${readingSession.chStart}`
-    : null
-
-  const titleWithName = chapterShort ? L('titleWithName', { name: userName, chapter: chapterShort }) : L('titleWithNameNoChapter', { name: userName })
-  const titleWithoutName = chapterShort ? L('titleNoName', { chapter: chapterShort }) : L('titleNoNameNoChapter')
-
-  const imageData = useMemo(() => ({
-    dayNumber, dateLabel, name: userName,
-    titleWithName, titleWithoutName,
-    phrase: phrase?.trim() || null,
-    minutes, totalSeconds,
-    weeksInGoal: weeksInGoal ?? 0,
-    percentRead, chapterShort,
-    labels: {
-      prayer: t('home.routinePrayer', undefined, lang),
-      reading: t('home.routineReading', undefined, lang),
-      reflection: t('home.routineReflection', undefined, lang),
-      timeToday: L('timeTodayLabel'),
-      weeksInGoal: L('weeksInGoalLabel'),
-      whereInBible: L('whereInBibleLabel'),
-      day: L('dayLabel'),
-      myPhraseToday: L('myPhraseTodayLabel'),
-    },
-  }), [dayNumber, dateLabel, userName, titleWithName, titleWithoutName, phrase, minutes, totalSeconds, weeksInGoal, percentRead, chapterShort, lang])
-
-  const [previewUrl, setPreviewUrl] = useState(null)
+  const hasStudyStep = (steps ?? []).includes('study')
   useEffect(() => {
-    let cancelled = false
-    renderDayCompleteImage(imageData, include).then(blob => {
-      if (cancelled || !blob) return
-      const url = URL.createObjectURL(blob)
-      setPreviewUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url })
-    })
-    return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageData, include])
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
+    if (!hasStudyStep || !activeStudyId) return
+    loadActiveStudy(activeStudyId, lang).then(setStudy).catch(() => {})
+  }, [hasStudyStep, activeStudyId, lang])
 
-  const [busy, setBusy] = useState(false)
-  async function handleShare() {
-    if (busy) return
-    setBusy(true)
-    try {
-      const blob = await renderDayCompleteImage(imageData, include)
-      await shareDayCompleteImage(blob, { title: L('shareTitle'), text: include.name ? titleWithName : titleWithoutName })
-    } finally {
-      setBusy(false)
-    }
-  }
-  async function handleSave() {
-    if (busy) return
-    setBusy(true)
-    try {
-      const blob = await renderDayCompleteImage(imageData, include)
-      downloadDayCompleteImage(blob)
-    } finally {
-      setBusy(false)
-    }
+  // A mesma conta do contador de semanas (weeksMath): dias que contaram
+  // nesta semana, contra a meta vigente.
+  const week = goalHistory ? computeCurrentWeekGoal(dailyRoutine, goalHistory, weeklyGoalDays) : null
+  // O livro lido hoje, na estrutura da gamificação (lidos, total, bloco).
+  const bookName = (steps ?? []).includes('reading') && readingSession?.type !== 'reflection' ? readingSession?.book : null
+  const book = useMemo(() => {
+    const info = bookName && bookInfo(bookName)
+    const progress = info && completedSet ? computeBibleProgress(completedSet).porLivro[bookName] : null
+    return progress ? { name: bookName, lidos: progress.lidos, total: progress.total, blocoId: info.blocoId } : null
+  }, [bookName, completedSet])
+
+  const [sharing, setSharing] = useState(false)
+  if (sharing) {
+    return <DayShareScreen session={session} readingSession={readingSession} phrase={phrase} minutes={seconds} onBack={() => setSharing(false)} />
   }
 
-  const stepCount = steps?.length ?? 0
-  const stepCountWord = (STEP_COUNT_WORDS[lang] ?? STEP_COUNT_WORDS.pt)[stepCount] ?? String(stepCount)
-  const contextLine = L(stepCount === 1 ? 'contextLineOne' : 'contextLineMany', { n: stepCountWord, weeks: weeksInGoal ?? 0 })
+  const headline = minutesHeadline(seconds.prayer + seconds.reading + seconds.reflection)
+  const rows = dayRows({ steps, seconds, reading: readingLabel(readingSession), study })
+  const numbers = dayNumbers({ week, book, study: hasStudyStep ? study : null, biblePercent })
+  const quote = dayPhrase(phrase)
 
   return (
-    <div style={styles.screen}>
-      <div style={styles.body}>
-        <p style={styles.eyebrow}>{L('pageTitle')}</p>
-        <p style={styles.headline}>{L('headline', { n: totalMinutes, name: userName })}</p>
-        <p style={styles.context}>{contextLine}</p>
-
-        <div style={styles.imageWrap}>
-          {previewUrl && <img src={previewUrl} alt="" style={styles.imagePreview} />}
+    <div style={s.screen}>
+      <div style={s.scroll}>
+        <div style={s.top}>
+          <p style={s.eyebrow}>Dia concluído</p>
+          <h1 style={s.headline}>{headline[0]}<br />{headline[1]}</h1>
         </div>
 
-        <div style={styles.chipsRow}>
-          {CHIP_KEYS.map(key => (
-            <button key={key} type="button" style={{ ...styles.chip, ...(include[key] ? styles.chipOn : {}) }} onClick={() => toggle(key)}>
-              {L(`chip${key[0].toUpperCase()}${key.slice(1)}`)}
-            </button>
-          ))}
+        <div style={s.body}>
+          <div style={s.steps}>
+            <BarraDoDia segments={rows.map(r => ({ key: r.key, minutes: r.flex, status: 'now' }))} height={6} style={s.bar} aria-hidden="true" />
+            <ul style={s.list}>
+              {rows.map(r => (
+                <li key={r.key} style={s.row}>
+                  <span style={s.check}><Check size={11} color="#fff" /></span>
+                  <span style={s.rowName}>{r.name}</span>
+                  {r.minutes && <span style={s.rowMinutes}>{r.minutes}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div style={s.numbers}>
+            {numbers.map(n => (
+              <div key={n.key} style={s.number}>
+                <p style={{ ...s.numberValue, ...(n.blocoId ? { color: blockColorVar(n.blocoId) } : null) }}>{n.value}</p>
+                <p style={s.numberCaption}>{n.caption}</p>
+              </div>
+            ))}
+          </div>
+
+          {quote && (
+            <div style={s.phraseCard}>
+              <p style={s.phraseLabel}>Sua frase de hoje</p>
+              <p style={s.phrase}>{quote}</p>
+            </div>
+          )}
+
+          <button type="button" style={s.share} onClick={() => setSharing(true)}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={s.shareTitle}>Compartilhar meu dia</span>
+              <span style={s.shareSub}>Você escolhe o que entra na imagem</span>
+            </span>
+            <AppIcon name="ChevronRight" size={14} strokeWidth={2.6} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
+          </button>
         </div>
-        <p style={styles.chipsHint}>{L('chipsHint')}</p>
       </div>
 
-      <div style={styles.footer}>
-        <button style={styles.shareBtn} onClick={handleShare} disabled={busy}>
-          <AppIcon name="Share2" size={16} strokeWidth={2.2} color="var(--bento-ink)" />
-          <span>{L('shareBtn')}</span>
-        </button>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button style={styles.saveBtn} onClick={handleSave} disabled={busy}>{L('saveBtn')}</button>
-          <button style={styles.backBtn} onClick={onBack}>{L('backBtn')}</button>
-        </div>
-      </div>
+      <RodapeDoPasso primary={{ label: 'Voltar ao plano', onClick: onBack, dark: true }} />
     </div>
   )
 }
 
-const FONT = 'var(--font-bento)'
-const styles = {
+const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
-  body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '20px 20px 4px', display: 'flex', flexDirection: 'column', gap: 10 },
+  scroll: { flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
+  top: { padding: '30px 20px 0' },
+  eyebrow: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
+  headline: { fontFamily: FONT, fontSize: 30, fontWeight: 800, lineHeight: 1.05, letterSpacing: '-1.2px', color: 'var(--bento-ink)', margin: '12px 0 0' },
+  body: { padding: '18px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 },
 
-  eyebrow: { fontFamily: FONT, fontSize: 11.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
-  headline: { fontFamily: FONT, fontSize: 24, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
-  context: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '0 0 6px' },
+  steps: { borderRadius: 26, background: 'var(--bento-ink)', padding: '16px 18px 12px' },
+  bar: { margin: '0 0 10px' },
+  list: { listStyle: 'none', margin: 0, padding: 0 },
+  row: { display: 'flex', alignItems: 'center', gap: 10, height: 40 },
+  check: { width: 22, height: 22, flexShrink: 0, borderRadius: 8, background: 'var(--bento-sand-icon)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  rowName: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 13.5, fontWeight: 700, lineHeight: 1.15, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  rowMinutes: { flexShrink: 0, fontFamily: FONT, fontSize: 12.5, fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,.6)' },
 
-  // flexShrink: 0 é o que segura o tamanho do cartão (achado 2026-10-25,
-  // reportado por ela: "a imagem fica pequena"). O body é uma coluna flex
-  // de altura fixa, e um item flex com overflow:hidden tem min-height
-  // automático ZERO (regra do flexbox) — então o container 9:16 era
-  // espremido até caber no que sobrava da tela (~230px num iPhone), e a
-  // imagem, com `contain`, virava uma miniatura no meio de um retângulo
-  // escuro. Sem encolher, o cartão mantém a proporção e o body rola.
-  // O teto de 62vh (largura derivada da altura, proporção exata) é pra o
-  // cartão não tomar a tela inteira e deixar os chips à vista com um rolar
-  // curto — mesmo espírito do maxHeight de 48vh na prévia de ReadingBlockView.
-  imageWrap: { flexShrink: 0, alignSelf: 'center', width: '100%', maxWidth: 'calc(62vh * 9 / 16)', borderRadius: 28, overflow: 'hidden', background: '#1A1714', aspectRatio: '9 / 16' },
-  // `contain`, não `cover` (achado 2026-09-09, reportado por ela: o
-  // título do cartão saía cortado por cima) — a imagem já É exatamente
-  // 1080×1920 (9:16, igual ao aspectRatio do container), então os dois
-  // deveriam ficar idênticos; `cover` corta agressivamente se o
-  // navegador arredondar a altura do container por um pixel a menos que
-  // o esperado, `contain` nunca corta, só sobra uma borda mínima nesse
-  // caso raro (imperceptível).
-  imagePreview: { display: 'block', width: '100%', height: '100%', objectFit: 'contain' },
+  numbers: { display: 'flex', gap: 8 },
+  number: { flex: 1, minWidth: 0, borderRadius: 18, background: 'var(--bento-card)', padding: '13px 12px 12px' },
+  numberValue: { fontFamily: FONT, fontSize: 19, fontWeight: 800, lineHeight: 1, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: '0 0 6px' },
+  numberCaption: { fontFamily: FONT, fontSize: 10.5, fontWeight: 600, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
 
-  chipsRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  chip: { height: 40, padding: '0 16px', borderRadius: 99, border: 'none', background: '#fff', cursor: 'pointer', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-t3)' },
-  chipOn: { background: 'var(--bento-ink)', color: '#fff' },
-  chipsHint: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t4)', margin: '2px 0 0' },
+  phraseCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '16px 18px 17px' },
+  phraseLabel: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 9px' },
+  phrase: { fontFamily: FONT, fontSize: 16, fontWeight: 600, fontStyle: 'italic', lineHeight: 1.4, letterSpacing: '-.2px', color: 'var(--bento-sand-ink-strong)', margin: 0, textWrap: 'pretty', overflowWrap: 'anywhere' },
 
-  footer: { flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 20px calc(20px + var(--safe-bottom))' },
-  shareBtn: { height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, cursor: 'pointer', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
-  saveBtn: { flex: 1, height: 50, borderRadius: 18, border: 'none', background: '#fff', cursor: 'pointer', fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)' },
-  backBtn: { flex: 1, height: 50, borderRadius: 18, border: 'none', background: 'var(--bento-card)', cursor: 'pointer', fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-t2)' },
+  // A linha tem 56px dentro de um cartão com 4px de respiro em cima e embaixo.
+  share: { width: '100%', height: 64, boxSizing: 'border-box', border: 'none', borderRadius: 24, background: 'var(--bento-card)', padding: '4px 18px', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: 'pointer' },
+  shareTitle: { display: 'block', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  shareSub: { display: 'block', fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)' },
 }

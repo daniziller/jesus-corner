@@ -16,7 +16,7 @@ export default function CabecalhoDoPasso({ title, subtitle, onBack, backLabel = 
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={s.title}>{title}</h1>
-          <p style={s.subtitle}>{subtitle}</p>
+          {subtitle && <p style={s.subtitle}>{subtitle}</p>}
         </div>
         {clock}
       </div>

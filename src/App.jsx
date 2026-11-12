@@ -3411,6 +3411,7 @@ export default function App() {
       ? <DayCompleteScreen
           session={session}
           authUser={authUser}
+          completedSet={completedSet}
           steps={routineCompleteInfo.steps}
           readingSession={routineCompleteInfo.readingSession}
           onBack={() => { setRoutineCompleteInfo(null); goToTab('home') }}
