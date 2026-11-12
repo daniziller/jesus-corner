@@ -33,6 +33,9 @@
 //      um minuto só, ou nenhum registrado) · &frase=nao (sem frase escrita hoje) · &dia=estudo (oração, estudo e
 //      reflexão: "Estudo · Ansiedade, dia 2" e "dia 2 de 7 / no estudo") · &dia=um (só a oração)
 //      · "Compartilhar meu dia" abre o editor da imagem (37d)
+//      tela=pedidos — a lista de pedidos (O1), com os pedidos na memória. &aba=ativos|respondidos|grupo|amigos
+//      · &pedidos=3|0|7|erro|carregando (7 traz dois de amigos e a aba Amigos) · &respondidos=12|2|0
+//      · &oracoes=47|0|49|1200 (o cartão "orações pelos outros") · &comentarios=2 (contagem na linha de um pedido)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
 //      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
@@ -73,6 +76,7 @@ import AjustarPlanoScreen from '../src/screens/AjustarPlanoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
 import PrayerScreen from '../src/screens/PrayerScreen'
 import DayCompleteScreen from '../src/screens/DayCompleteScreen'
+import PrayerRequestsScreen from '../src/screens/PrayerRequestsScreen'
 import ReflectionScreen from '../src/screens/ReflectionScreen'
 import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
 import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
@@ -378,8 +382,15 @@ function pedidosDeExemplo() {
     { id: 'p6', authorName: 'Marina Alves', body: 'Prova de residência no sábado', anonymous: false, scope: 'friends', createdAt: ha(1), prayCount: 0, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
     { id: 'p7', authorName: null, body: 'Um diagnóstico que ainda não contei a ninguém', anonymous: true, scope: 'friends', createdAt: ha(3), prayCount: 12, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
   ]
+  // Respondidos (O1): doze, os dois mais recentes como no quadro.
+  const respostas = ['sim', 'aprenda', 'nao', 'se_mova', 'sim', 'sim', 'aprenda', 'nao', 'sim', 'se_mova', 'sim', 'aprenda']
+  const respondidos = params.get('respondidos') === '0' ? [] : respostas.slice(0, Number(params.get('respondidos')) || 12).map((resposta, i) => meu(`r${i}`,
+    ['Trabalho para a Juliana', 'Que meu chefe mudasse', 'A viagem em julho', 'A casa nova', 'A prova do Davi', 'O exame da minha mãe', 'Vender o carro', 'Mudar de turma', 'O visto', 'A conversa com o Paulo', 'O aluguel de março', 'Dormir melhor'][i],
+    [59, 250, 40, 90, 20, 15, 70, 33, 120, 12, 45, 28][i] + 10 * (i + 1),
+    { status: 'closed', resposta, respondidoEm: ha(10 * (i + 1)), notaResposta: i === 0 ? 'Começou em março, no lugar que ela nem tinha pedido.' : i === 1 ? 'Ele segue igual. Eu que aprendi a responder diferente.' : null }))
   const qual = params.get('pedidos') ?? '3'
-  const mine = qual === '0' ? [] : qual === '7' ? [...tres, ...mais] : tres
+  const ativos = qual === '0' ? [] : qual === '7' ? [...tres, ...mais] : tres
+  const mine = tela === 'pedidos' ? [...ativos.map((p, i) => (i === 1 ? { ...p, commentCount: Number(params.get('comentarios') ?? 0) } : p)), ...respondidos] : ativos
   return mergePedidos({ mine, feed: qual === '7' ? amigos : [], intentions: null, todayKey: dateKey() })
 }
 const pedidosDePreview = {
@@ -387,7 +398,7 @@ const pedidosDePreview = {
     const qual = params.get('pedidos')
     if (qual === 'carregando') return new Promise(() => {})
     if (qual === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
-    return new Promise(resolve => setTimeout(() => resolve(pedidosDeExemplo()), 150))
+    return new Promise(resolve => setTimeout(() => resolve({ pedidos: pedidosDeExemplo(), othersPrayed: Number(params.get('oracoes') ?? 47) }), 150))
   },
   orar: p => { console.log('[preview] orei:', p.id, p.isMine ? '(meu: só a data)' : '(de outra pessoa: conta em "Oração pelos outros")'); return Promise.resolve() },
   desfazer: p => { console.log('[preview] desfiz o orei:', p.id); return Promise.resolve() },
@@ -476,6 +487,14 @@ function Preview() {
     body = <ReflexaoPreview />
   } else if (screen === 'dia') {
     body = <DiaPreview />
+  } else if (screen === 'pedidos') {
+    body = (
+      <PrayerRequestsScreen
+        session={{ ...session, hasAI: true }} authUser={authUser} pedidosApi={pedidosDePreview} initialTab={params.get('aba') ?? 'ativos'}
+        onBack={() => alert('voltar')} onOpenRequest={p => alert(`abrir o detalhe do pedido (comentários): ${p.body}`)}
+        onOpenFamilia={id => alert(`abrir Minhas conquistas, família ${id}`)}
+      />
+    )
   } else if (screen === 'ajustar') {
     body = <AjustarPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} draftState={draftState} onDraftChange={setDraftState} onClearDraft={() => setDraftState(null)} onSave={async () => { await new Promise(r => setTimeout(r, 800)) }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} initialOpenStep={params.get('abrir')} scrollToDays={!!params.get('abrir')} />
   } else if (screen === 'seuPlano') {
@@ -560,7 +579,7 @@ function Preview() {
   }
   const nav = screen === 'hoje' && params.get('msgs') != null
     ? <BottomNav activeTab="home" onNavigate={t => alert(`aba: ${t}`)} groupsUnread={Number(params.get('msgs'))} groupsHasPending={params.get('pendente') === '1'} lang="pt" />
-    : null
+    : screen === 'pedidos' ? <BottomNav activeTab="routine" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /> : null
   return <div style={{ height: '100%' }}>{body}{nav}</div>
 }
 

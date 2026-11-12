@@ -25,8 +25,9 @@ import AppIcon from '../icons/AppIcon'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { relativeTimeSpan } from '../prayer/prayerRequestFormat'
 import {
-  getPrayerRequestComments, addPrayerRequestComment, deletePrayerRequestComment, markPraying,
+  getPrayerRequestComments, addPrayerRequestComment, deletePrayerRequestComment,
 } from '../groups/prayerRequestsStore'
+import { orarPor } from '../pedidos/orei'
 
 const FONT = 'var(--font-bento)'
 
@@ -63,7 +64,7 @@ export default function PrayerRequestDetailScreen({ session, request, onBack }) 
     // guarda isso; orar de novo num dia seguinte não é gente nova, só
     // atualiza prayedToday (pro botão) sem repetir o +1.
     if (!prayedEver) { setPrayCount(n => n + 1); setPrayedEver(true) }
-    markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
+    orarPor(request).catch(err => console.error('Failed to mark praying', err))
   }
 
   async function submitComment() {

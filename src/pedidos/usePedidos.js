@@ -3,11 +3,13 @@
 // o servidor responder e volta atrás se a gravação falhar.
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { pedidosApi } from './pedidosApi'
-import { applyOrei, revertOrei } from './pedidosMath.js'
+import { applyOrei, revertOrei, countsForOthers } from './pedidosMath.js'
 
 export function usePedidos({ api = pedidosApi, enabled = true } = {}) {
   const [list, setList] = useState(null)
   const [error, setError] = useState(false)
+  // Quantas vezes orei por pedidos de outras pessoas (null: não se sabe).
+  const [othersPrayed, setOthersPrayed] = useState(null)
   // Os pedidos marcados desde que a tela abriu — só esses a Súplica deixa
   // desmarcar — e como cada um estava antes da marca.
   const [sessionMarks, setSessionMarks] = useState(() => new Set())
@@ -17,7 +19,7 @@ export function usePedidos({ api = pedidosApi, enabled = true } = {}) {
   const queueRef = useRef(new Map())
 
   const reload = useCallback(() => api.load()
-    .then(next => { setList(next); setError(false) })
+    .then(next => { setList(next.pedidos); setOthersPrayed(next.othersPrayed ?? null); setError(false) })
     .catch(err => { console.error('[pedidos] carregar', err); setError(true) }), [api])
   useEffect(() => { if (enabled) reload() }, [enabled, reload])
 
@@ -26,6 +28,11 @@ export function usePedidos({ api = pedidosApi, enabled = true } = {}) {
   }
   function mark(id, on) {
     setSessionMarks(prev => { const next = new Set(prev); if (on) next.add(id); else next.delete(id); return next })
+  }
+  // Um "orei" num pedido de outra pessoa soma (ou devolve) uma oração
+  // pelos outros.
+  function countOther(p, delta) {
+    if (countsForOthers(p)) setOthersPrayed(n => (n == null ? n : Math.max(0, n + delta)))
   }
   function enqueue(id, job) {
     const run = (queueRef.current.get(id) ?? Promise.resolve()).then(job)
@@ -38,10 +45,12 @@ export function usePedidos({ api = pedidosApi, enabled = true } = {}) {
     beforeRef.current.set(p.id, p)
     patch(p.id, applyOrei)
     mark(p.id, true)
+    countOther(p, 1)
     enqueue(p.id, () => api.orar(p)).catch(err => {
       console.error('[pedidos] orei', err)
       patch(p.id, r => revertOrei(r, p))
       mark(p.id, false)
+      countOther(p, -1)
     })
   }
 
@@ -50,12 +59,14 @@ export function usePedidos({ api = pedidosApi, enabled = true } = {}) {
     if (!before || !sessionMarks.has(p.id)) return
     patch(p.id, r => revertOrei(r, before))
     mark(p.id, false)
+    countOther(p, -1)
     enqueue(p.id, () => api.desfazer(before)).catch(err => {
       console.error('[pedidos] desfazer orei', err)
       patch(p.id, applyOrei)
       mark(p.id, true)
+      countOther(p, 1)
     })
   }
 
-  return { list, loading: enabled && list == null && !error, error, sessionMarks, orar, desfazer, reload }
+  return { list, loading: enabled && list == null && !error, error, othersPrayed, sessionMarks, orar, desfazer, reload }
 }

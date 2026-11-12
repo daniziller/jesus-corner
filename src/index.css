@@ -356,6 +356,16 @@ body {
   position: absolute;
   inset: -5px 0;
 }
+/* O rótulo "PEDIDOS DE ORAÇÃO" da Súplica abre a lista: 9.5px de texto,
+   44px de área de toque. */
+.passo-rotulo {
+  position: relative;
+}
+.passo-rotulo::after {
+  content: '';
+  position: absolute;
+  inset: -17px -10px;
+}
 .passo-campo::placeholder {
   color: var(--bento-t4);
   opacity: 1;

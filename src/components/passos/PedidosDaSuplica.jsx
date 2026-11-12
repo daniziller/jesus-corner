@@ -2,7 +2,8 @@
 // (handoff-passos-pedidos-53-54 §3): uma linha por pedido ativo, com a
 // origem, o pedido inteiro, a linha de apoio e um check de 44px — o mesmo
 // "orei" da lista de pedidos. Mais de cinco: "Ver os {n} pedidos" abre o
-// resto no lugar. A última linha é "Fazer um pedido".
+// resto no lugar. A última linha é "Fazer um pedido". O rótulo do cartão
+// abre a lista de pedidos.
 //
 // Privacidade: de cada pedido só aparecem o texto, a origem e QUANTAS
 // pessoas oraram — nunca quem.
@@ -13,7 +14,7 @@ import { suplicaView, originLabel, supportLine, suplicaToggle } from '../../pedi
 
 const FONT = 'var(--font-bento)'
 
-export default function PedidosDaSuplica({ list, loading, error, sessionMarks, onOrar, onDesfazer, onAdd }) {
+export default function PedidosDaSuplica({ list, loading, error, sessionMarks, onOrar, onDesfazer, onAdd, onOpenAll }) {
   const [expanded, setExpanded] = useState(false)
   const view = suplicaView(list, { expanded })
 
@@ -26,7 +27,11 @@ export default function PedidosDaSuplica({ list, loading, error, sessionMarks, o
   return (
     <section style={s.card} aria-labelledby="suplica-pedidos">
       <div style={s.top}>
-        <h3 style={s.label} id="suplica-pedidos">Pedidos de oração</h3>
+        {/* O rótulo leva à lista de pedidos (O1) — é a entrada dela para
+            quem ora no ACTS. */}
+        <h3 style={s.label} id="suplica-pedidos">
+          <button type="button" className="passo-rotulo" style={s.labelButton} onClick={onOpenAll} aria-label="Pedidos de oração. Abrir a lista de pedidos.">Pedidos de oração</button>
+        </h3>
         {view.counter && <span style={s.counter} role="status">{view.counter}</span>}
       </div>
 
@@ -78,6 +83,7 @@ const s = {
   card: { flexShrink: 0, borderRadius: 24, background: 'var(--bento-card)', padding: '16px 16px 4px' },
   top: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, margin: '0 0 12px' },
   label: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
+  labelButton: { border: 'none', background: 'none', padding: 0, font: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', color: 'inherit', cursor: 'pointer' },
   counter: { fontFamily: FONT, fontSize: 11, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)', whiteSpace: 'nowrap' },
   note: { fontFamily: FONT, fontSize: 13, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: 0, padding: '13px 0', borderTop: '1px solid var(--bento-line)' },
   row: { display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderTop: '1px solid var(--bento-line)' },

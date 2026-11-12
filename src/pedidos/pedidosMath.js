@@ -7,6 +7,9 @@
 // orou — só quantas pessoas (`prayCount`). O nome que pode aparecer é o de
 // quem PEDIU, e só num pedido de amigo que não foi publicado sem nome.
 import { relativeTimeSpan } from '../prayer/prayerRequestFormat.js'
+import { FAMILIES } from '../data/achievements.js'
+import { familyState, oracaoStats } from '../gamification/familiesMath.js'
+import { formatInt, plural } from '../gamification/format.js'
 
 // Os pedidos em que já orei hoje, pelas minhas próprias marcas (a única
 // coisa que a conta deixa ler de group_prayer_intentions). `todayKey` é o
@@ -69,13 +72,23 @@ export function peopleLine(n) {
   return n === 1 ? '1 pessoa já orou' : `${n} pessoas já oraram`
 }
 
+// "2 comentários" · "1 comentário" · "" — os comentários de um pedido
+// continuam existindo (decisão dela, 2026-11); a lista só diz quantos há.
+export function commentsLine(n) {
+  return n > 0 ? `${formatInt(n)} ${plural(n, 'comentário', 'comentários')}` : ''
+}
+
 // A linha de apoio de um pedido. Meu: "Orando há 24 dias" — o tempo desde
 // que o pedido foi feito — e, na lista (O1), " · orei hoje". De outra
 // pessoa: quantas pessoas oraram; na lista, com "Há 2 dias · " na frente.
+// Na lista, havendo comentários, a contagem vem no fim.
 export function supportLine(p, { list = false, now = Date.now() } = {}) {
   const span = relativeTimeSpan(p.createdAt, 'pt', now)
-  if (p.origin === 'mine') return `Orando há ${span}${list && p.prayedToday ? ' · orei hoje' : ''}`
-  return list ? `Há ${span} · ${peopleLine(p.prayCount)}` : peopleLine(p.prayCount)
+  const base = p.origin === 'mine'
+    ? `Orando há ${span}${list && p.prayedToday ? ' · orei hoje' : ''}`
+    : list ? `Há ${span} · ${peopleLine(p.prayCount)}` : peopleLine(p.prayCount)
+  const comments = list ? commentsLine(p.commentCount) : ''
+  return comments ? `${base} · ${comments}` : base
 }
 
 // ── O "orei" ────────────────────────────────────────────────────────────
@@ -138,4 +151,92 @@ export function suplicaView(list, { expanded = false } = {}) {
     counter: total ? prayedCounter(active.filter(r => r.prayedToday).length, total) : null,
     more: !expanded && total > SUPLICA_LIMIT ? `Ver os ${total} pedidos` : null,
   }
+}
+
+// ── A lista de pedidos (O1) ─────────────────────────────────────────────
+
+// Os respondidos (só os meus chegam aqui), do mais recente ao mais antigo.
+export function answeredPedidos(list) {
+  return (list ?? [])
+    .filter(r => r.status === 'closed')
+    .sort((a, b) => String(b.respondidoEm ?? '').localeCompare(String(a.respondidoEm ?? '')))
+}
+
+// O que cada aba mostra. "Do grupo" e "Amigos": só pedidos de outras
+// pessoas, ainda ativos.
+export function pedidosOfTab(list, tab) {
+  if (tab === 'respondidos') return answeredPedidos(list)
+  const active = activePedidos(list)
+  if (tab === 'grupo') return active.filter(r => r.origin === 'group')
+  if (tab === 'amigos') return active.filter(r => r.origin === 'friend')
+  return active
+}
+
+// As abas, com a contagem: "Ativos · 3" | "Respondidos · 12" | "Do grupo ·
+// 1" — e "Amigos · 2" quando há pedido de amigo (a aba dos amigos não está
+// no quadro; entra só quando tem o que mostrar).
+export function pedidosTabs(list) {
+  const tab = (key, name) => ({ key, label: `${name} · ${formatInt(pedidosOfTab(list, key).length)}` })
+  const tabs = [tab('ativos', 'Ativos'), tab('respondidos', 'Respondidos'), tab('grupo', 'Do grupo')]
+  if (pedidosOfTab(list, 'amigos').length > 0) tabs.push(tab('amigos', 'Amigos'))
+  return tabs
+}
+
+export const RESPONSE_LABEL = { sim: 'Sim', nao: 'Não', espere: 'Espere', aprenda: 'Aprenda', se_mova: 'Se mova' }
+
+// Um pedido respondido: o selo da resposta (só "Sim" é cheio), "orado por
+// {tempo}" — do dia do pedido até o da resposta —, o pedido e, se houver,
+// a linha "o que eu vi", entre aspas.
+export function answeredRow(p) {
+  const note = String(p.notaResposta ?? '').trim()
+  return {
+    id: p.id,
+    badge: RESPONSE_LABEL[p.resposta] ?? '',
+    solid: p.resposta === 'sim',
+    span: `orado por ${relativeTimeSpan(p.createdAt, 'pt', p.respondidoEm ? new Date(p.respondidoEm).getTime() : Date.now())}`,
+    body: p.body,
+    note: note ? `"${note}"` : null,
+  }
+}
+
+// O bloco "RESPONDIDOS" da aba Ativos: os dois mais recentes e, havendo
+// mais, "Ver os {n}" (leva à aba Respondidos). Sem respondidos, não há
+// bloco.
+export function answeredBlock(list) {
+  const all = answeredPedidos(list)
+  if (!all.length) return null
+  return { total: all.length, more: all.length > 2 ? `Ver os ${formatInt(all.length)}` : null, rows: all.slice(0, 2).map(answeredRow) }
+}
+
+// O que o toque no cartão abre (fora do botão "orei"): um pedido meu,
+// ativo, abre "Como Deus respondeu?" (O3); os outros — de outra pessoa, ou
+// já respondidos — abrem o detalhe, onde ficam os comentários.
+export function cardTap(p) {
+  return p.isMine && p.status !== 'closed' ? 'responder' : 'detalhe'
+}
+
+// O cartão "orações pelos outros": quantas vezes orei por pedidos de
+// outras pessoas, quanto falta para o próximo degrau da família "Oração
+// pelos outros" e a barra entre o degrau atual e o próximo. No último
+// degrau, a segunda linha vira o nome dele e a barra some.
+export function othersCard(value) {
+  const state = familyState(FAMILIES.find(f => f.id === 'oracao'), Math.max(0, value ?? 0), () => null)
+  const top = !state.next
+  return {
+    value: formatInt(state.value),
+    caption: `${plural(state.value, 'oração', 'orações')} pelos outros`,
+    line: top
+      ? state.degraus[state.degraus.length - 1].nome
+      : `${state.remaining === 1 ? 'Falta 1' : `Faltam ${formatInt(state.remaining)}`} para "${state.next.nome}"`,
+    progress: top ? null : state.progress,
+    aria: top
+      ? `${formatInt(state.value)} orações pelos outros. ${state.degraus[state.degraus.length - 1].nome}.`
+      : `${formatInt(state.value)} ${plural(state.value, 'oração', 'orações')} pelos outros. ${state.remaining === 1 ? 'Falta 1' : `Faltam ${formatInt(state.remaining)}`} para ${state.next.nome}.`,
+  }
+}
+
+// Quantas vezes orei por pedidos de outras pessoas — a mesma conta da
+// família (as minhas marcas, menos as dos meus próprios pedidos).
+export function othersPrayedCount(intentions, myRequestIds) {
+  return intentions ? oracaoStats(intentions, myRequestIds).value : null
 }

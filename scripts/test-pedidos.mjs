@@ -1,10 +1,11 @@
 // Testes dos pedidos de oração (handoff-passos-pedidos-53-54), parte pura:
 // a lista unificada, o "orei" e a lista da Súplica.
 // node scripts/test-pedidos.mjs
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import {
   prayedTodayIds, mergePedidos, activePedidos, originLabel, peopleLine, supportLine,
   applyOrei, revertOrei, suplicaToggle, countsForOthers, prayedCounter, suplicaView, SUPLICA_LIMIT,
+  commentsLine, answeredPedidos, pedidosOfTab, pedidosTabs, answeredRow, answeredBlock, cardTap, othersCard, othersPrayedCount,
 } from '../src/pedidos/pedidosMath.js'
 
 let failures = 0
@@ -76,6 +77,31 @@ check('exatamente cinco: sem a linha', suplicaView(sete.slice(0, 5)).more, null)
 check('nenhum pedido ativo: vazio, sem contador', suplicaView([meu('z', 'respondido', 61, { status: 'closed' })]), { rows: [], total: 0, empty: true, counter: null, more: null })
 check('lista ainda não carregada', suplicaView(undefined).empty, true)
 
+// ── A lista de pedidos (O1) ─────────────────────────────────────────────
+const respondido = (id, body, criadoHa, respondidoHa, resposta, nota = null) => meu(id, body, criadoHa, { status: 'closed', resposta, notaResposta: nota, respondidoEm: ha(respondidoHa) })
+const comRespondidos = mergePedidos({
+  mine: [...minhas, respondido('r1', 'Que meu chefe mudasse', 300, 60, 'aprenda', 'Ele segue igual. Eu que aprendi a responder diferente.'), respondido('r2', 'Trabalho para a Juliana', 69, 10, 'sim', 'Começou em março, no lugar que ela nem tinha pedido.'), respondido('r3', 'A viagem em julho', 40, 30, 'nao')],
+  feed, intentions: marcas, todayKey: '2026-11-11',
+})
+check('abas (o quadro O1, mais a dos amigos): contagens', pedidosTabs(comRespondidos), [{ key: 'ativos', label: 'Ativos · 5' }, { key: 'respondidos', label: 'Respondidos · 3' }, { key: 'grupo', label: 'Do grupo · 1' }, { key: 'amigos', label: 'Amigos · 2' }])
+check('sem pedido de amigo, as três abas do quadro; "Do grupo · 0" continua', pedidosTabs(mergePedidos({ mine: [meu('a', 'x', 1)], feed: [], intentions: [], todayKey: '2026-11-11' })).map(t => t.label), ['Ativos · 1', 'Respondidos · 0', 'Do grupo · 0'])
+check('aba Ativos: todos os ativos, na ordem da lista', pedidosOfTab(comRespondidos, 'ativos').map(p => p.id), ['a', 'b', 'c', 'd', 'e'])
+check('aba Do grupo e aba Amigos: só pedidos de outras pessoas', [pedidosOfTab(comRespondidos, 'grupo').map(p => p.id), pedidosOfTab(comRespondidos, 'amigos').map(p => p.id), pedidosOfTab(comRespondidos, 'grupo').concat(pedidosOfTab(comRespondidos, 'amigos')).some(p => p.isMine)], [['b'], ['d', 'e'], false])
+check('aba Respondidos: do mais recente ao mais antigo', [pedidosOfTab(comRespondidos, 'respondidos').map(p => p.id), answeredPedidos(comRespondidos).length], [['r2', 'r3', 'r1'], 3])
+check('bloco RESPONDIDOS: os dois mais recentes e "Ver os 3"', (b => [b.total, b.more, b.rows.map(r => r.id)])(answeredBlock(comRespondidos)), [3, 'Ver os 3', ['r2', 'r3']])
+check('bloco RESPONDIDOS: com um ou dois, sem "Ver os"; sem nenhum, sem bloco', [answeredBlock(comRespondidos.filter(p => p.id !== 'r1')).more, answeredBlock(lista)], [null, null])
+check('respondido "Sim": selo cheio, "orado por 59 dias" (do pedido até a resposta), a frase entre aspas', answeredRow(comRespondidos.find(p => p.id === 'r2')), { id: 'r2', badge: 'Sim', solid: true, span: 'orado por 59 dias', body: 'Trabalho para a Juliana', note: '"Começou em março, no lugar que ela nem tinha pedido."' })
+check('respondido "Aprenda": selo claro, "orado por 8 meses"; sem "o que eu vi", sem linha', [(r => [r.badge, r.solid, r.span])(answeredRow(comRespondidos.find(p => p.id === 'r1'))), (r => [r.badge, r.span, r.note])(answeredRow(comRespondidos.find(p => p.id === 'r3')))], [['Aprenda', false, 'orado por 8 meses'], ['Não', 'orado por 10 dias', null]])
+check('a partir de 60 dias, em meses (a regra de tempo de sempre)', answeredRow(respondido('x', 'x', 71, 10, 'sim')).span, 'orado por 2 meses')
+check('respondido no mesmo dia e em um dia: "1 h" e "1 dia"', [answeredRow(respondido('x', 'x', 1, 1, 'sim')).span, answeredRow(respondido('x', 'x', 2, 1, 'se_mova')).span, answeredRow(respondido('x', 'x', 2, 1, 'se_mova')).badge], ['orado por 1 h', 'orado por 1 dia', 'Se mova'])
+check('toque no cartão: meu e ativo → "Como Deus respondeu?"; de outra pessoa ou já respondido → detalhe', [cardTap(a), cardTap(b), cardTap(d), cardTap(comRespondidos.find(p => p.id === 'r2'))], ['responder', 'detalhe', 'detalhe', 'detalhe'])
+check('comentários na linha da lista: plural, singular e nenhum', [commentsLine(2), commentsLine(1), commentsLine(0), supportLine({ ...b, commentCount: 2 }, { list: true, now: agora }), supportLine({ ...a, commentCount: 1 }, { list: true, now: agora }), supportLine({ ...b, commentCount: 2 }, { now: agora })], ['2 comentários', '1 comentário', '', 'Há 2 dias · 5 pessoas já oraram · 2 comentários', 'Orando há 24 dias · orei hoje · 1 comentário', '5 pessoas já oraram'])
+// O cartão "orações pelos outros" — a família "Oração pelos outros".
+check('47 orações (o quadro O1): "Faltam 3 para "Cinquenta orações"", barra em 92,5%', (c => [c.value, c.caption, c.line, c.progress])(othersCard(47)), ['47', 'orações pelos outros', 'Faltam 3 para "Cinquenta orações"', 0.925])
+check('"Falta 1 para …", singular "1 oração", e do zero', [othersCard(49).line, othersCard(1).caption, othersCard(0).line, othersCard(0).progress, othersCard(10).line], ['Falta 1 para "Cinquenta orações"', 'oração pelos outros', 'Faltam 10 para "Dez orações"', 0, 'Faltam 40 para "Cinquenta orações"'])
+check('último degrau: a segunda linha vira o nome dele e a barra some', (c => [c.value, c.line, c.progress])(othersCard(1200)), ['1.200', 'Intercessor', null])
+check('a contagem é a da família: minhas marcas em pedidos de outras pessoas (uma por pedido por dia)', [othersPrayedCount(marcas, new Set(['a', 'c'])), othersPrayedCount([...marcas, { prayer_request_id: 'd', prayed_date: '2026-11-11' }], new Set(['a', 'c'])), othersPrayedCount(null, new Set())], [1, 2, null])
+
 // ── Privacidade ─────────────────────────────────────────────────────────
 // Quem pediu vê só o número: nenhum pedido carrega quem orou, nem o id de
 // outra pessoa.
@@ -102,6 +128,15 @@ check('a lista de pedidos usa o orarPor/desfazerOrei do orei.js', /orar: orarPor
 // Uma vez por pedido por dia: a marca é (pedido, pessoa, dia do aparelho) e repetir não cria outra.
 check('a gravação é uma por pedido por dia, no dia do aparelho', [/prayed_date: dateKey\(\)/.test(store), /onConflict: 'prayer_request_id,user_id,prayed_date', ignoreDuplicates: true/.test(store)], [true, true])
 check('desfazer só apaga a própria marca de hoje', /\.delete\(\)\s*\.eq\('prayer_request_id', requestId\)\s*\.eq\('user_id', userId\)\s*\.eq\('prayed_date', dateKey\(\)\)/.test(store), true)
+// Fora do orei.js, ninguém grava a marca: lista, detalhe do pedido e aba de oração dos grupos.
+const fontes = readdirSync(new URL('../src/', import.meta.url), { recursive: true }).filter(f => /\.(jsx?|mjs)$/.test(String(f))).map(String)
+check('em todo o app, só o orei.js (e o próprio armazenamento) chama markPraying', fontes.filter(f => /markPraying\(/.test(ler(f))).sort(), ['groups/prayerRequestsStore.js', 'pedidos/orei.js'])
+const telaLista = ler('screens/PrayerRequestsScreen.jsx')
+const cartao = ler('components/pedidos/CartaoDoPedido.jsx')
+check('a lista (O1) marca pelo mesmo caminho da Súplica', [/usePedidos\(/.test(telaLista), /onOrar=\{pedidos\.orar\}/.test(telaLista), /markPraying|group_prayer_intentions/.test(telaLista + cartao)], [true, true, false])
+check('o botão da lista não desmarca: só chama o "orei" quando ainda não orei hoje', [/if \(!pedido\.prayedToday\) onOrar\(pedido\)/.test(cartao), /onDesfazer|desfazer/.test(telaLista + cartao)], [true, false])
+check('um botão por pedido: "orei", com aria-pressed; sem "Orei por isso" nem "Arquivar"', [(cartao.match(/aria-label="Orei por este pedido"/g) ?? []).length, /aria-pressed=\{pedido\.prayedToday\}/.test(cartao), /Orei por isso|Arquivar/.test(cartao + telaLista)], [1, true, false])
+check('a lista e os cartões só mostram contagem — nenhum nome de quem orou', /prayedBy|sharers|quemOrou/.test(telaLista + cartao + ler('components/pedidos/BlocoRespondidos.jsx')), false)
 // A Súplica não mostra nome de quem orou nem abre comentário.
 const suplica = ler('components/passos/PedidosDaSuplica.jsx')
 check('a Súplica só mostra texto, origem e contagem — sem nomes de quem orou, sem comentários', /prayedBy|comment|Comment/.test(suplica), false)

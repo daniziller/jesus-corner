@@ -19,8 +19,9 @@ import ReportMessageSheet from '../components/ReportMessageSheet'
 import { logActivity } from '../activity/activityStore'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import {
-  getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest, markPraying,
+  getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest,
 } from '../groups/prayerRequestsStore'
+import { orarPor } from '../pedidos/orei'
 import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
 import { getRoomStats } from '../groups/chapterRoomStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
@@ -746,7 +747,7 @@ function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpen
     // falha de verdade deixava "orei" marcado na tela sem ter sido
     // registrado no banco, com o card só se corrigindo sozinho se/quando a
     // tela recarregasse do zero.
-    markPraying(latestPrayer.id).catch(err => {
+    orarPor(latestPrayer).catch(err => {
       console.error('Failed to mark praying', err)
       setLatestPrayer(p => (p ? { ...p, prayingByMe: false, prayedEver: wasPrayedEver, prayCount: wasPrayedEver ? p.prayCount : Math.max(0, p.prayCount - 1) } : p))
     })
@@ -1412,7 +1413,7 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
       : r))
     // Bug real (varredura geral, 2026-09-19): sem reversão no catch — ver
     // mesmo comentário em handlePray/handleLike/handleClose acima.
-    markPraying(request.id).catch(err => {
+    orarPor(request).catch(err => {
       console.error('Failed to mark praying', err)
       setRequests(prev => prev.map(r => r.id === request.id
         ? { ...r, prayingByMe: false, prayedEver: wasPrayedEver, prayCount: wasPrayedEver ? r.prayCount : Math.max(0, r.prayCount - 1) }

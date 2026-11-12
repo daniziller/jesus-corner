@@ -19,7 +19,7 @@ function labelKey(key) {
   return { sim: 'Sim', nao: 'Nao', espere: 'Espere', aprenda: 'Aprenda', se_mova: 'SeMova' }[key]
 }
 
-export default function ArchivePrayerRequestSheet({ request, lang, onClose, onArchive }) {
+export default function ArchivePrayerRequestSheet({ request, lang, onClose, onArchive, onOpenComments }) {
   const L = (k, vars) => t(`prayerRequests.${k}`, vars, lang)
   const [selected, setSelected] = useState(null)
   const [note, setNote] = useState('')
@@ -74,6 +74,15 @@ export default function ArchivePrayerRequestSheet({ request, lang, onClose, onAr
               maxLength={240}
             />
           </div>
+
+          {/* Os comentários do pedido continuam existindo: ficam no detalhe
+              do pedido, e esta linha leva até lá. */}
+          {onOpenComments && (
+            <button type="button" style={s.commentsRow} onClick={onOpenComments}>
+              <span style={{ flex: 1 }}>{request?.commentCount > 0 ? `Comentários · ${request.commentCount}` : 'Comentários'}</span>
+              <AppIcon name="ChevronRight" size={14} strokeWidth={2.6} color="var(--bento-t5)" />
+            </button>
+          )}
         </div>
 
         <div style={s.footer}>
@@ -109,6 +118,7 @@ const s = {
   noteCard: { borderRadius: 18, background: 'var(--bento-card)', padding: '14px 18px', margin: '14px 0 16px' },
   noteLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 8px' },
   noteInput: { width: '100%', border: 'none', outline: 'none', background: 'none', boxSizing: 'border-box', fontFamily: FONT, fontSize: 14, fontWeight: 500, color: 'var(--bento-ink)' },
+  commentsRow: { width: '100%', height: 50, boxSizing: 'border-box', border: 'none', borderRadius: 18, background: 'var(--bento-card)', padding: '0 18px', margin: '-6px 0 16px', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', fontFamily: FONT, fontSize: 13.5, fontWeight: 700, color: 'var(--bento-ink)' },
   footer: { flex: 'none', padding: '10px 22px calc(20px + var(--safe-bottom))' },
   saveBtn: { width: '100%', height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', cursor: 'pointer', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)' },
 }

@@ -212,6 +212,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
             <PedidosDaSuplica
               list={pedidos.list} loading={pedidos.loading} error={pedidos.error} sessionMarks={pedidos.sessionMarks}
               onOrar={pedidos.orar} onDesfazer={pedidos.desfazer} onAdd={() => setAddRequestOpen(true)}
+              onOpenAll={() => { pause(); onNavigate?.('prayerRequests') }}
             />
           )}
         </div>

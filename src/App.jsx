@@ -3450,6 +3450,7 @@ export default function App() {
       : <PrayerRequestsScreen
           session={session} authUser={authUser} onBack={goBack}
           onOpenRequest={request => { setPrayerRequestDetail(request); goToTab('prayerRequestDetail') }}
+          onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }}
         />,
     // Detalhe de um pedido (comentários, 2026-09-19) — aberto a partir de
     // um card de PrayerRequestsScreen (acima); mesmo gate de Premium,
