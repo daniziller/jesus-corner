@@ -261,41 +261,6 @@ body {
 }
 .nav-item.active .nav-label { color: var(--bento-ink); font-weight: 800; }
 
-/* ── Section header ── */
-/* Ícone girando — usado no botão de compartilhar progresso (Home) enquanto
-   a imagem do cartão é gerada. */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.icon-spin {
-  animation: spin 0.9s linear infinite;
-}
-
-/* ── Tela de boas-vindas (primeiro acesso, AuthScreen.jsx) ── */
-@keyframes fadeUpIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.welcome-fade-up {
-  opacity: 0;
-  animation: fadeUpIn .5s cubic-bezier(.2,.8,.2,1) forwards;
-}
-/* Prévia do passo em destaque na tela de boas-vindas — o texto troca a
-   cada ciclo (controlado em JS, junto com o chip em destaque), e essa
-   animação só dá uma leve entrada pro texto novo. */
-@keyframes previewFade {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.welcome-preview-fade {
-  animation: previewFade .4s ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  .welcome-fade-up { opacity: 1; animation: none; transform: none; }
-  .welcome-cta-pulse { animation: none; }
-  .welcome-preview-fade { animation: none; }
-}
-
 /* Entrada das folhas que sobem de baixo (ToolsSheet, ChapterPickerSheet,
    ProfileSheet…). `to` usa transform:none (não translateY(0)) — mesmo
    resultado visual, mas translateY(0) ainda CRIA um novo contexto de
@@ -540,8 +505,6 @@ body {
   cursor: pointer;
   padding: 6px 8px 20px;
 }
-.sidebar-logo { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; }
-.sidebar-brand-name { font-family: var(--font-bento); font-size: 15px; font-weight: 800; color: var(--bento-ink); letter-spacing: -0.4px; }
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -640,17 +603,6 @@ body {
   border: 1.5px solid var(--white, #fff);
 }
 
-/* Carrossel de recursos do onboarding (AuthScreen.jsx) — rolagem manual por
-   arrasto, sem barra de rolagem visível (o "espiar" do próximo card já
-   comunica que dá pra arrastar, a barra só polui). */
-.feature-scroller {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.feature-scroller::-webkit-scrollbar {
-  display: none;
-}
-
 /* ── Folha do Perfil (ProfileSheet.jsx, quadro 19a) — única folha do app
    que fica ACIMA da barra de abas (não some por baixo dela como as
    demais), então não pode usar o mesmo "bottom: 0" das outras. No
@@ -740,41 +692,6 @@ body {
        esticaria até preencher os 100vh do #root nessa faixa de tela. */
     flex: none !important;
     max-height: calc(100vh - 220px);
-  }
-}
-
-/* ── Dashboard reflow (telas com layout em 2 colunas no desktop) ──
-   Mobile: empilhado em coluna, igual ao comportamento de sempre.
-   Tablet/desktop (≥768px): vira layout em linha (2 colunas) ou grade. */
-.dashboard-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.dashboard-col {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-.block-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-@media (min-width: 768px) {
-  .dashboard-grid {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 20px;
-  }
-  .dashboard-col {
-    flex: 1;
-  }
-  .block-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
   }
 }
 
