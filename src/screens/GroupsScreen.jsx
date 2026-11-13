@@ -22,7 +22,7 @@ import {
   getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest,
 } from '../groups/prayerRequestsStore'
 import { orarPor } from '../pedidos/orei'
-import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
+import FolhaFazerPedido from '../components/pedidos/FolhaFazerPedido'
 import { getRoomStats } from '../groups/chapterRoomStore'
 import { getGroupMessagesSummary } from '../groups/messagesStore'
 import { formatRelativeTime } from '../utils/time'
@@ -1459,11 +1459,12 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
       )}
 
       {addOpen && (
-        <AddPrayerRequestSheet
+        // "Fazer um pedido" abre sempre em "Só eu", também daqui: publicar
+        // neste grupo é uma escolha explícita em "Quem vê".
+        <FolhaFazerPedido
           lang={lang}
           authUser={authUser}
           hasAI={hasAI}
-          defaultGroupId={groupId}
           onClose={() => setAddOpen(false)}
           onCreated={reload}
         />

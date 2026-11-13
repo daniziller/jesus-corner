@@ -31,7 +31,7 @@ import { useKeyboardInset } from '../passos/useKeyboardInset'
 import { usePedidos } from '../pedidos/usePedidos'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
+import FolhaFazerPedido from '../components/pedidos/FolhaFazerPedido'
 import PremiumLockCard from '../components/PremiumLockCard'
 import StepTimerCard from '../components/timer/StepTimerCard'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
@@ -43,9 +43,10 @@ import PedidosDaSuplica from '../components/passos/PedidosDaSuplica'
 import RodapeDoPasso from '../components/passos/RodapeDoPasso'
 
 // `active`: a tela está na frente (ela fica montada, escondida, depois da
-// primeira visita — ver prayerVisitedRef em App.jsx). `pedidosApi` e
-// `initialStage` só existem para a pré-visualização de desenvolvimento.
-export default function PrayerScreen({ session, authUser, stepMinutes, active = true, onPrayerCompleted, onNavigate, onExitGuided, onBack, timerControlsRef, onTimerRunningChange, pedidosApi, initialStage = 0 }) {
+// primeira visita — ver prayerVisitedRef em App.jsx). `pedidosApi`,
+// `formApi` e `initialStage` só existem para a pré-visualização de
+// desenvolvimento.
+export default function PrayerScreen({ session, authUser, stepMinutes, active = true, onPrayerCompleted, onNavigate, onExitGuided, onBack, timerControlsRef, onTimerRunningChange, pedidosApi, formApi, initialStage = 0 }) {
   const { lang } = session
   const guided = session.guided?.step === 'prayer'
   const L = (k, vars) => t(`prayer.${k}`, vars, lang)
@@ -223,8 +224,8 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
         />
 
         {addRequestOpen && (
-          <AddPrayerRequestSheet
-            lang={lang} authUser={authUser} hasAI={session.hasAI}
+          <FolhaFazerPedido
+            lang={lang} authUser={authUser} hasAI={session.hasAI} api={formApi}
             onClose={() => setAddRequestOpen(false)}
             onCreated={() => { setAddRequestOpen(false); pedidos.reload() }}
           />

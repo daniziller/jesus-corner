@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import {
   prayedTodayIds, mergePedidos, activePedidos, originLabel, peopleLine, supportLine,
   applyOrei, revertOrei, suplicaToggle, countsForOthers, prayedCounter, suplicaView, SUPLICA_LIMIT,
+  DEFAULT_WHO_SEES, MAX_PEDIDO, whoSeesOptions, requestFormState, requestPayload, ANSWER_OPTIONS, prayedSummary, answerSheetState,
   commentsLine, answeredPedidos, pedidosOfTab, pedidosTabs, answeredRow, answeredBlock, cardTap, othersCard, othersPrayedCount,
 } from '../src/pedidos/pedidosMath.js'
 
@@ -14,6 +15,10 @@ function check(label, actual, expected) {
   if (!ok) failures++
   console.log(`${ok ? 'OK ' : 'FALHOU'} ${label}${ok ? '' : `\n    esperado: ${JSON.stringify(expected)}\n    recebido: ${JSON.stringify(actual)}`}`)
 }
+
+// Os arquivos de código, pra os testes de estrutura e de privacidade.
+const ler = caminho => readFileSync(new URL(`../src/${caminho}`, import.meta.url), 'utf8')
+const store = ler('groups/prayerRequestsStore.js')
 
 const agora = new Date(2026, 10, 11, 10, 0).getTime()
 const ha = dias => new Date(agora - dias * 86400000).toISOString()
@@ -102,6 +107,31 @@ check('"Falta 1 para …", singular "1 oração", e do zero', [othersCard(49).li
 check('último degrau: a segunda linha vira o nome dele e a barra some', (c => [c.value, c.line, c.progress])(othersCard(1200)), ['1.200', 'Intercessor', null])
 check('a contagem é a da família: minhas marcas em pedidos de outras pessoas (uma por pedido por dia)', [othersPrayedCount(marcas, new Set(['a', 'c'])), othersPrayedCount([...marcas, { prayer_request_id: 'd', prayed_date: '2026-11-11' }], new Set(['a', 'c'])), othersPrayedCount(null, new Set())], [1, 2, null])
 
+// ── Fazer um pedido (O2) ────────────────────────────────────────────────
+check('"Só eu" é o padrão de "Quem vê"', [DEFAULT_WHO_SEES, requestFormState().publishing, requestFormState({ body: 'x' }).button], ['only_me', false, 'Guardar pedido'])
+const quemVe = whoSeesOptions({ groups: [{ groupId: 'g1', name: 'Grupo Semente' }], memberCounts: { g1: 6 }, friendsCount: 12 })
+check('"Quem vê" (o quadro O2): "Só eu" primeiro, depois os grupos e "Meus amigos"', quemVe, [{ key: 'only_me', title: 'Só eu', sub: 'no seu diário' }, { key: 'group:g1', title: 'Grupo Semente', sub: '6 pessoas' }, { key: 'friends', title: 'Meus amigos', sub: '12 pessoas' }])
+check('sem grupo: "Só eu" e "Meus amigos"; plurais "1 pessoa" e "0 pessoas"', whoSeesOptions({ groups: [{ groupId: 'g', name: 'G' }], memberCounts: { g: 1 } }).map(o => o.sub).concat(whoSeesOptions().map(o => o.key)), ['no seu diário', '1 pessoa', '0 pessoas', 'only_me', 'friends'])
+const frase = 'Meu pai começa o tratamento na terça e eu estou com medo.'
+check('estado 1 — "Só eu" (o quadro O2): guarda, sem cartão de anonimato', requestFormState({ body: frase, choice: 'only_me' }), { publishing: false, showAnonymous: false, button: 'Guardar pedido', note: 'Fica só com você, no seu diário de oração. Para pedir oração a outras pessoas, escolha um grupo acima.', counter: '57 / 240', over: false, canSubmit: true })
+check('estado 2 — um grupo escolhido: publica, com "Publicar sem meu nome" e o aviso do número', (st => [st.publishing, st.showAnonymous, st.button, st.note])(requestFormState({ body: frase, choice: 'group:g1' })), [true, true, 'Publicar pedido', 'Você recebe só o número de pessoas que oraram, nunca os nomes. Pode encerrar o pedido quando quiser.'])
+check('"Meus amigos" também é publicar', requestFormState({ body: frase, choice: 'friends' }).button, 'Publicar pedido')
+check('botão desabilitado com o campo vazio, só com espaços, ou acima de 240', [requestFormState({ body: '' }).canSubmit, requestFormState({ body: '   \n' }).canSubmit, requestFormState({ body: 'a'.repeat(241) }).canSubmit, requestFormState({ body: 'a'.repeat(241) }).over, requestFormState({ body: 'a'.repeat(240) }).canSubmit, MAX_PEDIDO], [false, false, false, true, true, 240])
+check('o que é gravado com "Só eu": nunca leva grupo nem anonimato, mesmo se a chave ficou ligada', requestPayload({ body: `  ${frase} `, choice: 'only_me', anonymous: true }), { body: frase, scope: 'only_me', groupId: null, anonymous: false })
+check('só publica com um grupo (ou os amigos) escolhido', [requestPayload({ body: frase }), requestPayload({ body: frase, choice: 'group:g1' }), requestPayload({ body: frase, choice: 'group:g1', anonymous: true }), requestPayload({ body: frase, choice: 'friends' })], [{ body: frase, scope: 'only_me', groupId: null, anonymous: false }, { body: frase, scope: 'group', groupId: 'g1', anonymous: false }, { body: frase, scope: 'group', groupId: 'g1', anonymous: true }, { body: frase, scope: 'friends', groupId: null, anonymous: false }])
+const folhaPedido = ler('components/pedidos/FolhaFazerPedido.jsx')
+check('a folha sempre abre em "Só eu" e com "Publicar sem meu nome" desligado — nada é lembrado', [/useState\(DEFAULT_WHO_SEES\)/.test(folhaPedido), /const \[anonymous, setAnonymous\] = useState\(false\)/.test(folhaPedido), /localStorage|sessionStorage|defaultGroupId|lastChoice/.test(folhaPedido)], [true, true, false])
+check('a gravação recebe o que requestPayload devolve', /createPrayerRequest\(requestPayload\(\{ body, choice, anonymous \}\)\)/.test(folhaPedido), true)
+
+// ── Como Deus respondeu? (O3) ───────────────────────────────────────────
+check('as cinco respostas, na ordem da grade, com os apoios', ANSWER_OPTIONS.map(o => `${o.title} / ${o.sub}`), ['Sim / Veio como eu pedi', 'Não / Ele fechou a porta', 'Espere / Ainda não é o tempo', 'Aprenda / A situação ficou; eu mudei', 'Se mova / A resposta pedia um passo meu'])
+check('nenhuma vem escolhida: botão "Guardar o pedido", desabilitado', [answerSheetState(null), answerSheetState(undefined).canSave], [{ canSave: false, keepsActive: false, button: 'Guardar o pedido' }, false])
+check('"Sim", "Não", "Aprenda", "Se mova": guardam o pedido', ['sim', 'nao', 'aprenda', 'se_mova'].map(k => answerSheetState(k)), Array(4).fill({ canSave: true, keepsActive: false, button: 'Guardar o pedido' }))
+check('"Espere" mantém o pedido ativo e o botão diz "Seguir orando"', answerSheetState('espere'), { canSave: true, keepsActive: true, button: 'Seguir orando' })
+check('"Espere" não chama o servidor: o pedido não muda', /if \(response === 'espere'\) return/.test(store), true)
+check('"Orado por 24 dias · 9 vezes" (o quadro O3)', prayedSummary(a, agora), 'Orado por 24 dias · 9 vezes')
+check('"Orado por 1 dia · 1 vez"; meses; sem marca nenhuma, só o tempo', [prayedSummary(meu('x', 'x', 1, { diasOrados: 1 }), agora), prayedSummary(meu('x', 'x', 92, { diasOrados: 40 }), agora), prayedSummary(c, agora)], ['Orado por 1 dia · 1 vez', 'Orado por 3 meses · 40 vezes', 'Orado por 3 meses'])
+
 // ── Privacidade ─────────────────────────────────────────────────────────
 // Quem pediu vê só o número: nenhum pedido carrega quem orou, nem o id de
 // outra pessoa.
@@ -111,14 +141,12 @@ check('o número de quem orou é só um número', lista.every(p => typeof p.pray
 check('pedido de amigo publicado sem nome: o nome de quem pediu não passa', [lista[4].authorName, originLabel(lista[4]).text], ['', 'Anônimo'])
 check('pedido de grupo: a origem é o grupo, nunca o nome de quem pediu', [lista[1].authorName, originLabel(lista[1]).text], ['', 'Grupo Semente'])
 // O armazenamento só lê as PRÓPRIAS marcas de "orei" e nunca nomes de quem orou.
-const store = readFileSync(new URL('../src/groups/prayerRequestsStore.js', import.meta.url), 'utf8')
 const leituras = [...store.matchAll(/\.from\('group_prayer_intentions'\)\s*\.select\([^)]*\)([\s\S]*?)(?:\n\s*if|\n\s*return)/g)]
 check('toda leitura das marcas de "orei" filtra pela própria pessoa', [leituras.length > 0, leituras.every(m => /\.eq\('user_id', userId\)/.test(m[1]))], [true, true])
 
 // ── O "orei" é um só ────────────────────────────────────────────────────
 // A Súplica (S2) marca pelo mesmo caminho da lista de pedidos: pedidos/
 // orei.js. Nenhuma peça dela fala direto com a gravação.
-const ler = caminho => readFileSync(new URL(`../src/${caminho}`, import.meta.url), 'utf8')
 const orei = ler('pedidos/orei.js')
 check('orei.js é quem grava e desfaz a marca', [/markPraying\(request\.id\)/.test(orei), /unmarkPrayingToday\(request\.id\)/.test(orei)], [true, true])
 check('orar por pedido próprio não avisa a família "Oração pelos outros"', /function notify\(request\) \{\s*if \(!countsForOthers\(request\)\) return/.test(orei), true)

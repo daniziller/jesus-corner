@@ -240,3 +240,86 @@ export function othersCard(value) {
 export function othersPrayedCount(intentions, myRequestIds) {
   return intentions ? oracaoStats(intentions, myRequestIds).value : null
 }
+
+// ── Fazer um pedido (O2) ────────────────────────────────────────────────
+
+export const MAX_PEDIDO = 240
+// "Só eu" é o padrão de "Quem vê", SEMPRE: toda vez que a folha abre. A
+// última escolha não é lembrada, e abrir a folha de dentro de um grupo
+// não muda isso.
+export const DEFAULT_WHO_SEES = 'only_me'
+
+const peopleCount = n => `${formatInt(n ?? 0)} ${plural(n ?? 0, 'pessoa', 'pessoas')}`
+
+// Os blocos de "Quem vê", na ordem: "Só eu" primeiro, depois os grupos da
+// pessoa e "Meus amigos".
+export function whoSeesOptions({ groups = [], memberCounts = {}, friendsCount = 0 } = {}) {
+  return [
+    { key: 'only_me', title: 'Só eu', sub: 'no seu diário' },
+    ...groups.map(g => ({ key: `group:${g.groupId}`, title: g.name, sub: peopleCount(memberCounts[g.groupId]) })),
+    { key: 'friends', title: 'Meus amigos', sub: peopleCount(friendsCount) },
+  ]
+}
+
+// Os dois estados da folha, pelo que está escolhido em "Quem vê": com "Só
+// eu", o pedido é guardado ("Guardar pedido"); com um grupo ou "Meus
+// amigos", publicado ("Publicar pedido") — e aí aparecem o cartão
+// "Publicar sem meu nome" e o aviso de que só o número de quem orou é
+// mostrado. O botão fica desabilitado com o campo vazio (ou acima do
+// limite).
+export function requestFormState({ body = '', choice = DEFAULT_WHO_SEES } = {}) {
+  const used = body.trim().length
+  const publishing = choice !== 'only_me'
+  return {
+    publishing,
+    showAnonymous: publishing,
+    button: publishing ? 'Publicar pedido' : 'Guardar pedido',
+    note: publishing
+      ? 'Você recebe só o número de pessoas que oraram, nunca os nomes. Pode encerrar o pedido quando quiser.'
+      : 'Fica só com você, no seu diário de oração. Para pedir oração a outras pessoas, escolha um grupo acima.',
+    counter: `${formatInt(used)} / ${MAX_PEDIDO}`,
+    over: used > MAX_PEDIDO,
+    canSubmit: used > 0 && used <= MAX_PEDIDO,
+  }
+}
+
+// O que vai para a gravação. Um pedido só é publicado se a pessoa escolheu
+// um grupo (ou os amigos); "Só eu" nunca leva grupo nem anonimato.
+export function requestPayload({ body, choice = DEFAULT_WHO_SEES, anonymous = false }) {
+  const text = String(body ?? '').trim()
+  if (choice.startsWith('group:')) return { body: text, scope: 'group', groupId: choice.slice('group:'.length), anonymous: !!anonymous }
+  if (choice === 'friends') return { body: text, scope: 'friends', groupId: null, anonymous: !!anonymous }
+  return { body: text, scope: 'only_me', groupId: null, anonymous: false }
+}
+
+// ── Como Deus respondeu? (O3) ───────────────────────────────────────────
+
+// As cinco respostas, na ordem da grade (a quinta ocupa a linha inteira).
+export const ANSWER_OPTIONS = [
+  { key: 'sim', title: 'Sim', sub: 'Veio como eu pedi' },
+  { key: 'nao', title: 'Não', sub: 'Ele fechou a porta' },
+  { key: 'espere', title: 'Espere', sub: 'Ainda não é o tempo' },
+  { key: 'aprenda', title: 'Aprenda', sub: 'A situação ficou; eu mudei' },
+  { key: 'se_mova', title: 'Se mova', sub: 'A resposta pedia um passo meu' },
+]
+
+// "Orado por 24 dias · 9 vezes" — o tempo desde que o pedido foi feito e
+// em quantos dias eu marquei "orei" nele. Sem marca nenhuma, só o tempo.
+export function prayedSummary(p, now = Date.now()) {
+  const span = `Orado por ${relativeTimeSpan(p.createdAt, 'pt', now)}`
+  const n = p.diasOrados ?? 0
+  return n > 0 ? `${span} · ${formatInt(n)} ${plural(n, 'vez', 'vezes')}` : span
+}
+
+// O botão da folha. Nenhuma resposta vem escolhida, e sem escolha ele
+// fica desabilitado. "Espere" não responde o pedido: ele CONTINUA ativo
+// (`keepsActive`) e o botão diz "Seguir orando"; as outras quatro guardam
+// o pedido em Respondidos.
+export function answerSheetState(selected) {
+  const keepsActive = selected === 'espere'
+  return {
+    canSave: ANSWER_OPTIONS.some(o => o.key === selected),
+    keepsActive,
+    button: keepsActive ? 'Seguir orando' : 'Guardar o pedido',
+  }
+}

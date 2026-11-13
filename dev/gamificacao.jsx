@@ -36,6 +36,8 @@
 //      tela=pedidos — a lista de pedidos (O1), com os pedidos na memória. &aba=ativos|respondidos|grupo|amigos
 //      · &pedidos=3|0|7|erro|carregando (7 traz dois de amigos e a aba Amigos) · &respondidos=12|2|0
 //      · &oracoes=47|0|49|1200 (o cartão "orações pelos outros") · &comentarios=2 (contagem na linha de um pedido)
+//      · "Novo" abre "Fazer um pedido" (O2): &grupos=1|0|3 (blocos de "Quem vê"; com 3, a fileira rola) · &ia=nao
+//      · tocar num pedido meu abre "Como Deus respondeu?" (O3)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
 //      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
@@ -403,6 +405,15 @@ const pedidosDePreview = {
   orar: p => { console.log('[preview] orei:', p.id, p.isMine ? '(meu: só a data)' : '(de outra pessoa: conta em "Oração pelos outros")'); return Promise.resolve() },
   desfazer: p => { console.log('[preview] desfiz o orei:', p.id); return Promise.resolve() },
 }
+// "Fazer um pedido" (O2) na pré-visualização: grupos e gravação de memória.
+// &grupos=1|0|3 (com três, a fileira de "Quem vê" rola) · &ia=nao
+const formDePreview = {
+  getMyGroups: async () => [{ groupId: 'g1', name: 'Grupo Semente' }, { groupId: 'g2', name: 'Batista Central' }, { groupId: 'g3', name: 'Família' }].slice(0, Number(params.get('grupos') ?? 1)),
+  getGroupMemberCounts: async () => ({ g1: 6, g2: 31, g3: 1 }),
+  getFriendsCount: async () => 12,
+  createPrayerRequest: async pedido => { console.log('[preview] pedido gravado:', JSON.stringify(pedido)); alert(`${pedido.scope === 'only_me' ? 'guardado só para mim' : 'publicado'}: ${JSON.stringify(pedido)}`) },
+  composePrayerRequestDraft: async () => new Promise(resolve => setTimeout(() => resolve('Peço coragem e paz para acompanhar meu pai no tratamento que começa na terça.'), 400)),
+}
 function OracaoPreview() {
   const dia = params.get('dia')
   const steps = dia === 'um' ? ['prayer'] : dia === 'estudo' ? ['prayer', 'reading', 'study', 'reflection'] : ['prayer', 'reading', 'reflection']
@@ -412,7 +423,7 @@ function OracaoPreview() {
   return (
     <PrayerScreen
       session={s} authUser={authUser} stepMinutes={{ prayer: minutos, reading: 15, study: 15, reflection: 5 }}
-      initialStage={Math.min(4, Math.max(1, Number(params.get('etapa')) || 1)) - 1} pedidosApi={pedidosDePreview}
+      initialStage={Math.min(4, Math.max(1, Number(params.get('etapa')) || 1)) - 1} pedidosApi={pedidosDePreview} formApi={formDePreview}
       onPrayerCompleted={() => alert('oração terminada → bênção (36f)')} onNavigate={t => alert(`navegar: ${t}`)}
       onExitGuided={() => {}} onBack={() => alert('voltar')}
     />
@@ -490,7 +501,7 @@ function Preview() {
   } else if (screen === 'pedidos') {
     body = (
       <PrayerRequestsScreen
-        session={{ ...session, hasAI: true }} authUser={authUser} pedidosApi={pedidosDePreview} initialTab={params.get('aba') ?? 'ativos'}
+        session={{ ...session, hasAI: params.get('ia') !== 'nao' }} authUser={authUser} pedidosApi={pedidosDePreview} formApi={formDePreview} initialTab={params.get('aba') ?? 'ativos'}
         onBack={() => alert('voltar')} onOpenRequest={p => alert(`abrir o detalhe do pedido (comentários): ${p.body}`)}
         onOpenFamilia={id => alert(`abrir Minhas conquistas, família ${id}`)}
       />

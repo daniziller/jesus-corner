@@ -8,7 +8,8 @@
 // uma vez por pedido por dia, sem desmarcar; e o bloco areia dos
 // respondidos.
 //
-// Tocar num pedido meu abre "Como Deus respondeu?"; tocar num pedido de
+// "Novo" abre "Fazer um pedido" (O2). Tocar num pedido meu abre "Como Deus
+// respondeu?" (O3); tocar num pedido de
 // outra pessoa, ou num já respondido, abre o detalhe do pedido — é onde
 // ficam os comentários, que continuam existindo.
 //
@@ -22,8 +23,8 @@ import CartaoOracoesPelosOutros from '../components/pedidos/CartaoOracoesPelosOu
 import AbasDePedidos from '../components/pedidos/AbasDePedidos'
 import CartaoDoPedido from '../components/pedidos/CartaoDoPedido'
 import BlocoRespondidos from '../components/pedidos/BlocoRespondidos'
-import ArchivePrayerRequestSheet from '../components/prayer/ArchivePrayerRequestSheet'
-import AddPrayerRequestSheet from '../components/prayer/AddPrayerRequestSheet'
+import FolhaComoDeusRespondeu from '../components/pedidos/FolhaComoDeusRespondeu'
+import FolhaFazerPedido from '../components/pedidos/FolhaFazerPedido'
 import { archivePrayerRequest } from '../groups/prayerRequestsStore'
 import { usePedidos } from '../pedidos/usePedidos'
 import { pedidosTabs, pedidosOfTab, answeredBlock, answeredRow, cardTap, othersCard } from '../pedidos/pedidosMath'
@@ -36,9 +37,9 @@ const EMPTY = {
   amigos: 'Nenhum pedido de amigos por enquanto.',
 }
 
-// `pedidosApi` e `initialTab` só existem para a pré-visualização de
-// desenvolvimento.
-export default function PrayerRequestsScreen({ session, authUser, onBack, onOpenRequest, onOpenFamilia, pedidosApi, initialTab = 'ativos' }) {
+// `pedidosApi`, `formApi` e `initialTab` só existem para a pré-visualização
+// de desenvolvimento.
+export default function PrayerRequestsScreen({ session, authUser, onBack, onOpenRequest, onOpenFamilia, pedidosApi, formApi, initialTab = 'ativos' }) {
   const { lang } = session
   const pedidos = usePedidos({ api: pedidosApi })
   const [tab, setTab] = useState(initialTab)
@@ -126,13 +127,13 @@ export default function PrayerRequestsScreen({ session, authUser, onBack, onOpen
       </div>
 
       {archiving && (
-        <ArchivePrayerRequestSheet
-          request={archiving} lang={lang} onClose={() => setArchiving(null)} onArchive={handleArchive}
+        <FolhaComoDeusRespondeu
+          request={archiving} onClose={() => setArchiving(null)} onArchive={handleArchive}
           onOpenComments={() => { const p = archiving; setArchiving(null); onOpenRequest?.(p) }}
         />
       )}
       {addOpen && (
-        <AddPrayerRequestSheet lang={lang} authUser={authUser} hasAI={session.hasAI} onClose={() => setAddOpen(false)} onCreated={() => { setAddOpen(false); pedidos.reload() }} />
+        <FolhaFazerPedido lang={lang} authUser={authUser} hasAI={session.hasAI} api={formApi} onClose={() => setAddOpen(false)} onCreated={() => { setAddOpen(false); pedidos.reload() }} />
       )}
     </div>
   )
