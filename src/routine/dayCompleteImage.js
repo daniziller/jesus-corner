@@ -3,8 +3,9 @@
 // blob PNG → navigator.share com arquivo; desenho da marca duplicado de
 // propósito, telas pequenas assim não valem o acoplamento de
 // compartilhar) — mas aqui é A MESMA função que desenha tanto o cartão
-// reduzido de 37c (o "painel" É a imagem, não uma versão à parte que
-// depois vira imagem) quanto o arquivo final 1080×1920 de 37d.
+// reduzido do editor da imagem (DayShareScreen.jsx, aberto por
+// "Compartilhar meu dia" no dia concluído — o "painel" É a imagem, não uma
+// versão à parte que depois vira imagem) quanto o arquivo final 1080×1920.
 const W = 1080
 const H = 1920
 const PAD = 96
@@ -39,11 +40,11 @@ function wrap(ctx, text, maxWidth) {
 //   (ou null), minutes: {prayer,reading,reflection} (segundos reais),
 //   totalMinutes, weeksInGoal, percentRead (0-100), percentReadChapter,
 //   labels: { ..., day, myPhraseToday } }. `labels` já chega traduzida de
-//   DayCompleteScreen.jsx — nenhum texto fica preso em português aqui
+//   DayShareScreen.jsx — nenhum texto fica preso em português aqui
 //   dentro (achado na conferência do handoff-app-completo: "DIA N" e
 //   "MINHA FRASE DE HOJE" eram os 2 únicos literais fixos do arquivo,
 //   saindo sempre em pt mesmo pra quem usa o app em inglês).
-// include: { phrase, times, whereInBible, name } — chips de 37c; qualquer
+// include: { phrase, times, whereInBible, name } — chips do editor; qualquer
 // um desligado fecha o espaço (não deixa buraco), mesma regra do quadro.
 export async function renderDayCompleteImage(data, include) {
   if (typeof document === 'undefined') return null

@@ -1,13 +1,15 @@
-// LeituraLivreRodape.jsx — o rodapé fixo da leitura livre (handoff-
-// biblia-52 §4 e §5). Dois estados no mesmo lugar:
+// LeituraRodape.jsx — o rodapé fixo da tela de leitura. À esquerda, sempre
+// o quadrado do lápis (abre Ferramentas). À direita:
 //
-// - a barra (B3): o quadrado do lápis (abre Ferramentas) e "Marcar como
-//   lido" — ou "Lido · desmarcar" quando o capítulo já está lido;
-// - o cartão de capítulo marcado (B4): entra no lugar da barra ao marcar
-//   — o que mudou no livro, na Bíblia e na próxima conquista, e o botão
-//   pro capítulo seguinte. Pequeno, embaixo, sem festa; o texto continua
-//   rolável atrás dele. Quem decide se ele aparece (ou se entra a tela de
-//   parabéns) é ReadingBlockView, por markOutcome (biblia/bibliaMath.js).
+// - na leitura livre (handoff-biblia-52 §4 e §5): "Marcar como lido" — ou
+//   "Lido · desmarcar" quando o capítulo já está lido. Ao marcar, a barra
+//   dá lugar ao cartão de capítulo marcado (B4): o que mudou no livro, na
+//   Bíblia e na próxima conquista, e o botão pro capítulo seguinte.
+//   Pequeno, embaixo, sem festa; o texto continua rolável atrás dele. Quem
+//   decide se ele aparece (ou se entra a tela de parabéns) é
+//   ReadingBlockView, por markOutcome (biblia/bibliaMath.js);
+// - na leitura do plano (handoff-passos-pedidos-53-54 §4, S3): o botão
+//   laranja "Concluir a leitura" (`onConclude`). O cartão B4 não aparece.
 //
 // O cartão é anunciado como status por uma região viva que está sempre
 // montada (leitor de tela só anuncia mudança em região que já existia) e
@@ -19,7 +21,7 @@ import { markButton } from '../../biblia/bibliaMath'
 
 const FONT = 'var(--font-bento)'
 
-const LeituraLivreRodape = forwardRef(function LeituraLivreRodape({ card, blocoId, done, onTools, onMark, onUnmark, onCloseCard, onNext }, ref) {
+const LeituraRodape = forwardRef(function LeituraRodape({ card, blocoId, done, onTools, onMark, onUnmark, onCloseCard, onNext, onConclude }, ref) {
   const button = markButton(done)
   return (
     <div ref={ref} style={{ ...s.fixed, ...(card ? s.fixedCard : s.fixedBar) }}>
@@ -55,22 +57,30 @@ const LeituraLivreRodape = forwardRef(function LeituraLivreRodape({ card, blocoI
         </div>
       ) : (
         <>
-          <button type="button" style={s.tools} onClick={onTools} aria-label="Ferramentas">
+          <button type="button" style={{ ...s.tools, ...(onConclude ? s.flat : null) }} onClick={onTools} aria-label="Ferramentas">
             <AppIcon name="Pencil" size={16} strokeWidth={1.8} absoluteStrokeWidth color="var(--bento-ink)" />
           </button>
-          <button type="button" style={{ ...s.mark, ...(button.done ? s.markDone : null) }} onClick={button.done ? onUnmark : onMark}>
-            <AppIcon name="Check" size={13} strokeWidth={2} absoluteStrokeWidth color="var(--bento-accent)" />
-            {button.label}
-          </button>
+          {onConclude ? (
+            <button type="button" style={s.conclude} onClick={onConclude}>
+              <span>Concluir a leitura</span>
+              <AppIcon name="ArrowRight" size={16} strokeWidth={2.6} color="var(--bento-ink)" style={{ flexShrink: 0 }} />
+            </button>
+          ) : (
+            <button type="button" style={{ ...s.mark, ...(button.done ? s.markDone : null) }} onClick={button.done ? onUnmark : onMark}>
+              <AppIcon name="Check" size={13} strokeWidth={2} absoluteStrokeWidth color="var(--bento-accent)" />
+              {button.label}
+            </button>
+          )}
         </>
       )}
     </div>
   )
 })
 
-export default LeituraLivreRodape
+export default LeituraRodape
 
-// Medidas dos quadros B3 (barra) e B4 (cartão).
+// Medidas dos quadros B3 (barra), B4 (cartão) e S3 (barra do plano, sem
+// sombra).
 const s = {
   // Portalado pro <body> por quem usa (mesmo motivo do rodapé da leitura do
   // plano: position:fixed dentro do conteúdo com zoom calcularia errado).
@@ -82,6 +92,8 @@ const s = {
   srOnly: { position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 },
   tools: { width: 54, height: 54, flexShrink: 0, borderRadius: 18, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, boxShadow: '0 6px 18px rgba(0,0,0,.08)', cursor: 'pointer' },
   mark: { flex: 1, minWidth: 0, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontFamily: FONT, fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,.12)', cursor: 'pointer' },
+  flat: { boxShadow: 'none' },
+  conclude: { flex: 1, minWidth: 0, height: 54, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontFamily: FONT, fontSize: 14.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer' },
   markDone: { background: 'var(--bento-card)', color: 'var(--bento-ink)', boxShadow: '0 6px 18px rgba(0,0,0,.08)' },
   card: { borderRadius: 28, background: 'var(--bento-ink)', padding: '16px 16px 14px', boxShadow: '0 -10px 34px rgba(0,0,0,.16)', pointerEvents: 'auto' },
   cardTop: { display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 },

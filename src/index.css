@@ -296,24 +296,13 @@ body {
   .welcome-preview-fade { animation: none; }
 }
 
-/* Abrir um livro na navegação livre da aba Bíblia (JourneyScreen.jsx →
-   ReadingBlockView.jsx, mode 'browse') — a tela nova "sobe" de baixo pro
-   topo em vez de simplesmente trocar sem transição nenhuma. `to` usa
-   transform:none (não translateY(0)) — mesmo resultado visual, mas
-   translateY(0) ainda CRIA um novo contexto de empilhamento/containing
-   block (só `none` remove de verdade); aplicado bem em cima do elemento
-   com overflow-y:auto (ver .rb-enter no JSX, que fica num wrapper à
-   parte, nunca no próprio elemento que rola), pra não arriscar celular
-   "travando" o toque de rolar logo depois da animação. */
+/* Entrada das folhas que sobem de baixo (ToolsSheet, ChapterPickerSheet,
+   ProfileSheet…). `to` usa transform:none (não translateY(0)) — mesmo
+   resultado visual, mas translateY(0) ainda CRIA um novo contexto de
+   empilhamento/containing block (só `none` remove de verdade). */
 @keyframes bookOpenIn {
   from { opacity: 0; transform: translateY(28px); }
   to   { opacity: 1; transform: none; }
-}
-.rb-enter {
-  animation: bookOpenIn .4s cubic-bezier(.2,.8,.2,1) forwards;
-}
-@media (prefers-reduced-motion: reduce) {
-  .rb-enter { animation: none; }
 }
 
 /* Linha de esqueleto (ChapterContextScreen, ReadingBlockView.jsx, 10c) —
@@ -345,13 +334,45 @@ body {
 /* Bíblia — controles de 38px do cabeçalho (voltar, pílulas, três pontos):
    a área de toque avança 3px pra cada lado e chega a 44px, sem mexer no
    desenho (os vãos entre eles são de 8px ou mais). */
-.biblia-alvo {
+.biblia-alvo,
+.passo-alvo {
   position: relative;
 }
-.biblia-alvo::after {
+.biblia-alvo::after,
+.passo-alvo::after {
   content: '';
   position: absolute;
   inset: -3px;
+}
+
+/* Passos do plano (handoff-passos-pedidos-53-54): as pastilhas de frase
+   têm 34px de altura no desenho e 44px de área de toque; e o texto de
+   apoio do campo de escrita. */
+.passo-pastilha {
+  position: relative;
+}
+.passo-pastilha::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
+}
+/* O rótulo "PEDIDOS DE ORAÇÃO" da Súplica abre a lista: 9.5px de texto,
+   44px de área de toque. */
+.passo-rotulo {
+  position: relative;
+}
+.passo-rotulo::after {
+  content: '';
+  position: absolute;
+  inset: -17px -10px;
+}
+.passo-campo::placeholder {
+  color: var(--bento-t4);
+  opacity: 1;
+}
+.passo-campo-escuro::placeholder {
+  color: rgba(255, 255, 255, .45);
+  opacity: 1;
 }
 
 /* Busca da Bíblia (BuscaScreen.jsx, handoff-biblia-52 §6) — o texto de
@@ -754,32 +775,6 @@ body {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-  }
-}
-
-/* ── ReadingBlockView: master-detail no desktop (lista de livros à
-   esquerda, sessão em destaque fixa à direita enquanto a lista rola) ── */
-.rb-body {
-  display: flex;
-  flex-direction: column;
-}
-@media (min-width: 768px) {
-  .rb-body {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 20px;
-  }
-  .rb-master {
-    flex: 0 0 300px;
-    min-width: 0;
-    order: 1;
-  }
-  .rb-detail {
-    flex: 1;
-    min-width: 0;
-    position: sticky;
-    top: 0;
-    order: 2;
   }
 }
 

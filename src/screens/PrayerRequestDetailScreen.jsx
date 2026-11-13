@@ -2,12 +2,12 @@
 // comentários (pedido dela, 2026-09-19; ver migration 0070). Sem
 // referência visual pronta pra isso (o handoff original proibia
 // comentário) — desenhado seguindo os mesmos tokens/padrões do resto da
-// feature (PrayerRequestCard.jsx, AddPrayerRequestSheet.jsx).
+// feature.
 //
-// Aberto a partir de PrayerRequestsScreen.jsx (PD1), nas duas abas —
-// "Meus pedidos" e "Pedidos dos grupos". Reaproveita o mesmo card visual
-// pro corpo do pedido (topo) e adiciona a lista de comentários + campo
-// de novo comentário embaixo.
+// Aberto a partir da lista de pedidos (PrayerRequestsScreen.jsx, O1) — ao
+// tocar num pedido de outra pessoa ou num já respondido — e pela linha
+// "Comentários" de "Como Deus respondeu?". O pedido em cima, e embaixo a
+// lista de comentários + campo de novo comentário.
 //
 // Quem pode comentar: quem já pode VER o pedido (mesma regra de sempre —
 // autor, membro do grupo se for de grupo, amigo do autor se for de
@@ -25,8 +25,9 @@ import AppIcon from '../icons/AppIcon'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { relativeTimeSpan } from '../prayer/prayerRequestFormat'
 import {
-  getPrayerRequestComments, addPrayerRequestComment, deletePrayerRequestComment, markPraying,
+  getPrayerRequestComments, addPrayerRequestComment, deletePrayerRequestComment,
 } from '../groups/prayerRequestsStore'
+import { orarPor } from '../pedidos/orei'
 
 const FONT = 'var(--font-bento)'
 
@@ -63,7 +64,7 @@ export default function PrayerRequestDetailScreen({ session, request, onBack }) 
     // guarda isso; orar de novo num dia seguinte não é gente nova, só
     // atualiza prayedToday (pro botão) sem repetir o +1.
     if (!prayedEver) { setPrayCount(n => n + 1); setPrayedEver(true) }
-    markPraying(request.id).catch(err => console.error('Failed to mark praying', err))
+    orarPor(request).catch(err => console.error('Failed to mark praying', err))
   }
 
   async function submitComment() {

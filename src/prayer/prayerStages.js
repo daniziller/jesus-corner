@@ -1,14 +1,16 @@
-// prayerStages.js — as 4 etapas do ACTS na oração guiada nova (pacote
-// 36-37, PrayerScreen.jsx). Texto FIXO do app (handoff: "não é gerada por
-// IA, não muda") — título e explicação de cada etapa vêm literalmente do
-// HANDOFF-36-37-passos.md; NÃO reaproveita src/components/acts/ActsCard.jsx
-// (ACTS_DATA) porque o texto e até os nomes mudaram (ex.: "Gratidão" aqui,
-// "Ação de Graças" lá) — ActsCard.jsx continua servindo quem ainda depende
-// dele (ReflectionScreen.jsx, HandsFreeScreen.jsx), sem relação com esta tela.
+// prayerStages.js — as 4 etapas do ACTS na oração guiada (PrayerScreen.jsx,
+// S1/S2 de handoff-passos-pedidos-53-54). Texto FIXO do app (não é gerado
+// por IA, não muda): o nome, a orientação e as três frases de começo de
+// cada etapa. A orientação e as frases da Confissão são as do quadro S1; a
+// orientação da Súplica é a do quadro S2; as das outras duas etapas vêm
+// do pacote 36-37 (36b), e as frases de começo delas foram propostas no
+// mesmo tom. NÃO reaproveita src/components/acts/ActsCard.jsx (ACTS_DATA):
+// o texto e até os nomes são outros ("Gratidão" aqui, "Ação de Graças"
+// lá) — aquele continua servindo quem ainda depende dele.
 //
-// "starters" (as três "frases de partida" de cada etapa, 36b) só têm
-// exemplo no quadro pra Confissão — as outras três foram propostas por
-// mim no mesmo tom, aguardando aprovação dela (ver PR).
+// As frases de começo terminam em reticências — é como aparecem na
+// pastilha; ao tocar, a frase entra no campo sem elas (passosMath.js,
+// insertStarter).
 export const PRAYER_STAGES = [
   {
     id: 'adoracao',
@@ -19,8 +21,8 @@ export const PRAYER_STAGES = [
       en: 'Start by saying who God is, not what you need. Praising before asking changes the size of the request.',
     },
     starters: {
-      pt: ['Senhor, Tu és...', 'Eu te adoro porque...', 'Antes de pedir qualquer coisa, eu te louvo por...'],
-      en: ['Lord, You are...', 'I worship you because...', 'Before I ask for anything, I praise you for...'],
+      pt: ['Senhor, Tu és…', 'Eu te adoro porque…', 'Antes de pedir qualquer coisa, eu te louvo por…'],
+      en: ['Lord, You are…', 'I worship you because…', 'Before I ask for anything, I praise you for…'],
     },
   },
   {
@@ -28,12 +30,12 @@ export const PRAYER_STAGES = [
     letter: 'C',
     title: { pt: 'Confissão', en: 'Confession' },
     explanation: {
-      pt: 'Diga o que pesa, com nome. Não é para se acusar — é para entregar. Nada do que você contar aqui é novidade para Deus, e nada disso muda o amor dele por você.',
-      en: "Say what's weighing on you, by name. It's not to accuse yourself — it's to hand it over. Nothing you share here is news to God, and none of it changes his love for you.",
+      pt: 'Diga o que pesa, com nome. Não é para se acusar — é para entregar. Nada do que você contar aqui é novidade para Deus.',
+      en: "Say what's weighing on you, by name. It's not to accuse yourself — it's to hand it over. Nothing you share here is news to God.",
     },
     starters: {
-      pt: ['Senhor, eu errei em...', 'Tenho carregado isso sozinho:...', 'Me ajuda a largar...'],
-      en: ['Lord, I was wrong in...', "I've been carrying this alone:...", 'Help me let go of...'],
+      pt: ['Senhor, eu errei em…', 'Tenho carregado sozinho…', 'Me ajuda a largar…'],
+      en: ['Lord, I was wrong in…', "I've been carrying alone…", 'Help me let go of…'],
     },
   },
   {
@@ -45,8 +47,8 @@ export const PRAYER_STAGES = [
       en: "Thank him for what's already come, the small things with the big ones. Remembering what God has done is what sustains faith for what hasn't come yet.",
     },
     starters: {
-      pt: ['Obrigado, Senhor, por...', 'Não quero esquecer que Tu...', 'Até nas coisas pequenas, obrigado por...'],
-      en: ['Thank you, Lord, for...', "I don't want to forget that you...", 'Even in the small things, thank you for...'],
+      pt: ['Obrigado, Senhor, por…', 'Não quero esquecer que Tu…', 'Até nas coisas pequenas, obrigado por…'],
+      en: ['Thank you, Lord, for…', "I don't want to forget that you…", 'Even in the small things, thank you for…'],
     },
   },
   {
@@ -54,12 +56,10 @@ export const PRAYER_STAGES = [
     letter: 'S',
     title: { pt: 'Súplica', en: 'Supplication' },
     explanation: {
-      pt: 'Agora peça, com nome e detalhe. Por você e pelos outros — e não tenha medo de repetir o mesmo pedido.',
-      en: "Now ask, by name and in detail. For yourself and for others — and don't be afraid to repeat the same request.",
+      pt: 'Peça. Pelos seus e pelos outros. Toque no pedido depois de orar por ele.',
+      en: 'Ask. For your own and for others. Tap a request after praying for it.',
     },
-    starters: {
-      pt: ['Senhor, eu peço por...', 'E também levo até ti...', 'Não sei como resolver, mas confio a ti...'],
-      en: ['Lord, I ask for...', 'I also bring before you...', "I don't know how to solve this, but I trust you with..."],
-    },
+    // Sem frases de começo: na Súplica o cartão de escrita dá lugar à lista
+    // de pedidos (S2).
   },
 ]

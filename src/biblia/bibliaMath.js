@@ -224,11 +224,12 @@ export function bookActions(nome, p) {
 
 // O fio de progresso do livro: quanto dele está lido e a frase à direita.
 // "· leitura livre" só entra na leitura livre — e sai enquanto o cartão
-// de capítulo marcado (B4) está na tela, que já diz isso.
-export function readingThread(p, { free = false } = {}) {
+// de capítulo marcado (B4) está na tela, que já diz isso. Na leitura do
+// plano (S3), `step` ("Passo 2 de 3") vem na frente.
+export function readingThread(p, { free = false, step = '' } = {}) {
   return {
     ratio: p.total > 0 ? p.lidos / p.total : 0,
-    text: `${deOf(p.lidos, p.total)} ${p.lidos === 1 ? 'lido' : 'lidos'}${free ? ' · leitura livre' : ''}`,
+    text: `${step ? `${step} · ` : ''}${deOf(p.lidos, p.total)} ${p.lidos === 1 ? 'lido' : 'lidos'}${free ? ' · leitura livre' : ''}`,
   }
 }
 

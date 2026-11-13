@@ -112,6 +112,7 @@ import EstanteScreen from './screens/EstanteScreen'
 import SeloScreen from './screens/SeloScreen'
 import LivroCompletoScreen from './screens/LivroCompletoScreen'
 import { onChapterOpened } from './gamification/rereadTracker'
+import { onOreiPelosOutros } from './pedidos/orei'
 import { startReread, recordRereadChapter } from './gamification/achievementsMath'
 import { updateGamification } from './gamification/achievementsStore'
 import { bookInfo as gamificationBookInfo } from './data/gamificationBlocks'
@@ -1483,6 +1484,16 @@ export default function App() {
       updateGamification(row => ({ bookSeals: recordRereadChapter(row.bookSeals, book, chapter, total).seals }))
         .then(setGamification).catch(err => console.error('[releitura] capítulo', err))
     })
+  }, [authUser])
+
+  // "Orei" por um pedido de outra pessoa (Súplica ou lista de pedidos, ver
+  // pedidos/orei.js) conta na família "Oração pelos outros": reavalia as
+  // conquistas, como qualquer outro passo que soma.
+  const scheduleGamificationCheckRef = useRef(null)
+  scheduleGamificationCheckRef.current = scheduleGamificationCheck
+  useEffect(() => {
+    if (!authUser) return
+    return onOreiPelosOutros(() => scheduleGamificationCheckRef.current?.())
   }, [authUser])
 
   // "Salvar plano" do Ajustar novo: grava só o que mudou, pelas mesmas
@@ -3334,7 +3345,7 @@ export default function App() {
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen onOpenSuaBiblia={() => goToTab('suaBiblia')} onOpenSelo={openSelo} onCelebrateNow={celebrateGamificationNow} session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitGuided={exitGuidedRoutine} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
+    journey: <JourneyScreen onOpenSuaBiblia={() => goToTab('suaBiblia')} onOpenSelo={openSelo} onCelebrateNow={celebrateGamificationNow} session={session} authUser={authUser} stepMinutes={stepMinutes} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
     // Anotação de sermão — tela própria de verdade (pedido dela,
     // 2026-09-10), não mais uma folha flutuante sobre a Bíblia. Reaproveita
     // JourneyScreen.jsx (dona de toda a lógica/estado da anotação desde o
@@ -3400,6 +3411,7 @@ export default function App() {
       ? <DayCompleteScreen
           session={session}
           authUser={authUser}
+          completedSet={completedSet}
           steps={routineCompleteInfo.steps}
           readingSession={routineCompleteInfo.readingSession}
           onBack={() => { setRoutineCompleteInfo(null); goToTab('home') }}
@@ -3426,18 +3438,19 @@ export default function App() {
       session={session} done={guidedReadingComplete(completedSet)}
       onMarkDone={finishPhysicalReading} onReadInApp={continueToday} onBack={goBack}
     />,
-    // Pacote 36-37, 36d — "Pedidos de oração" (linha em 36b/36c). Push
-    // dentro de Meu Plano: fica fora de navHidden de propósito (barra de
-    // abas continua fixa no rodapé, ver handoff).
+    // "Pedidos de oração" (O1, handoff-passos-pedidos-53-54) — aberta pelo
+    // rótulo do cartão de pedidos da Súplica e pela linha da oração livre.
+    // Push dentro de Meu Plano: fica fora de navHidden de propósito (barra
+    // de abas continua fixa no rodapé).
     // Divisão de planos (2026): pedidos de oração é parte da Comunidade,
-    // portanto Premium — mesmo gate de groups/groupMessages acima. Fecha o
-    // desvio que existia via o link "Ver todos" da Súplica (PrayerScreen.jsx),
-    // que abre esta tela sem passar pela aba Meu Plano/Comunidade.
+    // portanto Premium — mesmo gate de groups/groupMessages acima, também
+    // para quem chega pela oração, sem passar pela aba Comunidade.
     prayerRequests: !hasPremium
       ? <PremiumRequired feature="prayerRequests" lang={session.lang} onNavigate={navigateTo} />
       : <PrayerRequestsScreen
           session={session} authUser={authUser} onBack={goBack}
           onOpenRequest={request => { setPrayerRequestDetail(request); goToTab('prayerRequestDetail') }}
+          onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }}
         />,
     // Detalhe de um pedido (comentários, 2026-09-19) — aberto a partir de
     // um card de PrayerRequestsScreen (acima); mesmo gate de Premium,
@@ -3611,12 +3624,12 @@ export default function App() {
                 key troca ao concluir o passo e na virada do dia. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen key={`${dateKey()}-${prayerRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
+                <PrayerScreen key={`${dateKey()}-${prayerRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'prayer'} onPrayerCompleted={finishPrayerStep} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
               </div>
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen key={`${dateKey()}-${reflectionRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
+                <ReflectionScreen key={`${dateKey()}-${reflectionRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'reflection'} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (

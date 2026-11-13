@@ -1,6 +1,5 @@
-import { Fragment, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
+import { Fragment, useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { groupSessionsByBook } from '../utils/groupByBook'
 import { BOOK_INFO } from '../data/bookInfo'
 import { BOOK_INFO_EN } from '../data/bookInfo.en'
 import { getNotes, saveNote, noteKeyFor, noteTextOf } from '../notes/notesStore'
@@ -31,54 +30,35 @@ import { collectTagVocabulary } from '../notes/noteTags'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { avatarPaletteFor } from './ChapterRoomScreen'
 import { avatarInitialsOf } from '../utils/avatarInitials'
-import { getRecentChapters, addRecentChapter } from '../reading/recentChaptersStore'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
 import { verseSelectionLabel } from '../bible/verseSelectionLabel'
 import { getLastCopyFormat, setLastCopyFormat } from '../bible/copyFormatPrefs'
 import { formatCopyText } from '../bible/formatCopyText'
 import { renderVerseCardImage, shareVerseCardImage, downloadVerseCardImage, VERSE_CARD_STYLES, VERSE_CARD_FORMATS } from '../bible/verseCardImage'
-import { useIsDesktop } from '../utils/useIsDesktop'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import RecentChaptersRow from '../components/RecentChaptersRow'
 import BibleAudioPlayer from '../components/BibleAudioPlayer'
-import GuidedFlowBanner from '../components/GuidedFlowBanner'
-import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import ToolsSheet from '../components/ToolsSheet'
 import ChapterPickerSheet from '../components/ChapterPickerSheet'
-import LeituraLivreTopo from '../components/biblia/LeituraLivreTopo'
-import LeituraLivreRodape from '../components/biblia/LeituraLivreRodape'
-import StepTimerPill from '../components/timer/StepTimerPill'
-import { usePlanTotalToday } from '../timer/usePlanTotalToday'
+import LeituraTopo from '../components/biblia/LeituraTopo'
+import LeituraRodape from '../components/biblia/LeituraRodape'
+import RelogioDoPasso from '../components/passos/RelogioDoPasso'
+import { dayBarSegments, dayBarAria, stepSubtitle } from '../passos/passosMath'
+import { resolveMinutes } from '../meuPlano/meuPlanoMath'
 import { formatClock } from '../timer/formatClock'
 
-
-export default function ReadingBlockView({ session, authUser, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onCelebrateNow, onGoToReflection, onJumpToChapter, onExitGuided, onOpenGroupRoom, embedded = false, forceChapterContext = false }) {
+export default function ReadingBlockView({ session, authUser, stepMinutes, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onCelebrateNow, onGoToReflection, onOpenGroupRoom, forceChapterContext = false }) {
   const { lang, hasPremium, hasAI } = session
-  const guidedReading = mode === 'session' && session.guided?.step === 'reading' ? session.guided : null
-  // Leitura imersiva (redesign 1b) — leitura guiada de tela cheia: cabeçalho
-  // compacto que some ao rolar, texto no topo sem card, rodapé fixo com
-  // player + Ferramentas + Concluir, sem barra de navegação. Turno 39,
-  // Bloco 2: passou a valer TAMBÉM pra navegação livre da aba Bíblia
-  // (mode 'browse') quando não está embutida — 39d é a mesma casca
-  // imersiva, só com o rodapé/cabeçalho ajustados via `freeReading`
-  // abaixo. `embedded` (usado hoje só por BookChapterScreen pro "toque
-  // abre" antigo) segue sendo a única saída dela.
-  const freeReading = mode === 'browse' && !embedded
-  const immersive = !embedded
-  // Mesmo breakpoint do master-detail em index.css (.rb-body/.rb-master/
-  // .rb-detail, min-width: 768px) — usado só em modo 'browse' pra decidir
-  // ONDE o texto do capítulo aparece (ver comentário perto de onde é usado).
-  const isDesktop = useIsDesktop()
-  // Sem "Sessão N de X" em dois casos: plano Livre (cada sessão já é 1
-  // capítulo só) ou navegação livre pela aba Bíblia (mode 'browse' —
-  // JourneyScreen já manda sessionsByBlock com 1 capítulo por sessão nesse
-  // caso, ver App.jsx: browseSessionsByBlock). A divisão em sessões do
-  // plano só aparece mesmo dentro do fluxo guiado da Rotina (mode 'session').
-  const isFreePlan = mode === 'browse' || session.plan.id === 'free'
+  // A leitura é sempre de tela cheia (redesign 1b): cabeçalho que some ao
+  // rolar, o texto num cartão e o rodapé fixo, sem barra de navegação. É
+  // uma tela só, com dois modos: a leitura livre da aba Bíblia (mode
+  // 'browse', B3: versão e três pontos no cabeçalho, fio de progresso do
+  // livro, lápis + Marcar como lido) e a leitura pela sessão do plano (mode
+  // 'session', S3: relógio no cabeçalho, barra do dia em cima do fio,
+  // lápis + Concluir a leitura).
+  const freeReading = mode === 'browse'
   const block = blocks.find(b => b.id === blockId) ?? blocks[0]
-  const blockName = lang === 'en' ? block.nameEn : block.name
   const sessions = sessionsByBlock[block.id]
   // Versão em uso (39d): mora aqui, não só dentro de BibleTextPanel, porque
   // a leitura livre agora tem o SELETOR no cabeçalho (39d) — trocar a
@@ -93,89 +73,32 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setVersionId(id)
   }
   const autoHeroSession = sessions.find(s => s.status === 'current') ?? sessions.find(s => s.status !== 'done') ?? sessions[0]
-  const bookGroups = groupSessionsByBook(sessions)
   const bookInfoSource = lang === 'en' ? BOOK_INFO_EN : BOOK_INFO
 
   const scrollRef = useRef(null)
-  // Card branco do texto do capítulo em foco (readerTextCard) — usado só
-  // pra medir o progresso de leitura do capítulo (quadro 26b, ver o efeito
-  // de scroll abaixo), não pra rolar até ele.
+  // Cartão branco do texto do capítulo em foco — é onde a leitura livre
+  // procura o versículo que está no topo (ver o efeito de "onde parou").
   const textCardRef = useRef(null)
-  // Guarda o elemento DOM de cada card de capítulo (preenchido pelos
-  // próprios SessionCard via registerCardRef) — usado só pra rolar até o
-  // topo do card ao clicar em "Próximo" (ver goToNextInline).
-  const chapterRefs = useRef({})
-  function registerCardRef(sessionId, el) {
-    chapterRefs.current[sessionId] = el
-  }
-  // Id do capítulo pro qual precisa rolar assim que o DOM terminar de
-  // refletir a troca (capítulo anterior fecha/encolhe, o novo abre/cresce)
-  // — rolar antes disso mira na altura antiga da lista, ver useLayoutEffect
-  // abaixo.
-  const pendingScrollId = useRef(null)
-  // Sessão escolhida na lista abaixo, se houver — sobrepõe a sessão "atual"
-  // automática e sobe pro destaque no topo. Começa a partir de um livro
-  // específico quando aberto por um chip de livro clicável (initialSessionId).
-  // SÓ funciona corretamente porque quem chama este componente usa
-  // key={blockId} (ver JourneyScreen.jsx) — sem isso, pular pra um livro
-  // DIFERENTE com a tela já montada (ex: tocar um card de "lido
-  // recentemente") manteria esse estado (e o de BookGroup mais abaixo)
-  // com o id antigo, que por coincidência pode ser válido no bloco novo
-  // (ids de sessão são só sequenciais dentro de cada bloco) — abriria o
-  // capítulo errado sem nenhum erro visível.
+  // Sessão escolhida, se houver (a que veio de fora em initialSessionId, ou
+  // a que o seletor de capítulo trocou) — sobrepõe a sessão "atual"
+  // automática. SÓ funciona corretamente porque quem chama este componente
+  // usa uma key com o bloco e a sessão (ver JourneyScreen.jsx e
+  // BookChapterScreen.jsx) — sem isso, pular pra outro livro com a tela já
+  // montada manteria esse estado com o id antigo, que por coincidência
+  // pode ser válido no bloco novo (ids de sessão são só sequenciais dentro
+  // de cada bloco) — abriria o capítulo errado sem nenhum erro visível.
   const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId ?? null)
 
   const heroSession = sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
 
-
-  // Qual capítulo tem o texto aberto INLINE, direto na lista de livros —
-  // só existe em modo 'browse' (navegação livre pela Bíblia). Diferente do
-  // modo 'session', aqui o texto não mora no card de destaque lá em cima:
-  // abre embaixo do próprio capítulo que foi tocado, ver SessionCard.
-  // Fechado por padrão (nenhum capítulo pré-aberto) — ao tocar um livro do
-  // zero, a pessoa vê os números dos capítulos e escolhe qual quer ler, em
-  // vez de já cair lendo um escolhido pelo app. Exceção: initialTextOpen
-  // (true só quando vem de um card de "lido recentemente", ver
-  // RecentChaptersRow/openRecentChapter em JourneyScreen.jsx) — aí já cai
-  // lendo o capítulo exato, sem repetir o passo de escolher de novo algo
-  // que a pessoa já tinha escolhido antes.
+  // Leitura livre (mode 'browse'): qual capítulo está aberto — o que a
+  // tela do livro (BookChapterScreen.jsx) mandou abrir (initialTextOpen +
+  // initialSessionId), e depois o que o seletor de capítulo ou "Seguir
+  // para…" trocarem. Na leitura do plano não se aplica: ali o texto é
+  // sempre o da sessão em destaque.
   const [expandedChapterId, setExpandedChapterId] = useState(initialTextOpen ? initialSessionId : null)
 
-  // Cards estilo "stories" dos últimos capítulos lidos (ver
-  // RecentChaptersRow/recentChaptersStore.js) — precisa de estado próprio
-  // (não só ler localStorage direto no render, como JourneyScreen.jsx faz)
-  // porque É este componente que grava um capítulo novo na lista (efeito
-  // abaixo); sem re-renderizar sozinho, o card recém-aberto só apareceria
-  // na próxima vez que a tela montasse.
-  const [recentChapters, setRecentChapters] = useState(getRecentChapters)
-
-  // Lembra o último capítulo aberto na navegação livre (mode 'browse') —
-  // só aqui, não no fluxo guiado da Rotina/Plano (mode 'session'), que já
-  // tem seu próprio "onde parei" (a sessão "current" do plano). Alimenta os
-  // cards de "lidos recentemente" (recentChaptersStore) — lastOpenedChapterStore
-  // (o "Continuar leitura" irmão) saiu em 2026-09-07, redundante com
-  // "Último texto lido" (lastReadPositionStore, grava nos dois modos).
-  useEffect(() => {
-    if (mode === 'browse' && expandedChapterId != null) {
-      const openedSession = sessions.find(s => s.id === expandedChapterId)
-      if (openedSession) {
-        setRecentChapters(addRecentChapter({
-          blockId: block.id,
-          sessionId: openedSession.id,
-          book: openedSession.book,
-          bookEn: openedSession.bookEn,
-          chapter: openedSession.chStart,
-        }))
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, block.id, expandedChapterId])
-
-  // Próximo capítulo pra continuar lendo sem precisar voltar pra lista —
-  // só faz sentido em modo 'browse'; em modo 'session' as sessões já podem
-  // ter mais de 1 capítulo cada, então "só ler o próximo" não é bem
-  // definido do mesmo jeito. Se acabou o bloco (ex: terminou Deuteronômio
-  // no Pentateuco), pula pro 1o capítulo do próximo bloco.
+  // A sessão seguinte do plano, para "Continuar lendo" (35g).
   function getNextSessionFor(fromSession) {
     const idx = sessions.findIndex(s => s.id === fromSession.id)
     // Só dentro do bloco atual (varredura 2026-10-25): os ids de sessão
@@ -186,12 +109,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     return sessions[idx + 1] ?? null
   }
 
-  // Clicar num capítulo/sessão na lista NÃO rola a página em modo 'browse'
-  // (navegação livre) — é assim que dá pra ler vários capítulos seguidos
-  // sem o susto de voltar pro topo da tela a cada clique. Em modo
-  // 'session' mantém o comportamento de sempre (rola pra revelar o
-  // destaque no topo), já que ali a pessoa normalmente troca de sessão
-  // vindo de bem mais longe na lista.
+  // Troca a sessão em destaque. Na leitura do plano, volta ao topo do
+  // texto novo; na leitura livre, quem troca de capítulo cuida da rolagem
+  // (ver goToFreeChapter).
   function featureSession(clickedSession) {
     setSelectedSessionId(clickedSession.id)
     if (mode !== 'browse') {
@@ -215,46 +135,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setChapterPickerOpen(false)
   }
 
-  // Abre/fecha o texto embaixo do capítulo tocado (acordeão) — mantém o
-  // card de destaque lá em cima sincronizado também (featureSession), pra
-  // Contexto/Mapa/Notas continuarem batendo com o capítulo sendo lido.
-  function toggleInlineChapter(clickedSession) {
-    setExpandedChapterId(id => id === clickedSession.id ? null : clickedSession.id)
-    featureSession(clickedSession)
-  }
-
-  function goToNextInline(fromSession) {
-    const next = getNextSessionFor(fromSession)
-    if (!next) return
-    pendingScrollId.current = next.id
-    setExpandedChapterId(next.id)
-    featureSession(next)
-  }
-
-  // Só depois que o capítulo anterior encolhe (fecha) e o novo cresce
-  // (abre) — ou seja, depois que o DOM já reflete o novo layout — é que dá
-  // pra rolar certo até o topo do novo card. Rolar antes (ex: direto no
-  // clique) mira na altura de quando o texto antigo ainda ocupava a tela
-  // inteira, e a pessoa cai num lugar aleatório da lista.
-  useLayoutEffect(() => {
-    if (pendingScrollId.current == null || pendingScrollId.current !== expandedChapterId) return
-    chapterRefs.current[expandedChapterId]?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-    pendingScrollId.current = null
-  }, [expandedChapterId])
-
-  const TAGS = [
-    // "Texto" não fica aqui — vira um botão junto dos capítulos, ver
-    // ChapterChecklist (mais perto de onde a pessoa já está olhando).
-    { key: 'contexto',     icon: 'BookOpen',   label: t('reading.tagContext', undefined, lang) },
-    { key: 'mapa',         icon: 'Map',        label: t('reading.tagMap', undefined, lang) },
-    { key: 'notas',        icon: 'StickyNote', label: t('reading.tagNotes', undefined, lang) },
-    { key: 'curiosidades', icon: 'Lightbulb',  label: t('reading.tagTrivia', undefined, lang) },
-    { key: 'ia',           icon: 'HelpCircle', label: t('reading.tagAskAi', undefined, lang) },
-  ]
-
-  // Na leitura guiada o texto está sempre aberto (redesign 1b) — Contexto/
-  // Mapa/Notas/Curiosidades saíram do openPanel e vivem na folha Ferramentas.
-  const [openPanel, setOpenPanel] = useState(mode !== 'browse' ? 'texto' : null)
+  // Contexto/Mapa/Notas/Curiosidades vivem na folha Ferramentas.
   const [toolsOpen, setToolsOpen] = useState(false)
   // Seletor de capítulo (quadro 18b) — aberto pelo chip escuro do
   // cabeçalho. Mesma folha escura da IA, mas sem losango.
@@ -263,15 +144,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // pra cima (redesign 1b). scrollRef é o container que rola (ver JSX).
   const [readerHeaderHidden, setReaderHeaderHidden] = useState(false)
   const lastReaderScrollY = useRef(0)
-  // Progresso de LEITURA do capítulo (quadro 26b — "a barra fina é o quanto
-  // falta do CAPÍTULO, não do tempo") — quanto do card branco do texto
-  // (textCardRef) já passou pelo topo da tela, 0 a 100. Reaproveita o MESMO
-  // listener de scroll do cabeçalho que some/aparece, em vez de um 2º
-  // listener, e recalcula na hora (onScroll() direto) sempre que o capítulo
-  // muda, não só ao rolar.
-  const [chapterProgressPct, setChapterProgressPct] = useState(0)
   useEffect(() => {
-    if (!immersive) return
     const el = scrollRef.current
     if (!el) return
     function onScroll() {
@@ -284,19 +157,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       // o texto pra cima.
       if (y < lastReaderScrollY.current - 8) setMarkedChapter(null)
       lastReaderScrollY.current = y
-      const textEl = textCardRef.current
-      if (textEl) {
-        const containerRect = el.getBoundingClientRect()
-        const textRect = textEl.getBoundingClientRect()
-        const textTop = el.scrollTop + (textRect.top - containerRect.top)
-        const ratio = textRect.height > 0 ? (el.scrollTop + containerRect.height - textTop) / textRect.height : 0
-        setChapterProgressPct(Math.max(0, Math.min(100, Math.round(ratio * 100))))
-      }
     }
     onScroll()
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [immersive, heroSession?.id])
+  }, [heroSession?.id])
 
   // Relógio do passo — segundos desde que ESTA sessão de leitura começou;
   // zera a cada capítulo (exceto ao avançar por "Continuar lendo", 35g, que
@@ -315,11 +180,8 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // (35c/readingClockPrefsStore.js) decide se aparece.
   const [readingClockPrefs, setReadingClockPrefsState] = useState(null)
   useEffect(() => { getReadingClockPrefs().then(setReadingClockPrefsState).catch(() => {}) }, [])
-  const showReadingClock = immersive && !freeReading && ['fixed', 'chrono'].includes(session.activePlan?.kind) && heroSession.type !== 'reflection' && !!readingClockPrefs?.showOnReading
+  const showReadingClock = !freeReading && ['fixed', 'chrono'].includes(session.activePlan?.kind) && heroSession.type !== 'reflection' && !!readingClockPrefs?.showOnReading
   const targetClockSeconds = Math.max(0, (session.plan.readingMinutes ?? 0) * 60)
-  // "tempo total do plano" (unificação do cronômetro, 2026-09-21) — mesmo
-  // hook que Oração/Reflexão usam, somado ao stepElapsedSeconds ao vivo.
-  const planPriorSeconds = usePlanTotalToday()
 
   const [clockPaused, setClockPaused] = useState(false)
   const clockPausedRef = useRef(false)
@@ -519,17 +381,17 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         // gamification/rereadTracker.js.
         notifyChapterOpened(s.book, s.chStart)
       }
-    } else if (openPanel === 'texto' && heroSession) {
+    } else if (heroSession) {
       setLastReadPosition(heroSession.book, heroSession.chStart)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, expandedChapterId, openPanel, heroSession?.id])
+  }, [mode, expandedChapterId, heroSession?.id])
 
   // Onde a pessoa parou na leitura livre: o versículo que está no topo da
   // área de leitura, guardado um instante depois de cada rolagem — é o
   // ", versículo 4" do cartão "Continuar a leitura livre" (B1). O topo da
   // área é a base do cabeçalho enquanto ele está à vista.
-  const freeTopRef = useRef(null)
+  const topRef = useRef(null)
   useEffect(() => {
     if (!freeReading || !heroSession || heroSession.type === 'reflection') return undefined
     const el = scrollRef.current
@@ -540,7 +402,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       const card = textCardRef.current
       if (!card) return
       const top = el.getBoundingClientRect().top
-      const headerBottom = freeTopRef.current?.getBoundingClientRect().bottom ?? top
+      const headerBottom = topRef.current?.getBoundingClientRect().bottom ?? top
       const items = [...card.querySelectorAll(`[data-chapter="${open.chStart}"] [data-verse]`)]
         .map(node => ({ verse: Number(node.dataset.verse), bottom: node.getBoundingClientRect().bottom }))
       const verse = el.scrollTop < 8 ? 1 : topVisibleVerse(items, Math.max(top, headerBottom))
@@ -575,7 +437,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // dia/passo nem calcular sessão média/horário mais comum.
   const readingActive = mode === 'browse'
     ? expandedChapterId != null
-    : (openPanel === 'texto' && !!heroSession && heroSession.type !== 'reflection')
+    : (!!heroSession && heroSession.type !== 'reflection')
   // O livro que está aberto (o capítulo da navegação livre, ou a sessão em
   // destaque na leitura do plano) — vai junto do tempo, pra dar o "tempo de
   // leitura neste livro" (selo, livro completo, B2).
@@ -607,59 +469,24 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readingActive, heroSession?.id, expandedChapterId])
 
-  // Chat de IA e janela de grifo flutuam por CIMA da leitura (portal pro
-  // <body>, ver mais abaixo) — de propósito em estados PRÓPRIOS, separados
-  // de openPanel: abrir um dos dois não pode fechar/trocar o que já estava
-  // aberto embaixo (o texto do capítulo, Contexto, Notas...). Antes os três
-  // dividiam o mesmo openPanel, então abrir a IA com o texto aberto (modo
-  // 'session') trocava openPanel de 'texto' pra 'ia' — ao fechar a IA,
-  // openPanel virava null (não voltava pra 'texto'), e o texto que a
-  // pessoa estava lendo sumia da tela sozinho.
+  // O chat de IA flutua por CIMA da leitura (portal pro <body>, ver mais
+  // abaixo), em estado próprio: abrir ou fechar a IA não mexe no texto.
   const [aiChatOpen, setAiChatOpen] = useState(false)
 
   const [noteText, setNoteText] = useState('')
-  const [hasSavedNote, setHasSavedNote] = useState(false)
-  // Mapa INTEIRO de anotações (não só a da sessão em destaque) — é o que
-  // permite mostrar o ícone de "tem anotação aqui" em qualquer capítulo da
-  // lista abaixo (ver hasNoteFor/SessionCard), não só no card de destaque.
-  const [notesMap, setNotesMap] = useState({})
-
   const heroNoteKey = noteKeyFor(heroSession)
 
+  // A nota da sessão em destaque (folha Ferramentas → Notas).
   useEffect(() => {
-    // Em modo 'browse', se a pessoa já estava lendo o texto, troca de
-    // capítulo mantém o painel de Texto aberto — é o que permite continuar
-    // lendo vários capítulos seguidos sem precisar tocar em "Texto" nem
-    // vez. Qualquer outro painel (Contexto/Mapa/Notas/Curiosidades) sempre
-    // fecha ao trocar, e em modo 'session' o comportamento é o de sempre.
-    setOpenPanel(p => (mode !== 'browse' || p === 'texto') ? 'texto' : null)
-    if (!authUser?.email) { setNoteText(''); setHasSavedNote(false); setNotesMap({}); return }
-    getNotes(authUser.email).then(map => {
-      setNotesMap(map)
-      setNoteText(noteTextOf(map[heroNoteKey]))
-      setHasSavedNote(Boolean(noteTextOf(map[heroNoteKey])))
-    })
-  }, [heroNoteKey, authUser?.email, mode])
+    if (!authUser?.email) { setNoteText(''); return }
+    getNotes(authUser.email).then(map => setNoteText(noteTextOf(map[heroNoteKey])))
+  }, [heroNoteKey, authUser?.email])
 
   function handleSaveNote(text) {
     setNoteText(text)
-    setHasSavedNote(Boolean(text.trim()))
-    // Atualiza o mapa local na hora (otimista) — sem isso, o ícone de "tem
-    // anotação" na lista só apareceria depois de trocar de sessão e voltar
-    // (próxima vez que o efeito acima buscasse de novo).
-    setNotesMap(prev => {
-      const next = { ...prev }
-      if (text.trim()) next[heroNoteKey] = { text }
-      else delete next[heroNoteKey]
-      return next
-    })
     saveNote(authUser?.email, heroNoteKey, text).catch(err => {
       console.error('Failed to persist note', err)
     })
-  }
-
-  function hasNoteFor(session) {
-    return Boolean(noteTextOf(notesMap[noteKeyFor(session)]))
   }
 
   // Marcações de trechos específicos (versículo a versículo, ver
@@ -710,8 +537,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
 
   // "Remover" nunca apaga de verdade — só esconde (ver comentário em
   // hideHighlight). Local, marca `hidden` sem tirar do array, pra todo
-  // filtro `!h.hidden` (highlightForVerse, highlightsInHero, o pontinho
-  // de ChapterChips) parar de mostrar na hora.
+  // filtro `!h.hidden` (highlightForVerse) parar de mostrar na hora.
   function handleHideHighlight(id) {
     setHighlights(prev => prev.map(h => h.id === id ? { ...h, hidden: true } : h))
     hideHighlight(authUser?.email, id).catch(err => {
@@ -785,7 +611,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // pessoa tocou o número do versículo ou terminou de selecionar um
   // trecho — usado só pra ancorar a folha de 39e perto do toque (ver
   // VerseActionsSheet).
-  const [highlightAnchorRect, setHighlightAnchorRect] = useState(null)
   // Folha do versículo selecionado (39e, reskin Bento) — só na leitura
   // imersiva (35f/39d). Selecionar um trecho abre esta folha (ver
   // VerseActionsSheet, handleHighlightVerseClick/handleHighlightTextRange).
@@ -813,7 +638,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // (implicação técnica 5 do adendo — degradação explícita, sem tentativa
   // de rede) — vai direto pro texto.
   const [contextGate, setContextGate] = useState(() => (
-    immersive && heroSession.type !== 'reflection' && hasAI && getChapterContextEnabled()
+    heroSession.type !== 'reflection' && hasAI && getChapterContextEnabled()
       && (forceChapterContext || !isChapterContextSeen(heroSession.book, heroSession.chStart, lang))
       && (typeof navigator === 'undefined' || navigator.onLine)
   ))
@@ -860,14 +685,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // andamento (ou, se esse versículo já tem um grifo salvo, troca pro modo
   // "editar esse grifo" em vez de somar à seleção. Sempre abre o popup
   // ancorado perto do toque; fecha sozinho se a seleção esvaziar.
-  function handleHighlightVerseClick(ch, v, rect) {
+  function handleHighlightVerseClick(ch, v) {
     if (!hasPremium) return // grifar/anotar é recurso Premium
     const existing = highlights?.find(h => !h.hidden && h.book === heroSession.book && h.chapter === ch && h.verses.includes(v))
     if (existing) {
       setHighlightEditingId(existing.id)
       setHighlightSelection(null)
       setWantsToAnnotate(false)
-      setHighlightAnchorRect(rect ?? null)
       // "Segurar um versículo abre 39e" vale pra QUALQUER versículo,
       // marcado ou não.
       setSelectionMenuOpen(true)
@@ -885,7 +709,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       next = verses.size === 0 ? null : { chapter: ch, verses }
     }
     setHighlightSelection(next)
-    setHighlightAnchorRect(next ? (rect ?? null) : null)
     setSelectionMenuOpen(Boolean(next))
   }
 
@@ -894,12 +717,11 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // resolve o intervalo de versículos pelos atributos data-chapter/
   // data-verse). Sempre substitui a seleção em andamento (não soma a um
   // grifo já aberto pra edição), mesmo espírito de handleHighlightVerseClick.
-  function handleHighlightTextRange(ch, verses, rect) {
+  function handleHighlightTextRange(ch, verses) {
     if (!hasPremium) return // grifar/anotar é recurso Premium
     setHighlightEditingId(null)
     setHighlightSelection({ chapter: ch, verses })
     setWantsToAnnotate(false)
-    setHighlightAnchorRect(rect ?? null)
     setSelectionMenuOpen(true)
   }
 
@@ -955,7 +777,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setPassageAnswer(null)
     setHighlightSelection(null)
     setHighlightEditingId(null)
-    setHighlightAnchorRect(null)
   }
 
   // "Perguntar" (39e) — manda a pergunta pro servidor
@@ -1021,14 +842,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     handleHideHighlight(highlightEditingId)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
-    setHighlightAnchorRect(null)
   }
 
   function cancelHighlightCompose() {
     setHighlightSelection(null)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
-    setHighlightAnchorRect(null)
   }
 
   // Fechos da folha de 39e (VerseActionsSheet):
@@ -1060,9 +879,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   // volta pra 39e, mantendo o versículo em foco.
   function openCopySheet() {
     setCopySheetOpen(true)
-  }
-  function closeCopySheet() {
-    setCopySheetOpen(false)
   }
   // "Copiar" (39g, ação de verdade) — o formato final vai pro
   // clipboard, com a versão sempre junto quando a referência entra
@@ -1106,35 +922,12 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setHighlightSelection(null)
     setHighlightEditingId(null)
     setWantsToAnnotate(false)
-    setHighlightAnchorRect(null)
   }
 
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
   const heroTitle = lang === 'en' ? heroSession.titleEn : heroSession.title
-  const heroPassage = lang === 'en' ? heroSession.passageEn : heroSession.passage
-  const heroChapterSpan = heroSession.type === 'reflection' ? 0 : heroSession.chEnd - heroSession.chStart + 1
-  const heroChapterWord = lang === 'en' ? (heroChapterSpan === 1 ? 'chapter' : 'chapters') : (heroChapterSpan === 1 ? 'capítulo' : 'capítulos')
-  // Subtítulo do cabeçalho imersivo (quadro 4a): "NVT · cap. 40 de 50" —
-  // sigla da versão em uso + posição do capítulo (ou do intervalo da sessão)
-  // dentro do livro. Total de capítulos do livro vem da mesma fonte de
-  // Progresso/Biblioteca (computeBookChapterCounts).
-  const readerHeaderSub = (() => {
-    if (heroSession.type === 'reflection') return heroPassage
-    const short = findBibleVersion(getSelectedVersionId(lang))?.short
-    const total = computeBookChapterCounts(sessionsByBlock)[heroSession.book]
-    const range = heroChapterSpan === 1 ? `${heroSession.chStart}` : `${heroSession.chStart}–${heroSession.chEnd}`
-    const cap = lang === 'en' ? 'ch.' : 'cap.'
-    const of = lang === 'en' ? 'of' : 'de'
-    return [short, total ? `${cap} ${range} ${of} ${total}` : `${cap} ${range}`].filter(Boolean).join(' · ')
-  })()
   const heroBookDisplayName = lang === 'en' ? heroSession.bookEn : heroSession.book
   const chLabel = lang === 'en' ? 'Ch.' : 'Cap.'
-  // Grifos já salvos dentro do alcance da sessão em destaque — mostrados na
-  // janela flutuante de grifo quando ela abre sem nenhuma seleção em
-  // andamento (ver FAB de lápis), pra dar acesso rápido a editar/apagar um
-  // já feito sem precisar caçar o versículo de novo na lista.
-  const highlightsInHero = heroSession.type === 'reflection' ? [] : (highlights?.filter(h => !h.hidden && h.book === heroSession.book && h.chapter >= heroSession.chStart && h.chapter <= heroSession.chEnd) ?? [])
-
   // Camada do grupo na leitura (quadro 17c): pontilhado laranja sob o
   // versículo marcado por outros do grupo + chip com a contagem. Só pra quem
   // está num grupo (primeiro grupo da pessoa), na leitura imersiva, e com a
@@ -1144,7 +937,7 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
   const [groupLayerOn, setGroupLayerOn] = useState(getGroupMarksVisible)
   const [groupMarks, setGroupMarks] = useState({})
   useEffect(() => {
-    if (!immersive || !myGroup || !groupLayerOn || !heroSession || heroSession.type === 'reflection') { setGroupMarks({}); return }
+    if (!myGroup || !groupLayerOn || !heroSession || heroSession.type === 'reflection') { setGroupMarks({}); return }
     let cancelled = false
     const chapters = []
     for (let ch = heroSession.chStart; ch <= heroSession.chEnd; ch++) chapters.push(ch)
@@ -1153,7 +946,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
       .catch(err => console.error('Failed to load group marks', err))
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [immersive, myGroup?.groupId, groupLayerOn, heroSession?.id, heroSession?.book])
+  }, [myGroup?.groupId, groupLayerOn, heroSession?.id, heroSession?.book])
+  // Na leitura do plano, o que é do grupo mora em Ferramentas (S3).
+  const groupTools = !freeReading && !!myGroup && heroSession.type !== 'reflection'
   function toggleGroupLayer() {
     const next = !groupLayerOn
     setGroupLayerOn(next)
@@ -1172,246 +967,74 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
     setAiChatOpen(true)
   }
 
-  // Leitura livre (B3/B4): o livro aberto na estrutura da gamificação (cor
-  // do bloco, total de capítulos), o fio de progresso e o cartão de
-  // capítulo marcado. O fio perde o "· leitura livre" enquanto o cartão
-  // está na tela — o cartão já diz.
-  const freeProgress = useMemo(() => (freeReading ? computeBibleProgress(completedSet) : null), [freeReading, completedSet])
-  const freeBookInfo = freeReading ? bookInfo(heroSession.book) : null
-  const freeBookProgress = freeReading ? freeProgress.porLivro[heroSession.book] : null
+  // O livro aberto na estrutura da gamificação (cor do bloco, total de
+  // capítulos) e o fio de progresso dele, nos dois modos. Na leitura livre
+  // (B3/B4) há também o cartão de capítulo marcado, e o fio perde o "·
+  // leitura livre" enquanto o cartão está na tela — o cartão já diz. Na
+  // leitura do plano (S3) o fio diz o passo: "Passo 2 de 3 · 40 de 50
+  // lidos".
+  const bibleProgress = useMemo(() => computeBibleProgress(completedSet), [completedSet])
+  const bookBlocoId = bookInfo(heroSession.book)?.blocoId
+  const bookProgress = bibleProgress.porLivro[heroSession.book] ?? null
   const freeChapterDone = freeReading && completedSet.has(`${heroSession.book}:${heroSession.chStart}`)
   const freeCard = freeReading && freeChapterDone && markedChapter === heroSession.chStart
-    ? markedCard({ nome: heroSession.book, displayName: heroBookDisplayName, chapter: heroSession.chStart, progress: freeProgress })
+    ? markedCard({ nome: heroSession.book, displayName: heroBookDisplayName, chapter: heroSession.chStart, progress: bibleProgress })
     : null
-  const freeThread = freeReading ? readingThread(freeBookProgress, { free: !freeCard }) : null
-  // Altura do rodapé da leitura livre, medida — vira o respiro de baixo da
-  // rolagem (ver o JSX). 90 = a barra do quadro B3 (14 + 54 + 22).
-  const [freeFooterHeight, setFreeFooterHeight] = useState(90)
-  const freeFooterObserver = useRef(null)
-  function measureFreeFooter(node) {
-    freeFooterObserver.current?.disconnect()
-    freeFooterObserver.current = null
+  const thread = bookProgress
+    ? readingThread(bookProgress, freeReading ? { free: !freeCard } : { step: stepSubtitle(session.todaysSteps, 'reading') })
+    : null
+  // Altura do rodapé, medida — vira o respiro de baixo da rolagem (ver o
+  // JSX). 90 = a barra dos quadros B3 e S3 (14 + 54 + 22); o cartão de
+  // capítulo marcado é mais alto.
+  const [footerHeight, setFooterHeight] = useState(90)
+  const footerObserver = useRef(null)
+  function measureFooter(node) {
+    footerObserver.current?.disconnect()
+    footerObserver.current = null
     if (!node) return
-    setFreeFooterHeight(Math.ceil(node.getBoundingClientRect().height))
+    setFooterHeight(Math.ceil(node.getBoundingClientRect().height))
     if (typeof ResizeObserver === 'undefined') return
-    freeFooterObserver.current = new ResizeObserver(() => setFreeFooterHeight(Math.ceil(node.getBoundingClientRect().height)))
-    freeFooterObserver.current.observe(node)
+    footerObserver.current = new ResizeObserver(() => setFooterHeight(Math.ceil(node.getBoundingClientRect().height)))
+    footerObserver.current.observe(node)
   }
 
-  // Cabeçalho + painéis (Contexto/Mapa/Notas/Curiosidades/Texto) — extraído
-  // numa variável porque `embedded` (ver JourneyScreen.jsx: um livro
-  // expandido dentro da própria lista de testamento, sem navegar) usa
-  // exatamente o mesmo conteúdo, só SEM o wrapper de tela cheia (rb-enter/
-  // scrollRef/rb-detail·rb-master) por fora. Sem essa variável, o mesmo
-  // JSX teria que ser escrito duas vezes.
+  // O que rola: o cabeçalho (preso no topo) e o texto.
   const headerAndPanels = (
     <>
-      {guidedReading && !embedded && !immersive && (
-        <GuidedFlowBanner guided={guidedReading} lang={lang} onExit={onExitGuided} />
-      )}
-      {freeReading ? (
-        // Leitura livre (B3): topo próprio, com o fio de progresso do livro.
-        <LeituraLivreTopo
-          ref={freeTopRef}
-          lang={lang}
-          title={heroTitle}
-          hidden={readerHeaderHidden}
-          blocoId={freeBookInfo.blocoId}
-          thread={freeThread}
-          lidos={freeBookProgress.lidos}
-          total={freeBookProgress.total}
-          versionId={versionId}
-          onChangeVersion={handleChangeVersion}
-          onBack={onBack}
-          onOpenPicker={() => setChapterPickerOpen(true)}
-          onOpenMenu={() => setToolsOpen(true)}
-        />
-      ) : immersive ? (
-        // Cabeçalho (identidade Bento, tela 4a; relógio turno 35/35f) —
-        // some ao rolar pra baixo, volta ao rolar pra cima
-        // (readerHeaderHidden). Fica fixo no topo. Turno 35, Bloco 3: este
-        // é o ÚNICO cabeçalho da Leitura agora, inclusive dentro do fluxo
-        // guiado da Rotina — 35f não tem a faixa "Agora · Passo N de 3"
-        // (essa informação já mora no cartão da Rotina/Meu Plano); o
-        // encadeamento pro próximo passo ao concluir continua funcionando
-        // igual (decisão tomada com a autora ao montar este bloco).
-        <>
-          <div style={{
-            ...styles.readerHeader,
-            transform: readerHeaderHidden ? 'translateY(-100%)' : 'none',
-          }}>
-            <div style={styles.readerHeaderLeft}>
-              <button onClick={onBack} style={styles.readerIconBtn} aria-label={t('a11y.goBack', undefined, lang)}>
-                <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-              </button>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {/* Chip escuro (quadro 4a) — abre o seletor de capítulo
-                      (18b), a mesma folha escura da IA mas sem losango (aqui
-                      não é a máquina falando). Só tocável numa sessão de
-                      leitura de verdade — a reflexão de fechamento de livro
-                      não tem capítulo pra escolher numa grade de números. */}
-                  {heroSession.type === 'reflection' ? (
-                    <div style={styles.readerChapterChip}><span style={styles.readerChapterChipText}>{heroTitle}</span></div>
-                  ) : (
-                    <button style={styles.readerChapterChip} onClick={() => setChapterPickerOpen(true)}>
-                      <span style={styles.readerChapterChipText}>{heroTitle}</span>
-                      <AppIcon name="ChevronUp" size={11} strokeWidth={2.6} color="var(--bento-accent)" />
-                    </button>
-                  )}
-                </div>
-                <p style={styles.readerHeaderSub}>{readerHeaderSub}</p>
-              </div>
-            </div>
-            {showReadingClock ? (
-              // Pílula do relógio (cronômetro unificado, 2026-09-21) — toca
-              // pra pausar/retomar; ao zerar passa a contar pra cima,
-              // discreto, nunca bloqueia a leitura. Versão compacta do
-              // mesmo cronômetro de Oração/Reflexão (StepTimerPill.jsx) —
-              // aqui não cabe o card grande, a leitura é imersiva.
-              <StepTimerPill
-                lang={lang}
-                planSeconds={planPriorSeconds + stepElapsedSeconds}
-                passoSeconds={stepElapsedSeconds}
-                passoDurationSeconds={targetClockSeconds}
-                running={!clockPaused}
-                onToggle={() => setClockPaused(p => !p)}
-                onStop={handleConcludePress}
-                flash={zeroFlash}
-              />
-            ) : (
-              <div style={styles.readerHeaderRight}>
-                {/* Botão "Grupo" (quadro 17c) — abre a sala do capítulo (17a). */}
-                {myGroup && heroSession.type !== 'reflection' && (
-                  <button
-                    style={styles.groupBtn}
-                    onClick={() => onOpenGroupRoom?.({ group: myGroup, book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart })}
-                  >
-                    <span style={{ display: 'flex' }}>
-                      <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-accent)' }} />
-                      <span style={{ ...styles.groupBtnAvatar, background: 'var(--bento-sand)', marginLeft: -6 }} />
-                    </span>
-                    <span style={styles.groupBtnText}>{t('room.groupBtn', undefined, lang)}</span>
-                  </button>
-                )}
-                {/* Dois ícones por fidelidade visual à 4a (ondas + menu) —
-                    os dois abrem Ferramentas, a mesma única ação que o
-                    cabeçalho já tinha; não inventamos uma 2ª
-                    funcionalidade nova (decisão tomada com a autora antes
-                    de implementar esta tela). */}
-                <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
-                  <AppIcon name="AudioLines" size={16} color="var(--bento-ink)" />
-                </button>
-                <button onClick={() => setToolsOpen(true)} style={styles.readerIconBtn} aria-label={t('reading.toolsBtn', undefined, lang)}>
-                  <AppIcon name="MoreVertical" size={16} color="var(--bento-ink)" />
-                </button>
-              </div>
-            )}
-          </div>
-          {showReadingClock && !readerHeaderHidden && (
-            <div style={styles.clockElapsedTrack}>
-              <div style={{ ...styles.clockElapsedFill, width: `${targetClockSeconds > 0 ? Math.min(100, Math.round((stepElapsedSeconds / targetClockSeconds) * 100)) : 0}%` }} />
-            </div>
-          )}
-        </>
-      ) : (
-        <div style={styles.browseHeader}>
-          {!embedded && (
-            <button onClick={onBack} style={styles.browseBackBtn} aria-label="back">
-              <AppIcon name="ArrowLeft" size={17} color="var(--bento-ink)" />
-            </button>
-          )}
-          {mode !== 'browse' && (
-            <p style={styles.browseHeaderCycle}>
-              {isFreePlan ? blockName : `${blockName} · ${t('reading.sessionLabel', { n: heroSession.id }, lang)} ${lang === 'en' ? 'of' : 'de'} ${block.sessionsTotal}`}
-            </p>
-          )}
-          {/* Embutido: o nome do livro já mora na linha da lista, fora deste
-              componente (ver BookRow em JourneyScreen.jsx) — repetir aqui
-              seria redundante. */}
-          {!embedded && (
-            <span style={styles.browseHeaderTitle}>{mode === 'browse' ? heroBookDisplayName : heroTitle}</span>
-          )}
-          {mode !== 'browse' && (
-            <p style={styles.browseHeaderSub}>
-              {heroSession.type === 'reflection' ? heroPassage : `${heroPassage} · ${heroChapterSpan} ${heroChapterWord}`}
-            </p>
-          )}
-          <div style={styles.browseTagsRow}>
-            {/* IA nunca entra aqui — tem seu próprio botão flutuante (FAB),
-                em qualquer um dos dois modos; repetir na lista de abas
-                seria a mesma coisa duas vezes. Notas exige Premium. */}
-            {TAGS.filter(tag => tag.key !== 'ia' && (tag.key !== 'notas' || hasPremium)).map(tag => (
-              <span
-                key={tag.key}
-                style={{ ...styles.browseTag, ...(openPanel === tag.key ? styles.browseTagActive : {}) }}
-                onClick={() => setOpenPanel(p => (p === tag.key ? null : tag.key))}
-              >
-                <AppIcon name={tag.icon} size={12} /> {tag.label}{tag.key === 'notas' && hasSavedNote && <span style={styles.heroTagDot} />}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* Ouvir a Bíblia — player de áudio da navegação livre (fora de
-          plano). Fica montado aqui no topo (não por capítulo) pra que o
-          modo "contínuo" atravesse a troca de capítulo sem cortar o som.
-          O contínuo vai até o fim do livro aberto (getNextSessionFor pode
-          apontar pra outro livro/bloco, que não está renderizado nesta
-          lista embutida — então limita ao mesmo livro). */}
-      {/* 39d não tem player nenhum fora de Ferramentas (ver rodapé) — o
-          quadro vai direto da tarja pro texto. */}
-      {mode === 'browse' && !freeReading && expandedChapterId != null && heroSession.type !== 'reflection' && (() => {
-        const nextInBook = (() => {
-          const n = getNextSessionFor(heroSession)
-          return n && n.book === heroSession.book ? n : null
-        })()
-        return (
-          <div style={{ padding: '4px 8px 0' }}>
-            <BibleAudioPlayer
-              session={heroSession}
-              lang={lang}
-              hasNext={!!nextInBook}
-              onAdvance={() => goToNextInline(heroSession)}
-              allowPremiumVoice={hasPremium}
-            />
-          </div>
-        )
-      })()}
-      {/* Cards de "lidos recentemente" — só na navegação livre de tela
-          cheia, nunca embutido (não faz sentido por livro). No desktop
-          moram aqui dentro de .rb-detail, que já é sticky por conta
-          própria (CSS, ≥768px). No celular ficam de FORA daqui (ver logo
-          abaixo, fora desta variável) — sticky só funciona dentro dos
-          limites do próprio pai, e .rb-detail é curto (só o cabeçalho). */}
-      {!embedded && mode === 'browse' && isDesktop && (
-        <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
-      )}
-      {/* A marcação capítulo a capítulo do fluxo guiado antigo (ChapterChecklist,
-          mode!=='browse' && !immersive) foi removida na varredura de
-          identidade (Bloco 1) pelo mesmo motivo do bloco completeBtn/
-          nextStepBtn acima: essa combinação nunca ocorre de verdade. */}
-
-      {/* Seletor pra pular direto pra Oração/Reflexão sem voltar pra aba
-          Rotina — só no fluxo guiado de tela cheia (a leitura livre não é
-          "o passo de hoje" de coisa nenhuma, e embutido na aba Bíblia não
-          tem esse contexto de rotina). Logo acima do texto de propósito —
-          depois da lista de capítulos da sessão, não colado no cabeçalho. */}
-      {!embedded && mode !== 'browse' && !immersive && heroSession.type !== 'reflection' && (
-        <RoutineStepSwitcher
-          session={session}
-          activeStep="reading"
-          onGoPrayer={() => onNavigate?.('prayer')}
-          onGoStudy={() => onNavigate?.('addStudy')}
-          onGoReflection={() => onNavigate?.('reflection')}
-        />
-      )}
-
+      {/* O topo (LeituraTopo): na leitura livre (B3), a versão e os três
+          pontos; na leitura do plano (S3), o relógio — quando "Mostrar na
+          leitura" está ligado e o plano é o da Bíblia contínua — e a barra
+          do dia em cima do fio. O relógio pausa e retoma no toque; ao
+          zerar passa a contar pra cima, discreto, e nunca fecha a leitura.
+          A reflexão de fechamento de livro não tem capítulo pra escolher:
+          a pílula do título não abre o seletor. */}
+      <LeituraTopo
+        ref={topRef}
+        lang={lang}
+        title={heroTitle}
+        hidden={readerHeaderHidden}
+        blocoId={bookBlocoId}
+        thread={thread}
+        lidos={bookProgress?.lidos ?? 0}
+        total={bookProgress?.total ?? 0}
+        onBack={onBack}
+        onOpenPicker={heroSession.type === 'reflection' ? null : () => setChapterPickerOpen(true)}
+        {...(freeReading ? {
+          versionId, onChangeVersion: handleChangeVersion, onOpenMenu: () => setToolsOpen(true),
+        } : {
+          plan: true,
+          clock: showReadingClock
+            ? <RelogioDoPasso totalSeconds={targetClockSeconds} elapsedSeconds={stepElapsedSeconds} running={!clockPaused} onToggle={() => setClockPaused(p => !p)} flash={zeroFlash} />
+            : null,
+          daySegments: dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'reading' }),
+          dayLabel: dayBarAria(session.todaysSteps, 'reading'),
+        })}
+      />
       {/* "Relembre onde a história parou" (follow-up, turno 39) — em cima
           do texto, sempre que a leitura imersiva abre um capítulo de
           verdade (não reflexão). Mesmo par hasAI/toggle do contexto
           automático de 10c — é o mesmo conteúdo, só reaberto sob demanda. */}
-      {immersive && heroSession.type !== 'reflection' && hasAI && getChapterContextEnabled() && (
+      {heroSession.type !== 'reflection' && hasAI && getChapterContextEnabled() && (
         <div style={{ padding: '0 20px 4px' }}>
           <button type="button" style={styles.recallBtn} onClick={() => setRecallOpen(true)}>
             <span style={styles.recallBtnDiamond} />
@@ -1419,75 +1042,25 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           </button>
         </div>
       )}
-      {/* Painel de texto / contexto / mapa / notas / curiosidades da
-          sessão atual. Na leitura imersiva, Contexto/Mapa/Notas/Curiosidades
-          vivem na folha Ferramentas (ToolsSheet, mais abaixo) — aqui fica só
-          o texto. */}
-      {openPanel === 'notas' && !immersive && (
-        <div style={{ padding: '0 14px 4px' }}>
-          <NotesPanel value={noteText} onSave={handleSaveNote} lang={lang} />
-        </div>
-      )}
-      {/* Em modo 'browse' o texto normalmente mora embutido embaixo do
-          capítulo tocado na lista (ver SessionCard) — faz sentido no
-          celular, onde a lista já ocupa a tela toda. No desktop, porém,
-          essa lista vira a coluna "mestre" fixa em 300px (.rb-master),
-          estreita demais pra texto corrido, enquanto esse card de
-          destaque vira a coluna larga da direita (.rb-detail) e já fica
-          parado (sticky) na tela — então ali sim o texto aparece aqui
-          em cima, com o botão "Próximo" também (mesmo que a versão
-          embutida do celular), pra continuar a leitura sem precisar
-          caçar o próximo capítulo na lista estreita ao lado. Embutido
-          (embedded) nunca usa esse caminho — não tem coluna "mestre"
-          separada, então o texto sempre aparece junto do capítulo na
-          lista (ver isDesktop abaixo forçado a false pra embedded). */}
-      {(() => {
-        // Turno 39, Bloco 2: freeReading (39d, sempre de tela cheia, nunca
-        // só desktop) também mostra o texto aqui em cima — deixou de
-        // depender de isDesktop, que só fazia sentido pro layout
-        // mestre/detalhe antigo (hoje sem nenhum outro caminho vivo: mode
-        // 'browse' sem embedded só existe nesta tela).
-        const browseTextInHero = !embedded && mode === 'browse' && (isDesktop || freeReading) && expandedChapterId != null
-        const nextForHero = browseTextInHero && !freeReading ? getNextSessionFor(heroSession) : null
-        return (mode !== 'browse' && openPanel === 'texto') || browseTextInHero ? (
-          // Leitura imersiva (reskin Bento, tela 4a): bloco branco próprio
-          // (raio 28, padding 26/24) sobre o fundo creme da tela, só com
-          // respiro lateral de 20px. Nos outros casos, margem lateral bem
-          // menor que os painéis de lista pra dar coluna de leitura mais larga.
-          <div style={freeReading ? styles.readerTextCardWrapFree : immersive ? styles.readerTextCardWrap : { padding: '0 6px 4px' }}>
-            {(() => {
-              const panel = (
-                <BibleTextPanel
-                  session={heroSession}
-                  lang={lang}
-                  immersive={immersive}
-                  completedSet={completedSet}
-                  onToggleChapter={onToggleChapter}
-                  highlights={highlights}
-                  highlightSelection={highlightSelection}
-                  focusVerseRequest={initialFocusVerse}
-                  onVerseNumberClick={handleHighlightVerseClick}
-                  onTextSelectionRange={handleHighlightTextRange}
-                  groupMarks={immersive && myGroup && groupLayerOn ? groupMarks : null}
-                  versionId={freeReading ? versionId : undefined}
-                  onChangeVersion={freeReading ? handleChangeVersion : undefined}
-                  chapterLabelFor={freeReading ? ch => chapterLabel(heroSession.book, ch, lang) : undefined}
-                />
-              )
-              return immersive ? <div ref={textCardRef} style={freeReading ? styles.readerTextCardFree : styles.readerTextCard}>{panel}</div> : panel
-            })()}
-            {nextForHero && (
-              <button style={styles.nextChapterBtn} onClick={() => goToNextInline(heroSession)}>
-                {t('reading.nextChapter', { title: lang === 'en' ? nextForHero.titleEn : nextForHero.title }, lang)}
-                <AppIcon name="ChevronRight" size={15} />
-              </button>
-            )}
+      {/* O texto: na leitura do plano, o da sessão em destaque; na leitura
+          livre, o do capítulo aberto. Um cartão branco sobre o fundo creme. */}
+      {(mode !== 'browse' || expandedChapterId != null) && (
+        <div style={styles.readerTextCardWrap}>
+          <div ref={textCardRef} style={styles.readerTextCard}>
+            <BibleTextPanel
+              session={heroSession}
+              lang={lang}
+              highlights={highlights}
+              highlightSelection={highlightSelection}
+              focusVerseRequest={initialFocusVerse}
+              onVerseNumberClick={handleHighlightVerseClick}
+              onTextSelectionRange={handleHighlightTextRange}
+              groupMarks={myGroup && groupLayerOn ? groupMarks : null}
+              versionId={freeReading ? versionId : undefined}
+              onChangeVersion={freeReading ? handleChangeVersion : undefined}
+              chapterLabelFor={freeReading ? ch => chapterLabel(heroSession.book, ch, lang) : undefined}
+            />
           </div>
-        ) : null
-      })()}
-      {openPanel && openPanel !== 'notas' && openPanel !== 'texto' && (
-        <div style={{ padding: '0 14px 4px' }}>
-          <InfoPanel type={openPanel} books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} />
         </div>
       )}
 
@@ -1497,49 +1070,8 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           <ReflectionCard bookKey={heroSession.book} displayName={heroBookDisplayName} info={bookInfoSource[heroSession.book]} lang={lang} />
         </div>
       )}
-
-      {/* O antigo botão "Marcar/desmarcar sessão" + "Ir para a reflexão"
-          (fluxo guiado pré-Bento, mode!=='browse' && !immersive) foi
-          removido daqui na varredura de identidade (Bloco 1): essa
-          combinação nunca ocorre de fato — todo mode==='session' passa por
-          embedded===false, o que já torna immersive true (ver definição de
-          `immersive` no topo do componente) — então o bloco nunca
-          renderizava. Na leitura imersiva de verdade isso é o botão
-          "Concluir leitura" do rodapé fixo (ver readerFooter, mais abaixo). */}
     </>
   )
-
-  // Lista de livros do bloco (agrupados; só o livro em leitura já vem
-  // expandido) — extraída pelo mesmo motivo de headerAndPanels acima:
-  // embedded reaproveita exatamente essa lista, só sem virar a coluna
-  // "mestre" (.rb-master) de tela cheia.
-  const bookListItems = bookGroups.map(group => (
-    <BookGroup
-      key={`${block.id}-${group.book}`}
-      group={group}
-      isCurrentBook={group.sessions.includes(heroSession)}
-      heroSessionId={heroSession.id}
-      completedSet={completedSet}
-      onToggle={onToggleSession}
-      onToggleChapter={onToggleChapter}
-      onFeature={featureSession}
-      isFreePlan={isFreePlan}
-      lang={lang}
-      mode={mode}
-      expandedChapterId={expandedChapterId}
-      onToggleInline={toggleInlineChapter}
-      onNextInline={goToNextInline}
-      getNextSessionFor={getNextSessionFor}
-      registerCardRef={registerCardRef}
-      lastClickedId={selectedSessionId}
-      isDesktop={!embedded && isDesktop}
-      hasNoteFor={hasNoteFor}
-      highlights={highlights}
-      highlightSelection={highlightSelection}
-      onHighlightVerseClick={handleHighlightVerseClick}
-      onHighlightTextRange={handleHighlightTextRange}
-    />
-  ))
 
   // Contexto antes do capítulo (10c) — substitui a tela de leitura inteira
   // até a pessoa começar a ler de verdade ou pular (ver dismissChapterContext
@@ -1624,19 +1156,9 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         árvore, o mesmo truque de centralização de .bottom-nav
         (left:50%+translateX(-50%) dentro de max-width:var(--max-width))
         funciona igual. */}
-    {/* FAB de grifo/IA (pré-Bento) removido no Bloco 4 (39f): já era
-        `!immersive`-gated (sem chamador vivo desde que immersive passou a
-        valer sempre, ver Bloco 2) e seu botão de lápis chamava
-        openHighlightList, também removido — a lista de grifos existentes
-        sem seleção nenhuma não tem tela própria no pacote 39. A IA segue
-        acessível via Ferramentas (ver extra={hasAI ? ... openAiChat()}
-        mais abaixo). */}
     {/* Chat flutua por cima da leitura (mesmo motivo do portal acima) — a
         pessoa nunca sai de onde estava; fecha com o X ou tocando fora, e
-        volta pra exatamente a mesma posição de rolagem de antes. Estado
-        próprio (aiChatOpen, não openPanel) — abrir a IA não pode fechar o
-        que já estava aberto embaixo (o texto do capítulo, Contexto...), e
-        fechar a IA não pode fazer o que estava aberto sumir junto. */}
+        volta pra exatamente a mesma posição de rolagem de antes. */}
     {aiChatOpen && heroSession.type !== 'reflection' && createPortal(
       <div style={styles.aiChatOverlayBackdrop} onClick={() => setAiChatOpen(false)}>
         <div style={styles.aiChatOverlayWindow} onClick={e => e.stopPropagation()}>
@@ -1691,26 +1213,13 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         />
       )
     )}
-    {embedded ? (
-      // Embutido: sem wrapper de tela cheia nenhum — quem rola é a página
-      // que contém isso (a lista da aba Bíblia), não este componente. Sem
-      // transição de entrada (rb-enter) também — não é uma tela nova
-      // abrindo, é um item da lista crescendo no lugar.
-      <>
-        {headerAndPanels}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {bookListItems}
-        </div>
-      </>
-    ) : immersive ? (
-      // Leitura imersiva (redesign 1b, reskin Bento — tela 4a) — só o texto
-      // rolável + cabeçalho sticky + rodapé fixo. Sem lista de livros, sem
-      // cards de "lidos recentemente".
+    {/* A leitura: o texto rolável com o cabeçalho preso no topo, e o rodapé
+        fixo. */}
       <div style={{ height: '100%', background: 'var(--bento-bg)' }}>
-        {/* Leitura livre: o respiro de baixo é a altura do próprio rodapé
-            (a barra, ou o cartão de capítulo marcado, que é mais alto) —
-            o fim do texto sempre consegue subir pra cima dele. */}
-        <div ref={scrollRef} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: freeReading ? freeFooterHeight : 148, height: '100%' }}>
+        {/* O respiro de baixo é a altura do próprio rodapé (a barra, ou o
+            cartão de capítulo marcado, que é mais alto) — o fim do texto
+            sempre consegue subir pra cima dele. */}
+        <div ref={scrollRef} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: footerHeight, height: '100%' }}>
           {headerAndPanels}
         </div>
         {/* Rodapé portalado pro <body> — position:fixed dentro de
@@ -1720,52 +1229,26 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
         {/* Turno 39, Bloco 3: a folha de 39e (VerseActionsSheet) cobre o
             rodapé inteiro enquanto aberta — esconde igual em qualquer um
             dos seus dois estados (escolhendo cor/ação, ou perguntando). */}
-        {!selectionMenuOpen && freeReading && createPortal(
-          <LeituraLivreRodape
-            ref={measureFreeFooter}
-            card={freeCard}
-            blocoId={freeBookInfo.blocoId}
-            done={freeChapterDone}
-            onTools={() => setToolsOpen(true)}
-            onMark={handleMarkFreeChapterRead}
-            onUnmark={handleUnmarkFreeChapter}
-            onCloseCard={() => setMarkedChapter(null)}
-            onNext={goToFreeChapter}
-          />,
-          document.body,
-        )}
-        {!selectionMenuOpen && !freeReading && createPortal(
-          <div style={styles.readerFooter}>
-            {/* Chave da camada do grupo (quadro 17c) — só pra quem está num
-                grupo. */}
-            {myGroup && heroSession.type !== 'reflection' && (
-              <div style={styles.groupLayerCard}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={styles.groupLayerTitle}>{t('room.showMarks', undefined, lang)}</p>
-                  <p style={styles.groupLayerSub}>{t('room.showMarksSub', undefined, lang)}</p>
-                </div>
-                <button role="switch" aria-checked={groupLayerOn} onClick={toggleGroupLayer}
-                  style={{ ...styles.groupLayerSwitch, background: groupLayerOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: groupLayerOn ? 'flex-end' : 'flex-start' }}>
-                  <span style={{ ...styles.groupLayerThumb, background: groupLayerOn ? 'var(--bento-accent)' : '#fff' }} />
-                </button>
-              </div>
-            )}
-            {/* Quadro 17c: com grupo, o rodapé é a chave + Ferramentas/Concluir,
-                sem o player — o áudio continua em Ferramentas. */}
-            {heroSession.type !== 'reflection' && !myGroup && (
-              <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact />
-            )}
-            <div style={styles.readerFooterRow}>
-              <button style={styles.readerToolsBtn} onClick={() => setToolsOpen(true)}>
-                <ToolboxIcon />
-                {t('reading.toolsBtn', undefined, lang)}
-              </button>
-              <button style={styles.readerDoneBtn} onClick={handleConcludePress}>
-                <AppIcon name="Check" size={16} strokeWidth={2.6} color="var(--bento-ink)" />
-                {t('reading.finishShort', undefined, lang)}
-              </button>
-            </div>
-          </div>,
+        {!selectionMenuOpen && createPortal(
+          freeReading ? (
+            <LeituraRodape
+              ref={measureFooter}
+              card={freeCard}
+              blocoId={bookBlocoId}
+              done={freeChapterDone}
+              onTools={() => setToolsOpen(true)}
+              onMark={handleMarkFreeChapterRead}
+              onUnmark={handleUnmarkFreeChapter}
+              onCloseCard={() => setMarkedChapter(null)}
+              onNext={goToFreeChapter}
+            />
+          ) : (
+            // Leitura do plano (S3): o lápis abre Ferramentas — onde ficam
+            // também o áudio do capítulo e, pra quem está num grupo, a
+            // chave das marcações e a sala do capítulo — e o botão laranja
+            // conclui a leitura (handleConcludePress, o caminho de sempre).
+            <LeituraRodape ref={measureFooter} onTools={() => setToolsOpen(true)} onConclude={handleConcludePress} />
+          ),
           document.body,
         )}
         {timeUpSheetOpen && createPortal(
@@ -1788,11 +1271,17 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
             ref: `${heroBookDisplayName} ${heroSession.chStart}${heroSession.chStart !== heroSession.chEnd ? `–${heroSession.chEnd}` : ''}`,
           }, lang)}
           items={[
-            // Com grupo (17c) o player sai do rodapé e passa a viver aqui.
-            // Fora do quadro 5e (que só desenha os 4 cards fixos) — vira
-            // linha cheia abaixo da grade, não um 5º card.
-            ...(myGroup && heroSession.type !== 'reflection' ? [
+            // O áudio do capítulo: na leitura do plano mora aqui (S3 tirou
+            // o player do rodapé); na leitura livre, pra quem está num
+            // grupo, como já era. Fora do quadro 5e (que só desenha os 4
+            // cards fixos) — vira linha cheia abaixo da grade.
+            ...((!freeReading || myGroup) && heroSession.type !== 'reflection' ? [
               { key: 'audio', icon: 'AudioLines', label: t('bibleAudio.listenChapter', undefined, lang), node: <BibleAudioPlayer session={heroSession} lang={lang} hasNext={false} allowPremiumVoice={hasPremium} compact /> },
+            ] : []),
+            // Leitura do plano, pra quem está num grupo: a sala do capítulo
+            // (17a), que era o botão "Grupo" do cabeçalho antigo.
+            ...(groupTools ? [
+              { key: 'grupo', icon: 'Users', label: t('room.groupBtn', undefined, lang), sub: myGroup.name, onPress: () => { setToolsOpen(false); onOpenGroupRoom?.({ group: myGroup, book: heroSession.book, bookEn: heroSession.bookEn, chapter: heroSession.chStart }) } },
             ] : []),
             ...(heroBooks.length > 0 ? [
               { key: 'contexto', icon: 'BookOpen', label: t('reading.tagContext', undefined, lang), sub: t('reading.toolsContextSub', undefined, lang), node: <InfoPanel type="contexto" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
@@ -1803,19 +1292,35 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
               { key: 'curiosidades', icon: 'Lightbulb', label: t('reading.tagTrivia', undefined, lang), sub: t('reading.toolsTriviaSub', { n: heroBooks[0].info.curiosities.length }, lang), node: <InfoPanel type="curiosidades" books={heroBooks} chStart={heroSession.chStart} chEnd={heroSession.chEnd} lang={lang} /> },
             ] : []),
           ]}
-          extra={hasAI ? (
-            // Preto + iconizinho laranja — mesma identidade de "Perguntar à
-            // IA" já usada na folha de ações de versículo (verseSheetAskCard,
-            // acima nesta tela); pedido dela, 2026-09-09, pra bater aqui
-            // também (antes era um cartão claro com ícone e texto laranja).
-            <button
-              style={styles.toolsExtraBtn}
-              onClick={() => { setToolsOpen(false); openAiChat() }}
-            >
-              <span style={styles.toolsExtraBtnDiamondWrap}><span style={styles.toolsExtraBtnDiamond} /></span>
-              {t('reading.tagAskAi', undefined, lang)}
-            </button>
-          ) : null}
+          extra={(
+            <>
+              {/* Leitura do plano, pra quem está num grupo (quadro 17c): a
+                  chave "Ver marcações do grupo", que saiu do rodapé. */}
+              {groupTools && (
+                <div style={styles.groupLayerCard}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={styles.groupLayerTitle} id="chave-marcacoes-grupo">{t('room.showMarks', undefined, lang)}</p>
+                    <p style={styles.groupLayerSub}>{t('room.showMarksSub', undefined, lang)}</p>
+                  </div>
+                  <button role="switch" aria-checked={groupLayerOn} aria-labelledby="chave-marcacoes-grupo" onClick={toggleGroupLayer}
+                    style={{ ...styles.groupLayerSwitch, background: groupLayerOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: groupLayerOn ? 'flex-end' : 'flex-start' }}>
+                    <span style={{ ...styles.groupLayerThumb, background: groupLayerOn ? 'var(--bento-accent)' : '#fff' }} />
+                  </button>
+                </div>
+              )}
+              {hasAI && (
+                // Preto + iconizinho laranja — mesma identidade de "Perguntar
+                // à IA" já usada na folha de ações de versículo.
+                <button
+                  style={styles.toolsExtraBtn}
+                  onClick={() => { setToolsOpen(false); openAiChat() }}
+                >
+                  <span style={styles.toolsExtraBtnDiamondWrap}><span style={styles.toolsExtraBtnDiamond} /></span>
+                  {t('reading.tagAskAi', undefined, lang)}
+                </button>
+              )}
+            </>
+          )}
         />
         <ChapterPickerSheet
           open={chapterPickerOpen}
@@ -1839,29 +1344,6 @@ export default function ReadingBlockView({ session, authUser, onNavigate, blockI
           />
         )}
       </div>
-    ) : (
-      // Tela cheia antiga (fluxo guiado não-migrado / navegação livre antiga).
-      // rb-enter (transição de entrada) mora neste wrapper de FORA, nunca
-      // no próprio elemento que rola (scrollRef, overflow-y:auto logo
-      // abaixo) — animar transform num elemento com scroll pode travar o
-      // toque de rolar em alguns navegadores mobile, mesmo depois da
-      // animação terminar (ver comentário do keyframe em index.css).
-      <div className={mode === 'browse' ? 'rb-enter' : undefined} style={{ height: '100%' }}>
-        <div ref={scrollRef} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-          <div className="rb-body">
-            <div className="rb-detail">
-              {headerAndPanels}
-            </div>
-            {mode === 'browse' && !isDesktop && (
-              <RecentChaptersRow chapters={recentChapters} lang={lang} onOpen={onJumpToChapter} sticky />
-            )}
-            <div className="rb-master" style={{ padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {bookListItems}
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
     </>
   )
 }
@@ -2521,14 +2003,6 @@ const askStyles = {
 // Ícone do botão "Ferramentas" do rodapé imersivo (quadro 4a) — o traçado
 // do protótipo (uma caixa aberta) não tem equivalente no Lucide, então o
 // SVG é copiado do HTML, no mesmo tamanho/peso (16px, traço 1.9).
-function ToolboxIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--bento-ink)" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
-      <path d="M4 4h12M4 4v9l6 3 6-3V4" />
-    </svg>
-  )
-}
-
 // Contexto agora tem 2 camadas: uma visão geral do livro (sempre igual,
 // info.contextOverview) e trechos narrativos específicos por capítulo
 // (info.contextSections, cada um com chStart/chEnd) — mostra só os trechos
@@ -2601,7 +2075,7 @@ function InfoPanel({ type, books, chStart, chEnd, lang }) {
 // chapter.breaks) mora em bibleTextStore.js — turno 41, StudyDayScreen.jsx
 // passou a precisar da mesma divisão, então saiu daqui pra não duplicar.
 
-function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highlights, highlightSelection, focusVerseRequest, onVerseNumberClick, onTextSelectionRange, immersive = false, groupMarks = null, versionId: versionIdProp, onChangeVersion: onChangeVersionProp, chapterLabelFor }) {
+function BibleTextPanel({ session, lang, highlights, highlightSelection, focusVerseRequest, onVerseNumberClick, onTextSelectionRange, groupMarks = null, versionId: versionIdProp, onChangeVersion: onChangeVersionProp, chapterLabelFor }) {
   // Chip da camada do grupo aberto (mostra nomes/notas de quem compartilhou).
   const [openMark, setOpenMark] = useState(null)
   const bookKey = lang === 'en' ? session.bookEn : session.book
@@ -2686,14 +2160,8 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
         if (vStart > vEnd) { const tmp = vStart; vStart = vEnd; vEnd = tmp }
         const verses = new Set()
         for (let v = vStart; v <= vEnd; v++) verses.add(v)
-        // Retângulo da seleção em si (não de um elemento) — pra ancorar o
-        // popup de grifo perto de onde o dedo/mouse realmente passou, não
-        // só perto do primeiro versículo tocado. Precisa ser lido ANTES de
-        // limpar a seleção (removeAllRanges) — depois disso o Range não dá
-        // mais coordenadas úteis.
-        const rect = sel.getRangeAt(0).getBoundingClientRect()
         sel.removeAllRanges()
-        onTextSelectionRangeRef.current?.(Number(chapterEl.dataset.chapter), verses, rect)
+        onTextSelectionRangeRef.current?.(Number(chapterEl.dataset.chapter), verses)
       }, 250)
     }
     document.addEventListener('selectionchange', handleSelectionChange)
@@ -2710,18 +2178,14 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
 
   const chapterNumbers = []
   for (let ch = session.chStart; ch <= session.chEnd; ch++) chapterNumbers.push(ch)
-  // Imersivo (reskin Bento, 4a) usa a palavra inteira ("CAPÍTULO 41", vira
-  // maiúscula por CSS) — fora dele continua abreviado ("Cap. 41"), como
-  // sempre foi.
-  const chLabel = immersive ? (lang === 'en' ? 'Chapter' : 'Capítulo') : (lang === 'en' ? 'Ch.' : 'Cap.')
+  // A palavra inteira ("CAPÍTULO 41", vira maiúscula por CSS).
+  const chLabel = lang === 'en' ? 'Chapter' : 'Capítulo'
 
   return (
-    // Imersivo (1b): sem card de painel (o card branco próprio já vem do
-    // wrapper de fora, ver readerTextCard). Nos outros casos, card de painel
-    // com padding lateral menor — texto corrido ganha mais com coluna larga
-    // que com respiro generoso.
-    <div style={immersive ? undefined : { ...styles.panel, padding: '14px 8px' }} ref={textRef}>
-      {availableVersions.length > 1 ? (
+    // Sem cartão próprio: o cartão branco vem do wrapper de fora (ver
+    // readerTextCard).
+    <div ref={textRef}>
+      {availableVersions.length > 1 && (
         <div style={styles.bibleTextVersionRow}>
           {availableVersions.map(v => (
             <button
@@ -2733,12 +2197,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
             </button>
           ))}
         </div>
-      ) : !immersive ? (
-        // A 4a não mostra esse selo de versão quando só há uma (o rodapé já
-        // traz a atribuição completa) — decorativo demais pra tela mais
-        // silenciosa do app.
-        <p style={styles.panelBookLabel}>{version.label}</p>
-      ) : null}
+      )}
 
       {state.status === 'loading' && <p style={styles.panelText}>{t('reading.textLoading', undefined, lang)}</p>}
       {state.status === 'error' && <p style={styles.panelText}>{t('reading.textError', undefined, lang)}</p>}
@@ -2746,28 +2205,13 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
       {state.status === 'ready' && chapterNumbers.map(ch => {
         const chapter = state.chapters[String(ch)] ?? { verses: {}, breaks: {} }
         const paragraphs = groupIntoParagraphs(chapter)
-        const chDone = completedSet?.has(`${session.book}:${ch}`)
         return (
-          <div key={ch} data-chapter={ch} style={immersive ? styles.bibleTextChapterBento : styles.bibleTextChapter}>
-            <p style={immersive ? styles.bibleTextChapterLabelBento : styles.bibleTextChapterLabel}>{chapterLabelFor ? chapterLabelFor(ch) : `${chLabel} ${ch}`}</p>
-
-            {/* Mesma ação de "marcar como lido" também no INÍCIO do texto —
-                antes só existia no fim (ver comentário mais abaixo); quem
-                já sabe que vai ler o capítulo inteiro marca de saída, sem
-                precisar rolar até o final pra achar o botão. */}
-            {onToggleChapter && !immersive && (
-              <button
-                style={{ ...styles.chapterDoneBtn, ...styles.chapterDoneBtnTop, ...(chDone ? styles.chapterDoneBtnActive : {}) }}
-                onClick={() => onToggleChapter(session, ch, !chDone)}
-              >
-                <AppIcon name={chDone ? 'Check' : 'Circle'} size={13} />
-                {chDone ? t('reading.chapterMarkedDone', { n: ch }, lang) : t('reading.markChapterDone', { n: ch }, lang)}
-              </button>
-            )}
+          <div key={ch} data-chapter={ch} style={styles.bibleTextChapterBento}>
+            <p style={styles.bibleTextChapterLabelBento}>{chapterLabelFor ? chapterLabelFor(ch) : `${chLabel} ${ch}`}</p>
 
             {paragraphs.map((verseNums, pIdx) => (
               <Fragment key={pIdx}>
-              <p style={immersive ? styles.bibleTextBodyBento : styles.bibleTextBody}>
+              <p style={styles.bibleTextBodyBento}>
                 {verseNums.map((v, vIdx) => {
                   // Toca no versículo inteiro (número OU texto corrido) pra
                   // marcar — usa as coordenadas do toque (não o retângulo do
@@ -2789,25 +2233,23 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                   // ignorando a cor escolhida — a cor só aparecia na
                   // Biblioteca. Com quatro cores de verdade pra escolher em
                   // 39e, isso deixou de fazer sentido: a cor marcada agora
-                  // aparece na hora, nos dois modos (raio só muda por
-                  // fidelidade a cada desenho — 4 no imersivo, 3 fora dele).
+                  // aparece na hora.
                   const highlightStyle = existingHighlight
                     ? {
                         background: highlightColorBg(existingHighlight.color),
-                        borderRadius: immersive ? 4 : 3,
-                        padding: immersive ? '1px 3px' : undefined,
+                        borderRadius: 4,
+                        padding: '1px 3px',
                         // Sublinhado leve SÓ quando tem anotação de verdade
                         // escrita (texto não-vazio) — grifo só de cor não
                         // ganha, já que não há "anotação" nenhuma pra indicar.
                         ...(existingHighlight.text ? styles.verseAnnotatedUnderline : {}),
                       }
-                    : isSelected ? (immersive ? styles.verseSelectedBento : styles.verseSelected) : undefined
+                    : isSelected ? styles.verseSelectedBento : undefined
                   const groupMark = groupMarks?.[ch]?.[v]
                   const groupStyle = groupMark ? styles.verseGroupMarked : undefined
-                  const handleVerseTap = e => {
+                  const handleVerseTap = () => {
                     if (window.getSelection?.()?.toString()) return
-                    const point = { top: e.clientY, bottom: e.clientY, left: e.clientX, right: e.clientX, width: 0, height: 0 }
-                    onVerseNumberClick?.(ch, v, point)
+                    onVerseNumberClick?.(ch, v)
                   }
                   return (
                     <span
@@ -2817,10 +2259,7 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
                       onClick={handleVerseTap}
                     >
                       {vIdx > 0 && chapter.breaks[String(v)] === 'L' && <br />}
-                      <sup style={immersive
-                        ? { ...styles.bibleTextVerseNumBento, margin: vIdx === 0 ? '0 4px 0 0' : '0 4px 0 6px' }
-                        : styles.bibleTextVerseNum}
-                      >{v}</sup>
+                      <sup style={{ ...styles.bibleTextVerseNumBento, margin: vIdx === 0 ? '0 4px 0 0' : '0 4px 0 6px' }}>{v}</sup>
                       {chapter.verses[String(v)].split('\n').map((line, lIdx, arr) => (
                         <span key={lIdx}>
                           {line}
@@ -2863,25 +2302,12 @@ function BibleTextPanel({ session, lang, completedSet, onToggleChapter, highligh
               })}
               </Fragment>
             ))}
-
-            {/* Marcar o capítulo como lido direto no fim do texto — sem
-                precisar voltar pro topo e caçar o chip dele (ver
-                ChapterChips, que continua existindo pra quem prefere). */}
-            {onToggleChapter && !immersive && (
-              <button
-                style={{ ...styles.chapterDoneBtn, ...(chDone ? styles.chapterDoneBtnActive : {}) }}
-                onClick={() => onToggleChapter(session, ch, !chDone)}
-              >
-                <AppIcon name={chDone ? 'Check' : 'Circle'} size={13} />
-                {chDone ? t('reading.chapterMarkedDone', { n: ch }, lang) : t('reading.markChapterDone', { n: ch }, lang)}
-              </button>
-            )}
           </div>
         )
       })}
 
       {state.status === 'ready' && (
-        <p style={immersive ? styles.bibleTextAttributionBento : styles.bibleTextAttribution}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
+        <p style={styles.bibleTextAttributionBento}>{version.attribution ?? t('reading.textSourceEn', undefined, lang)}</p>
       )}
     </div>
   )
@@ -3038,8 +2464,7 @@ function ChapterRecallSheet({ lang, book, chapter, data, onClose }) {
 // aqui a cor já é a ação principal (toca e marca na hora, sem uma etapa
 // "Marcar" no meio), e Anotar/Copiar/Compartilhar/Perguntar viram
 // cartões nesta mesma folha. "Vale igual na leitura do plano (35f) e na
-// livre (39d)" (HANDOFF) — mesmo componente nos dois, já que os dois são
-// `immersive` agora (ver Bloco 2, freeReading).
+// livre" (HANDOFF) — mesmo componente nos dois.
 //
 // Duas fontes possíveis pro versículo em foco: uma seleção nova, ainda
 // sem grifo (`selection`) ou um grifo já salvo reaberto
@@ -3477,230 +2902,7 @@ function NotesPanel({ value, onSave, lang }) {
   )
 }
 
-function BookGroup({ group, isCurrentBook, heroSessionId, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, expandedChapterId, onToggleInline, onNextInline, getNextSessionFor, registerCardRef, lastClickedId, isDesktop, hasNoteFor, highlights, highlightSelection, onHighlightVerseClick, onHighlightTextRange }) {
-  const [open, setOpen] = useState(isCurrentBook)
-  // No plano livre, o rótulo diz "capítulos" — a sessão de reflexão de
-  // fechamento do livro (session.type === 'reflection') não é um capítulo
-  // de verdade, então não deve entrar nessa contagem (senão um livro de 5
-  // capítulos com reflexão mostrava "0/6 capítulos"). No modo com sessões
-  // (não-livre), o rótulo diz "sessões" e a reflexão É uma sessão de
-  // verdade, então continua contando normalmente.
-  const countableSessions = isFreePlan ? group.sessions.filter(s => s.type !== 'reflection') : group.sessions
-  const total = countableSessions.length
-  const doneCount = countableSessions.filter(s => s.status === 'done').length
-  const allDone = doneCount === total
-  const displayName = lang === 'en' ? group.sessions[0]?.bookEn : group.book
-
-  // Clicar no cabeçalho do livro (não numa sessão específica) também move o
-  // destaque (quadrado preto) pra esse livro — mesmo efeito de clicar numa
-  // sessão dele, só que escolhendo a sessão "atual" (ou a primeira
-  // pendente, ou a primeira mesmo) como destino.
-  function handleHeaderClick() {
-    setOpen(v => !v)
-    const target = group.sessions.find(s => s.status === 'current')
-      ?? group.sessions.find(s => s.status !== 'done')
-      ?? group.sessions[0]
-    onFeature(target)
-  }
-
-  // O nome do livro agora é só um cabeçalho leve (sem fundo de card em volta
-  // dele nem dos capítulos) — antes o texto do capítulo expandido ficava
-  // dentro de DOIS blocos aninhados (este card do livro + o card do próprio
-  // capítulo), deixando a coluna de leitura estreita demais. Sem o card
-  // externo, o texto só fica dentro de 1 bloco (o do capítulo).
-  return (
-    <div>
-      {/* Cabeçalho do livro — sem card nenhum (nem fundo, nem ícone num
-          quadrado colorido): só ícone simples + texto, com uma linha fina
-          embaixo separando do próximo livro. "Lendo agora" vira só a cor do
-          texto (laranja), não mais um bloco preenchido — mesmo espírito
-          minimalista da lista de capítulos logo abaixo. */}
-      <div
-        style={{
-          display: 'flex', alignItems: 'center', gap: 8, padding: '10px 2px', userSelect: 'none', cursor: 'pointer',
-          borderBottom: '1px solid var(--bento-line)',
-        }}
-        onClick={handleHeaderClick}
-      >
-        <AppIcon name={allDone ? 'CheckCircle2' : 'BookOpen'} size={15} color={allDone ? 'var(--bento-ink)' : isCurrentBook ? 'var(--bento-accent)' : 'var(--bento-t4)'} style={{ flexShrink: 0 }} />
-
-        <div style={{ flex: 1 }}>
-          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 1 }}>{displayName}</p>
-          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 600, color: isCurrentBook ? 'var(--bento-accent)' : 'var(--bento-t4)' }}>
-            {doneCount}/{total} {t(isFreePlan ? 'reading.chaptersSuffix' : 'reading.sessionsSuffix', undefined, lang)}{isCurrentBook ? ` · ${t('reading.readingNow', undefined, lang)}` : ''}
-          </p>
-        </div>
-
-        <AppIcon name="ChevronDown" size={14} color="var(--bento-t4)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
-      </div>
-
-      {open && (
-        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }} onClick={e => e.stopPropagation()}>
-          {group.sessions.map(s => (
-            <SessionCard
-              key={s.id}
-              session={s}
-              isFeatured={s.id === heroSessionId}
-              completedSet={completedSet}
-              onToggle={onToggle}
-              onToggleChapter={onToggleChapter}
-              onFeature={onFeature}
-              isFreePlan={isFreePlan}
-              lang={lang}
-              mode={mode}
-              isExpanded={mode === 'browse' && s.id === expandedChapterId}
-              onToggleInline={onToggleInline}
-              onNextInline={onNextInline}
-              nextSession={mode === 'browse' && s.id === expandedChapterId ? getNextSessionFor(s) : null}
-              registerCardRef={registerCardRef}
-              lastClickedId={lastClickedId}
-              isDesktop={isDesktop}
-              hasNote={hasNoteFor(s)}
-              highlights={highlights}
-              highlightSelection={highlightSelection}
-              onHighlightVerseClick={onHighlightVerseClick}
-              onHighlightTextRange={onHighlightTextRange}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function SessionCard({ session, isFeatured, completedSet, onToggle, onToggleChapter, onFeature, isFreePlan, lang, mode, isExpanded, onToggleInline, onNextInline, nextSession, registerCardRef, lastClickedId, isDesktop, hasNote, highlights, highlightSelection, onHighlightVerseClick, onHighlightTextRange }) {
-  const isDone       = session.status === 'done'
-  const isCurrent    = session.status === 'current'
-  const isReflection = session.type === 'reflection'
-  const isBrowse     = mode === 'browse'
-  const title = lang === 'en' ? session.titleEn : session.title
-  const passage = lang === 'en' ? session.passageEn : session.passage
-
-  // Nos capítulos da Bíblia (isFreePlan — o número mostrado é o capítulo em
-  // si), o destaque preto é do ÚLTIMO capítulo em que a pessoa tocou, não
-  // do "atual" do plano — enquanto nada foi tocado (lastClickedId nulo),
-  // todos ficam no mesmo cinza padrão. Fora daí (sessões com vários
-  // capítulos, plano guiado), continua indicando a sessão "current" de
-  // sempre.
-  const isBadgeActive = isFreePlan ? (lastClickedId != null && session.id === lastClickedId) : isCurrent
-
-  const chapterCount = isReflection ? 0 : session.chEnd - session.chStart + 1
-  const chaptersDone = isReflection ? 0 : Array.from(
-    { length: chapterCount }, (_, i) => session.chStart + i
-  ).filter(ch => completedSet.has(`${session.book}:${ch}`)).length
-
-  return (
-    <div
-      ref={el => registerCardRef?.(session.id, el)}
-      style={{
-        // Redesenho minimalista: sem fundo/borda/sombra por padrão (só o
-        // espaçamento entre linhas já separa uma sessão da outra) — a
-        // sessão em destaque ganha só um fundo suave, sem borda pesada nem
-        // sombra, pra marcar sem parecer um bloco solto na tela.
-        background: isFeatured ? 'var(--bento-mark)' : 'transparent',
-        borderRadius: 11,
-        cursor: 'pointer',
-      }}
-      onClick={() => (isBrowse ? onToggleInline(session) : onFeature(session))}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px' }}>
-        {/* Ícone de status — toque rápido marca/desmarca a sessão inteira */}
-        <div
-          style={{
-            width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            background: isDone ? 'var(--bento-ink)' : isBadgeActive ? 'var(--bento-ink)' : isReflection ? ROUTINE_STEP_COLORS.reflection : 'var(--bento-line)',
-          }}
-          onClick={e => { e.stopPropagation(); onToggle(session, !isDone) }}
-        >
-          {isDone ? (
-            <AppIcon name="Check" size={13} color="#fff" />
-          ) : isReflection ? (
-            <AppIcon name="PenLine" size={11} color="#fff" />
-          ) : (
-            <span style={{ fontFamily: 'var(--font-bento)', fontSize: 10, fontWeight: 700, color: isBadgeActive ? '#fff' : 'var(--bento-t3)' }}>{isFreePlan ? session.chStart : session.id}</span>
-          )}
-        </div>
-
-        {/* Info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, color: 'var(--bento-ink)', marginBottom: 1 }}>
-            {isReflection || isFreePlan ? title : `${t('reading.sessionLabel', { n: session.id }, lang)} · ${title}`}
-            {/* Ícone de "já tem anotação aqui" — pra não precisar abrir o
-                capítulo de novo só pra descobrir se escreveu algo nele.
-                Ver hasNoteFor em ReadingBlockView (componente pai). */}
-            {hasNote && (
-              <AppIcon
-                name="StickyNote" size={11} color="var(--bento-accent)"
-                style={{ verticalAlign: 'middle', marginLeft: 5, position: 'relative', top: -1 }}
-              />
-            )}
-          </p>
-          <p style={{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t3)' }}>
-            {isReflection
-              ? `${passage}${isDone ? ` · ${t('reading.completedSession', undefined, lang)}` : ` · ${t('reading.tapToMark', undefined, lang)}`}`
-              : `${passage} · ${chaptersDone}/${chapterCount} ${t('reading.chaptersSuffix', undefined, lang)}`}
-          </p>
-        </div>
-
-        {/* Indicador: em modo 'browse' mostra seta de abrir/fechar o texto
-            embutido; nos outros modos, já em destaque no topo ou toque pra
-            destacar. */}
-        {isBrowse ? (
-          <AppIcon name="ChevronDown" size={14} color="var(--bento-t4)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }} />
-        ) : isFeatured ? (
-          <span style={{ fontFamily: 'var(--font-bento)', fontSize: 8.5, fontWeight: 800, color: 'var(--bento-accent)', whiteSpace: 'nowrap' }}>{lang === 'en' ? 'FEATURED' : 'EM DESTAQUE'}</span>
-        ) : (
-          <AppIcon name="ArrowUp" size={13} color="var(--bento-t4)" />
-        )}
-      </div>
-
-      {/* Texto do capítulo embutido, abre logo abaixo do card tocado — só
-          em modo 'browse' (ver toggleInlineChapter/expandedChapterId lá em
-          cima) e só no celular: no desktop essa lista é a coluna "mestre"
-          estreita (300px), então ali o texto aparece no card de destaque
-          largo ao lado (ver o mesmo openPanel==='texto' lá em cima, agora
-          também cobrindo esse caso). O chevron abaixo continua girando
-          igual nos dois casos, só pra indicar qual capítulo está aberto. */}
-      {isBrowse && isExpanded && !isDesktop && (
-        // Margem lateral reduzida (ver mesmo ajuste no painel de texto em
-        // modo 'session') — o card já tem seu próprio respiro, não precisa
-        // somar mais um em cima do padding do painel logo abaixo.
-        <div style={{ padding: '0 4px 11px' }} onClick={e => e.stopPropagation()}>
-          <BibleTextPanel
-            session={session}
-            lang={lang}
-            completedSet={completedSet}
-            onToggleChapter={onToggleChapter}
-            highlights={highlights}
-            highlightSelection={highlightSelection}
-            onVerseNumberClick={onHighlightVerseClick}
-            onTextSelectionRange={onHighlightTextRange}
-          />
-          {nextSession && (
-            <button style={styles.nextChapterBtn} onClick={() => onNextInline(session)}>
-              {t('reading.nextChapter', { title: lang === 'en' ? nextSession.titleEn : nextSession.title }, lang)}
-              <AppIcon name="ChevronRight" size={15} />
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 const styles = {
-  heroTagDot:  { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--bento-accent)', marginLeft: 5 },
-  // Cabeçalho compacto da navegação livre (mode 'browse') — substitui o
-  // hero grande: sem título/barra de progresso/gradiente, só voltar + nome
-  // do livro + as mesmas abas de Contexto/Mapa/Notas/Curiosidades.
-  browseHeader:    { padding: '14px 0 6px', display: 'flex', flexDirection: 'column', gap: 4 },
-  browseBackBtn:   { width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginBottom: 6 },
-  browseHeaderCycle:{ fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 800, color: 'var(--bento-accent)', letterSpacing: 1.2, textTransform: 'uppercase' },
-  browseHeaderTitle:{ fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', letterSpacing: '-.4px' },
-  browseHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)' },
-  browseTagsRow:   { display: 'flex', gap: 7, overflowX: 'auto', marginTop: 6 },
-  browseTag:       { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bento-line)', border: 'none', borderRadius: 20, padding: '6px 11px', whiteSpace: 'nowrap', fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
-  browseTagActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
 
   // ── Contexto antes do capítulo (10c, reskin Bento) ──
   contextScreen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
@@ -3739,54 +2941,13 @@ const styles = {
   recallBtnDiamond: { width: 8, height: 8, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
   recallErrorText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t3)' },
 
-  // ── Leitura imersiva (redesign 1b, reskin Bento — tela 4a) ──
-  readerHeader: {
-    position: 'sticky', top: 0, zIndex: 20,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 20px 14px', background: 'var(--bento-bg)',
-    transition: 'transform .2s ease-out',
-  },
-  // Pílula do relógio de leitura — substitui os ícones de Ferramentas no
-  // cabeçalho quando o relógio está ativo (a folha de Ferramentas continua
-  // acessível pelo botão do rodapé). O componente em si (StepTimerPill,
-  // cronômetro unificado 2026-09-21) já traz seu próprio estilo — só a
-  // barrinha de progresso abaixo do cabeçalho continua definida aqui.
-  clockElapsedTrack: { height: 4, background: 'rgba(0,0,0,.07)', flexShrink: 0 },
-  clockElapsedFill: { height: '100%', background: 'var(--bento-accent)', transition: 'width 1s linear' },
-  readerHeaderLeft: { display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 },
-  readerHeaderRight: { display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
-  readerIconBtn: {
-    width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-  },
-  // Chip escuro tocável "{Livro} {capítulo}" (quadro 4a) — abre o seletor
-  // de capítulo (18b). readerHeaderSub (versão + posição no livro) é dado
-  // real fora do quadro, mantido como legenda abaixo do chip.
-  readerChapterChip: {
-    display: 'flex', alignItems: 'center', gap: 8, height: 34, maxWidth: '100%',
-    border: 'none', borderRadius: 12, background: 'var(--bento-ink)', padding: '0 12px 0 14px', cursor: 'pointer',
-  },
-  readerChapterChipText: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  readerStepBadge: { flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t4)' },
-  readerHeaderSub: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.2, margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  readerTextCardWrap: { padding: '0 20px 4px' },
-  readerTextCard: { background: 'var(--bento-card)', borderRadius: 28, padding: '26px 24px' },
-  // Leitura livre (B3): cartão de raio 26, respiro 24/24/26; o respiro de
-  // cima vem do topo (os 14px abaixo do fio) e o de baixo, do rodapé.
-  readerTextCardWrapFree: { padding: '0 20px' },
-  readerTextCardFree: { background: 'var(--bento-card)', borderRadius: 26, padding: '24px 24px 26px' },
-  readerFooter: {
-    position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-    width: '100%', maxWidth: 'min(var(--max-width), 560px)', zIndex: 90,
-    padding: '0 20px calc(12px + var(--safe-bottom))',
-    background: 'var(--bento-bg)',
-    display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12,
-  },
-  readerFooterRow: { display: 'flex', gap: 10 },
+  // ── Leitura (B3 e S3) — o topo e o rodapé são LeituraTopo e
+  // LeituraRodape; aqui fica só o cartão do texto: raio 26, respiro
+  // 24/24/26. O respiro de cima vem do topo (os 14px abaixo do fio) e o de
+  // baixo, do rodapé.
+  readerTextCardWrap: { padding: '0 20px' },
+  readerTextCard: { background: 'var(--bento-card)', borderRadius: 26, padding: '24px 24px 26px' },
   // Camada do grupo (quadro 17c).
-  groupBtn: { height: 34, borderRadius: 12, border: 'none', background: 'var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', cursor: 'pointer', flexShrink: 0 },
-  groupBtnAvatar: { width: 16, height: 16, borderRadius: 99, border: '1.5px solid var(--bento-ink)', boxSizing: 'border-box', display: 'block' },
-  groupBtnText: { fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, lineHeight: 1, color: '#fff' },
   verseGroupMarked: { borderBottom: '2.5px dotted var(--bento-accent)', paddingBottom: 1 },
   groupChipWrap: { margin: '-10px 0 18px' },
   groupChip: { display: 'inline-flex', alignItems: 'center', gap: 8, height: 30, borderRadius: 99, background: 'var(--bento-line)', padding: '0 12px 0 6px', border: 'none', cursor: 'pointer' },
@@ -3795,21 +2956,11 @@ const styles = {
   groupChipNotes: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)' },
   groupSharers: { margin: '8px 0 0', borderLeft: '3px solid var(--bento-accent)', padding: '2px 0 2px 12px', display: 'flex', flexDirection: 'column', gap: 6 },
   groupSharerNote: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t2)', margin: 0 },
-  groupLayerCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 },
+  groupLayerCard: { borderRadius: 22, background: 'var(--bento-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 },
   groupLayerTitle: { fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, lineHeight: 1.2, color: 'var(--bento-ink)', margin: '0 0 3px' },
   groupLayerSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
   groupLayerSwitch: { flexShrink: 0, width: 46, height: 28, borderRadius: 99, border: 'none', padding: '0 3px', display: 'flex', alignItems: 'center', cursor: 'pointer' },
   groupLayerThumb: { width: 22, height: 22, borderRadius: 99 },
-  readerToolsBtn: {
-    flex: 1, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-card)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer',
-  },
-  readerDoneBtn: {
-    flex: 1.35, height: 52, borderRadius: 18, border: 'none', background: 'var(--bento-accent)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer',
-  },
   toolsExtraBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
     border: 'none', borderRadius: 16, background: 'var(--bento-ink)',
@@ -3833,15 +2984,6 @@ const styles = {
   bibleTextVersionRow:  { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   bibleTextVersionBtn:  { border: 'none', background: 'var(--bento-line)', borderRadius: 20, padding: '6px 12px', fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
   bibleTextVersionBtnActive: { background: 'var(--bento-ink)', color: '#fff', fontWeight: 800 },
-  bibleTextChapter:     { marginBottom: 16, paddingTop: 12, borderTop: '1px solid var(--bento-line)' },
-  // "CAP. 2" — rótulo de seção (reskin Bento: mesmos tokens da variante
-  // imersiva, ver bibleTextChapterLabelBento abaixo).
-  bibleTextChapterLabel:{ fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', marginBottom: 12 },
-  // Texto bíblico — 19px/1.72: a tela mais usada deve ser a mais silenciosa.
-  // Vale pra leitura guiada E pra aba Bíblia (embutida em BookChapterScreen.jsx).
-  bibleTextBody:        { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 500, color: 'var(--bento-ink)', lineHeight: 1.72, marginBottom: 18, textWrap: 'pretty' },
-  bibleTextVerseNum:    { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)', verticalAlign: 'super', marginRight: 2 },
-  bibleTextAttribution: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--bento-line)', fontStyle: 'italic' },
   // ── Variantes usadas só pela leitura imersiva (mesmos tokens Bento dos 4
   // estilos acima — a diferença entre elas é só de layout/margem, não mais
   // de paleta; ver comentário em cada uma). Valores extraídos do bloco
@@ -3855,16 +2997,8 @@ const styles = {
   bibleTextAttributionBento: { fontFamily: 'var(--font-bento)', fontSize: 9.5, fontWeight: 500, color: 'var(--bento-t4)', lineHeight: 1.5, marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--bento-line)', fontStyle: 'italic' },
   bibleTextBodyBento:   { fontFamily: 'var(--font-bento)', fontSize: 18.5, fontWeight: 500, color: 'var(--bento-ink)', lineHeight: 1.72, margin: '0 0 18px', textWrap: 'pretty' },
   bibleTextVerseNumBento: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, color: 'var(--bento-accent)', verticalAlign: 'super' },
-  nextChapterBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 14, padding: 13, marginTop: 12, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer', background: 'var(--bento-accent)' },
-  chapterDoneBtn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', border: 'none', borderRadius: 13, padding: 11, marginTop: 10, fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', background: 'var(--bento-line)' },
-  chapterDoneBtnActive: { background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontWeight: 800 },
-  // Versão do botão acima pro topo do capítulo (antes do 1º parágrafo) —
-  // marginTop:0 (nada antes dele pra afastar) e um pouco mais de respiro
-  // embaixo, já que aqui ele antecede texto corrido, não sucede.
-  chapterDoneBtnTop:    { marginTop: 0, marginBottom: 16 },
 
   verseTapTarget:  { cursor: 'pointer' },
-  verseSelected:   { background: 'rgba(201,154,74,.14)', borderRadius: 3, outline: '1px dashed rgba(201,154,74,.7)', outlineOffset: 1 },
   // Trecho em foco enquanto a folha de 39e está aberta — hex exatos do
   // HANDOFF (39e: "realce #FFE3C9 mais um contorno laranja de 2px"),
   // trocou o azul antigo (--bento-select) no Bloco 3.

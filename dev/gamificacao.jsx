@@ -17,9 +17,27 @@
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
 //      &cap=23 (B3, o capítulo direto na leitura livre) &marcar=1 (B4, ou o parabéns) &parabens=nao
+//      &leitura=plano (a leitura pela sessão do plano, sem mudança nesta fase)
 //      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &busca=pastor (B6) &recentes=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
+//      Passos do plano (handoff-passos-pedidos-53-54): tela=oracao — a oração ACTS (S1/S2), com os pedidos na memória.
+//      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
+//      7 inclui amigo e anônimo) · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
+//      · &feitos=prayer,reading (passos já feitos hoje) · &minutos=12 (duração da oração) · &metodo=livre (36c, sem mudança)
+//      tela=reflexao — a reflexão com perguntas (S4), com as perguntas na memória. &pergunta=1|2|3 (a pergunta aberta)
+//      · &perguntas=ok|erro|carregando|limite (a geração) · &trecho=marcado|lido|nenhum (o cartão areia)
+//      · &feitos=prayer,reading (com um passo faltando, "Terminar a reflexão") · &dia=estudo|um · &metodo=livre (37b, sem mudança)
+//      · &aplicacao=ontem|nenhuma (com frase já fixada no Início, terminar pergunta se troca)
+//      tela=dia — o dia concluído (S5), com os tempos de hoje semeados. &tempo=32|1|0 (minutos reais: 10 + 17 + 5,
+//      um minuto só, ou nenhum registrado) · &frase=nao (sem frase escrita hoje) · &dia=estudo (oração, estudo e
+//      reflexão: "Estudo · Ansiedade, dia 2" e "dia 2 de 7 / no estudo") · &dia=um (só a oração)
+//      · "Compartilhar meu dia" abre o editor da imagem (37d)
+//      tela=pedidos — a lista de pedidos (O1), com os pedidos na memória. &aba=ativos|respondidos|grupo|amigos
+//      · &pedidos=3|0|7|erro|carregando (7 traz dois de amigos e a aba Amigos) · &respondidos=12|2|0
+//      · &oracoes=47|0|49|1200 (o cartão "orações pelos outros") · &comentarios=2 (contagem na linha de um pedido)
+//      · "Novo" abre "Fazer um pedido" (O2): &grupos=1|0|3 (blocos de "Quem vê"; com 3, a fileira rola) · &ia=nao
+//      · tocar num pedido meu abre "Como Deus respondeu?" (O3)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
 //      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
@@ -58,6 +76,13 @@ import MeuPlanoScreen from '../src/screens/MeuPlanoScreen'
 import SeuPlanoScreen from '../src/screens/SeuPlanoScreen'
 import AjustarPlanoScreen from '../src/screens/AjustarPlanoScreen'
 import { evaluateGamification, loadGamificationStats, markAchievementsSeen } from '../src/gamification/evaluate'
+import PrayerScreen from '../src/screens/PrayerScreen'
+import DayCompleteScreen from '../src/screens/DayCompleteScreen'
+import PrayerRequestsScreen from '../src/screens/PrayerRequestsScreen'
+import ReflectionScreen from '../src/screens/ReflectionScreen'
+import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
+import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
+import { mergePedidos } from '../src/pedidos/pedidosMath'
 
 const params = new URLSearchParams(location.search)
 const tela = params.get('tela') ?? 'hoje'
@@ -108,6 +133,15 @@ function seedGuestTables(estado) {
     const jaTem = sessions.filter(x => x.livro === 'Gênesis').reduce((t, x) => t + x.segundos, 0)
     sessions.push({ data: day(1).slice(0, 10), passo: 'reading', segundos: Math.max(0, 22200 - jaTem), created_at: day(1), livro: 'Gênesis' })
   }
+  // Dia concluído (S5): os tempos reais de hoje — 10 + 17 + 5 minutos.
+  if (tela === 'dia') {
+    const tempo = params.get('tempo') ?? '32'
+    const soEstudo = params.get('dia') === 'estudo'
+    const hojeKey = dateKey()
+    const linha = (passo, segundos) => ({ data: hojeKey, passo, segundos, created_at: new Date().toISOString(), livro: passo === 'reading' ? 'Gênesis' : null })
+    if (tempo === '1') sessions.push(linha('prayer', 40))
+    else if (tempo !== '0') sessions.push(linha('prayer', 600), ...(soEstudo || params.get('dia') === 'um' ? [] : [linha('reading', 1020)]), ...(params.get('dia') === 'um' ? [] : [linha('reflection', 300)]))
+  }
   localStorage.setItem('jc_guest_table_chapters_read', JSON.stringify(chapters))
   localStorage.setItem('jc_guest_table_session_seconds', JSON.stringify(sessions))
   // 20 semanas de rotina: meta 4 dias (Seg/Ter/Qui/Sáb); 18 batem, 2 não.
@@ -133,12 +167,19 @@ function seedGuestTables(estado) {
     for (let n = 1; n <= 7; n++) highlights.push({ id: `hl-gn-${n}`, book: 'Gênesis', bookEn: 'Genesis', chapter: n, verses: [1], text: '', color: 'amarelo', createdAt: day(20 - n), date: day(20 - n).slice(0, 10) })
   }
   // Sua aplicação (Para hoje): a frase fixada + a entrada do dia em que foi escrita.
+  // Reflexão (S4): um trecho marcado hoje na leitura do plano (Gênesis 41:51).
+  if (tela === 'reflexao' && (params.get('trecho') ?? 'marcado') === 'marcado') highlights.push({ id: 'hl-hoje', book: 'Gênesis', bookEn: 'Genesis', chapter: 41, verses: [51], text: '', color: 'amarelo', createdAt: new Date().toISOString(), date: dateKey(), sessionMode: 'session' })
   const aplicacao = params.get('aplicacao') ?? (nova ? 'nenhuma' : 'ontem')
   if (aplicacao !== 'nenhuma') {
     const frase = 'Hoje eu espero sem cobrar resposta.'
     const quando = dateKey(new Date(Date.now() - (aplicacao === 'hoje' ? 0 : 86400000)))
     notes['application:pinned'] = { text: frase, updatedAt: day(1) }
     notes[`application:${quando}`] = { text: frase, updatedAt: day(1), fulfilled: aplicacao === 'cumprida' }
+  }
+  // Dia concluído (S5): a frase escrita hoje na reflexão (a do quadro).
+  if (tela === 'dia') {
+    if (params.get('frase') === 'nao') delete notes[`application:${dateKey()}`]
+    else notes[`application:${dateKey()}`] = { text: 'Deus não desperdiça a espera — vou parar de cobrar de mim um prazo que não é meu.', updatedAt: new Date().toISOString() }
   }
   // Meu Plano (P1–P5): dias por passo e a entrada de HOJE conforme `plano`.
   const todayIdx = (new Date().getDay() + 6) % 7
@@ -159,9 +200,9 @@ function seedGuestTables(estado) {
   // Estudo ativo de exemplo (formato novo, 7 dias, dia 1 feito) pra p5/quatro.
   const estudo = {
     id: 'est-ansiedade', title: 'Ansiedade', createdAt: day(10),
-    sessions: [[4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4]].map(([a, b], i) => ({ id: i + 1, book: 'Filipenses', chStart: a, chEnd: b, passage: `Filipenses 4:${4 + i}-${6 + i}`, completedAt: i === 0 ? day(2) : undefined })),
+    sessions: [[4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4], [4, 4]].map(([a, b], i) => ({ id: i + 1, book: 'Filipenses', chStart: a, chEnd: b, passage: `Filipenses 4:${4 + i}-${6 + i}`, completedAt: i === 0 ? day(2) : (i === 1 && tela === 'dia') ? new Date().toISOString() : undefined })),
   }
-  const comEstudo = planoState === 'p5' || planoState === 'quatro'
+  const comEstudo = planoState === 'p5' || planoState === 'quatro' || (tela === 'dia' && params.get('dia') === 'estudo')
   const hoje = new Date(); hoje.setHours(6, 42, 0, 0)
   const atH = (h, m) => { const d = new Date(hoje); d.setHours(h, m, 0, 0); return d.toISOString() }
   const todayEntry = {
@@ -172,7 +213,7 @@ function seedGuestTables(estado) {
     p4: {}, um: {}, quatro: {}, p5: { prayer: true, prayerAt: atH(6, 40) },
   }[planoState] ?? {}
   routine[dateKey(new Date())] = { ...(routine[dateKey(new Date())] ?? {}), ...todayEntry }
-  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null }))
+  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null, reading_clock_prefs: { showOnReading: params.get('relogio') !== 'nao', warnAtZero: true, askToContinue: params.get('perguntar') === 'sim' } }))
   return nova ? {} : routine
 }
 const dailyRoutine = seedGuestTables(estado)
@@ -296,14 +337,147 @@ function BibliaPreview({ onPastRootChange }) {
       />
     )
   }
+  // &leitura=plano: a leitura pela sessão do plano (a sessão em andamento do
+  // primeiro bloco) — pra conferir que ela não muda quando a leitura livre muda.
+  const planReading = params.get('leitura') === 'plano'
+  const planSession = planReading ? (sessionsByBlock[blocks[0].id].find(x => x.status === 'current') ?? sessionsByBlock[blocks[0].id].find(x => x.status !== 'done')) : null
+  // S3: os passos de hoje (barra do dia), o plano da Bíblia contínua (é ele
+  // que tem relógio) e, com &grupo=sim, um grupo.
+  const dia = params.get('dia')
+  const planSessionData = !planReading ? session : {
+    ...session,
+    activePlan: { kind: 'fixed' },
+    todaysSteps: dia === 'um' ? ['reading'] : dia === 'estudo' ? ['prayer', 'reading', 'study', 'reflection'] : ['prayer', 'reading', 'reflection'],
+    todayRoutine: Object.fromEntries((params.get('feitos') ?? 'prayer').split(',').filter(Boolean).map(k => [k, true])),
+    myGroups: params.get('grupo') === 'sim' ? [{ groupId: 'g1', name: 'Grupo Semente' }] : [],
+  }
   return (
     <JourneyScreen
-      session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock}
-      completedSet={done} entryMode="overview"
+      session={planSessionData} authUser={authUser} stepMinutes={{ prayer: 10, reading: 15, study: 15, reflection: 5 }} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock}
+      completedSet={done} entryMode={planReading ? 'reading' : 'overview'} initialBlockId={planReading ? blocks[0].id : undefined} resumeSessionId={planSession?.id}
+      onGoToReflectionFrom={() => alert('ir pra reflexão')} onExitReading={() => alert('sair da leitura')}
       onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
       onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}
       onNavigate={t => alert(`navegar: ${t}`)} onContinueSession={() => alert('ler a sessão de hoje (conta no plano)')}
       onOpenSuaBiblia={() => alert('abrir Sua Bíblia')} onPastRootChange={onPastRootChange} onCelebrateNow={celebrarAgora}
+      onOpenGroupRoom={alvo => alert(`abrir a sala do grupo: ${alvo.book} ${alvo.chapter}`)}
+    />
+  )
+}
+
+// Oração ACTS (S1/S2): a tela de verdade, com os pedidos na memória — os
+// da captura S2 e, com &pedidos=7, mais quatro (um de amigo, um anônimo).
+if (tela === 'oracao') setPrayerMethod(params.get('metodo') === 'livre' ? 'free' : 'acts')
+function pedidosDeExemplo() {
+  const ha = dias => new Date(Date.now() - dias * 86400000).toISOString()
+  const meu = (id, body, dias, extra = {}) => ({ id, body, scope: 'only_me', groupId: null, groupName: '', isMine: true, status: 'open', resposta: null, notaResposta: null, createdAt: ha(dias), respondidoEm: null, prayCount: 0, diasOrados: 0, prayedToday: false, prayedEver: false, commentCount: 0, ...extra })
+  const tres = [
+    meu('p1', 'Sabedoria para decidir sobre a mudança de cidade', 24, { diasOrados: 9, prayedToday: true, prayedEver: true }),
+    { ...meu('p2', 'A cirurgia da mãe da Marina, na quinta', 2), scope: 'group', groupId: 'g1', groupName: 'Grupo Semente', isMine: false, prayCount: 5 },
+    meu('p3', 'Meu pai voltar a falar com meu irmão', 92),
+  ]
+  const mais = [
+    { ...meu('p4', 'Emprego para o Lucas, que está há oito meses procurando', 5), scope: 'group', groupId: 'g2', groupName: 'Batista Central', isMine: false, prayCount: 1 },
+    meu('p5', 'Paciência com as crianças nas manhãs', 11),
+  ]
+  const amigos = [
+    { id: 'p6', authorName: 'Marina Alves', body: 'Prova de residência no sábado', anonymous: false, scope: 'friends', createdAt: ha(1), prayCount: 0, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
+    { id: 'p7', authorName: null, body: 'Um diagnóstico que ainda não contei a ninguém', anonymous: true, scope: 'friends', createdAt: ha(3), prayCount: 12, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
+  ]
+  // Respondidos (O1): doze, os dois mais recentes como no quadro.
+  const respostas = ['sim', 'aprenda', 'nao', 'se_mova', 'sim', 'sim', 'aprenda', 'nao', 'sim', 'se_mova', 'sim', 'aprenda']
+  const respondidos = params.get('respondidos') === '0' ? [] : respostas.slice(0, Number(params.get('respondidos')) || 12).map((resposta, i) => meu(`r${i}`,
+    ['Trabalho para a Juliana', 'Que meu chefe mudasse', 'A viagem em julho', 'A casa nova', 'A prova do Davi', 'O exame da minha mãe', 'Vender o carro', 'Mudar de turma', 'O visto', 'A conversa com o Paulo', 'O aluguel de março', 'Dormir melhor'][i],
+    [59, 250, 40, 90, 20, 15, 70, 33, 120, 12, 45, 28][i] + 10 * (i + 1),
+    { status: 'closed', resposta, respondidoEm: ha(10 * (i + 1)), notaResposta: i === 0 ? 'Começou em março, no lugar que ela nem tinha pedido.' : i === 1 ? 'Ele segue igual. Eu que aprendi a responder diferente.' : null }))
+  const qual = params.get('pedidos') ?? '3'
+  const ativos = qual === '0' ? [] : qual === '7' ? [...tres, ...mais] : tres
+  const mine = tela === 'pedidos' ? [...ativos.map((p, i) => (i === 1 ? { ...p, commentCount: Number(params.get('comentarios') ?? 0) } : p)), ...respondidos] : ativos
+  return mergePedidos({ mine, feed: qual === '7' ? amigos : [], intentions: null, todayKey: dateKey() })
+}
+const pedidosDePreview = {
+  load: () => {
+    const qual = params.get('pedidos')
+    if (qual === 'carregando') return new Promise(() => {})
+    if (qual === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
+    return new Promise(resolve => setTimeout(() => resolve({ pedidos: pedidosDeExemplo(), othersPrayed: Number(params.get('oracoes') ?? 47) }), 150))
+  },
+  orar: p => { console.log('[preview] orei:', p.id, p.isMine ? '(meu: só a data)' : '(de outra pessoa: conta em "Oração pelos outros")'); return Promise.resolve() },
+  desfazer: p => { console.log('[preview] desfiz o orei:', p.id); return Promise.resolve() },
+}
+// "Fazer um pedido" (O2) na pré-visualização: grupos e gravação de memória.
+// &grupos=1|0|3 (com três, a fileira de "Quem vê" rola) · &ia=nao
+const formDePreview = {
+  getMyGroups: async () => [{ groupId: 'g1', name: 'Grupo Semente' }, { groupId: 'g2', name: 'Batista Central' }, { groupId: 'g3', name: 'Família' }].slice(0, Number(params.get('grupos') ?? 1)),
+  getGroupMemberCounts: async () => ({ g1: 6, g2: 31, g3: 1 }),
+  getFriendsCount: async () => 12,
+  createPrayerRequest: async pedido => { console.log('[preview] pedido gravado:', JSON.stringify(pedido)); alert(`${pedido.scope === 'only_me' ? 'guardado só para mim' : 'publicado'}: ${JSON.stringify(pedido)}`) },
+  composePrayerRequestDraft: async () => new Promise(resolve => setTimeout(() => resolve('Peço coragem e paz para acompanhar meu pai no tratamento que começa na terça.'), 400)),
+}
+function OracaoPreview() {
+  const dia = params.get('dia')
+  const steps = dia === 'um' ? ['prayer'] : dia === 'estudo' ? ['prayer', 'reading', 'study', 'reflection'] : ['prayer', 'reading', 'reflection']
+  const feitos = Object.fromEntries((params.get('feitos') ?? '').split(',').filter(Boolean).map(k => [k, true]))
+  const minutos = Number(params.get('minutos')) || 10
+  const s = { ...session, hasPremium: params.get('premium') !== 'nao', todaysSteps: steps, todayRoutine: feitos }
+  return (
+    <PrayerScreen
+      session={s} authUser={authUser} stepMinutes={{ prayer: minutos, reading: 15, study: 15, reflection: 5 }}
+      initialStage={Math.min(4, Math.max(1, Number(params.get('etapa')) || 1)) - 1} pedidosApi={pedidosDePreview} formApi={formDePreview}
+      onPrayerCompleted={() => alert('oração terminada → bênção (36f)')} onNavigate={t => alert(`navegar: ${t}`)}
+      onExitGuided={() => {}} onBack={() => alert('voltar')}
+    />
+  )
+}
+
+// Reflexão com perguntas (S4): a tela de verdade, com perguntas de exemplo
+// no lugar da geração (cada "Trocar" traz um par novo).
+if (tela === 'reflexao') setReflectionMethod(params.get('metodo') === 'livre' ? 'free' : 'questions')
+const paresDeExemplo = [
+  ['José passou treze anos entre o poço e o palácio. O que você está esperando há mais tempo do que gostaria?', 'Quem Deus usou na sua vida por um caminho que você não escolheria?'],
+  ['O faraó sonhou e ninguém soube explicar. Que pergunta sua ainda está sem resposta?', 'José deu a Deus o crédito pela resposta. Onde você tem ficado com um crédito que não é seu?'],
+  ['Sete anos de fartura antes de sete de fome. O que você pode guardar agora para os dias difíceis?', 'José perdoou sem esquecer o que viveu. Que lembrança você ainda precisa entregar?'],
+]
+function perguntasDePreview({ avoidQuestions }) {
+  const como = params.get('perguntas') ?? 'ok'
+  if (como === 'carregando') return new Promise(() => {})
+  if (como === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
+  if (como === 'limite') return Promise.reject(new Error('daily_limit_reached'))
+  // O primeiro par que ainda não apareceu (o pedido diz quais evitar).
+  const par = paresDeExemplo.find(p => !p.some(q => avoidQuestions.includes(q))) ?? paresDeExemplo[0]
+  console.log('[preview] perguntas pedidas; evitar', avoidQuestions.length)
+  return new Promise(resolve => setTimeout(() => resolve(par), 250))
+}
+function ReflexaoPreview() {
+  const dia = params.get('dia')
+  const steps = dia === 'um' ? ['reflection'] : dia === 'estudo' ? ['prayer', 'reading', 'study', 'reflection'] : ['prayer', 'reading', 'reflection']
+  const feitos = Object.fromEntries((params.get('feitos') ?? 'prayer,reading,study').split(',').filter(Boolean).map(k => [k, true]))
+  const s = { ...session, hasAI: true, todaysSteps: steps, todayRoutine: feitos }
+  const trecho = params.get('trecho') ?? 'marcado'
+  return (
+    <ReflectionScreen
+      session={s} authUser={authUser} stepMinutes={{ prayer: 10, reading: 15, study: 15, reflection: 5 }}
+      lastReadChapterInfo={trecho === 'nenhum' ? null : { book: 'Gênesis', bookEn: 'Genesis', chStart: 41, chEnd: 41 }}
+      initialQuestion={Math.min(3, Math.max(1, Number(params.get('pergunta')) || 1)) - 1} questionsApi={perguntasDePreview}
+      onReflectionCompleted={() => alert('reflexão terminada → dia concluído (ou o passo que falta)')}
+      onApplicationChanged={() => console.log('[preview] a frase fixada no Início mudou')}
+      onExitGuided={() => {}} onBack={() => alert('voltar')}
+    />
+  )
+}
+
+// Dia concluído (S5): a tela de verdade, sobre os dados semeados (tempos de
+// hoje, frase, semana, estudo). Gênesis 41 acabou de ser lido.
+function DiaPreview() {
+  const dia = params.get('dia')
+  const steps = dia === 'um' ? ['prayer'] : dia === 'estudo' ? ['prayer', 'study', 'reflection'] : ['prayer', 'reading', 'reflection']
+  const lidos = new Set([...completedSet, 'Gênesis:41'])
+  const s = { ...session, biblePercent: 4.3, activeStudyId: dia === 'estudo' ? 'est-ansiedade' : null }
+  return (
+    <DayCompleteScreen
+      session={s} authUser={authUser} completedSet={lidos} steps={steps}
+      readingSession={dia === 'estudo' || dia === 'um' ? null : { book: 'Gênesis', bookEn: 'Genesis', chStart: 41, chEnd: 41, type: 'reading' }}
+      onBack={() => alert('voltar ao plano (e, se houver, a tela de parabéns)')}
     />
   )
 }
@@ -318,7 +492,21 @@ function Preview() {
   let body
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
-  if (screen === 'ajustar') {
+  if (screen === 'oracao') {
+    body = <OracaoPreview />
+  } else if (screen === 'reflexao') {
+    body = <ReflexaoPreview />
+  } else if (screen === 'dia') {
+    body = <DiaPreview />
+  } else if (screen === 'pedidos') {
+    body = (
+      <PrayerRequestsScreen
+        session={{ ...session, hasAI: params.get('ia') !== 'nao' }} authUser={authUser} pedidosApi={pedidosDePreview} formApi={formDePreview} initialTab={params.get('aba') ?? 'ativos'}
+        onBack={() => alert('voltar')} onOpenRequest={p => alert(`abrir o detalhe do pedido (comentários): ${p.body}`)}
+        onOpenFamilia={id => alert(`abrir Minhas conquistas, família ${id}`)}
+      />
+    )
+  } else if (screen === 'ajustar') {
     body = <AjustarPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} draftState={draftState} onDraftChange={setDraftState} onClearDraft={() => setDraftState(null)} onSave={async () => { await new Promise(r => setTimeout(r, 800)) }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} initialOpenStep={params.get('abrir')} scrollToDays={!!params.get('abrir')} />
   } else if (screen === 'seuPlano') {
     body = <SeuPlanoScreen {...common} stepMinutes={{ prayer: 10, reading: 15, study: 10, reflection: 5 }} onBack={() => setScreen('meuPlano')} onNavigate={t => alert(`navegar: ${t}`)} onChangeDays={() => alert('Ajustar com a Leitura aberta')} />
@@ -396,13 +584,13 @@ function Preview() {
     return (
       <div style={{ height: '100%' }}>
         <BibliaPreview onPastRootChange={setBibliaPastRoot} />
-        {!bibliaPastRoot && <BottomNav activeTab="journey" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />}
+        {!bibliaPastRoot && params.get('leitura') !== 'plano' && <BottomNav activeTab="journey" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />}
       </div>
     )
   }
   const nav = screen === 'hoje' && params.get('msgs') != null
     ? <BottomNav activeTab="home" onNavigate={t => alert(`aba: ${t}`)} groupsUnread={Number(params.get('msgs'))} groupsHasPending={params.get('pendente') === '1'} lang="pt" />
-    : null
+    : screen === 'pedidos' ? <BottomNav activeTab="routine" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /> : null
   return <div style={{ height: '100%' }}>{body}{nav}</div>
 }
 
