@@ -2,11 +2,11 @@
 // 0052_prayer_requests_scope.sql. Pedido tem ESCOPO ('group' — um grupo
 // específico, 'friends' — todos os seus amigos aceitos, ou 'only_me' — só
 // você), pode ser anônimo, e o contador de quem orou nunca expõe
-// identidade (nem pro autor): as duas leituras abaixo passam por RPC
-// security definer (get_supplication_requests/get_prayer_requests_feed)
-// que já devolve a contagem pronta, nunca as linhas de
-// group_prayer_intentions em si. Sem comentários — o design novo proíbe
-// ("Ninguém pode comentar — só orar"); ver a migration pro porquê.
+// identidade (nem pro autor): as leituras abaixo passam por RPC security
+// definer (get_my_prayer_requests/get_prayer_requests_feed) que já
+// devolve a contagem pronta, nunca as linhas de group_prayer_intentions
+// de outras pessoas. Comentários voltaram na migration 0070 (ver o fim
+// deste arquivo).
 //
 // Bloco 2 do pacote 36-37 (migration 0059_prayer_request_response.sql)
 // acrescenta o ciclo de resposta ("Como Deus respondeu?", 36e) e vira
@@ -17,8 +17,8 @@
 // (unmarkPrayingToday) — as telas chamam pedidos/orei.js, nunca daqui
 // direto.
 //
-// As 3 funções de LEITURA (getMyPrayerRequests/getSupplicationRequests/
-// getPrayerRequestsFeed) relançam o erro do RPC em vez de engolir e
+// As funções de LEITURA (getMyPrayerRequests/getPrayerRequestsFeed)
+// relançam o erro do RPC em vez de engolir e
 // devolver lista vazia — bug real encontrado 2026-09-19: sem a migration
 // 0059 rodada, get_my_prayer_requests não existia, a chamada falhava, e
 // o catch de cada tela nunca disparava (a promise nunca rejeitava) — a
@@ -33,7 +33,7 @@ async function getUserId() {
   return data?.user?.id ?? null
 }
 
-function mapSupplicationRow(row) {
+function mapFeedRow(row) {
   return {
     id: row.id,
     userId: row.author_id,
@@ -50,16 +50,6 @@ function mapSupplicationRow(row) {
   }
 }
 
-// Súplica (25a) — até `maxN` pedidos esperando oração, já ordenados por
-// quem tem menos oração recebida (ver a RPC pro critério exato de quem
-// entra: nunca os seus próprios pedidos de grupo/amigos, mas os 'only_me'
-// voltam pra você mesmo).
-export async function getSupplicationRequests(maxN = 3) {
-  const { data, error } = await supabase.rpc('get_supplication_requests', { max_n: maxN })
-  if (error) { console.error('[prayerRequestsStore] getSupplicationRequests failed:', error.message); throw new Error(error.message) }
-  return (data ?? []).map(mapSupplicationRow)
-}
-
 // Lista completa — "Ver todos" (25a) quando groupId é null, ou a aba de
 // oração de um grupo específico quando não. Inclui os SEUS pedidos de
 // qualquer escopo (pra você gerenciar/encerrar), não só os de outras
@@ -67,7 +57,7 @@ export async function getSupplicationRequests(maxN = 3) {
 export async function getPrayerRequestsFeed(groupId = null, maxN = 50) {
   const { data, error } = await supabase.rpc('get_prayer_requests_feed', { target_group_id: groupId, max_n: maxN })
   if (error) { console.error('[prayerRequestsStore] getPrayerRequestsFeed failed:', error.message); throw new Error(error.message) }
-  return (data ?? []).map(row => ({ ...mapSupplicationRow(row), isMine: !!row.is_mine, status: row.status }))
+  return (data ?? []).map(row => ({ ...mapFeedRow(row), isMine: !!row.is_mine, status: row.status }))
 }
 
 // `scope`: 'group' (precisa de groupId) | 'friends' | 'only_me'.
@@ -106,7 +96,7 @@ export async function closePrayerRequest(requestId) {
 // devolve um rascunho de pedido curto (até 240 caracteres) que ela ainda
 // aprova/edita antes de publicar. Precisa de session.hasAI (403
 // subscription_required se não tiver — quem chama já esconde o botão
-// nesse caso, ver AddPrayerRequestSheet.jsx).
+// nesse caso, ver components/pedidos/FolhaFazerPedido.jsx).
 export async function composePrayerRequestDraft({ text, lang }) {
   const { data: { session: authSession } } = await supabase.auth.getSession()
   if (!authSession) throw new Error('not_authenticated')
@@ -221,7 +211,7 @@ export async function getMyPrayerRequests(maxN = 100) {
 
 // Arquivar com resposta (36e) — só o autor. "Espere" não arquiva nada
 // (devolve pro Ativos sem zerar o contador de dias): não chama o
-// servidor, só fecha a folha — ver ArchivePrayerRequestSheet.jsx.
+// servidor, só fecha a folha — ver components/pedidos/FolhaComoDeusRespondeu.jsx.
 export async function archivePrayerRequest(requestId, response, note = '') {
   if (response === 'espere') return
   const { error } = await supabase.rpc('archive_prayer_request', {

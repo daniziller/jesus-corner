@@ -273,11 +273,8 @@ export const STRINGS = {
       toolsNotesSubEmpty: 'Nenhuma nota ainda',
       toolsTriviaSub: '{n} achado(s)',
       finishReading: 'Concluir leitura',
-      finishShort: 'Concluir',
       // Turno 35, Bloco 3 — relógio de leitura (35f) e "terminou antes do
       // tempo" (35g).
-      clockPause: 'Pausar',
-      clockResume: 'Retomar',
       timeUpLabel: 'Sobraram {time} no relógio',
       timeUpTitle: 'Você chegou ao fim de {title} antes do tempo.',
       timeUpQuestion: 'Quer seguir lendo com o tempo que sobrou, ou encerrar a leitura de hoje aqui?',
@@ -436,31 +433,16 @@ export const STRINGS = {
       inviteNote: 'Depois de criar, você recebe um link e um código de 6 letras para colar no WhatsApp.',
       submitBtn: 'Criar e convidar',
     },
-    // "Fazer um pedido" (25b, Bloco 11) — folha aberta a partir da Súplica
-    // (26a) ou do "+" na aba de oração de um grupo.
+    // "Fazer um pedido" (O2, FolhaFazerPedido.jsx): o texto de apoio do
+    // campo e o erro de "Escrever com ajuda" — o resto da folha está na
+    // própria tela, em português.
     addPrayerRequest: {
-      title: 'Fazer um pedido',
-      sub: 'Uma frase basta. Quem pode ver o pedido também pode orar e comentar.',
       placeholder: 'Escreva seu pedido de oração...',
-      charCount: '{used} / {max}',
-      aiAssistBtn: 'Escrever com ajuda',
-      aiAssistLoading: 'Reescrevendo...',
       aiAssistError: 'Não deu para reescrever agora. Tente de novo em instantes.',
       aiAssistPromptTitle: 'Escrever com ajuda',
       aiAssistPromptSub: 'Desabafe à vontade — a IA transforma num pedido curto, e você aprova antes de usar.',
       aiAssistPromptPlaceholder: 'Conte o que está acontecendo...',
       aiAssistUseBtn: 'Usar esta versão',
-      whoSeesLabel: 'Quem vê',
-      friendsOptionLabel: 'Meus amigos',
-      onlyMeOptionLabel: 'Só eu',
-      onlyMeOptionSub: 'fica no seu diário',
-      peopleCountOne: '{n} pessoa',
-      peopleCountMany: '{n} pessoas',
-      anonymousToggleTitle: 'Publicar sem meu nome',
-      anonymousToggleSub: 'Aparece como "Anônimo" para o grupo',
-      noteText: 'Você recebe só o número de pessoas que oraram, nunca os nomes. Pode encerrar o pedido quando quiser.',
-      submitBtn: 'Publicar pedido',
-      noGroupsYet: 'Você ainda não está em nenhum grupo.',
     },
     groups: {
       pageTitle: 'Comunidade',
@@ -1083,17 +1065,12 @@ export const STRINGS = {
     routineSwitcher: {
       jumpLabel: 'Ir para outro passo',
     },
-    // Rótulos do cronômetro compartilhado (src/timer/, src/components/
-    // timer/) — usado por Oração, Reflexão e Leitura. Play/pausar continua
-    // com o texto próprio de cada tela (prayer.playBtn, etc.) porque o
-    // contexto muda ("Tocar a oração" x "Tocar a reflexão"); só o Parar e
-    // os dois rótulos de tempo (plano/etapa) são genéricos o suficiente
-    // pra compartilhar. "Neste passo" existiu até 2026-10-22 — saiu por
-    // mostrar o mesmo número que "Total do dia" sempre que o passo era o
-    // primeiro feito no dia (ver comentário em StepTimerCard.jsx).
+    // Rótulos do cronômetro grande da oração e da reflexão livres
+    // (StepTimerCard.jsx) e da pílula flutuante (FloatingTimerPill.jsx).
+    // Play/pausar continua com o texto próprio de cada tela
+    // (prayer.playBtn, etc.).
     timer: {
       planLabel: 'Total do dia',
-      etapaLabel: 'Nesta etapa',
       stopBtn: 'Parar',
       pauseFloating: 'Pausar',
       resumeFloating: 'Continuar',
@@ -1106,27 +1083,23 @@ export const STRINGS = {
       // que a entrada é sempre pelo botão único de Meu Plano.
       pageTitle: 'Oração',
       stepOf: 'passo {n} de {total}',
-      methodSuffixActs: 'ACTS',
       methodSuffixFree: 'livre',
-      // Frase fixa do topo — idêntica em 36b, 36c e 36d (Pedidos de
-      // oração). Texto do app, nunca gerado por IA, nunca muda.
+      // Frase fixa do topo da oração livre (36c). Texto do app, nunca
+      // gerado por IA, nunca muda.
       fixedVerse: 'A única oração que não produz fé é a que nunca foi orada.',
       stageDoneTag: 'feita',
       stageMinShort: '{min} min',
       stageLabel: 'Etapa {n} de 4 · {min} min',
-      // Play/pausar explícito (pedido dela, 2026-09-12) — cartão da etapa
-      // (ACTS) e relógio grande da oração livre.
+      // Play/pausar do relógio grande da oração livre (36c). A oração ACTS
+      // (S1/S2, handoff-passos-pedidos-53-54) escreve os textos dela na
+      // própria tela, em português.
       playBtn: 'Tocar',
       pauseBtn: 'Pausar',
-      starterLabel: 'Se ajudar, comece assim',
-      writePlaceholder: 'Escreva, ou só ore. Nada aqui é obrigatório.',
-      privacyNote: 'O que você escreve na oração é só seu — nunca vai para grupo nem para a Biblioteca pública.',
       requestsRowTitle: 'Pedidos de oração',
       requestsCountActiveOne: '{n} ativo',
       requestsCountActiveMany: '{n} ativos',
       requestsCountGroupOne: '{n} do seu grupo',
       requestsCountGroupMany: '{n} do seu grupo',
-      skipStageBtn: 'Pular etapa',
       finishPrayingBtn: 'Terminei de orar',
       // Oração livre (36c) — mesma casca de 36b, sem etapas.
       freeTimeLabel: 'Tempo com Deus',
@@ -1136,82 +1109,36 @@ export const STRINGS = {
       freeWritePlaceholder: 'Sem etapas, sem roteiro. Fale, e escreva só o que quiser guardar.',
       // PD3 — Súplica (handoff-oracao-pedidos), etapa final do ACTS: casca
       // própria, diferente das outras 3 etapas (pd3-suplica-pedidos.png).
-      pularBtn: 'Pular',
       suplicaProgressLabel: 'Súplica · 4ª etapa do ACTS',
       remainingLabel: 'restantes',
-      suplicaTodayLabel: 'Súplica · para hoje',
-      suplicaTodayBody: 'Comece pelos seus — depois leve os três pedidos abaixo. Um toque marca que você orou.',
       waitingLabel: 'Esperando oração · {n}',
-      seeAllBtn: 'Ver todos',
-      prayShortBtn: 'Orei',
-      prayedCountOne: '1 pessoa orou',
-      prayedCountMany: '{n} pessoas oraram',
-      anonymousLabel: 'Anônimo',
-      originFriend: 'amigo',
-      originDiary: 'seu pedido',
-      suplicaComposeSub: 'Você escolhe quem vê',
-      finishToReadingBtn: 'Concluir e ir para a leitura',
-      // Abas da Súplica (2026-09-22) — "Pra orar" é a lista curada de
-      // sempre; a segunda aba reaproveita o texto de prayerRequests.tabGroup
-      // (mesma aba de Pedidos de oração).
-      suplicaTabWaiting: 'Pra orar',
-      suplicaEmpty: 'Ninguém esperando oração agora.',
+      // A linha "Pedidos de oração" da oração livre, quando a lista falha.
       suplicaLoadError: 'Não foi possível carregar os pedidos agora.',
-      // Súplica de quem não assina (divisão de planos, 2026): a frase fixa
-      // e o progresso continuam à vista pra todo mundo; só a lista de
-      // pedidos de outras pessoas e "Fazer um pedido" ficam no Premium
-      // (pedidos de oração é parte da Comunidade).
+      // Súplica de quem não assina (divisão de planos, 2026): a lista de
+      // pedidos e "Fazer um pedido" ficam no Premium (pedidos de oração é
+      // parte da Comunidade).
       suplicaLockTitle: 'Orar pela comunidade é Premium',
       suplicaLockSub: 'Ver os pedidos de outras pessoas, orar por eles e fazer os seus fazem parte do plano Premium.',
     },
-    // 36d/36e (pacote 36-37, Bloco 2) — lista de pedidos + "Como Deus
-    // respondeu?". Reaproveita prayer.fixedVerse (mesma frase fixa de
-    // 36b/36c/36d) e prayer.requestsRowTitle/requestsCountActive*/
-    // requestsCountGroup* (a linha-resumo de 36b/36c continua com eles).
+    // O pedido no detalhe com comentários (PrayerRequestDetailScreen.jsx).
+    // A lista de pedidos e as folhas "Fazer um pedido" e "Como Deus
+    // respondeu?" (O1–O3, handoff-passos-pedidos-53-54) escrevem os textos
+    // delas na própria tela, em português.
     prayerRequests: {
-      headerTitle: 'Pedidos de oração',
-      headerActiveOne: '{n} ativo',
-      headerActiveMany: '{n} ativos',
-      headerAnsweredOne: '{n} respondido',
-      headerAnsweredMany: '{n} respondidos',
-      newBtn: 'Novo',
-      // Etapa 2026-09-19: chips (Ativos/Respondidos/Do meu grupo) viraram
-      // 2 abas — tabMine/tabGroup. chipActive/chipAnswered/chipGroup saíram.
-      tabMine: 'Meus pedidos',
-      tabGroup: 'Pedidos dos grupos',
       mineTag: 'Meu',
       // "{span}" já vem pronto de daysOrMonthsSpan (ex.: "24 dias"/"3 meses").
-      activeDaysLabel: 'orando há {span}',
-      answeredDaysLabel: 'orado por {span}',
       timeAgoLabel: 'há {span}',
       groupPrayedOne: '1 pessoa do grupo já orou',
       groupPrayedMany: '{n} pessoas do grupo já oraram',
       prayBtn: 'Orei por isso',
       prayedTodayBtn: 'Você orou',
-      archiveBtn: 'Arquivar',
-      answeredSectionTitle: 'Respondidos',
-      emptyActive: 'Nenhum pedido ativo ainda — toque em Novo para fazer o primeiro.',
-      emptyAnswered: 'Ainda não há pedidos respondidos.',
-      emptyGroup: 'Nenhum pedido do seu grupo por aqui.',
       loadError: 'Não foi possível carregar seus pedidos agora. Tente novamente em instantes.',
-      // Rótulos das 5 respostas — usados tanto no selo de Respondidos
-      // quanto nas opções de 36e (option*Explanation abaixo).
+      // Rótulos das 5 respostas — o selo de um pedido respondido.
       responseSim: 'Sim',
       responseNao: 'Não',
       responseEspere: 'Espere',
       responseAprenda: 'Aprenda',
       responseSeMova: 'Se mova',
-      // 36e — "Como Deus respondeu?"
-      archiveTitle: 'Como Deus respondeu?',
-      archiveSub: 'Todo pedido orado tem resposta — nem toda resposta é sim. Escolha uma para guardar este pedido.',
-      optionSimExplanation: 'Veio, e veio como eu pedi',
-      optionNaoExplanation: 'Ele fechou a porta — e isso também é resposta',
-      optionEspereExplanation: 'Ainda não é o tempo; sigo orando',
-      optionAprendaExplanation: 'A situação ficou; eu mudei',
-      optionSeMovaExplanation: 'A resposta pedia um passo meu',
-      noteLabel: 'O que eu vi (opcional)',
-      notePlaceholder: 'Uma linha para lembrar daqui a um ano.',
-      saveBtn: 'Guardar o pedido',
     },
     // Detalhe de um pedido + comentários (PrayerRequestDetailScreen.jsx,
     // pedido dela 2026-09-19) — sem referência visual pronta, tela nova.
@@ -1296,15 +1223,11 @@ export const STRINGS = {
     // 15e). Nunca fala de "sequência" — a meta é semanal, e um dia perdido
     // não aparece aqui (README §18). Aberta pelo fim da rotina guiada
     // (App.jsx/advanceGuided), nunca por navegação direta.
-    // 37c/37d (pacote 36-37, Bloco 5) — substitui routineComplete por
-    // inteiro (fecho antigo, texto/layout diferentes). O cartão da tela É
-    // a imagem exportável (dayCompleteImage.js) — não tem texto próprio
-    // fora dela, só cabeçalho/chips/rodapé (ver DayCompleteScreen.jsx).
+    // 37d (pacote 36-37) — o editor da imagem do dia (DayShareScreen.jsx),
+    // aberto por "Compartilhar meu dia" no dia concluído (S5). O cartão É a
+    // imagem exportável (dayCompleteImage.js); aqui ficam os textos dela,
+    // dos chips e dos botões.
     dayComplete: {
-      pageTitle: 'Dia concluído',
-      headline: '{n} minutos com Deus, {name}.',
-      contextLineOne: '{n} passo feito. É a {weeks}ª semana que você cumpre a meta.',
-      contextLineMany: '{n} passos feitos. É a {weeks}ª semana que você cumpre a meta.',
       titleWithName: '{name} leu {chapter} hoje.',
       titleNoName: 'Li {chapter} hoje.',
       titleWithNameNoChapter: '{name} cumpriu o plano hoje.',
@@ -1317,7 +1240,6 @@ export const STRINGS = {
       shareBtn: 'Compartilhar',
       shareTitle: 'Meu dia no Jesus\' Corner',
       saveBtn: 'Salvar imagem',
-      backBtn: 'Só voltar ao plano',
       timeTodayLabel: 'Tempo com Deus hoje',
       weeksInGoalLabel: 'Semanas cumprindo a meta',
       whereInBibleLabel: 'Onde estou na Bíblia',
@@ -2092,24 +2014,13 @@ export const STRINGS = {
     reflection: {
       pageTitle: 'Reflexão',
       stepOf: 'passo {n} de {total}',
-      methodSuffixQuestions: 'com perguntas',
       methodSuffixFree: 'livre',
-      justReadLabel: 'Você acabou de ler',
-      justReadMarkedText: '"{quote}" — o trecho que você marcou.',
       questionsError: 'Não deu pra gerar as perguntas agora. Tenta de novo mais tarde?',
-      question1Of3: 'Pergunta 1 de 3',
       optionalTag: 'opcional',
-      writePlaceholder: 'Escreva se quiser. Pensar também conta.',
-      question3Label: 'Pergunta 3 · sempre esta',
-      question3Sub: 'vira a frase do dia',
       question3Fixed: 'Em uma frase: resuma seu estudo de hoje.',
-      question3Placeholder: 'Sua frase de aplicação — aparece no Início até você trocar.',
       pinConfirmText: 'Quer trocar o card do Início pra essa frase nova?',
       pinConfirmYes: 'Trocar',
       pinConfirmNo: 'Manter a atual',
-      privacyNote: 'O que você escrever fica na sua Biblioteca. Nada é enviado ao grupo sem você tocar em compartilhar.',
-      swapQuestionsBtn: 'Trocar perguntas',
-      swapping: 'Trocando...',
       saveAnswersBtn: 'Salvar',
       savedAnswersBtn: 'Salvo',
       finishDayBtn: 'Terminar o dia',
@@ -3476,9 +3387,6 @@ export const STRINGS = {
       toolsNotesSubEmpty: 'No notes yet',
       toolsTriviaSub: '{n} finding(s)',
       finishReading: 'Finish reading',
-      finishShort: 'Finish',
-      clockPause: 'Pause',
-      clockResume: 'Resume',
       timeUpLabel: '{time} left on the clock',
       timeUpTitle: 'You reached the end of {title} early.',
       timeUpQuestion: 'Want to keep reading with the time you have left, or end today’s reading here?',
@@ -3626,28 +3534,12 @@ export const STRINGS = {
       submitBtn: 'Create and invite',
     },
     addPrayerRequest: {
-      title: 'Make a request',
-      sub: 'One sentence is enough. Whoever can see the request can also pray and comment.',
       placeholder: 'Write your prayer request...',
-      charCount: '{used} / {max}',
-      aiAssistBtn: 'Write with help',
-      aiAssistLoading: 'Rewriting...',
       aiAssistError: "Couldn't rewrite it right now. Try again in a moment.",
       aiAssistPromptTitle: 'Write with help',
       aiAssistPromptSub: 'Vent freely — AI turns it into a short request, and you approve it before using it.',
       aiAssistPromptPlaceholder: "Tell us what's going on...",
       aiAssistUseBtn: 'Use this version',
-      whoSeesLabel: 'Who sees it',
-      friendsOptionLabel: 'My friends',
-      onlyMeOptionLabel: 'Only me',
-      onlyMeOptionSub: 'stays in your journal',
-      peopleCountOne: '{n} person',
-      peopleCountMany: '{n} people',
-      anonymousToggleTitle: 'Post without my name',
-      anonymousToggleSub: 'Shows up as "Anonymous" to the group',
-      noteText: "You only see the number of people who prayed, never the names. You can close the request whenever you want.",
-      submitBtn: 'Post request',
-      noGroupsYet: "You're not in any group yet.",
     },
     groups: {
       pageTitle: 'Community',
@@ -4199,7 +4091,6 @@ export const STRINGS = {
     },
     timer: {
       planLabel: "Today's total",
-      etapaLabel: 'This stage',
       stopBtn: 'Stop',
       pauseFloating: 'Pause',
       resumeFloating: 'Resume',
@@ -4208,7 +4099,6 @@ export const STRINGS = {
     prayer: {
       pageTitle: 'Prayer',
       stepOf: 'step {n} of {total}',
-      methodSuffixActs: 'ACTS',
       methodSuffixFree: 'free',
       fixedVerse: "The only prayer that produces no faith is the one never prayed.",
       stageDoneTag: 'done',
@@ -4216,80 +4106,37 @@ export const STRINGS = {
       stageLabel: 'Step {n} of 4 · {min} min',
       playBtn: 'Play',
       pauseBtn: 'Pause',
-      starterLabel: 'If it helps, start here',
-      writePlaceholder: "Write, or just pray. None of this is required.",
-      privacyNote: "What you write in prayer is yours alone — it never goes to a group or the public Library.",
       requestsRowTitle: 'Prayer requests',
       requestsCountActiveOne: '{n} active',
       requestsCountActiveMany: '{n} active',
       requestsCountGroupOne: '{n} from your group',
       requestsCountGroupMany: '{n} from your group',
-      skipStageBtn: 'Skip step',
       finishPrayingBtn: 'I finished praying',
       freeTimeLabel: 'Time with God',
       freeTimeSub: 'of {n} min · tap to pause',
       freeTimeSubPaused: 'of {n} min · tap to resume',
       freeNoteLabel: "If you'd like, jot something down",
       freeWritePlaceholder: 'No steps, no script. Speak, and write down only what you want to keep.',
-      pularBtn: 'Skip',
       suplicaProgressLabel: 'Supplication · 4th ACTS step',
       remainingLabel: 'remaining',
-      suplicaTodayLabel: 'Supplication · for today',
-      suplicaTodayBody: "Start with your own — then carry the three requests below. One tap marks that you prayed.",
       waitingLabel: 'Waiting for prayer · {n}',
-      seeAllBtn: 'See all',
-      prayShortBtn: 'Pray',
-      prayedCountOne: '1 person prayed',
-      prayedCountMany: '{n} people prayed',
-      anonymousLabel: 'Anonymous',
-      originFriend: 'friend',
-      originDiary: 'your request',
-      suplicaComposeSub: 'You choose who sees it',
-      finishToReadingBtn: 'Finish and go to reading',
-      suplicaTabWaiting: 'To pray for',
-      suplicaEmpty: 'No one waiting for prayer right now.',
       suplicaLoadError: "Couldn't load requests right now.",
       suplicaLockTitle: 'Praying for the community is Premium',
       suplicaLockSub: "Seeing other people's requests, praying for them, and making your own are part of the Premium plan.",
     },
     prayerRequests: {
-      headerTitle: 'Prayer requests',
-      headerActiveOne: '{n} active',
-      headerActiveMany: '{n} active',
-      headerAnsweredOne: '{n} answered',
-      headerAnsweredMany: '{n} answered',
-      newBtn: 'New',
-      tabMine: 'My requests',
-      tabGroup: "Groups' requests",
       mineTag: 'Mine',
-      activeDaysLabel: 'praying for {span}',
-      answeredDaysLabel: 'prayed for {span}',
       timeAgoLabel: '{span} ago',
       groupPrayedOne: '1 person from the group has prayed',
       groupPrayedMany: '{n} people from the group have prayed',
       prayBtn: 'I prayed for this',
       prayedTodayBtn: 'You prayed',
-      archiveBtn: 'Archive',
-      answeredSectionTitle: 'Answered',
-      emptyActive: 'No active requests yet — tap New to make the first one.',
-      emptyAnswered: 'No answered requests yet.',
-      emptyGroup: 'No requests from your group here.',
       loadError: "Couldn't load your requests right now. Try again in a moment.",
       responseSim: 'Yes',
       responseNao: 'No',
       responseEspere: 'Wait',
       responseAprenda: 'Learn',
       responseSeMova: 'Move',
-      archiveTitle: 'How did God answer?',
-      archiveSub: 'Every prayer gets an answer — not every answer is yes. Choose one to save this request.',
-      optionSimExplanation: 'It came, and came just as I asked',
-      optionNaoExplanation: 'He closed the door — that’s an answer too',
-      optionEspereExplanation: "It's not the time yet; I keep praying",
-      optionAprendaExplanation: 'The situation stayed; I changed',
-      optionSeMovaExplanation: 'The answer asked for a step from me',
-      noteLabel: 'What I saw (optional)',
-      notePlaceholder: 'One line to remember a year from now.',
-      saveBtn: 'Save the request',
     },
     prayerRequestDetail: {
       title: 'Prayer request',
@@ -4356,10 +4203,6 @@ export const STRINGS = {
       seeChapterAgainBtn: 'See the chapter again',
     },
     dayComplete: {
-      pageTitle: 'Day complete',
-      headline: '{n} minutes with God, {name}.',
-      contextLineOne: '{n} step done. This is week {weeks} of hitting your goal.',
-      contextLineMany: '{n} steps done. This is week {weeks} of hitting your goal.',
       titleWithName: '{name} read {chapter} today.',
       titleNoName: 'I read {chapter} today.',
       titleWithNameNoChapter: '{name} completed today\'s plan.',
@@ -4372,7 +4215,6 @@ export const STRINGS = {
       shareBtn: 'Share',
       shareTitle: "My day on Jesus' Corner",
       saveBtn: 'Save image',
-      backBtn: 'Just go back to my plan',
       timeTodayLabel: 'Time with God today',
       weeksInGoalLabel: 'Weeks hitting the goal',
       whereInBibleLabel: 'Where I am in the Bible',
@@ -5049,24 +4891,13 @@ export const STRINGS = {
     reflection: {
       pageTitle: 'Reflection',
       stepOf: 'step {n} of {total}',
-      methodSuffixQuestions: 'with questions',
       methodSuffixFree: 'free',
-      justReadLabel: 'You just read',
-      justReadMarkedText: '"{quote}" — the passage you marked.',
       questionsError: "Couldn't generate the questions right now. Try again later?",
-      question1Of3: 'Question 1 of 3',
       optionalTag: 'optional',
-      writePlaceholder: "Write if you'd like. Just thinking counts too.",
-      question3Label: 'Question 3 · always this one',
-      question3Sub: "becomes today's phrase",
       question3Fixed: 'In one sentence: summarize what you studied today.',
-      question3Placeholder: 'Your application phrase — shows on Home until you swap it.',
       pinConfirmText: 'Want to update the Home card to this new phrase?',
       pinConfirmYes: 'Update',
       pinConfirmNo: 'Keep current',
-      privacyNote: "What you write stays in your Library. Nothing goes to the group unless you tap share.",
-      swapQuestionsBtn: 'Swap questions',
-      swapping: 'Swapping...',
       saveAnswersBtn: 'Save',
       savedAnswersBtn: 'Saved',
       finishDayBtn: 'Finish the day',

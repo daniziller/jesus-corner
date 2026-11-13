@@ -182,7 +182,7 @@ export function pedidosTabs(list) {
   return tabs
 }
 
-export const RESPONSE_LABEL = { sim: 'Sim', nao: 'Não', espere: 'Espere', aprenda: 'Aprenda', se_mova: 'Se mova' }
+const RESPONSE_LABEL = { sim: 'Sim', nao: 'Não', espere: 'Espere', aprenda: 'Aprenda', se_mova: 'Se mova' }
 
 // Um pedido respondido: o selo da resposta (só "Sim" é cheio), "orado por
 // {tempo}" — do dia do pedido até o da resposta —, o pedido e, se houver,

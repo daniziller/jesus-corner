@@ -262,7 +262,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
         {/* Sem etapas: o cronômetro compartilhado conta o passo inteiro,
             em contagem regressiva contra o total configurado. */}
         <StepTimerCard
-          lang={lang} steps={null}
+          lang={lang}
           planSeconds={planSeconds} etapaSeconds={elapsed}
           etapaDurationSeconds={TOTAL_SECONDS}
           running={running} onToggle={toggleRunning} onStop={finishPrayer}

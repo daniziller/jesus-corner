@@ -402,7 +402,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
       <div style={styles.body}>
         {/* Livre — sem etapas, mesmo cronômetro compartilhado. */}
         <StepTimerCard
-          lang={lang} steps={null}
+          lang={lang}
           planSeconds={planSeconds} etapaSeconds={elapsed}
           etapaDurationSeconds={TOTAL_SECONDS}
           running={running} onToggle={toggleRunning} onStop={finishDay}

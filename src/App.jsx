@@ -3438,13 +3438,13 @@ export default function App() {
       session={session} done={guidedReadingComplete(completedSet)}
       onMarkDone={finishPhysicalReading} onReadInApp={continueToday} onBack={goBack}
     />,
-    // Pacote 36-37, 36d — "Pedidos de oração" (linha em 36b/36c). Push
-    // dentro de Meu Plano: fica fora de navHidden de propósito (barra de
-    // abas continua fixa no rodapé, ver handoff).
+    // "Pedidos de oração" (O1, handoff-passos-pedidos-53-54) — aberta pelo
+    // rótulo do cartão de pedidos da Súplica e pela linha da oração livre.
+    // Push dentro de Meu Plano: fica fora de navHidden de propósito (barra
+    // de abas continua fixa no rodapé).
     // Divisão de planos (2026): pedidos de oração é parte da Comunidade,
-    // portanto Premium — mesmo gate de groups/groupMessages acima. Fecha o
-    // desvio que existia via o link "Ver todos" da Súplica (PrayerScreen.jsx),
-    // que abre esta tela sem passar pela aba Meu Plano/Comunidade.
+    // portanto Premium — mesmo gate de groups/groupMessages acima, também
+    // para quem chega pela oração, sem passar pela aba Comunidade.
     prayerRequests: !hasPremium
       ? <PremiumRequired feature="prayerRequests" lang={session.lang} onNavigate={navigateTo} />
       : <PrayerRequestsScreen
@@ -3624,12 +3624,12 @@ export default function App() {
                 key troca ao concluir o passo e na virada do dia. */}
             {prayerVisitedRef.current && (
               <div style={{ display: activeTab === 'prayer' ? 'contents' : 'none' }}>
-                <PrayerScreen key={`${dateKey()}-${prayerRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'prayer'} onPrayerCompleted={finishPrayerStep} onContinueSession={continueToday} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
+                <PrayerScreen key={`${dateKey()}-${prayerRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'prayer'} onPrayerCompleted={finishPrayerStep} onNavigate={navigateTo} onExitGuided={exitGuidedRoutine} onBack={goBack} timerControlsRef={prayerTimerControlsRef} onTimerRunningChange={setPrayerTimerRunning} />
               </div>
             )}
             {reflectionVisitedRef.current && (
               <div style={{ display: activeTab === 'reflection' ? 'contents' : 'none' }}>
-                <ReflectionScreen key={`${dateKey()}-${reflectionRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'reflection'} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onNavigate={navigateTo} onContinueSession={continueToday} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
+                <ReflectionScreen key={`${dateKey()}-${reflectionRunKey}`} session={session} authUser={authUser} stepMinutes={stepMinutes} active={activeTab === 'reflection'} lastReadChapterInfo={lastReadChapterInfo} onReflectionCompleted={finishReflectionStep} onExitGuided={exitGuidedRoutine} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} timerControlsRef={reflectionTimerControlsRef} onTimerRunningChange={setReflectionTimerRunning} />
               </div>
             )}
             {hasPremium && notesVisitedRef.current && (

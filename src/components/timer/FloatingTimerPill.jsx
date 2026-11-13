@@ -1,7 +1,6 @@
 // FloatingTimerPill.jsx — pedido dela (2026-10-22): "o relógio continua
 // mesmo se ela sair [de Oração/Reflexão] e for pra outra área do app",
-// minimizado "como fica na Bíblia" (StepTimerPill.jsx, mesma ideia
-// compacta). Oração e Reflexão já ficam sempre montadas em segundo plano
+// minimizado, como a pílula do relógio nos passos. Oração e Reflexão já ficam sempre montadas em segundo plano
 // (prayerVisitedRef/reflectionVisitedRef, App.jsx) — o relógio em si
 // nunca parou de contar ao trocar de aba, só não tinha onde aparecer.
 //

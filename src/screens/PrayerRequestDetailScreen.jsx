@@ -2,12 +2,12 @@
 // comentários (pedido dela, 2026-09-19; ver migration 0070). Sem
 // referência visual pronta pra isso (o handoff original proibia
 // comentário) — desenhado seguindo os mesmos tokens/padrões do resto da
-// feature (PrayerRequestCard.jsx, AddPrayerRequestSheet.jsx).
+// feature.
 //
-// Aberto a partir de PrayerRequestsScreen.jsx (PD1), nas duas abas —
-// "Meus pedidos" e "Pedidos dos grupos". Reaproveita o mesmo card visual
-// pro corpo do pedido (topo) e adiciona a lista de comentários + campo
-// de novo comentário embaixo.
+// Aberto a partir da lista de pedidos (PrayerRequestsScreen.jsx, O1) — ao
+// tocar num pedido de outra pessoa ou num já respondido — e pela linha
+// "Comentários" de "Como Deus respondeu?". O pedido em cima, e embaixo a
+// lista de comentários + campo de novo comentário.
 //
 // Quem pode comentar: quem já pode VER o pedido (mesma regra de sempre —
 // autor, membro do grupo se for de grupo, amigo do autor se for de
