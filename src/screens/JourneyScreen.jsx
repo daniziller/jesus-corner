@@ -817,22 +817,11 @@ export default function JourneyScreen({
     onOpenBiblePassage?.(seg.book, seg.chapter)
   }
 
-  // Rascunho automático (Regra 3 da área inteira: "se salva sozinho, a
-  // cada pausa") — debounce de 1200ms após a última mudança no draft,
-  // mesma janela de saveStudyDayDraft/StudyDayScreen.jsx. Roda silencioso
-  // (sem sermonSaving/spinner — isso é só pro "Salvar" explícito).
-  const sermonAutosaveTimer = useRef(null)
-  const sermonDraftAtMountRef = useRef(sermonDraft)
-  useEffect(() => {
-    if (!sermonDraft || !authUser?.email) return
-    if (sermonDraft === sermonDraftAtMountRef.current) return
-    window.clearTimeout(sermonAutosaveTimer.current)
-    sermonAutosaveTimer.current = window.setTimeout(() => {
-      saveSermonNote(authUser.email, buildSermonPayload(sermonDraft, { trim: false })).catch(err => console.error('Failed to autosave sermon note', err))
-    }, 1200)
-    return () => window.clearTimeout(sermonAutosaveTimer.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sermonDraft, authUser?.email])
+  // Esta tela não grava mais o rascunho sozinha: quem escreve e grava a
+  // anotação é a página de anotação (AnotarScreen.jsx). Aqui o rascunho
+  // só é lido, para o lápis flutuante saber que há um em andamento —
+  // regravar daqui apagaria os campos que esta tela não conhece (as
+  // etiquetas e "Quem vê").
   // "Tem algo de verdade escrito?" — pra decidir, ao sair, se vira
   // registro definitivo ou some sem deixar rastro (pedido dela,
   // 2026-09-12): abrir "Anotar um sermão" sem querer e sair na hora não
@@ -857,8 +846,7 @@ export default function JourneyScreen({
   // sabe achar "o primeiro sem finalizedAt" — finalizar UM não tira o
   // lápis se sobra outro esquecido. Chamado sempre que uma anotação
   // NOVA de verdade começa: fecha qualquer outro rascunho aberto (nunca
-  // o que acabou de começar) — com conteúdo de verdade, finaliza
-  // (mesma regra de "fechar o app", ver commitSermonDraft); vazio,
+  // o que acabou de começar) — com conteúdo de verdade, finaliza; vazio,
   // apaga (mesma regra de "voltar sem ter escrito nada", ver
   // leaveSermonPage). Best-effort, em segundo plano — não trava a
   // pessoa esperando pra começar a escrever a nova.
@@ -883,54 +871,9 @@ export default function JourneyScreen({
     }
   }
 
-  // Comita o rascunho ATUAL — pedido dela (2026-09-12): "quando a pessoa
-  // fechar o app... guardar somente na biblioteca". Com conteúdo de
-  // verdade, vira um registro finalizado comum (a mesma anotação pode
-  // continuar recebendo edição via Biblioteca depois, como qualquer
-  // outra); sem nada digitado, simplesmente apaga — devolve o draft
-  // final (já com finalizedAt) pra quem chamou decidir o que fazer com o
-  // state local, ou null se apagou.
-  // Bug real (achado dela, 2026-09-19: "o lápis laranja continua na aba
-  // da Bíblia mesmo quando uma anotação não está ativa"). `null` aqui
-  // tinha dois sentidos diferentes — "não tinha nada pra fazer" (sem
-  // draft, ou sem sessão) E "apaguei o rascunho vazio" — e o chamador só
-  // tratava o segundo (`if (finalDraft) setSermonDraft(...)` ignorava
-  // ambos igualmente). Sem separar os dois casos, o state local
-  // (`sermonDraft`) nunca era limpo depois de apagar um rascunho vazio,
-  // então o lápis flutuante continuava aparecendo mesmo sem nenhuma
-  // anotação em andamento. Agora: `undefined` = não fez nada, state
-  // local intacto; `null` = apagou de vez, chamador precisa refletir
-  // isso limpando o state.
-  function commitSermonDraft() {
-    if (!sermonDraft || !authUser?.email) return undefined
-    if (!sermonDraftHasContent(sermonDraft)) {
-      deleteSermonNote(authUser.email, sermonDraft.id).catch(() => {})
-      return null
-    }
-    const finalDraft = { ...sermonDraft, finalizedAt: sermonDraft.finalizedAt ?? new Date().toISOString() }
-    saveSermonNote(authUser.email, buildSermonPayload(finalDraft, { trim: false })).catch(() => {})
-    return finalDraft
-  }
-
-  // "...e ao fechar o app" (pedido dela, 2026-09-12) — comita na hora ao
-  // perder foco, sem esperar o debounce do autosave (mesmo padrão de
-  // ReadingBlockView.jsx/PrayerScreen.jsx/ReflectionScreen.jsx pra
-  // "salvar ao sair"). Roda nas DUAS instâncias desta tela que podem ter
-  // um sermonDraft local — a de escrita (sermonNoteMode) e a da Bíblia
-  // com o lápis mostrando um rascunho em andamento — fechar o app em
-  // QUALQUER uma das duas finaliza de vez, sem "rascunho pendurado" se
-  // ela nunca mais voltar. Continua na tela (não navega), só mantém o
-  // state local coerente com o que já foi salvo como finalizado.
-  useEffect(() => {
-    function handleVisibility() {
-      if (!document.hidden) return
-      const finalDraft = commitSermonDraft()
-      if (finalDraft !== undefined) setSermonDraft(finalDraft)
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sermonDraft, authUser?.email])
+  // Fechar o app não finaliza mais a anotação em andamento (handoff-
+  // biblioteca-55, N2): o rascunho continua rascunho — o lápis continua
+  // aqui para retomar — e só "Finalizar", na página de anotação, encerra.
 
   // Botão de voltar da página (topo, sempre visível) — ajuste dela
   // (2026-09-12): voltar volta a ser um MINIMIZAR (não finaliza mais

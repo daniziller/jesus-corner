@@ -370,6 +370,13 @@ body {
   position: absolute;
   inset: -10px -2px;
 }
+/* A página de anotação (handoff-biblioteca-55 §7A): o texto de apoio dos
+   campos — "Comece a escrever…", "Quem falou". */
+.anotar-campo::placeholder {
+  color: var(--bento-t4);
+  font-weight: 500;
+  opacity: 1;
+}
 /* O rótulo "PEDIDOS DE ORAÇÃO" da Súplica abre a lista: 9.5px de texto,
    44px de área de toque. */
 .passo-rotulo {
