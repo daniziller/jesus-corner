@@ -3,6 +3,7 @@
 import {
   plural, sinceMonth, profileStats, avatarCrop, AVATAR_SIZE, newsCard, waitingItems, groupRowSub, groupRows, GROUPS_SHOWN, friendTiles, FRIENDS_SHOWN,
   todayReading, readingProgress, challengePercent, challengeBoard, groupTiles, leavePlan,
+  daysLeft, nextChallengeChapter, pastChallengeSummary, challengeFormError, challengeEnd, prayerLists, markPrayed, talkLists, commentActions, toggleLike, invitableFriends, MAX_PINNED,
 } from '../src/comunidade/comunidadeMath.js'
 
 let failures = 0
@@ -111,6 +112,48 @@ check('sair: membro só sai', leavePlan(membros, 'u2'), 'leave')
 check('sair: moderador com outro moderador no grupo só sai', leavePlan(membros, 'u1'), 'leave')
 check('sair: única moderadora com outras pessoas escolhe quem assume', leavePlan([{ userId: 'u1', role: 'moderator' }, { userId: 'u2', role: 'member' }], 'u1'), 'pickModerator')
 check('sair: única pessoa do grupo — sair é apagar', leavePlan([{ userId: 'u1', role: 'moderator' }], 'u1'), 'deleteGroup')
+
+// ── Desafio ──
+const agora = new Date(2026, 10, 14, 15, 0, 0)
+check('dias que faltam: termina hoje = 0; amanhã à noite = 1; já acabou = 0', [daysLeft(new Date(2026, 10, 14, 23, 59).toISOString(), agora), daysLeft(new Date(2026, 10, 15, 23, 59).toISOString(), agora), daysLeft(new Date(2026, 10, 20, 23, 59).toISOString(), agora), daysLeft(new Date(2026, 10, 1).toISOString(), agora)], [0, 1, 6, 0])
+check('próximo capítulo do desafio: o primeiro por ler, na ordem dos livros', [nextChallengeChapter({ books: ['Marcos', 'Rute'] }, chaves(10), capitulos), nextChallengeChapter({ books: ['Marcos', 'Rute'] }, chaves(16), capitulos), nextChallengeChapter({ books: ['Marcos'] }, chaves(16), capitulos), nextChallengeChapter({ books: ['Marcos'] }, null, capitulos)], [{ book: 'Marcos', chapter: 11 }, { book: 'Rute', chapter: 1 }, null, { book: 'Marcos', chapter: 1 }])
+check('desafio que acabou: quantos participaram e quantos leram tudo', pastChallengeSummary({ books: ['Marcos'] }, [{ userId: 'a', completedKeys: chaves(16) }, { userId: 'b', completedKeys: chaves(16) }, { userId: 'c', completedKeys: chaves(3) }], capitulos), { participants: 3, finished: 2 })
+check('propor desafio: falta nome, falta livro, falta data — nessa ordem', [challengeFormError({ name: ' ', books: [], duration: '7d' }), challengeFormError({ name: 'X', books: [], duration: '7d' }), challengeFormError({ name: 'X', books: ['Rute'], duration: 'custom', customDate: '' }), challengeFormError({ name: 'X', books: ['Rute'], duration: 'custom', customDate: '2026-12-01' }), challengeFormError({ name: 'X', books: ['Rute'], duration: '14d' })], ['community.challengeNeedsName', 'community.challengeNeedsBook', 'community.challengeNeedsDate', null, null])
+check('fim do desafio: daqui a 7, 14 ou 30 dias', ['7d', '14d', '30d'].map(d => Math.round((new Date(challengeEnd({ duration: d }, agora)) - agora) / 86400000)), [7, 14, 30])
+const fim = new Date(challengeEnd({ duration: 'custom', customDate: '2026-10-30' }, agora))
+check('data escolhida: vale até o fim daquele dia, no fuso de quem propõe', [fim.getFullYear(), fim.getMonth() + 1, fim.getDate(), fim.getHours(), fim.getMinutes()], [2026, 10, 30, 23, 59])
+
+// ── Pedidos de oração ──
+const pedidosDoGrupo = [
+  { id: 'p1', status: 'open', prayCount: 4, prayingByMe: false, prayedEver: false },
+  { id: 'p2', status: 'open', prayCount: 9, prayingByMe: false, prayedEver: true },
+  { id: 'p3', status: 'open', prayCount: 6, isMine: true },
+  { id: 'p4', status: 'closed', prayCount: 3 },
+]
+check('pedidos: abertos e encerrados, cada um na sua lista', [prayerLists(pedidosDoGrupo).open.map(p => p.id), prayerLists(pedidosDoGrupo).closed.map(p => p.id), prayerLists(null)], [['p1', 'p2', 'p3'], ['p4'], { open: [], closed: [] }])
+const orei = markPrayed(pedidosDoGrupo, 'p1')
+check('"Orei por isso" pela primeira vez: marca o dia e soma uma pessoa', orei.requests[0], { id: 'p1', status: 'open', prayCount: 5, prayingByMe: true, prayedEver: true })
+check('…e desfazer volta exatamente ao que era', orei.undo(orei.requests)[0], pedidosDoGrupo[0])
+const oreiDeNovo = markPrayed(pedidosDoGrupo, 'p2')
+check('quem já orou em outro dia: marca hoje, sem contar de novo', [oreiDeNovo.requests[1].prayingByMe, oreiDeNovo.requests[1].prayCount, oreiDeNovo.undo(oreiDeNovo.requests)[1]], [true, 9, pedidosDoGrupo[1]])
+check('no próprio pedido, ou em quem já orou hoje, não faz nada', [markPrayed(pedidosDoGrupo, 'p3').requests === pedidosDoGrupo, markPrayed(orei.requests, 'p1').requests === orei.requests, markPrayed(pedidosDoGrupo, 'nao-existe').requests === pedidosDoGrupo], [true, true, true])
+
+// ── Conversa ──
+const recadosDoGrupo = [
+  { id: 'c1', userId: 'u1', createdAt: '2026-11-10T10:00:00Z', pinned: false, likeCount: 2, likedByMe: false },
+  { id: 'c2', userId: 'u2', createdAt: '2026-11-12T10:00:00Z', pinned: true, pinnedAt: '2026-11-13T09:00:00Z', likeCount: 0, likedByMe: false },
+  { id: 'c3', userId: 'u3', createdAt: '2026-11-13T10:00:00Z', pinned: false, likeCount: 5, likedByMe: true },
+  { id: 'c4', userId: 'u1', createdAt: '2026-11-01T10:00:00Z', pinned: true, pinnedAt: '2026-11-02T09:00:00Z', likeCount: 1, likedByMe: false },
+]
+check('conversa: fixados na ordem em que foram fixados; os demais, do mais novo pro mais antigo', [talkLists(recadosDoGrupo).pinned.map(c => c.id), talkLists(recadosDoGrupo).regular.map(c => c.id)], [['c4', 'c2'], ['c3', 'c1']])
+check('membro comum: apaga o que é seu, denuncia o que é dos outros', [commentActions(recadosDoGrupo[2], { myUserId: 'u3', isModerator: false, pinnedCount: 2 }), commentActions(recadosDoGrupo[0], { myUserId: 'u3', isModerator: false, pinnedCount: 2 })], [['delete'], ['report']])
+check('moderador: fixa, apaga e denuncia o dos outros; desafixa o fixado; no seu, fixa e apaga', [commentActions(recadosDoGrupo[0], { myUserId: 'u9', isModerator: true, pinnedCount: 2 }), commentActions(recadosDoGrupo[1], { myUserId: 'u9', isModerator: true, pinnedCount: 2 }), commentActions(recadosDoGrupo[0], { myUserId: 'u1', isModerator: true, pinnedCount: 0 })], [['pin', 'delete', 'report'], ['unpin', 'delete', 'report'], ['pin', 'delete']])
+check(`com ${MAX_PINNED} fixados, não dá para fixar mais um`, commentActions(recadosDoGrupo[0], { myUserId: 'u9', isModerator: true, pinnedCount: MAX_PINNED }), ['delete', 'report'])
+check('curtir soma; curtir de novo tira — e volta ao que era', [toggleLike(recadosDoGrupo, 'c1')[0].likeCount, toggleLike(recadosDoGrupo, 'c1')[0].likedByMe, toggleLike(recadosDoGrupo, 'c3')[2].likeCount, toggleLike(toggleLike(recadosDoGrupo, 'c1'), 'c1')[0]], [3, true, 4, recadosDoGrupo[0]])
+
+// ── Pessoas ──
+check('convidar: só os amigos que ainda não estão no grupo', invitableFriends([{ userId: 'u1' }, { userId: 'x7' }, { userId: 'x8' }], membros).map(f => f.userId), ['x7', 'x8'])
+check('…sem amigos, ou todos já no grupo, lista vazia', [invitableFriends(null, membros), invitableFriends([{ userId: 'u2' }], membros)], [[], []])
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)

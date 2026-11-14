@@ -175,3 +175,115 @@ export function leavePlan(members, myUserId) {
   if (me?.role !== 'moderator' || others.some(m => m.role === 'moderator')) return 'leave'
   return others.length === 0 ? 'deleteGroup' : 'pickModerator'
 }
+
+// ── Desafio do grupo ────────────────────────────────────────────────────
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Quantos dias faltam pro desafio acabar (0 = termina hoje).
+export function daysLeft(endsAt, now = new Date()) {
+  return Math.max(0, Math.ceil((new Date(endsAt).getTime() - now.getTime()) / DAY_MS) - 1)
+}
+
+// O próximo capítulo a ler num desafio: o primeiro, na ordem dos livros do
+// desafio, que a pessoa ainda não leu nele. null com tudo lido.
+export function nextChallengeChapter(challenge, myKeys, chapterCounts) {
+  const read = new Set(myKeys ?? [])
+  for (const book of challenge.books) {
+    for (let ch = 1; ch <= (chapterCounts[book] ?? 0); ch++) if (!read.has(`${book}:${ch}`)) return { book, chapter: ch }
+  }
+  return null
+}
+
+// Um desafio que já acabou, numa linha: quantos participaram e quantos
+// leram tudo.
+export function pastChallengeSummary(challenge, leaderboard, chapterCounts) {
+  const board = challengeBoard(challenge, leaderboard, chapterCounts, null)
+  return { participants: board.rows.length, finished: board.rows.filter(r => r.percent === 100).length }
+}
+
+export const CHALLENGE_DURATIONS = [{ id: '7d', days: 7 }, { id: '14d', days: 14 }, { id: '30d', days: 30 }]
+
+// O que falta pra propor um desafio (a chave da frase), ou null se está
+// tudo preenchido.
+export function challengeFormError({ name, books, duration, customDate }) {
+  if (!(name ?? '').trim()) return 'community.challengeNeedsName'
+  if (!books || books.length === 0) return 'community.challengeNeedsBook'
+  if (duration === 'custom' && !customDate) return 'community.challengeNeedsDate'
+  return null
+}
+
+// Quando o desafio termina: daqui a N dias, ou no FIM do dia escolhido, no
+// fuso de quem propõe (`new Date('AAAA-MM-DD')` é meia-noite UTC — um
+// desafio "até 30/10" acabava às 21h de 29/10 no Brasil).
+export function challengeEnd({ duration, customDate }, now = new Date()) {
+  if (duration === 'custom') {
+    const [y, m, d] = customDate.split('-').map(Number)
+    return new Date(y, m - 1, d, 23, 59, 59, 999).toISOString()
+  }
+  const preset = CHALLENGE_DURATIONS.find(p => p.id === duration) ?? CHALLENGE_DURATIONS[0]
+  return new Date(now.getTime() + preset.days * DAY_MS).toISOString()
+}
+
+// ── Pedidos de oração do grupo ──────────────────────────────────────────
+
+// Os pedidos do grupo em duas listas: os abertos (como vieram, mais novos
+// primeiro) e os encerrados.
+export function prayerLists(requests) {
+  const list = requests ?? []
+  return { open: list.filter(r => r.status !== 'closed'), closed: list.filter(r => r.status === 'closed') }
+}
+
+// "Orei por isso" num pedido da lista: marca o dia e, só na primeira vez
+// desta pessoa neste pedido, soma uma pessoa. `undo` desfaz exatamente
+// isso (quando a gravação falha).
+export function markPrayed(requests, id) {
+  const target = requests.find(r => r.id === id)
+  if (!target || target.isMine || target.prayingByMe) return { requests, undo: list => list }
+  const first = !target.prayedEver
+  return {
+    requests: requests.map(r => (r.id === id ? { ...r, prayingByMe: true, prayedEver: true, prayCount: first ? r.prayCount + 1 : r.prayCount } : r)),
+    undo: list => list.map(r => (r.id === id ? { ...r, prayingByMe: false, prayedEver: !first, prayCount: first ? Math.max(0, r.prayCount - 1) : r.prayCount } : r)),
+  }
+}
+
+// ── Conversa do grupo ───────────────────────────────────────────────────
+
+export const MAX_PINNED = 3
+
+// Os recados em duas listas: os fixados (na ordem em que foram fixados) e
+// os demais, do mais novo pro mais antigo.
+export function talkLists(comments) {
+  const list = comments ?? []
+  return {
+    pinned: list.filter(c => c.pinned).sort((a, b) => String(a.pinnedAt ?? '').localeCompare(String(b.pinnedAt ?? ''))),
+    regular: list.filter(c => !c.pinned).sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))),
+  }
+}
+
+// O que a pessoa pode fazer com um recado, na ordem do menu: moderador
+// fixa (até MAX_PINNED) e desafixa; autor e moderador apagam; os outros
+// denunciam.
+export function commentActions(comment, { myUserId, isModerator, pinnedCount }) {
+  const mine = comment.userId === myUserId
+  return [
+    ...(isModerator && comment.pinned ? ['unpin'] : []),
+    ...(isModerator && !comment.pinned && pinnedCount < MAX_PINNED ? ['pin'] : []),
+    ...(mine || isModerator ? ['delete'] : []),
+    ...(!mine ? ['report'] : []),
+  ]
+}
+
+// Curtir ou descurtir um recado da lista (e o mesmo de volta, se a
+// gravação falhar — é só alternar de novo).
+export function toggleLike(comments, id) {
+  return comments.map(c => (c.id === id ? { ...c, likedByMe: !c.likedByMe, likeCount: Math.max(0, c.likeCount + (c.likedByMe ? -1 : 1)) } : c))
+}
+
+// ── Pessoas do grupo ────────────────────────────────────────────────────
+
+// Os amigos que ainda não estão no grupo (os que dá pra convidar).
+export function invitableFriends(friends, members) {
+  const inGroup = new Set((members ?? []).map(m => m.userId))
+  return (friends ?? []).filter(f => !inGroup.has(f.userId))
+}

@@ -17,7 +17,7 @@ import { getPrayerRequestsFeed } from '../../groups/prayerRequestsStore'
 import { getComments } from '../../groups/commentsStore'
 import { getChallengesForGroup, getChallengeLeaderboard } from '../../groups/challengesStore'
 import { orarPor } from '../../pedidos/orei'
-import { plural, todayReading, readingProgress, challengeBoard, groupTiles } from '../../comunidade/comunidadeMath'
+import { plural, todayReading, readingProgress, challengeBoard, groupTiles, markPrayed } from '../../comunidade/comunidadeMath'
 
 const FONT = 'var(--font-bento)'
 const TONES = ['var(--bento-accent)', 'var(--bento-sand)', 'var(--bento-mark)']
@@ -75,18 +75,13 @@ export default function GrupoInicio({
   const latestNote = comments?.length ? comments[comments.length - 1] : null
   const nameOf = item => (item.anonymous ? L('anonymous') : item.authorName)
 
-  // "Orei por isso" marca o dia, não o toque: uma vez marcado hoje, não faz
-  // mais nada até o dia virar. O número conta pessoas — só sobe na primeira
-  // vez que esta pessoa ora por este pedido. Se a gravação falhar, volta.
+  // "Orei por isso" marca o dia e conta pessoas, não toques (markPrayed);
+  // se a gravação falhar, volta ao que era.
   function pray() {
-    if (!latestPrayer || latestPrayer.isMine || latestPrayer.prayingByMe) return
-    const first = !latestPrayer.prayedEver
-    const patch = change => setPrayers(list => list.map(p => (p.id === latestPrayer.id ? change(p) : p)))
-    patch(p => ({ ...p, prayingByMe: true, prayedEver: true, prayCount: first ? p.prayCount + 1 : p.prayCount }))
-    api.pray(latestPrayer).catch(err => {
-      console.error('[grupo] orei', err)
-      patch(p => ({ ...p, prayingByMe: false, prayedEver: !first, prayCount: first ? Math.max(0, p.prayCount - 1) : p.prayCount }))
-    })
+    const { requests, undo } = markPrayed(prayers, latestPrayer.id)
+    if (requests === prayers) return
+    setPrayers(requests)
+    api.pray(latestPrayer).catch(err => { console.error('[grupo] orei', err); setPrayers(undo) })
   }
 
   const chapterLabel = reading ? `${lang === 'en' ? reading.bookEn : reading.book} ${reading.chStart}${reading.chEnd !== reading.chStart ? `–${reading.chEnd}` : ''}` : ''

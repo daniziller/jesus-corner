@@ -3421,7 +3421,7 @@ export default function App() {
     verseNote: <NotaDeVersiculoScreen lang={session.lang} groups={myGroups} highlightId={verseNoteTarget.highlightId ?? null} onClose={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
-      : <GroupsScreen session={session} authUser={authUser} avatarUrl={myAvatarUrl} onAvatarChange={setMyAvatarUrl} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
+      : <GroupsScreen session={session} authUser={authUser} avatarUrl={myAvatarUrl} onAvatarChange={setMyAvatarUrl} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenBiblePassage={openBiblePassage} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
     // Caixa de mensagens (33b) — página própria, aberta pelo sino de 33a;
     // "Ver" num grupo/pedido de amizade volta pra Comunidade (groups) já
     // no lugar certo, via groupsEntryTarget acima.
