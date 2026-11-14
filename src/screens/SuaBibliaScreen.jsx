@@ -19,6 +19,7 @@ import { formatInt, formatPct, deOf, monthYearLong } from '../gamification/forma
 import { getAllChapterReadRows } from '../bible/chapterReadLog'
 import { getAllSessions } from '../metrics/sessionDurationStore'
 import { t } from '../i18n'
+import ReiniciarLeituraSheet from '../components/biblia/ReiniciarLeituraSheet'
 
 const FONT = 'var(--font-bento)'
 const MODES = [['livros', 'Livros'], ['capitulos', 'Capítulos']]
@@ -40,10 +41,12 @@ function lastCompletedBook(progress, completionDates) {
   return best?.nome ?? progress.completos[progress.completos.length - 1] ?? null
 }
 
-export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenBook, onOpenSelo, onOpenEstante }) {
+export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenBook, onOpenSelo, onOpenEstante, onRestartReading, restartAuth }) {
   const { lang, todaySession, dailyRoutine } = session
   const [mode, setMode] = useState(getWheelMode)
   const [rows, setRows] = useState(null) // { chapterRows, sessionRows } — só pra datas/ritmo
+  // "Reiniciar a leitura do zero": a folha com o que reiniciar e a senha.
+  const [restartOpen, setRestartOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -154,7 +157,20 @@ export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenB
             </div>
           </div>
         </div>
+
+        {onRestartReading && (
+          <button type="button" style={s.restart} onClick={() => setRestartOpen(true)}>
+            <AppIcon name="RefreshCw" size={14} strokeWidth={2.2} color="var(--bento-t3)" />
+            {t('restartReading.open', undefined, lang)}
+          </button>
+        )}
       </div>
+      {restartOpen && (
+        <ReiniciarLeituraSheet
+          lang={lang} auth={restartAuth}
+          onClose={() => setRestartOpen(false)} onRestart={onRestartReading} onDone={() => setRestartOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -184,6 +200,7 @@ const s = {
   bar: { display: 'block', height: 6, borderRadius: 99, overflow: 'hidden' },
   barFill: { display: 'block', height: '100%', borderRadius: 99 },
   blockBooks: { fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: 'var(--bento-t4)' },
+  restart: { alignSelf: 'center', minHeight: 44, border: 'none', background: 'none', padding: '0 14px', marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },
   sandCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '16px 18px 18px' },
   sandLabel: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-sand-label)', margin: '0 0 14px' },
   miniRow: { display: 'flex', justifyContent: 'space-around', gap: 8 },

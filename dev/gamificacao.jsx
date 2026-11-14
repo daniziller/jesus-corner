@@ -15,6 +15,7 @@
 //      p1i interrompido · p3 tudo feito · p4 descanso · um · quatro · p5 dia de estudo) + semplano · erro · carregando
 //      Ordem do plano (35i): tela=ordem — "Leitura da Bíblia" com a fila do plano de verdade. &ordem=canonical|chronological|custom|free
 //      · &livros=João,Salmos,Rute (minha ordem) · &partida=Salmos:23 · &livre=João:3 · &abrir=leitura (a leitura do plano)
+//      Reiniciar a leitura do zero: tela=suaBiblia — o botão no fim da tela; a senha de mentira é "certa123". &senha=nao · &rede=fora · &gravar=falha
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
@@ -104,6 +105,7 @@ import AddStudyScreen from '../src/screens/AddStudyScreen'
 import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSummary, studyItems, typeMeta } from '../src/biblioteca/bibliotecaMath'
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
 import ReadingOrganizeScreen from '../src/screens/ReadingOrganizeScreen'
+import { restartReading } from '../src/reading/reiniciarStore'
 import { planQueue, splitPointsFor, findPlanSession, sessionAt, resolveNextChapter } from '../src/reading/bibleOrderMath'
 import { deriveChronoProgress } from '../src/data/chronologicalPlan'
 import { linhaDeExemplo, perguntasDeExemplo, leiturasDeExemplo, buscasRecentesDeExemplo } from './bibliotecaFixture'
@@ -830,6 +832,34 @@ const meusEstudosDePreview = (() => {
   }
 })()
 
+// Sua Bíblia com "Reiniciar a leitura do zero" de verdade sobre os dados
+// locais do preview (restartReading grava na linha de convidado). A senha
+// é de mentira: "certa123" confere; &senha=nao simula a conta sem senha
+// (Google/Apple); &rede=fora faz a conferência falhar; &gravar=falha faz o
+// reinício falhar depois da senha certa.
+const restartAuthDePreview = {
+  hasPassword: async () => params.get('senha') !== 'nao',
+  check: async senha => {
+    await new Promise(r => setTimeout(r, 250))
+    if (params.get('rede') === 'fora') throw new Error('unavailable')
+    return senha === 'certa123'
+  },
+}
+function SuaBibliaPreview({ onBack }) {
+  const [done, setDone] = useState(completedSet)
+  return (
+    <SuaBibliaScreen
+      session={session} authUser={authUser} completedSet={done} onBack={onBack} onOpenBook={nome => alert(`abrir ${nome} na Bíblia`)}
+      restartAuth={restartAuthDePreview}
+      onRestartReading={async extras => {
+        if (params.get('gravar') === 'falha') throw new Error('sem rede')
+        await restartReading(extras)
+        setDone(new Set())
+      }}
+    />
+  )
+}
+
 // "Leitura da Bíblia" (35i) com a fila do plano de verdade: a ordem, os
 // livros de "minha ordem" e o ponto de partida ficam na memória, e a faixa
 // de cima mostra a sessão de hoje que sai deles — as mesmas contas de
@@ -984,7 +1014,7 @@ function Preview() {
   } else if (screen === 'novaConquista') {
     body = gamiData ? <NovaConquistaScreen celebration={{ kind: celebId.startsWith('bloco:') ? 'bloco' : 'degrau', id: celebId }} data={gamiData} userName="Diego" onContinue={() => setScreen('hoje')} onOpenConquistas={() => setScreen('conquistas')} /> : null
   } else if (screen === 'suaBiblia') {
-    body = <SuaBibliaScreen {...common} onBack={() => setScreen('hoje')} onOpenBook={nome => alert(`abrir ${nome} na Bíblia`)} />
+    body = <SuaBibliaPreview onBack={() => setScreen('hoje')} />
   } else if (params.get('parahoje') === 'todas') {
     // As cinco linhas de "Para hoje" juntas (o desafio do grupo depende de
     // um grupo de verdade, então a lista é montada aqui com paraHojeRows).

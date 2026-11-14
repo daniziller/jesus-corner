@@ -65,6 +65,16 @@ export async function selectRows(table) {
   return data ?? []
 }
 
+// Apaga todas as linhas da pessoa numa tabela (a conta, ou o array local
+// do convidado) — usado por "Reiniciar a leitura do zero" quando ela pede
+// pra apagar também as datas de leitura (ver reiniciarStore.js).
+export async function deleteRows(table) {
+  const userId = await getUserId()
+  if (!userId) { writeGuestRows(table, []); return }
+  const { error } = await supabase.from(table).delete().eq('user_id', userId)
+  if (error) throw error
+}
+
 // Copia as linhas de convidado de UMA tabela pra dentro da conta recém-
 // autenticada, e apaga o local — chamada por migrateGuestExtraTables()
 // abaixo, junto com migrateGuestRow() (ver App.jsx). `ignoreDuplicates`
