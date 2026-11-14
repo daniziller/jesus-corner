@@ -33,7 +33,7 @@ export const e = {
   error: { fontFamily: FONT, fontSize: 12.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-now-text)', margin: 0 },
   skeleton: { flexShrink: 0, borderRadius: 24, background: 'var(--bento-line)' },
   sheetTitle: { fontFamily: FONT, fontSize: 20, fontWeight: 800, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: '0 0 6px' },
-  sheetRow: { width: '100%', minHeight: 56, border: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+  sheetRow: { width: '100%', minHeight: 56, borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
 }
 
 export function Esqueleto({ heights }) {

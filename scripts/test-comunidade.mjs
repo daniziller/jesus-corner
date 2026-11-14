@@ -4,6 +4,7 @@ import {
   plural, sinceMonth, profileStats, avatarCrop, AVATAR_SIZE, newsCard, waitingItems, groupRowSub, groupRows, GROUPS_SHOWN, friendTiles, FRIENDS_SHOWN,
   todayReading, readingProgress, challengePercent, challengeBoard, groupTiles, leavePlan,
   daysLeft, nextChallengeChapter, pastChallengeSummary, challengeFormError, challengeEnd, prayerLists, markPrayed, talkLists, commentActions, toggleLike, invitableFriends, MAX_PINNED,
+  friendsHeader, friendLine, friendSuggestions, requestOrigin, friendSearch,
 } from '../src/comunidade/comunidadeMath.js'
 
 let failures = 0
@@ -154,6 +155,18 @@ check('curtir soma; curtir de novo tira — e volta ao que era', [toggleLike(rec
 // ── Pessoas ──
 check('convidar: só os amigos que ainda não estão no grupo', invitableFriends([{ userId: 'u1' }, { userId: 'x7' }, { userId: 'x8' }], membros).map(f => f.userId), ['x7', 'x8'])
 check('…sem amigos, ou todos já no grupo, lista vazia', [invitableFriends(null, membros), invitableFriends([{ userId: 'u2' }], membros)], [[], []])
+
+// ── Amigos ──
+check('cabeçalho de Amigos: quantos amigos e, se houver, quantos pedidos — com plural', [friendsHeader(5, 1).map(p => p.key), friendsHeader(1, 3).map(p => p.key), friendsHeader(0, 0).map(p => p.key)], [['community.friendsCountMany', 'community.requestsCountOne'], ['community.friendsCountOne', 'community.requestsCountMany'], ['community.friendsCountMany']])
+check('linha do amigo: o que está lendo e quanto leu; perfil privado; nada enquanto carrega', [friendLine({ isPublic: true }, { block: 'Evangelhos e Atos', blockEn: 'Gospels and Acts', percent: 38 }), friendLine({ isPublic: false }, null), friendLine(null, null)], [{ key: 'community.friendReading', vars: { block: 'Evangelhos e Atos', blockEn: 'Gospels and Acts', percent: 38 } }, { key: 'community.friendPrivate', vars: {} }, null])
+const gruposComGente = [
+  { name: 'Grupo Semente', members: [{ userId: 'eu', name: 'Eu' }, { userId: 'a', name: 'Ana' }, { userId: 'b', name: 'Bia' }, { userId: 'c', name: 'Caio' }] },
+  { name: 'Família', members: [{ userId: 'b', name: 'Bia' }, { userId: 'd', name: 'Davi' }, { userId: 'e', name: 'Eva' }] },
+]
+check('sugestões: gente dos grupos que não é amiga nem tem pedido pendente, uma vez só, com o primeiro grupo em comum', friendSuggestions(gruposComGente, 'eu', [{ userId: 'a' }], [{ userId: 'd' }]), [{ userId: 'b', name: 'Bia', groupName: 'Grupo Semente' }, { userId: 'c', name: 'Caio', groupName: 'Grupo Semente' }, { userId: 'e', name: 'Eva', groupName: 'Família' }])
+check('…no máximo o pedido; sem grupos, nenhuma', [friendSuggestions(gruposComGente, 'eu', [], [], 2).length, friendSuggestions([], 'eu', [], [])], [2, []])
+check('de onde é quem pediu amizade: o grupo em comum, ou nada', [requestOrigin({ userId: 'e' }, gruposComGente), requestOrigin({ userId: 'zz' }, gruposComGente)], ['Família', null])
+check('busca: e-mail vai por e-mail; o resto é @usuário, com ou sem @', [friendSearch(' ana@exemplo.com '), friendSearch('@ana.silva'), friendSearch('ana'), friendSearch('   ')], [{ by: 'email', value: 'ana@exemplo.com' }, { by: 'username', value: 'ana.silva' }, { by: 'username', value: 'ana' }, null])
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)

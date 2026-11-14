@@ -242,7 +242,7 @@ const s = {
   leave: { height: 44, flexShrink: 0, border: 'none', background: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-t2)', cursor: 'pointer' },
 
   sheetTitle: { fontFamily: FONT, fontSize: 20, fontWeight: 800, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: '0 0 6px' },
-  sheetRow: { width: '100%', minHeight: 66, border: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', fontFamily: FONT, color: 'var(--bento-ink)', cursor: 'pointer' },
+  sheetRow: { width: '100%', minHeight: 66, borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', fontFamily: FONT, color: 'var(--bento-ink)', cursor: 'pointer' },
   sheetIcon: { width: 40, height: 40, flexShrink: 0, borderRadius: 14, background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   sheetText: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 },
   sheetRowTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 800 },

@@ -287,3 +287,48 @@ export function invitableFriends(friends, members) {
   const inGroup = new Set((members ?? []).map(m => m.userId))
   return (friends ?? []).filter(f => !inGroup.has(f.userId))
 }
+
+// ── Amigos ──────────────────────────────────────────────────────────────
+
+// "5 amigos · 1 pedido" — a linha de apoio do cabeçalho de Amigos.
+export function friendsHeader(friends, pending) {
+  return [plural('community.friendsCount', friends), ...(pending > 0 ? [plural('community.requestsCount', pending)] : [])]
+}
+
+// A linha de apoio de um amigo na lista: o bloco que ele está lendo e
+// quanto da Bíblia já leu — ou "Perfil privado". `reading` vem pronto de
+// quem lê o progresso ({ block, blockEn, percent }); null enquanto carrega.
+export function friendLine(summary, reading) {
+  if (!summary) return null
+  if (!summary.isPublic || !reading) return { key: 'community.friendPrivate', vars: {} }
+  return { key: 'community.friendReading', vars: { block: reading.block, blockEn: reading.blockEn, percent: reading.percent } }
+}
+
+// Quem sugerir como amigo: gente dos grupos da pessoa que ainda não é
+// amiga nem tem pedido pendente — cada um uma vez só, com o primeiro
+// grupo em comum, no máximo `max`.
+export const SUGGESTIONS_SHOWN = 6
+export function friendSuggestions(groups, myUserId, friends, pending, max = SUGGESTIONS_SHOWN) {
+  const skip = new Set([myUserId, ...(friends ?? []).map(f => f.userId), ...(pending ?? []).map(p => p.userId)])
+  const seen = new Map()
+  for (const group of groups ?? []) {
+    for (const m of group.members ?? []) {
+      if (!skip.has(m.userId) && !seen.has(m.userId)) seen.set(m.userId, { userId: m.userId, name: m.name, groupName: group.name })
+    }
+  }
+  return [...seen.values()].slice(0, max)
+}
+
+// De qual grupo é quem pediu amizade (o primeiro em comum), pra linha
+// "Do Grupo Semente"; null se não é de grupo nenhum da pessoa.
+export function requestOrigin(request, groups) {
+  return (groups ?? []).find(g => (g.members ?? []).some(m => m.userId === request.userId))?.name ?? null
+}
+
+// A busca de Amigos manda o pedido por e-mail quando o texto parece um
+// e-mail; senão trata como @usuário (com ou sem o @).
+export function friendSearch(text) {
+  const clean = (text ?? '').trim()
+  if (!clean) return null
+  return clean.includes('@') && clean.includes('.') && !clean.startsWith('@') ? { by: 'email', value: clean } : { by: 'username', value: clean.replace(/^@/, '') }
+}

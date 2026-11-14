@@ -20,6 +20,7 @@
 //      · &carregando=sim · &foto=sim · &envio=falha · &responder=falha. Código que entra: BC-4271 (JA = já pediu; outro = inválido)
 //      tela=grupo — a tela de um grupo. &leitura=nao · &pedido=nenhum|meu|orei · &recado=nenhum · &desafio=nao · &aviso=nao · &orar=falha · &sair=falha
 //      tela=grupo&ver=desafio|oracao|conversa|pessoas — as telas de dentro do grupo, com dados na memória. &moderador=nao · &vazio=sim · &rede=fora · &convidar=sim
+//      tela=amigos — a tela de Amigos. &amigos=0 · &pedidos=0 · &grupos=nao · &rede=fora
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
@@ -116,6 +117,7 @@ import GrupoDesafio from '../src/components/comunidade/GrupoDesafio'
 import GrupoOracao from '../src/components/comunidade/GrupoOracao'
 import GrupoConversa from '../src/components/comunidade/GrupoConversa'
 import GrupoPessoas from '../src/components/comunidade/GrupoPessoas'
+import AddFriendsScreen from '../src/screens/AddFriendsScreen'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks'
 import { squareAvatarBlob } from '../src/profile/avatarImage'
 import { restartReading } from '../src/reading/reiniciarStore'
@@ -995,6 +997,33 @@ function ParteDoGrupoPreview({ ver }) {
   )
 }
 
+// A tela de Amigos com dados na memória (aceitar, adicionar e procurar
+// respondem como o app). Procurar "ana" ou um e-mail envia; "ninguem" não acha.
+function AmigosPreview() {
+  const fora = params.get('rede') === 'fora'
+  const gravar = async (nome, ...dados) => { await new Promise(r => setTimeout(r, 200)); if (fora) throw new Error('sem rede'); window.__chamadas = [...(window.__chamadas ?? []), [nome, ...dados].join(':')] }
+  const banco = useState(() => ({
+    amigos: params.get('amigos') === '0' ? [] : ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida'].map((name, i) => ({ friendshipId: `f${i}`, userId: `u${i}`, name, avatarUrl: null })),
+    pedidos: params.get('pedidos') === '0' ? [] : [{ friendshipId: 'f9', userId: 'x9', name: 'Lucas Mendes', avatarUrl: null }],
+  }))[0]
+  const lido = n => Array.from({ length: n }, (_, i) => `Gênesis:${i + 1}`)
+  return (
+    <AddFriendsScreen
+      session={{ ...session, lang: 'pt' }} authUser={{ ...authUser, id: 'eu', name: 'Diego' }} onBack={() => alert('voltar para a Comunidade')} onChange={() => {}}
+      api={{
+        friends: async () => banco.amigos, pending: async () => banco.pedidos,
+        groups: async () => (params.get('grupos') === 'nao' ? [] : [{ name: 'Grupo Semente', members: [{ userId: 'eu', name: 'Diego' }, { userId: 'u0', name: 'Marina Costa' }, { userId: 'x9', name: 'Lucas Mendes' }, { userId: 'x1', name: 'Pedro Nunes' }] }, { name: 'Família Almeida', members: [{ userId: 'x2', name: 'Carla Dias' }] }]),
+        summary: async id => { await new Promise(r => setTimeout(r, 150)); return id === 'u2' ? { isPublic: false } : { isPublic: true, completedKeys: lido(id === 'u0' ? 50 : 12), planId: 'standard' } },
+        respond: async (id, aceitar) => { await gravar('responder', id, aceitar ? 'sim' : 'nao'); const req = banco.pedidos.find(p => p.friendshipId === id); banco.pedidos = banco.pedidos.filter(p => p.friendshipId !== id); if (aceitar) banco.amigos = [...banco.amigos, { ...req }] },
+        requestByEmail: v => gravar('email', v),
+        requestByUsername: async v => { if (v === 'ninguem') throw new Error('username_not_found'); await gravar('usuario', v) },
+        requestByUserId: v => gravar('adicionar', v), remove: v => gravar('desfazer', v),
+        inviteLink: async () => 'https://exemplo.app/d/diego',
+      }}
+    />
+  )
+}
+
 // A tela de um grupo com dados de exemplo; "Sair do grupo" abre a folha de
 // confirmação de verdade.
 function GrupoPreview() {
@@ -1137,6 +1166,7 @@ function Preview() {
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
   if (screen === 'ordem') return <OrdemPreview />
+  if (screen === 'amigos') return <div style={{ height: '100%' }}><AmigosPreview /><BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
   if (screen === 'grupo') return <div style={{ height: '100%' }}>{params.get('ver') ? <ParteDoGrupoPreview ver={params.get('ver')} /> : <GrupoPreview />}<BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
   if (screen === 'comunidade') return <div style={{ height: '100%', overflowY: 'auto' }}><ComunidadePreview /><BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
   if (screen === 'estudos') {

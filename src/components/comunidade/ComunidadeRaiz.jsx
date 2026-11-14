@@ -343,7 +343,7 @@ const s = {
   // 44px de toque num link pequeno: a área cresce pra cima e pra baixo sem empurrar nada.
   labelLink: { border: 'none', background: 'none', minHeight: 44, padding: '14px 2px 14px 14px', margin: '-15px 0', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-now-text)', cursor: 'pointer' },
   listCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '4px 18px' },
-  row: { width: '100%', minHeight: 62, boxSizing: 'border-box', border: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', fontFamily: FONT, color: 'var(--bento-ink)', cursor: 'pointer' },
+  row: { width: '100%', minHeight: 62, boxSizing: 'border-box', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', fontFamily: FONT, color: 'var(--bento-ink)', cursor: 'pointer' },
   rowLast: { borderBottom: 'none' },
   rowText: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 },
   rowTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },

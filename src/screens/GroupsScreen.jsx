@@ -316,7 +316,7 @@ const styles = {
   gRetry: { height: 46, padding: '0 22px', border: 'none', borderRadius: 15, background: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, color: '#fff', cursor: 'pointer' },
   gIntro: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-quote-ink)', margin: '0 2px 4px' },
   gListCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '4px 18px' },
-  gRow: { width: '100%', minHeight: 60, border: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: 'pointer' },
+  gRow: { width: '100%', minHeight: 60, borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: 'pointer' },
   gAvatar: { width: 38, height: 38, flexShrink: 0, borderRadius: 99, background: 'var(--bento-sand)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   gRowName: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   gTextBtn: { height: 48, flexShrink: 0, border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-now-text)', cursor: 'pointer' },
