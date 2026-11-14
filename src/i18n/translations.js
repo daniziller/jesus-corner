@@ -253,12 +253,10 @@ export const STRINGS = {
       scrollHint: 'Role para ver os outros capítulos.',
     },
     reading: {
-      tagContext: 'Contexto', tagMap: 'Mapa', tagTrivia: 'Curiosidades', tagText: 'Texto Bíblico', tagAskAi: 'Perguntar à IA', tagHighlight: 'Grifar e anotar',
+      tagContext: 'Contexto', tagMap: 'Mapa', tagTrivia: 'Curiosidades', tagAskAi: 'Perguntar à IA',
       textLoading: 'Carregando o texto...',
       textError: 'Não foi possível carregar o texto agora. Tente de novo em instantes.',
       textSourceEn: 'New Living Translation (NLT)',
-      chaptersOfSession: 'Capítulos desta sessão',
-      chaptersReadCount: '{done}/{total} lidos',
       markDone: 'Marcar sessão como concluída',
       markUndone: 'Desmarcar conclusão',
       toolsBtn: 'Ferramentas',
@@ -272,7 +270,6 @@ export const STRINGS = {
       toolsNotesSubHas: 'Você já escreveu aqui',
       toolsNotesSubEmpty: 'Nenhuma nota ainda',
       toolsTriviaSub: '{n} achado(s)',
-      finishReading: 'Concluir leitura',
       // Turno 35, Bloco 3 — relógio de leitura (35f) e "terminou antes do
       // tempo" (35g).
       timeUpLabel: 'Sobraram {time} no relógio',
@@ -288,14 +285,6 @@ export const STRINGS = {
       notesPlaceholder: 'Escreva o que Deus falou com você nessa leitura...',
       saveNote: 'Salvar anotação',
       savedNote: 'Salvo',
-      markVerses: 'Marcar {n} versículo(s)',
-      highlightNotePlaceholder: 'Por que esse trecho chamou sua atenção?',
-      highlightSave: 'Salvar marcação',
-      highlightDelete: 'Remover marcação',
-      highlightEmptyHint: 'Toque no número de um versículo ou selecione um trecho do texto (como se fosse copiar) pra grifar e anotar.',
-      highlightYourNotes: 'Suas marcações neste capítulo',
-      highlightAddNote: 'Adicionar anotação',
-      highlightNoNoteYet: 'Sem anotação ainda',
       colorYellow: 'Amarelo',
       colorGreen: 'Verde',
       colorBlue: 'Azul',
@@ -355,7 +344,6 @@ export const STRINGS = {
       savedToLibrary: 'Salvo na Biblioteca',
       reflectionTitle: 'Reflexão sobre {book}',
       reflectionTip: '📓 Antes de responder, que tal reler as anotações que você fez no seu caderno durante a leitura de {book}?',
-      currentSession: 'Sessão atual',
       sessionLabel: 'Sessão {n}',
     },
     studies: {
@@ -439,10 +427,6 @@ export const STRINGS = {
     addPrayerRequest: {
       placeholder: 'Escreva seu pedido de oração...',
       aiAssistError: 'Não deu para reescrever agora. Tente de novo em instantes.',
-      aiAssistPromptTitle: 'Escrever com ajuda',
-      aiAssistPromptSub: 'Desabafe à vontade — a IA transforma num pedido curto, e você aprova antes de usar.',
-      aiAssistPromptPlaceholder: 'Conte o que está acontecendo...',
-      aiAssistUseBtn: 'Usar esta versão',
     },
     groups: {
       pageTitle: 'Comunidade',
@@ -1087,9 +1071,6 @@ export const STRINGS = {
       // Frase fixa do topo da oração livre (36c). Texto do app, nunca
       // gerado por IA, nunca muda.
       fixedVerse: 'A única oração que não produz fé é a que nunca foi orada.',
-      stageDoneTag: 'feita',
-      stageMinShort: '{min} min',
-      stageLabel: 'Etapa {n} de 4 · {min} min',
       // Play/pausar do relógio grande da oração livre (36c). A oração ACTS
       // (S1/S2, handoff-passos-pedidos-53-54) escreve os textos dela na
       // própria tela, em português.
@@ -1102,16 +1083,8 @@ export const STRINGS = {
       requestsCountGroupMany: '{n} do seu grupo',
       finishPrayingBtn: 'Terminei de orar',
       // Oração livre (36c) — mesma casca de 36b, sem etapas.
-      freeTimeLabel: 'Tempo com Deus',
-      freeTimeSub: 'de {n} min · toque para pausar',
-      freeTimeSubPaused: 'de {n} min · toque para retomar',
       freeNoteLabel: 'Se quiser, anote algo',
       freeWritePlaceholder: 'Sem etapas, sem roteiro. Fale, e escreva só o que quiser guardar.',
-      // PD3 — Súplica (handoff-oracao-pedidos), etapa final do ACTS: casca
-      // própria, diferente das outras 3 etapas (pd3-suplica-pedidos.png).
-      suplicaProgressLabel: 'Súplica · 4ª etapa do ACTS',
-      remainingLabel: 'restantes',
-      waitingLabel: 'Esperando oração · {n}',
       // A linha "Pedidos de oração" da oração livre, quando a lista falha.
       suplicaLoadError: 'Não foi possível carregar os pedidos agora.',
       // Súplica de quem não assina (divisão de planos, 2026): a lista de
@@ -2025,9 +1998,6 @@ export const STRINGS = {
       savedAnswersBtn: 'Salvo',
       finishDayBtn: 'Terminar o dia',
       // 37b — livre, mesma casca do relógio livre de Oração (36c).
-      freeTimeLabel: 'Tempo para pensar',
-      freeTimeSub: 'de {n} min · toque para pausar',
-      freeTimeSubPaused: 'de {n} min · toque para retomar',
       freeChapterToday: '{chapter} · hoje',
       todayOnly: 'Hoje',
       freeWritePlaceholder: 'A folha é sua. Sem pergunta, sem roteiro, sem sugestão.',
@@ -3370,12 +3340,10 @@ export const STRINGS = {
       scrollHint: 'Scroll to see the other chapters.',
     },
     reading: {
-      tagContext: 'Context', tagMap: 'Map', tagTrivia: 'Trivia', tagText: 'Bible Text', tagAskAi: 'Ask AI', tagHighlight: 'Highlight & note',
+      tagContext: 'Context', tagMap: 'Map', tagTrivia: 'Trivia', tagAskAi: 'Ask AI',
       textLoading: 'Loading the text...',
       textError: "Couldn't load the text right now. Please try again shortly.",
       textSourceEn: 'New Living Translation (NLT)',
-      chaptersOfSession: 'Chapters in this session',
-      chaptersReadCount: '{done}/{total} read',
       markDone: 'Mark session as complete',
       markUndone: 'Unmark completion',
       toolsBtn: 'Tools',
@@ -3386,7 +3354,6 @@ export const STRINGS = {
       toolsNotesSubHas: "You've already written here",
       toolsNotesSubEmpty: 'No notes yet',
       toolsTriviaSub: '{n} finding(s)',
-      finishReading: 'Finish reading',
       timeUpLabel: '{time} left on the clock',
       timeUpTitle: 'You reached the end of {title} early.',
       timeUpQuestion: 'Want to keep reading with the time you have left, or end today’s reading here?',
@@ -3400,14 +3367,6 @@ export const STRINGS = {
       notesPlaceholder: 'Write what God spoke to you in this reading...',
       saveNote: 'Save note',
       savedNote: 'Saved',
-      markVerses: 'Mark {n} verse(s)',
-      highlightNotePlaceholder: 'Why did this passage stand out to you?',
-      highlightSave: 'Save highlight',
-      highlightDelete: 'Remove highlight',
-      highlightEmptyHint: 'Tap a verse number, or select a passage (like you would to copy it), to highlight and add a note.',
-      highlightYourNotes: 'Your highlights in this chapter',
-      highlightAddNote: 'Add note',
-      highlightNoNoteYet: 'No note yet',
       colorYellow: 'Yellow',
       colorGreen: 'Green',
       colorBlue: 'Blue',
@@ -3458,7 +3417,6 @@ export const STRINGS = {
       savedToLibrary: 'Saved to Library',
       reflectionTitle: 'Reflecting on {book}',
       reflectionTip: '📓 Before answering, how about rereading the notes you took in your notebook while reading {book}?',
-      currentSession: 'Current session',
       sessionLabel: 'Session {n}',
     },
     studies: {
@@ -3536,10 +3494,6 @@ export const STRINGS = {
     addPrayerRequest: {
       placeholder: 'Write your prayer request...',
       aiAssistError: "Couldn't rewrite it right now. Try again in a moment.",
-      aiAssistPromptTitle: 'Write with help',
-      aiAssistPromptSub: 'Vent freely — AI turns it into a short request, and you approve it before using it.',
-      aiAssistPromptPlaceholder: "Tell us what's going on...",
-      aiAssistUseBtn: 'Use this version',
     },
     groups: {
       pageTitle: 'Community',
@@ -4101,9 +4055,6 @@ export const STRINGS = {
       stepOf: 'step {n} of {total}',
       methodSuffixFree: 'free',
       fixedVerse: "The only prayer that produces no faith is the one never prayed.",
-      stageDoneTag: 'done',
-      stageMinShort: '{min} min',
-      stageLabel: 'Step {n} of 4 · {min} min',
       playBtn: 'Play',
       pauseBtn: 'Pause',
       requestsRowTitle: 'Prayer requests',
@@ -4112,14 +4063,8 @@ export const STRINGS = {
       requestsCountGroupOne: '{n} from your group',
       requestsCountGroupMany: '{n} from your group',
       finishPrayingBtn: 'I finished praying',
-      freeTimeLabel: 'Time with God',
-      freeTimeSub: 'of {n} min · tap to pause',
-      freeTimeSubPaused: 'of {n} min · tap to resume',
       freeNoteLabel: "If you'd like, jot something down",
       freeWritePlaceholder: 'No steps, no script. Speak, and write down only what you want to keep.',
-      suplicaProgressLabel: 'Supplication · 4th ACTS step',
-      remainingLabel: 'remaining',
-      waitingLabel: 'Waiting for prayer · {n}',
       suplicaLoadError: "Couldn't load requests right now.",
       suplicaLockTitle: 'Praying for the community is Premium',
       suplicaLockSub: "Seeing other people's requests, praying for them, and making your own are part of the Premium plan.",
@@ -4901,9 +4846,6 @@ export const STRINGS = {
       saveAnswersBtn: 'Save',
       savedAnswersBtn: 'Saved',
       finishDayBtn: 'Finish the day',
-      freeTimeLabel: 'Time to think',
-      freeTimeSub: 'of {n} min · tap to pause',
-      freeTimeSubPaused: 'of {n} min · tap to resume',
       freeChapterToday: '{chapter} · today',
       todayOnly: 'Today',
       freeWritePlaceholder: 'This page is yours. No question, no script, no suggestion.',

@@ -8,7 +8,3 @@ export function getSavedReflectionMinutes() {
   const raw = localStorage.getItem(KEY)
   return raw ? Number(raw) : null
 }
-
-export function setSavedReflectionMinutes(minutes) {
-  localStorage.setItem(KEY, String(minutes))
-}

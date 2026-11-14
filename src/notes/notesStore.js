@@ -69,11 +69,6 @@ export async function getNotes(_email) {
   return row?.notes ?? {}
 }
 
-export async function getNote(_email, key) {
-  const notes = await getNotes(_email)
-  return noteTextOf(notes[key])
-}
-
 // extra — campos opcionais além de text/updatedAt (hoje só sessionTitle,
 // usado pela frase de aplicação — ver noteSessionTitleOf acima).
 export function saveNote(_email, key, text, extra = {}) {

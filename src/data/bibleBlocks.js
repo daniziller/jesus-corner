@@ -23,9 +23,6 @@
 
 export const WORDS_PER_MINUTE = 100
 export const BIBLE_TOTAL_WORDS = 678616
-export const BIBLE_TOTAL_MINUTES = 6786
-export const AT_TOTAL_WORDS = 517576
-export const NT_TOTAL_WORDS = 161040
 
 export const BIBLE_BLOCKS = [
   {

@@ -54,7 +54,3 @@ export async function setStepMinutes(patch) {
   if (Object.keys(columnPatch).length === 0) return
   await updateRow(columnPatch)
 }
-
-export function isStepEnabled(minutes) {
-  return minutes == null || minutes > 0
-}
