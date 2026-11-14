@@ -169,6 +169,28 @@ export async function login({ email, password }) {
   return mapUser(data.user)
 }
 
+// Confirmação da senha da conta antes de uma ação que não tem volta
+// ("Reiniciar a leitura do zero"). `accountHasPassword`: quem entra só com
+// Google ou Apple não tem senha pra conferir. `checkAccountPassword`
+// devolve true/false (senha certa ou errada) e lança 'unavailable' em
+// qualquer outra falha (rede, servidor, limite de tentativas) — o mesmo
+// cuidado de login() acima: nunca culpar a senha por uma falha passageira.
+export async function accountHasPassword() {
+  const { data } = await supabase.auth.getSession()
+  const user = data.session?.user
+  return !!user && (user.identities ?? []).some(identity => identity.provider === 'email')
+}
+
+export async function checkAccountPassword(password) {
+  const { data } = await supabase.auth.getSession()
+  const email = data.session?.user?.email
+  if (!email) throw new Error('unavailable')
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (!error) return true
+  if (/invalid login credentials/i.test(error.message)) return false
+  throw new Error('unavailable')
+}
+
 // Troca o idioma do app pra esse usuário (chamado a partir da aba Perfil).
 // Atua sempre sobre a sessão autenticada atual (é assim que o Supabase Auth
 // funciona no client) — o parâmetro email existe só pra manter a mesma

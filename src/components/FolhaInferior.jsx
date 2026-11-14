@@ -18,6 +18,9 @@
 // de texto: sobe junto com o teclado, pra ele nunca cobrir o campo nem o
 // botão principal. `focusField` põe o foco inicial no campo, não no
 // primeiro botão.
+//
+// `over`: a folha abre por cima de outra folha (a de reiniciar a leitura,
+// aberta de dentro da folha do Perfil) — fica na frente dela.
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useKeyboardInset } from '../passos/useKeyboardInset'
@@ -25,7 +28,7 @@ import { useKeyboardInset } from '../passos/useKeyboardInset'
 const DRAG_CLOSE_PX = 80
 const FOCUSABLE = 'button:not([disabled]), textarea, input'
 
-export default function FolhaInferior({ onClose, labelledBy, fixed = false, form = false, focusField = false, children }) {
+export default function FolhaInferior({ onClose, labelledBy, fixed = false, form = false, focusField = false, over = false, children }) {
   const sheetRef = useRef(null)
   const dragRef = useRef({ startY: null, dy: 0 })
   const [dragY, setDragY] = useState(0)
@@ -73,7 +76,7 @@ export default function FolhaInferior({ onClose, labelledBy, fixed = false, form
 
   const drag = { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel: onTouchEnd }
   const node = (
-    <div style={{ ...s.veil, ...(fixed ? s.veilFixed : null), ...(form ? { paddingBottom: keyboardInset } : null) }} onClick={onClose}>
+    <div style={{ ...s.veil, ...(fixed ? s.veilFixed : null), ...(over ? s.veilOver : null), ...(form ? { paddingBottom: keyboardInset } : null) }} onClick={onClose}>
       <div
         ref={sheetRef}
         role="dialog" aria-modal="true" aria-labelledby={labelledBy}
@@ -94,6 +97,7 @@ export default function FolhaInferior({ onClose, labelledBy, fixed = false, form
 const s = {
   veil: { position: 'absolute', inset: 0, background: 'rgba(26,23,20,.45)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 5 },
   veilFixed: { position: 'fixed', zIndex: 120 },
+  veilOver: { zIndex: 180 },
   sheet: { width: '100%', background: 'var(--bento-card)', borderRadius: '32px 32px 0 0', padding: '10px 20px calc(24px + var(--safe-bottom))', boxShadow: '0 -18px 40px rgba(0,0,0,.18)', boxSizing: 'border-box', touchAction: 'pan-y' },
   sheetFixed: { maxWidth: 'var(--max-width)' },
   // Folha com formulário: fundo creme, 22px embaixo, rola por dentro quando

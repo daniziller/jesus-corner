@@ -25,6 +25,7 @@ import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
 import { getShowApplicationCard, setShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { PLANS } from '../data/bibleBlocks'
+import ReiniciarLeituraSheet from '../components/biblia/ReiniciarLeituraSheet'
 import {
   isSubscribedToPush, subscribeToPush, unsubscribeFromPush, getMyReminderSchedule,
   DEFAULT_REMINDER_HOUR, DEFAULT_REMINDER_MINUTE, DEFAULT_REMINDER_DAYS,
@@ -177,9 +178,9 @@ export default function ProfileSheet({
     }
   }
 
-  function handleResetClick() {
-    if (window.confirm(L('resetConfirm'))) onResetProgress?.()
-  }
+  // "Reiniciar leitura": a mesma folha de Sua Bíblia — o que reiniciar e a
+  // senha da conta.
+  const [restartOpen, setRestartOpen] = useState(false)
 
   async function handleSubscriptionClick() {
     if (subscription?.access_type !== 'recurring') { go('upgrade'); return }
@@ -230,6 +231,7 @@ export default function ProfileSheet({
   const displayAvatarUrl = profile?.avatarUrl
 
   return createPortal(
+    <>
     <div style={s.backdrop} onClick={onClose}>
       <div className="profile-sheet-panel" style={s.sheet} onClick={e => e.stopPropagation()}>
         <div style={s.handleWrap} onClick={onClose}><div style={s.handle} /></div>
@@ -374,7 +376,7 @@ export default function ProfileSheet({
                   <button onClick={() => { onChangeReadingOrder?.('nt_first'); setReadingOrderPickerOpen(false) }} style={{ ...s.chip, width: '100%', ...(session.readingOrder === 'nt_first' ? s.chipActive : {}) }}>{L('readingOrderNtFirstBtn')}</button>
                 </div>
               )}
-              <Row icon="RefreshCw" label={L('resetReadingLabel')} sub={L('resetReadingSub', { block: session.firstBlockName })} onPress={handleResetClick} />
+              <Row icon="RefreshCw" label={L('resetReadingLabel')} sub={L('resetReadingSub', { block: session.firstBlockName })} onPress={() => setRestartOpen(true)} />
               <Row icon="Sparkles" label={L('applicationPhrasesLabel')} sub={L('applicationPhrasesSub')} onPress={() => go('applicationPhrases')} />
               <Row
                 icon="Sparkles" label={L('applicationCardLabel')} sub={L('applicationCardSub')}
@@ -422,7 +424,15 @@ export default function ProfileSheet({
           onDeleted={onLogout}
         />
       )}
-    </div>,
+    </div>
+    {/* Fora do véu do Perfil: um toque no véu desta folha fecha só ela. */}
+    {restartOpen && (
+      <ReiniciarLeituraSheet
+        lang={lang}
+        onClose={() => setRestartOpen(false)} onRestart={onResetProgress} onDone={() => setRestartOpen(false)}
+      />
+    )}
+    </>,
     document.body,
   )
 }

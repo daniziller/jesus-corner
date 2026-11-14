@@ -31,12 +31,3 @@ export function markKeysUndone(_email, keys) {
     return new Set(updated?.completed_keys ?? set)
   })
 }
-
-// Reinicia a leitura do zero: apaga todo o progresso salvo do usuário,
-// voltando a Sessão 1 do Pentateuco a ser a única liberada.
-export function resetProgress(_email) {
-  return withRowLock(async () => {
-    await updateRow({ completed_keys: [] })
-    return new Set()
-  })
-}

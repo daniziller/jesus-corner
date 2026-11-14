@@ -70,7 +70,8 @@ import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
 import HandsFreeScreen from './screens/HandsFreeScreen'
 import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
-import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
+import { getCompletedSet, markKeysDone, markKeysUndone } from './progress/progressStore'
+import { restartReading } from './reading/reiniciarStore'
 import { markChaptersManually, unmarkChaptersManually } from './bible/manualChapterMarks'
 import { logChaptersRead } from './bible/chapterReadLog'
 import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
@@ -2644,16 +2645,23 @@ export default function App() {
     updateLanguage(authUser.email, language).catch(err => console.error('Failed to persist language', err))
   }
 
-  // Reinicia a leitura do zero: apaga o progresso salvo e volta pra Sessão 1 do Pentateuco.
-  function handleResetProgress() {
+  // "Reiniciar a leitura do zero" (folha de Sua Bíblia e do Perfil, já com
+  // a senha conferida): os capítulos lidos voltam a "por ler", o plano
+  // volta ao começo e, se a pessoa pediu, saem também selos, conquistas de
+  // leitura e datas das leituras (`extras` — ver reiniciarMath.js). Só
+  // muda a tela depois de gravado: se a gravação falhar, a folha avisa e
+  // nada muda.
+  async function handleResetProgress(extras) {
     if (!authUser) return
+    await restartReading(extras)
     setCompletedSet(new Set())
+    setPlanPositionState({ start: null, free: null })
+    getGamificationRow().then(setGamification).catch(err => console.error('[gamificação] recarregar', err))
     // Primeiro bloco da ordem de leitura ATUAL, não sempre o 1 (Pentateuco)
     // — com NT primeiro, reiniciar deve voltar pros Evangelhos.
     setActiveBlockId(defaultBlockIdFor(new Set(), planId, readingOrder, stepMinutes.reading))
     setActiveTab('home')
     setTabHistory([])
-    resetProgress(authUser.email).catch(err => console.error('Failed to reset progress', err))
   }
 
   // Grava, nos desafios de grupo ativos, os capítulos que acabaram de virar
@@ -3226,7 +3234,7 @@ export default function App() {
     // Gamificação (handoff-gamificacao-43-46) — Sua Bíblia (G2), aberta
     // pelo cartão SUA BÍBLIA do Hoje. Tela empilhada sem barra de abas,
     // mesmo padrão de metrics.
-    suaBiblia: <SuaBibliaScreen session={session} completedSet={completedSet} onBack={goBack} onOpenBook={openBibleBook} onOpenSelo={openSelo} onOpenEstante={id => openEstante(id)} />,
+    suaBiblia: <SuaBibliaScreen session={session} completedSet={completedSet} onBack={goBack} onOpenBook={openBibleBook} onOpenSelo={openSelo} onOpenEstante={id => openEstante(id)} onRestartReading={handleResetProgress} />,
     // Minhas conquistas (G5), uma família (G6) e o parabéns (G4).
     conquistas: <ConquistasScreen session={session} completedSet={completedSet} gamification={gamification} onBack={goBack} onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }} onOpenEstante={() => openEstante()} onSeen={markGamificationSeen} />,
     familia: familiaId ? <FamiliaScreen familyId={familiaId} session={session} completedSet={completedSet} gamification={gamification} onBack={goBack} /> : null,

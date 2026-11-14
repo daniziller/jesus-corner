@@ -11,6 +11,7 @@ import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
 import { getShowApplicationCard, setShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { PLANS } from '../data/bibleBlocks'
+import ReiniciarLeituraSheet from '../components/biblia/ReiniciarLeituraSheet'
 import {
   isSubscribedToPush, subscribeToPush, unsubscribeFromPush, getMyReminderSchedule,
   DEFAULT_REMINDER_HOUR, DEFAULT_REMINDER_MINUTE, DEFAULT_REMINDER_DAYS,
@@ -193,11 +194,9 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
     }
   }
 
-  function handleResetClick() {
-    if (window.confirm(L('resetConfirm'))) {
-      onResetProgress?.()
-    }
-  }
+  // "Reiniciar leitura": a mesma folha de Sua Bíblia — o que reiniciar e a
+  // senha da conta.
+  const [restartOpen, setRestartOpen] = useState(false)
 
   async function handleSubscriptionClick() {
     if (subscription?.access_type !== 'recurring') {
@@ -406,7 +405,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
               </button>
             </div>
           )}
-          <Row icon="RefreshCw" label={L('resetReadingLabel')} sub={L('resetReadingSub', { block: session.firstBlockName })} onPress={handleResetClick} />
+          <Row icon="RefreshCw" label={L('resetReadingLabel')} sub={L('resetReadingSub', { block: session.firstBlockName })} onPress={() => setRestartOpen(true)} />
           <Row icon="Sparkles" label={L('applicationPhrasesLabel')} sub={L('applicationPhrasesSub')} onPress={() => onNavigate('applicationPhrases')} />
           <Row
             icon="Sparkles" label={L('applicationCardLabel')} sub={L('applicationCardSub')}
@@ -463,6 +462,12 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
         <p style={s.versionText}>{L('versionLabel')}</p>
 
       </div>
+      {restartOpen && (
+        <ReiniciarLeituraSheet
+          lang={lang}
+          onClose={() => setRestartOpen(false)} onRestart={onResetProgress} onDone={() => setRestartOpen(false)}
+        />
+      )}
     </div>
   )
 }
