@@ -36,6 +36,7 @@ export const tipoStyles = {
   lupa: { width: 38, height: 38, flexShrink: 0, border: 'none', borderRadius: 13, background: 'var(--bento-card)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   group: { display: 'flex', flexDirection: 'column', gap: 10 },
   sandCard: { borderRadius: 24, background: 'var(--bento-sand)', padding: '2px 18px 3px' },
+  whiteCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '2px 18px 3px' },
   empty: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 18px 16px', display: 'flex', flexDirection: 'column', gap: 12 },
   emptyText: { fontFamily: FONT, fontSize: 13.5, fontWeight: 600, lineHeight: 1.45, color: 'var(--bento-t2)', margin: 0 },
   emptyButton: { alignSelf: 'flex-start', height: 44, border: 'none', borderRadius: 14, background: 'var(--bento-ink)', padding: '0 16px', fontFamily: FONT, fontSize: 13, fontWeight: 800, lineHeight: 1, color: '#fff', cursor: 'pointer' },

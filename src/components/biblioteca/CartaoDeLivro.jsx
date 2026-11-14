@@ -1,28 +1,30 @@
-// CartaoDeLivroMarcado.jsx — as marcações de um livro (L3 "Por livro",
-// handoff-biblioteca-55 §4.3): cartão areia com o quadradinho na cor do
-// bloco do livro, o nome e "{n} trechos"; os dois trechos mais recentes;
-// e, com mais de dois, "Ver os {n} de {Livro}", que abre o livro no
-// lugar. `group` vem de tiposMath.js/marksByBook.
+// CartaoDeLivro.jsx — os itens de um livro numa tela de tipo da Biblioteca
+// (L3 "Por livro", handoff-biblioteca-55 §4.3; Notas, §5): o quadradinho
+// na cor do bloco do livro, o nome e a contagem; os dois itens mais
+// recentes; e, com mais de dois, "Ver os {n} de {Livro}", que abre o
+// livro no lugar. Areia nas Marcações, branco nas Notas (`tone`). `group`
+// vem de tiposMath.js (marksByBook, notesByBook).
 import { blockColorVar } from '../../data/gamificationBlocks'
 import { bookMarksShown } from '../../biblioteca/tiposMath'
 import AppIcon from '../../icons/AppIcon'
 
 const FONT = 'var(--font-bento)'
 
-export default function CartaoDeLivroMarcado({ group, expanded, onExpand, renderRow }) {
+export default function CartaoDeLivro({ group, expanded, onExpand, renderRow, tone = 'sand' }) {
+  const white = tone === 'white'
   const shown = bookMarksShown(group, expanded)
   return (
-    <section style={s.card} aria-label={`${group.name}, ${group.count}`}>
+    <section style={{ ...s.card, ...(white ? s.cardWhite : null) }} aria-label={`${group.name}, ${group.count}`}>
       <div style={s.head}>
         <span style={{ ...s.marker, background: blockColorVar(group.blocoId) }} />
-        <h3 style={s.name}>{group.name}</h3>
-        <span style={s.count}>{group.count}</span>
+        <h3 style={{ ...s.name, ...(white ? s.inkWhite : null) }}>{group.name}</h3>
+        <span style={{ ...s.count, ...(white ? s.countWhite : null) }}>{group.count}</span>
       </div>
       {shown.map(item => renderRow(item))}
       {group.more && !expanded && (
-        <button type="button" style={s.more} onClick={onExpand} aria-expanded="false">
+        <button type="button" style={{ ...s.more, ...(white ? s.moreWhite : null) }} onClick={onExpand} aria-expanded="false">
           {group.more}
-          <AppIcon name="ArrowRight" size={15} strokeWidth={2.2} color="var(--bento-sand-icon)" style={{ flexShrink: 0 }} />
+          <AppIcon name="ArrowRight" size={15} strokeWidth={2.2} color={white ? 'var(--bento-accent)' : 'var(--bento-sand-icon)'} style={{ flexShrink: 0 }} />
         </button>
       )}
     </section>
@@ -31,6 +33,10 @@ export default function CartaoDeLivroMarcado({ group, expanded, onExpand, render
 
 const s = {
   card: { borderRadius: 24, background: 'var(--bento-sand)', padding: '15px 18px 3px' },
+  cardWhite: { background: 'var(--bento-card)' },
+  inkWhite: { color: 'var(--bento-ink)' },
+  countWhite: { color: 'var(--bento-t3)' },
+  moreWhite: { borderTop: '1px solid var(--bento-line)', color: 'var(--bento-ink)' },
   head: { display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' },
   marker: { width: 9, height: 9, flexShrink: 0, borderRadius: 3 },
   name: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 14, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.3px', color: 'var(--bento-sand-ink-strong)', margin: 0 },

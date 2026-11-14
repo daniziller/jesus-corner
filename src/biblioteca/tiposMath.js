@@ -1,17 +1,20 @@
 // tiposMath.js — as telas de tipo da Biblioteca (handoff-biblioteca-55 §3
-// e §4), parte pura: os filtros de Pregações (só os tipos usados, na
+// a §5), parte pura: os filtros de Pregações (só os tipos usados, na
 // ordem do mais usado) e o agrupamento por mês e por pregador; Marcações
-// por livro (ordem canônica, dois por livro, "Ver os N"), por data e com
-// nota; e as peças comuns — a data dos cartões, as referências
-// abreviadas e a paginação. As contagens vêm de bibliotecaMath.js, as
-// mesmas da raiz. Testes em scripts/test-biblioteca-tipos.mjs.
+// e Notas por livro (ordem canônica, dois por livro, "Ver os N"), por
+// data e com nota; Reflexões, Aplicações e Perguntas; a página de leitura
+// de uma reflexão ou pergunta; e as peças comuns — a data dos cartões, as
+// referências abreviadas e a paginação. As contagens vêm de
+// bibliotecaMath.js, as mesmas da raiz. Testes em
+// scripts/test-biblioteca-tipos.mjs.
 import { PT_BOOK_ABBREVIATIONS, EN_BOOK_ABBREVIATIONS } from '../bible/bookAbbreviations.js'
 import { normalizeForSearch } from '../bible/searchNormalize.js'
 import { bookInfo } from '../data/gamificationBlocks.js'
 import { bookDisplayName } from '../busca/referencia.js'
-import { formatInt, plural, monthName, monthYearLong } from '../gamification/format.js'
+import { formatInt, plural, monthName, monthYearLong, dayMonthLong } from '../gamification/format.js'
+import { formatWeekdayDate } from '../utils/weekdayDateLabel.js'
 import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath.js'
-import { byRecent, itemReference, whenLabel } from './bibliotecaMath.js'
+import { byRecent, itemReference, whenLabel, reflectionTitle, reflectionFirstAnswer } from './bibliotecaMath.js'
 
 const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 const capitalize = text => `${text.charAt(0).toUpperCase()}${text.slice(1)}`
@@ -220,27 +223,32 @@ export function marksTabs(items) {
 
 export const MARKS_PREVIEW = 2
 
+// Itens com livro, um grupo por livro em ordem canônica: a cor do bloco,
+// a contagem ("{n} trechos"), os itens do mais recente para o mais antigo
+// e, com mais de dois, a linha que abre o livro no lugar.
+function byBook(items, lang, { count, more }) {
+  const grouped = new Map()
+  for (const item of byRecent(items)) {
+    if (!bookInfo(item.book)) continue
+    if (!grouped.has(item.book)) grouped.set(item.book, [])
+    grouped.get(item.book).push(item)
+  }
+  return [...grouped.entries()]
+    .sort((a, b) => bookInfo(a[0]).posicao - bookInfo(b[0]).posicao)
+    .map(([book, list]) => {
+      const name = bookDisplayName(book, lang)
+      return { book, name, blocoId: bookInfo(book).blocoId, count: count(list.length), items: list, more: list.length > MARKS_PREVIEW ? more(list.length, name) : null }
+    })
+}
+
 // Por livro: um cartão por livro, em ordem canônica, com a cor do bloco,
 // "{n} trechos", os trechos do mais recente para o mais antigo e, com
 // mais de dois, "Ver os {n} de {Livro}" — que abre o livro no lugar.
 export function marksByBook(items, lang = 'pt') {
-  const byBook = new Map()
-  for (const item of byRecent(items)) {
-    if (!bookInfo(item.book)) continue
-    if (!byBook.has(item.book)) byBook.set(item.book, [])
-    byBook.get(item.book).push(item)
-  }
-  return [...byBook.entries()]
-    .sort((a, b) => bookInfo(a[0]).posicao - bookInfo(b[0]).posicao)
-    .map(([book, list]) => {
-      const name = bookDisplayName(book, lang)
-      return {
-        book, name, blocoId: bookInfo(book).blocoId,
-        count: `${formatInt(list.length)} ${plural(list.length, 'trecho', 'trechos')}`,
-        items: list,
-        more: list.length > MARKS_PREVIEW ? `Ver os ${formatInt(list.length)} de ${name}` : null,
-      }
-    })
+  return byBook(items, lang, {
+    count: n => `${formatInt(n)} ${plural(n, 'trecho', 'trechos')}`,
+    more: (n, name) => `Ver os ${formatInt(n)} de ${name}`,
+  })
 }
 
 // Os trechos de um livro que estão à vista: os dois mais recentes, ou
@@ -267,6 +275,171 @@ export function markRow(item, { now = new Date(), lang = 'pt' } = {}) {
 
 export const EMPTY_MARKS = { livro: 'Nenhum trecho marcado ainda.', data: 'Nenhum trecho marcado ainda.', nota: 'Nenhuma marcação com nota ainda.' }
 
+// ── Notas (§5) ──────────────────────────────────────────────────────────
+
+// "31 notas · 14 livros"
+export function notesSummary(items) {
+  const n = items.length
+  const books = new Set(items.map(i => i.book).filter(b => bookInfo(b))).size
+  const parts = [`${formatInt(n)} ${plural(n, 'nota', 'notas')}`]
+  if (books > 0) parts.push(`${formatInt(books)} ${plural(books, 'livro', 'livros')}`)
+  return parts.join(' · ')
+}
+
+export const NOTES_TABS = [{ key: 'livro', label: 'Por livro' }, { key: 'data', label: 'Por data' }]
+
+// Por livro, no formato de L3: "{n} notas", as duas mais recentes e "Ver
+// as {n} de {Livro}".
+export function notesByBook(items, lang = 'pt') {
+  return byBook(items, lang, {
+    count: n => `${formatInt(n)} ${plural(n, 'nota', 'notas')}`,
+    more: (n, name) => `Ver as ${formatInt(n)} de ${name}`,
+  })
+}
+
+// Uma nota: a referência, quando e o texto.
+export function noteRow(item, { now = new Date(), lang = 'pt' } = {}) {
+  return { key: item.key, reference: itemReference(item, lang), when: whenLabel(item.at, now), text: oneLine(item.text) }
+}
+
+export const EMPTY_NOTES = 'Nenhuma nota ainda.'
+
+// ── Reflexões (§5) ──────────────────────────────────────────────────────
+
+// "22 reflexões · desde março de 2026"
+export function reflectionsSummary(items) {
+  const n = items.length
+  const first = items.map(i => i.at).filter(Boolean).sort()[0]
+  const parts = [`${formatInt(n)} ${plural(n, 'reflexão', 'reflexões')}`]
+  if (first) parts.push(`desde ${monthYearLong(new Date(first))}`)
+  return parts.join(' · ')
+}
+
+// A frase do dia de cada data, para a linha em itálico do cartão da
+// reflexão e para a página de leitura.
+export function phrasesByDate(applications) {
+  const map = {}
+  for (const item of applications ?? []) if (item.type === 'aplicacao' && item.date) map[item.date] = item
+  return map
+}
+
+// O cartão de uma reflexão: o título (o livro e os capítulos do dia),
+// quando, o começo da primeira resposta e, se houver, a frase do dia.
+export function reflectionCard(item, { now = new Date(), readByDay = {}, phrases = {}, lang = 'pt' } = {}) {
+  const phrase = item.kind === 'dia' ? phrases[item.date] : null
+  return {
+    key: item.key,
+    title: reflectionTitle(item, readByDay, lang),
+    when: whenLabel(item.at, now),
+    excerpt: item.kind === 'dia' ? reflectionFirstAnswer(item.text) : oneLine(item.text),
+    phrase: phrase ? `"${oneLine(phrase.text)}"` : null,
+  }
+}
+
+export const EMPTY_REFLECTIONS = 'Nenhuma reflexão ainda.'
+
+// ── Aplicações (§5) ─────────────────────────────────────────────────────
+
+// "9 frases · 4 cumpridas"
+export function applicationsSummary(items) {
+  const n = items.length
+  const done = items.filter(i => i.fulfilled).length
+  return `${formatInt(n)} ${plural(n, 'frase', 'frases')} · ${formatInt(done)} ${plural(done, 'cumprida', 'cumpridas')}`
+}
+
+// Todas · Cumpridas · Em aberto, com a contagem.
+export function applicationFilters(items) {
+  const done = items.filter(i => i.fulfilled).length
+  return [
+    { key: 'all', label: 'Todas', count: formatInt(items.length) },
+    { key: 'done', label: 'Cumpridas', count: formatInt(done) },
+    { key: 'open', label: 'Em aberto', count: formatInt(items.length - done) },
+  ]
+}
+
+export function applicationList(items, filter = 'all') {
+  return byRecent(filter === 'done' ? items.filter(i => i.fulfilled) : filter === 'open' ? items.filter(i => !i.fulfilled) : items)
+}
+
+// "1 set" · "1 set 2025" — o dia de uma frase.
+function shortDate(dateKeyStr, now) {
+  const [year, month, day] = String(dateKeyStr).split('-').map(Number)
+  const short = `${day} ${monthName(new Date(year, month - 1, 1)).slice(0, 3)}`
+  return year === now.getFullYear() ? short : `${short} ${year}`
+}
+
+// O cartão preto de uma frase: a frase entre aspas e "Frase do dia ·
+// {data} · cumprida" (ou "em aberto").
+export function applicationCard(item, { now = new Date() } = {}) {
+  return {
+    key: item.key,
+    quote: `"${oneLine(item.text)}"`,
+    meta: `Frase do dia · ${shortDate(item.date, now)} · ${item.fulfilled ? 'cumprida' : 'em aberto'}`,
+  }
+}
+
+export const EMPTY_APPLICATIONS = { all: 'Nenhuma frase do dia ainda.', done: 'Nenhuma frase cumprida ainda.', open: 'Nenhuma frase em aberto.' }
+
+// ── Perguntas (§5) ──────────────────────────────────────────────────────
+
+// "6 perguntas guardadas"
+export function questionsSummary(items) {
+  const n = items.length
+  return `${formatInt(n)} ${plural(n, 'pergunta guardada', 'perguntas guardadas')}`
+}
+
+// O cartão de uma pergunta: a pergunta, a referência de onde foi feita (em
+// pastilha, tocável), o começo da resposta e quando.
+export function questionCard(item, { now = new Date(), lang = 'pt' } = {}) {
+  return {
+    key: item.key,
+    question: item.text,
+    pill: { label: passageShort(item, lang), book: item.book, chapter: item.chapter, verse: item.verseStart ?? null },
+    answer: oneLine(item.answer),
+    when: whenLabel(item.at, now),
+  }
+}
+
+export const EMPTY_QUESTIONS = 'Nenhuma pergunta guardada ainda.'
+
+// ── A página de leitura (reflexão, frase do dia, pergunta) ──────────────
+
+// O texto de uma reflexão em blocos: a nota com perguntas é
+// "pergunta\nresposta" em blocos separados por linha em branco
+// (reflexaoMath.js/combineQaText); a folha livre é só texto.
+export function reflectionBlocks(text) {
+  return String(text ?? '').split(/\n\s*\n/).map(block => block.trim()).filter(Boolean).map(block => {
+    const lines = block.split('\n')
+    return lines.length > 1 && lines[0].trim().endsWith('?')
+      ? { question: lines[0].trim(), answer: lines.slice(1).join('\n').trim() }
+      : { question: null, answer: block }
+  })
+}
+
+// O que a página de leitura mostra. Reflexão: o título, o dia por extenso,
+// o texto em blocos e a frase daquele dia. Frase do dia: a reflexão
+// daquele dia — e, se não houver, só a frase. Pergunta: a pergunta, de
+// onde foi feita e a resposta inteira.
+export function readingPage(item, { items = [], readByDay = {}, now = new Date(), lang = 'pt' } = {}) {
+  if (item.type === 'pergunta') {
+    return {
+      kind: 'pergunta', title: 'Pergunta', sub: [itemReference(item, lang), whenLabel(item.at, now)].filter(Boolean).join(' · '),
+      question: item.text, answer: String(item.answer ?? '').trim(),
+      pill: { label: itemReference(item, lang), book: item.book, chapter: item.chapter, verse: item.verseStart ?? null },
+    }
+  }
+  const date = item.date ?? null
+  const reflection = item.type === 'reflexao' ? item : items.find(i => i.type === 'reflexao' && i.kind === 'dia' && i.date === date) ?? null
+  const phrase = item.type === 'aplicacao' ? item : (item.kind === 'dia' ? items.find(i => i.type === 'aplicacao' && i.date === date) ?? null : null)
+  return {
+    kind: 'reflexao',
+    title: reflection ? reflectionTitle(reflection, readByDay, lang) : `Reflexão de ${dayMonthLong(`${date}T12:00:00`)}`,
+    sub: date ? formatWeekdayDate(date, lang) : whenLabel(item.at, now),
+    blocks: reflection ? reflectionBlocks(reflection.text) : [],
+    phrase: phrase ? applicationCard(phrase, { now }) : null,
+  }
+}
+
 // ── O menu de um item (segurar) ─────────────────────────────────────────
 
 // O que vai no "Compartilhar" de um item, em texto: o que a pessoa
@@ -280,5 +453,6 @@ export function shareText(item, { lang = 'pt', verseText = '' } = {}) {
     const quote = verseText ? `"${oneLine(verseText)}"\n${itemReference(item, lang)}` : itemReference(item, lang)
     return [quote, item.note].filter(Boolean).join('\n\n')
   }
+  if (item.type === 'pergunta') return [item.text, itemReference(item, lang), item.answer].filter(Boolean).join('\n\n')
   return [item.text, item.book ? itemReference(item, lang) : ''].filter(Boolean).join('\n\n')
 }

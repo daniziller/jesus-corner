@@ -12,7 +12,7 @@ import { useTrechos } from '../biblioteca/useTrechos'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
 import AbasDePedidos from '../components/pedidos/AbasDePedidos'
 import RotuloDeGrupo from '../components/biblioteca/RotuloDeGrupo'
-import CartaoDeLivroMarcado from '../components/biblioteca/CartaoDeLivroMarcado'
+import CartaoDeLivro from '../components/biblioteca/CartaoDeLivro'
 import LinhaDeTrecho from '../components/biblioteca/LinhaDeTrecho'
 import { BotaoDaLupa, ListaDoTipo, EstadoDoTipo, tipoStyles as t } from '../components/biblioteca/TelaDeTipo'
 
@@ -50,7 +50,7 @@ export default function MarcacoesScreen({ lang, api, status, items, initial, onB
             <AbasDePedidos tabs={marksTabs(items)} current={tab} onChange={setTab} label="Como ver as marcações" />
             {tab === 'livro' ? (
               books.map(group => (
-                <CartaoDeLivroMarcado
+                <CartaoDeLivro
                   key={group.book} group={group} expanded={expanded.has(group.book)} renderRow={item => row(item)}
                   onExpand={() => setExpanded(prev => new Set(prev).add(group.book))}
                 />

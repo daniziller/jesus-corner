@@ -38,7 +38,8 @@ function notas() {
     hl('nota-gn-40-23', 'Gênesis', 'Genesis', 40, [23], 11, { kind: 'note', text: 'Esquecido pelo copeiro, não por Deus. A espera continua.', tags: ['espera'] }),
   ]
   const livros = [['1 Samuel', '1 Samuel'], ['Jó', 'Job'], ['Eclesiastes', 'Ecclesiastes'], ['Jeremias', 'Jeremiah'], ['Daniel', 'Daniel'], ['Habacuque', 'Habakkuk'], ['Lucas', 'Luke'], ['Atos', 'Acts'], ['1 Coríntios', '1 Corinthians'], ['Efésios', 'Ephesians'], ['1 Pedro', '1 Peter'], ['Apocalipse', 'Revelation']]
-  for (let i = 0; i < 29; i++) {
+  // 27 aqui + 2 notas de sessão de leitura (no mapa de notas) = 31.
+  for (let i = 0; i < 27; i++) {
     const [book, bookEn] = livros[i % livros.length]
     list.push(hl(`nota-${i}`, book, bookEn, 1 + (i % 4), [2 + i], 45 + i * 4, { kind: 'note', text: 'O que este versículo me disse naquele dia.', tags: i % 3 === 0 ? ['família'] : [] }))
   }
@@ -50,10 +51,17 @@ function mapaDeNotas() {
   // Reflexões: 22, a de hoje com pergunta e resposta.
   notes[`reflection:${dateKey(dias(0))}`] = { text: 'O que a espera de José mostra sobre Deus?\nDeus não desperdiça a espera. Dois anos na prisão foram preparo.', updatedAt: iso(0, 7) }
   notes[`reflection:${dateKey(dias(3))}`] = { text: 'O que este capítulo mostra?\nO copeiro esqueceu, Deus não. A espera tinha data marcada.', updatedAt: iso(3, 7) }
-  for (let i = 0; i < 20; i++) notes[`reflection:${dateKey(dias(41 + i * 3))}`] = { text: 'Uma reflexão sobre a leitura daquele dia.', updatedAt: iso(41 + i * 3, 7) }
+  for (let i = 0; i < 18; i++) notes[`reflection:${dateKey(dias(41 + i * 3))}`] = { text: i % 2 ? 'O que este capítulo mostra sobre Deus?\nQue ele não tem pressa, e eu tenho.\n\nO que muda em você?\nPosso esperar sem desistir.' : 'Uma reflexão escrita na folha livre, sobre a leitura daquele dia.', updatedAt: iso(41 + i * 3, 7) }
+  // Reflexão de fim de livro e retrospectiva do mês também são Reflexões.
+  notes['Jó:reflection'] = { text: 'Fechando Jó: a resposta não veio em explicação, veio em presença.', updatedAt: iso(70) }
+  notes['recap:2026-09'] = { text: 'Setembro foi o mês em que a leitura virou hábito.', updatedAt: iso(40) }
+  // Notas de sessão de leitura (presas aos capítulos, não a um versículo).
+  notes['Gênesis:39-40'] = { text: 'José preso sem culpa — e o texto insiste que o Senhor estava com ele.', updatedAt: iso(12) }
+  notes['Salmos:23-23'] = { text: 'Ler devagar, uma linha por vez.', updatedAt: iso(48) }
   // Aplicações: 9 frases do dia.
   notes[`application:${dateKey(dias(2))}`] = { text: 'Hoje eu espero sem cobrar resposta.', updatedAt: iso(2, 8), fulfilled: true }
-  for (let i = 0; i < 8; i++) notes[`application:${dateKey(dias(42 + i * 5))}`] = { text: 'Hoje eu escolho confiar antes de entender.', updatedAt: iso(42 + i * 5, 8), fulfilled: i % 2 === 0 }
+  // A segunda cai num dia que também tem reflexão (41 dias atrás).
+  for (let i = 0; i < 8; i++) notes[`application:${dateKey(dias(i === 0 ? 41 : 42 + i * 5))}`] = { text: 'Hoje eu escolho confiar antes de entender.', updatedAt: iso(42 + i * 5, 8), fulfilled: i % 2 === 0 }
   // A frase fixada no Hoje nunca é um item da Biblioteca.
   notes['application:pinned'] = { text: 'Hoje eu espero sem cobrar resposta.', updatedAt: iso(2, 8) }
   return notes

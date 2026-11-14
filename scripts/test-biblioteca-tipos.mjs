@@ -7,6 +7,9 @@ import {
   PAGE_SIZE, pageOf, dateLabel, monthHeading, groupByMonth, bookShort, passageShort, passagePills,
   sermonTypeLabel, sermonsSummary, sermonTypeFilters, effectiveSermonType, SERMON_ORDERS, sermonOrderLabel, sermonList, sermonGroups, sermonCard, EMPTY_SERMONS,
   marksSummary, marksTabs, marksByBook, bookMarksShown, marksList, markRow, withNote, shareText,
+  notesSummary, NOTES_TABS, notesByBook, noteRow, reflectionsSummary, phrasesByDate, reflectionCard,
+  applicationsSummary, applicationFilters, applicationList, applicationCard, questionsSummary, questionCard,
+  reflectionBlocks, readingPage,
 } from '../src/biblioteca/tiposMath.js'
 
 let failures = 0
@@ -105,9 +108,83 @@ check('com nota: por data', marksList(marcas, 'nota').map(m => m.id), ['g2', 'g3
 check('linha de trecho', markRow(marcas.find(m => m.id === 'g2'), { now: agora }), { key: 'marcacao:g2', reference: 'Gênesis 41:51', when: 'hoje', note: 'Com nota: "esquecer não é apagar"' })
 check('linha de trecho sem nota', markRow(marcas.find(m => m.id === 'j1'), { now: agora }), { key: 'marcacao:j1', reference: 'João 16:33', when: '12 out', note: null })
 
+// ── Notas ─────────────────────────────────────────────────────────────
+const notas = libraryItems({
+  highlights: [
+    hl('n1', 'Salmos', 23, [4], 1, { kind: 'note', text: 'O vale é passagem,\nnão endereço.' }),
+    hl('n2', 'Gênesis', 40, [23], 11, { kind: 'note', text: 'Esquecido pelo copeiro.' }),
+    hl('n3', 'Gênesis', 41, [1], 0, { kind: 'note', text: 'Dois anos depois.' }),
+    hl('n4', 'Gênesis', 1, [1], 200, { kind: 'note', text: 'No princípio.' }),
+    hl('m1', 'Gênesis', 2, [2], 1, { text: 'marcação com nota não é nota' }),
+  ],
+  notes: { 'Gênesis:39-40': { text: 'Nota da sessão.', updatedAt: ha(12) } },
+}).filter(i => i.type === 'nota')
+check('Notas: resumo', notesSummary(notas), '5 notas · 2 livros')
+check('Notas: resumo no singular', notesSummary(notas.filter(n => n.id === 'n1')), '1 nota · 1 livro')
+check('Notas: a contagem é a mesma do quadrado da raiz', notesSummary(notas).startsWith(`${libraryCounts(notas).nota} `), true)
+check('Notas: segmentado', NOTES_TABS.map(t => t.label), ['Por livro', 'Por data'])
+const livrosDeNotas = notesByBook(notas)
+check('Notas por livro: ordem canônica, contagem e "Ver as N"', livrosDeNotas.map(g => `${g.name}|${g.count}|${g.more}`), ['Gênesis|4 notas|Ver as 4 de Gênesis', 'Salmos|1 nota|null'])
+check('Notas por livro: as duas mais recentes (a nota de sessão entra)', bookMarksShown(livrosDeNotas[0], false).map(n => n.key), ['nota:n3', 'nota:n2'])
+check('linha de nota: referência, quando e o texto numa linha', noteRow(notas.find(n => n.id === 'n1'), { now: agora }), { key: 'nota:n1', reference: 'Salmos 23:4', when: 'ontem', text: 'O vale é passagem, não endereço.' })
+check('linha de nota de sessão: os capítulos', noteRow(notas.find(n => n.noteKey), { now: agora }).reference, 'Gênesis 39–40')
+
+// ── Reflexões e Aplicações ────────────────────────────────────────────
+const doDia = libraryItems({ notes: {
+  [`reflection:${dia(0)}`]: { text: 'O que a espera mostra?\nDeus não desperdiça a espera.\n\nE você?\nEu espero.', updatedAt: ha(0, 7) },
+  [`reflection:${dia(45)}`]: { text: 'Folha livre, sem pergunta.', updatedAt: ha(45, 7) },
+  'Rute:reflection': { text: 'Fechando Rute.', updatedAt: ha(20) },
+  [`application:${dia(0)}`]: { text: 'Hoje eu espero sem cobrar resposta.', updatedAt: ha(0, 8), fulfilled: true },
+  [`application:${dia(70)}`]: { text: 'Confiar antes de entender.', updatedAt: ha(70) },
+  [`application:${dia(400)}`]: { text: 'Frase do ano passado.', updatedAt: ha(400) },
+} })
+const reflexoes = doDia.filter(i => i.type === 'reflexao')
+const frases = doDia.filter(i => i.type === 'aplicacao')
+check('Reflexões: resumo com o mês mais antigo', reflectionsSummary(reflexoes), '3 reflexões · desde setembro de 2026')
+check('Reflexões: singular', reflectionsSummary(reflexoes.slice(0, 1)), `1 reflexão · desde ${reflexoes[0].kind === 'dia' ? 'novembro' : 'outubro'} de 2026`)
+check('Reflexões: nenhuma', reflectionsSummary([]), '0 reflexões')
+const porData = phrasesByDate(doDia)
+check('frase do dia por data (só as frases)', Object.keys(porData).sort(), [dia(0), dia(70), dia(400)].sort())
+const lidos = { [dia(0)]: [{ book: 'Gênesis', chapter: 41 }] }
+check('cartão de reflexão: título, quando, primeira resposta e a frase do dia', reflectionCard(reflexoes.find(r => r.date === dia(0)), { now: agora, readByDay: lidos, phrases: porData }), { key: `reflexao:reflection:${dia(0)}`, title: 'Gênesis 41', when: 'hoje', excerpt: 'Deus não desperdiça a espera.', phrase: '"Hoje eu espero sem cobrar resposta."' })
+check('cartão de reflexão sem frase no dia', reflectionCard(reflexoes.find(r => r.date === dia(45)), { now: agora, phrases: porData }).phrase, null)
+check('cartão de reflexão de fim de livro: sem frase, texto corrido', [reflectionCard(reflexoes.find(r => r.kind === 'livro'), { now: agora, phrases: porData }).title, reflectionCard(reflexoes.find(r => r.kind === 'livro'), { now: agora, phrases: porData }).phrase], ['Rute · Reflexão de fechamento', null])
+check('Aplicações: resumo', [applicationsSummary(frases), applicationsSummary(frases.slice(0, 1)), applicationsSummary([])], ['3 frases · 1 cumprida', '1 frase · 1 cumprida', '0 frases · 0 cumpridas'])
+check('Aplicações: a contagem é a mesma do quadrado da raiz', applicationsSummary(frases).startsWith(`${libraryCounts(frases).aplicacao} `), true)
+check('Aplicações: filtros com contagem', applicationFilters(frases).map(f => `${f.label} ${f.count}`), ['Todas 3', 'Cumpridas 1', 'Em aberto 2'])
+check('Aplicações: as contagens dos filtros somam o total', applicationList(frases, 'done').length + applicationList(frases, 'open').length, applicationList(frases).length)
+check('Aplicações: mais recentes primeiro', applicationList(frases).map(f => f.date), [dia(0), dia(70), dia(400)])
+check('cartão de frase: aspas e a linha de baixo', applicationCard(frases.find(f => f.date === dia(0)), { now: agora }), { key: `aplicacao:application:${dia(0)}`, quote: '"Hoje eu espero sem cobrar resposta."', meta: 'Frase do dia · 10 nov · cumprida' })
+check('cartão de frase em aberto, de outro ano', applicationCard(frases.find(f => f.date === dia(400)), { now: agora }).meta, 'Frase do dia · 6 out 2025 · em aberto')
+
+// ── Perguntas ─────────────────────────────────────────────────────────
+const perguntas = libraryItems({ questions: [
+  { book: 'Gênesis', bookEn: 'Genesis', chapter: 41, verseStart: 1, verseEnd: 1, question: 'Por que dois anos?', answer: { outcome: 'answer', reply: 'O texto só marca\no tempo.' }, createdAt: ha(12) },
+  { book: 'João', chapter: 3, verseStart: 16, verseEnd: 18, question: 'E esta?', answer: { outcome: 'refused' }, createdAt: ha(80) },
+] })
+check('Perguntas: resumo', [questionsSummary(perguntas), questionsSummary(perguntas.slice(0, 1)), questionsSummary([])], ['2 perguntas guardadas', '1 pergunta guardada', '0 perguntas guardadas'])
+check('cartão de pergunta', questionCard(perguntas[0], { now: agora }), { key: perguntas[0].key, question: 'Por que dois anos?', pill: { label: 'Gn 41:1', book: 'Gênesis', chapter: 41, verse: 1 }, answer: 'O texto só marca o tempo.', when: '29 out' })
+check('cartão de pergunta sem resposta guardada', [questionCard(perguntas[1], { now: agora }).answer, questionCard(perguntas[1], { now: agora }).pill.label], ['', 'Jo 3:16–18'])
+
+// ── A página de leitura ───────────────────────────────────────────────
+check('blocos: pergunta e resposta; folha livre', reflectionBlocks('O que mostra?\nResposta um.\nSegunda linha.\n\nSem pergunta aqui.'), [{ question: 'O que mostra?', answer: 'Resposta um.\nSegunda linha.' }, { question: null, answer: 'Sem pergunta aqui.' }])
+check('blocos: texto vazio', reflectionBlocks('   '), [])
+const hoje = readingPage(reflexoes.find(r => r.date === dia(0)), { items: doDia, readByDay: lidos, now: agora })
+check('leitura de uma reflexão: título, o dia, os blocos e a frase daquele dia', [hoje.kind, hoje.title, hoje.sub, hoje.blocks.length, hoje.phrase?.quote], ['reflexao', 'Gênesis 41', 'terça, 10 de novembro', 2, '"Hoje eu espero sem cobrar resposta."'])
+const pelaFrase = readingPage(frases.find(f => f.date === dia(0)), { items: doDia, readByDay: lidos, now: agora })
+check('leitura a partir da frase do dia: a reflexão daquele dia', [pelaFrase.title, pelaFrase.blocks.length, pelaFrase.phrase?.meta], ['Gênesis 41', 2, 'Frase do dia · 10 nov · cumprida'])
+const soFrase = readingPage(frases.find(f => f.date === dia(70)), { items: doDia, now: agora })
+check('frase de um dia sem reflexão: só a frase, com a data no título', [soFrase.title, soFrase.blocks, soFrase.phrase?.quote], ['Reflexão de 1 de setembro', [], '"Confiar antes de entender."'])
+check('leitura de reflexão de fim de livro: sem frase', readingPage(reflexoes.find(r => r.kind === 'livro'), { items: doDia, now: agora }).phrase, null)
+const conversa = readingPage(perguntas[0], { now: agora })
+check('leitura de uma pergunta: a pergunta, de onde foi feita e a resposta inteira', conversa, { kind: 'pergunta', title: 'Pergunta', sub: 'Gênesis 41:1 · 29 out', question: 'Por que dois anos?', answer: 'O texto só marca\no tempo.', pill: { label: 'Gênesis 41:1', book: 'Gênesis', chapter: 41, verse: 1 } })
+
 // ── Compartilhar ──────────────────────────────────────────────────────
 check('compartilhar uma pregação: título, pregador e só as palavras da pessoa', shareText(pregacoes.find(p => p.id === 'a')), 'A fidelidade que não se explica\nPr. João Silva · Igreja Batista Central\n\nDeus é fiel.')
 check('compartilhar uma marcação: o trecho, a referência e a nota — sem etiquetas', shareText({ ...marcas.find(m => m.id === 'g2'), tags: ['espera'] }, { verseText: 'Deus me fez esquecer' }), '"Deus me fez esquecer"\nGênesis 41:51\n\nesquecer não é apagar')
+
+check('compartilhar uma pergunta: a pergunta, a referência e a resposta', shareText(perguntas[0]), 'Por que dois anos?\n\nGênesis 41:1\n\nO texto só marca\no tempo.')
+check('compartilhar uma nota: o texto e a referência', shareText(notas.find(n => n.id === 'n2')), 'Esquecido pelo copeiro.\n\nGênesis 40:23')
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

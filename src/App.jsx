@@ -3249,6 +3249,9 @@ export default function App() {
       : <AddStudyScreen
           session={session}
           onBack={goBack}
+          // Vindo do cartão "Estudos" da Biblioteca, o cabeçalho traz a lupa
+          // da aba (handoff-biblioteca-55 §5).
+          onOpenSearch={tabHistory[tabHistory.length - 1] === 'notes' ? () => navigateTo('notesList') : null}
           onCreateStudy={() => navigateTo('createAiStudy')}
           onChangeStudyDays={() => navigateTo('studyOrganize')}
           onOpenPreview={handleOpenStudyPreview}
@@ -3651,6 +3654,7 @@ export default function App() {
                   onNova={openSermonNoteFromHome} onOpenList={() => navigateTo('notesList')}
                   onOpenStudies={() => navigateTo('addStudy')} onCreateStudy={() => navigateTo('createAiStudy')}
                   onOpenSermonNote={editSermonNoteFromLibrary} onOpenBible={openBiblePassage}
+                  onEditApplication={() => navigateTo('applicationPhrases')} onApplicationChanged={bumpApplicationRefresh}
                 />
               </div>
             )}

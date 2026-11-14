@@ -112,7 +112,7 @@ export function libraryItems({ notes = {}, highlights = [], sermonNotes = [], qu
     items.push({
       key: `pergunta:${q.book}:${q.chapter}:${q.verseStart}-${q.verseEnd}:${q.createdAt}`, type: 'pergunta',
       at: q.createdAt ?? null, book: q.book, bookEn: q.bookEn ?? null, chapter: q.chapter, verseStart: q.verseStart, verseEnd: q.verseEnd,
-      text: oneLine(q.question), answer: q.answer?.outcome === 'answer' ? String(q.answer.reply ?? '') : '',
+      text: oneLine(q.question), question: q.question, answer: q.answer?.outcome === 'answer' ? String(q.answer.reply ?? '') : '',
     })
   }
   return items

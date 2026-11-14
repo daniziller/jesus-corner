@@ -8,7 +8,9 @@
 import { fetchRow } from '../backend/userDataStore'
 import { hideHighlight } from '../highlights/highlightsStore'
 import { deleteSermonNote } from '../notes/sermonNotesStore'
-import { getAllPassageQuestions } from '../aiChat/passageQuestionStore'
+import { saveNote } from '../notes/notesStore'
+import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
+import { getAllPassageQuestions, removePassageQuestion } from '../aiChat/passageQuestionStore'
 import { getAllChapterReadRows } from '../bible/chapterReadLog'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
@@ -43,11 +45,22 @@ export const bibliotecaApi = {
   },
 
   // "Apagar" no menu de um item — a mesma gravação de sempre de cada
-  // tipo: a marcação fica escondida (highlightsStore.js), a anotação
-  // longa sai da lista dela.
+  // tipo: a marcação (e a nota de versículo, que é uma marcação) fica
+  // escondida (highlightsStore.js); a anotação longa sai da lista dela;
+  // nota de sessão, reflexão e frase do dia saem do mapa de notas; a
+  // pergunta, do aparelho.
   async remove(item) {
     if (item.type === 'pregacao') await deleteSermonNote(null, item.id)
-    else if (item.type === 'marcacao') await hideHighlight(null, item.id)
-    else throw new Error(`[biblioteca] apagar: tipo sem suporte (${item.type})`)
+    else if (item.type === 'marcacao' || (item.type === 'nota' && item.id)) await hideHighlight(null, item.id)
+    else if (item.type === 'pergunta') removePassageQuestion({ book: item.book, chapter: item.chapter, verseStart: item.verseStart, verseEnd: item.verseEnd, question: item.question })
+    else if (item.noteKey) {
+      await saveNote(null, item.noteKey, '')
+      // A frase fixada no Hoje é uma cópia, comparável só pelo texto
+      // (applicationPhraseStore.js): apagada a frase do dia, sai a cópia.
+      if (item.type === 'aplicacao') {
+        const pinned = await getPinnedApplicationPhrase(null).catch(() => '')
+        if (pinned && pinned === item.text) await setPinnedApplicationPhrase(null, '')
+      }
+    } else throw new Error(`[biblioteca] apagar: item sem registro (${item.key})`)
   },
 }

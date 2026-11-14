@@ -84,6 +84,7 @@ import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
 import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
 import BibliotecaScreen from '../src/screens/BibliotecaScreen'
+import AddStudyScreen from '../src/screens/AddStudyScreen'
 import { pickLibraryData, libraryItems, chaptersByDay, studiesSummary, typeMeta } from '../src/biblioteca/bibliotecaMath'
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
 import { linhaDeExemplo, perguntasDeExemplo, leiturasDeExemplo } from './bibliotecaFixture'
@@ -510,9 +511,9 @@ const bibliotecaDePreview = {
     const conta = params.get('conta') ?? 'exemplo'
     const linha = linhaDeExemplo({ conta, estudos: params.get('estudos') ?? 'andamento' })
     const apagados = window.__bibliotecaApagados ?? new Set()
-    const data = pickLibraryData({ ...linha, highlights: linha.highlights.filter(h => !apagados.has(h.id)), sermon_notes: linha.sermon_notes.filter(n => !apagados.has(n.id)) })
+    const data = pickLibraryData({ ...linha, notes: Object.fromEntries(Object.entries(linha.notes).filter(([key]) => !apagados.has(key))), highlights: linha.highlights.filter(h => !apagados.has(h.id)), sermon_notes: linha.sermon_notes.filter(n => !apagados.has(n.id)) })
     return new Promise(resolve => setTimeout(() => resolve({
-      items: libraryItems({ ...data, questions: perguntasDeExemplo(conta) }),
+      items: libraryItems({ ...data, questions: perguntasDeExemplo(conta) }).filter(item => !apagados.has(item.key)),
       readByDay: chaptersByDay(conta === 'exemplo' ? leiturasDeExemplo() : []),
       studies: studiesSummary({ ai: data.aiStudies, inductive: data.inductiveStudies, completed: data.studiesCompleted, activeStudyId: data.activeStudyId }),
     }), 150))
@@ -520,14 +521,15 @@ const bibliotecaDePreview = {
   verseText: bibliotecaApi.verseText,
   async remove(item) {
     const row = (window.__bibliotecaApagados ??= new Set())
-    row.add(item.id)
+    row.add(item.id ?? item.noteKey ?? item.key)
   },
 }
 
-// `&tipo=pregacao|marcacao` abre direto a tela do tipo; em Marcações,
-// `&aba=data|nota` e `&abrir=Gênesis` (o livro aberto por "Ver os N"); em
-// Pregações, `&filtro=sermon|service|class|video|free` e
-// `&ordem=oldest|preacher`.
+// `&tipo=nota|marcacao|reflexao|pregacao|aplicacao|pergunta` abre direto a
+// tela do tipo. Notas e Marcações: `&aba=data` (e `&aba=nota`) e
+// `&abrir=Gênesis` (o livro aberto por "Ver os N"). Pregações:
+// `&filtro=sermon|service|class|video|free` e `&ordem=oldest|preacher`.
+// Aplicações: `&filtro=done|open`.
 function BibliotecaPreview({ onPastRootChange }) {
   const tipo = params.get('tipo')
   const initialView = tipo ? { name: 'tipo', type: tipo, tab: params.get('aba') ?? undefined, expanded: params.get('abrir') ? [params.get('abrir')] : [], filter: params.get('filtro') ?? undefined, order: params.get('ordem') ?? undefined } : null
@@ -535,7 +537,8 @@ function BibliotecaPreview({ onPastRootChange }) {
     <BibliotecaScreen
       session={session} api={bibliotecaDePreview} initialView={initialView} onPastRootChange={onPastRootChange}
       onNova={() => alert('abrir a folha "Nova" (N1)')}
-      onOpenList={() => alert('abrir o que ainda não tem tela nova: a busca (L4/L5) ou a tela do tipo')}
+      onOpenList={() => alert('abrir a busca (L4/L5)')}
+      onEditApplication={() => alert('abrir a lista de frases do Perfil, onde a frase se edita')} onApplicationChanged={() => {}}
       onOpenStudies={() => alert('abrir a tela Estudos')} onCreateStudy={() => alert('criar um estudo (35d)')}
       onOpenSermonNote={id => alert(`abrir a anotação guardada (N5): ${id}`)}
       onOpenBible={(book, chapter, verse, extra) => alert(`abrir a Bíblia em ${book} ${chapter}${verse ? `:${verse}` : ''}${extra?.noteId ? ' com a nota aberta' : ''}`)}
@@ -554,7 +557,11 @@ function Preview() {
   let body
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
-  if (screen === 'biblioteca') {
+  if (screen === 'estudos') {
+    // A tela Estudos (35h) com o cabeçalho da Biblioteca; `&lupa=nao`: como
+    // abre pelo Meu Plano. (Sem servidor aqui, as listas ficam vazias.)
+    body = <AddStudyScreen session={session} onBack={() => alert('voltar')} onOpenSearch={params.get('lupa') === 'nao' ? null : () => alert('abrir a busca com "Estudos" selecionado')} onCreateStudy={() => alert('criar um estudo')} onChangeStudyDays={() => {}} onOpenPreview={() => {}} onOpenPublicBank={() => {}} onOpenStudyDetail={() => {}} />
+  } else if (screen === 'biblioteca') {
     body = <BibliotecaPreview onPastRootChange={setBibliotecaPastRoot} />
   } else if (screen === 'oracao') {
     body = <OracaoPreview />
