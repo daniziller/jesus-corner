@@ -89,7 +89,7 @@ export const CHRONOLOGICAL_MOVEMENTS = [
   },
 ]
 
-function buildChronoSessionsByMovement(planPaceId) {
+function buildChronoSessionsByMovement(planPaceId, splitPoints = null) {
   const pace = PLANS.find(p => p.id === planPaceId) ?? PLANS.find(p => p.id === 'standard')
   // Livre não tem meta de tempo — targetWords 0 faz buildBookSessions nunca
   // agrupar 2 capítulos numa sessão só (a 1ª condição do chunking, "chunkWords
@@ -102,7 +102,7 @@ function buildChronoSessionsByMovement(planPaceId) {
     let nextId = 1
     const sessions = []
     for (const book of movement.books) {
-      const { sessions: bookSessions, nextId: n } = buildBookSessions(book, targetWords, nextId)
+      const { sessions: bookSessions, nextId: n } = buildBookSessions(book, targetWords, nextId, splitPoints?.[book] ?? null)
       sessions.push(...bookSessions)
       nextId = n
     }
@@ -114,8 +114,10 @@ function buildChronoSessionsByMovement(planPaceId) {
 // Espelha deriveProgress (src/utils/progress.js), mas sobre os "movimentos"
 // cronológicos em vez dos 8 blocos temáticos — tudo em memória, sem rede
 // nem IA, já que a ordem é fixa (não depende do usuário nem muda com o tempo).
-export function deriveChronoProgress(completedSet, planPaceId) {
-  const sessionsByMovementRaw = buildChronoSessionsByMovement(planPaceId)
+// `splitPoints`: onde a divisão de um livro recomeça (o ponto de partida do
+// plano — ver buildBookSessions em dynamicSessions.js).
+export function deriveChronoProgress(completedSet, planPaceId, splitPoints = null) {
+  const sessionsByMovementRaw = buildChronoSessionsByMovement(planPaceId, splitPoints)
   const blocks = []
   const sessionsByBlock = {}
 

@@ -15,6 +15,8 @@ import { PLANS } from '../data/bibleBlocks'
 import { deriveChronoProgress } from '../data/chronologicalPlan'
 import { deriveThemeTexts, themeTextKey } from '../themePlans/themeTexts'
 import { sessionKeys } from '../utils/progress'
+import { planQueue, splitPointsFor, findPlanSession, planTotals } from '../reading/bibleOrderMath'
+import { findCurrentReadingSession } from '../reading/findCurrentReadingSession'
 
 // title/theme são os campos atuais/antigos do título de um plano por tema —
 // planos salvos antes da tela ganhar campo de título separado do escopo
@@ -42,7 +44,17 @@ export function themePlanProgress(themePlan, completedSet) {
 // groupPlans — planos de grupo (22d) que a pessoa já ACEITOU (ver
 // src/groups/groupPlansStore.js/getMyAcceptedGroupPlans), só usado pelo
 // branch 'group' abaixo.
-export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, readingMinutesOverride) {
+// planOrder — { mode, customOrder, position, readingOrder }: a ordem da
+// leitura contínua e de onde o plano segue (ver bibleOrderMath.js). Vale
+// para o plano de sempre e o cronológico; `blocks`/`sessionsByBlock` já
+// chegam divididos pelo ponto de partida do plano de sempre.
+//
+// Além dos totais, devolve `current` ({ session, block }) — a sessão onde
+// o plano está — e `queue` (a fila do plano; nula nos planos por tema e
+// de grupo, que não são a leitura contínua).
+export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, readingMinutesOverride, planOrder = null) {
+  const queueOf = kind => planQueue(kind, planOrder?.mode ?? 'canonical', planOrder?.customOrder ?? null, planOrder?.position ?? null, planOrder?.readingOrder ?? 'ot_first')
+
   if (activeAltPlan?.type === 'theme') {
     const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
     if (themePlan) {
@@ -98,6 +110,8 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
         percent,
         blocks: [syntheticBlock],
         sessionsByBlock: { [syntheticBlock.id]: texts },
+        current: findCurrentReadingSession([syntheticBlock], { [syntheticBlock.id]: texts }),
+        queue: null,
       }
     }
     // Plano referenciado não existe mais (deletado) — cai no fallback fixo.
@@ -133,6 +147,8 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
         percent,
         blocks: [syntheticBlock],
         sessionsByBlock: { [syntheticBlock.id]: texts },
+        current: findCurrentReadingSession([syntheticBlock], { [syntheticBlock.id]: texts }),
+        queue: null,
       }
     }
     // Plano referenciado não existe mais (deletado/não aceito) — cai no
@@ -140,10 +156,10 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
   }
 
   if (activeAltPlan?.type === 'chrono') {
-    const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
+    const queue = queueOf('chrono')
+    const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId, splitPointsFor(queue.start))
     const pace = PLANS.find(p => p.id === activeAltPlan.paceId) ?? PLANS.find(p => p.id === 'standard')
-    const doneCount = chrono.blocks.reduce((s, b) => s + b.sessionsDone, 0)
-    const totalCount = chrono.blocks.reduce((s, b) => s + b.sessionsTotal, 0)
+    const { done: doneCount, total: totalCount } = planTotals({ ...chrono, ...queue })
     return {
       kind: 'chrono',
       icon: 'Hourglass',
@@ -155,12 +171,15 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
       percent: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,
       blocks: chrono.blocks,
       sessionsByBlock: chrono.sessionsByBlock,
+      current: findPlanSession({ ...chrono, ...queue }),
+      queue,
     }
   }
 
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
-  const doneCount = blocks.reduce((s, b) => s + b.sessionsDone, 0)
-  const totalCount = blocks.reduce((s, b) => s + b.sessionsTotal, 0)
+  const queue = queueOf('fixed')
+  // Só os livros do plano contam (em "minha ordem" a pessoa escolhe quais).
+  const { done: doneCount, total: totalCount } = planTotals({ blocks, sessionsByBlock, ...queue })
   return {
     kind: 'fixed',
     icon: planRaw.icon,
@@ -175,5 +194,7 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
     percent: totalCount ? Math.round((doneCount / totalCount) * 100) : 0,
     blocks,
     sessionsByBlock,
+    current: findPlanSession({ blocks, sessionsByBlock, ...queue }),
+    queue,
   }
 }

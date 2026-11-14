@@ -16,6 +16,11 @@
 // nunca mais é ancorada em onde a pessoa tocou por último, só no que
 // falta na ordem, seja qual for a origem da marcação (leitura guiada,
 // livre, ou "Marcar lidos" em lote).
+//
+// A leitura contínua da Bíblia (plano de sempre e cronológico) hoje acha a
+// sua sessão pela FILA do plano — findPlanSession, em bibleOrderMath.js,
+// que respeita a ordem escolhida e o ponto de partida. Esta função aqui
+// ficou para os planos de uma lista só (por tema e de grupo).
 // `lastReadPosition` continua existindo e sendo gravado (ver
 // lastReadPositionStore.js) — só não entra mais NESTA função. Outros usos
 // legítimos dele (linha de continuidade da Home, "onde um amigo parou" em

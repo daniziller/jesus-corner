@@ -35,7 +35,7 @@ export default function SeuPlanoScreen({ session, completedSet, stepMinutes, onB
   const minutes = useMemo(() => resolveMinutes(stepMinutes, plan), [stepMinutes, plan])
   const rows = useMemo(() => (stepDays ? computeWeekRows({ stepDays, routineModules, minutes, dailyRoutine }) : []), [stepDays, routineModules, minutes, dailyRoutine])
   const readingDays = stepDays ? stepDays.reading.filter(Boolean).length : 0
-  const proj = stepDays && !hasNoPlan ? computeProjection({ completedSet, readingMinutesPerDay: minutes.reading, weeklyDays: stepDays.reading, lang }) : null
+  const proj = stepDays && !hasNoPlan ? computeProjection({ completedSet, readingMinutesPerDay: minutes.reading, weeklyDays: stepDays.reading, lang, books: session.planBooks }) : null
   const planName = t('routine.bibleWholeLabel', undefined, lang)
   const bar = Math.round((Math.min(chaptersRead, BIBLE_CHAPTERS) / BIBLE_CHAPTERS) * 100)
 

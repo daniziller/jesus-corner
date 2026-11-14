@@ -73,7 +73,7 @@ import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone, resetProgress } from './progress/progressStore'
 import { markChaptersManually, unmarkChaptersManually } from './bible/manualChapterMarks'
 import { logChaptersRead } from './bible/chapterReadLog'
-import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, computeTotalSessions, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
+import { deriveProgress, pickActiveBlock, computeOverallStats, computeGamificationStats, sessionKeys, computeCompletedBooks, computeBookChapterCounts } from './utils/progress'
 import { isAtLeast } from './utils/age'
 import { getPrayerStats } from './prayer/prayerStatsStore'
 import { getDailyRoutine, setStepDone, setThemePicks, setStepProgress } from './routine/dailyRoutineStore'
@@ -81,7 +81,11 @@ import { DEFAULT_ROUTINE_MODULES, computeWeekGoalProgress, computeWeeksInGoal, D
 import { getWeeklyGoalDays } from './routine/weeklyGoalStore'
 import { getRoutineModules, setRoutineModules as persistRoutineModules } from './routine/routineModulesStore'
 import { getActiveStudyId, setActiveStudyId as persistActiveStudyId } from './studies/activeStudyStore'
-import { getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode } from './reading/bibleOrderStore'
+import {
+  getBibleOrderMode, setBibleOrderMode as persistBibleOrderMode, getCustomBookOrder, setCustomBookOrder as persistCustomBookOrder,
+  getPlanPosition, setPlanPosition as persistPlanPosition,
+} from './reading/bibleOrderStore'
+import { planQueue, splitPointsFor, findPlanSession, sessionAt, planTotals, resolveNextChapter } from './reading/bibleOrderMath'
 import { getStepDays, setStepDays as persistStepDays, stepsScheduledForWeekday, nextScheduledWeekday } from './routine/stepDaysStore'
 import { getStudyFinishPrefs } from './studies/studyFinishPrefsStore'
 import { WEEKDAY_FULL } from './routine/weeklyDaysMath'
@@ -163,7 +167,6 @@ import { applyPendingOnboardingChoices } from './onboarding/pendingOnboardingCho
 import { logActivity } from './activity/activityStore'
 import { syncPushTimezone, subscribeToPush } from './notifications/pushStore'
 import { avatarInitialsOf } from './utils/avatarInitials'
-import { findCurrentReadingSession } from './reading/findCurrentReadingSession'
 
 function defaultBlockIdFor(completedSet, planId, readingOrder, readingMinutesPerDay = null) {
   return pickActiveBlock(deriveProgress(completedSet, planId, readingOrder, readingMinutesPerDay).blocks).id
@@ -176,7 +179,7 @@ function defaultBlockIdFor(completedSet, planId, readingOrder, readingMinutesPer
 // muda o TAMANHO das sessões, então "dias restantes" é só a contagem de
 // sessões que faltam no plano atual.
 // ─────────────────────────────────────────
-function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans, stepMinutes) {
+function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans, stepMinutes, planOrder) {
   const lang = authUser.language ?? 'pt'
   const todayRoutine = dailyRoutine[dateKey()] ?? {}
 
@@ -188,18 +191,23 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   // pessoa escolheu ler hoje, se o plano ativo for por tema) também vem do
   // dia de hoje na rotina — ver src/routine/dailyRoutineStore.js/setThemePicks.
   const todayThemePicks = todayRoutine.themePicks
-  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, stepMinutes?.reading)
+  const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, stepMinutes?.reading, planOrder)
   // Sessão (e bloco) onde o plano realmente está — a primeira ainda não
-  // concluída, na ordem canônica (ver findCurrentReadingSession.js: não
-  // depende mais de onde a pessoa tocou por último, só do completedSet).
-  const { session: currentSession, block: activeBlock } = findCurrentReadingSession(activePlanData.blocks, activePlanData.sessionsByBlock)
+  // concluída na fila do plano: a ordem escolhida (da Bíblia, cronológica,
+  // minha ordem, livre) a partir do ponto de partida (ver bibleOrderMath.js).
+  // Depende só do completedSet e da fila — nunca marca nada como lido.
+  const { session: currentSession, block: activeBlock } = activePlanData.current
+  // A fila do plano de sempre — mesmo com um estudo ou o cronológico em
+  // destaque, é ela que diz onde o plano de sempre ficou e quanto falta.
+  const fixedQueue = planQueue('fixed', planOrder.mode, planOrder.customOrder, planOrder.position, planOrder.readingOrder)
+  const fixedTotals = planTotals({ blocks, sessionsByBlock, ...fixedQueue })
   // Onde o plano fixo (Gênesis…) ficou pausado, pra mostrar em Meu Plano
   // (quadro 22c: "Gênesis pausado em 41 · Retomar já") enquanto um estudo
   // (activeAltPlan) estiver ativo — sempre calculado a partir de
   // blocks/sessionsByBlock ORIGINAIS (não activePlanData.blocks, que já
   // seriam os do estudo), então não depende de qual plano está "de hoje".
   const pausedFixedSession = activePlanData.kind !== 'fixed'
-    ? findCurrentReadingSession(blocks, sessionsByBlock).session
+    ? findPlanSession({ blocks, sessionsByBlock, ...fixedQueue }).session
     : null
   const overall = computeOverallStats(blocks)
   const planRaw = PLANS.find(p => p.id === planId) ?? PLANS.find(p => p.id === 'standard')
@@ -296,7 +304,15 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
     chaptersRead: gami.chaptersRead,
     totalChapters: gami.totalChapters,
     totalBooks: gami.totalBooks,
-    sessionsLeft: computeTotalSessions(blocks) - overall.sessionsDone,
+    sessionsLeft: fixedTotals.total - fixedTotals.done,
+    // A ordem da leitura contínua (35i) e a fila do plano em destaque
+    // ({ bookOrder, start } — nula nos planos por tema e de grupo). A
+    // leitura do plano usa a fila pra saber qual é a sessão seguinte.
+    bibleOrderMode: planOrder.mode,
+    planQueue: activePlanData.queue,
+    // Em "minha ordem" o plano tem só os livros escolhidos: a projeção de
+    // término conta só eles. Nas outras ordens, a Bíblia inteira (null).
+    planBooks: planOrder.mode === 'custom' ? fixedQueue.bookOrder : null,
     // "Sem plano" (28d) — a pessoa escolheu não ter um trecho do dia pra
     // Leitura; ela lê e marca livre pela aba Bíblia (28c). Home/Meu Plano
     // checam isso pra trocar "sessão de hoje" por um convite pra ler livre
@@ -670,7 +686,7 @@ export default function App() {
   // "Último texto lido" ({ book, chapter }, por dispositivo — ver
   // lastReadPositionStore.js). Alimenta o card "Continue sua leitura" da
   // Home e o botão "Continuar sessão", que reabrem exatamente esse
-  // capítulo (ver findCurrentReadingSession). Relido do localStorage a
+  // capítulo (ver findPlanSession). Relido do localStorage a
   // cada troca de aba e a cada capítulo marcado — é onde ele muda (dentro
   // de ReadingBlockView e em toggleChapter/toggleSession abaixo).
   const [lastReadPosition, setLastReadPositionState] = useState(getLastReadPosition)
@@ -724,6 +740,10 @@ export default function App() {
   // pela barra reabriria o mesmo estudo sem a pessoa ter pedido.
   const [libraryOpenStudyId, setLibraryOpenStudyId] = useState(null)
   const [chronoAutoOpenMovementId, setChronoAutoOpenMovementId] = useState(null)
+  // A sessão a abrir dentro desse movimento ("Continuar" abre onde o plano
+  // está, que com ponto de partida pode não ser a primeira por ler do
+  // movimento). null = a primeira por ler.
+  const [chronoAutoOpenSessionId, setChronoAutoOpenSessionId] = useState(null)
   // Rotina diária (Oração/Leitura/Reflexão) — alimenta a meta semanal
   // (isDayGoalMet/computeWeeksInGoal, routineStreak.js), não mais um login
   // diário.
@@ -737,19 +757,25 @@ export default function App() {
   // leitura (planId acima).
   const [routineModules, setRoutineModulesState] = useState(DEFAULT_ROUTINE_MODULES)
   const [activeStudyId, setActiveStudyIdState] = useState(null)
-  // Ordem da leitura contínua da Bíblia (turno 35, 35i) — 'canonical' e
-  // 'chronological' são espelhadas em activeAltPlan (ver saveBibleOrderMode
-  // mais abaixo), reusando o mecanismo de plano cronológico alternativo que
-  // já existia (mesmo completedSet, nunca reseta progresso — só 'custom'
-  // ("Minha ordem") ainda não tem essa ponte: afeta o que 35c/35i MOSTRAM,
-  // mas "Ler agora" ainda abre a ordem canônica de verdade até uma leva
-  // futura — decisão registrada, não um esquecimento).
+  // Ordem da leitura contínua da Bíblia (turno 35, 35i). A cronológica é
+  // espelhada em activeAltPlan (ver saveBibleOrderMode mais abaixo),
+  // reusando o plano cronológico que já existia; "minha ordem" e "ordem
+  // livre" seguem no plano de sempre, mudando só a fila (ver planQueue em
+  // bibleOrderMath.js). Mesmo completedSet em todas — trocar de ordem
+  // nunca reseta progresso.
   const [bibleOrderMode, setBibleOrderModeState] = useState('canonical')
+  // "Minha ordem": os livros que fazem parte do plano, na ordem que a
+  // pessoa montou (null = nunca configurou). E de onde o plano segue —
+  // `start`, o ponto de partida escolhido nas ordens da Bíblia,
+  // cronológica e minha ordem; `free`, onde a pessoa está na ordem livre.
+  // Nenhum dos dois marca nada como lido (ver bibleOrderMath.js).
+  const [customBookOrder, setCustomBookOrderState] = useState(null)
+  const [planPosition, setPlanPositionState] = useState({ start: null, free: null })
   const [prayerStats, setPrayerStats] = useState(DEFAULT_PRAYER_STATS)
   // De onde veio a última sessão de leitura marcada como concluída antes de
   // ir pra Reflexão (ver ReadingBlockView.jsx/onGoToReflection) — só o
   // suficiente pra reabrir EXATAMENTE aquela sessão (não a próxima, que já
-  // avançou — ver findCurrentReadingSession), de qualquer uma das 3
+  // avançou — ver findPlanSession), de qualquer uma das 3
   // superfícies de leitura (plano fixo, por tema, cronológico). Local só —
   // nunca persistido, não precisa sobreviver a um F5. null = nenhuma
   // sessão recente conhecida (Reflexão aberta direto pela aba, por
@@ -846,9 +872,20 @@ export default function App() {
     changeFontSizePt(largeText ? DEFAULT_FONT_SIZE_PT : 20)
   }
 
+  // A ordem da leitura contínua e a fila do plano de sempre — os livros em
+  // ordem e de onde o plano segue. A divisão em sessões recomeça no ponto
+  // de partida, pra sessão de hoje começar exatamente ali.
+  const planOrder = useMemo(
+    () => ({ mode: bibleOrderMode, customOrder: customBookOrder, position: planPosition, readingOrder }),
+    [bibleOrderMode, customBookOrder, planPosition, readingOrder]
+  )
+  const fixedQueue = useMemo(
+    () => planQueue('fixed', bibleOrderMode, customBookOrder, planPosition, readingOrder),
+    [bibleOrderMode, customBookOrder, planPosition, readingOrder]
+  )
   const { blocks, sessionsByBlock } = useMemo(
-    () => deriveProgress(completedSet, planId, readingOrder, stepMinutes.reading),
-    [completedSet, planId, readingOrder, stepMinutes.reading]
+    () => deriveProgress(completedSet, planId, readingOrder, stepMinutes.reading, splitPointsFor(fixedQueue.start)),
+    [completedSet, planId, readingOrder, stepMinutes.reading, fixedQueue]
   )
   // Total de capítulos por livro — usado pelo fluxo "onde começar" (28d/28e,
   // Bloco 6) pra saber quantos capítulos tem o livro escolhido, sem
@@ -945,7 +982,7 @@ export default function App() {
       await applyPendingOnboardingChoices()
       if (cancelled) return
 
-      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+      const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, stats, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans, userCustomBookOrder, userPlanPosition] = await Promise.all([
         getCompletedSet(user.email),
         getSelectedPlanId(user.email),
         getReadingOrder(user.email),
@@ -975,6 +1012,8 @@ export default function App() {
       getMyGroups().catch(() => []),
       getMyAcceptedGroupPlans().catch(() => []),
       getMyPendingGroupPlanInvites().catch(() => []),
+        getCustomBookOrder(),
+        getPlanPosition(),
       ])
       if (cancelled) return
       // Username de /d/:username salvo antes de existir sessão (ver
@@ -1006,6 +1045,8 @@ export default function App() {
       setRoutineModulesState(userRoutineModules)
       setActiveStudyIdState(userActiveStudyId)
       setBibleOrderModeState(userBibleOrderMode)
+      setCustomBookOrderState(userCustomBookOrder)
+      setPlanPositionState(userPlanPosition)
       setPrayerStats(stats)
       setActiveChallenges(challenges)
       setPendingSocialCount(pendingSocial)
@@ -1551,11 +1592,10 @@ export default function App() {
     markAchievementsSeen(ids).then(setGamification).catch(err => console.error('[gamificação] marcar vistas', err))
   }
 
-  // Botão "Continue sua leitura" da Home/Rotina: reabre exatamente o
-  // último capítulo que a pessoa estava lendo (lastReadPosition, ver
-  // findCurrentReadingSession) — no plano fixo. Nos planos alternativos
-  // (tema/cronológico) ainda abre pelo plano em destaque, sem o "último
-  // lido" (as sessões deles não mapeiam 1:1 com livro:capítulo).
+  // Botão "Continue sua leitura" da Home/Rotina: abre a sessão onde o
+  // plano em destaque está — no plano de sempre e no cronológico, a
+  // primeira por ler na fila do plano (ver findPlanSession em
+  // bibleOrderMath.js); nos planos por tema e de grupo, a tela deles.
   function continueToday() {
     // "Sem plano" (28d) — não existe "sessão de hoje" pra abrir; manda pra
     // aba Bíblia em modo livre, onde a pessoa lê e marca o que quiser (ver
@@ -1568,7 +1608,7 @@ export default function App() {
       const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
       if (themePlan) {
         const todayThemePicks = dailyRoutine[dateKey()]?.themePicks
-        const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks)
+        const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, undefined, undefined, planOrder)
         // Sem escolha de hoje ainda — manda pra aba Plano, onde mora o
         // checklist de textos (ver PlanScreen.jsx), em vez de abrir a
         // leitura direto (não saberia o que abrir).
@@ -1583,9 +1623,11 @@ export default function App() {
       }
     }
     if (activeAltPlan?.type === 'chrono') {
-      const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId)
-      const { block } = findCurrentReadingSession(chrono.blocks, chrono.sessionsByBlock)
+      const queue = planQueue('chrono', bibleOrderMode, customBookOrder, planPosition, readingOrder)
+      const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId, splitPointsFor(queue.start))
+      const { session: chronoSession, block } = findPlanSession({ ...chrono, ...queue })
       setChronoAutoOpenMovementId(block.id)
+      setChronoAutoOpenSessionId(chronoSession.id)
       goToTab('chronologicalPlan')
       return
     }
@@ -1597,7 +1639,7 @@ export default function App() {
       goToTab('groupPlanReader')
       return
     }
-    const { session: resumeSession, block } = findCurrentReadingSession(blocks, sessionsByBlock)
+    const { session: resumeSession, block } = findPlanSession({ blocks, sessionsByBlock, ...fixedQueue })
     setActiveBlockId(block.id)
     setJourneyResumeSessionId(resumeSession.id)
     setJourneyEntryMode('reading')
@@ -1652,7 +1694,7 @@ export default function App() {
   // qual capítulo foi lido, como quando se lê no app. Fora do modo guiado
   // ninguém encadeia o próximo passo, então volta pra Meu Plano.
   function finishPhysicalReading() {
-    const { session: s, block } = findCurrentReadingSession(blocks, sessionsByBlock)
+    const { session: s, block } = findPlanSession({ blocks, sessionsByBlock, ...fixedQueue })
     if (!s || s.type === 'reflection') return
     setLastReadSession({ tab: 'journey', blockId: block.id, sessionId: s.id, book: s.book, bookEn: s.bookEn, chStart: s.chStart, chEnd: s.chEnd, words: s.words, type: s.type })
     toggleSession(s, true)
@@ -2090,6 +2132,7 @@ export default function App() {
   // mapa de blocos de sempre.
   function openChronoSession(movementId) {
     setChronoAutoOpenMovementId(movementId)
+    setChronoAutoOpenSessionId(null)
     goToTab('chronologicalPlan')
   }
 
@@ -2255,7 +2298,7 @@ export default function App() {
     // Mesmo motivo do bootstrap acima: aplicar ANTES de ler, pra não correr
     // contra a leitura de plano/ordem logo abaixo.
     await applyPendingOnboardingChoices()
-    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans] = await Promise.all([
+    const [set, userPlanId, userReadingOrder, userWeeklyGoalDays, userWeeklyDays, userStepMinutes, userStepDays, userActiveAltPlan, userThemePlans, userAiStudies, stats, routine, userRoutineModules, userActiveStudyId, userBibleOrderMode, challenges, pendingSocial, myProfile, mySubscription, adminStatus, inviteAppliedByEmail, inviteAppliedByCode, groups, acceptedGroupPlans, pendingGroupPlans, userCustomBookOrder, userPlanPosition] = await Promise.all([
       getCompletedSet(user.email),
       getSelectedPlanId(user.email),
       getReadingOrder(user.email),
@@ -2281,6 +2324,8 @@ export default function App() {
       getMyGroups().catch(() => []),
       getMyAcceptedGroupPlans().catch(() => []),
       getMyPendingGroupPlanInvites().catch(() => []),
+      getCustomBookOrder(),
+      getPlanPosition(),
     ])
     redeemPendingFriendUsername().catch(() => false)
     const inviteApplied = inviteAppliedByEmail || inviteAppliedByCode
@@ -2306,6 +2351,8 @@ export default function App() {
     setRoutineModulesState(userRoutineModules)
     setActiveStudyIdState(userActiveStudyId)
     setBibleOrderModeState(userBibleOrderMode)
+    setCustomBookOrderState(userCustomBookOrder)
+    setPlanPositionState(userPlanPosition)
     setActiveChallenges(challenges)
     setPendingSocialCount(pendingSocial)
     setMyAvatarUrl(myProfile?.avatarUrl ?? null)
@@ -2350,6 +2397,8 @@ export default function App() {
     setRoutineModulesState(DEFAULT_ROUTINE_MODULES)
     setActiveStudyIdState(null)
     setBibleOrderModeState('canonical')
+    setCustomBookOrderState(null)
+    setPlanPositionState({ start: null, free: null })
     setPrayerStats(DEFAULT_PRAYER_STATS)
     setActiveChallenges([])
     setPendingSocialCount(0)
@@ -2431,15 +2480,25 @@ export default function App() {
     }
   }
 
-  // Ordem da leitura contínua da Bíblia (35i) — turno 35. 'canonical' e
-  // 'chronological' espelham em activeAltPlan (reusa o mecanismo de plano
-  // cronológico alternativo que já existia — mesmo completedSet, nunca
-  // reseta progresso, ver deriveChronoProgress); só troca de verdade a
+  function savePlanPosition(next) {
+    setPlanPositionState(next)
+    persistPlanPosition(next).catch(err => console.error('Failed to persist plan position', err))
+  }
+
+  // Ordem da leitura contínua da Bíblia (35i) — turno 35. A cronológica
+  // espelha em activeAltPlan (reusa o plano cronológico que já existia);
+  // as outras três seguem no plano de sempre, mudando só a fila. Mesmo
+  // completedSet em todas — nunca reseta progresso. Só troca de verdade a
   // sessão de "Ler agora" quando NÃO há um estudo (tema/grupo) pausando o
   // plano principal no momento — trocar a ordem enquanto um estudo está
-  // ativo só vale pra quando ele acabar. 'custom' ("Minha ordem") ainda não
-  // tem essa ponte — ver comentário no useState de bibleOrderMode acima.
+  // ativo só vale pra quando ele acabar.
   function saveBibleOrderMode(mode) {
+    // Ao entrar na ordem livre, o plano segue de onde a pessoa está agora
+    // (e não de onde a ordem livre tinha ficado da última vez).
+    if (mode === 'free' && bibleOrderMode !== 'free') {
+      const queue = planQueue(bibleOrderMode === 'chronological' ? 'chrono' : 'fixed', bibleOrderMode, customBookOrder, planPosition, readingOrder)
+      savePlanPosition({ ...planPosition, free: resolveNextChapter(completedSet, queue.bookOrder, bookChapterCounts, queue.start) })
+    }
     setBibleOrderModeState(mode)
     persistBibleOrderMode(mode).catch(err => console.error('Failed to persist bible order mode', err))
     const noStudyPausing = !activeAltPlan || activeAltPlan.type === 'chrono' || activeAltPlan.type === 'fixed'
@@ -2449,6 +2508,13 @@ export default function App() {
     } else if (activeAltPlan?.type === 'chrono') {
       selectActivePlan({ type: 'fixed', id: planId })
     }
+  }
+
+  // "Minha ordem" (35i): os livros que fazem parte do plano, na ordem que
+  // a pessoa montou.
+  function saveCustomBookOrder(order) {
+    setCustomBookOrderState(order)
+    persistCustomBookOrder(order).catch(err => console.error('Failed to persist custom book order', err))
   }
 
   // "Onde começar" (28d, Bloco 6) — troca o plano fixo pra começar num
@@ -2828,7 +2894,7 @@ export default function App() {
       markRoutineStep('reading')
       // Marcar uma sessão como lida também conta como "último texto lido"
       // — o card "Continue sua leitura" volta pra ela (ver
-      // findCurrentReadingSession).
+      // findPlanSession).
       if (session.type !== 'reflection') {
         setLastReadPosition(session.book, session.chEnd)
         setLastReadPositionState({ book: session.book, chapter: session.chEnd })
@@ -2898,23 +2964,25 @@ export default function App() {
     if (done && newlyDoneKeys.length) scheduleGamificationCheck()
   }
 
-  // "Escolher" em 35i (Onde começar) — turno 35, Bloco 1. Diferente do
-  // "Trocar plano" antigo (applyStartChoice, ChooseStartScreen/28d): aqui
-  // não existe reordenar testamento nem plano alternativo, só marcar como
-  // lido tudo que vem ANTES do capítulo escolhido na ordem atual da leitura
-  // contínua (bibleOrderStore.js) — o mesmo princípio de "marcação manual"
-  // que 28c já usa (chapters_read, origem='manual'), só que em lote pra
-  // vários livros de uma vez. O capítulo escolhido em diante fica por ler.
-  function applyReadingStartPosition(bookOrder, book, chapter) {
-    for (const b of bookOrder) {
-      if (b === book) {
-        const before = Array.from({ length: chapter - 1 }, (_, i) => i + 1)
-        if (before.length) markChaptersManuallyFor(b, before, true)
-        break
-      }
-      const total = bookChapterCounts[b] ?? 0
-      if (total > 0) markChaptersManuallyFor(b, Array.from({ length: total }, (_, i) => i + 1), true)
-    }
+  // "Escolher" em 35i (Onde começar): o plano passa a seguir do capítulo
+  // escolhido. NADA é marcado como lido — o que ficou para trás continua
+  // por ler e vai para o fim da fila (ver bibleOrderMath.js). Na ordem
+  // livre, o que muda é onde a pessoa está (`free`); nas outras, o ponto
+  // de partida (`start`).
+  function applyReadingStartPosition(book, chapter) {
+    savePlanPosition(bibleOrderMode === 'free' ? { ...planPosition, free: { book, chapter } } : { ...planPosition, start: { book, chapter } })
+  }
+
+  // Ordem livre: a pessoa abriu outro texto DENTRO da leitura do plano — o
+  // plano passa a seguir dali, sem marcar nada. (Abrir um capítulo pela aba
+  // Bíblia não chega aqui: a leitura livre não mexe no plano.) Se o texto
+  // é de outro bloco, a leitura reabre nele.
+  function movePlanTo(book, chapter, fromBlockId) {
+    savePlanPosition({ ...planPosition, free: { book, chapter } })
+    const target = sessionAt(deriveProgress(completedSet, planId, readingOrder, stepMinutes.reading, splitPointsFor({ book, chapter })), book, chapter)
+    if (!target || target.block.id === fromBlockId) return
+    setActiveBlockId(target.block.id)
+    setJourneyResumeSessionId(target.session.id)
   }
 
   if (!bootstrapped) {
@@ -3004,7 +3072,7 @@ export default function App() {
     )
   }
 
-  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans, stepMinutes)
+  const session = buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, completedSet, prayerStats, readingOrder, activeAltPlan, themePlans, routineModules, activeStudyId, lastReadPosition, groupPlans, stepMinutes, planOrder)
   // Modo guiado disponível pros componentes (banner + auto-avanço). idx/step
   // derivados aqui pra não repetir a conta em cada tela.
   session.guided = guidedFlow
@@ -3050,7 +3118,7 @@ export default function App() {
   // Livro/capítulo real que a Reflexão com perguntas geradas (10d, reskin
   // Bento) precisa pra ancorar as perguntas — diferente de
   // session.todaySession, que já pode ter avançado pro PRÓXIMO capítulo
-  // assim que este foi marcado como lido (ver findCurrentReadingSession).
+  // assim que este foi marcado como lido (ver findPlanSession).
   // Vem direto no descriptor (ver onGoToReflectionFrom em JourneyScreen.jsx
   // e nos outros 4 lugares que montam o mesmo formato — pacote 36-37,
   // 37e, precisou de book/chStart/chEnd em TODOS eles, não só 'journey')
@@ -3188,7 +3256,7 @@ export default function App() {
       ? <AjustarPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} initialOpenStep={adjustOpenStep} scrollToDays={!!adjustOpenStep} key={adjustOpenStep ?? 'fechado'} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     readingOrganize: hasPremium
-      ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} onSaveBibleOrderMode={saveBibleOrderMode} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
+      ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} customBookOrder={customBookOrder} planPosition={planPosition} readingOrder={readingOrder} onSaveBibleOrderMode={saveBibleOrderMode} onSaveCustomBookOrder={saveCustomBookOrder} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     studyOrganize: hasPremium
       ? <StudyOrganizeScreen session={session} onEndStudy={() => selectActiveStudy(null)} onNavigate={navigateTo} onBack={goBack} onOpenStudyDetail={() => goToTab('studyDetail')} />
@@ -3335,8 +3403,8 @@ export default function App() {
     groupPlanReader: <GroupPlanReaderScreen session={session} authUser={authUser} completedSet={completedSet} plan={groupPlans.find(p => p.id === activeAltPlan?.planId)} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onBack={goBack} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
-      : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
-    journey: <JourneyScreen onOpenSuaBiblia={() => goToTab('suaBiblia')} onOpenSelo={openSelo} onCelebrateNow={celebrateGamificationNow} session={session} authUser={authUser} stepMinutes={stepMinutes} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
+      : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} autoOpenSessionId={chronoAutoOpenSessionId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
+    journey: <JourneyScreen onOpenSuaBiblia={() => goToTab('suaBiblia')} onOpenSelo={openSelo} onCelebrateNow={celebrateGamificationNow} session={session} authUser={authUser} stepMinutes={stepMinutes} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onMovePlan={movePlanTo} onGoToReflectionFrom={goToReflectionFrom} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
     // A anotação longa (handoff-biblioteca-55 §7A): a página de escrever
     // (N2) — uma nova ou o rascunho em andamento — e a anotação guardada
     // (N5), ao finalizar e ao tocar numa já finalizada na Biblioteca.
