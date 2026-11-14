@@ -508,7 +508,9 @@ const bibliotecaDePreview = {
     if (como === 'carregando') return new Promise(() => {})
     if (como === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
     const conta = params.get('conta') ?? 'exemplo'
-    const data = pickLibraryData(linhaDeExemplo({ conta, estudos: params.get('estudos') ?? 'andamento' }))
+    const linha = linhaDeExemplo({ conta, estudos: params.get('estudos') ?? 'andamento' })
+    const apagados = window.__bibliotecaApagados ?? new Set()
+    const data = pickLibraryData({ ...linha, highlights: linha.highlights.filter(h => !apagados.has(h.id)), sermon_notes: linha.sermon_notes.filter(n => !apagados.has(n.id)) })
     return new Promise(resolve => setTimeout(() => resolve({
       items: libraryItems({ ...data, questions: perguntasDeExemplo(conta) }),
       readByDay: chaptersByDay(conta === 'exemplo' ? leiturasDeExemplo() : []),
@@ -516,17 +518,27 @@ const bibliotecaDePreview = {
     }), 150))
   },
   verseText: bibliotecaApi.verseText,
+  async remove(item) {
+    const row = (window.__bibliotecaApagados ??= new Set())
+    row.add(item.id)
+  },
 }
 
-function BibliotecaPreview() {
+// `&tipo=pregacao|marcacao` abre direto a tela do tipo; em Marcações,
+// `&aba=data|nota` e `&abrir=Gênesis` (o livro aberto por "Ver os N"); em
+// Pregações, `&filtro=sermon|service|class|video|free` e
+// `&ordem=oldest|preacher`.
+function BibliotecaPreview({ onPastRootChange }) {
+  const tipo = params.get('tipo')
+  const initialView = tipo ? { name: 'tipo', type: tipo, tab: params.get('aba') ?? undefined, expanded: params.get('abrir') ? [params.get('abrir')] : [], filter: params.get('filtro') ?? undefined, order: params.get('ordem') ?? undefined } : null
   return (
     <BibliotecaScreen
-      session={session} api={bibliotecaDePreview}
-      onOpenSearch={() => alert('abrir a busca (L4)')} onNova={() => alert('abrir a folha "Nova" (N1)')}
-      onOpenType={type => alert(`abrir a tela do tipo: ${typeMeta(type).name}`)}
+      session={session} api={bibliotecaDePreview} initialView={initialView} onPastRootChange={onPastRootChange}
+      onNova={() => alert('abrir a folha "Nova" (N1)')}
+      onOpenList={() => alert('abrir o que ainda não tem tela nova: a busca (L4/L5) ou a tela do tipo')}
       onOpenStudies={() => alert('abrir a tela Estudos')} onCreateStudy={() => alert('criar um estudo (35d)')}
-      onSeeAll={() => alert('Ver tudo: a busca sem termo, filtro "Tudo", por data (L5)')}
-      onOpenItem={item => alert(`abrir o destino do tipo ${typeMeta(item.type).singular}: ${item.key}`)}
+      onOpenSermonNote={id => alert(`abrir a anotação guardada (N5): ${id}`)}
+      onOpenBible={(book, chapter, verse, extra) => alert(`abrir a Bíblia em ${book} ${chapter}${verse ? `:${verse}` : ''}${extra?.noteId ? ' com a nota aberta' : ''}`)}
     />
   )
 }
@@ -534,6 +546,7 @@ function BibliotecaPreview() {
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
+  const [bibliotecaPastRoot, setBibliotecaPastRoot] = useState(!!params.get('tipo'))
   const [gami, setGami, gamiData] = useGamificationRow()
   const familia = params.get('familia') ?? 'constancia'
   const celebId = params.get('id') ?? 'tempo:2'
@@ -542,7 +555,7 @@ function Preview() {
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
   if (screen === 'biblioteca') {
-    body = <BibliotecaPreview />
+    body = <BibliotecaPreview onPastRootChange={setBibliotecaPastRoot} />
   } else if (screen === 'oracao') {
     body = <OracaoPreview />
   } else if (screen === 'reflexao') {
@@ -642,7 +655,7 @@ function Preview() {
   const nav = screen === 'hoje' && params.get('msgs') != null
     ? <BottomNav activeTab="home" onNavigate={t => alert(`aba: ${t}`)} groupsUnread={Number(params.get('msgs'))} groupsHasPending={params.get('pendente') === '1'} lang="pt" />
     : screen === 'pedidos' ? <BottomNav activeTab="routine" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />
-      : screen === 'biblioteca' ? <BottomNav activeTab="notes" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /> : null
+      : screen === 'biblioteca' && !bibliotecaPastRoot ? <BottomNav activeTab="notes" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /> : null
   return <div style={{ height: '100%' }}>{body}{nav}</div>
 }
 

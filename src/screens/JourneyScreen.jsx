@@ -1092,7 +1092,10 @@ export default function JourneyScreen({
   // App.jsx), sem passar por browseJumpTarget nenhum.
   useEffect(() => {
     if (browseJumpTarget) {
-      if (browseJumpTarget.blockId != null) openBrowseChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
+      // Um versículo específico (a Biblioteca: trecho marcado, passagem
+      // citada) — o mesmo caminho de um resultado da busca.
+      if (browseJumpTarget.focus) openChapterFromSearch(browseJumpTarget.focus.book, browseJumpTarget.focus.chapter, browseJumpTarget.focus.verse, { noteId: browseJumpTarget.focus.noteId })
+      else if (browseJumpTarget.blockId != null) openBrowseChapter(browseJumpTarget.blockId, browseJumpTarget.sessionId)
       // Livro inteiro (grade de capítulos), não um capítulo — roda da
       // Bíblia/estante (gamificação, App.openBibleBook).
       else if (browseJumpTarget.bookName) {

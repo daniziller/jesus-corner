@@ -784,6 +784,9 @@ export default function App() {
   // guiada (immersiveReading abaixo), sem precisar de um activeTab à parte
   // pra cada tela empilhada dentro da aba.
   const [journeyPastRoot, setJourneyPastRoot] = useState(false)
+  // A Biblioteca fora da raiz (uma tela de tipo, a busca) também não tem
+  // barra de abas (handoff-biblioteca-55).
+  const [libraryPastRoot, setLibraryPastRoot] = useState(false)
   // Sessão específica a destacar quando entryMode é 'reading' — garante que a
   // Leitura abra featurando exatamente a mesma sessão que a Home mostrou.
   const [journeyResumeSessionId, setJourneyResumeSessionId] = useState(null)
@@ -1668,14 +1671,18 @@ export default function App() {
   // pra "Voltar" (ver goBack) devolver a pessoa pra onde ela estava — a
   // anotação de sermão que ainda estava escrevendo, por exemplo (ver
   // NotesScreen.jsx, que agora fica sempre montada).
-  function openBiblePassage(book, chapter) {
+  // `verse` (a Biblioteca: um trecho marcado, uma passagem citada): a
+  // leitura abre com aquele versículo em foco; `extra.noteId`, com a nota
+  // daquela marcação aberta — o mesmo caminho dos resultados da busca da
+  // Bíblia (JourneyScreen.jsx/openChapterFromSearch).
+  function openBiblePassage(book, chapter, verse, extra) {
     const block = blocks.find(b => b.books.includes(book))
     if (!block) return
     const targetSession = (browseSessionsByBlock[block.id] ?? []).find(
       s => s.book === book && s.chStart <= chapter && s.chEnd >= chapter
     )
     if (!targetSession) return
-    setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id })
+    setBrowseJumpTarget({ blockId: block.id, sessionId: targetSession.id, ...(verse != null ? { focus: { book, chapter, verse, noteId: extra?.noteId ?? null } } : null) })
     goToTab('journey')
   }
 
@@ -1724,15 +1731,6 @@ export default function App() {
     setSermonNoteFresh(false)
     setSermonNoteEditId(noteId)
     goToTab('sermonNote')
-  }
-
-  // Um item da raiz da Biblioteca (L1) abre o destino do seu tipo: a
-  // anotação longa, na página dela; nota, marcação e pergunta, na Bíblia,
-  // no capítulo; reflexão e frase do dia, na lista.
-  function openLibraryItem(item) {
-    if (item.type === 'pregacao') editSermonNoteFromLibrary(item.id)
-    else if (item.book && item.chapter) openBiblePassage(item.book, item.chapter)
-    else navigateTo('notesList')
   }
 
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
@@ -3593,7 +3591,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || (activeTab === 'notes' && libraryPastRoot) || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se
@@ -3649,11 +3647,10 @@ export default function App() {
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
                 <BibliotecaScreen
-                  session={session} refreshKey={notesRefreshKey}
-                  onOpenSearch={() => navigateTo('notesList')} onNova={openSermonNoteFromHome}
-                  onOpenType={() => navigateTo('notesList')} onSeeAll={() => navigateTo('notesList')}
+                  session={session} refreshKey={notesRefreshKey} onPastRootChange={setLibraryPastRoot}
+                  onNova={openSermonNoteFromHome} onOpenList={() => navigateTo('notesList')}
                   onOpenStudies={() => navigateTo('addStudy')} onCreateStudy={() => navigateTo('createAiStudy')}
-                  onOpenItem={openLibraryItem}
+                  onOpenSermonNote={editSermonNoteFromLibrary} onOpenBible={openBiblePassage}
                 />
               </div>
             )}

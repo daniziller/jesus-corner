@@ -6,6 +6,8 @@
 // aparelho, as perguntas guardadas. Nada aqui consulta grupo, amigo ou
 // outra pessoa, e a oração não passa de pickLibraryData.
 import { fetchRow } from '../backend/userDataStore'
+import { hideHighlight } from '../highlights/highlightsStore'
+import { deleteSermonNote } from '../notes/sermonNotesStore'
 import { getAllPassageQuestions } from '../aiChat/passageQuestionStore'
 import { getAllChapterReadRows } from '../bible/chapterReadLog'
 import { fetchBookText } from '../bible-text/bibleTextStore'
@@ -38,5 +40,14 @@ export const bibliotecaApi = {
     const chapters = await fetchBookText(getSelectedVersionId(lang), lang === 'en' ? (item.bookEn || item.book) : item.book)
     const verses = chapters?.[String(item.chapter)]?.verses ?? {}
     return (item.verses ?? []).map(v => verses[String(v)]).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()
+  },
+
+  // "Apagar" no menu de um item — a mesma gravação de sempre de cada
+  // tipo: a marcação fica escondida (highlightsStore.js), a anotação
+  // longa sai da lista dela.
+  async remove(item) {
+    if (item.type === 'pregacao') await deleteSermonNote(null, item.id)
+    else if (item.type === 'marcacao') await hideHighlight(null, item.id)
+    else throw new Error(`[biblioteca] apagar: tipo sem suporte (${item.type})`)
   },
 }

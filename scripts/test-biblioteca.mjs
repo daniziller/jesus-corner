@@ -177,8 +177,8 @@ check('a leitura não importa nada de grupo, amigo ou comunidade', imports.filte
 check('a leitura não consulta tabela nenhuma por conta própria (só a linha da pessoa, pela RLS)', /supabase|\.from\(|\.rpc\(/.test(api), false)
 check('a linha é lida uma vez só', (api.match(/fetchRow\(\)/g) ?? []).length, 1)
 check('os dados passam por pickLibraryData antes de virar item', /pickLibraryData\(row\)/.test(api) && !/row\.(prayer|notes|highlights|sermon_notes)/.test(api), true)
-const tela = ler('screens/BibliotecaScreen.jsx')
-check('a raiz não cria, edita nem apaga nada', /save|update|delete|hide|archive/i.test(tela.replace(/\/\/.*$/gm, '')), false)
+const raiz = ler('components/biblioteca/BibliotecaRaiz.jsx')
+check('a raiz não cria, edita nem apaga nada', /save|update|delete|remove|hide|archive/i.test(raiz.replace(/\/\/.*$/gm, '')), false)
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

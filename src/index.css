@@ -79,6 +79,11 @@
   /* Sobre --bento-sand, entre --bento-sand-ink e --bento-sand-label: hint e
      números não selecionados do cartão "Ritmo da semana" (5a). */
   --bento-sand-ink-mid: #7A6B58;
+  /* Sobre --bento-sand: a linha "Com nota: …" de uma marcação (handoff-
+     biblioteca-55 §4), entre --bento-sand-ink e --bento-sand-icon. */
+  --bento-sand-note: #6E5A42;
+  /* O fio entre as linhas de um cartão areia. */
+  --bento-sand-line: rgba(58,42,24,.1);
   /* Mais claro que --bento-t5: o "—" dos blocos ainda não começados (5b). */
   --bento-t6: #D6CFC7;
   /* Linha do divisor "ou" nas telas de conta (13b). */
@@ -326,13 +331,35 @@ body {
 /* Passos do plano (handoff-passos-pedidos-53-54): as pastilhas de frase
    têm 34px de altura no desenho e 44px de área de toque; e o texto de
    apoio do campo de escrita. */
-.passo-pastilha {
+.passo-pastilha,
+.biblioteca-pastilha {
   position: relative;
 }
-.passo-pastilha::after {
+.passo-pastilha::after,
+.biblioteca-pastilha::after {
   content: '';
   position: absolute;
   inset: -5px 0;
+}
+/* As abas de um segmentado (pedidos de oração, Marcações) têm 36px dentro
+   de uma faixa de 44px: a área de toque ocupa a faixa inteira. */
+.aba-alvo {
+  position: relative;
+}
+.aba-alvo::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+/* Biblioteca: a referência citada num cartão de pregação tem 24px de
+   altura e 44px de área de toque. */
+.biblioteca-ref {
+  position: relative;
+}
+.biblioteca-ref::after {
+  content: '';
+  position: absolute;
+  inset: -10px -2px;
 }
 /* O rótulo "PEDIDOS DE ORAÇÃO" da Súplica abre a lista: 9.5px de texto,
    44px de área de toque. */
