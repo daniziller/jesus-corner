@@ -7,7 +7,7 @@
 // referências abreviadas e a paginação. As contagens vêm de
 // bibliotecaMath.js, as mesmas da raiz. Testes em
 // scripts/test-biblioteca-tipos.mjs.
-import { PT_BOOK_ABBREVIATIONS, EN_BOOK_ABBREVIATIONS } from '../bible/bookAbbreviations.js'
+import { EN_BOOK_ABBREVIATIONS } from '../bible/bookAbbreviations.js'
 import { normalizeForSearch } from '../bible/searchNormalize.js'
 import { bookInfo } from '../data/gamificationBlocks.js'
 import { bookDisplayName } from '../busca/referencia.js'
@@ -63,24 +63,18 @@ export function groupByMonth(items) {
   return groups
 }
 
-// "Gn" · "Êx" · "1Sm" · "Jó" — a forma abreviada de um livro, das mesmas
-// abreviações que o interpretador de referências aceita.
-const shortByBook = { pt: firstAliases(PT_BOOK_ABBREVIATIONS), en: firstAliases(EN_BOOK_ABBREVIATIONS) }
-function firstAliases(map) {
-  const first = {}
-  for (const [alias, book] of Object.entries(map)) if (!(book in first)) first[book] = alias
-  return first
-}
+// "Gn" · "Êx" · "1Sm" · "Jó" — a sigla de um livro: em português, a de
+// sempre (gamificationBlocks.js, a mesma dos selos); em inglês, a
+// primeira abreviação que o interpretador de referências aceita.
+const firstEnglishAlias = {}
+for (const [alias, book] of Object.entries(EN_BOOK_ABBREVIATIONS)) if (!(book in firstEnglishAlias)) firstEnglishAlias[book] = alias
 export function bookShort(book, lang = 'pt') {
+  if (lang !== 'en') return bookInfo(book)?.sigla ?? book
   const name = bookDisplayName(book, lang)
-  if (name.length <= 3) return name
-  const alias = (shortByBook[lang] ?? shortByBook.pt)[book]
-  if (!alias) return name
-  const compact = alias.replace(/\s+/g, '')
-  // A abreviação que é o começo do nome leva o acento do nome ("Êx").
-  if (normalizeForSearch(name).startsWith(compact)) return name.slice(0, compact.length)
-  const digit = compact.match(/^\d/)?.[0] ?? ''
-  return `${digit}${capitalize(compact.slice(digit.length))}`
+  const alias = firstEnglishAlias[book]?.replace(/\s+/g, '')
+  if (!alias || name.length <= 3) return name
+  const digit = alias.match(/^\d/)?.[0] ?? ''
+  return `${digit}${capitalize(alias.slice(digit.length))}`
 }
 
 // "Gn 39:21" · "Gn 37" · "Tg 1:3–4" — a passagem citada numa anotação.

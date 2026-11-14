@@ -23,7 +23,10 @@ function marcacoes() {
   let n = 40
   for (const [book, bookEn, quantos] of resto) {
     for (let i = 0; i < quantos; i++) {
-      list.push(hl(`${bookEn}-${i}`, book, bookEn, 1 + i, [1 + i], n, comNota-- > 0 ? { text: 'Uma nota curta sobre este trecho.' } : {}))
+      // As etiquetas da captura L4: espera 11, família 8, trabalho 7 (nas
+      // notas), oração 5 e perdão 4 (aqui).
+      const k = 11 - comNota
+      list.push(hl(`${bookEn}-${i}`, book, bookEn, 1 + i, [1 + i], n, comNota-- > 0 ? { text: 'Uma nota curta sobre este trecho.', tags: k < 5 ? ['oração'] : k < 9 ? ['perdão'] : [] } : {}))
       n += 3
     }
   }
@@ -34,14 +37,14 @@ function marcacoes() {
 // que as marcações não têm — com eles a conta chega a 23 livros.
 function notas() {
   const list = [
-    hl('nota-sl-23-4', 'Salmos', 'Psalms', 23, [4], 1, { kind: 'note', text: 'O vale é passagem, não endereço.', tags: ['medo'] }),
+    hl('nota-sl-23-4', 'Salmos', 'Psalms', 23, [4], 1, { kind: 'note', text: 'O vale é passagem, não endereço.' }),
     hl('nota-gn-40-23', 'Gênesis', 'Genesis', 40, [23], 11, { kind: 'note', text: 'Esquecido pelo copeiro, não por Deus. A espera continua.', tags: ['espera'] }),
   ]
   const livros = [['1 Samuel', '1 Samuel'], ['Jó', 'Job'], ['Eclesiastes', 'Ecclesiastes'], ['Jeremias', 'Jeremiah'], ['Daniel', 'Daniel'], ['Habacuque', 'Habakkuk'], ['Lucas', 'Luke'], ['Atos', 'Acts'], ['1 Coríntios', '1 Corinthians'], ['Efésios', 'Ephesians'], ['1 Pedro', '1 Peter'], ['Apocalipse', 'Revelation']]
   // 27 aqui + 2 notas de sessão de leitura (no mapa de notas) = 31.
   for (let i = 0; i < 27; i++) {
     const [book, bookEn] = livros[i % livros.length]
-    list.push(hl(`nota-${i}`, book, bookEn, 1 + (i % 4), [2 + i], 45 + i * 4, { kind: 'note', text: 'O que este versículo me disse naquele dia.', tags: i % 3 === 0 ? ['família'] : [] }))
+    list.push(hl(`nota-${i}`, book, bookEn, 1 + (i % 4), [2 + i], 45 + i * 4, { kind: 'note', text: 'O que este versículo me disse naquele dia.', tags: i < 10 ? ['espera'] : i < 18 ? ['família'] : i < 25 ? ['trabalho'] : [] }))
   }
   return list
 }
@@ -133,3 +136,10 @@ export function perguntasDeExemplo(conta = 'exemplo') {
 export function leiturasDeExemplo() {
   return [{ livro: 'Gênesis', capitulo: 41, created_at: iso(0, 6) }, { livro: 'Gênesis', capitulo: 40, created_at: iso(3, 6) }]
 }
+
+// As buscas recentes da captura L4 (ficam só no aparelho).
+export const buscasRecentesDeExemplo = [
+  { text: 'espera', sub: '18 anotações · em tudo' },
+  { text: 'Gênesis 39', sub: '4 anotações · notas e marcações' },
+  { text: 'Pr. João Silva', sub: '6 pregações' },
+]

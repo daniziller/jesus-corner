@@ -30,7 +30,7 @@ check('data: outro ano leva o ano', dateLabel(new Date(2025, 10, 9).toISOString(
 check('data: sem data, nada', dateLabel(null, agora), '')
 check('cabeçalho de mês', [monthHeading('2026-11'), monthHeading('2025-03')], ['Novembro de 2026', 'Março de 2025'])
 check('grupos por mês, na ordem dos itens', groupByMonth([{ at: ha(2) }, { at: ha(6) }, { at: ha(14) }, { at: null }]).map(g => `${g.label}:${g.items.length}`), ['Novembro de 2026:2', 'Outubro de 2026:1', 'Sem data:1'])
-check('abreviações', ['Gênesis', 'Êxodo', '1 Samuel', 'Jó', 'João', '1 João', 'Salmos', 'Habacuque', 'Apocalipse', 'Cântico dos Cânticos'].map(b => bookShort(b)), ['Gn', 'Êx', '1Sm', 'Jó', 'Jo', '1Jo', 'Sl', 'Hc', 'Ap', 'Cc'])
+check('abreviações', ['Gênesis', 'Êxodo', '1 Samuel', 'Jó', 'João', '1 João', 'Salmos', 'Habacuque', 'Apocalipse', 'Cântico dos Cânticos'].map(b => bookShort(b)), ['Gn', 'Êx', '1Sm', 'Jó', 'Jo', '1Jo', 'Sl', 'Hc', 'Ap', 'Ct'])
 check('abreviação em inglês', [bookShort('Gênesis', 'en'), bookShort('1 Samuel', 'en'), bookShort('Jó', 'en')], ['Gen', '1Sa', 'Job'])
 check('passagem: versículo, capítulo, intervalo', [passageShort({ book: 'Gênesis', chapter: 39, verseStart: 21, verseEnd: 21 }), passageShort({ book: 'Gênesis', chapter: 37, verseStart: null }), passageShort({ book: 'Tiago', chapter: 1, verseStart: 3, verseEnd: 4 })], ['Gn 39:21', 'Gn 37', 'Tg 1:3–4'])
 const seis = [1, 2, 3, 4, 5, 6].map(c => ({ book: 'Salmos', chapter: c, verseStart: 1, verseEnd: 1 }))

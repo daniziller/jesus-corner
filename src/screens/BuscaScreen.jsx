@@ -41,7 +41,7 @@ import {
   searchCounts, filterPills, effectiveFilter, versesLabel, seeAllVersesLabel, themeRecentSub, emptyMessage,
 } from '../busca/palavra'
 import { getRecentSearches, rememberSearch, clearRecentSearches } from '../busca/recentSearchesStore'
-import { GrupoRotulo, ListaCartao, ListaLinha } from '../components/biblia/BuscaPartes'
+import { CabecalhoDeBusca, GrupoRotulo, ListaCartao, ListaLinha } from '../components/biblia/BuscaPartes'
 
 const FONT = 'var(--font-bento)'
 const DEBOUNCE_MS = 250
@@ -241,30 +241,10 @@ export default function BuscaScreen({
 
   return (
     <div style={s.screen}>
-      <div style={s.header}>
-        <button type="button" className="biblia-alvo" style={s.back} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
-          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-        </button>
-        <div style={s.field}>
-          <span style={s.lens}><AppIcon name="Search" size={14} strokeWidth={1.7} absoluteStrokeWidth color="var(--bento-ink)" /></span>
-          <input
-            ref={inputRef}
-            className="busca-campo"
-            style={s.input}
-            type="text" inputMode="search" enterKeyHint="search"
-            autoFocus autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder={SEARCH_HINT}
-            aria-label="Buscar na Bíblia"
-          />
-          {query && (
-            <button type="button" style={s.clear} onClick={() => fill('')} aria-label="Limpar a busca">
-              <span style={s.clearDot}><AppIcon name="X" size={10} strokeWidth={1.8} absoluteStrokeWidth color="var(--bento-t2)" /></span>
-            </button>
-          )}
-        </div>
-      </div>
+      <CabecalhoDeBusca
+        value={query} onChange={setQuery} onClear={() => fill('')} inputRef={inputRef}
+        onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)} placeholder={SEARCH_HINT} label="Buscar na Bíblia"
+      />
 
       <div style={s.body}>
         {idle ? (
@@ -466,16 +446,6 @@ const NOTHING = { books: EMPTY, verses: EMPTY, passages: EMPTY, themes: EMPTY, n
 // Medidas dos quadros B5, B6 e B7 (handoff-biblia-52 §6).
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
-  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '20px 20px 0' },
-  back: { width: 38, height: 38, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
-  field: { flex: 1, minWidth: 0, height: 46, borderRadius: 16, background: 'var(--bento-card)', boxShadow: 'inset 0 0 0 2px var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 9, padding: '0 13px' },
-  lens: { width: 16, height: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, minWidth: 0, height: '100%', border: 'none', background: 'none', outline: 'none', padding: 0, fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', caretColor: 'var(--bento-accent)' },
-  // Botão de limpar: a bolinha de 20px do quadro dentro de uma área de
-  // toque de 44px (as margens negativas devolvem a sobra ao desenho). O
-  // cinza é o mesmo do glifo apagado das medalhas (#E4DED7).
-  clear: { width: 44, height: 44, flexShrink: 0, margin: '0 -12px', border: 'none', background: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  clearDot: { width: 20, height: 20, borderRadius: 99, background: 'var(--medalha-glifo-apagado)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 20px calc(22px + var(--safe-bottom))' },
   filters: { display: 'flex', flexWrap: 'wrap', gap: 6, flexShrink: 0 },
   filter: { height: 34, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', fontFamily: FONT, fontSize: 12, fontWeight: 700, lineHeight: 1, color: 'var(--bento-quote-ink)', cursor: 'pointer' },

@@ -1,5 +1,6 @@
 // BibliotecaScreen.jsx — a aba Biblioteca (handoff-biblioteca-55): a raiz
-// por tipo (L1) e, por dentro dela, a tela de cada tipo (L2, L3…). A aba
+// por tipo (L1) e, por dentro dela, a tela de cada tipo (L2, L3…), a
+// página de leitura e a busca (L4/L5). A aba
 // lê os dados UMA vez (useBiblioteca) e entrega às telas — a raiz e as
 // telas de tipo contam com as mesmas funções, sobre os mesmos itens.
 //
@@ -14,6 +15,8 @@ import { bibliotecaApi } from '../biblioteca/bibliotecaApi'
 import { useBiblioteca } from '../biblioteca/useBiblioteca'
 import { itemTitle } from '../biblioteca/bibliotecaMath'
 import { shareText, readingPage } from '../biblioteca/tiposMath'
+import { NO_REFINE } from '../biblioteca/buscaDaBiblioteca'
+import { getLibraryRecentSearches, clearLibraryRecentSearches } from '../biblioteca/buscasRecentesStore'
 import BibliotecaRaiz from '../components/biblioteca/BibliotecaRaiz'
 import FolhaDoItem from '../components/biblioteca/FolhaDoItem'
 import NotasScreen from './NotasScreen'
@@ -23,12 +26,13 @@ import PregacoesScreen from './PregacoesScreen'
 import AplicacoesScreen from './AplicacoesScreen'
 import PerguntasScreen from './PerguntasScreen'
 import LeituraDoItemScreen from './LeituraDoItemScreen'
+import BuscaDaBibliotecaScreen from './BuscaDaBibliotecaScreen'
 
 const TYPE_SCREENS = { nota: NotasScreen, marcacao: MarcacoesScreen, reflexao: ReflexoesScreen, pregacao: PregacoesScreen, aplicacao: AplicacoesScreen, pergunta: PerguntasScreen }
 
 export default function BibliotecaScreen({
-  session, api = bibliotecaApi, refreshKey = 0, initialView = null,
-  onPastRootChange, onNova, onOpenStudies, onCreateStudy, onOpenSermonNote, onOpenBible, onOpenList,
+  session, api = bibliotecaApi, refreshKey = 0, initialView = null, initialSearch = null, searchRequest = null,
+  onPastRootChange, onNova, onOpenStudies, onCreateStudy, onOpenSermonNote, onOpenBible,
   onEditApplication, onApplicationChanged,
 }) {
   const { lang } = session
@@ -42,6 +46,20 @@ export default function BibliotecaScreen({
   function openType(type) {
     setView({ name: 'tipo', type })
   }
+
+  // A busca (L4/L5). O que está digitado e os filtros ficam aqui, não na
+  // tela: abrir um resultado e voltar devolve a busca como estava. Abrir a
+  // busca de novo (pela raiz, pela lupa de um tipo) começa do zero, já
+  // com aquele tipo em "Buscar em".
+  const [search, setSearch] = useState(() => ({ query: '', type: 'all', ...NO_REFINE, ...initialSearch }))
+  const [recents, setRecents] = useState(getLibraryRecentSearches)
+  function openSearch(type = 'all') {
+    setSearch({ query: '', type, ...NO_REFINE })
+    setRecents(getLibraryRecentSearches())
+    setView(prev => ({ name: 'busca', back: prev.name === 'busca' ? prev.back : prev }))
+  }
+  // A lupa da tela Estudos (fora da aba) pede a busca já em "Estudos".
+  useEffect(() => { if (searchRequest) openSearch(searchRequest.type) }, [searchRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // O destino de cada tipo: a anotação longa, na página dela; nota e
   // marcação, na Bíblia, no versículo (com a nota aberta, se houver);
@@ -95,7 +113,13 @@ export default function BibliotecaScreen({
   const openPassage = p => onOpenBible(p.book, p.chapter, p.verse ?? undefined)
   return (
     <>
-      {view.name === 'leitura' ? (
+      {view.name === 'busca' ? (
+        <BuscaDaBibliotecaScreen
+          lang={lang} items={bib.items} search={search} onSearchChange={setSearch}
+          recents={recents} onClearRecents={() => setRecents(clearLibraryRecentSearches())}
+          onBack={() => setView(view.back ?? { name: 'raiz' })}
+        />
+      ) : view.name === 'leitura' ? (
         <LeituraDoItemScreen
           page={readingPage(view.item, { items: bib.items, readByDay: bib.readByDay, lang })}
           onBack={() => setView(view.back ?? { name: 'raiz' })} onOpenPassage={openPassage}
@@ -103,13 +127,13 @@ export default function BibliotecaScreen({
       ) : TypeScreen ? (
         <TypeScreen
           lang={lang} api={api} status={bib.status} items={itemsOfType} allItems={bib.items} readByDay={bib.readByDay} initial={view}
-          onBack={() => setView({ name: 'raiz' })} onOpenSearch={onOpenList}
+          onBack={() => setView({ name: 'raiz' })} onOpenSearch={() => openSearch(view.type)}
           onOpenItem={openItem} onOpenPassage={openPassage} onMenu={setMenu} onNova={onNova}
         />
       ) : (
         <BibliotecaRaiz
           lang={lang} api={api} status={bib.status} items={bib.items} readByDay={bib.readByDay} studies={bib.studies}
-          onOpenSearch={onOpenList} onNova={onNova} onOpenType={openType} onSeeAll={onOpenList}
+          onOpenSearch={() => openSearch()} onNova={onNova} onOpenType={openType} onSeeAll={() => openSearch()}
           onOpenStudies={onOpenStudies} onCreateStudy={onCreateStudy} onOpenItem={openItem}
         />
       )}

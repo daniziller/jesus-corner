@@ -351,6 +351,15 @@ body {
   position: absolute;
   inset: -4px 0;
 }
+/* Biblioteca: as etiquetas têm 32px de altura e 44px de área de toque. */
+.biblioteca-etiqueta {
+  position: relative;
+}
+.biblioteca-etiqueta::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
 /* Biblioteca: a referência citada num cartão de pregação tem 24px de
    altura e 44px de área de toque. */
 .biblioteca-ref {

@@ -34,7 +34,6 @@ import ChooseStartScreen from './screens/ChooseStartScreen'
 import ExistingProgressScreen from './screens/ExistingProgressScreen'
 import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
-import NotesScreen from './screens/NotesScreen'
 import BibliotecaScreen from './screens/BibliotecaScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
@@ -787,6 +786,9 @@ export default function App() {
   // A Biblioteca fora da raiz (uma tela de tipo, a busca) também não tem
   // barra de abas (handoff-biblioteca-55).
   const [libraryPastRoot, setLibraryPastRoot] = useState(false)
+  // A lupa da tela Estudos volta para a Biblioteca com a busca aberta em
+  // "Estudos" (objeto novo a cada pedido).
+  const [librarySearchRequest, setLibrarySearchRequest] = useState(null)
   // Sessão específica a destacar quando entryMode é 'reading' — garante que a
   // Leitura abra featurando exatamente a mesma sessão que a Home mostrou.
   const [journeyResumeSessionId, setJourneyResumeSessionId] = useState(null)
@@ -3229,10 +3231,6 @@ export default function App() {
       : <AiSettingsScreen session={session} onBack={goBack} />,
     contact: <ContactScreen session={session} authUser={authUser} onBack={goBack} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} />,
-    // A lista única (4c) segue como destino do que ainda não tem tela nova
-    // na Biblioteca — as telas de tipo e a busca (handoff-biblioteca-55,
-    // etapas 2 a 5) entram no lugar dela, uma a uma.
-    notesList: <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} refreshKey={notesRefreshKey} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} onOpenSermonNote={editSermonNoteFromLibrary} onCreateSermonNote={openSermonNoteFromHome} />,
     // "Esta semana" por dentro (pedido dela, 2026-09-15) — aberta pelo
     // cartão ESTA SEMANA da Home (Bloco 5, HomeScreen.jsx).
     themePlan: !session.hasAI
@@ -3251,7 +3249,7 @@ export default function App() {
           onBack={goBack}
           // Vindo do cartão "Estudos" da Biblioteca, o cabeçalho traz a lupa
           // da aba (handoff-biblioteca-55 §5).
-          onOpenSearch={tabHistory[tabHistory.length - 1] === 'notes' ? () => navigateTo('notesList') : null}
+          onOpenSearch={tabHistory[tabHistory.length - 1] === 'notes' ? () => { setLibrarySearchRequest({ type: 'estudo' }); goBack() } : null}
           onCreateStudy={() => navigateTo('createAiStudy')}
           onChangeStudyDays={() => navigateTo('studyOrganize')}
           onOpenPreview={handleOpenStudyPreview}
@@ -3577,7 +3575,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'notesList', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3650,8 +3648,8 @@ export default function App() {
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
                 <BibliotecaScreen
-                  session={session} refreshKey={notesRefreshKey} onPastRootChange={setLibraryPastRoot}
-                  onNova={openSermonNoteFromHome} onOpenList={() => navigateTo('notesList')}
+                  session={session} refreshKey={notesRefreshKey} onPastRootChange={setLibraryPastRoot} searchRequest={librarySearchRequest}
+                  onNova={openSermonNoteFromHome}
                   onOpenStudies={() => navigateTo('addStudy')} onCreateStudy={() => navigateTo('createAiStudy')}
                   onOpenSermonNote={editSermonNoteFromLibrary} onOpenBible={openBiblePassage}
                   onEditApplication={() => navigateTo('applicationPhrases')} onApplicationChanged={bumpApplicationRefresh}

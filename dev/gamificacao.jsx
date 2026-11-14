@@ -87,7 +87,7 @@ import BibliotecaScreen from '../src/screens/BibliotecaScreen'
 import AddStudyScreen from '../src/screens/AddStudyScreen'
 import { pickLibraryData, libraryItems, chaptersByDay, studiesSummary, typeMeta } from '../src/biblioteca/bibliotecaMath'
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
-import { linhaDeExemplo, perguntasDeExemplo, leiturasDeExemplo } from './bibliotecaFixture'
+import { linhaDeExemplo, perguntasDeExemplo, leiturasDeExemplo, buscasRecentesDeExemplo } from './bibliotecaFixture'
 
 const params = new URLSearchParams(location.search)
 const tela = params.get('tela') ?? 'hoje'
@@ -530,14 +530,23 @@ const bibliotecaDePreview = {
 // `&abrir=Gênesis` (o livro aberto por "Ver os N"). Pregações:
 // `&filtro=sermon|service|class|video|free` e `&ordem=oldest|preacher`.
 // Aplicações: `&filtro=done|open`.
+// A busca: `&busca=abrir` (L4), com `&em=pregacao` (o tipo de "Buscar em"),
+// `&livro=Gênesis`, `&periodo=week|month|year` (ou `&de=AAAA-MM-DD&ate=…`),
+// `&pregador=Pr. João Silva`, `&q=espera` e `&recentes=nao`.
+if (tela === 'biblioteca') {
+  if (params.get('recentes') === 'nao' || params.get('conta') === 'nova') localStorage.removeItem('jc_library_recent_searches')
+  else localStorage.setItem('jc_library_recent_searches', JSON.stringify(buscasRecentesDeExemplo))
+}
 function BibliotecaPreview({ onPastRootChange }) {
   const tipo = params.get('tipo')
-  const initialView = tipo ? { name: 'tipo', type: tipo, tab: params.get('aba') ?? undefined, expanded: params.get('abrir') ? [params.get('abrir')] : [], filter: params.get('filtro') ?? undefined, order: params.get('ordem') ?? undefined } : null
+  const tipoView = tipo ? { name: 'tipo', type: tipo, tab: params.get('aba') ?? undefined, expanded: params.get('abrir') ? [params.get('abrir')] : [], filter: params.get('filtro') ?? undefined, order: params.get('ordem') ?? undefined } : null
+  const initialView = params.has('busca') ? { name: 'busca', back: tipoView ?? { name: 'raiz' } } : tipoView
+  const periodo = params.get('de') || params.get('ate') ? { key: 'custom', from: params.get('de') ?? '', to: params.get('ate') ?? '' } : { key: params.get('periodo') ?? 'always' }
+  const initialSearch = { query: params.get('q') ?? '', type: params.get('em') ?? 'all', book: params.get('livro'), period: periodo, preacher: params.get('pregador') }
   return (
     <BibliotecaScreen
-      session={session} api={bibliotecaDePreview} initialView={initialView} onPastRootChange={onPastRootChange}
+      session={session} api={bibliotecaDePreview} initialView={initialView} initialSearch={initialSearch} onPastRootChange={onPastRootChange}
       onNova={() => alert('abrir a folha "Nova" (N1)')}
-      onOpenList={() => alert('abrir a busca (L4/L5)')}
       onEditApplication={() => alert('abrir a lista de frases do Perfil, onde a frase se edita')} onApplicationChanged={() => {}}
       onOpenStudies={() => alert('abrir a tela Estudos')} onCreateStudy={() => alert('criar um estudo (35d)')}
       onOpenSermonNote={id => alert(`abrir a anotação guardada (N5): ${id}`)}
@@ -549,7 +558,7 @@ function BibliotecaPreview({ onPastRootChange }) {
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
-  const [bibliotecaPastRoot, setBibliotecaPastRoot] = useState(!!params.get('tipo'))
+  const [bibliotecaPastRoot, setBibliotecaPastRoot] = useState(!!params.get('tipo') || params.has('busca'))
   const [gami, setGami, gamiData] = useGamificationRow()
   const familia = params.get('familia') ?? 'constancia'
   const celebId = params.get('id') ?? 'tempo:2'
