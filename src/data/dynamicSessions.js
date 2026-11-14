@@ -46,7 +46,12 @@ export function makeReflectionSession(id, book) {
 // capítulos numa sessão só — a 1ª condição do chunking ("chunkWords > 0") só
 // passa depois de já ter fechado o capítulo anterior — resultando em
 // exatamente 1 sessão por capítulo, igual ao plano Livre de sempre.
-export function buildBookSessions(book, targetWords, startId) {
+//
+// `splitAt` (o ponto de partida do plano, quando cai no meio do livro): a
+// divisão recomeça naquele capítulo — nenhuma sessão mistura o que vem
+// antes do ponto de partida com o que vem depois, então a sessão de hoje
+// começa exatamente onde a pessoa escolheu.
+export function buildBookSessions(book, targetWords, startId, splitAt = null) {
   const chapterWords = getChapterWords(book)
   const sessions = []
   let id = startId
@@ -54,7 +59,7 @@ export function buildBookSessions(book, targetWords, startId) {
   let chunkWords = 0
   chapterWords.forEach((words, i) => {
     const ch = i + 1
-    if (chunkWords > 0 && chunkWords + words > targetWords) {
+    if (chunkWords > 0 && (chunkWords + words > targetWords || ch === splitAt)) {
       sessions.push(makeSession(id++, book, chunkStart, ch - 1, chapterWords))
       chunkStart = ch
       chunkWords = 0
@@ -72,14 +77,16 @@ export function buildBookSessions(book, targetWords, startId) {
 // autora: minutos livres substituem Leve/Padrão/Intensivo como fonte real
 // do tamanho da sessão). null/0 cai no comportamento do plano Livre (1
 // sessão por capítulo, sem meta de tempo).
-export function buildDynamicSessionsByBlock(readingMinutesPerDay) {
+// `splitPoints` ({ [livro]: capítulo }): onde a divisão de um livro
+// recomeça (ver buildBookSessions).
+export function buildDynamicSessionsByBlock(readingMinutesPerDay, splitPoints = null) {
   const targetWords = readingMinutesPerDay ? readingMinutesPerDay * WORDS_PER_MINUTE : 0
   const sessionsByBlock = {}
   for (const block of BIBLE_BLOCKS) {
     let nextId = 1
     const sessions = []
     for (const book of block.books) {
-      const { sessions: bookSessions, nextId: n } = buildBookSessions(book, targetWords, nextId)
+      const { sessions: bookSessions, nextId: n } = buildBookSessions(book, targetWords, nextId, splitPoints?.[book] ?? null)
       sessions.push(...bookSessions)
       nextId = n
     }

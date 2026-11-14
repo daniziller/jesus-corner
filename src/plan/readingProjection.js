@@ -49,10 +49,14 @@ export function countChaptersRead(completedSet) {
 // Palavras restantes = soma de `words` de cada capítulo ainda não lido.
 // `words` já vem calculado por capítulo em bibleBlocks.js (mesma fonte que
 // chapterWordCounts.js usa), então não recalcula nada, só filtra.
-function remainingWords(completedSet) {
+// `books` (nomes de livro): só esses contam — o plano em "minha ordem",
+// em que a pessoa escolhe quais livros entram. null = a Bíblia inteira.
+function remainingWords(completedSet, books = null) {
+  const inPlan = books ? new Set(books) : null
   let words = 0
   let chaptersRemaining = 0
   for (const session of allChapterSessions()) {
+    if (inPlan && !inPlan.has(session.book)) continue
     // Sessões de bibleBlocks.js podem cobrir mais de 1 capítulo; `words` é
     // o total da sessão, então divide igualmente entre os capítulos dela
     // pra poder contar por capítulo individual (completedSet é por
@@ -77,13 +81,15 @@ export function countMarkedDays(weeklyDays) {
 //   finishDateLabel } — readingMinutesPerDay <= 0 devolve null em tudo
 // (sem leitura, sem projeção possível; a UI mostra "sem plano" nesse caso).
 // `from` é o dia de referência pra calcular a data final (default: agora).
-export function computeProjection({ completedSet, readingMinutesPerDay, weeklyDays, lang = 'pt', from = new Date() }) {
+// `books`: os livros do plano, quando não é a Bíblia inteira (ver
+// remainingWords).
+export function computeProjection({ completedSet, readingMinutesPerDay, weeklyDays, lang = 'pt', from = new Date(), books = null }) {
   const daysPerWeek = countMarkedDays(weeklyDays)
   if (!readingMinutesPerDay || readingMinutesPerDay <= 0 || daysPerWeek === 0) {
     return { chaptersRemaining: null, chaptersPerDay: null, monthsRemaining: null, finishDate: null, finishDateLabel: null }
   }
 
-  const { words, chaptersRemaining } = remainingWords(completedSet)
+  const { words, chaptersRemaining } = remainingWords(completedSet, books)
   const wordsPerReadingDay = readingMinutesPerDay * WORDS_PER_MINUTE
   const readingDaysNeeded = Math.ceil(words / wordsPerReadingDay)
   const calendarDaysNeeded = Math.ceil((readingDaysNeeded / daysPerWeek) * 7)

@@ -79,7 +79,7 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
     study: activeStudy, studyToday: isStudyOnlyDay(state),
   }
   const tomorrow = tomorrowCard({ routineModules, stepDays, minutes, todayIdx })
-  const proj = stepDays ? computeProjection({ completedSet, readingMinutesPerDay: minutes.reading, weeklyDays: stepDays.reading, lang }) : null
+  const proj = stepDays ? computeProjection({ completedSet, readingMinutesPerDay: minutes.reading, weeklyDays: stepDays.reading, lang, books: session.planBooks }) : null
   const readingDays = stepDays ? stepDays.reading.filter(Boolean).length : 0
   const planName = t('routine.bibleWholeLabel', undefined, lang)
   // P3: "{Dia} já conta para a sua semana: {feitos} de {meta} dias" — a

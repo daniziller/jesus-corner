@@ -66,6 +66,15 @@ check('formatYearsMonths(28)', formatYearsMonths(28, 'pt'), '2 anos e 4 meses')
 check('formatYearsMonths(24)', formatYearsMonths(24, 'pt'), '2 anos')
 check('formatYearsMonths(28) en', formatYearsMonths(28, 'en'), '2 years and 4 months')
 
+// Plano com livros escolhidos ("minha ordem"): só eles contam.
+const semana = [true, true, true, true, true, false, false]
+const inteira = computeProjection({ completedSet: new Set(), readingMinutesPerDay: 15, weeklyDays: semana })
+const soDois = computeProjection({ completedSet: new Set(), readingMinutesPerDay: 15, weeklyDays: semana, books: ['Rute', 'Jonas'] })
+check('plano só com Rute e Jonas: faltam 8 capítulos', soDois.chaptersRemaining, 8)
+check('…e termina antes da Bíblia inteira', soDois.finishDate < inteira.finishDate, true)
+check('capítulo lido de um livro de fora do plano não muda a conta', computeProjection({ completedSet: new Set(['Gênesis:1']), readingMinutesPerDay: 15, weeklyDays: semana, books: ['Rute', 'Jonas'] }).chaptersRemaining, 8)
+check('capítulo lido de um livro do plano desconta', computeProjection({ completedSet: new Set(['Rute:1']), readingMinutesPerDay: 15, weeklyDays: semana, books: ['Rute', 'Jonas'] }).chaptersRemaining, 7)
+
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)
   process.exit(1)

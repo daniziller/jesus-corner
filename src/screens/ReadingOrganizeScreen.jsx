@@ -1,21 +1,23 @@
 // ReadingOrganizeScreen.jsx — "Leitura da Bíblia" (turno 35, Bloco 1,
 // handoff-meu-plano-35/, tela 35i). Aberta de "Organizar a leitura" em
-// Ajustar meu plano (AjustarPlanoScreen.jsx). Onde começar, em que ordem (canônica/
-// cronológica/minha ordem — NUNCA reseta progresso, ver bibleOrderMath.js),
-// ritmo aprendido e dias da Bíblia.
+// Ajustar meu plano (AjustarPlanoScreen.jsx). Onde começar, em que ordem
+// (canônica, cronológica, minha ordem, ordem livre — NUNCA reseta
+// progresso nem marca nada como lido, ver bibleOrderMath.js), ritmo
+// aprendido e dias da Bíblia. Tudo vale na hora — a ordem, a fila e o
+// ponto de partida moram em App.jsx, que é quem acha a sessão de hoje.
 //
-// "Minha ordem" (a pessoa monta a fila dos livros): o pacote de design não
-// trouxe uma tela própria pra isso (só cita "tela de ordem dos livros,
-// 28c" como referência futura) — a lista de reordenar abaixo é composição
-// nossa, no sistema visual Bento, não um quadro fiel a um handoff (decisão
-// tomada com a autora ao começar este bloco).
-import { useEffect, useState } from 'react'
+// "Minha ordem" (a pessoa monta a fila arrastando e escolhe quais livros
+// entram) e "Ordem livre" (o plano segue do último texto aberto na leitura
+// do plano): o pacote de design não trouxe quadro para elas — a lista de
+// FilaDeLivros.jsx e os textos são composição nossa, no sistema visual
+// Bento (pedido da autora, 2026-11-14).
+import { useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import WeekdayChipRow from '../components/WeekdayChipRow'
 import { splitBold } from '../utils/boldSubstring'
 import { getStepDays, setStepDays as persistStepDays } from '../routine/stepDaysStore'
-import { getCustomBookOrder, setCustomBookOrder, resolveBookOrder, canonicalBookOrder, resolveNextChapter } from '../reading/bibleOrderStore'
+import { customBookLists, keepBooks, planQueue, resolveNextChapter } from '../reading/bibleOrderMath'
 import { getReadingPaceSessions, getUseLearnedPace, setUseLearnedPace } from '../reading/readingPaceStore'
 import { estimateReadingPace, earlyReadingPace, chaptersPerSession, previewPaceBlock } from '../reading/readingPaceMath'
 import { computeProjection, totalBibleChapters } from '../plan/readingProjection'
@@ -24,6 +26,8 @@ import { getChapterWords } from '../data/chapterWordCounts'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { bookNameFor } from '../utils/progress'
+import StartPickerSheet from '../components/StartPickerSheet'
+import FilaDeLivros from '../components/leitura/FilaDeLivros'
 
 const AVG_WORDS_PER_CHAPTER = BIBLE_TOTAL_WORDS / totalBibleChapters()
 
@@ -33,14 +37,19 @@ function renderBold(text, boldPart) {
   )
 }
 
-export default function ReadingOrganizeScreen({ session, completedSet, blocks, bookChapterCounts, stepMinutes, bibleOrderMode: orderMode, onSaveBibleOrderMode, onSetStartPosition, onNavigate, onBack }) {
+const ORDER_OPTIONS = [
+  { key: 'canonical', title: 'orderCanonicalTitle', sub: 'orderCanonicalSub' },
+  { key: 'chronological', title: 'orderChronologicalTitle', sub: 'orderChronologicalSub' },
+  { key: 'custom', title: 'orderCustomTitle', sub: 'orderCustomSub' },
+  { key: 'free', title: 'orderFreeTitle', sub: 'orderFreeSub' },
+]
+
+export default function ReadingOrganizeScreen({ session, completedSet, blocks, bookChapterCounts, stepMinutes, bibleOrderMode: orderMode, customBookOrder, planPosition, readingOrder, onSaveBibleOrderMode, onSaveCustomBookOrder, onSetStartPosition, onNavigate, onBack }) {
   const { lang, plan } = session
   const readingMinutes = stepMinutes?.reading ?? plan.readingMinutes ?? 15
   const L = (k, vars) => t(`readingOrganize.${k}`, vars, lang)
 
   const [stepDays, setStepDaysState] = useState(null)
-  const [customOrder, setCustomOrderState] = useState(null)
-  const [position, setPosition] = useState(null)
   const [paceSessions, setPaceSessions] = useState([])
   const [useLearnedPace, setUseLearnedPaceState] = useState(false)
   const [versionOpen, setVersionOpen] = useState(false)
@@ -50,37 +59,26 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
     getStepDays().then(setStepDaysState).catch(() => {})
     getReadingPaceSessions().then(setPaceSessions).catch(() => {})
     getUseLearnedPace().then(setUseLearnedPaceState).catch(() => {})
-    getCustomBookOrder().then(custom => {
-      setCustomOrderState(custom ?? canonicalBookOrder())
-      setPosition(resolveNextChapter(completedSet, resolveBookOrder(orderMode, custom), bookChapterCounts))
-    }).catch(() => {})
   }, [])
 
-  function refreshPosition(mode, custom) {
-    setPosition(resolveNextChapter(completedSet, resolveBookOrder(mode, custom), bookChapterCounts))
-  }
-
-  // Ordem canônica/cronológica espelha em activeAltPlan (ver
-  // saveBibleOrderMode em App.jsx) — por isso quem escreve é o pai, não
-  // esta tela direto na store.
-  function chooseOrder(mode) {
-    onSaveBibleOrderMode?.(mode)
-    refreshPosition(mode, customOrder)
-  }
-
-  function moveBook(index, delta) {
-    const next = [...customOrder]
-    const target = index + delta
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target], next[index]]
-    setCustomOrderState(next)
-    setCustomBookOrder(next).catch(err => console.error('Failed to persist custom book order', err))
-    if (orderMode === 'custom') refreshPosition('custom', next)
-  }
+  // A fila do plano nesta ordem — os livros, e de onde o plano segue — e o
+  // capítulo onde ele está: o primeiro por ler a partir do ponto de partida.
+  const queue = useMemo(
+    () => planQueue(orderMode === 'chronological' ? 'chrono' : 'fixed', orderMode, customBookOrder, planPosition, readingOrder),
+    [orderMode, customBookOrder, planPosition, readingOrder]
+  )
+  const position = useMemo(() => resolveNextChapter(completedSet, queue.bookOrder, bookChapterCounts, queue.start), [completedSet, queue, bookChapterCounts])
+  const customLists = useMemo(() => customBookLists(customBookOrder), [customBookOrder])
+  const testaments = useMemo(() => ({
+    all: blocks.flatMap(b => b.books),
+    old: blocks.filter(b => b.id <= 4).flatMap(b => b.books),
+    new: blocks.filter(b => b.id >= 5).flatMap(b => b.books),
+  }), [blocks])
+  const planBooks = orderMode === 'custom' ? queue.bookOrder : null
 
   const daysCount = stepDays ? stepDays.reading.filter(Boolean).length : 0
   const proj = stepDays
-    ? computeProjection({ completedSet, readingMinutesPerDay: readingMinutes, weeklyDays: stepDays.reading, lang })
+    ? computeProjection({ completedSet, readingMinutesPerDay: readingMinutes, weeklyDays: stepDays.reading, lang, books: planBooks })
     : null
 
   const pace = estimateReadingPace(paceSessions)
@@ -101,8 +99,6 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
   const version = findBibleVersion(versionId)
   const versions = BIBLE_VERSIONS[lang] ?? []
 
-  const bookOrderNow = customOrder ?? canonicalBookOrder()
-
   return (
     <div style={styles.screen}>
       <div style={styles.header}>
@@ -121,11 +117,12 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
           <p style={styles.sectionLabel}>{L('whereToStartLabel')}</p>
           <div style={styles.row}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={styles.rowTitle}>{position ? `${position.book} ${position.chapter}` : L('bibleComplete')}</p>
-              <p style={styles.rowSub}>{L('fromWhereYouStopped')}</p>
+              <p style={styles.rowTitle} data-plano="posicao">{position ? `${bookNameFor(position.book, lang)} ${position.chapter}` : L(planBooks ? 'planComplete' : 'bibleComplete')}</p>
+              <p style={styles.rowSub}>{L(orderMode === 'free' ? 'positionSubFree' : queue.start ? 'positionSubStart' : 'fromWhereYouStopped')}</p>
             </div>
             <button style={styles.linkBtn} onClick={() => setPickerOpen(true)}>{L('choose')}</button>
           </div>
+          <p style={styles.hint}>{L('startHint')}</p>
           <div style={styles.divider} />
           <div style={styles.row}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -149,14 +146,10 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
         {/* Em que ordem */}
         <div style={styles.card}>
           <p style={styles.sectionLabel}>{L('orderLabel')}</p>
-          {[
-            { key: 'canonical', title: 'orderCanonicalTitle', sub: 'orderCanonicalSub' },
-            { key: 'chronological', title: 'orderChronologicalTitle', sub: 'orderChronologicalSub' },
-            { key: 'custom', title: 'orderCustomTitle', sub: 'orderCustomSub' },
-          ].map(opt => {
+          {ORDER_OPTIONS.map(opt => {
             const on = orderMode === opt.key
             return (
-              <button key={opt.key} style={{ ...styles.orderOption, ...(on ? styles.orderOptionOn : {}) }} onClick={() => chooseOrder(opt.key)}>
+              <button key={opt.key} data-ordem={opt.key} aria-pressed={on} style={{ ...styles.orderOption, ...(on ? styles.orderOptionOn : {}) }} onClick={() => onSaveBibleOrderMode?.(opt.key)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ ...styles.orderTitle, color: on ? '#fff' : 'var(--bento-ink)' }}>{L(opt.title)}</p>
                   <p style={{ ...styles.orderSub, color: on ? 'rgba(255,255,255,.55)' : 'var(--bento-t3)' }}>{L(opt.sub)}</p>
@@ -170,24 +163,16 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
           {orderMode === 'custom' && (
             <div style={styles.customOrderBox}>
               <p style={styles.hint}>{L('customOrderHint')}</p>
-              <div style={styles.customOrderList}>
-                {bookOrderNow.map((book, i) => (
-                  <div key={book} style={styles.customOrderRow}>
-                    <span style={styles.customOrderIdx}>{i + 1}</span>
-                    <span style={styles.customOrderName}>{book}</span>
-                    <div style={styles.customOrderArrows}>
-                      <button style={styles.arrowBtn} onClick={() => moveBook(i, -1)} disabled={i === 0} aria-label="up">
-                        <AppIcon name="ChevronUp" size={14} strokeWidth={2.4} color="var(--bento-ink)" />
-                      </button>
-                      <button style={styles.arrowBtn} onClick={() => moveBook(i, 1)} disabled={i === bookOrderNow.length - 1} aria-label="down">
-                        <AppIcon name="ChevronDown" size={14} strokeWidth={2.4} color="var(--bento-ink)" />
-                      </button>
-                    </div>
-                  </div>
+              <p style={styles.quickLabel}>{L('customQuickLabel')}</p>
+              <div style={styles.quickRow} role="group" aria-label={L('customQuickLabel')}>
+                {[['all', 'customKeepAll'], ['old', 'customKeepOld'], ['new', 'customKeepNew']].map(([key, label]) => (
+                  <button key={key} style={styles.quickChip} data-escolha={key} onClick={() => onSaveCustomBookOrder?.(keepBooks(customLists.included, testaments[key]))}>{L(label)}</button>
                 ))}
               </div>
+              <FilaDeLivros lang={lang} included={customLists.included} excluded={customLists.excluded} onChange={onSaveCustomBookOrder} />
             </div>
           )}
+          {orderMode === 'free' && <p style={styles.hint}>{L('freeOrderHint')}</p>}
         </div>
 
         {/* Seu ritmo de leitura */}
@@ -247,7 +232,6 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
                 const next = { ...(stepDays ?? {}), reading: days }
                 setStepDaysState(next)
                 persistStepDays(next).catch(err => console.error('Failed to persist reading days', err))
-                refreshPosition(orderMode, customOrder)
               }}
             />
           )}
@@ -257,7 +241,7 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
         <div style={{ ...styles.card, background: 'var(--bento-sand)' }}>
           {proj?.finishDateLabel ? (
             <p style={styles.projText}>
-              {renderBold(`${L('projectionPrefix', { n: daysCount })} ${proj.finishDateLabel}.`, proj.finishDateLabel)} {L('projectionSuffix')}
+              {renderBold(`${L(planBooks ? 'projectionPrefixPlan' : 'projectionPrefix', { n: daysCount })} ${proj.finishDateLabel}.`, proj.finishDateLabel)} {L('projectionSuffix')}
             </p>
           ) : (
             <p style={styles.projText}>{L('projectionNoPlan')}</p>
@@ -271,59 +255,19 @@ export default function ReadingOrganizeScreen({ session, completedSet, blocks, b
 
       {pickerOpen && (
         <StartPickerSheet
-          lang={lang} blocks={blocks} bookChapterCounts={bookChapterCounts}
+          lang={lang}
+          title={L('startPickerTitle')}
+          books={queue.bookOrder.map(name => ({ name, label: bookNameFor(name, lang) }))}
+          bookChapterCounts={bookChapterCounts}
           onClose={() => setPickerOpen(false)}
           onConfirm={(book, chapter) => {
-            onSetStartPosition?.(bookOrderNow, book, chapter)
-            setPosition({ book, chapter })
+            onSetStartPosition?.(book, chapter)
             setPickerOpen(false)
           }}
         />
       )}
     </div>
   )
-}
-
-function StartPickerSheet({ lang, blocks, bookChapterCounts, onClose, onConfirm }) {
-  const [book, setBook] = useState(null)
-  const allBooks = blocks.flatMap((b, bi) => b.books.map((name, i) => ({ name, nameEn: b.booksEn[i] })))
-
-  return (
-    <div style={sheetStyles.overlay} onClick={onClose}>
-      <div style={sheetStyles.sheet} onClick={e => e.stopPropagation()}>
-        <div style={sheetStyles.grabber} />
-        {!book ? (
-          <div style={sheetStyles.list}>
-            {allBooks.map(b => (
-              <button key={b.name} style={sheetStyles.listRow} onClick={() => setBook(b.name)}>
-                {lang === 'en' ? b.nameEn : b.name}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div style={sheetStyles.list}>
-            <button style={sheetStyles.backRow} onClick={() => setBook(null)}>‹ {book}</button>
-            <div style={sheetStyles.chapterGrid}>
-              {Array.from({ length: bookChapterCounts[book] ?? 0 }, (_, i) => i + 1).map(ch => (
-                <button key={ch} style={sheetStyles.chapterBtn} onClick={() => onConfirm(book, ch)}>{ch}</button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const sheetStyles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'flex-end' },
-  sheet: { width: '100%', maxHeight: '75vh', background: 'var(--bento-bg)', borderRadius: '28px 28px 0 0', padding: '10px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column' },
-  grabber: { width: 36, height: 4, borderRadius: 99, background: 'var(--bento-line)', margin: '0 auto 12px' },
-  list: { overflowY: 'auto' },
-  listRow: { display: 'block', width: '100%', textAlign: 'left', padding: '12px 4px', border: 'none', background: 'none', borderBottom: '1px solid var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 600, color: 'var(--bento-ink)', cursor: 'pointer' },
-  backRow: { display: 'block', width: '100%', textAlign: 'left', padding: '4px 4px 14px', border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
-  chapterGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 },
-  chapterBtn: { height: 44, borderRadius: 12, border: 'none', background: 'var(--bento-line)', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
 }
 
 const styles = {
@@ -354,12 +298,9 @@ const styles = {
   orderSub: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, margin: 0 },
 
   customOrderBox: { marginTop: 6 },
-  customOrderList: { maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 },
-  customOrderRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--bento-line)' },
-  customOrderIdx: { width: 20, flexShrink: 0, fontFamily: 'var(--font-bento)', fontSize: 11, fontWeight: 700, color: 'var(--bento-t4)' },
-  customOrderName: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 600, color: 'var(--bento-ink)' },
-  customOrderArrows: { display: 'flex', gap: 4, flexShrink: 0 },
-  arrowBtn: { width: 28, height: 28, borderRadius: 8, border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  quickLabel: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)', margin: '14px 0 6px' },
+  quickRow: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  quickChip: { minHeight: 44, border: 'none', borderRadius: 99, background: 'var(--bento-line)', padding: '0 14px', fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
 
   darkCard: { borderRadius: 28, background: 'var(--bento-ink)', padding: 22 },
   darkLabelRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },

@@ -27,31 +27,40 @@ import { useState, useMemo, useEffect } from 'react'
 import { CHRONOLOGICAL_MOVEMENTS, deriveChronoProgress } from '../data/chronologicalPlan'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { splitPointsFor } from '../reading/bibleOrderMath'
 import ReadingBlockView from './ReadingBlockView'
 
 export default function ChronologicalPlanScreen({
   session, authUser, completedSet, onToggleSession, onToggleChapter, onNavigate,
-  paceId, autoOpenMovementId, onGoToReflectionFrom, onBack,
+  paceId, autoOpenMovementId, autoOpenSessionId, onGoToReflectionFrom, onBack,
 }) {
   const { lang } = session
   const [activeMovementId, setActiveMovementId] = useState(autoOpenMovementId ?? null)
+  // A sessão a abrir no movimento: "Continuar" abre onde o plano está;
+  // abrir um movimento pela lista abre a primeira por ler dele (null).
+  const [openSessionId, setOpenSessionId] = useState(autoOpenSessionId ?? null)
 
   // Re-sincroniza sempre que App.jsx pedir pra abrir um movimento específico
   // (ex: "Continuar sessão" da Home/Rotina, ver App.jsx) — mesmo padrão de
   // JourneyScreen.jsx pra entryMode/initialBlockId.
   useEffect(() => {
-    if (autoOpenMovementId != null) setActiveMovementId(autoOpenMovementId)
+    if (autoOpenMovementId != null) { setActiveMovementId(autoOpenMovementId); setOpenSessionId(autoOpenSessionId ?? null) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoOpenMovementId])
+  }, [autoOpenMovementId, autoOpenSessionId])
 
+  // Com ponto de partida no meio de um livro, a divisão em sessões
+  // recomeça ali (a mesma que App.jsx usa pra achar a sessão de hoje).
+  const start = session.activePlan?.kind === 'chrono' ? session.planQueue?.start ?? null : null
   const { blocks, sessionsByBlock } = useMemo(
-    () => deriveChronoProgress(completedSet, paceId),
-    [completedSet, paceId]
+    () => deriveChronoProgress(completedSet, paceId, splitPointsFor(start)),
+    [completedSet, paceId, start]
   )
 
   if (activeMovementId != null) {
     return (
       <ReadingBlockView
+        key={`${activeMovementId}-${openSessionId}`}
+        initialSessionId={openSessionId}
         session={session}
         authUser={authUser}
         onNavigate={onNavigate}
@@ -62,7 +71,7 @@ export default function ChronologicalPlanScreen({
         completedSet={completedSet}
         onToggleSession={onToggleSession}
         onToggleChapter={onToggleChapter}
-        onBack={() => setActiveMovementId(null)}
+        onBack={() => { setActiveMovementId(null); setOpenSessionId(null) }}
         onGoToReflection={heroSession => onGoToReflectionFrom?.({ tab: 'chronologicalPlan', movementId: activeMovementId, book: heroSession.book, bookEn: heroSession.bookEn, chStart: heroSession.chStart, chEnd: heroSession.chEnd, words: heroSession.words, type: heroSession.type })}
       />
     )

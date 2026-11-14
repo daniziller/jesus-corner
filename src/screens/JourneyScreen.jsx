@@ -18,7 +18,7 @@ import { getThemeById } from '../bible/themes'
 
 export default function JourneyScreen({
   session, authUser, stepMinutes, blocks, sessionsByBlock, browseSessionsByBlock, completedSet,
-  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onGoToReflectionFrom, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
+  onToggleSession, onToggleChapter, onMarkChaptersManually, initialBlockId, entryMode, resumeSessionId, forceChapterContext, browseJumpTarget, onBrowseJumpConsumed, onNavigate, onContinueSession, onMovePlan, onGoToReflectionFrom, onExitReading, onOpenGroupRoom, onPastRootChange, onBuildThemeStudy,
   // Toque no lápis flutuante (34e): abre a página de anotação no rascunho
   // em andamento.
   onOpenSermonNote,
@@ -215,6 +215,8 @@ export default function JourneyScreen({
           onToggleSession={onToggleSession}
           onToggleChapter={onToggleChapter}
           initialSessionId={initialSessionId}
+          // Ordem livre: abrir outro texto na leitura do plano move o plano.
+          onMovePlan={onMovePlan}
           // Força o recap "onde a história está" no caminho de sessão
           // guiada (vindo da Bênção) — ver comentário em App.jsx.
           forceChapterContext={forceChapterContext}

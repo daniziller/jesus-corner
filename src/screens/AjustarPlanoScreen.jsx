@@ -97,7 +97,7 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
   const changes = useMemo(() => (saved && draft ? diffPlans(saved, draft) : []), [saved, draft])
   const mins = useMemo(() => (draft ? weekMinutes(draft, hasActiveStudy) : null), [draft, hasActiveStudy])
   const proj = draft && draft.enabled.reading && !hasNoPlan
-    ? computeProjection({ completedSet, readingMinutesPerDay: draft.minutes.reading, weeklyDays: draft.stepDays.reading, lang })
+    ? computeProjection({ completedSet, readingMinutesPerDay: draft.minutes.reading, weeklyDays: draft.stepDays.reading, lang, books: session.planBooks })
     : null
   const readingPassage = !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${currentBlock.book} ${currentBlock.chapter}` : ''
   const summaryCtx = { readingPassage, study: activeStudy ? { title: activeStudy.title, dayN: activeStudy.dayN, dayTotal: activeStudy.dayTotal } : null }

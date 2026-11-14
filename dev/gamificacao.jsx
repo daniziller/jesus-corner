@@ -13,6 +13,8 @@
 //      Meu Plano (handoff-meu-plano-47): &plano=p1|p2|p1i|p3|p4|um|quatro · tela=seuPlano · tela=ajustar&abrir=reading (Mudar meus dias)
 //      Hoje (handoff-hoje-50): os mesmos &plano= valem pro cartão do plano (p1 no meio · p2 nada feito ·
 //      p1i interrompido · p3 tudo feito · p4 descanso · um · quatro · p5 dia de estudo) + semplano · erro · carregando
+//      Ordem do plano (35i): tela=ordem — "Leitura da Bíblia" com a fila do plano de verdade. &ordem=canonical|chronological|custom|free
+//      · &livros=João,Salmos,Rute (minha ordem) · &partida=Salmos:23 · &livre=João:3 · &abrir=leitura (a leitura do plano)
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
@@ -65,7 +67,7 @@ import ParaHoje from '../src/components/hoje/ParaHoje'
 import BottomNav from '../src/components/BottomNav'
 import JourneyScreen from '../src/screens/JourneyScreen'
 import BibliaRaiz from '../src/components/biblia/BibliaRaiz'
-import { deriveProgress } from '../src/utils/progress'
+import { deriveProgress, computeBookChapterCounts } from '../src/utils/progress'
 import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
@@ -101,6 +103,9 @@ import { verseCount } from '../src/data/versiculosPorCapitulo'
 import AddStudyScreen from '../src/screens/AddStudyScreen'
 import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSummary, studyItems, typeMeta } from '../src/biblioteca/bibliotecaMath'
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
+import ReadingOrganizeScreen from '../src/screens/ReadingOrganizeScreen'
+import { planQueue, splitPointsFor, findPlanSession, sessionAt, resolveNextChapter } from '../src/reading/bibleOrderMath'
+import { deriveChronoProgress } from '../src/data/chronologicalPlan'
 import { linhaDeExemplo, perguntasDeExemplo, leiturasDeExemplo, buscasRecentesDeExemplo } from './bibliotecaFixture'
 
 const params = new URLSearchParams(location.search)
@@ -825,6 +830,93 @@ const meusEstudosDePreview = (() => {
   }
 })()
 
+// "Leitura da Bíblia" (35i) com a fila do plano de verdade: a ordem, os
+// livros de "minha ordem" e o ponto de partida ficam na memória, e a faixa
+// de cima mostra a sessão de hoje que sai deles — as mesmas contas de
+// App.jsx (planQueue/findPlanSession). "Abrir a leitura" abre a leitura do
+// plano nessa sessão; concluir marca os capítulos e volta.
+const pontoDe = texto => {
+  if (!texto) return null
+  const [book, chapter] = texto.split(':')
+  return { book, chapter: Number(chapter) }
+}
+function OrdemPreview() {
+  const [done, setDone] = useState(completedSet)
+  const [mode, setMode] = useState(params.get('ordem') ?? 'canonical')
+  const [custom, setCustom] = useState(params.get('livros') ? params.get('livros').split(',') : null)
+  const [position, setPosition] = useState({ start: pontoDe(params.get('partida')), free: pontoDe(params.get('livre')) })
+  const [reading, setReading] = useState(params.get('abrir') === 'leitura' ? {} : null)
+  const minutes = { prayer: 10, reading: 15, study: 15, reflection: 5 }
+  const fixedQueue = planQueue('fixed', mode, custom, position)
+  const fixed = deriveProgress(done, 'standard', 'ot_first', minutes.reading, splitPointsFor(fixedQueue.start))
+  const chronoQueue = planQueue('chrono', mode, custom, position)
+  const today = mode === 'chronological'
+    ? findPlanSession({ ...deriveChronoProgress(done, 'standard', splitPointsFor(chronoQueue.start)), ...chronoQueue })
+    : findPlanSession({ ...fixed, ...fixedQueue })
+  const counts = computeBookChapterCounts(fixed.sessionsByBlock)
+  const mark = (book, chapters, on) => setDone(prev => {
+    const next = new Set(prev)
+    for (const ch of chapters) { if (on) next.add(`${book}:${ch}`); else next.delete(`${book}:${ch}`) }
+    return next
+  })
+  const saveMode = next => {
+    if (next === 'free' && mode !== 'free') {
+      const queue = mode === 'chronological' ? chronoQueue : fixedQueue
+      setPosition(p => ({ ...p, free: resolveNextChapter(done, queue.bookOrder, counts, queue.start) }))
+    }
+    setMode(next)
+  }
+  const planSession = { ...session, bibleOrderMode: mode, planQueue: fixedQueue, planBooks: mode === 'custom' ? fixedQueue.bookOrder : null, activePlan: { kind: 'fixed' }, todaysSteps: ['prayer', 'reading', 'reflection'], todayRoutine: { prayer: true } }
+  const faixa = (
+    <div data-previa="plano" style={{ flexShrink: 0, padding: '6px 12px', background: '#222', color: '#fff', font: '600 11px/1.4 system-ui', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span data-previa="hoje">Sessão de hoje: {today.finished ? 'plano concluído' : today.session.title}</span>
+      <span data-previa="lidos">Lidos: {done.size}</span>
+      {mode !== 'chronological' && !reading && <button data-previa="abrir" onClick={() => setReading({})}>Abrir a leitura</button>}
+      {reading && <button data-previa="fechar" onClick={() => setReading(null)}>Voltar aos ajustes</button>}
+    </div>
+  )
+  if (reading) {
+    const open = reading.blockId ? reading : { blockId: today.block.id, sessionId: today.session.id }
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {faixa}
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+          <JourneyScreen
+            session={planSession} authUser={authUser} stepMinutes={minutes} blocks={fixed.blocks} sessionsByBlock={fixed.sessionsByBlock} browseSessionsByBlock={deriveProgress(done, 'free').sessionsByBlock}
+            completedSet={done} entryMode="reading" initialBlockId={open.blockId} resumeSessionId={open.sessionId}
+            onMovePlan={(book, chapter, fromBlockId) => {
+              setPosition(p => ({ ...p, free: { book, chapter } }))
+              const target = sessionAt(deriveProgress(done, 'standard', 'ot_first', minutes.reading, splitPointsFor({ book, chapter })), book, chapter)
+              if (target && target.block.id !== fromBlockId) setReading({ blockId: target.block.id, sessionId: target.session.id })
+            }}
+            onGoToReflectionFrom={() => setReading(null)} onExitReading={() => setReading(null)}
+            onToggleSession={(sn, on) => mark(sn.book, sn.type === 'reflection' ? ['reflection'] : Array.from({ length: sn.chEnd - sn.chStart + 1 }, (_, i) => sn.chStart + i), on)}
+            onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
+            onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={() => {}}
+            onNavigate={t => alert(`navegar: ${t}`)} onContinueSession={() => {}}
+            onOpenSuaBiblia={() => {}} onPastRootChange={() => {}} onCelebrateNow={() => Promise.resolve(false)}
+            onOpenGroupRoom={() => {}} onOpenSermonNote={() => {}}
+          />
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {faixa}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ReadingOrganizeScreen
+          session={planSession} completedSet={done} blocks={fixed.blocks} bookChapterCounts={counts} stepMinutes={minutes}
+          bibleOrderMode={mode} customBookOrder={custom} planPosition={position} readingOrder="ot_first"
+          onSaveBibleOrderMode={saveMode} onSaveCustomBookOrder={setCustom}
+          onSetStartPosition={(book, chapter) => setPosition(p => (mode === 'free' ? { ...p, free: { book, chapter } } : { ...p, start: { book, chapter } }))}
+          onNavigate={t => alert(`navegar: ${t}`)} onBack={() => alert('voltar')}
+        />
+      </div>
+    </div>
+  )
+}
+
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
@@ -836,6 +928,7 @@ function Preview() {
   let body
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
+  if (screen === 'ordem') return <OrdemPreview />
   if (screen === 'estudos') {
     // A tela Estudos (35h) com o cabeçalho da Biblioteca; `&lupa=nao`: como
     // abre pelo Meu Plano. (Sem servidor aqui, as listas de fora ficam

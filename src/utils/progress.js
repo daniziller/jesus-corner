@@ -11,6 +11,12 @@ import { buildDynamicSessionsByBlock } from '../data/dynamicSessions.js'
 const OT_FIRST_ORDER = [1, 2, 3, 4, 5, 6, 7, 8]
 const NT_FIRST_ORDER = [5, 6, 7, 8, 1, 2, 3, 4]
 
+// Os 8 blocos na ordem de percurso escolhida.
+export function orderedBibleBlocks(readingOrder = 'ot_first') {
+  const blockOrder = readingOrder === 'nt_first' ? NT_FIRST_ORDER : OT_FIRST_ORDER
+  return blockOrder.map(id => BIBLE_BLOCKS.find(b => b.id === id))
+}
+
 // Chaves de progresso de uma sessão: capítulos individuais do livro (para
 // sessões de leitura) ou uma chave única de reflexão (para a sessão que
 // fecha o livro). Guardar por CAPÍTULO — não por id de sessão — é o que
@@ -42,12 +48,15 @@ function isSessionDone(session, completedSet) {
 // continuam com sua própria divisão). undefined/null preserva o
 // comportamento antigo por planId, pra quem chama sem essa migração
 // (ex: planos por tema, cronológico, cada um com sua própria fonte).
-export function deriveProgress(completedSet, planId, readingOrder = 'ot_first', readingMinutesPerDay = null) {
+//
+// splitPoints ({ [livro]: capítulo }) — o ponto de partida do plano, quando
+// cai no meio de um livro: a divisão em sessões recomeça ali (ver
+// buildBookSessions em dynamicSessions.js).
+export function deriveProgress(completedSet, planId, readingOrder = 'ot_first', readingMinutesPerDay = null, splitPoints = null) {
   const sessionsSource = readingMinutesPerDay !== null
-    ? buildDynamicSessionsByBlock(readingMinutesPerDay)
+    ? buildDynamicSessionsByBlock(readingMinutesPerDay, splitPoints)
     : SESSIONS_BY_PLAN[planId] ?? SESSIONS_BY_PLAN.standard
-  const blockOrder = readingOrder === 'nt_first' ? NT_FIRST_ORDER : OT_FIRST_ORDER
-  const orderedBlocks = blockOrder.map(id => BIBLE_BLOCKS.find(b => b.id === id))
+  const orderedBlocks = orderedBibleBlocks(readingOrder)
   const blocks = []
   const sessionsByBlock = {}
 
@@ -98,12 +107,6 @@ export function pickActiveBlock(blocks) {
     [...blocks].reverse().find(b => b.status === 'done') ??
     blocks[0]
   )
-}
-
-// Total de sessões do plano atual (soma de todos os blocos) — como a ideia é
-// "1 sessão = 1 dia", esse número também é o total de dias do plano inteiro.
-export function computeTotalSessions(blocks) {
-  return blocks.reduce((s, b) => s + b.sessionsTotal, 0)
 }
 
 // Percentual real (não só do bloco ativo) do Antigo/Novo Testamento e da Bíblia toda,

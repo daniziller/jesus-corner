@@ -11,7 +11,7 @@ import { getChapterContextEnabled, isChapterContextSeen, markChapterContextSeen,
 import { getAskEnabled } from '../aiChat/aiPreferencesStore'
 import { fetchBookText, groupIntoParagraphs } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId, setSelectedVersionId } from '../bible-text/bibleVersionSelection'
-import { computeBookChapterCounts } from '../utils/progress'
+import { computeBookChapterCounts, bookNameFor } from '../utils/progress'
 import { BIBLE_VERSIONS, findBibleVersion } from '../data/bibleVersions'
 import { setLastReadPosition } from '../reading/lastReadPositionStore'
 import { getFreeReadingPosition, setFreeReadingPosition } from '../bible/freeReadingPositionStore'
@@ -39,6 +39,8 @@ import AppIcon from '../icons/AppIcon'
 import BibleAudioPlayer from '../components/BibleAudioPlayer'
 import ToolsSheet from '../components/ToolsSheet'
 import ChapterPickerSheet from '../components/ChapterPickerSheet'
+import StartPickerSheet from '../components/StartPickerSheet'
+import { orderedPlanSessions } from '../reading/bibleOrderMath'
 import LeituraTopo from '../components/biblia/LeituraTopo'
 import LeituraRodape from '../components/biblia/LeituraRodape'
 import RelogioDoPasso from '../components/passos/RelogioDoPasso'
@@ -46,7 +48,7 @@ import { dayBarSegments, dayBarAria, stepSubtitle } from '../passos/passosMath'
 import { resolveMinutes } from '../meuPlano/meuPlanoMath'
 import { formatClock } from '../timer/formatClock'
 
-export default function ReadingBlockView({ session, authUser, stepMinutes, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onCelebrateNow, onGoToReflection, onOpenGroupRoom, forceChapterContext = false }) {
+export default function ReadingBlockView({ session, authUser, stepMinutes, onNavigate, blockId, blocks, sessionsByBlock, mode = 'session', completedSet, onToggleSession, onToggleChapter, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange, onBack, onCelebrateNow, onGoToReflection, onOpenGroupRoom, onMovePlan, forceChapterContext = false }) {
   const { lang, hasPremium, hasAI } = session
   // A leitura é sempre de tela cheia (redesign 1b): cabeçalho que some ao
   // rolar, o texto num cartão e o rodapé fixo, sem barra de navegação. É
@@ -87,7 +89,16 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   // de cada bloco) — abriria o capítulo errado sem nenhum erro visível.
   const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId ?? null)
 
-  const heroSession = sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
+  // Ordem livre (35i): o plano segue do último texto que a pessoa abriu
+  // DENTRO da leitura do plano. O texto escolhido fica guardado por livro e
+  // capítulo (não por id): ao mover o plano, a divisão em sessões recomeça
+  // naquele capítulo e os ids mudam.
+  const freeOrder = !freeReading && !!onMovePlan && session.bibleOrderMode === 'free' && session.activePlan?.kind === 'fixed'
+  const [selectedPoint, setSelectedPoint] = useState(null)
+  const [bookPickerOpen, setBookPickerOpen] = useState(false)
+
+  const heroSession = (selectedPoint && sessions.find(s => s.type !== 'reflection' && s.book === selectedPoint.book && s.chStart <= selectedPoint.chapter && selectedPoint.chapter <= s.chEnd))
+    ?? sessions.find(s => s.id === selectedSessionId) ?? autoHeroSession
 
   // Leitura livre (mode 'browse'): qual capítulo está aberto — o que a
   // tela do livro (BookChapterScreen.jsx) mandou abrir (initialTextOpen +
@@ -98,12 +109,21 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
 
   // A sessão seguinte do plano, para "Continuar lendo" (35g).
   function getNextSessionFor(fromSession) {
-    const idx = sessions.findIndex(s => s.id === fromSession.id)
     // Só dentro do bloco atual (varredura 2026-10-25): os ids de sessão
     // recomeçam em 1 a cada bloco, e featureSession/heroSession procuram
     // por id SÓ em `sessions` (deste bloco) — "continuar" no fim de
     // Deuteronômio prometia Josué 1 e abria Gênesis 1–2. Fim do bloco =
     // sem próximo (a TimeUpSheet já tem o texto de "acabou").
+    // Na leitura contínua, "a seguinte" é a seguinte da FILA do plano (a
+    // ordem escolhida e o ponto de partida — ver bibleOrderMath.js), que
+    // nem sempre é a seguinte da lista do bloco.
+    if (!freeReading && session.planQueue) {
+      const ordered = orderedPlanSessions({ blocks, sessionsByBlock, ...session.planQueue })
+      const at = ordered.findIndex(e => e.block.id === block.id && e.session.id === fromSession.id)
+      const next = at === -1 ? null : ordered[at + 1]
+      return next && next.block.id === block.id ? next.session : null
+    }
+    const idx = sessions.findIndex(s => s.id === fromSession.id)
     return sessions[idx + 1] ?? null
   }
 
@@ -111,6 +131,7 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   // texto novo; na leitura livre, quem troca de capítulo cuida da rolagem
   // (ver goToFreeChapter).
   function featureSession(clickedSession) {
+    setSelectedPoint(null)
     setSelectedSessionId(clickedSession.id)
     if (mode !== 'browse') {
       scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -120,7 +141,21 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   // Seletor de capítulo (18b) — troca de capítulo SEM sair da leitura
   // imersiva, achando a sessão que cobre aquele número (uma sessão pode
   // cobrir mais de 1 capítulo no plano estruturado).
+  // Ordem livre: abrir outro texto na leitura do plano leva o plano para
+  // lá — nada é marcado como lido. Outro livro deste bloco troca aqui
+  // mesmo; de outro bloco, App.jsx reabre a leitura nele.
+  function movePlanTo(book, chapter) {
+    setChapterPickerOpen(false)
+    setBookPickerOpen(false)
+    if (block.books.includes(book)) {
+      setSelectedPoint({ book, chapter })
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    onMovePlan(book, chapter, block.id)
+  }
+
   function openChapterFromPicker(ch) {
+    if (freeOrder) { movePlanTo(heroSession.book, ch); return }
     const target = sessions.find(s => s.book === heroSession.book && s.chStart <= ch && ch <= s.chEnd)
     if (target) {
       featureSession(target)
@@ -1301,8 +1336,20 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
           completedSet={completedSet}
           bookKey={heroSession.book}
           onSelectChapter={openChapterFromPicker}
-          onSwitchBook={() => { setChapterPickerOpen(false); onNavigate?.('journey') }}
+          onSwitchBook={freeOrder
+            ? () => { setChapterPickerOpen(false); setBookPickerOpen(true) }
+            : () => { setChapterPickerOpen(false); onNavigate?.('journey') }}
         />
+        {bookPickerOpen && (
+          <StartPickerSheet
+            lang={lang}
+            title={t('reading.freeOrderPickerTitle', undefined, lang)}
+            books={blocks.flatMap(b => b.books).map(name => ({ name, label: bookNameFor(name, lang) }))}
+            bookChapterCounts={computeBookChapterCounts(sessionsByBlock)}
+            onClose={() => setBookPickerOpen(false)}
+            onConfirm={movePlanTo}
+          />
+        )}
         {recallOpen && (
           <ChapterRecallSheet
             lang={lang}
