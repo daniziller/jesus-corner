@@ -307,7 +307,7 @@ export function friendLine(summary, reading) {
 // Quem sugerir como amigo: gente dos grupos da pessoa que ainda não é
 // amiga nem tem pedido pendente — cada um uma vez só, com o primeiro
 // grupo em comum, no máximo `max`.
-export const SUGGESTIONS_SHOWN = 6
+const SUGGESTIONS_SHOWN = 6
 export function friendSuggestions(groups, myUserId, friends, pending, max = SUGGESTIONS_SHOWN) {
   const skip = new Set([myUserId, ...(friends ?? []).map(f => f.userId), ...(pending ?? []).map(p => p.userId)])
   const seen = new Map()
