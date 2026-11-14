@@ -24,6 +24,12 @@
 // então nada mudou aqui — quem os mostrava era StudiesScreen.jsx/aba
 // 'studies', hoje só alcançável via deep-link de um estudo específico já
 // ativo (openActiveStudy em App.jsx), não como hub de navegação.
+//
+// "Meus estudos" (as ações que viviam na Biblioteca antiga, tela 4c):
+// os convites de amigos (aceitar), o que publiquei no banco (sair do
+// banco) e, em Salvos, apagar um estudo guardado — ou, num estudo do
+// catálogo já começado, tirá-lo da lista (só o progresso é zerado). Ver
+// studies/meusEstudosMath.js.
 import { useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
@@ -36,13 +42,16 @@ import { getStepDays } from '../routine/stepDaysStore'
 import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath'
 import { deriveThemeTexts } from '../themePlans/themeTexts'
 import { countCreatedThisMonth } from '../studies/estudosStore'
+import { STUDIES } from '../data/studies'
+import { meusEstudosApi } from '../studies/meusEstudosApi'
+import { savedStudyEntries, removalOf, progressLine, publishedLine, inviteRow, matchesStudyQuery } from '../studies/meusEstudosMath'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
 import { BotaoDaLupa } from '../components/biblioteca/TelaDeTipo'
 
 const FONT = 'var(--font-bento)'
 const CHIPS = ['all', 'jesusCorner', 'groups', 'public', 'saved']
 
-export default function AddStudyScreen({ session, onBack, onOpenSearch = null, onCreateStudy, onChangeStudyDays, onOpenPreview, onOpenPublicBank, onOpenStudyDetail }) {
+export default function AddStudyScreen({ session, api = meusEstudosApi, onBack, onOpenSearch = null, onCreateStudy, onChangeStudyDays, onOpenPreview, onOpenPublicBank, onOpenStudyDetail, onOpenCatalogStudy }) {
   const { lang, activeStudyId } = session
   const L = (k, vars) => t(`addStudy.${k}`, vars, lang)
 
@@ -52,6 +61,11 @@ export default function AddStudyScreen({ session, onBack, onOpenSearch = null, o
   const [groupStudies, setGroupStudies] = useState([])
   const [publicResults, setPublicResults] = useState([])
   const [savedStudies, setSavedStudies] = useState([])
+  // "Meus estudos": os publicados por mim e os convites de amigos.
+  const [published, setPublished] = useState([])
+  const [invites, setInvites] = useState([])
+  const [busyId, setBusyId] = useState(null)
+  const [actionFailed, setActionFailed] = useState(false)
   const [activeStudy, setActiveStudy] = useState(null)
   const [quotaExplainOpen, setQuotaExplainOpen] = useState(false)
   const [quotaUsed, setQuotaUsed] = useState(0)
@@ -86,10 +100,12 @@ export default function AddStudyScreen({ session, onBack, onOpenSearch = null, o
     return () => clearTimeout(handle)
   }, [query])
 
-  useEffect(() => {
-    Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
+  function loadMine() {
+    return Promise.all([getAiStudies(), getInductiveStudies(), getCompletedStudySessions()]).then(([ai, inductive, doneSet]) => {
       const mine = [...ai, ...inductive]
-      setSavedStudies(mine.filter(s => s.id !== activeStudyId))
+      // Salvos: os meus (fora o que está em andamento) e, do catálogo
+      // pronto, os que já comecei.
+      setSavedStudies(savedStudyEntries({ ai, inductive, catalog: STUDIES, isDone: (id, sessionId) => isStudySessionDone(doneSet, id, sessionId), activeStudyId }))
       const active = mine.find(s => s.id === activeStudyId)
       if (active) {
         const total = active.sessions?.length ?? 0
@@ -104,14 +120,65 @@ export default function AddStudyScreen({ session, onBack, onOpenSearch = null, o
       // grava outro origin e não conta aqui).
       setQuotaUsed(countCreatedThisMonth(mine))
     }).catch(err => console.error('Failed to load my studies', err))
-  }, [activeStudyId])
+  }
+  useEffect(() => { loadMine() }, [activeStudyId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function loadShared() {
+    return Promise.all([api.published(), api.invites()])
+      .then(([mine, invited]) => { setPublished(mine); setInvites(invited.map(inviteRow)) })
+      .catch(err => console.error('Failed to load published studies and invites', err))
+  }
+  useEffect(() => { loadShared() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Uma ação de "Meus estudos" de cada vez; se falha, a tela avisa.
+  async function act(id, run) {
+    if (busyId) return
+    setBusyId(id)
+    setActionFailed(false)
+    try {
+      await run()
+    } catch (err) {
+      console.error('Study action failed', err)
+      setActionFailed(true)
+    } finally {
+      setBusyId(null)
+    }
+  }
+  // Abre a prévia de um estudo do banco (o mesmo caminho do banco público).
+  const openBankStudy = study => onOpenPreview?.({ title: study.title, overview: study.overview, format: study.format, scope: null, sessions: deriveThemeTexts(study.passages), sourceStudyId: study.id, fromPublicBank: true, origin: 'public' })
+  // "Aceitar" um convite de amigo: aceita e abre o estudo; "Continuar",
+  // num já aceito, só abre.
+  function acceptInvite(row) {
+    if (!row.pending) { openBankStudy(row.study); return }
+    act(row.id, async () => { await api.acceptInvite(row.id); openBankStudy(row.study) })
+  }
+  // "Sair do banco": tira o estudo que publiquei; quem já usou fica com a
+  // própria cópia.
+  function withdraw(study) {
+    if (!window.confirm(L('withdrawConfirm'))) return
+    act(study.id, async () => { await api.withdraw(study.id); await loadShared() })
+  }
+  // "Apagar" um estudo guardado, ou "Tirar da lista" um do catálogo.
+  function removeSaved(entry) {
+    if (!window.confirm(L(removalOf(entry).confirmKey))) return
+    act(entry.id, async () => { await api.remove(entry); await loadMine() })
+  }
+  // Um estudo do catálogo abre na tela dele; os meus, na prévia.
+  function openSaved(entry) {
+    const { study } = entry
+    if (entry.kind === 'catalog') { onOpenCatalogStudy?.(study.id); return }
+    onOpenPreview?.({ title: study.title, overview: study.overview, format: 'thematic', scope: study.scope ?? null, sessions: study.sessions, sourceStudyId: study.id, origin: study.origin ?? 'created', createdAt: study.createdAt })
+  }
 
   const q = query.trim().toLowerCase()
   const matchesQuery = study => !q || study.title.toLowerCase().includes(q) || (study.authorName ?? '').toLowerCase().includes(q)
 
   const filteredJesusCorner = useMemo(() => readyMade.filter(matchesQuery), [readyMade, q])
   const filteredGroups = useMemo(() => groupStudies.filter(matchesQuery), [groupStudies, q])
-  const filteredSaved = useMemo(() => savedStudies.filter(matchesQuery), [savedStudies, q])
+  const savedTitle = entry => (lang === 'en' ? entry.study.titleEn ?? entry.study.title : entry.study.title ?? entry.study.titleEn)
+  const filteredSaved = useMemo(() => savedStudies.filter(entry => matchesStudyQuery(query, { title: savedTitle(entry) })), [savedStudies, query, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+  const filteredInvites = useMemo(() => invites.filter(row => matchesStudyQuery(query, row)), [invites, query])
+  const filteredPublished = useMemo(() => published.filter(study => matchesStudyQuery(query, study)), [published, query])
   // A busca pública já roda no servidor (searchPublicStudies), não precisa filtrar de novo.
 
   const showAll = chip === 'all'
@@ -122,6 +189,7 @@ export default function AddStudyScreen({ session, onBack, onOpenSearch = null, o
     && (!showSection('groups') || filteredGroups.length === 0)
     && (!showSection('public') || publicResults.length === 0)
     && (!showSection('saved') || filteredSaved.length === 0)
+    && (!showAll || (filteredInvites.length === 0 && filteredPublished.length === 0))
 
   return (
     <div style={s.screen}>
@@ -202,6 +270,25 @@ export default function AddStudyScreen({ session, onBack, onOpenSearch = null, o
         )}
 
         {noResults && <p style={s.emptyText}>{L('emptyResults')}</p>}
+        {actionFailed && <p style={s.actionError} role="alert">{L('actionError')}</p>}
+
+        {showAll && filteredInvites.length > 0 && (
+          <StudySection label={L('sectionInvites')}>
+            <div style={s.rowsCard}>
+              {filteredInvites.map((row, i) => (
+                <div key={row.id} style={{ ...s.row, ...(i > 0 ? s.rowLine : null) }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={s.rowTitle}>{row.title}</p>
+                    <p style={s.rowSub}>{L('invitedBy', { name: row.authorName })}</p>
+                  </div>
+                  <button type="button" className="biblioteca-etiqueta" style={{ ...s.rowBtn, ...(row.pending ? s.rowBtnDark : null) }} disabled={busyId === row.id} onClick={() => acceptInvite(row)}>
+                    {L(row.pending ? 'acceptBtn' : 'continueBtn')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </StudySection>
+        )}
 
         {showSection('jesusCorner') && filteredJesusCorner.length > 0 && (
           <StudySection label={L('sectionJesusCorner')}>
@@ -243,14 +330,31 @@ export default function AddStudyScreen({ session, onBack, onOpenSearch = null, o
 
         {showSection('saved') && filteredSaved.length > 0 && (
           <StudySection label={L('chipSaved')}>
-            {filteredSaved.map(study => (
+            {filteredSaved.map(entry => (
               <StudyCard
-                key={study.id} badge={null}
-                title={study.title ?? study.titleEn} sub={null}
-                meta={L('cardDaysMeta', { n: study.sessions?.length ?? 0 })}
-                onClick={() => onOpenPreview?.({ title: study.title, overview: study.overview, format: 'thematic', scope: study.scope ?? null, sessions: study.sessions, sourceStudyId: study.id, origin: study.origin ?? 'created', createdAt: study.createdAt })}
+                key={entry.id} badge={null}
+                title={savedTitle(entry)} sub={entry.kind === 'catalog' ? L(progressLine(entry).key, progressLine(entry).vars) : null}
+                meta={L('cardDaysMeta', { n: entry.total })}
+                onClick={() => openSaved(entry)}
+                action={{ label: L(removalOf(entry).labelKey), disabled: busyId === entry.id, onClick: () => removeSaved(entry) }}
               />
             ))}
+          </StudySection>
+        )}
+
+        {showAll && filteredPublished.length > 0 && (
+          <StudySection label={L('sectionPublished')}>
+            <div style={s.rowsCard}>
+              {filteredPublished.map((study, i) => (
+                <div key={study.id} style={{ ...s.row, ...(i > 0 ? s.rowLine : null) }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={s.rowTitle}>{study.title}</p>
+                    <p style={s.rowSub}>{L(publishedLine(study).key, publishedLine(study).vars)}</p>
+                  </div>
+                  <button type="button" className="biblioteca-etiqueta" style={s.rowBtn} disabled={busyId === study.id} onClick={() => withdraw(study)}>{L('withdrawBtn')}</button>
+                </div>
+              ))}
+            </div>
           </StudySection>
         )}
 
@@ -274,18 +378,26 @@ function StudySection({ label, action, children }) {
   )
 }
 
-function StudyCard({ badge, badgeTone, title, sub, meta, onClick }) {
-  return (
-    <button style={s.card} onClick={onClick}>
-      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <div style={s.cardTopRow}>
-          {badge && <span style={{ ...s.badge, ...(badgeTone === 'group' ? s.badgeGroup : badgeTone === 'public' ? s.badgePublicTone : {}) }}>{badge}</span>}
-          <span style={s.cardMeta}>{meta}</span>
-        </div>
-        <p style={s.cardTitle}>{title}</p>
-        {sub && <p style={s.cardSub}>{sub}</p>}
+// `action` ({ label, onClick, disabled }): uma ação do próprio cartão
+// ("Apagar", "Tirar da lista"), à direita, fora do toque que abre o
+// estudo.
+function StudyCard({ badge, badgeTone, title, sub, meta, onClick, action = null }) {
+  const body = (
+    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+      <div style={s.cardTopRow}>
+        {badge && <span style={{ ...s.badge, ...(badgeTone === 'group' ? s.badgeGroup : badgeTone === 'public' ? s.badgePublicTone : {}) }}>{badge}</span>}
+        <span style={s.cardMeta}>{meta}</span>
       </div>
-    </button>
+      <p style={s.cardTitle}>{title}</p>
+      {sub && <p style={s.cardSub}>{sub}</p>}
+    </div>
+  )
+  if (!action) return <button style={s.card} onClick={onClick}>{body}</button>
+  return (
+    <div style={s.cardWithAction}>
+      <button style={s.cardOpen} onClick={onClick}>{body}</button>
+      <button type="button" className="biblioteca-etiqueta" style={s.rowBtn} disabled={action.disabled} onClick={action.onClick} aria-label={`${action.label}: ${title}`}>{action.label}</button>
+    </div>
   )
 }
 
@@ -341,6 +453,21 @@ const s = {
   cardMeta: { fontFamily: FONT, fontSize: 11, fontWeight: 600, color: 'var(--bento-t4)' },
   cardTitle: { fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
   cardSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
+
+  // Cartão com ação: o mesmo cartão branco, com o toque que abre à
+  // esquerda e a ação à direita.
+  cardWithAction: { display: 'flex', alignItems: 'center', gap: 12, borderRadius: 20, background: 'var(--bento-card)', paddingRight: 18 },
+  cardOpen: { flex: 1, minWidth: 0, border: 'none', background: 'none', padding: '14px 0 14px 18px', cursor: 'pointer' },
+
+  // "Convites de amigos" e "Publicados por mim": linhas num cartão branco.
+  rowsCard: { borderRadius: 20, background: 'var(--bento-card)', padding: '2px 18px' },
+  row: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, padding: '10px 0', boxSizing: 'border-box' },
+  rowLine: { borderTop: '1px solid var(--bento-line)' },
+  rowTitle: { fontFamily: FONT, fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, color: 'var(--bento-ink)', margin: '0 0 2px', overflowWrap: 'anywhere' },
+  rowSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: 'var(--bento-t3)', margin: 0 },
+  rowBtn: { flexShrink: 0, height: 32, border: 'none', borderRadius: 11, background: 'var(--bento-line)', padding: '0 12px', fontFamily: FONT, fontSize: 12, fontWeight: 700, lineHeight: 1, color: 'var(--bento-quote-ink)', whiteSpace: 'nowrap', cursor: 'pointer' },
+  rowBtnDark: { background: 'var(--bento-ink)', fontWeight: 800, color: '#fff' },
+  actionError: { fontFamily: FONT, fontSize: 12, fontWeight: 700, lineHeight: 1.4, color: 'var(--bento-now-text)', margin: '0 4px' },
 
   trustCard: { borderRadius: 20, background: 'rgba(255,255,255,.6)', padding: '14px 18px' },
   trustText: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-t3)', margin: 0 },

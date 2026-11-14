@@ -21,6 +21,7 @@
 //      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &busca=pastor (B6) &recentes=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
 //      · &lapis=rascunho|finalizada|vazio (o lápis flutuante, 34e: só aparece com uma anotação em andamento)
+//      tela=estudos — a tela Estudos (35h). &lupa=nao · &meus=exemplo (convites, publicados e guardados) · &rede=fora
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Passos do plano (handoff-passos-pedidos-53-54): tela=oracao — a oração ACTS (S1/S2), com os pedidos na memória.
 //      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
@@ -92,6 +93,7 @@ import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
 import BibliotecaScreen from '../src/screens/BibliotecaScreen'
 import PaginaDeAnotacao from '../src/screens/PaginaDeAnotacao'
+import { meusEstudosApi } from '../src/studies/meusEstudosApi'
 import NotaDeVersiculoScreen from '../src/screens/NotaDeVersiculoScreen'
 import { wordsFingerprint } from '../src/anotar/guardadaMath'
 import { keepLocalDraft, readLocalDraft, clearLocalDraft, keepLocalNote, readLocalNote, clearLocalNote } from '../src/anotar/rascunhoLocal'
@@ -246,6 +248,16 @@ function seedGuestTables(estado) {
     p4: {}, um: {}, quatro: {}, p5: { prayer: true, prayerAt: atH(6, 40) },
   }[planoState] ?? {}
   routine[dateKey(new Date())] = { ...(routine[dateKey(new Date())] ?? {}), ...todayEntry }
+  // `&meus=exemplo` (tela=estudos): estudos guardados — dois criados, um
+  // indutivo e um do catálogo já começado — para as ações de "Meus estudos".
+  const sessoesDeEstudo = n => Array.from({ length: n }, (_, i) => ({ id: i + 1, book: 'Filipenses', chStart: 1 + (i % 4), chEnd: 1 + (i % 4) }))
+  const meusEstudos = tela === 'estudos' && params.get('meus') === 'exemplo'
+    ? {
+        ai: [{ id: 'est-perdao', title: 'Perdão em sete dias', sessions: sessoesDeEstudo(7), origin: 'created', createdAt: '2026-10-01T10:00:00.000Z' }, { id: 'est-rute', title: 'Rute, do começo ao fim', sessions: sessoesDeEstudo(4), origin: 'public', createdAt: '2026-09-01T10:00:00.000Z' }],
+        inductive: [{ id: 'ind-filipenses', title: 'Filipenses, método indutivo', book: 'Filipenses', sessions: sessoesDeEstudo(2), createdAt: '2026-08-01T10:00:00.000Z' }],
+        completed: ['pentateuco:1', 'pentateuco:2'],
+      }
+    : { ai: [], inductive: [], completed: [] }
   // `&lapis=rascunho|finalizada|vazio` (tela=biblia): as anotações longas
   // da conta de exemplo — com um rascunho em andamento, o lápis flutuante
   // (34e) aparece na Bíblia.
@@ -254,7 +266,7 @@ function seedGuestTables(estado) {
   const sermon_notes = lapis === 'rascunho' ? [{ ...anotacaoDoLapis, id: 'sermon-f', finalizedAt: '2026-11-09T10:00:00.000Z' }, anotacaoDoLapis]
     : lapis === 'finalizada' ? [{ ...anotacaoDoLapis, finalizedAt: '2026-11-09T10:00:00.000Z' }]
       : lapis === 'vazio' ? [{ ...anotacaoDoLapis, title: '', passages: [], body: [{ id: 'a', type: 'text', text: '  ' }], text: '' }] : []
-  localStorage.setItem('jc_guest_data', JSON.stringify({ sermon_notes, completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null, reading_clock_prefs: { showOnReading: params.get('relogio') !== 'nao', warnAtZero: true, askToContinue: params.get('perguntar') === 'sim' } }))
+  localStorage.setItem('jc_guest_data', JSON.stringify({ sermon_notes, completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: [...(comEstudo ? [estudo] : []), ...meusEstudos.ai], inductive_studies: meusEstudos.inductive, studies_completed: meusEstudos.completed, active_study: comEstudo ? { studyId: estudo.id } : null, reading_clock_prefs: { showOnReading: params.get('relogio') !== 'nao', warnAtZero: true, askToContinue: params.get('perguntar') === 'sim' } }))
   return nova ? {} : routine
 }
 const dailyRoutine = seedGuestTables(estado)
@@ -788,6 +800,31 @@ function NotaPreview() {
   )
 }
 
+// "Meus estudos" na tela Estudos, na memória: o que publiquei no banco e
+// os convites de amigos. Apagar um guardado usa a conta de exemplo de
+// verdade (a linha de convidado).
+const meusEstudosDePreview = (() => {
+  const exemplo = tela === 'estudos' && params.get('meus') === 'exemplo'
+  const passagens = [{ book: 'Rute', chapter: 1, verseStart: 1, verseEnd: 22 }]
+  let publicados = exemplo ? [
+    { id: 'pub-1', title: 'Esperar sem desistir', visibility: 'public', usesCount: 12, passages: passagens },
+    { id: 'pub-2', title: 'Salmos para noites difíceis', visibility: 'invited', usesCount: 1, passages: passagens },
+    { id: 'pub-3', title: 'Tiago na prática', visibility: 'public', usesCount: 0, passages: passagens },
+  ] : []
+  let convites = exemplo ? [
+    { status: 'invited', study: { id: 'conv-1', title: 'Rute: fidelidade no comum', authorName: 'Marina', overview: '', format: 'book', passages: passagens } },
+    { status: 'accepted', study: { id: 'conv-2', title: 'O Pai nosso, frase por frase', authorName: 'Pr. João Silva', overview: '', format: 'thematic', passages: passagens } },
+  ] : []
+  const rede = fazer => new Promise((resolve, reject) => setTimeout(() => (params.get('rede') === 'fora' ? reject(new Error('sem rede (pré-visualização)')) : resolve(fazer())), 200))
+  return {
+    published: async () => publicados,
+    invites: async () => convites,
+    withdraw: id => rede(() => { publicados = publicados.filter(e => e.id !== id); (window.__estudosRetirados ??= []).push(id) }),
+    acceptInvite: id => rede(() => { convites = convites.map(c => (c.study.id === id ? { ...c, status: 'accepted' } : c)); (window.__convitesAceitos ??= []).push(id) }),
+    remove: entry => rede(() => meusEstudosApi.remove(entry)),
+  }
+})()
+
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
@@ -801,8 +838,20 @@ function Preview() {
   const [draftState, setDraftState] = useState(null)
   if (screen === 'estudos') {
     // A tela Estudos (35h) com o cabeçalho da Biblioteca; `&lupa=nao`: como
-    // abre pelo Meu Plano. (Sem servidor aqui, as listas ficam vazias.)
-    body = <AddStudyScreen session={session} onBack={() => alert('voltar')} onOpenSearch={params.get('lupa') === 'nao' ? null : () => alert('abrir a busca com "Estudos" selecionado')} onCreateStudy={() => alert('criar um estudo')} onChangeStudyDays={() => {}} onOpenPreview={() => {}} onOpenPublicBank={() => {}} onOpenStudyDetail={() => {}} />
+    // abre pelo Meu Plano. (Sem servidor aqui, as listas de fora ficam
+    // vazias.) `&meus=exemplo`: as ações de "Meus estudos" — convites de
+    // amigos, publicados por mim e estudos guardados; `&rede=fora`: as
+    // ações falham.
+    body = (
+      <AddStudyScreen
+        session={session} api={meusEstudosDePreview} onBack={() => alert('voltar')}
+        onOpenSearch={params.get('lupa') === 'nao' ? null : () => alert('abrir a busca com "Estudos" selecionado')}
+        onCreateStudy={() => alert('criar um estudo')} onChangeStudyDays={() => {}}
+        onOpenPreview={estudo => alert(`abrir a prévia do estudo: ${estudo.title}${estudo.fromPublicBank ? ' (do banco)' : ''}`)}
+        onOpenCatalogStudy={id => alert(`abrir o estudo do catálogo: ${id}`)}
+        onOpenPublicBank={() => {}} onOpenStudyDetail={() => {}}
+      />
+    )
   } else if (screen === 'biblioteca') {
     body = <BibliotecaPreview onPastRootChange={setBibliotecaPastRoot} />
   } else if (screen === 'anotar') {
