@@ -2,8 +2,8 @@
 // diferentes guardadas no mesmo notesStore.js (tabela user_data, coluna
 // notes), com chaves distintas:
 //
-// - application:{dateKey} — uma por dia, o HISTÓRICO (aparece em
-//   NotesScreen.jsx junto com as outras anotações).
+// - application:{dateKey} — uma por dia, o HISTÓRICO (aparece na
+//   Biblioteca, em Aplicações).
 // - application:pinned — a ÚNICA frase "fixada" pro card da Home
 //   (HomeScreen.jsx). Só muda quando a pessoa escreve uma frase nova E
 //   confirma que quer trocar (ver ReflectionScreen.jsx) — a primeira frase

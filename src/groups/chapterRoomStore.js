@@ -70,12 +70,16 @@ export async function postToRoom(groupId, book, chapter, body, quote = null) {
   const userId = await getUserId()
   if (!userId) throw new Error('Você precisa estar logado.')
   const clean = body.trim()
-  if (!clean) return
-  const { error } = await supabase.from('group_chapter_posts').insert({
+  if (!clean) return null
+  // Devolve o id da publicação: é o que permite desfazer logo depois
+  // (deleteRoomPost) — a linha "Compartilhada com {grupo}. Desfazer" da
+  // anotação guardada.
+  const { data, error } = await supabase.from('group_chapter_posts').insert({
     group_id: groupId, book, chapter, user_id: userId, body: clean,
     quote_text: quote?.text ?? null, quote_ref: quote?.ref ?? null,
-  })
+  }).select('id').maybeSingle()
   if (error) throw new Error(error.message)
+  return data?.id ?? null
 }
 
 export async function deleteRoomPost(postId) {

@@ -24,12 +24,10 @@ import { bookInfo } from '../data/gamificationBlocks'
 import { readingThread, chapterLabel, topVisibleVerse, markedCard, markOutcome } from '../biblia/bibliaMath'
 import { getReadingClockPrefs } from '../reading/readingClockPrefsStore'
 import { addReadingPaceSession } from '../reading/readingPaceStore'
-import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible, postToRoom } from '../groups/chapterRoomStore'
-import { getGroupMemberCounts } from '../groups/groupsStore'
-import { collectTagVocabulary } from '../notes/noteTags'
+import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible } from '../groups/chapterRoomStore'
+import NotaDeVersiculoScreen from './NotaDeVersiculoScreen'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { avatarPaletteFor } from './ChapterRoomScreen'
-import { avatarInitialsOf } from '../utils/avatarInitials'
 import { dateKey } from '../utils/dateKey'
 import { HIGHLIGHT_COLORS, DEFAULT_HIGHLIGHT_COLOR, highlightColorBg } from '../data/highlightColors'
 import { verseSelectionLabel } from '../bible/verseSelectionLabel'
@@ -507,16 +505,15 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   // persiste em segundo plano. sessionMode ('session'|'browse') é o que
   // decide se esse highlight aparece na Reflexão do dia (ver
   // ReflectionScreen.jsx) — só os feitos durante uma sessão guiada contam.
-  // tags/sharedGroupIds opcionais (39f, pacote 39) — quem chama sem elas
-  // (chooseQuickColor, HighlightComposer antigo) continua criando/editando
-  // sem etiqueta nem grupo nenhum, como sempre.
-  function handleSaveHighlight(book, bookEn, chapter, verses, text, color, tags = [], sharedGroupIds = []) {
+  // Uma marcação nasce sem etiqueta nem grupo; a nota, as etiquetas e
+  // "Quem vê" são da tela da nota (NotaDeVersiculoScreen.jsx).
+  function handleSaveHighlight(book, bookEn, chapter, verses, text, color) {
     const highlight = {
       id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       book, bookEn, chapter, verses,
       text: text.trim(),
       color: color ?? DEFAULT_HIGHLIGHT_COLOR,
-      tags, sharedGroupIds,
+      tags: [], sharedGroupIds: [],
       createdAt: new Date().toISOString(),
       date: dateKey(),
       sessionMode: mode === 'session' ? 'session' : 'browse',
@@ -528,9 +525,11 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
     return highlight.id
   }
 
-  function handleUpdateHighlightText(id, text, color, tags, sharedGroupIds) {
-    setHighlights(prev => prev.map(h => h.id === id ? { ...h, text, color: color ?? h.color, tags: tags ?? h.tags ?? [], sharedGroupIds: sharedGroupIds ?? h.sharedGroupIds ?? [] } : h))
-    updateHighlightText(authUser?.email, id, text, color, tags, sharedGroupIds).catch(err => {
+  // Troca a cor de uma marcação (o texto, as etiquetas e os grupos ficam
+  // como estão).
+  function handleUpdateHighlightText(id, text, color) {
+    setHighlights(prev => prev.map(h => h.id === id ? { ...h, text, color: color ?? h.color } : h))
+    updateHighlightText(authUser?.email, id, text, color).catch(err => {
       console.error('Failed to update highlight', err)
     })
   }
@@ -566,7 +565,7 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   const [highlightEditingId, setHighlightEditingId] = useState(null)
   // Chegar por um resultado "Nas suas notas" da busca (initialFocusVerse.
   // openNoteId): assim que as marcações carregam, abre a nota daquela
-  // marcação (a folha de 39f), uma vez só.
+  // marcação (a tela da nota, N4), uma vez só.
   const noteToOpenRef = useRef(initialFocusVerse?.openNoteId ?? null)
   useEffect(() => {
     const id = noteToOpenRef.current
@@ -596,16 +595,15 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
     return () => onActiveChapterChange?.(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroSession.book, heroSession.chStart, heroSession.type, highlightSelection])
-  // Liga quando "Anotar" (39e) é tocado — vira a tela cheia de 39f (ver o
-  // early return logo no início do corpo da função). Fica ligado até
-  // "Salvar" ou "voltar", nos dois casos (seleção nova ou grifo já salvo
-  // reaberto).
+  // Liga quando "Anotar" (39e) é tocado — vira a tela da nota em um
+  // versículo (N4; ver o retorno antecipado mais abaixo). Fica ligado até
+  // "Pronto" ou "voltar".
   const [wantsToAnnotate, setWantsToAnnotate] = useState(false)
   // Liga quando "Compartilhar" (39e) é tocado — vira a tela cheia de 39i,
-  // mesmo padrão de wantsToAnnotate/39f.
+  // mesmo padrão de wantsToAnnotate/N4.
   const [wantsToShareImage, setWantsToShareImage] = useState(false)
   // Liga quando "Perguntar sobre este versículo" (39e) é tocado — vira a
-  // tela cheia de 39j (mesmo padrão de wantsToAnnotate/39f).
+  // tela cheia de 39j (mesmo padrão de wantsToAnnotate/N4).
   const [wantsToAsk, setWantsToAsk] = useState(false)
   // Retângulo (coordenadas de tela, de getBoundingClientRect) de onde a
   // pessoa tocou o número do versículo ou terminou de selecionar um
@@ -756,7 +754,7 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
 
   // "Compartilhar" (39e) — fecha a folha e liga wantsToShareImage: o
   // próprio componente troca pra tela cheia de 39i (mesmo padrão de
-  // startAnnotatingFromSheet pra 39f).
+  // startAnnotatingFromSheet pra a nota, N4).
   function openShareImageScreen() {
     setSelectionMenuOpen(false)
     setWantsToShareImage(true)
@@ -867,7 +865,7 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
     setCopySheetOpen(false)
   }
   // "Anotar" (39e) — fecha a folha e liga wantsToAnnotate: o próprio
-  // componente troca pra tela cheia de 39f (ver o `if` logo no topo do
+  // componente troca pra tela da nota, N4 (ver o `if` logo no topo do
   // corpo desta função, antes do `return` de sempre — mesmo padrão de
   // BookChapterScreen.jsx pra 39d no Bloco 2).
   function startAnnotatingFromSheet() {
@@ -894,34 +892,6 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
       console.error('Failed to copy with format', err)
     }
     setLastCopyFormat(format)
-  }
-
-  // "Salvar" (39f) — cria/atualiza o grifo com texto+etiquetas (a cor não
-  // muda aqui, já foi escolhida em 39e — omitida, os dois helpers acima
-  // preservam/usam o padrão sozinhos), e publica em quem foi escolhido
-  // (postToRoom, sala do capítulo de cada grupo — 17a) quando
-  // "Compartilhar em um grupo" está ligado E há texto de verdade
-  // (publicar uma nota vazia num grupo não diz nada pra ninguém; a
-  // marcação em si já fica salva na Biblioteca do jeito que for). "Só o
-  // texto da nota e o versículo vão; etiquetas ficam com você" (HANDOFF)
-  // — por isso as tags nunca entram no post do grupo.
-  function submitAnnotation(text, tags, groupIds, quote) {
-    if (highlightEditingId) {
-      handleUpdateHighlightText(highlightEditingId, text, undefined, tags, groupIds)
-    } else if (highlightSelection) {
-      handleSaveHighlight(heroSession.book, heroSession.bookEn, highlightSelection.chapter, [...highlightSelection.verses].sort((a, b) => a - b), text, undefined, tags, groupIds)
-    }
-    if (groupIds.length && text.trim() && quote) {
-      const chapter = highlightSelection?.chapter ?? highlights?.find(h => h.id === highlightEditingId)?.chapter
-      for (const groupId of groupIds) {
-        postToRoom(groupId, heroSession.book, chapter, text, quote).catch(err => {
-          console.error('Failed to share note to group', groupId, err)
-        })
-      }
-    }
-    setHighlightSelection(null)
-    setHighlightEditingId(null)
-    setWantsToAnnotate(false)
   }
 
   const heroBooks = [{ name: heroSession.book, displayName: heroSession.bookEn, info: bookInfoSource[heroSession.book] }].filter(b => b.info)
@@ -1089,23 +1059,22 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
     )
   }
 
-  // "Anotar" (39e → 39f, Bloco 4) — mesmo padrão do contextGate acima e de
-  // BookChapterScreen.jsx pra 39d: o próprio componente troca o que
-  // retorna, sem rota nova em App.jsx. "voltar"/"Salvar" (onBack/onSave)
-  // fecham 39f e voltam direto pra leitura.
-  if (wantsToAnnotate && (highlightSelection || highlightEditingId)) {
+  // "Anotar" (39e) abre a nota em um versículo (N4, handoff-biblioteca-55
+  // §7A.4) — mesmo padrão do contextGate acima: o próprio componente
+  // troca o que retorna, sem rota nova em App.jsx. A nota grava sozinha;
+  // voltar e "Pronto" fecham a tela e voltam direto pra leitura. Se o
+  // versículo já estava marcado, a nota é escrita naquela marcação.
+  const annotating = wantsToAnnotate ? (highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) ?? null : null) : null
+  if (wantsToAnnotate && (annotating || highlightSelection)) {
     return (
-      <VerseAnnotateScreen
+      <NotaDeVersiculoScreen
         lang={lang}
-        chLabel={chLabel}
-        heroBook={heroSession.book}
-        heroBookEn={heroSession.bookEn}
-        selection={highlightSelection}
-        editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
-        myGroups={session.myGroups ?? []}
-        tagVocabulary={collectTagVocabulary(highlights)}
-        onBack={cancelHighlightCompose}
-        onSave={submitAnnotation}
+        highlight={annotating}
+        reference={annotating || !highlightSelection ? null : { book: heroSession.book, bookEn: heroSession.bookEn, chapter: highlightSelection.chapter, verses: [...highlightSelection.verses].sort((a, b) => a - b) }}
+        groups={session.myGroups}
+        sessionMode={mode === 'session' ? 'session' : 'browse'}
+        onHighlights={setHighlights}
+        onClose={cancelHighlightCompose}
       />
     )
   }
@@ -1348,225 +1317,22 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   )
 }
 
-// Anotar o versículo (39f, pacote 39) — TELA CHEIA (não folha, ao contrário
-// de 39e/39g), aberta a partir de "Anotar" em 39e (ver o early return de
-// wantsToAnnotate acima). Cor do grifo não muda aqui — já foi escolhida em
-// 39e; esta tela cuida só de texto, etiqueta (uma só — "a ativa em
-// preto", singular no HANDOFF) e compartilhar em grupo (esse sim,
-// seleção múltipla). "Salvar"/"voltar" fecham 39f e voltam direto pra
-// leitura, nunca pra 39e (a escolha de cor já foi feita, reabrir a folha
-// de cor não faria sentido).
-function VerseAnnotateScreen({
-  lang, chLabel, heroBook, heroBookEn, selection, editingHighlight,
-  myGroups, tagVocabulary, onBack, onSave,
-}) {
-  const L = (k, vars) => t(`reading.${k}`, vars, lang)
-  const [text, setText] = useState(editingHighlight?.text ?? '')
-  const [tag, setTag] = useState(editingHighlight?.tags?.[0] ?? null)
-  const [addingTag, setAddingTag] = useState(false)
-  const [newTagText, setNewTagText] = useState('')
-  const [shareOn, setShareOn] = useState((editingHighlight?.sharedGroupIds?.length ?? 0) > 0)
-  const [selectedGroupIds, setSelectedGroupIds] = useState(editingHighlight?.sharedGroupIds ?? [])
-  const [memberCounts, setMemberCounts] = useState({})
-
-  useEffect(() => {
-    if (!myGroups?.length) return
-    let cancelled = false
-    getGroupMemberCounts(myGroups.map(g => g.groupId)).then(counts => { if (!cancelled) setMemberCounts(counts) }).catch(() => {})
-    return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const chapter = editingHighlight?.chapter ?? selection?.chapter
-  const verses = editingHighlight ? editingHighlight.verses : (selection ? [...selection.verses].sort((a, b) => a - b) : [])
-  const versesKey = verses.join(',')
-  const refText = `${lang === 'en' ? heroBookEn : heroBook} ${chapter}:${formatVerseRanges(verses)}`
-  const versionShort = findBibleVersion(getSelectedVersionId(lang))?.short ?? ''
-
-  // Texto de verdade do(s) versículo(s) — a pessoa vê sobre o que está
-  // anotando sem precisar lembrar (mesmo motivo/fonte de HighlightComposer
-  // antes dele, ver fetchBookText).
-  const [quoteText, setQuoteText] = useState('')
-  useEffect(() => {
-    if (!chapter || !versesKey) { setQuoteText(''); return }
-    let cancelled = false
-    const versionId = getSelectedVersionId(lang)
-    const bookKey = lang === 'en' ? heroBookEn : heroBook
-    fetchBookText(versionId, bookKey).then(chapters => {
-      if (cancelled) return
-      const chapterData = chapters[String(chapter)]
-      if (!chapterData) { setQuoteText(''); return }
-      setQuoteText(versesKey.split(',').map(v => chapterData.verses[v] ?? '').join(' ').replace(/\n/g, ' '))
-    }).catch(() => { if (!cancelled) setQuoteText('') })
-    return () => { cancelled = true }
-  }, [lang, heroBook, heroBookEn, chapter, versesKey])
-
-  function toggleTag(name) {
-    setTag(cur => cur === name ? null : name)
-    setAddingTag(false)
-  }
-  function confirmNewTag() {
-    const clean = newTagText.trim()
-    if (clean) setTag(clean)
-    setNewTagText('')
-    setAddingTag(false)
-  }
-  function toggleGroup(id) {
-    setSelectedGroupIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-  function handleSave() {
-    const tags = tag ? [tag] : []
-    const groupIds = shareOn ? selectedGroupIds : []
-    const quote = quoteText ? { text: quoteText, ref: `${refText} (${versionShort})` } : null
-    onSave(text, tags, groupIds, quote)
-  }
-
-  // A etiqueta desta nota pode ser uma recém-digitada, ainda fora do
-  // vocabulário — some na lista de chips mesmo assim (some some de volta
-  // se a pessoa trocar de etiqueta antes de salvar, sem problema).
-  const allTags = tag && !tagVocabulary.includes(tag) ? [...tagVocabulary, tag] : tagVocabulary
-
-  return (
-    <div style={{ height: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column' }}>
-      <div style={annotateStyles.header}>
-        <button style={annotateStyles.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
-          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-        </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={annotateStyles.headerTitle}>{L('annotateTitle')}</p>
-          <p style={annotateStyles.headerSub}>{refText}</p>
-        </div>
-        <button style={annotateStyles.saveBtn} onClick={handleSave}>{L('annotateSave')}</button>
-      </div>
-
-      <div style={annotateStyles.body}>
-        <div style={annotateStyles.quoteCard}>
-          {quoteText && <p style={annotateStyles.quoteText}>“{quoteText}”</p>}
-          <p style={annotateStyles.quoteRef}>{refText} · {versionShort}</p>
-        </div>
-
-        <div style={annotateStyles.card}>
-          <div style={annotateStyles.cardHeaderRow}>
-            <p style={annotateStyles.cardLabel}>{L('yourNoteLabel')}</p>
-            <p style={annotateStyles.optionalLabel}>{L('optional')}</p>
-          </div>
-          <textarea
-            style={annotateStyles.textarea}
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder={L('notePlaceholderVerse')}
-          />
-        </div>
-
-        <div style={annotateStyles.card}>
-          <p style={annotateStyles.cardLabel}>{L('tagsLabel')}</p>
-          <div style={annotateStyles.tagsRow}>
-            {allTags.map(name => (
-              <button key={name} type="button" style={{ ...annotateStyles.tagChip, ...(tag === name ? annotateStyles.tagChipActive : {}) }} onClick={() => toggleTag(name)}>
-                {name}
-              </button>
-            ))}
-            {addingTag ? (
-              <input
-                autoFocus type="text" style={annotateStyles.tagInput} value={newTagText}
-                onChange={e => setNewTagText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') confirmNewTag(); if (e.key === 'Escape') { setAddingTag(false); setNewTagText('') } }}
-                onBlur={confirmNewTag}
-                placeholder={L('newTagPlaceholder')}
-                maxLength={24}
-              />
-            ) : (
-              <button type="button" style={annotateStyles.tagChip} onClick={() => setAddingTag(true)}>{L('newTagChip')}</button>
-            )}
-          </div>
-        </div>
-
-        {myGroups?.length > 0 && (
-          <div style={annotateStyles.card}>
-            <div style={annotateStyles.shareRow}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={annotateStyles.shareTitle}>{L('shareInGroupTitle')}</p>
-                <p style={annotateStyles.shareSub}>{shareOn ? L('shareInGroupOnSub') : L('shareInGroupOffSub')}</p>
-              </div>
-              <button role="switch" aria-checked={shareOn} onClick={() => setShareOn(v => !v)}
-                style={{ ...annotateStyles.toggle, background: shareOn ? 'var(--bento-ink)' : 'var(--bento-toggle-off)', justifyContent: shareOn ? 'flex-end' : 'flex-start' }}>
-                <span style={{ ...annotateStyles.toggleThumb, background: shareOn ? 'var(--bento-accent)' : '#fff' }} />
-              </button>
-            </div>
-            {shareOn && (
-              <>
-                <p style={annotateStyles.whichGroupsLabel}>{L('whichGroupsLabel')}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {myGroups.map(g => {
-                    const on = selectedGroupIds.includes(g.groupId)
-                    const palette = avatarPaletteFor(g.groupId)
-                    const n = memberCounts[g.groupId] ?? 0
-                    return (
-                      <button key={g.groupId} type="button" style={{ ...annotateStyles.groupRow, ...(on ? annotateStyles.groupRowActive : {}) }} onClick={() => toggleGroup(g.groupId)}>
-                        <span style={{ ...annotateStyles.groupAvatar, background: palette.bg, color: palette.fg }}>{avatarInitialsOf(g.name)}</span>
-                        <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                          <span style={{ ...annotateStyles.groupName, color: on ? '#fff' : 'var(--bento-ink)' }}>{g.name}</span>
-                          <span style={{ ...annotateStyles.groupCount, color: on ? 'rgba(255,255,255,.6)' : 'var(--bento-t3)', display: 'block' }}>
-                            {L(n === 1 ? 'groupMemberOne' : 'groupMemberMany', { n })}
-                          </span>
-                        </span>
-                        {on ? <AppIcon name="Check" size={16} color="var(--bento-accent)" /> : <span style={annotateStyles.groupCheckboxEmpty} />}
-                      </button>
-                    )
-                  })}
-                </div>
-              </>
-            )}
-            <p style={annotateStyles.shareFooterNote}>{L('shareGroupFooterNote')}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 const annotateStyles = {
   header: { display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', flexShrink: 0 },
   backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 17, fontWeight: 800, color: 'var(--bento-ink)', margin: 0 },
   headerSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '2px 0 0' },
-  saveBtn: { flexShrink: 0, height: 40, padding: '0 18px', borderRadius: 14, border: 'none', background: 'var(--bento-accent)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)' },
   body: { flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 20px calc(24px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 14 },
   // Filete #7A4A1E === var(--bento-sand-icon), já o hex exato do HANDOFF.
   quoteCard: { background: 'var(--bento-sand)', borderRadius: 22, padding: '18px 20px', borderLeft: '3px solid var(--bento-sand-icon)' },
   quoteText: { fontFamily: 'var(--font-bento)', fontSize: 15, fontWeight: 500, fontStyle: 'italic', lineHeight: 1.5, color: 'var(--bento-sand-ink-strong)', margin: '0 0 8px' },
   quoteRef: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: 'var(--bento-sand-ink)', margin: 0 },
   card: { background: 'var(--bento-card)', borderRadius: 22, padding: '18px 20px' },
-  cardHeaderRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   cardLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
-  optionalLabel: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
-  textarea: {
-    width: '100%', minHeight: 170, border: 'none', outline: 'none', resize: 'none', background: 'var(--bento-line)', borderRadius: 18,
-    padding: '14px 16px', fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 500, lineHeight: 1.55, color: 'var(--bento-ink)',
-  },
-  tagsRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  tagChip: { height: 36, padding: '0 16px', borderRadius: 99, border: 'none', background: 'var(--bento-line)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' },
-  tagChipActive: { background: 'var(--bento-ink)', color: '#fff' },
-  tagInput: {
-    height: 36, minWidth: 90, padding: '0 14px', borderRadius: 99, border: '1.5px solid var(--bento-line)', outline: 'none',
-    fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', background: '#fff',
-  },
   shareRow: { display: 'flex', alignItems: 'center', gap: 12 },
   shareTitle: { fontFamily: 'var(--font-bento)', fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 3px' },
-  shareSub: { fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
   toggle: { flexShrink: 0, width: 46, height: 28, borderRadius: 99, border: 'none', padding: '0 3px', display: 'flex', alignItems: 'center', cursor: 'pointer' },
   toggleThumb: { width: 22, height: 22, borderRadius: 99 },
-  whichGroupsLabel: { fontFamily: 'var(--font-bento)', fontSize: 10.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '16px 0 10px' },
-  groupRow: {
-    display: 'flex', alignItems: 'center', gap: 12, width: '100%', height: 62, borderRadius: 18, border: 'none', background: 'var(--bento-line)',
-    padding: '0 14px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left',
-  },
-  groupRowActive: { background: 'var(--bento-ink)' },
-  groupAvatar: { width: 34, height: 34, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 800 },
-  groupName: { display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 2 },
-  groupCount: { fontSize: 12, fontWeight: 500 },
-  groupCheckboxEmpty: { width: 20, height: 20, flexShrink: 0, borderRadius: 7, border: '1.5px solid var(--bento-t5)' },
-  shareFooterNote: { fontFamily: 'var(--font-bento)', fontSize: 11.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t4)', margin: '16px 0 0' },
 }
 
 // Compartilhar como imagem (39i, pacote 39) — TELA CHEIA. "O que se vê é
@@ -1733,7 +1499,7 @@ const shareStyles = {
 
 // Perguntar sobre o versículo (39j, pacote 39) — TELA CHEIA, substitui a
 // folha escura de sempre (10b) por um visual claro, no mesmo espírito de
-// 39f/39g/39i. "A IA mora dentro da leitura, nunca numa aba própria"
+// 39g/39i. "A IA mora dentro da leitura, nunca numa aba própria"
 // (HANDOFF) — reaproveita a MESMA lógica de sempre (askAboutPassage,
 // citações já conferidas no servidor, casos de doutrina divergente/risco/
 // fora do escopo, reportar resposta, salvar na nota) só com a casca nova;

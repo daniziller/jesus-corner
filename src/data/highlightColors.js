@@ -9,14 +9,12 @@
 // precisam de migração nenhuma, só passam a aparecer no tom novo; o
 // nome em si não tem mais peso semântico nenhum (por isso os ids não
 // foram renomeados pra c1/c2/c3/c4: trocar a chave também exigiria
-// migrar toda marcação já salva, sem ganho nenhum). `labelKey` sobrevive
-// só pro filtro por cor da Biblioteca (NotesScreen.jsx, fora deste
-// pacote) — não é usado em lugar nenhum da leitura/39e.
+// migrar toda marcação já salva, sem ganho nenhum).
 export const HIGHLIGHT_COLORS = [
-  { id: 'yellow', labelKey: 'reading.colorYellow', swatch: '#FFE3C9', bg: '#FFE3C9' },
-  { id: 'green',  labelKey: 'reading.colorGreen',  swatch: '#FBEFC2', bg: '#FBEFC2' },
-  { id: 'blue',   labelKey: 'reading.colorBlue',   swatch: '#D8E6D2', bg: '#D8E6D2' },
-  { id: 'pink',   labelKey: 'reading.colorPink',   swatch: '#CFDCE4', bg: '#CFDCE4' },
+  { id: 'yellow', swatch: '#FFE3C9', bg: '#FFE3C9' },
+  { id: 'green',  swatch: '#FBEFC2', bg: '#FBEFC2' },
+  { id: 'blue',   swatch: '#D8E6D2', bg: '#D8E6D2' },
+  { id: 'pink',   swatch: '#CFDCE4', bg: '#CFDCE4' },
 ]
 
 export const DEFAULT_HIGHLIGHT_COLOR = 'yellow'

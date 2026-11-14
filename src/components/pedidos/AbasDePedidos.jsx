@@ -4,11 +4,14 @@
 // dividem a largura, como no quadro; com quatro, cada uma tem a largura
 // do seu texto e a fileira rola de lado se não couber. `tabs` vem de
 // pedidosTabs (pedidos/pedidosMath.js).
+//
+// É também o segmentado das telas de tipo da Biblioteca (Marcações: Por
+// livro · Por data · Com nota) — `label` diz do que são as abas.
 import { useRef, useEffect } from 'react'
 
 const FONT = 'var(--font-bento)'
 
-export default function AbasDePedidos({ tabs, current, onChange }) {
+export default function AbasDePedidos({ tabs, current, onChange, label = 'Pedidos de oração' }) {
   const fits = tabs.length <= 3
   // Com quatro abas numa tela estreita, a aba escolhida vem para a vista.
   const rowRef = useRef(null)
@@ -17,12 +20,12 @@ export default function AbasDePedidos({ tabs, current, onChange }) {
     rowRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [fits, current])
   return (
-    <div ref={rowRef} style={{ ...s.row, ...(fits ? null : s.rowScroll) }} role="tablist" aria-label="Pedidos de oração">
+    <div ref={rowRef} style={{ ...s.row, ...(fits ? null : s.rowScroll) }} role="tablist" aria-label={label}>
       {tabs.map(tab => {
         const on = tab.key === current
         return (
           <button
-            key={tab.key} type="button" role="tab" aria-selected={on}
+            key={tab.key} type="button" role="tab" aria-selected={on} className="aba-alvo"
             style={{ ...s.tab, ...(fits ? s.tabEqual : s.tabAuto), ...(on ? s.tabOn : null) }}
             onClick={() => onChange(tab.key)}
           >

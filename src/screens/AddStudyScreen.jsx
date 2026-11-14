@@ -36,11 +36,13 @@ import { getStepDays } from '../routine/stepDaysStore'
 import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath'
 import { deriveThemeTexts } from '../themePlans/themeTexts'
 import { countCreatedThisMonth } from '../studies/estudosStore'
+import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
+import { BotaoDaLupa } from '../components/biblioteca/TelaDeTipo'
 
 const FONT = 'var(--font-bento)'
 const CHIPS = ['all', 'jesusCorner', 'groups', 'public', 'saved']
 
-export default function AddStudyScreen({ session, onBack, onCreateStudy, onChangeStudyDays, onOpenPreview, onOpenPublicBank, onOpenStudyDetail }) {
+export default function AddStudyScreen({ session, onBack, onOpenSearch = null, onCreateStudy, onChangeStudyDays, onOpenPreview, onOpenPublicBank, onOpenStudyDetail }) {
   const { lang, activeStudyId } = session
   const L = (k, vars) => t(`addStudy.${k}`, vars, lang)
 
@@ -123,15 +125,13 @@ export default function AddStudyScreen({ session, onBack, onCreateStudy, onChang
 
   return (
     <div style={s.screen}>
-      <div style={s.header}>
-        <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
-          <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
-        </button>
-        <div>
-          <p style={s.title}>{L('title')}</p>
-          <p style={s.subtitle}>{L('subtitle')}</p>
-        </div>
-      </div>
+      {/* O cabeçalho das telas de tipo da Biblioteca (handoff-biblioteca-55
+          §1): voltar · nome com a linha de resumo · a lupa, quando a tela
+          foi aberta pela Biblioteca. */}
+      <CabecalhoDoPasso
+        title={L('title')} subtitle={L('subtitle')} onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)}
+        clock={onOpenSearch ? <BotaoDaLupa onClick={onOpenSearch} /> : null}
+      />
 
       <div style={s.searchWrap}>
         <div style={s.searchRow}>
@@ -291,10 +291,6 @@ function StudyCard({ badge, badgeTone, title, sub, meta, onClick }) {
 
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
-  header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 0' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
-  subtitle: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
 
   searchWrap: { flex: 'none', padding: '14px 20px 0' },
   searchRow: { height: 46, borderRadius: 16, background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px' },

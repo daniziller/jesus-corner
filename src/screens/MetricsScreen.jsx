@@ -110,8 +110,8 @@ export default function MetricsScreen({ session, completedSet, sessionsByBlock, 
         </div>
 
         {/* "Escolher período" (pedido dela, 2026-09-12: "filtro de data de
-            início e fim") — mesmo padrão de par De/Até já usado no filtro
-            de data da Biblioteca (NotesScreen.jsx). */}
+            início e fim") — o mesmo par De/Até do período da busca da
+            Biblioteca (FolhaDePeriodo.jsx). */}
         {period === 'custom' && (
           <div style={s.dateRangeRow}>
             <input

@@ -5,7 +5,7 @@
 //
 // Fidelidade ao quadro 5e: reproduz o fundo escurecido sobre a leitura, o
 // puxador e a grade — MAS o raio da folha fica só no topo (22px 22px 0 0,
-// como as demais folhas Bento — ver NotesScreen.jsx), não nos 4 cantos do
+// como as demais folhas Bento — ver FolhaInferior.jsx), não nos 4 cantos do
 // quadro: aquele arredondamento embaixo é a moldura do próprio aparelho no
 // mock, não uma instrução de estilo pra folha real. A linha "Comparar
 // versões" do quadro não entra — só existe uma versão da Bíblia por idioma

@@ -1,14 +1,11 @@
 // ApplicationPhrasesScreen.jsx
 // Histórico só das frases de aplicação da Reflexão (uma por dia, ver
 // ReflectionScreen.jsx/reflection/applicationPhraseStore.js) — item
-// dedicado em Perfil, separado de Minhas anotações (que também mostra
-// essas frases dentro do filtro "Reflexão", mas aqui é o lugar próprio
-// pra elas, com o título da sessão de leitura do dia + a data de cada
-// uma). Mesmo padrão de edição/exclusão de NotesScreen.jsx, deliberadamente
-// duplicado (não importado de lá) — telas de histórico pequenas assim não
-// valem o acoplamento de compartilhar componente. Cores/medidas dos
-// cartões seguem as mesmas de NotesScreen.jsx (cartão branco raio 24, tag
-// uppercase pequena) pra ficar visualmente igual à tela irmã.
+// dedicado em Perfil, separado da Biblioteca (que também mostra essas
+// frases, em Aplicações, mas aqui é o lugar próprio pra elas, com o
+// título da sessão de leitura do dia + a data de cada uma), com edição e
+// exclusão na própria lista. Cartão branco de raio
+// 24, com a tag pequena em maiúsculas.
 //
 // Sem quadro próprio no handoff — cabeçalho segue o mesmo padrão de tela
 // secundária já usado em GroupAdminScreen.jsx/ContactScreen.jsx.

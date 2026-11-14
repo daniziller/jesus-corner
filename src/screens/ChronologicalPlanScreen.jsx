@@ -6,7 +6,7 @@
 // src/data/chronologicalPlan.js pros detalhes e limitações da ordenação.
 //
 // Alcançada só por um card em PlanScreen.jsx — não é aba própria, mesmo
-// padrão não-aba de ThemePlanScreen.jsx/NotesScreen.jsx. Reaproveita
+// padrão não-aba de ThemePlanScreen.jsx. Reaproveita
 // ReadingBlockView.jsx de verdade (mesmo padrão do plano por tema): os
 // "movimentos" cronológicos fazem o papel dos 8 blocos temáticos de
 // sempre, com blocks/sessionsByBlock no mesmo formato que deriveProgress
