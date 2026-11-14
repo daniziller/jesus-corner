@@ -35,7 +35,7 @@ import ExistingProgressScreen from './screens/ExistingProgressScreen'
 import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
 import BibliotecaScreen from './screens/BibliotecaScreen'
-import AnotarScreen from './screens/AnotarScreen'
+import PaginaDeAnotacao from './screens/PaginaDeAnotacao'
 import NotaDeVersiculoScreen from './screens/NotaDeVersiculoScreen'
 import { recoverLocalDraft, recoverLocalNote } from './anotar/recuperarRascunho'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
@@ -777,10 +777,11 @@ export default function App() {
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
   const [journeyEntryMode, setJourneyEntryMode] = useState('overview')
-  // A página de anotação (aba `sermonNote`): o que abrir — { fresh: true,
+  // A anotação longa (aba `sermonNote`): o que abrir — { fresh: true,
   // type, details } (uma nova; `details` abre os detalhes por cima) ·
-  // { noteId } (uma guardada, tocada na Biblioteca) · {} (o rascunho em
-  // andamento, pelo lápis flutuante da Bíblia).
+  // { noteId } (um rascunho) · { noteId, saved: true } (uma já finalizada,
+  // na tela da anotação guardada) · {} (o rascunho em andamento, pelo
+  // lápis flutuante da Bíblia).
   const [noteTarget, setNoteTarget] = useState({ fresh: true, type: 'sermon' })
   // A nota em um versículo (aba `verseNote`, N4): { highlightId } (uma
   // nota tocada na Biblioteca) ou {} (uma nova: o seletor vem antes).
@@ -1720,10 +1721,10 @@ export default function App() {
     setNoteTarget({})
     goToTab('sermonNote')
   }
-  // Tocar uma anotação na Biblioteca abre a mesma página, já com ela
-  // (finalizada ou não).
-  function editSermonNoteFromLibrary(noteId) {
-    setNoteTarget({ noteId })
+  // Tocar uma anotação na Biblioteca: a já finalizada abre na tela da
+  // anotação guardada (N5); um rascunho, direto na página de escrever.
+  function editSermonNoteFromLibrary(noteId, { draft = false } = {}) {
+    setNoteTarget({ noteId, saved: !draft })
     goToTab('sermonNote')
   }
   // A nota em um versículo fora da leitura: uma nova (pela folha "Nova")
@@ -3357,14 +3358,10 @@ export default function App() {
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
       : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
     journey: <JourneyScreen onOpenSuaBiblia={() => goToTab('suaBiblia')} onOpenSelo={openSelo} onCelebrateNow={celebrateGamificationNow} session={session} authUser={authUser} stepMinutes={stepMinutes} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onGoToReflectionFrom={goToReflectionFrom} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
-    // A página de anotação (N2, handoff-biblioteca-55 §7A): uma anotação
-    // nova, o rascunho em andamento (o lápis flutuante da Bíblia) ou uma
-    // já guardada (tocada na Biblioteca). Fechar guarda o rascunho.
-    sermonNote: <AnotarScreen
-      lang={session.lang} groups={myGroups}
-      target={noteTarget} initialDetails={noteTarget.details ?? null}
-      onClose={goBack} onFinalized={goBack} onOpenBiblePassage={openBiblePassage}
-    />,
+    // A anotação longa (handoff-biblioteca-55 §7A): a página de escrever
+    // (N2) — uma nova ou o rascunho em andamento — e a anotação guardada
+    // (N5), ao finalizar e ao tocar numa já finalizada na Biblioteca.
+    sermonNote: <PaginaDeAnotacao lang={session.lang} groups={myGroups} target={noteTarget} onClose={goBack} onOpenBiblePassage={openBiblePassage} />,
     // A nota em um versículo (N4), fora da leitura da Bíblia.
     verseNote: <NotaDeVersiculoScreen lang={session.lang} groups={myGroups} highlightId={verseNoteTarget.highlightId ?? null} onClose={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />

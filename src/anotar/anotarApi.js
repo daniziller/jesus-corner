@@ -4,9 +4,9 @@
 // um de memória. Grava pelo caminho de sempre (sermonNotesStore.js): o
 // formato do dado não muda.
 import { fetchRow, getUserId } from '../backend/userDataStore'
-import { saveSermonNote, deleteSermonNote } from '../notes/sermonNotesStore'
+import { saveSermonNote, deleteSermonNote, generateSermonSummaryFor } from '../notes/sermonNotesStore'
 import { saveHighlight, updateHighlightText, updateHighlightVerses, hideHighlight } from '../highlights/highlightsStore'
-import { postToRoom } from '../groups/chapterRoomStore'
+import { postToRoom, deleteRoomPost } from '../groups/chapterRoomStore'
 import { getGroupMemberCounts } from '../groups/groupsStore'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
@@ -40,6 +40,16 @@ export const anotarApi = {
   // Leva a nota à sala do capítulo de um grupo: o texto e o versículo.
   publish: (groupId, { book, chapter, body, quote }) => postToRoom(groupId, book, chapter, body, quote),
   keepLocalNote, readLocalNote, clearLocalNote,
+  // A anotação guardada (N5): a síntese ("O que ficou desta anotação" —
+  // só com as palavras da pessoa), desfazer uma publicação recém-feita e
+  // "Marcar na Bíblia" (uma marcação por passagem; devolve as marcações).
+  summarize: (words, lang) => generateSermonSummaryFor(words, lang),
+  unpublish: postId => deleteRoomPost(postId),
+  async markPassages(records) {
+    let highlights = null
+    for (const record of records) highlights = await saveHighlight(null, record)
+    return highlights
+  },
   // Os versículos de um capítulo ({ "1": texto, … }), na versão em uso.
   async chapterVerses(book, chapter, lang = 'pt') {
     const chapters = await fetchBookText(getSelectedVersionId(lang), lang === 'en' ? bookEnFor(book) : book)

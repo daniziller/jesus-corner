@@ -17,7 +17,9 @@ const RETRY_MS = 5000
 
 // `target`: { noteId } — uma anotação guardada; { fresh: true, type } —
 // uma nova; {} — o rascunho em andamento ou, sem rascunho, uma nova.
-export function useAnotacao({ api = anotarApi, target = {} } = {}) {
+// `countTime: false`: fora da página de escrever (a anotação guardada,
+// N5, e a leitura), o tempo anotando não anda.
+export function useAnotacao({ api = anotarApi, target = {}, countTime = true } = {}) {
   const [draft, setDraft] = useState(null)
   const [library, setLibrary] = useState({ sermonNotes: [], highlights: [] })
   const [status, setStatus] = useState('loading')
@@ -42,6 +44,7 @@ export function useAnotacao({ api = anotarApi, target = {} } = {}) {
       const saved = target.noteId ? data.sermonNotes.find(n => n.id === target.noteId)
         : target.fresh ? null
         : currentDraft(data.sermonNotes)
+      if (target.noteId && !saved) { setLibrary(data); setStatus('missing'); return }
       const note = saved ? openNote(saved) : newNote({ type: target.type ?? 'sermon' })
       ownerRef.current = data.owner
       storedRef.current = !!saved
@@ -55,7 +58,7 @@ export function useAnotacao({ api = anotarApi, target = {} } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const seconds = useCallback(() => baseSecondsRef.current + Math.floor((Date.now() - startRef.current) / 1000), [])
+  const seconds = useCallback(() => baseSecondsRef.current + (countTime ? Math.floor((Date.now() - startRef.current) / 1000) : 0), [countTime])
 
   // O registro de agora, como vai ser gravado.
   const payloadOf = useCallback((current, finalize = false) => {

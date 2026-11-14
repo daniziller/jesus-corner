@@ -1,14 +1,15 @@
 // FolhaDoItem.jsx — o menu de um item da Biblioteca, aberto ao segurar o
-// item numa tela de tipo: Editar · Compartilhar · Apagar. A folha só
+// item numa tela de tipo (Editar · Compartilhar · Apagar) e pelos três
+// pontos da anotação guardada (aí, "Editar detalhes"). A folha só
 // mostra; o que cada ação faz é de quem chama.
 import FolhaInferior from '../FolhaInferior'
 import AppIcon from '../../icons/AppIcon'
 
 const FONT = 'var(--font-bento)'
 
-export default function FolhaDoItem({ title, onEdit, onShare, onDelete, onClose }) {
+export default function FolhaDoItem({ title, editLabel = 'Editar', onEdit, onShare, onDelete, onClose }) {
   const rows = [
-    { key: 'edit', label: 'Editar', icon: 'Pencil', run: onEdit },
+    { key: 'edit', label: editLabel, icon: 'Pencil', run: onEdit },
     { key: 'share', label: 'Compartilhar', icon: 'Share2', run: onShare },
     { key: 'delete', label: 'Apagar', icon: 'Trash2', run: onDelete, danger: true },
   ].filter(row => row.run)

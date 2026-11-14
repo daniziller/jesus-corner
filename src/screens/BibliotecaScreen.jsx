@@ -67,13 +67,14 @@ export default function BibliotecaScreen({
   // A lupa da tela Estudos (fora da aba) pede a busca já em "Estudos".
   useEffect(() => { if (searchRequest) openSearch(searchRequest.type) }, [searchRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // O destino de cada tipo: a anotação longa, na página dela; a nota de
+  // O destino de cada tipo: a anotação longa, na tela da anotação guardada
+  // (um rascunho, direto na página de escrever); a nota de
   // versículo, na tela da nota (N4); a marcação, na Bíblia, no versículo
   // (com a nota aberta, se houver); a nota de uma sessão de leitura, na
   // Bíblia, no capítulo; reflexão, frase do dia e pergunta, na página de
   // leitura; um estudo, na tela Estudos.
   function openItem(item) {
-    if (item.type === 'pregacao') onOpenSermonNote(item.id)
+    if (item.type === 'pregacao') onOpenSermonNote(item.id, { draft: item.draft })
     else if (item.type === 'estudo') onOpenStudies()
     else if (item.type === 'marcacao') onOpenBible(item.book, item.chapter, item.verses[0], item.note ? { noteId: item.id } : undefined)
     else if (item.type === 'nota' && item.id) onOpenVerseNote(item.id)
@@ -163,7 +164,7 @@ export default function BibliotecaScreen({
       {novaOpen && (
         <FolhaNova
           draft={draftLine(bib.items)} onChoose={chooseNew} onClose={() => setNovaOpen(false)}
-          onOpenDraft={id => { setNovaOpen(false); onOpenSermonNote(id) }}
+          onOpenDraft={id => { setNovaOpen(false); onOpenSermonNote(id, { draft: true }) }}
         />
       )}
       {menu && (

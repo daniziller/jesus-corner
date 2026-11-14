@@ -146,7 +146,9 @@ const s = {
   card: { borderRadius: 24, background: 'var(--bento-card)', padding: 16 },
   who: { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 16px 14px' },
   source: { borderRadius: 24, background: 'var(--bento-card)', padding: '14px 18px 4px' },
-  labelRow: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+  // A altura é a do apoio (11px): alinhados pela linha de base, o rótulo
+  // menor não a aumenta.
+  labelRow: { height: 11, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
   label: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: 0 },
   hint: { fontFamily: FONT, fontSize: 11, fontWeight: 600, lineHeight: 1, color: 'var(--bento-t4)' },
 
@@ -162,7 +164,8 @@ const s = {
   row: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 50, cursor: 'text' },
   rowLine: { minHeight: 51, borderBottom: '1px solid var(--bento-line)' },
   rowLabel: { width: 84, flexShrink: 0, fontFamily: FONT, fontSize: 12, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t3)' },
-  input: { flex: 1, minWidth: 0, height: 44, border: 'none', background: 'none', outline: 'none', padding: 0, fontFamily: FONT, fontSize: 14, fontWeight: 700, lineHeight: '44px', color: 'var(--bento-ink)', caretColor: 'var(--bento-accent)' },
+  // O texto fica 1px acima do centro do campo, como o valor da linha no quadro.
+  input: { flex: 1, minWidth: 0, height: 44, border: 'none', background: 'none', outline: 'none', padding: '0 0 2px', fontFamily: FONT, fontSize: 14, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-ink)', caretColor: 'var(--bento-accent)' },
 
   note: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-t3)', margin: '0 2px' },
   warning: { fontFamily: FONT, fontSize: 11.5, fontWeight: 700, lineHeight: 1.45, color: 'var(--bento-now-text)', margin: '8px 2px 0' },

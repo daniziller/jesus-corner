@@ -39,6 +39,7 @@
 //      · "Novo" abre "Fazer um pedido" (O2): &grupos=1|0|3 (blocos de "Quem vê"; com 3, a fileira rola) · &ia=nao
 //      · tocar num pedido meu abre "Como Deus respondeu?" (O3)
 //      Página de anotação (handoff-biblioteca-55 §7A): tela=anotar — N2 e N3, com as anotações na memória.
+//      · a anotação guardada (N5): &nota=guardada · &guardada=curta|semtopicos|sempassagens|minima · &sintese=guardada|lenta|erro · &grupo=falha
 //      &nota=exemplo|nova|pregacao|semtitulo|rascunho|antiga · &tipo=livre · &detalhes=tipo|title|tags|who (N3)
 //      · &grupos=0|2|3 · &grupo=escolhido · &teclado=aberto · &rede=fora · &persistir=sim · &estado=carregando|erro
 //      tela=nota — a nota em um versículo (N4). &nota=exemplo|nova|marcacao|comnota|escolher|sumiu · &grupos=0|2|3
@@ -89,8 +90,9 @@ import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
 import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
 import BibliotecaScreen from '../src/screens/BibliotecaScreen'
-import AnotarScreen from '../src/screens/AnotarScreen'
+import PaginaDeAnotacao from '../src/screens/PaginaDeAnotacao'
 import NotaDeVersiculoScreen from '../src/screens/NotaDeVersiculoScreen'
+import { wordsFingerprint } from '../src/anotar/guardadaMath'
 import { keepLocalDraft, readLocalDraft, clearLocalDraft, keepLocalNote, readLocalNote, clearLocalNote } from '../src/anotar/rascunhoLocal'
 import { verseCount } from '../src/data/versiculosPorCapitulo'
 import AddStudyScreen from '../src/screens/AddStudyScreen'
@@ -105,8 +107,10 @@ const tela = params.get('tela') ?? 'hoje'
 // "domingo" da pregação e as datas dos cartões só batem nesse dia. Na
 // pré-visualização dessa aba o relógio parte de lá (`&hoje=AAAA-MM-DD`
 // troca; `&hoje=real` usa o de verdade).
-if (tela === 'biblioteca' && params.get('hoje') !== 'real') {
-  const [ano, mes, dia] = (params.get('hoje') ?? '2026-11-10').split('-').map(Number)
+if ((tela === 'biblioteca' || tela === 'anotar') && params.get('hoje') !== 'real') {
+  // A página de anotação parte de 2025: nas capturas N3 e N5 a anotação é
+  // de uma terça, 2 de setembro, do ano corrente.
+  const [ano, mes, dia] = (params.get('hoje') ?? (tela === 'anotar' ? '2025-11-10' : '2026-11-10')).split('-').map(Number)
   const RealDate = Date
   const offset = new RealDate(ano, mes - 1, dia, 10, 0).getTime() - RealDate.now()
   window.Date = class extends RealDate {
@@ -572,14 +576,17 @@ function BibliotecaPreview({ onPastRootChange }) {
       onOpenVerseNote={id => alert(`abrir a nota de versículo (N4): ${id}`)}
       onEditApplication={() => alert('abrir a lista de frases do Perfil, onde a frase se edita')} onApplicationChanged={() => {}}
       onOpenStudies={() => alert('abrir a tela Estudos')} onCreateStudy={() => alert('criar um estudo (35d)')}
-      onOpenSermonNote={id => alert(`abrir a anotação guardada (N5): ${id}`)}
+      onOpenSermonNote={(id, { draft } = {}) => alert(`abrir ${draft ? 'a página de escrever (N2), no rascunho' : 'a anotação guardada (N5)'}: ${id}`)}
       onOpenBible={(book, chapter, verse, extra) => alert(`abrir a Bíblia em ${book} ${chapter}${verse ? `:${verse}` : ''}${extra?.noteId ? ' com a nota aberta' : ''}`)}
     />
   )
 }
 
-// A página de anotação (N2 e N3, handoff-biblioteca-55 §7A), com as
-// anotações na memória. `&nota=exemplo` (a da captura, um rascunho) ·
+// A anotação longa (N2, N3 e N5, handoff-biblioteca-55 §7A), com as
+// anotações na memória. `&nota=guardada` abre a anotação guardada (N5):
+// `&guardada=curta|semtopicos|sempassagens|minima`, `&sintese=guardada|
+// lenta|erro`, `&grupo=falha` (a publicação falha). `&nota=sumiu`.
+// `&nota=exemplo` (a da captura N2, um rascunho) ·
 // `nova` (anotação livre em branco) · `pregacao` (nova, tipo Sermão) ·
 // `semtitulo` · `rascunho` (retoma o rascunho em andamento) · `antiga`
 // (formato de antes dos blocos, já finalizada). `&tipo=livre` troca o tipo
@@ -593,6 +600,7 @@ const ALTURA_DO_TECLADO = 291
 if ((tela === 'anotar' || tela === 'nota') && params.get('teclado') === 'aberto') {
   Object.defineProperty(window, 'visualViewport', { configurable: true, value: { get height() { return window.innerHeight - ALTURA_DO_TECLADO }, offsetTop: 0, addEventListener() {}, removeEventListener() {} } })
 }
+const SINTESE_DE_EXEMPLO = { before: 'Você voltou duas vezes ao mesmo ponto: Judá vendeu José e agora se oferece como fiador de Benjamim. A pregação era sobre fome e escassez, mas o que você anotou foi', highlight: 'a mudança de um homem ao longo de vinte anos de espera', after: '' }
 function anotacoesDeExemplo() {
   const criada = new Date(2025, 8, 2, 20, 14).toISOString()
   const exemplo = {
@@ -610,8 +618,24 @@ function anotacoesDeExemplo() {
     text: '', topics: [], durationSeconds: 1440, finalizedAt: null, groupId: null,
     tags: ['espera', 'família'], sharedGroupIds: params.get('grupo') === 'escolhido' ? ['g1'] : [],
   }
+  // A anotação guardada da captura N5: 412 palavras, três pontos, três
+  // passagens, 24 minutos. `&guardada=curta` (menos de 40 palavras: sem
+  // síntese) · `semtopicos` · `sempassagens` · `minima` (só um texto curto,
+  // sem tempo: nenhum cartão) · `&sintese=guardada` (já no registro).
+  const como = params.get('guardada') ?? 'completa'
+  const frases = ['Judá é o mesmo que vendeu José por vinte moedas.', 'Agora é ele que se oferece como fiador de Benjamim diante do pai.', 'A fome obrigou a família a voltar ao Egito, mas quem volta não é o mesmo homem.', 'Vinte anos de espera mudaram o que ele faz quando o irmão mais novo está em risco.', 'A espera não passou em vão para ninguém nessa família.']
+  const corrido = n => { const palavras = []; for (let i = 0; palavras.length < n; i++) palavras.push(...frases[i % frases.length].split(' ')); return palavras.slice(0, n).join(' ') }
+  const pontos = como === 'semtopicos' || como === 'minima' ? [] : [{ id: 'g-3', type: 'topic', text: 'A fome que obriga a voltar' }, { id: 'g-4', type: 'topic', text: 'O irmão que precisa ser entregue' }, { id: 'g-5', type: 'topic', text: 'A garantia que alguém oferece com o próprio nome' }]
+  const passagens = como === 'sempassagens' || como === 'minima' ? [] : [{ book: 'Gênesis', bookEn: 'Genesis', chapter: 43, verseStart: 3, verseEnd: 3 }, { book: 'Gênesis', bookEn: 'Genesis', chapter: 41, verseStart: 51, verseEnd: 51 }, { book: 'Tiago', bookEn: 'James', chapter: 1, verseStart: 3, verseEnd: 4 }]
+  const texto = corrido(como === 'curta' || como === 'minima' ? 18 : 412 - pontos.reduce((n, p) => n + p.text.split(' ').length, 0))
+  const guardada = {
+    ...exemplo, id: 'sermon-guardada', noteType: 'sermon', title: params.get('nota') === 'semtitulo' ? '' : 'A espera que forma', finalizedAt: new Date(2025, 8, 2, 21, 0).toISOString(),
+    passages: passagens, durationSeconds: como === 'minima' ? 0 : 1440, tags: como === 'minima' ? [] : ['espera', 'família'],
+    body: [{ id: 'g-1', type: 'text', text: texto }, ...(passagens.length ? [{ id: 'g-2', type: 'quote', text: "O homem nos advertiu seriamente: 'Não voltem à minha presença, a menos que tragam o seu irmão'.", ref: 'Gênesis 43:3', book: 'Gênesis', bookEn: 'Genesis', chapter: 43, verseStart: 3, verseEnd: 3 }] : []), ...pontos],
+  }
+  if (params.get('sintese') === 'guardada') guardada.summary = { ...SINTESE_DE_EXEMPLO, of: wordsFingerprint(guardada) }
   const antiga = { id: 'sermon-antiga', date: '2026-03-08', createdAt: '2026-03-08T13:00:00.000Z', title: 'Culto de domingo', preacher: 'Pr. João Silva', church: 'Igreja Batista Central', passages: [{ book: 'Salmos', bookEn: 'Psalms', chapter: 23, verseStart: 1, verseEnd: 1 }], text: 'O Senhor é o meu pastor.\n\nAnotei à mão e passei para cá depois: nada me faltará quer dizer que ele basta.', finalizedAt: '2026-03-08T14:00:00.000Z' }
-  return [exemplo, antiga, { id: 'sermon-outra', noteType: params.get('tipos') === 'proprios' ? 'retiro' : 'service', title: 'Retiro de casais', preacher: 'Pra. Ana Reis', church: 'Comunidade da Graça', text: 'Um fim de semana fora.', tags: ['família'], finalizedAt: '2026-05-01T14:00:00.000Z', createdAt: '2026-05-01T10:00:00.000Z' }]
+  return [exemplo, guardada, antiga, { id: 'sermon-outra', noteType: params.get('tipos') === 'proprios' ? 'retiro' : 'service', title: 'Retiro de casais', preacher: 'Pra. Ana Reis', church: 'Comunidade da Graça', text: 'Um fim de semana fora.', tags: ['família'], finalizedAt: '2026-05-01T14:00:00.000Z', createdAt: '2026-05-01T10:00:00.000Z' }]
 }
 const guardaDeAnotacoes = (() => {
   const persistir = params.get('persistir') === 'sim'
@@ -676,7 +700,23 @@ const anotarDePreview = {
   updateVerseNote: (id, { text, tags, sharedGroupIds }) => comRede(() => guardaDeMarcacoes.gravar(guardaDeMarcacoes.ler().map(h => (h.id === id ? { ...h, text, tags: tags ?? h.tags ?? [], sharedGroupIds: sharedGroupIds ?? h.sharedGroupIds ?? [], updatedAt: new Date().toISOString() } : h)))),
   setVerseNoteVerses: (id, verses) => comRede(() => guardaDeMarcacoes.gravar(guardaDeMarcacoes.ler().map(h => (h.id === id ? { ...h, verses } : h)))),
   hideVerseNote: id => comRede(() => guardaDeMarcacoes.gravar(guardaDeMarcacoes.ler().map(h => (h.id === id ? { ...h, hidden: true } : h)))),
-  async publish(groupId, post) { (window.__publicacoes ??= []).push({ groupId, ...post }) },
+  // `&grupo=falha`: a publicação falha. Devolve o id, como o app.
+  async publish(groupId, post) {
+    if (params.get('grupo') === 'falha') throw new Error('sem rede (pré-visualização)')
+    const id = `post-${(window.__publicacoes ??= []).length + 1}`
+    window.__publicacoes.push({ id, groupId, ...post })
+    return id
+  },
+  async unpublish(postId) { window.__publicacoes = (window.__publicacoes ?? []).filter(p => p.id !== postId); (window.__desfeitas ??= []).push(postId) },
+  // `&sintese=lenta|erro`: a síntese demora ou falha.
+  summarize(words) {
+    window.__sintesesPedidas = (window.__sintesesPedidas ?? 0) + 1
+    window.__palavrasDaSintese = words
+    const como = params.get('sintese')
+    if (como === 'lenta') return new Promise(() => {})
+    return new Promise((resolve, reject) => setTimeout(() => (como === 'erro' ? reject(new Error('sem rede (pré-visualização)')) : resolve(SINTESE_DE_EXEMPLO)), 500))
+  },
+  markPassages: records => comRede(() => guardaDeMarcacoes.gravar([...guardaDeMarcacoes.ler(), ...records])),
   keepLocalNote, readLocalNote, clearLocalNote,
   save(note) {
     return new Promise((resolve, reject) => setTimeout(() => {
@@ -701,16 +741,15 @@ const anotarDePreview = {
 const gruposDeAnotar = [{ groupId: 'g1', name: 'Grupo Semente' }, { groupId: 'g2', name: tela === 'nota' ? 'Batista Central' : 'Manhã com a Palavra' }, { groupId: 'g3', name: 'Família Almeida de Souza e agregados' }].slice(0, Number(params.get('grupos') ?? 2))
 function AnotarPreview() {
   const nota = params.get('nota') ?? 'exemplo'
-  const target = nota === 'nova' ? { fresh: true, type: 'free' } : nota === 'pregacao' ? { fresh: true, type: 'sermon' } : nota === 'rascunho' ? {} : { noteId: nota === 'antiga' ? 'sermon-antiga' : 'sermon-espera' }
-  const [fechada, setFechada] = useState(null)
-  if (fechada) return <div style={{ padding: 24, fontFamily: 'var(--font-bento)', fontSize: 14, color: 'var(--bento-ink)' }} data-anotar-fechada>{fechada}</div>
+  const target = nota === 'nova' ? { fresh: true, type: 'free' } : nota === 'pregacao' ? { fresh: true, type: 'sermon' } : nota === 'rascunho' ? {} : nota === 'guardada' ? { noteId: 'sermon-guardada', saved: true } : nota === 'sumiu' ? { noteId: 'sermon-nao-existe', saved: true } : { noteId: nota === 'antiga' ? 'sermon-antiga' : 'sermon-espera' }
+  const [fechada, setFechada] = useState(false)
+  if (fechada) return <div style={{ padding: 24, fontFamily: 'var(--font-bento)', fontSize: 14, color: 'var(--bento-ink)' }} data-anotar-fechada>Fechou: volta para de onde veio.</div>
   return (
     <>
-      <AnotarScreen
-        lang="pt" api={anotarDePreview} target={target} groups={gruposDeAnotar} initialDetails={params.get('detalhes')}
-        onClose={() => setFechada('Fechou: volta para de onde veio (o rascunho fica guardado).')}
-        onFinalized={note => setFechada(`Finalizou: abre a anotação guardada (N5) — ${note.title || 'Sem título'}.`)}
-        onOpenBiblePassage={(book, chapter, verse) => alert(`abrir a Bíblia em ${book} ${chapter}${verse ? `:${verse}` : ''}, com o lápis flutuante para voltar`)}
+      <PaginaDeAnotacao
+        lang="pt" api={anotarDePreview} target={{ ...target, details: params.get('detalhes') }} groups={gruposDeAnotar}
+        onClose={() => setFechada(true)}
+        onOpenBiblePassage={(book, chapter, verse) => alert(`abrir a Bíblia em ${book} ${chapter}${verse ? `:${verse}` : ''}`)}
       />
       {params.get('teclado') === 'aberto' && <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: ALTURA_DO_TECLADO, background: '#D1D3D9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: '#6E655C', zIndex: 50 }}>teclado</div>}
     </>

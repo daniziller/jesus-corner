@@ -27,8 +27,13 @@ import Icone from '../components/anotar/Icone'
 const FONT = 'var(--font-bento)'
 const NO_GROUPS = []
 
-export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, groups = NO_GROUPS, initialDetails = null, onClose, onFinalized, onOpenBiblePassage }) {
-  const { status, draft, library, save, change, persist, leave, finalize, seconds } = useAnotacao({ api, target })
+// `readOnly`: a página só para ler ("Ler a anotação inteira", em N5) —
+// sem ferramentas, sem "Finalizar", nada se edita nem se grava.
+// `onClose(note, opened)` e `onFinalized(saved, opened)` recebem como a
+// anotação estava ao abrir ({ wasFinalized, sharedGroupIds }) — é o que
+// diz a quem levar ao grupo (ver PaginaDeAnotacao.jsx).
+export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, groups = NO_GROUPS, initialDetails = null, readOnly = false, onClose, onFinalized, onOpenBiblePassage }) {
+  const { status, draft, library, save, change, persist, leave, finalize, seconds } = useAnotacao({ api, target, countTime: !readOnly })
   const keyboardInset = useKeyboardInset()
   const keyboardOpen = keyboardInset > 0
 
@@ -64,12 +69,12 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
 
   // Uma anotação nova ou um rascunho abrem prontos para escrever, com o
   // cursor no fim; uma já finalizada abre para ler.
-  const opened = useRef(false)
+  const opened = useRef(null)
   useEffect(() => {
     if (status !== 'ready' || !draft || opened.current) return
-    opened.current = true
-    if (!draft.finalizedAt) focusOn(draft.body[draft.body.length - 1].id)
-  }, [status, draft, focusOn])
+    opened.current = { wasFinalized: !!draft.finalizedAt, sharedGroupIds: draft.sharedGroupIds }
+    if (!draft.finalizedAt && !readOnly) focusOn(draft.body[draft.body.length - 1].id)
+  }, [status, draft, focusOn, readOnly])
 
   // O ditado entra onde está o cursor; sem cursor, no fim do texto.
   const dictation = useSpeechToText({
@@ -86,7 +91,7 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
   })
 
   if (status === 'loading') return <div style={s.screen} aria-busy="true" />
-  if (status === 'error' || !draft) {
+  if (status !== 'ready' || !draft) {
     return (
       <div style={s.screen}>
         <div style={s.header}>
@@ -94,7 +99,7 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
             <Icone name="down" />
           </button>
         </div>
-        <p style={s.problem} role="alert">Não deu para abrir a anotação agora. Confira sua internet e tente de novo.</p>
+        <p style={s.problem} role="alert">{status === 'missing' ? 'Esta anotação não está mais na sua Biblioteca.' : 'Não deu para abrir a anotação agora. Confira sua internet e tente de novo.'}</p>
       </div>
     )
   }
@@ -131,20 +136,21 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
 
   async function close() {
     if (busy) return
+    if (readOnly) { onClose(draft, opened.current); return }
     setBusy(true)
     await leave()
-    onClose()
+    onClose(draft, opened.current)
   }
   async function finish() {
     if (busy) return
     if (!noteHasContent(draft)) { close(); return }
     setBusy(true)
     const saved = await finalize()
+    if (saved) await onFinalized(saved, opened.current)
     setBusy(false)
-    if (saved) onFinalized(saved)
   }
   async function openInBible({ book, chapter, verse }) {
-    await persist()
+    if (!readOnly) await persist()
     onOpenBiblePassage(book, chapter, verse ?? undefined)
   }
 
@@ -176,25 +182,38 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
     <div style={{ ...s.screen, paddingBottom: keyboardInset }}>
       <div style={s.page} inert={covered ? '' : undefined}>
         <div style={s.header}>
-          <button type="button" className="biblioteca-alvo" style={s.close} onClick={close} aria-label="Fechar a anotação">
-            <Icone name="down" />
+          <button type="button" className="biblioteca-alvo" style={s.close} onClick={close} aria-label={readOnly ? 'Voltar' : 'Fechar a anotação'}>
+            <Icone name={readOnly ? 'left' : 'down'} />
           </button>
-          <button type="button" style={s.heading} onClick={() => setDetails('title')} aria-label={`${draft.title.trim() || UNTITLED}. Abrir os detalhes da anotação`}>
-            <span style={{ ...s.title, ...(draft.title.trim() ? null : s.untitled) }}>{draft.title.trim() || UNTITLED}</span>
-            <span style={s.sub}>{headerSecondLine(draft, save)}</span>
-          </button>
-          <button type="button" className="biblioteca-alvo" style={s.finish} onClick={finish} disabled={busy}>Finalizar</button>
+          {readOnly ? (
+            <div style={s.heading}>
+              <h1 style={{ ...s.title, ...(draft.title.trim() ? null : s.untitled) }}>{draft.title.trim() || UNTITLED}</h1>
+              <span style={s.sub}>{headerSecondLine(draft)}</span>
+            </div>
+          ) : (
+            <button type="button" style={{ ...s.heading, ...s.headingButton }} onClick={() => setDetails('title')} aria-label={`${draft.title.trim() || UNTITLED}. Abrir os detalhes da anotação`}>
+              <span style={{ ...s.title, ...(draft.title.trim() ? null : s.untitled) }}>{draft.title.trim() || UNTITLED}</span>
+              <span style={s.sub}>{headerSecondLine(draft, save)}</span>
+            </button>
+          )}
+          {!readOnly && <button type="button" className="biblioteca-alvo" style={s.finish} onClick={finish} disabled={busy}>Finalizar</button>}
         </div>
         {save.error && <p style={s.saveError} role="status">Não deu para gravar agora. O texto está guardado neste aparelho e vai ser gravado quando a internet voltar.</p>}
 
         <div style={s.pills}>
-          <button type="button" className="biblioteca-pastilha" style={s.typePill} onClick={() => setDetails('type')} aria-label={`Tipo: ${typeName}`}>
-            <span style={s.typeSquare} />
-            <span style={s.typeName}>{typeName}</span>
-            <Icone name="down" size={11} color="var(--bento-t3)" />
-          </button>
+          {readOnly ? (
+            <span style={s.typePill}><span style={s.typeSquare} /><span style={s.typeName}>{typeName}</span></span>
+          ) : (
+            <button type="button" className="biblioteca-pastilha" style={{ ...s.typePill, cursor: 'pointer' }} onClick={() => setDetails('type')} aria-label={`Tipo: ${typeName}`}>
+              <span style={s.typeSquare} />
+              <span style={s.typeName}>{typeName}</span>
+              <Icone name="down" size={11} color="var(--bento-t3)" />
+            </button>
+          )}
           {passages && <button type="button" className="biblioteca-pastilha" style={s.passagesPill} onClick={() => setPassagesOpen(true)}>{passages}</button>}
-          {tags && <button type="button" className="biblioteca-pastilha" style={s.tagsPill} onClick={() => setDetails('tags')} aria-label={`Etiquetas: ${draft.tags.length}`}>{tags}</button>}
+          {tags && (readOnly
+            ? <span style={{ ...s.tagsPill, display: 'flex', alignItems: 'center' }} aria-label={`Etiquetas: ${draft.tags.join(', ')}`}>{tags}</span>
+            : <button type="button" className="biblioteca-pastilha" style={{ ...s.tagsPill, cursor: 'pointer' }} onClick={() => setDetails('tags')} aria-label={`Etiquetas: ${draft.tags.length}`}>{tags}</button>)}
           <span style={{ flex: 1 }} />
           <span style={s.time} aria-label={`${annotatingLabel(seconds())} anotando`}>{annotatingLabel(seconds())}</span>
         </div>
@@ -207,8 +226,8 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
                 if (seg.type === 'quote' || seg.type === 'link') {
                   return (
                     <div
-                      key={seg.id} style={{ ...s.quote, ...(last ? s.lastBlock : null) }} tabIndex={0} role="group" onKeyDown={e => onCitationKeyDown(seg, e)}
-                      aria-label={`Versículo citado: ${seg.ref}. Apagar remove o bloco inteiro.`}
+                      key={seg.id} style={{ ...s.quote, ...(last ? s.lastBlock : null) }} role="group"
+                      {...(readOnly ? { 'aria-label': `Versículo citado: ${seg.ref}` } : { tabIndex: 0, onKeyDown: e => onCitationKeyDown(seg, e), 'aria-label': `Versículo citado: ${seg.ref}. Apagar remove o bloco inteiro.` })}
                     >
                       {seg.type === 'quote' && <p style={s.quoteText}>&quot;{seg.text}&quot;</p>}
                       <div style={s.quoteFoot}>
@@ -218,9 +237,10 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
                     </div>
                   )
                 }
+                if (readOnly && seg.type === 'text' && !seg.text.trim()) return null
                 const focus = focusRequest?.id === seg.id ? focusRequest : null
                 const fieldProps = {
-                  value: seg.text, focus, revealKey: keyboardInset,
+                  value: seg.text, focus, revealKey: keyboardInset, readOnly,
                   onChange: text => setText(seg.id, text),
                   onFocus: e => { setFocusedId(seg.id); fieldRef.current = e.target },
                   onKeyDown: e => onFieldKeyDown(seg, e),
@@ -241,12 +261,12 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
                   />
                 )
               })}
-              {!keyboardOpen && <div style={s.toolbar} role="toolbar" aria-label="Ferramentas">{tools}</div>}
+              {!readOnly && !keyboardOpen && <div style={s.toolbar} role="toolbar" aria-label="Ferramentas">{tools}</div>}
             </div>
           </div>
         </div>
 
-        {keyboardOpen && <div style={s.dock} role="toolbar" aria-label="Ferramentas">{tools}</div>}
+        {!readOnly && keyboardOpen && <div style={s.dock} role="toolbar" aria-label="Ferramentas">{tools}</div>}
       </div>
 
       {passagesOpen && <FolhaDePassagens rows={passageRows(draft, lang)} onClose={() => setPassagesOpen(false)} onOpen={row => { setPassagesOpen(false); openInBible(row) }} />}
@@ -271,7 +291,8 @@ const s = {
   page: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 0' },
   close: { width: 38, height: 38, flexShrink: 0, border: 'none', borderRadius: 13, background: 'var(--bento-card)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  heading: { flex: 1, minWidth: 0, minHeight: 44, margin: '-3px 0', border: 'none', background: 'none', padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', cursor: 'pointer' },
+  heading: { flex: 1, minWidth: 0, minHeight: 44, margin: '-3px 0', padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left' },
+  headingButton: { border: 'none', background: 'none', cursor: 'pointer' },
   title: { display: 'block', maxWidth: '100%', fontFamily: FONT, fontSize: 17, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   untitled: { color: 'var(--bento-t4)' },
   sub: { display: 'block', maxWidth: '100%', fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
@@ -280,11 +301,11 @@ const s = {
   problem: { fontFamily: FONT, fontSize: 13, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-t3)', margin: '18px 22px 0' },
 
   pills: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '12px 20px 0' },
-  typePill: { minWidth: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', padding: '0 12px', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', cursor: 'pointer' },
+  typePill: { minWidth: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', padding: '0 12px', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' },
   typeSquare: { width: 8, height: 8, flexShrink: 0, borderRadius: 3, background: 'var(--bento-sand-icon)' },
   typeName: { minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '2px 0' },
   passagesPill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-sand)', padding: '0 12px', fontFamily: FONT, fontSize: 12, fontWeight: 800, lineHeight: 1, color: 'var(--bento-sand-icon)', whiteSpace: 'nowrap', cursor: 'pointer' },
-  tagsPill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', padding: '0 12px', fontFamily: FONT, fontSize: 12, fontWeight: 700, lineHeight: 1, color: 'var(--bento-quote-ink)', whiteSpace: 'nowrap', cursor: 'pointer' },
+  tagsPill: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', padding: '0 12px', fontFamily: FONT, fontSize: 12, fontWeight: 700, lineHeight: 1, color: 'var(--bento-quote-ink)', whiteSpace: 'nowrap' },
   time: { flexShrink: 0, fontFamily: FONT, fontSize: 11, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t4)', fontVariantNumeric: 'tabular-nums' },
 
   scroll: { flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
