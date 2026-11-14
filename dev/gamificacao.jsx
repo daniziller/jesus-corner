@@ -85,7 +85,7 @@ import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
 import BibliotecaScreen from '../src/screens/BibliotecaScreen'
 import AddStudyScreen from '../src/screens/AddStudyScreen'
-import { pickLibraryData, libraryItems, chaptersByDay, studiesSummary, typeMeta } from '../src/biblioteca/bibliotecaMath'
+import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSummary, studyItems, typeMeta } from '../src/biblioteca/bibliotecaMath'
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
 import { linhaDeExemplo, perguntasDeExemplo, leiturasDeExemplo, buscasRecentesDeExemplo } from './bibliotecaFixture'
 
@@ -512,10 +512,12 @@ const bibliotecaDePreview = {
     const linha = linhaDeExemplo({ conta, estudos: params.get('estudos') ?? 'andamento' })
     const apagados = window.__bibliotecaApagados ?? new Set()
     const data = pickLibraryData({ ...linha, notes: Object.fromEntries(Object.entries(linha.notes).filter(([key]) => !apagados.has(key))), highlights: linha.highlights.filter(h => !apagados.has(h.id)), sermon_notes: linha.sermon_notes.filter(n => !apagados.has(n.id)) })
+    const readByDay = chaptersByDay(conta === 'exemplo' ? leiturasDeExemplo() : [])
     return new Promise(resolve => setTimeout(() => resolve({
-      items: libraryItems({ ...data, questions: perguntasDeExemplo(conta) }).filter(item => !apagados.has(item.key)),
-      readByDay: chaptersByDay(conta === 'exemplo' ? leiturasDeExemplo() : []),
+      items: withReadings(libraryItems({ ...data, questions: perguntasDeExemplo(conta) }), readByDay).filter(item => !apagados.has(item.key)),
+      readByDay,
       studies: studiesSummary({ ai: data.aiStudies, inductive: data.inductiveStudies, completed: data.studiesCompleted, activeStudyId: data.activeStudyId }),
+      studyItems: studyItems({ ai: data.aiStudies, inductive: data.inductiveStudies, completed: data.studiesCompleted }),
     }), 150))
   },
   verseText: bibliotecaApi.verseText,
@@ -532,7 +534,8 @@ const bibliotecaDePreview = {
 // Aplicações: `&filtro=done|open`.
 // A busca: `&busca=abrir` (L4), com `&em=pregacao` (o tipo de "Buscar em"),
 // `&livro=Gênesis`, `&periodo=week|month|year` (ou `&de=AAAA-MM-DD&ate=…`),
-// `&pregador=Pr. João Silva`, `&q=espera` e `&recentes=nao`.
+// `&pregador=Pr. João Silva`, `&q=espera` (os resultados, L5), `&ver=tudo`
+// (o "Ver tudo" da raiz) e `&recentes=nao`.
 if (tela === 'biblioteca') {
   if (params.get('recentes') === 'nao' || params.get('conta') === 'nova') localStorage.removeItem('jc_library_recent_searches')
   else localStorage.setItem('jc_library_recent_searches', JSON.stringify(buscasRecentesDeExemplo))
@@ -542,7 +545,7 @@ function BibliotecaPreview({ onPastRootChange }) {
   const tipoView = tipo ? { name: 'tipo', type: tipo, tab: params.get('aba') ?? undefined, expanded: params.get('abrir') ? [params.get('abrir')] : [], filter: params.get('filtro') ?? undefined, order: params.get('ordem') ?? undefined } : null
   const initialView = params.has('busca') ? { name: 'busca', back: tipoView ?? { name: 'raiz' } } : tipoView
   const periodo = params.get('de') || params.get('ate') ? { key: 'custom', from: params.get('de') ?? '', to: params.get('ate') ?? '' } : { key: params.get('periodo') ?? 'always' }
-  const initialSearch = { query: params.get('q') ?? '', type: params.get('em') ?? 'all', book: params.get('livro'), period: periodo, preacher: params.get('pregador') }
+  const initialSearch = { query: params.get('q') ?? '', type: params.get('em') ?? 'all', book: params.get('livro'), period: periodo, preacher: params.get('pregador'), browse: params.get('ver') === 'tudo' }
   return (
     <BibliotecaScreen
       session={session} api={bibliotecaDePreview} initialView={initialView} initialSearch={initialSearch} onPastRootChange={onPastRootChange}

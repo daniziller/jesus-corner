@@ -133,10 +133,26 @@ export function libraryCounts(items) {
   return { ...counts, total: LIBRARY_TYPES.reduce((sum, t) => sum + counts[t.type], 0) }
 }
 
-// Os livros da Bíblia a que um item está ligado (nomes canônicos).
+// Os livros da Bíblia a que um item está ligado (nomes canônicos): o do
+// versículo, os das passagens citadas numa pregação, os das sessões de um
+// estudo e, numa reflexão ou frase do dia, os que foram lidos naquele dia
+// (`read`, de withReadings).
 export function booksOf(item) {
-  const names = item.type === 'pregacao' ? (item.passages ?? []).map(p => p.book) : [item.book]
+  const names = item.type === 'pregacao' ? (item.passages ?? []).map(p => p.book)
+    : item.type === 'estudo' ? item.books ?? []
+    : item.read?.length ? item.read.map(r => r.book)
+    : [item.book]
   return [...new Set(names.filter(name => name && bookInfo(name)))]
+}
+
+// A reflexão e a frase do dia só guardam o texto e o dia: os capítulos
+// lidos naquele dia (chaptersByDay) ligam as duas a um livro — para o
+// filtro de livro e a busca por referência.
+export function withReadings(items, readByDay = {}) {
+  return items.map(item => {
+    const read = (item.type === 'reflexao' && item.kind === 'dia') || item.type === 'aplicacao' ? readByDay[item.date] : null
+    return read?.length ? { ...item, read: read.filter(r => bookInfo(r.book)) } : item
+  })
 }
 
 // O cartão do total (L1 §2.3): "128 · anotações guardadas · em 23 livros
@@ -318,6 +334,22 @@ export function studiesSummary({ catalog = [], ai = [], inductive = [], complete
   }
   const count = mine.length + (active && !mine.includes(active) ? 1 : 0)
   return { count, active: current }
+}
+
+// Os estudos da pessoa como itens, para a busca: o nome e em que dia
+// está ("dia 2 de 6"; concluído, o total).
+export function studyItems({ ai = [], inductive = [], completed = [] } = {}) {
+  const done = new Set(completed)
+  return [...ai, ...inductive].filter(s => s?.id).map(study => {
+    const sessions = study.sessions ?? []
+    const total = sessions.length
+    const doneCount = sessions[0]?.book ? sessions.filter(s => s.completedAt).length : sessions.filter(s => done.has(`${study.id}:${s.id}`)).length
+    return {
+      key: `estudo:${study.id}`, type: 'estudo', id: study.id, title: String(study.title ?? study.titleEn ?? '').trim(),
+      at: study.createdAt ?? null, day: Math.min(doneCount + 1, Math.max(total, 1)), total, finished: total > 0 && doneCount >= total,
+      books: [...new Set([study.book, ...sessions.map(s => s.book)].filter(Boolean))],
+    }
+  })
 }
 
 // O cartão preto: com estudo em andamento, "{Nome} · dia {x} de {y}" e a

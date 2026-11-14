@@ -4,6 +4,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { bibliotecaApi } from './bibliotecaApi'
 
+const EMPTY = []
+const NONE = {}
+
 export function useBiblioteca({ api = bibliotecaApi, enabled = true, refreshKey = 0 } = {}) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(false)
@@ -15,7 +18,7 @@ export function useBiblioteca({ api = bibliotecaApi, enabled = true, refreshKey 
 
   return {
     status: data ? 'ready' : error ? 'error' : 'loading',
-    items: data?.items ?? [], readByDay: data?.readByDay ?? {}, studies: data?.studies ?? { count: 0, active: null },
+    items: data?.items ?? EMPTY, readByDay: data?.readByDay ?? NONE, studies: data?.studies ?? { count: 0, active: null }, studyItems: data?.studyItems ?? EMPTY,
     reload,
   }
 }

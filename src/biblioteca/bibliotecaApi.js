@@ -15,11 +15,12 @@ import { getAllChapterReadRows } from '../bible/chapterReadLog'
 import { fetchBookText } from '../bible-text/bibleTextStore'
 import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { STUDIES } from '../data/studies'
-import { pickLibraryData, libraryItems, chaptersByDay, studiesSummary } from './bibliotecaMath.js'
+import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSummary, studyItems } from './bibliotecaMath.js'
 
 export const bibliotecaApi = {
-  // { items, readByDay, studies } — os itens dos seis tipos, os capítulos
-  // lidos em cada dia (o título das reflexões) e o resumo dos estudos.
+  // { items, readByDay, studies, studyItems } — os itens dos seis tipos,
+  // os capítulos lidos em cada dia (o título das reflexões), o resumo dos
+  // estudos e os estudos um a um.
   async load() {
     const [row, chapterRows] = await Promise.all([
       fetchRow(),
@@ -28,10 +29,13 @@ export const bibliotecaApi = {
       getAllChapterReadRows().catch(err => { console.error('[biblioteca] capítulos lidos', err); return [] }),
     ])
     const data = pickLibraryData(row)
+    const readByDay = chaptersByDay(chapterRows)
     return {
-      items: libraryItems({ ...data, questions: Object.values(getAllPassageQuestions()).flat() }),
-      readByDay: chaptersByDay(chapterRows),
+      items: withReadings(libraryItems({ ...data, questions: Object.values(getAllPassageQuestions()).flat() }), readByDay),
+      readByDay,
       studies: studiesSummary({ catalog: STUDIES, ai: data.aiStudies, inductive: data.inductiveStudies, completed: data.studiesCompleted, activeStudyId: data.activeStudyId }),
+      // Os estudos como itens — só para a busca; não entram nas contagens.
+      studyItems: studyItems({ ai: data.aiStudies, inductive: data.inductiveStudies, completed: data.studiesCompleted }),
     }
   },
 

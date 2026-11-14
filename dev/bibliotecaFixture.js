@@ -26,7 +26,9 @@ function marcacoes() {
       // As etiquetas da captura L4: espera 11, família 8, trabalho 7 (nas
       // notas), oração 5 e perdão 4 (aqui).
       const k = 11 - comNota
-      list.push(hl(`${bookEn}-${i}`, book, bookEn, 1 + i, [1 + i], n, comNota-- > 0 ? { text: 'Uma nota curta sobre este trecho.', tags: k < 5 ? ['oração'] : k < 9 ? ['perdão'] : [] } : {}))
+      // Cinco notas de Gênesis falam de espera (a busca da captura L5).
+      const nota = ['a espera tinha companhia', 'esperar também é obedecer', 'quem espera não está parado', 'ele esperou sem saber até quando', 'esperamos juntos'][k] ?? 'Uma nota curta sobre este trecho.'
+      list.push(hl(`${bookEn}-${i}`, book, bookEn, 1 + i, [1 + i], n, comNota-- > 0 ? { text: nota, tags: k < 5 ? ['oração'] : k < 9 ? ['perdão'] : [] } : {}))
       n += 3
     }
   }
@@ -39,10 +41,11 @@ function notas() {
   const list = [
     hl('nota-sl-23-4', 'Salmos', 'Psalms', 23, [4], 1, { kind: 'note', text: 'O vale é passagem, não endereço.' }),
     hl('nota-gn-40-23', 'Gênesis', 'Genesis', 40, [23], 11, { kind: 'note', text: 'Esquecido pelo copeiro, não por Deus. A espera continua.', tags: ['espera'] }),
+    hl('nota-gn-41-1', 'Gênesis', 'Genesis', 41, [1], 12, { kind: 'note', text: '"Dois anos depois" — a espera cabe em três palavras.' }),
   ]
   const livros = [['1 Samuel', '1 Samuel'], ['Jó', 'Job'], ['Eclesiastes', 'Ecclesiastes'], ['Jeremias', 'Jeremiah'], ['Daniel', 'Daniel'], ['Habacuque', 'Habakkuk'], ['Lucas', 'Luke'], ['Atos', 'Acts'], ['1 Coríntios', '1 Corinthians'], ['Efésios', 'Ephesians'], ['1 Pedro', '1 Peter'], ['Apocalipse', 'Revelation']]
-  // 27 aqui + 2 notas de sessão de leitura (no mapa de notas) = 31.
-  for (let i = 0; i < 27; i++) {
+  // 26 aqui + as 3 de cima + 2 notas de sessão de leitura (no mapa de notas) = 31.
+  for (let i = 0; i < 26; i++) {
     const [book, bookEn] = livros[i % livros.length]
     list.push(hl(`nota-${i}`, book, bookEn, 1 + (i % 4), [2 + i], 45 + i * 4, { kind: 'note', text: 'O que este versículo me disse naquele dia.', tags: i < 10 ? ['espera'] : i < 18 ? ['família'] : i < 25 ? ['trabalho'] : [] }))
   }
@@ -54,7 +57,11 @@ function mapaDeNotas() {
   // Reflexões: 22, a de hoje com pergunta e resposta.
   notes[`reflection:${dateKey(dias(0))}`] = { text: 'O que a espera de José mostra sobre Deus?\nDeus não desperdiça a espera. Dois anos na prisão foram preparo.', updatedAt: iso(0, 7) }
   notes[`reflection:${dateKey(dias(3))}`] = { text: 'O que este capítulo mostra?\nO copeiro esqueceu, Deus não. A espera tinha data marcada.', updatedAt: iso(3, 7) }
-  for (let i = 0; i < 18; i++) notes[`reflection:${dateKey(dias(41 + i * 3))}`] = { text: i % 2 ? 'O que este capítulo mostra sobre Deus?\nQue ele não tem pressa, e eu tenho.\n\nO que muda em você?\nPosso esperar sem desistir.' : 'Uma reflexão escrita na folha livre, sobre a leitura daquele dia.', updatedAt: iso(41 + i * 3, 7) }
+  // As cinco primeiras são de dias em que a leitura foi Gênesis (ver
+  // leiturasDeExemplo) e falam de espera — com hoje e três dias atrás, as
+  // sete reflexões da busca da captura L5.
+  const espera = ['Jacó esperou sete anos e pareceram dias.', 'Quem espera em Deus não espera sozinho.', 'O que este capítulo mostra sobre Deus?\nQue ele não tem pressa, e eu tenho.\n\nO que muda em você?\nPosso esperar sem desistir.', 'Esperando, José aprendeu a servir.', 'Esperamos o que não vemos.']
+  for (let i = 0; i < 18; i++) notes[`reflection:${dateKey(dias(41 + i * 3))}`] = { text: espera[i] ?? (i % 2 ? 'O que este capítulo mostra sobre Deus?\nQue ele é paciente comigo.' : 'Uma reflexão escrita na folha livre, sobre a leitura daquele dia.'), updatedAt: iso(41 + i * 3, 7) }
   // Reflexão de fim de livro e retrospectiva do mês também são Reflexões.
   notes['Jó:reflection'] = { text: 'Fechando Jó: a resposta não veio em explicação, veio em presença.', updatedAt: iso(70) }
   notes['recap:2026-09'] = { text: 'Setembro foi o mês em que a leitura virou hábito.', updatedAt: iso(40) }
@@ -78,8 +85,8 @@ const pregacao = (id, n, noteType, title, preacher, church, text, passages) => (
 // 27 de outubro, a partir de uma terça, 10 de novembro).
 function pregacoes() {
   const list = [
-    pregacao('fidelidade', 2, 'sermon', 'A fidelidade que não se explica', 'Pr. João Silva', 'Igreja Batista Central', 'Deus é fiel mesmo quando não entendemos o caminho. Três pontos: Ele vê, Ele lembra, Ele age no tempo dele.', [passagem('Gênesis', 'Genesis', 39, 21), passagem('Romanos', 'Romans', 8, 28), passagem('Salmos', 'Psalms', 105, 19)]),
-    pregacao('panorama', 6, 'class', 'Panorama de Gênesis · aula 4', 'Prof. Lívia Prado', 'Escola Bíblica', 'José como figura de Cristo: rejeitado pelos irmãos, exaltado para salvar os mesmos que o venderam.', [{ book: 'Gênesis', bookEn: 'Genesis', chapter: 37, verseStart: null, verseEnd: null }, passagem('Gênesis', 'Genesis', 45, 5)]),
+    pregacao('fidelidade', 2, 'sermon', 'A fidelidade que não se explica', 'Pr. João Silva', 'Igreja Batista Central', 'Deus é fiel mesmo quando não entendemos o caminho. Três pontos: Ele vê, Ele lembra, Ele age no tempo dele; a espera é parte da resposta.', [passagem('Gênesis', 'Genesis', 39, 21), passagem('Romanos', 'Romans', 8, 28), passagem('Salmos', 'Psalms', 105, 19)]),
+    pregacao('panorama', 6, 'class', 'Panorama de Gênesis · aula 4', 'Prof. Lívia Prado', 'Escola Bíblica', 'José como figura de Cristo: rejeitado pelos irmãos, exaltado para salvar os mesmos que o venderam. Vinte anos de espera até o reencontro.', [{ book: 'Gênesis', bookEn: 'Genesis', chapter: 37, verseStart: null, verseEnd: null }, passagem('Gênesis', 'Genesis', 45, 5)]),
     pregacao('demora', 14, 'video', 'Quando Deus demora', 'Tim Keller', 'legendado', 'A demora não é ausência. O que Deus faz em nós enquanto esperamos é a resposta.', [{ book: 'Salmos', bookEn: 'Psalms', chapter: 13, verseStart: null, verseEnd: null }, passagem('Habacuque', 'Habakkuk', 2, 3)]),
   ]
   const outros = [['sermon', 'Pr. João Silva', 'Igreja Batista Central', 5], ['sermon', 'Pr. Marcos Lima', 'Comunidade da Graça', 2], ['service', 'Pr. João Silva', 'Igreja Batista Central', 3], ['class', 'Prof. Lívia Prado', 'Escola Bíblica', 1]]
@@ -89,7 +96,10 @@ function pregacoes() {
     for (let k = 0; k < quantos; k++) {
       // O quinto pregador: o último culto.
       const ultimoCulto = tipo === 'service' && k === quantos - 1
-      list.push(pregacao(`p${i++}`, n, tipo, `Anotação ${i}`, ultimoCulto ? 'Pra. Ana Reis' : quem, onde, 'O que ficou da mensagem daquele dia, com as minhas palavras.', [passagem('Salmos', 'Psalms', 1 + i, 1)]))
+      // A primeira cita Gênesis e fala de espera (a terceira pregação da
+      // busca da captura L5).
+      const primeira = i === 0
+      list.push(pregacao(`p${i++}`, n, tipo, `Anotação ${i}`, ultimoCulto ? 'Pra. Ana Reis' : quem, onde, primeira ? 'Abraão esperou vinte e cinco anos pela promessa.' : 'O que ficou da mensagem daquele dia, com as minhas palavras.', [primeira ? passagem('Gênesis', 'Genesis', 21, 2) : passagem('Salmos', 'Psalms', 1 + i, 1)]))
       n += 7
     }
   }
@@ -134,7 +144,10 @@ export function perguntasDeExemplo(conta = 'exemplo') {
 
 // Os capítulos lidos em cada dia (o título das reflexões).
 export function leiturasDeExemplo() {
-  return [{ livro: 'Gênesis', capitulo: 41, created_at: iso(0, 6) }, { livro: 'Gênesis', capitulo: 40, created_at: iso(3, 6) }]
+  return [
+    { livro: 'Gênesis', capitulo: 41, created_at: iso(0, 6) }, { livro: 'Gênesis', capitulo: 39, created_at: iso(2, 6) }, { livro: 'Gênesis', capitulo: 40, created_at: iso(3, 6) },
+    ...[0, 1, 2, 3, 4].map(i => ({ livro: 'Gênesis', capitulo: 29 + i, created_at: iso(41 + i * 3, 6) })),
+  ]
 }
 
 // As buscas recentes da captura L4 (ficam só no aparelho).

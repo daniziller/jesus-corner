@@ -42,19 +42,11 @@ import {
 } from '../busca/palavra'
 import { getRecentSearches, rememberSearch, clearRecentSearches } from '../busca/recentSearchesStore'
 import { CabecalhoDeBusca, GrupoRotulo, ListaCartao, ListaLinha } from '../components/biblia/BuscaPartes'
+import { useDebounced } from '../utils/useDebounced'
 
 const FONT = 'var(--font-bento)'
 const DEBOUNCE_MS = 250
 const ALL_BOOKS = GAMIFICATION_BOOKS.map(b => b.nome)
-
-function useDebounced(value, ms) {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), ms)
-    return () => clearTimeout(timer)
-  }, [value, ms])
-  return debounced
-}
 
 const readingKey = r => `${r.book}:${r.chapter}:${r.verse ?? ''}:${r.verseEnd ?? ''}:${r.chapterEnd ?? ''}`
 

@@ -10,13 +10,13 @@
 // Apagar, que usa a gravação de sempre de cada tipo (bibliotecaApi.js).
 //
 // Fora da raiz a barra de abas some: `onPastRootChange` avisa.
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { bibliotecaApi } from '../biblioteca/bibliotecaApi'
 import { useBiblioteca } from '../biblioteca/useBiblioteca'
 import { itemTitle } from '../biblioteca/bibliotecaMath'
 import { shareText, readingPage } from '../biblioteca/tiposMath'
 import { NO_REFINE } from '../biblioteca/buscaDaBiblioteca'
-import { getLibraryRecentSearches, clearLibraryRecentSearches } from '../biblioteca/buscasRecentesStore'
+import { getLibraryRecentSearches, rememberLibraryRecentSearch, clearLibraryRecentSearches } from '../biblioteca/buscasRecentesStore'
 import BibliotecaRaiz from '../components/biblioteca/BibliotecaRaiz'
 import FolhaDoItem from '../components/biblioteca/FolhaDoItem'
 import NotasScreen from './NotasScreen'
@@ -53,9 +53,13 @@ export default function BibliotecaScreen({
   // com aquele tipo em "Buscar em".
   const [search, setSearch] = useState(() => ({ query: '', type: 'all', ...NO_REFINE, ...initialSearch }))
   const [recents, setRecents] = useState(getLibraryRecentSearches)
-  function openSearch(type = 'all') {
-    setSearch({ query: '', type, ...NO_REFINE })
+  const searchScroll = useRef(0)
+  // `browse`: os resultados sem termo — tudo o que está guardado, por
+  // tipo, do mais recente para o mais antigo (o "Ver tudo" da raiz).
+  function openSearch(type = 'all', { browse = false } = {}) {
+    setSearch({ query: '', type, ...NO_REFINE, browse })
     setRecents(getLibraryRecentSearches())
+    searchScroll.current = 0
     setView(prev => ({ name: 'busca', back: prev.name === 'busca' ? prev.back : prev }))
   }
   // A lupa da tela Estudos (fora da aba) pede a busca já em "Estudos".
@@ -63,9 +67,11 @@ export default function BibliotecaScreen({
 
   // O destino de cada tipo: a anotação longa, na página dela; nota e
   // marcação, na Bíblia, no versículo (com a nota aberta, se houver);
-  // reflexão, frase do dia e pergunta, na página de leitura.
+  // reflexão, frase do dia e pergunta, na página de leitura; um estudo,
+  // na tela Estudos.
   function openItem(item) {
     if (item.type === 'pregacao') onOpenSermonNote(item.id)
+    else if (item.type === 'estudo') onOpenStudies()
     else if (item.type === 'marcacao') onOpenBible(item.book, item.chapter, item.verses[0], item.note ? { noteId: item.id } : undefined)
     else if (item.type === 'nota' && item.id) onOpenBible(item.book, item.chapter, item.verses[0], { noteId: item.id })
     else if (item.type === 'nota') onOpenBible(item.book, item.chapter)
@@ -115,9 +121,11 @@ export default function BibliotecaScreen({
     <>
       {view.name === 'busca' ? (
         <BuscaDaBibliotecaScreen
-          lang={lang} items={bib.items} search={search} onSearchChange={setSearch}
+          lang={lang} api={api} items={bib.items} studyItems={bib.studyItems} readByDay={bib.readByDay} refreshKey={refreshKey}
+          search={search} onSearchChange={setSearch} scrollMemory={searchScroll}
           recents={recents} onClearRecents={() => setRecents(clearLibraryRecentSearches())}
-          onBack={() => setView(view.back ?? { name: 'raiz' })}
+          onRemember={entry => setRecents(rememberLibraryRecentSearch(entry))}
+          onBack={() => setView(view.back ?? { name: 'raiz' })} onOpenItem={openItem}
         />
       ) : view.name === 'leitura' ? (
         <LeituraDoItemScreen
@@ -133,7 +141,7 @@ export default function BibliotecaScreen({
       ) : (
         <BibliotecaRaiz
           lang={lang} api={api} status={bib.status} items={bib.items} readByDay={bib.readByDay} studies={bib.studies}
-          onOpenSearch={() => openSearch()} onNova={onNova} onOpenType={openType} onSeeAll={() => openSearch()}
+          onOpenSearch={() => openSearch()} onNova={onNova} onOpenType={openType} onSeeAll={() => openSearch('all', { browse: true })}
           onOpenStudies={onOpenStudies} onCreateStudy={onCreateStudy} onOpenItem={openItem}
         />
       )}

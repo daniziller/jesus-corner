@@ -15,8 +15,9 @@ export function BotaoDaLupa({ onClick }) {
   )
 }
 
-export function ListaDoTipo({ children }) {
-  return <div style={tipoStyles.scroll}><div style={tipoStyles.body}>{children}</div></div>
+// `scrollRef`/`onScroll`: para quem precisa lembrar a rolagem (a busca).
+export function ListaDoTipo({ children, scrollRef = null, onScroll = null }) {
+  return <div ref={scrollRef} style={tipoStyles.scroll} onScroll={onScroll}><div style={tipoStyles.body}>{children}</div></div>
 }
 
 // Carregando: caixas vazias, nunca um spinner de tela cheia.
