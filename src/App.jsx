@@ -3231,6 +3231,8 @@ export default function App() {
           onOpenPreview={handleOpenStudyPreview}
           onOpenPublicBank={() => navigateTo('publicStudies')}
           onOpenStudyDetail={() => goToTab('studyDetail')}
+          // Um estudo do catálogo já começado (em Salvos) abre na tela dele.
+          onOpenCatalogStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }}
         />,
     // Turno 41, 41i — "Banco público" (busca por situação, chips de tema).
     // Mesma trava de addStudy (rotina inteira é hasPremium).
