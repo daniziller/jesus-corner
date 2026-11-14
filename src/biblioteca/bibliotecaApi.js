@@ -1,0 +1,42 @@
+// bibliotecaApi.js — de onde a aba Biblioteca tira o que mostra. Um objeto
+// só, pra a pré-visualização de desenvolvimento poder trocar por um de
+// memória.
+//
+// Lê a linha da pessoa UMA vez (user_data — a RLS só entrega a dela) e, do
+// aparelho, as perguntas guardadas. Nada aqui consulta grupo, amigo ou
+// outra pessoa, e a oração não passa de pickLibraryData.
+import { fetchRow } from '../backend/userDataStore'
+import { getAllPassageQuestions } from '../aiChat/passageQuestionStore'
+import { getAllChapterReadRows } from '../bible/chapterReadLog'
+import { fetchBookText } from '../bible-text/bibleTextStore'
+import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
+import { STUDIES } from '../data/studies'
+import { pickLibraryData, libraryItems, chaptersByDay, studiesSummary } from './bibliotecaMath.js'
+
+export const bibliotecaApi = {
+  // { items, readByDay, studies } — os itens dos seis tipos, os capítulos
+  // lidos em cada dia (o título das reflexões) e o resumo dos estudos.
+  async load() {
+    const [row, chapterRows] = await Promise.all([
+      fetchRow(),
+      // Sem o registro de leitura a Biblioteca ainda vale: a reflexão fica
+      // com a data no título.
+      getAllChapterReadRows().catch(err => { console.error('[biblioteca] capítulos lidos', err); return [] }),
+    ])
+    const data = pickLibraryData(row)
+    return {
+      items: libraryItems({ ...data, questions: Object.values(getAllPassageQuestions()).flat() }),
+      readByDay: chaptersByDay(chapterRows),
+      studies: studiesSummary({ catalog: STUDIES, ai: data.aiStudies, inductive: data.inductiveStudies, completed: data.studiesCompleted, activeStudyId: data.activeStudyId }),
+    }
+  },
+
+  // O texto de um trecho marcado — a marcação guarda livro, capítulo e
+  // versículos, não o texto. Um arquivo por livro, guardado em memória
+  // pela sessão (bibleTextStore.js).
+  async verseText(item, lang = 'pt') {
+    const chapters = await fetchBookText(getSelectedVersionId(lang), lang === 'en' ? (item.bookEn || item.book) : item.book)
+    const verses = chapters?.[String(item.chapter)]?.verses ?? {}
+    return (item.verses ?? []).map(v => verses[String(v)]).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()
+  },
+}

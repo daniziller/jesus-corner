@@ -83,9 +83,27 @@ import ReflectionScreen from '../src/screens/ReflectionScreen'
 import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
 import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
+import BibliotecaScreen from '../src/screens/BibliotecaScreen'
+import { pickLibraryData, libraryItems, chaptersByDay, studiesSummary, typeMeta } from '../src/biblioteca/bibliotecaMath'
+import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
+import { linhaDeExemplo, perguntasDeExemplo, leiturasDeExemplo } from './bibliotecaFixture'
 
 const params = new URLSearchParams(location.search)
 const tela = params.get('tela') ?? 'hoje'
+
+// Biblioteca: as capturas são de uma terça, 10 de novembro de 2026 — o
+// "domingo" da pregação e as datas dos cartões só batem nesse dia. Na
+// pré-visualização dessa aba o relógio parte de lá (`&hoje=AAAA-MM-DD`
+// troca; `&hoje=real` usa o de verdade).
+if (tela === 'biblioteca' && params.get('hoje') !== 'real') {
+  const [ano, mes, dia] = (params.get('hoje') ?? '2026-11-10').split('-').map(Number)
+  const RealDate = Date
+  const offset = new RealDate(ano, mes - 1, dia, 10, 0).getTime() - RealDate.now()
+  window.Date = class extends RealDate {
+    constructor(...args) { if (args.length === 0) super(RealDate.now() + offset); else super(...args) }
+    static now() { return RealDate.now() + offset }
+  }
+}
 const estado = params.get('estado') ?? 'exemplo'
 if (params.get('modo')) setWheelMode(params.get('modo'))
 
@@ -482,6 +500,37 @@ function DiaPreview() {
   )
 }
 
+// A Biblioteca com a conta de exemplo, em memória. `&conta=nova|um`,
+// `&estudos=guardados|um|nenhum`, `&estado=carregando|erro`.
+const bibliotecaDePreview = {
+  load() {
+    const como = params.get('estado')
+    if (como === 'carregando') return new Promise(() => {})
+    if (como === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
+    const conta = params.get('conta') ?? 'exemplo'
+    const data = pickLibraryData(linhaDeExemplo({ conta, estudos: params.get('estudos') ?? 'andamento' }))
+    return new Promise(resolve => setTimeout(() => resolve({
+      items: libraryItems({ ...data, questions: perguntasDeExemplo(conta) }),
+      readByDay: chaptersByDay(conta === 'exemplo' ? leiturasDeExemplo() : []),
+      studies: studiesSummary({ ai: data.aiStudies, inductive: data.inductiveStudies, completed: data.studiesCompleted, activeStudyId: data.activeStudyId }),
+    }), 150))
+  },
+  verseText: bibliotecaApi.verseText,
+}
+
+function BibliotecaPreview() {
+  return (
+    <BibliotecaScreen
+      session={session} api={bibliotecaDePreview}
+      onOpenSearch={() => alert('abrir a busca (L4)')} onNova={() => alert('abrir a folha "Nova" (N1)')}
+      onOpenType={type => alert(`abrir a tela do tipo: ${typeMeta(type).name}`)}
+      onOpenStudies={() => alert('abrir a tela Estudos')} onCreateStudy={() => alert('criar um estudo (35d)')}
+      onSeeAll={() => alert('Ver tudo: a busca sem termo, filtro "Tudo", por data (L5)')}
+      onOpenItem={item => alert(`abrir o destino do tipo ${typeMeta(item.type).singular}: ${item.key}`)}
+    />
+  )
+}
+
 function Preview() {
   const [screen, setScreen] = useState(tela)
   const [bibliaPastRoot, setBibliaPastRoot] = useState(!!params.get('livro') || params.has('busca'))
@@ -492,7 +541,9 @@ function Preview() {
   let body
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
-  if (screen === 'oracao') {
+  if (screen === 'biblioteca') {
+    body = <BibliotecaPreview />
+  } else if (screen === 'oracao') {
     body = <OracaoPreview />
   } else if (screen === 'reflexao') {
     body = <ReflexaoPreview />
@@ -590,7 +641,8 @@ function Preview() {
   }
   const nav = screen === 'hoje' && params.get('msgs') != null
     ? <BottomNav activeTab="home" onNavigate={t => alert(`aba: ${t}`)} groupsUnread={Number(params.get('msgs'))} groupsHasPending={params.get('pendente') === '1'} lang="pt" />
-    : screen === 'pedidos' ? <BottomNav activeTab="routine" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /> : null
+    : screen === 'pedidos' ? <BottomNav activeTab="routine" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />
+      : screen === 'biblioteca' ? <BottomNav activeTab="notes" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /> : null
   return <div style={{ height: '100%' }}>{body}{nav}</div>
 }
 

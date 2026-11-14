@@ -300,14 +300,27 @@ body {
    a área de toque avança 3px pra cada lado e chega a 44px, sem mexer no
    desenho (os vãos entre eles são de 8px ou mais). */
 .biblia-alvo,
-.passo-alvo {
+.passo-alvo,
+.biblioteca-alvo {
   position: relative;
 }
 .biblia-alvo::after,
-.passo-alvo::after {
+.passo-alvo::after,
+.biblioteca-alvo::after {
   content: '';
   position: absolute;
   inset: -3px;
+}
+
+/* Biblioteca (handoff-biblioteca-55): a ação à direita de um rótulo de
+   grupo ("Ver tudo", "Limpar") tem 11px de texto e 44px de área de toque. */
+.biblioteca-rotulo-acao {
+  position: relative;
+}
+.biblioteca-rotulo-acao::after {
+  content: '';
+  position: absolute;
+  inset: -17px -10px;
 }
 
 /* Passos do plano (handoff-passos-pedidos-53-54): as pastilhas de frase

@@ -35,6 +35,7 @@ import ExistingProgressScreen from './screens/ExistingProgressScreen'
 import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
 import NotesScreen from './screens/NotesScreen'
+import BibliotecaScreen from './screens/BibliotecaScreen'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
 import AddStudyScreen from './screens/AddStudyScreen'
@@ -1725,6 +1726,15 @@ export default function App() {
     goToTab('sermonNote')
   }
 
+  // Um item da raiz da Biblioteca (L1) abre o destino do seu tipo: a
+  // anotação longa, na página dela; nota, marcação e pergunta, na Bíblia,
+  // no capítulo; reflexão e frase do dia, na lista.
+  function openLibraryItem(item) {
+    if (item.type === 'pregacao') editSermonNoteFromLibrary(item.id)
+    else if (item.book && item.chapter) openBiblePassage(item.book, item.chapter)
+    else navigateTo('notesList')
+  }
+
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
   // — abre direto na leitura dele, sem passar pela lista de ThemePlanScreen.
   // Mostra o plano INTEIRO (sem restringir aos textos de hoje) — é um jeito
@@ -3221,6 +3231,10 @@ export default function App() {
       : <AiSettingsScreen session={session} onBack={goBack} />,
     contact: <ContactScreen session={session} authUser={authUser} onBack={goBack} />,
     applicationPhrases: <ApplicationPhrasesScreen session={session} authUser={authUser} onBack={goBack} onApplicationChanged={bumpApplicationRefresh} />,
+    // A lista única (4c) segue como destino do que ainda não tem tela nova
+    // na Biblioteca — as telas de tipo e a busca (handoff-biblioteca-55,
+    // etapas 2 a 5) entram no lugar dela, uma a uma.
+    notesList: <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} refreshKey={notesRefreshKey} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} onOpenSermonNote={editSermonNoteFromLibrary} onCreateSermonNote={openSermonNoteFromHome} />,
     // "Esta semana" por dentro (pedido dela, 2026-09-15) — aberta pelo
     // cartão ESTA SEMANA da Home (Bloco 5, HomeScreen.jsx).
     themePlan: !session.hasAI
@@ -3562,7 +3576,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'notesList', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3634,7 +3648,13 @@ export default function App() {
             )}
             {hasPremium && notesVisitedRef.current && (
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
-                <NotesScreen session={session} authUser={authUser} blocks={blocks} sessionsByBlock={sessionsByBlock} refreshKey={notesRefreshKey} onOpenBiblePassage={openBiblePassage} onOpenStudy={id => { setLibraryOpenStudyId(id); navigateTo('studies') }} onOpenThemePlan={openThemePlanDetail} onUseBankStudy={useStudyFromBank} onOpenSermonNote={editSermonNoteFromLibrary} onCreateSermonNote={openSermonNoteFromHome} />
+                <BibliotecaScreen
+                  session={session} refreshKey={notesRefreshKey}
+                  onOpenSearch={() => navigateTo('notesList')} onNova={openSermonNoteFromHome}
+                  onOpenType={() => navigateTo('notesList')} onSeeAll={() => navigateTo('notesList')}
+                  onOpenStudies={() => navigateTo('addStudy')} onCreateStudy={() => navigateTo('createAiStudy')}
+                  onOpenItem={openLibraryItem}
+                />
               </div>
             )}
             {hasPremium && studiesVisitedRef.current && (
