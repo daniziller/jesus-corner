@@ -2,6 +2,7 @@
 // Roda com: node scripts/test-comunidade.mjs
 import {
   plural, sinceMonth, profileStats, avatarCrop, AVATAR_SIZE, newsCard, waitingItems, groupRowSub, groupRows, GROUPS_SHOWN, friendTiles, FRIENDS_SHOWN,
+  todayReading, readingProgress, challengePercent, challengeBoard, groupTiles, leavePlan,
 } from '../src/comunidade/comunidadeMath.js'
 
 let failures = 0
@@ -73,6 +74,43 @@ const fileira = friendTiles(amigos)
 check(`fileira de amigos: os ${FRIENDS_SHOWN} primeiros, pelo primeiro nome, e o total`, [fileira.tiles.map(f => f.name), fileira.total], [['Marina', 'Rafael', 'Ana', 'Tiago'], 5])
 check('…com a foto de quem tem', fileira.tiles.map(f => f.avatarUrl), ['foto', null, null, null])
 check('sem amigos: fileira vazia', friendTiles(null), { tiles: [], total: 0 })
+
+// ── O grupo ──
+check('leitura de hoje: o trecho com capítulo', todayReading({ book: 'João', bookEn: 'John', chStart: 3, chEnd: 4, type: 'reading' }), { book: 'João', bookEn: 'John', chStart: 3, chEnd: 4 })
+check('…reflexão de fim de livro, "escolha os textos" e dia sem leitura não abrem sala', [todayReading({ book: 'João', type: 'reflection' }), todayReading({ needsThemePick: true }), todayReading(null), todayReading({ book: 'João', chStart: null })], [null, null, null, null])
+check('quantos já leram hoje, e a barra', readingProgress({ members: 12, completed: 5 }), { done: 5, total: 12, percent: 42 })
+check('…sem números (ou grupo vazio), nada', [readingProgress(null), readingProgress({ members: 0, completed: 0 })], [null, null])
+check('…nunca passa do total', readingProgress({ members: 3, completed: 9 }).done, 3)
+
+const capitulos = { Marcos: 16, Rute: 4 }
+check('percentual do desafio: capítulos lidos sobre o total dos livros, no máximo 100', [challengePercent(10, ['Marcos'], capitulos), challengePercent(0, ['Marcos'], capitulos), challengePercent(40, ['Marcos', 'Rute'], capitulos), challengePercent(3, [], capitulos)], [63, 0, 100, 0])
+const chaves = n => Array.from({ length: n }, (_, i) => `Marcos:${i + 1}`)
+const placar = challengeBoard({ books: ['Marcos'] }, [
+  { userId: 'u3', name: 'Você', completedKeys: chaves(10), joinedAt: '2026-11-10T10:00:00Z' },
+  { userId: 'u1', name: 'Marina', completedKeys: chaves(16), joinedAt: '2026-11-10T09:00:00Z' },
+  { userId: 'u4', name: 'Ana', completedKeys: chaves(7), joinedAt: '2026-11-11T09:00:00Z' },
+  { userId: 'u2', name: 'Rafael', completedKeys: chaves(10), joinedAt: '2026-11-10T08:00:00Z' },
+], capitulos, 'u3')
+check('placar: quem leu mais primeiro; no empate, quem entrou antes', placar.rows.map(r => `${r.position}:${r.name}:${r.percent}`), ['1:Marina:100', '2:Rafael:63', '3:Você:63', '4:Ana:44'])
+check('…com a linha da própria pessoa', [placar.mine.position, placar.mine.done, placar.total], [3, 10, 16])
+check('quem não participa do desafio não tem linha', challengeBoard({ books: ['Marcos'] }, [], capitulos, 'u3'), { total: 16, rows: [], mine: null })
+
+const membros = [{ userId: 'u1', role: 'moderator' }, { userId: 'u2', role: 'member' }, { userId: 'u3', role: 'moderator' }]
+const quadros = groupTiles({
+  prayers: [{ status: 'open' }, { status: 'closed' }, { status: 'open' }, { status: 'open' }],
+  comments: Array.from({ length: 12 }, () => ({})), pinnedNotice: 'Encontro sábado',
+  challenge: { name: 'Maratona de Marcos', books: ['Marcos'] }, myPercent: 62, members: membros,
+})
+check('quadros do grupo: pedidos abertos, recados, desafio e pessoas', quadros.map(q => `${q.id}:${q.value}`), ['prayer:3', 'talk:12', 'challenge:62', 'people:3'])
+check('…cada um com a sua linha de apoio', quadros.map(q => [q.sub.key, q.sub.vars]), [['community.tilePrayerMany', { n: 3 }], ['community.tileTalkPinnedMany', { n: 12 }], ['community.tileChallengeName', { name: 'Maratona de Marcos' }], ['community.tilePeopleMany', { n: 2 }]])
+const vazios = groupTiles({ prayers: [], comments: [{}], pinnedNotice: '  ', challenge: null, members: [{ userId: 'u1', role: 'moderator' }] })
+check('grupo novo: zero pedidos, um recado sem aviso, nenhum desafio, um moderador', vazios.map(q => [q.value, q.sub.key]), [[0, 'community.tilePrayerMany'], [1, 'community.tileTalkOne'], [null, 'community.tileChallengeNone'], [1, 'community.tilePeopleOne']])
+check('desafio sem nome usa os livros', groupTiles({ challenge: { name: '', books: ['Marcos', 'Rute'] }, myPercent: 0 })[2].sub.vars, { name: 'Marcos, Rute' })
+
+check('sair: membro só sai', leavePlan(membros, 'u2'), 'leave')
+check('sair: moderador com outro moderador no grupo só sai', leavePlan(membros, 'u1'), 'leave')
+check('sair: única moderadora com outras pessoas escolhe quem assume', leavePlan([{ userId: 'u1', role: 'moderator' }, { userId: 'u2', role: 'member' }], 'u1'), 'pickModerator')
+check('sair: única pessoa do grupo — sair é apagar', leavePlan([{ userId: 'u1', role: 'moderator' }], 'u1'), 'deleteGroup')
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)

@@ -115,3 +115,63 @@ export function friendTiles(friends) {
     total: list.length,
   }
 }
+
+// ── O grupo ─────────────────────────────────────────────────────────────
+
+// A leitura de hoje da pessoa, se for um trecho com capítulo (reflexão de
+// fim de livro e "escolha os textos" não abrem sala). null sem leitura.
+export function todayReading(todaySession) {
+  if (!todaySession || todaySession.needsThemePick || todaySession.type === 'reflection' || !todaySession.book || todaySession.chStart == null) return null
+  return { book: todaySession.book, bookEn: todaySession.bookEn ?? todaySession.book, chStart: todaySession.chStart, chEnd: todaySession.chEnd ?? todaySession.chStart }
+}
+
+// "5 de 12 já leram hoje" e o quanto isso enche a barra. null sem números.
+export function readingProgress(stats) {
+  if (!stats || !(stats.members > 0)) return null
+  const done = Math.min(stats.completed ?? 0, stats.members)
+  return { done, total: stats.members, percent: Math.round((done / stats.members) * 100) }
+}
+
+// Quanto de um desafio foi lido: capítulos feitos sobre o total dos livros
+// do desafio (nunca passa de 100).
+export function challengePercent(done, books, chapterCounts) {
+  const total = (books ?? []).reduce((sum, book) => sum + (chapterCounts[book] ?? 0), 0)
+  return total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0
+}
+
+// O placar de um desafio: quem leu mais primeiro (empate: quem entrou
+// antes), cada um com a posição e o percentual; `mine` é a linha da
+// própria pessoa, se ela participa.
+export function challengeBoard(challenge, leaderboard, chapterCounts, myUserId) {
+  const total = (challenge?.books ?? []).reduce((sum, book) => sum + (chapterCounts[book] ?? 0), 0)
+  const rows = [...(leaderboard ?? [])]
+    .sort((a, b) => b.completedKeys.length - a.completedKeys.length || String(a.joinedAt ?? '').localeCompare(String(b.joinedAt ?? '')))
+    .map((p, i) => ({ userId: p.userId, name: p.name, done: Math.min(p.completedKeys.length, total), percent: challengePercent(p.completedKeys.length, challenge.books, chapterCounts), position: i + 1, isMe: p.userId === myUserId }))
+  return { total, rows, mine: rows.find(r => r.isMe) ?? null }
+}
+
+// Os quatro quadros da tela do grupo: Oração, Conversa, Desafio e Pessoas
+// — o número grande e a linha de apoio de cada um. `value` nulo = sem
+// número (nenhum desafio em andamento).
+export function groupTiles({ prayers, comments, pinnedNotice, challenge, myPercent, members }) {
+  const open = (prayers ?? []).filter(p => p.status !== 'closed').length
+  const talk = (comments ?? []).length
+  const moderators = (members ?? []).filter(m => m.role === 'moderator').length
+  return [
+    { id: 'prayer', value: open, sub: plural('community.tilePrayer', open) },
+    { id: 'talk', value: talk, sub: (pinnedNotice ?? '').trim() ? { key: `community.tileTalkPinned${talk === 1 ? 'One' : 'Many'}`, vars: { n: talk } } : plural('community.tileTalk', talk) },
+    challenge
+      ? { id: 'challenge', value: myPercent ?? 0, percent: true, sub: { key: 'community.tileChallengeName', vars: { name: challenge.name || challenge.books.join(', ') } } }
+      : { id: 'challenge', value: null, sub: { key: 'community.tileChallengeNone', vars: {} } },
+    { id: 'people', value: (members ?? []).length, sub: plural('community.tilePeople', moderators) },
+  ]
+}
+
+// Sair do grupo: quem não é a única moderadora só sai; a única moderadora
+// escolhe quem assume — e, se não há mais ninguém no grupo, sair é apagar.
+export function leavePlan(members, myUserId) {
+  const me = (members ?? []).find(m => m.userId === myUserId)
+  const others = (members ?? []).filter(m => m.userId !== myUserId)
+  if (me?.role !== 'moderator' || others.some(m => m.role === 'moderator')) return 'leave'
+  return others.length === 0 ? 'deleteGroup' : 'pickModerator'
+}

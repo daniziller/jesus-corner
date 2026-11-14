@@ -18,6 +18,7 @@
 //      Reiniciar a leitura do zero: tela=suaBiblia — o botão no fim da tela; a senha de mentira é "certa123". &senha=nao · &rede=fora · &gravar=falha
 //      Comunidade (redesenho 2026-11): tela=comunidade — a raiz. &grupos=0|1|3|6 · &amigos=0|2|5 · &novas=0|1|4 · &trecho=nao · &espera=0|3
 //      · &carregando=sim · &foto=sim · &envio=falha · &responder=falha. Código que entra: BC-4271 (JA = já pediu; outro = inválido)
+//      tela=grupo — a tela de um grupo. &leitura=nao · &pedido=nenhum|meu|orei · &recado=nenhum · &desafio=nao · &aviso=nao · &orar=falha · &sair=falha
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
@@ -108,6 +109,8 @@ import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSumm
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
 import ReadingOrganizeScreen from '../src/screens/ReadingOrganizeScreen'
 import ComunidadeRaiz from '../src/components/comunidade/ComunidadeRaiz'
+import GrupoInicio from '../src/components/comunidade/GrupoInicio'
+import FolhaDeConfirmacao from '../src/components/comunidade/FolhaDeConfirmacao'
 import { squareAvatarBlob } from '../src/profile/avatarImage'
 import { restartReading } from '../src/reading/reiniciarStore'
 import { planQueue, splitPointsFor, findPlanSession, sessionAt, resolveNextChapter } from '../src/reading/bibleOrderMath'
@@ -909,6 +912,49 @@ function ComunidadePreview() {
   )
 }
 
+// A tela de um grupo com dados de exemplo; "Sair do grupo" abre a folha de
+// confirmação de verdade.
+function GrupoPreview() {
+  const [saindo, setSaindo] = useState(false)
+  const haPouco = h => new Date(Date.now() - h * 3600000).toISOString()
+  const pedido = params.get('pedido') ?? 'outro'
+  const pedidos = pedido === 'nenhum' ? [{ id: 'pf', status: 'closed', body: 'Antigo', authorName: 'Ana', createdAt: haPouco(400), prayCount: 2 }] : [
+    { id: 'p1', status: 'open', body: 'Pela cirurgia da minha mãe na quinta. Que ela fique em paz.', authorName: 'Ana', anonymous: false, isMine: pedido === 'meu', prayingByMe: pedido === 'orei', prayedEver: pedido === 'orei', prayCount: 4, createdAt: haPouco(2) },
+    { id: 'p2', status: 'open', body: 'Emprego', authorName: '', anonymous: true, prayCount: 9, createdAt: haPouco(30) },
+    { id: 'p3', status: 'open', body: 'Prova', authorName: 'Eu', isMine: true, prayCount: 6, createdAt: haPouco(80) },
+    { id: 'p4', status: 'closed', body: 'Exame', authorName: 'Júlia', prayCount: 3, createdAt: haPouco(700) },
+  ]
+  const recados = params.get('recado') === 'nenhum' ? [] : [...Array.from({ length: 11 }, (_, i) => ({ id: `c${i}`, authorName: 'Marina', body: 'Recado antigo', createdAt: haPouco(200 + i) })), { id: 'c99', authorName: 'Rafael', anonymous: false, body: 'Li João 3 de novo depois da sala. “Nascer de novo” ficou outra coisa pra mim.', createdAt: haPouco(26) }]
+  const membros = ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida', 'Diego', 'Pedro', 'Carla', 'Lucas', 'Bia', 'Sara', 'Davi'].map((name, i) => ({ userId: `u${i}`, name, role: i < 2 ? 'moderator' : 'member' }))
+  return (
+    <>
+      <GrupoInicio
+        lang="pt" groupId="g1" groupName="Grupo Semente" readingMode="shared" members={membros}
+        pinnedNotice={params.get('aviso') === 'nao' ? null : 'Encontro presencial no sábado, 16h.'}
+        todaySession={params.get('leitura') === 'nao' ? { type: 'reflection', book: 'João' } : { book: 'João', bookEn: 'John', chStart: 3, chEnd: 4, type: 'reading' }}
+        myUserId="u5" chapterCounts={{ Marcos: 16 }}
+        api={{
+          roomStats: async () => ({ members: 12, completed: 5 }),
+          prayers: async () => pedidos, comments: async () => recados,
+          challenges: async () => (params.get('desafio') === 'nao' ? [{ id: 'd0', active: false, name: 'Antigo', books: ['Marcos'] }] : [{ id: 'd1', active: true, name: 'Maratona de Marcos', books: ['Marcos'] }]),
+          leaderboard: async () => [{ userId: 'u5', name: 'Diego', completedKeys: Array.from({ length: 10 }, (_, i) => `Marcos:${i + 1}`) }, { userId: 'u0', name: 'Marina', completedKeys: Array.from({ length: 16 }, (_, i) => `Marcos:${i + 1}`) }],
+          pray: async () => { await new Promise(r => setTimeout(r, 300)); if (params.get('orar') === 'falha') throw new Error('sem rede'); window.__orei = (window.__orei ?? 0) + 1 },
+        }}
+        onBack={() => alert('voltar para a Comunidade')} onInvite={() => alert('convidar')} onOpen={parte => alert(`abrir: ${parte}`)} onWrite={parte => alert(`escrever: ${parte}`)}
+        onOpenRoom={alvo => alert(`abrir a sala: ${alvo.group.name} · ${alvo.book} ${alvo.chapter}`)} onLeave={() => setSaindo(true)}
+      />
+      {saindo && (
+        <FolhaDeConfirmacao
+          lang="pt" title="Sair do Grupo Semente?" text="Você deixa de ver os recados, os pedidos de oração e a sala do capítulo deste grupo."
+          keeps="Sua leitura, suas notas e seus amigos continuam com você. Para voltar, basta um novo convite."
+          confirmLabel="Sair do grupo" cancelLabel="Ficar no grupo" onClose={() => setSaindo(false)}
+          onConfirm={async () => { await new Promise(r => setTimeout(r, 350)); if (params.get('sair') === 'falha') throw new Error('sem rede'); setSaindo(false); alert('saiu do grupo') }}
+        />
+      )}
+    </>
+  )
+}
+
 // "Leitura da Bíblia" (35i) com a fila do plano de verdade: a ordem, os
 // livros de "minha ordem" e o ponto de partida ficam na memória, e a faixa
 // de cima mostra a sessão de hoje que sai deles — as mesmas contas de
@@ -1008,6 +1054,7 @@ function Preview() {
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
   if (screen === 'ordem') return <OrdemPreview />
+  if (screen === 'grupo') return <div style={{ height: '100%' }}><GrupoPreview /><BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
   if (screen === 'comunidade') return <div style={{ height: '100%', overflowY: 'auto' }}><ComunidadePreview /><BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
   if (screen === 'estudos') {
     // A tela Estudos (35h) com o cabeçalho da Biblioteca; `&lupa=nao`: como

@@ -23,10 +23,12 @@ import {
 } from '../groups/prayerRequestsStore'
 import { orarPor } from '../pedidos/orei'
 import FolhaFazerPedido from '../components/pedidos/FolhaFazerPedido'
-import { getRoomStats } from '../groups/chapterRoomStore'
 import { getGroupMessagesSummary, getGroupMessages } from '../groups/messagesStore'
 import ComunidadeRaiz from '../components/comunidade/ComunidadeRaiz'
-import { formatRelativeTime } from '../utils/time'
+import GrupoInicio from '../components/comunidade/GrupoInicio'
+import Cabecalho from '../components/comunidade/Cabecalho'
+import FolhaDeConfirmacao from '../components/comunidade/FolhaDeConfirmacao'
+import { leavePlan } from '../comunidade/comunidadeMath'
 
 // Todos os 66 livros (pt/en), na mesma ordem/nomes usados em completed_keys
 // — reaproveitado do mesmo dado que já alimenta a Jornada, pra montar o
@@ -159,6 +161,7 @@ export default function GroupsScreen({ session, authUser, avatarUrl, onAvatarCha
             key={openGroupId}
             groupId={openGroupId}
             groupName={openGroup.name}
+            readingMode={openGroup.readingMode}
             lang={lang}
             authUser={authUser}
             hasAI={session.hasAI}
@@ -189,31 +192,28 @@ function GroupsEmptyState({ lang }) {
   )
 }
 
-/* ── Detalhe de um grupo: sub-abas Desafio / Discussão ── */
-// Quadro 5d: abrir um grupo cai direto no painel único (Leitura do grupo /
-// Pedido de oração / nota compartilhada / escrever no grupo) — não mais nas
-// 3 abas de cara. Desafio/Oração completa/Discussão completa continuam
-// existindo (nada do que já funcionava foi tirado), só que agora vivem atrás
-// de "ver mais" — decisão da autora: o quadro 5d não desenha desafios nem
-// lista de membros, então isso sai do primeiro plano em vez de ser recriado
-// do zero num visual que o quadro nunca definiu.
-function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySession, onOpenGroupRoom, onBack, onLeft }) {
-  const [view, setView] = useState('home') // 'home' | 'challenge' | 'prayer' | 'discussion'
+/* ── Um grupo: a tela do grupo e as partes dele ── */
+// Abrir um grupo cai na tela do grupo (GrupoInicio.jsx); Oração, Conversa,
+// Desafio e Pessoas abrem a partir dos quadros dela. Sair do grupo passa
+// por uma folha de confirmação — e, para a única moderadora, por escolher
+// quem assume (ver leavePlan em comunidadeMath.js).
+function GroupDetailView({ groupId, groupName, readingMode, lang, authUser, hasAI, todaySession, onOpenGroupRoom, onBack, onLeft }) {
+  const L = (k, vars) => t(`community.${k}`, vars, lang)
+  const [view, setView] = useState('home') // 'home' | 'challenge' | 'prayer' | 'discussion' | 'leaveModerator'
   const [autoInvite, setAutoInvite] = useState(false)
   const [detail, setDetail] = useState(null)
   const [detailLoadError, setDetailLoadError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  // A confirmação aberta: { kind: 'leave' | 'delete' | 'hand', member? }.
+  const [confirming, setConfirming] = useState(null)
 
   function reload() { setReloadKey(k => k + 1) }
 
   useEffect(() => {
     setDetailLoadError(false)
-    getGroupDetail(groupId).then(setDetail).catch(err => {
-      // Bug real (varredura geral, 2026-09-19): getGroupDetail engolia
-      // erro de verdade e devolvia null igual a "grupo não existe" — esta
-      // tela ficava travada no `<div style={{padding:20}}/>` vazio pra
-      // sempre, sem nenhum aviso. Agora a store lança; este catch é o
-      // tratamento que faltava.
+    // Grupo que não existe mais (ou falha de rede): a tela avisa e deixa
+    // tentar de novo — nunca fica em branco.
+    getGroupDetail(groupId).then(found => { if (found) setDetail(found); else setDetailLoadError(true) }).catch(err => {
       console.error('Failed to load group detail', err)
       setDetailLoadError(true)
     })
@@ -221,106 +221,96 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
 
   const myMembership = detail?.members.find(m => m.userId === authUser?.id)
   const isModerator = myMembership?.role === 'moderator'
-  // Nada no schema impede vários moderadores ao mesmo tempo — "é a única
-  // moderadora" só importa de verdade quando NINGUÉM MAIS no grupo tem
-  // role='moderator' (ver comentário na migration 0063).
   const otherMembers = (detail?.members ?? []).filter(m => m.userId !== authUser?.id)
-  const isOnlyModerator = isModerator && !otherMembers.some(m => m.role === 'moderator')
 
-  // Pedido dela (2026-09-09): quem sai sendo a única moderadora precisa
-  // escolher outra pessoa pra assumir, ou apagar o grupo — nunca sair e
-  // deixar o grupo sem moderador nenhum "por trás". Sem ninguém mais no
-  // grupo, não há pra quem passar o cargo: a única saída é apagar.
-  async function handleLeave() {
-    if (isOnlyModerator) {
-      if (otherMembers.length === 0) {
-        if (!window.confirm(t('groups.leaveGroupSoloConfirm', undefined, lang))) return
-        await deleteGroup(groupId)
-        onLeft()
-        return
-      }
-      setView('leaveModerator')
-      return
-    }
-    if (!window.confirm(t('groups.leaveConfirm', undefined, lang))) return
-    await leaveGroup(groupId)
+  // Quem sai sendo a única moderadora escolhe outra pessoa pra assumir, ou
+  // apaga o grupo — nunca deixa o grupo sem moderador. Sem mais ninguém no
+  // grupo, sair é apagar.
+  function startLeaving() {
+    const plan = leavePlan(detail.members, authUser?.id)
+    if (plan === 'pickModerator') setView('leaveModerator')
+    else setConfirming({ kind: plan === 'deleteGroup' ? 'delete' : 'leave' })
+  }
+
+  async function confirmLeaving() {
+    if (confirming.kind === 'leave') await leaveGroup(groupId)
+    else if (confirming.kind === 'delete') await deleteGroup(groupId)
+    else await leaveGroupWithNewModerator(groupId, confirming.member.userId)
     onLeft()
   }
 
-  async function handlePickNewModerator(member) {
-    if (!window.confirm(t('groups.pickModeratorConfirm', { name: member.name }, lang))) return
-    await leaveGroupWithNewModerator(groupId, member.userId)
-    onLeft()
-  }
-
-  async function handleDeleteGroupInstead() {
-    if (!window.confirm(t('groups.deleteGroupConfirm', undefined, lang))) return
-    await deleteGroup(groupId)
-    onLeft()
-  }
+  const confirmation = confirming && (
+    <FolhaDeConfirmacao
+      lang={lang} onClose={() => setConfirming(null)} onConfirm={confirmLeaving}
+      title={confirming.kind === 'leave' ? L('leaveTitle', { group: groupName }) : confirming.kind === 'delete' ? L('deleteTitle', { group: groupName }) : L('handTitle', { name: confirming.member.name })}
+      text={confirming.kind === 'leave' ? L('leaveText') : confirming.kind === 'delete' ? L(otherMembers.length === 0 ? 'deleteSoloText' : 'deleteText') : L('handText', { name: confirming.member.name })}
+      keeps={confirming.kind === 'delete' ? null : L('leaveKeeps')}
+      confirmLabel={L(confirming.kind === 'leave' ? 'leaveConfirm' : confirming.kind === 'delete' ? 'deleteConfirm' : 'handConfirm')}
+      cancelLabel={L(confirming.kind === 'leave' ? 'leaveCancel' : confirming.kind === 'delete' ? 'deleteCancel' : 'handCancel')}
+    />
+  )
 
   if (detailLoadError) {
     return (
-      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, height: '100%' }}>
-        <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center' }}>{t('groups.loadError', undefined, lang)}</p>
-        <button
-          type="button"
-          onClick={reload}
-          style={{ height: 40, padding: '0 20px', borderRadius: 14, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: '#fff' }}
-        >
-          {t('groups.retryBtn', undefined, lang)}
-        </button>
+      <div style={styles.gScreen} data-comunidade="grupo-erro">
+        <Cabecalho lang={lang} title={groupName} onBack={onBack} />
+        <div style={styles.gCenter}>
+          <p style={styles.gCenterText}>{L('groupLoadError')}</p>
+          <button type="button" style={styles.gRetry} onClick={reload}>{L('retry')}</button>
+        </div>
       </div>
     )
   }
 
   if (!detail) {
-    return <div style={{ padding: 20 }} />
+    return (
+      <div style={styles.gScreen} data-comunidade="grupo-carregando">
+        <Cabecalho lang={lang} title={groupName} onBack={onBack} />
+        <div aria-hidden="true" style={styles.gBody}>
+          {[236, 216, 150].map(h => <div key={h} className="rb-context-skeleton" style={{ height: h, flexShrink: 0, borderRadius: 24, background: 'var(--bento-line)' }} />)}
+        </div>
+      </div>
+    )
   }
 
   if (view === 'leaveModerator') {
     return (
-      <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%' }}>
-        <div style={styles.detailHeader}>
-          <button onClick={() => setView('home')} style={styles.backBtn} aria-label="back">
-            <AppIcon name="ArrowLeft" size={19} color="var(--bento-ink)" />
-          </button>
-          <h1 style={styles.detailTitle}>{t('groups.leaveModeratorTitle', undefined, lang)}</h1>
-        </div>
-        <div style={{ padding: '4px 16px 14px' }}>
-          <p style={styles.leaveModeratorIntro}>{t('groups.leaveModeratorIntro', undefined, lang)}</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-            {otherMembers.map(m => (
-              <button key={m.userId} type="button" style={styles.memberPickRow} onClick={() => handlePickNewModerator(m)}>
-                <span style={styles.bAvatarCircle}>{avatarInitialsOf(m.name)}</span>
-                <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)' }}>{m.name}</span>
-                <AppIcon name="ChevronRight" size={16} color="var(--bento-t3)" />
+      <div style={styles.gScreen} data-comunidade="escolher-moderador">
+        <Cabecalho lang={lang} title={L('pickTitle')} sub={L('pickSub')} onBack={() => setView('home')} />
+        <div style={styles.gBody}>
+          <p style={styles.gIntro}>{L('pickIntro')}</p>
+          <div style={styles.gListCard}>
+            {otherMembers.map((m, i) => (
+              <button key={m.userId} type="button" style={{ ...styles.gRow, ...(i === otherMembers.length - 1 ? { borderBottom: 'none' } : null) }} onClick={() => setConfirming({ kind: 'hand', member: m })}>
+                <span aria-hidden="true" style={styles.gAvatar}>{avatarInitialsOf(m.name).slice(0, 1)}</span>
+                <span style={styles.gRowName}>{m.name}</span>
+                <AppIcon name="ChevronRight" size={15} strokeWidth={2.4} color="var(--bento-t2)" />
               </button>
             ))}
           </div>
-          <button type="button" style={styles.deleteGroupBtn} onClick={handleDeleteGroupInstead}>
-            {t('groups.deleteGroupInstead', undefined, lang)}
-          </button>
+          <button type="button" style={styles.gTextBtn} onClick={() => setConfirming({ kind: 'delete' })}>{L('pickDelete')}</button>
         </div>
+        {confirmation}
       </div>
     )
   }
 
   if (view === 'home') {
     return (
-      <GroupHomeView
-        groupId={groupId}
-        groupName={groupName}
-        members={detail.members}
-        lang={lang}
-        todaySession={todaySession}
-        onOpenGroupRoom={onOpenGroupRoom}
-        onBack={onBack}
-        onInvite={() => { setAutoInvite(true); setView('challenge') }}
-        onGoPrayer={() => setView('prayer')}
-        onGoDiscussion={() => setView('discussion')}
-        onLeave={handleLeave}
-      />
+      <>
+        <GrupoInicio
+          lang={lang} groupId={groupId} groupName={groupName} readingMode={readingMode}
+          members={detail.members} pinnedNotice={detail.pinnedNotice} todaySession={todaySession}
+          myUserId={authUser?.id} chapterCounts={BOOK_CHAPTER_COUNTS}
+          onBack={onBack}
+          onInvite={() => { setAutoInvite(true); setView('challenge') }}
+          onOpen={part => { setAutoInvite(false); setView(part === 'prayer' ? 'prayer' : part === 'talk' ? 'discussion' : 'challenge') }}
+          onWrite={part => setView(part === 'prayer' ? 'prayer' : 'discussion')}
+          onOpenRoom={target => onOpenGroupRoom?.(target)}
+          onLeave={startLeaving}
+        />
+        {confirmation}
+      </>
     )
   }
 
@@ -363,182 +353,6 @@ function GroupDetailView({ groupId, groupName, lang, authUser, hasAI, todaySessi
         {view === 'discussion' && (
           <DiscussionTab groupId={groupId} members={detail.members} isModerator={isModerator} authUser={authUser} lang={lang} pinnedNotice={detail.pinnedNotice} />
         )}
-      </div>
-    </div>
-  )
-}
-
-// Quadro 5d propriamente dito. Só o que o quadro desenha: cabeçalho com
-// "Convidar", card de leitura do grupo (liga na Sala do Capítulo — 17a — do
-// livro/capítulo da sessão de hoje da própria pessoa, mesma lógica que já
-// existe em ReadingBlockView ao ler com o grupo), prévia do pedido de
-// oração mais recente, prévia da nota mais recente e o atalho "Escrever no
-// grupo". Cada card leva pra tela completa correspondente ao ser tocado.
-function GroupHomeView({ groupId, groupName, members, lang, todaySession, onOpenGroupRoom, onBack, onInvite, onGoPrayer, onGoDiscussion, onLeave }) {
-  const [roomStats, setRoomStats] = useState(null)
-  const [latestPrayer, setLatestPrayer] = useState(undefined)
-  const [latestNote, setLatestNote] = useState(undefined)
-  const [writeOpen, setWriteOpen] = useState(false)
-
-  // "Leitura do grupo" usa a sessão de hoje da própria pessoa — não existe
-  // hoje um "capítulo combinado do grupo" separado disso; é a mesma leitura
-  // que, se tocada em grupo (ReadingBlockView), já abre a Sala do Capítulo.
-  const hasReading = !!(todaySession && !todaySession.needsThemePick && todaySession.type !== 'reflection' && todaySession.book)
-  const bookDisplay = hasReading ? (lang === 'en' ? todaySession.bookEn : todaySession.book) : ''
-  const chapterLabel = hasReading
-    ? `${bookDisplay} ${todaySession.chStart}${todaySession.chStart !== todaySession.chEnd ? `–${todaySession.chEnd}` : ''}`
-    : ''
-
-  useEffect(() => {
-    if (!hasReading) { setRoomStats(null); return }
-    getRoomStats(groupId, todaySession.book, todaySession.chStart).then(setRoomStats).catch(err => console.error('Failed to load room stats', err))
-  }, [groupId, hasReading, todaySession?.book, todaySession?.chStart])
-
-  useEffect(() => {
-    // Feed (não a súplica capada em 3) porque isto é só uma prévia de UM
-    // grupo específico — mais recente primeiro, pode incluir um pedido meu
-    // (ver isMine abaixo: nesse caso não faz sentido mostrar o botão Orei).
-    getPrayerRequestsFeed(groupId, 1).then(list => setLatestPrayer(list[0] ?? null)).catch(err => { console.error('Failed to load prayer requests', err); setLatestPrayer(null) })
-    // getComments vem em ordem crescente (ver commentsStore.js) — a mais
-    // recente é a última do array, fixada ou não (aqui é só uma prévia).
-    getComments(groupId).then(list => setLatestNote(list[list.length - 1] ?? null)).catch(err => { console.error('Failed to load comments', err); setLatestNote(null) })
-  }, [groupId])
-
-  function handlePray(e) {
-    e.stopPropagation()
-    // "Orei por isso" marca o dia, não o clique (migration 0059) — uma vez
-    // marcado hoje, o toque não faz mais nada até o dia virar.
-    if (!latestPrayer || latestPrayer.isMine || latestPrayer.prayingByMe) return
-    // pray_count é POR PESSOA, nunca por dia (bug real, 2026-10-19): só
-    // soma na primeira vez que esta pessoa marca pra este pedido —
-    // prayedEver guarda isso; orar de novo num dia seguinte não é gente
-    // nova, só reacende prayingByMe sem repetir o +1.
-    const wasPrayedEver = !!latestPrayer.prayedEver
-    setLatestPrayer(p => ({ ...p, prayingByMe: true, prayedEver: true, prayCount: wasPrayedEver ? p.prayCount : p.prayCount + 1 }))
-    // Bug real (varredura geral, 2026-09-19): sem reversão no catch — uma
-    // falha de verdade deixava "orei" marcado na tela sem ter sido
-    // registrado no banco, com o card só se corrigindo sozinho se/quando a
-    // tela recarregasse do zero.
-    orarPor(latestPrayer).catch(err => {
-      console.error('Failed to mark praying', err)
-      setLatestPrayer(p => (p ? { ...p, prayingByMe: false, prayedEver: wasPrayedEver, prayCount: wasPrayedEver ? p.prayCount : Math.max(0, p.prayCount - 1) } : p))
-    })
-  }
-
-  const AVATAR_PALETTE = [
-    { bg: 'var(--bento-accent)', ink: 'var(--bento-ink)' },
-    { bg: 'var(--bento-sand)', ink: 'var(--bento-sand-icon)' },
-    { bg: 'var(--bento-mark)', ink: 'var(--bento-sand-icon)' },
-  ]
-  const visibleMembers = members.slice(0, 3)
-  const overflow = members.length - visibleMembers.length
-
-  return (
-    <div style={styles.homeWrap}>
-      <div style={styles.homeHeader}>
-        <button onClick={onBack} style={styles.homeBackBtn} aria-label="back">
-          <AppIcon name="ArrowLeft" size={18} color="var(--bento-ink)" />
-        </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={styles.homeTitle}>{t('groups.pageTitle', undefined, lang)}</p>
-          <p style={styles.homeSubtitle}>{t('groups.homeSubtitle', { name: groupName, n: members.length }, lang)}</p>
-        </div>
-        <button style={styles.inviteBtn} onClick={onInvite}>{t('groups.invite', undefined, lang)}</button>
-      </div>
-
-      <div style={styles.homeScroll}>
-        {hasReading && (
-          <div style={styles.readingCard}>
-            <p style={styles.readingLabel}>{t('groups.homeReadingLabel', undefined, lang)}</p>
-            <p style={styles.readingTitle}>{chapterLabel}</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-              <div style={{ display: 'flex' }}>
-                {visibleMembers.map((m, i) => {
-                  const c = AVATAR_PALETTE[i % AVATAR_PALETTE.length]
-                  return (
-                    <div key={m.userId} style={{ ...styles.readingAvatar, background: c.bg, color: c.ink, marginLeft: i > 0 ? -6 : 0 }}>
-                      {avatarInitialsOf(m.name)}
-                    </div>
-                  )
-                })}
-                {overflow > 0 && (
-                  <div style={{ ...styles.readingAvatar, background: 'rgba(255,255,255,.12)', color: '#fff', marginLeft: -6 }}>
-                    +{overflow}
-                  </div>
-                )}
-              </div>
-              {roomStats && (
-                <span style={styles.readingStatus}>{t('groups.homeReadStatus', { done: roomStats.completed, total: roomStats.members }, lang)}</span>
-              )}
-            </div>
-            <button
-              style={styles.readingCta}
-              onClick={() => onOpenGroupRoom?.({ group: { groupId, name: groupName }, book: todaySession.book, bookEn: todaySession.bookEn, chapter: todaySession.chStart })}
-            >
-              {t('groups.homeReadCta', undefined, lang)}
-            </button>
-          </div>
-        )}
-
-        <div style={styles.prayerCard} onClick={onGoPrayer}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <p style={styles.prayerLabel}>{t('groups.homePrayerLabel', undefined, lang)}</p>
-            {latestPrayer && <span style={styles.prayerTime}>{formatRelativeTime(latestPrayer.createdAt, lang)}</span>}
-          </div>
-          {latestPrayer === undefined ? null : latestPrayer ? (
-            <>
-              <p style={styles.prayerQuote}>"{latestPrayer.body}" — {latestPrayer.anonymous ? t('groups.anonymousAuthor', undefined, lang) : latestPrayer.authorName}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {!latestPrayer.isMine && (
-                  <button style={styles.prayBtn} onClick={handlePray}>{t('groups.homePrayBtn', undefined, lang)}</button>
-                )}
-                <span style={styles.prayerCount}>{t('groups.homePrayedCount', { n: latestPrayer.prayCount }, lang)}</span>
-              </div>
-            </>
-          ) : (
-            <p style={styles.prayerEmpty}>{t('groups.homeNoPrayerYet', undefined, lang)}</p>
-          )}
-        </div>
-
-        <div style={styles.noteCard} onClick={onGoDiscussion}>
-          {latestNote === undefined ? null : latestNote ? (
-            <>
-              {/* Anônimo (quem saiu do grupo depois de comentar). */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={styles.noteAvatar}>{avatarInitialsOf(latestNote.anonymous ? t('groups.anonymousAuthor', undefined, lang) : latestNote.authorName)}</div>
-                <p style={styles.noteTitle}>{t('groups.homeNoteShared', { name: latestNote.anonymous ? t('groups.anonymousAuthor', undefined, lang) : latestNote.authorName }, lang)}</p>
-                <span style={styles.noteTime}>{formatRelativeTime(latestNote.createdAt, lang)}</span>
-              </div>
-              <p style={styles.noteBody}>"{latestNote.body}"</p>
-            </>
-          ) : (
-            <p style={styles.noteEmptyText}>{t('groups.homeNoNoteYet', undefined, lang)}</p>
-          )}
-        </div>
-
-        <div>
-          <button style={styles.writeRow} onClick={() => setWriteOpen(o => !o)}>
-            <div style={styles.writeIcon}><AppIcon name="Plus" size={16} color="var(--bento-accent)" /></div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={styles.writeTitle}>{t('groups.homeWriteTitle', undefined, lang)}</p>
-              <p style={styles.writeSub}>{t('groups.homeWriteSub', undefined, lang)}</p>
-            </div>
-            <span style={styles.writeChevron}>›</span>
-          </button>
-          {writeOpen && (
-            <div style={styles.writeChooser}>
-              <button style={styles.writeChooserBtn} onClick={onGoDiscussion}>{t('groups.homeWriteNoteOption', undefined, lang)}</button>
-              <button style={styles.writeChooserBtn} onClick={onGoPrayer}>{t('groups.homeWritePrayerOption', undefined, lang)}</button>
-            </div>
-          )}
-        </div>
-
-        {/* Achado real (2026-09-10, ela mesma não achou): "Sair do
-            grupo" morava lá no fundo da aba Desafio (ChallengeTab), uma
-            das 3 sub-abas — só quem entrasse especificamente ali e
-            rolasse até o fim chegava nele. Home é a tela que toda
-            pessoa vê ao abrir o grupo; o botão mora aqui agora. */}
-        <button style={{ ...styles.leaveBtn, width: '100%', marginTop: 4 }} onClick={onLeave}>{t('groups.leaveGroup', undefined, lang)}</button>
       </div>
     </div>
   )
@@ -1146,6 +960,20 @@ function GroupPrayerTab({ groupId, isModerator, authUser, lang, hasAI }) {
 }
 
 const styles = {
+  // Telas de dentro do grupo no desenho novo (erro, carregando, escolher
+  // quem assume a moderação).
+  gScreen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
+  gBody: { flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 20px calc(var(--nav-height) + 22px)', display: 'flex', flexDirection: 'column', gap: 10 },
+  gCenter: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 },
+  gCenterText: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--bento-t2)', textAlign: 'center', margin: 0 },
+  gRetry: { height: 46, padding: '0 22px', border: 'none', borderRadius: 15, background: 'var(--bento-ink)', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 800, color: '#fff', cursor: 'pointer' },
+  gIntro: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--bento-quote-ink)', margin: '0 2px 4px' },
+  gListCard: { borderRadius: 24, background: 'var(--bento-card)', padding: '4px 18px' },
+  gRow: { width: '100%', minHeight: 60, border: 'none', borderBottom: '1px solid var(--bento-line)', background: 'none', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: 'pointer' },
+  gAvatar: { width: 38, height: 38, flexShrink: 0, borderRadius: 99, background: 'var(--bento-sand)', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, color: 'var(--bento-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  gRowName: { flex: 1, minWidth: 0, fontFamily: 'var(--font-bento)', fontSize: 14, fontWeight: 800, color: 'var(--bento-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  gTextBtn: { height: 48, flexShrink: 0, border: 'none', background: 'none', fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 700, color: 'var(--bento-now-text)', cursor: 'pointer' },
+
   pinnedNoticeCard: { display: 'flex', alignItems: 'flex-start', gap: 8, background: 'var(--bento-sand)', borderRadius: 16, padding: '12px 14px' },
   pinnedNoticeText: { flex: 1, fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--bento-sand-ink)', margin: 0 },
   // ── Redesign Bento da lista (sem quadro no handoff — só o quadro 5d,
