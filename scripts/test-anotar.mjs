@@ -199,8 +199,9 @@ const gancho = ler('anotar/useAnotacao.js')
 check('fechar o app não finaliza: só "Finalizar" marca a anotação como finalizada', (gancho.match(/finalize: true/g) ?? []).length, 1)
 check('a cópia no aparelho é feita a cada mudança, antes de a gravação na conta sair', /api\.keepLocal\(ownerRef\.current, payloadOf\(draft\)\)/.test(gancho), true)
 const jornada = ler('screens/JourneyScreen.jsx')
-check('a tela da Bíblia não finaliza mais o rascunho ao esconder o app', /visibilitychange/.test(jornada.slice(jornada.indexOf('closeOtherOpenSermonDrafts'), jornada.indexOf('function leaveSermonPage'))), false)
-check('a tela da Bíblia só lê o rascunho (para o lápis): não o regrava sozinha — regravar apagaria etiquetas e "Quem vê"', /sermonAutosaveTimer/.test(jornada), false)
+const lapis = ler('components/biblia/LapisFlutuante.jsx')
+check('a tela da Bíblia não grava nem finaliza anotação: só mostra o lápis', [/saveSermonNote|deleteSermonNote|finalizedAt|visibilitychange/.test(jornada), /<LapisFlutuante/.test(jornada)], [false, true])
+check('o lápis só lê o rascunho em andamento (regravar dali apagaria etiquetas e "Quem vê")', [/saveSermonNote|deleteSermonNote|updateRow/.test(lapis), /currentDraft\(/.test(lapis)], [false, true])
 
 // ── A folha de passagens e o ditado ───────────────────────────────────
 check('folha de passagens: por extenso, com o texto do bloco que cita', passageRows(openNote(atual)).map(r => [r.label, r.text.slice(0, 12), r.verse]), openNote(atual).passages.map(p => [passageLabel(p), (openNote(atual).body.find(b => b.type === 'quote' && b.verseStart === p.verseStart && b.book === p.book)?.text ?? '').slice(0, 12), p.verseStart ?? null]))

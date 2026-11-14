@@ -16,7 +16,7 @@ import { BIBLE_BLOCKS } from '../data/bibleBlocks'
 
 const FONT = 'var(--font-bento)'
 
-// Mesmo padrão de bookLabel() já usado em StudiesScreen.jsx/NotesScreen.jsx
+// Mesmo padrão de bookLabel() já usado em StudiesScreen.jsx
 // — nome do livro em pt vem sempre assim do banco (get_group_messages),
 // traduz pro nome em inglês só na hora de mostrar.
 const BOOK_NAME_EN = Object.fromEntries(BIBLE_BLOCKS.flatMap(b => b.books.map((name, i) => [name, b.booksEn[i]])))

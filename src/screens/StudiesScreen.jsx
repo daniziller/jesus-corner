@@ -29,8 +29,8 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
 
   const allStudies = [...STUDIES, ...aiStudies]
 
-  // Abrir automaticamente vindo de um card de Estudo na Biblioteca (ver
-  // NotesScreen.jsx/App.jsx) — espera o estudo aparecer em allStudies (na
+  // Abrir automaticamente um estudo específico (o passo Estudo de Meu
+  // Plano, ver App.jsx) — espera o estudo aparecer em allStudies (na
   // 1ª visita, aiStudies ainda pode estar carregando). Consome (limpa no
   // App.jsx) assim que abre, senão voltar depois pra esta aba pela barra
   // reabriria o mesmo estudo de novo.

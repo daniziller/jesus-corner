@@ -249,7 +249,7 @@ export default function HomeScreen({
   }
 
   // "Ir para o texto" (bloco 3) — toca no versículo, abre o capítulo na
-  // aba Bíblia (mesma função já usada por NotesScreen/StudiesScreen/
+  // aba Bíblia (mesma função já usada pela Biblioteca, por StudiesScreen e
   // InductiveMethodScreen pra deep-link num livro:capítulo específico —
   // ver openBiblePassage em App.jsx). Sem-efeito silencioso se o capítulo
   // não existir em nenhum bloco (não deveria acontecer, mas mesma postura

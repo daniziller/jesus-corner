@@ -10,7 +10,7 @@ import { messagesBadgeText, communityTabLabel } from '../groups/messagesBadge'
 // autora) pra abrir espaço pra Biblioteca: o resumo da semana e o bloco
 // atual já aparecem na Home, e o detalhe completo continua a 1 toque dali
 // (ver HomeScreen.jsx). Biblioteca (antes só "Notas") reúne notas,
-// marcações, sermões e estudos — ver NotesScreen.jsx.
+// marcações, sermões e estudos — ver BibliotecaScreen.jsx.
 // O que mais saiu da barra e onde vive agora:
 //  - Estudos → dentro da própria Biblioteca (não tem slot próprio) + card
 //    em "Meu Plano" (MeuPlanoScreen) + item em Perfil.

@@ -22,10 +22,9 @@ export function saveHighlight(_email, highlight) {
   })
 }
 
-// tags/sharedGroupIds opcionais (39f, pacote 39) — omitidos, preservam o
-// que já existia (mesmo padrão de `color`); os dois chamadores antigos
-// (NotesScreen.jsx, edição só do texto) continuam funcionando sem mudar
-// nada.
+// tags/sharedGroupIds opcionais (a nota de versículo, N4) — omitidos,
+// preservam o que já existia (mesmo padrão de `color`): trocar só a cor
+// de uma marcação não mexe nas etiquetas nem nos grupos.
 export function updateHighlightText(_email, id, text, color, tags, sharedGroupIds) {
   return withRowLock(async () => {
     const current = await getHighlights(_email)

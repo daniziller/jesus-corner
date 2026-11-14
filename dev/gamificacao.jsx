@@ -20,6 +20,7 @@
 //      &leitura=plano (a leitura pela sessão do plano, sem mudança nesta fase)
 //      &busca= (B5, a busca ao abrir) &busca=jo 3 16 (B7) &busca=pastor (B6) &recentes=nao
 //      &testamento=at|nt (a escolha lembrada) · &livre=4|sem|nao (leitura livre em Salmos 23: com versículo, sem, nenhuma)
+//      · &lapis=rascunho|finalizada|vazio (o lápis flutuante, 34e: só aparece com uma anotação em andamento)
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Passos do plano (handoff-passos-pedidos-53-54): tela=oracao — a oração ACTS (S1/S2), com os pedidos na memória.
 //      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
@@ -245,7 +246,15 @@ function seedGuestTables(estado) {
     p4: {}, um: {}, quatro: {}, p5: { prayer: true, prayerAt: atH(6, 40) },
   }[planoState] ?? {}
   routine[dateKey(new Date())] = { ...(routine[dateKey(new Date())] ?? {}), ...todayEntry }
-  localStorage.setItem('jc_guest_data', JSON.stringify({ completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null, reading_clock_prefs: { showOnReading: params.get('relogio') !== 'nao', warnAtZero: true, askToContinue: params.get('perguntar') === 'sim' } }))
+  // `&lapis=rascunho|finalizada|vazio` (tela=biblia): as anotações longas
+  // da conta de exemplo — com um rascunho em andamento, o lápis flutuante
+  // (34e) aparece na Bíblia.
+  const lapis = params.get('lapis')
+  const anotacaoDoLapis = { id: 'sermon-r', createdAt: '2026-11-08T13:00:00.000Z', updatedAt: '2026-11-08T13:30:00.000Z', title: 'A espera que forma', passages: [{ book: 'Gênesis', chapter: 43, verseStart: 3, verseEnd: 3 }, { book: 'Tiago', chapter: 1, verseStart: 3, verseEnd: 4 }], body: [{ id: 'a', type: 'text', text: 'Judá voltou.' }], text: 'Judá voltou.', finalizedAt: null, tags: ['espera'], sharedGroupIds: ['g1'] }
+  const sermon_notes = lapis === 'rascunho' ? [{ ...anotacaoDoLapis, id: 'sermon-f', finalizedAt: '2026-11-09T10:00:00.000Z' }, anotacaoDoLapis]
+    : lapis === 'finalizada' ? [{ ...anotacaoDoLapis, finalizedAt: '2026-11-09T10:00:00.000Z' }]
+      : lapis === 'vazio' ? [{ ...anotacaoDoLapis, title: '', passages: [], body: [{ id: 'a', type: 'text', text: '  ' }], text: '' }] : []
+  localStorage.setItem('jc_guest_data', JSON.stringify({ sermon_notes, completed_keys: [...completedSet], daily_routine: nova ? {} : routine, weekly_goal_history: nova ? [] : history, highlights, notes, step_days: stepDays, ai_studies: comEstudo ? [estudo] : [], active_study: comEstudo ? { studyId: estudo.id } : null, reading_clock_prefs: { showOnReading: params.get('relogio') !== 'nao', warnAtZero: true, askToContinue: params.get('perguntar') === 'sim' } }))
   return nova ? {} : routine
 }
 const dailyRoutine = seedGuestTables(estado)
@@ -393,6 +402,7 @@ function BibliaPreview({ onPastRootChange }) {
       onNavigate={t => alert(`navegar: ${t}`)} onContinueSession={() => alert('ler a sessão de hoje (conta no plano)')}
       onOpenSuaBiblia={() => alert('abrir Sua Bíblia')} onPastRootChange={onPastRootChange} onCelebrateNow={celebrarAgora}
       onOpenGroupRoom={alvo => alert(`abrir a sala do grupo: ${alvo.book} ${alvo.chapter}`)}
+      onOpenSermonNote={() => alert('abrir a página de anotação no rascunho em andamento')}
     />
   )
 }

@@ -2,13 +2,13 @@
 // (user_data.notes), sem I/O: notesStore.js reexporta tudo daqui; a
 // Biblioteca e os testes leem direto.
 
-// Desmonta uma chave de volta no que ela representa — usado só por
-// NotesScreen.jsx (histórico de todas as anotações) pra saber como rotular
-// e agrupar cada uma, sem duplicar o conhecimento do formato da chave.
+// Desmonta uma chave de volta no que ela representa — usado pela
+// Biblioteca (bibliotecaMath.js) pra saber de que tipo é cada anotação,
+// sem duplicar o conhecimento do formato da chave.
 // application:pinned nunca deve aparecer no histórico — não é uma entrada
 // por dia, é só o valor "fixado" no card da Home (ver
 // reflection/applicationPhraseStore.js); por isso o type 'unknown', o
-// mesmo que NotesScreen.jsx já filtra pra fora da lista.
+// mesmo que a Biblioteca já deixa de fora da lista.
 export function parseNoteKey(key) {
   if (key === 'application:pinned') return { type: 'unknown' }
   const dailyApplication = key.match(/^application:(\d{4}-\d{2}-\d{2})$/)
@@ -27,7 +27,7 @@ export function parseNoteKey(key) {
 
 // Entradas guardadas antes desta versão eram string pura (só o texto); a
 // partir de agora viram { text, updatedAt } pra dar pra ordenar o histórico
-// por data (ver NotesScreen.jsx). Essas duas funções aceitam os dois
+// por data (ver bibliotecaMath.js). Essas duas funções aceitam os dois
 // formatos na leitura, então notas antigas continuam funcionando.
 export function noteTextOf(entry) {
   if (entry == null) return ''

@@ -102,7 +102,7 @@ check('ao pausar, os grupos não são gravados nem publicados (só texto e etiqu
 check('a cópia no aparelho é feita a cada mudança', /api\.keepLocalNote\(ownerRef\.current, localRecord\(note\)\)/.test(gancho), true)
 check('a recuperação roda uma de cada vez (duas juntas criariam a mesma nota duas vezes)', /recovering\.then\(run, run\)/.test(ler('anotar/recuperarRascunho.js')), true)
 const leitura = ler('screens/ReadingBlockView.jsx')
-check('as ações do versículo (39e) abrem a tela nova', /<NotaDeVersiculoScreen/.test(leitura) && !/<VerseAnnotateScreen/.test(leitura), true)
+check('as ações do versículo (39e) abrem a tela da nota, e a leitura não publica nada em grupo', [/<NotaDeVersiculoScreen/.test(leitura), /postToRoom/.test(leitura)], [true, false])
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

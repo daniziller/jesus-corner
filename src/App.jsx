@@ -467,7 +467,7 @@ export default function App() {
   // grátis, antes desta leva) — agora que ocupa slot fixo na barra
   // (redesign 1e/etapa 6, no lugar de Progresso), precisa estar aqui pro
   // clique ser encaminhado pra 'upgrade' em vez de abrir uma tela em
-  // branco (NotesScreen só monta pra hasPremium, ver mais abaixo).
+  // branco (a Biblioteca só monta pra hasPremium, ver mais abaixo).
   const lockedTabs = hasPremium ? [] : ['routine', 'groups', 'notes']
   const [appLanguage, setAppLanguageState] = useState(getAppLanguage)
   const [completedSet, setCompletedSet] = useState(() => new Set())
@@ -597,7 +597,7 @@ export default function App() {
   // Remonta Oração/Reflexão a cada passo concluído (ver o key no JSX).
   const [prayerRunKey, setPrayerRunKey] = useState(0)
   const [reflectionRunKey, setReflectionRunKey] = useState(0)
-  // Biblioteca recarrega a cada visita à aba (ver NotesScreen/refreshKey).
+  // Biblioteca recarrega a cada visita à aba (ver BibliotecaScreen/refreshKey).
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
   useEffect(() => { if (activeTab === 'notes') setNotesRefreshKey(k => k + 1) }, [activeTab])
   // Um rascunho de anotação (ou uma nota de versículo) que ficou só no aparelho — o app foi fechado
@@ -629,11 +629,9 @@ export default function App() {
   const reflectionTimerControlsRef = useRef({})
   const [prayerTimerRunning, setPrayerTimerRunning] = useState(false)
   const [reflectionTimerRunning, setReflectionTimerRunning] = useState(false)
-  // Notas também fica sempre montada (mesma técnica) — o formulário de
-  // anotação de sermão tem campos demais pra perder se a pessoa sair pra
-  // conferir um versículo (ver link "ir pro texto" dentro do próprio
-  // formulário, em NotesScreen.jsx) e usar "Voltar" pra retornar; sem isso,
-  // trocar de aba e voltar remontaria a tela do zero e apagaria o rascunho.
+  // A Biblioteca também fica sempre montada (mesma técnica): abrir um
+  // item (a Bíblia, uma anotação) e usar "Voltar" devolve a tela como
+  // estava — o tipo aberto, a busca, os filtros, a rolagem.
   const notesVisitedRef = useRef(false)
   // Estudos também — mesmo motivo: o formulário do estudo indutivo
   // (Observação/Interpretação/Verdade Atemporal/Aplicação, ver
@@ -719,9 +717,9 @@ export default function App() {
   // inteiro (ex: abrindo pela lista completa em PlanScreen.jsx). Só vale
   // enquanto themeAutoOpenId aponta pro MESMO plano (ver ThemePlanScreen.jsx).
   const [themeAutoOpenKeys, setThemeAutoOpenKeys] = useState(null)
-  // Estudo pra abrir automaticamente ao entrar na aba Estudos vindo de um
-  // card de Estudo na Biblioteca (ver NotesScreen.jsx/onOpenStudy) — mesmo
-  // padrão de themeAutoOpenId acima. Consumido (limpo) pelo próprio
+  // Estudo pra abrir automaticamente ao entrar na aba Estudos (o passo
+  // Estudo de Meu Plano, ver openActiveStudy) — mesmo padrão de
+  // themeAutoOpenId acima. Consumido (limpo) pelo próprio
   // StudiesScreen assim que abre o estudo, senão voltar depois pra Estudos
   // pela barra reabriria o mesmo estudo sem a pessoa ter pedido.
   const [libraryOpenStudyId, setLibraryOpenStudyId] = useState(null)
@@ -1673,15 +1671,14 @@ export default function App() {
     goToTab('journey')
   }
 
-  // Link "ir pro texto" de uma passagem bíblica citada numa anotação de
-  // sermão (ver NotesScreen.jsx) — abre a aba Bíblia em modo livre (browse),
+  // Uma passagem citada numa anotação, um trecho marcado ou uma referência
+  // da Biblioteca — abre a aba Bíblia em modo livre (browse),
   // já no capítulo certo, sem depender do plano de leitura ativo. Livro+
   // capítulo (não uma sessão do plano) é a única coisa que a anotação de
   // sermão guarda, então usa browseSessionsByBlock (1 sessão = 1 capítulo)
   // em vez de sessionsByBlock. Passa por goToTab (não setActiveTab direto)
   // pra "Voltar" (ver goBack) devolver a pessoa pra onde ela estava — a
-  // anotação de sermão que ainda estava escrevendo, por exemplo (ver
-  // NotesScreen.jsx, que agora fica sempre montada).
+  // Biblioteca ou a anotação que estava aberta, por exemplo.
   // `verse` (a Biblioteca: um trecho marcado, uma passagem citada): a
   // leitura abre com aquele versículo em foco; `extra.noteId`, com a nota
   // daquela marcação aberta — o mesmo caminho dos resultados da busca da
@@ -1754,15 +1751,6 @@ export default function App() {
     goToTab('themePlan')
   }
 
-  // "Meus estudos" (4c, Biblioteca/NotesScreen.jsx) — só abre o plano pra
-  // ver/retomar dentro de ThemePlanScreen, sem trocar a leitura de hoje
-  // (isso é openThemePlanToday acima, de "Continuar sessão"/plano recém-gerado).
-  function openThemePlanDetail(planId) {
-    setThemeAutoOpenId(planId)
-    setThemeAutoOpenKeys(null)
-    navigateTo('themePlan')
-  }
-
   // "Adicionar sessões à rotina do dia" logo depois de gerar um plano por
   // tema novo (ver ThemePlanScreen.jsx) — diferente de openThemePlanToday
   // acima, não pula direto pra leitura: torna o plano ativo, grava a
@@ -1809,16 +1797,6 @@ export default function App() {
   async function refazerGeneratedStudy(currentPlan) {
     const fresh = await generateThemePlan(currentPlan.scope, 'standard', session.lang)
     setGeneratedStudyPlan({ ...fresh, format: currentPlan.format })
-  }
-
-  // "Usar" um pronto (26e) ou um do banco da comunidade (26g) — pula 22a
-  // de vez (não há "pedido" pra revisar, o conteúdo já existe) direto pra
-  // 26f/22b com o conteúdo do banco já carregado. Sem `scope`: os botões
-  // de regenerar/trocar dia não aparecem (mesma regra do formato Livro).
-  function useStudyFromBank(study) {
-    recordStudyUse(study.id).catch(err => console.error('Failed to record study use', err))
-    setGeneratedStudyPlan({ id: study.id, title: study.title, overview: study.overview, format: study.format, passages: study.passages })
-    goToTab('studyProposal')
   }
 
   // Publica no banco de estudos (migration 0053) quando 26f escolheu
@@ -2689,8 +2667,7 @@ export default function App() {
   }
 
   // "Ler agora" em Meu Plano (35b) quando o passo de hoje é o Estudo ativo —
-  // mesmo mecanismo que a Biblioteca já usa pra abrir um estudo específico
-  // (ver libraryOpenStudyId/NotesScreen.jsx).
+  // abre aquele estudo específico (ver libraryOpenStudyId).
   // Botão "Começar/Continuar" do passo Estudo (hoje o cartão preto de
   // MeuPlanoScreen.jsx) — antes, sem nenhum estudo ativo escolhido ainda (o
   // toggle de Estudo pode estar ligado sem study nenhum selecionado, ver
