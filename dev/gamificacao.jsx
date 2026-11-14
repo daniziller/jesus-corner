@@ -16,6 +16,8 @@
 //      Ordem do plano (35i): tela=ordem — "Leitura da Bíblia" com a fila do plano de verdade. &ordem=canonical|chronological|custom|free
 //      · &livros=João,Salmos,Rute (minha ordem) · &partida=Salmos:23 · &livre=João:3 · &abrir=leitura (a leitura do plano)
 //      Reiniciar a leitura do zero: tela=suaBiblia — o botão no fim da tela; a senha de mentira é "certa123". &senha=nao · &rede=fora · &gravar=falha
+//      Comunidade (redesenho 2026-11): tela=comunidade — a raiz. &grupos=0|1|3|6 · &amigos=0|2|5 · &novas=0|1|4 · &trecho=nao · &espera=0|3
+//      · &carregando=sim · &foto=sim · &envio=falha · &responder=falha. Código que entra: BC-4271 (JA = já pediu; outro = inválido)
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
@@ -105,6 +107,8 @@ import AddStudyScreen from '../src/screens/AddStudyScreen'
 import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSummary, studyItems, typeMeta } from '../src/biblioteca/bibliotecaMath'
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
 import ReadingOrganizeScreen from '../src/screens/ReadingOrganizeScreen'
+import ComunidadeRaiz from '../src/components/comunidade/ComunidadeRaiz'
+import { squareAvatarBlob } from '../src/profile/avatarImage'
 import { restartReading } from '../src/reading/reiniciarStore'
 import { planQueue, splitPointsFor, findPlanSession, sessionAt, resolveNextChapter } from '../src/reading/bibleOrderMath'
 import { deriveChronoProgress } from '../src/data/chronologicalPlan'
@@ -860,6 +864,51 @@ function SuaBibliaPreview({ onBack }) {
   )
 }
 
+// A raiz da Comunidade com dados de exemplo na memória: responder a um
+// convite tira a linha, entrar com código e enviar foto respondem como o
+// app (a foto é recortada de verdade; o envio é de mentira).
+const pessoas = ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida']
+const gruposDeExemplo = [
+  { groupId: 'g1', name: 'Grupo Semente', myRole: 'member', readingMode: 'shared' },
+  { groupId: 'g2', name: 'Família Almeida', myRole: 'moderator', readingMode: 'individual' },
+  { groupId: 'g3', name: 'Manhã com a Palavra', myRole: 'member', readingMode: 'individual' },
+  { groupId: 'g4', name: 'Jovens da Central', myRole: 'member', readingMode: 'shared' },
+  { groupId: 'g5', name: 'Casais', myRole: 'member', readingMode: 'individual' },
+  { groupId: 'g6', name: 'Discipulado', myRole: 'moderator', readingMode: 'shared' },
+]
+function ComunidadePreview() {
+  const n = (k, padrao) => Number(params.get(k) ?? padrao)
+  const groups = gruposDeExemplo.slice(0, n('grupos', 3))
+  const novas = n('novas', 4)
+  const [avatarUrl, setAvatarUrl] = useState(params.get('foto') === 'sim' ? 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#7A4A1E"/><circle cx="32" cy="26" r="12" fill="#E6DACB"/><rect x="12" y="42" width="40" height="30" rx="14" fill="#E6DACB"/></svg>') : null)
+  const [espera, setEspera] = useState(n('espera', 2) === 0 ? { planos: [], convites: [], pedidos: [] } : {
+    planos: n('espera', 2) >= 3 ? [{ planId: 'p1', book: 'Marcos', bookEn: 'Mark', groupName: 'Grupo Semente' }] : [],
+    convites: [{ groupId: 'g9', groupName: 'Batista Central', invitedByName: 'Rafael' }],
+    pedidos: [{ friendshipId: 'f9', name: 'Lucas Mendes', avatarUrl: null }],
+  })
+  return (
+    <ComunidadeRaiz
+      session={{ ...session, weeksInGoal: 18, weeklyGoalDays: 4, biblePercent: 4.2, dailyRoutine: { '2026-03-14': {}, '2026-11-10': {} } }}
+      authUser={{ ...authUser, name: 'Diego' }} avatarUrl={avatarUrl} onAvatarChange={setAvatarUrl}
+      photoApi={{ prepare: squareAvatarBlob, upload: async blob => { await new Promise(r => setTimeout(r, 400)); if (params.get('envio') === 'falha') throw new Error('sem rede'); window.__fotoEnviada = { tipo: blob.type, bytes: blob.size }; return URL.createObjectURL(blob) } }}
+      loaded={params.get('carregando') !== 'sim'} groups={groups} memberCounts={{ g1: 12, g2: 6, g3: 8, g4: 1, g5: 14, g6: 3 }}
+      messagesSummary={novas === 0 ? [] : novas === 1 ? [{ groupId: 'g1', unreadCount: 1 }] : [{ groupId: 'g1', unreadCount: 3 }, { groupId: 'g2', unreadCount: 1 }]}
+      messages={params.get('trecho') === 'nao' ? [] : [{ isRead: false, locked: false, body: 'Nunca tinha reparado que Nicodemos vem de noite e sai sem resposta pronta.', authorName: 'Marina', groupName: 'Grupo Semente', kind: 'sala_capitulo', contextBook: 'João', contextChapter: 3 }]}
+      planInvites={espera.planos} groupInvites={espera.convites} friendRequests={espera.pedidos}
+      friends={pessoas.slice(0, n('amigos', 5)).map((name, i) => ({ friendshipId: `f${i}`, name, avatarUrl: null }))}
+      onOpenMessages={() => alert('abrir Mensagens')} onOpenProfile={() => alert('abrir Meu perfil')} onOpenGroup={id => alert(`abrir o grupo ${id}`)}
+      onOpenFriends={() => alert('abrir Amigos')} onCreateGroup={() => alert('abrir Criar um grupo')}
+      onJoinWithCode={async code => { await new Promise(r => setTimeout(r, 300)); if (code.trim().toUpperCase() === 'BC-4271') return 'Batista Central'; throw new Error(code.trim().toUpperCase() === 'JA' ? 'already_in_group' : code.trim() === 'rede' ? 'Failed to fetch' : 'invalid_code') }}
+      onAnswer={async (item, accept) => {
+        await new Promise(r => setTimeout(r, 250))
+        if (params.get('responder') === 'falha') throw new Error('sem rede')
+        window.__respostas = [...(window.__respostas ?? []), `${item.kind}:${item.ref}:${accept ? 'sim' : 'nao'}`]
+        setEspera(e => ({ planos: e.planos.filter(p => p.planId !== item.ref), convites: e.convites.filter(c => c.groupId !== item.ref), pedidos: e.pedidos.filter(p => p.friendshipId !== item.ref) }))
+      }}
+    />
+  )
+}
+
 // "Leitura da Bíblia" (35i) com a fila do plano de verdade: a ordem, os
 // livros de "minha ordem" e o ponto de partida ficam na memória, e a faixa
 // de cima mostra a sessão de hoje que sai deles — as mesmas contas de
@@ -959,6 +1008,7 @@ function Preview() {
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
   if (screen === 'ordem') return <OrdemPreview />
+  if (screen === 'comunidade') return <div style={{ height: '100%', overflowY: 'auto' }}><ComunidadePreview /><BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
   if (screen === 'estudos') {
     // A tela Estudos (35h) com o cabeçalho da Biblioteca; `&lupa=nao`: como
     // abre pelo Meu Plano. (Sem servidor aqui, as listas de fora ficam

@@ -4,7 +4,7 @@ import AppIcon from '../icons/AppIcon'
 import { parseLocalDateKey } from '../utils/dateKey'
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../data/bibleBlocks'
 import { computeBookChapterCounts } from '../utils/progress'
-import { getFriends, getPendingRequests } from '../friends/friendsStore'
+import { getFriends, getPendingRequests, respondToFriendRequest } from '../friends/friendsStore'
 import {
   getMyGroups, getPendingGroupInvites, getGroupDetail, createGroup,
   inviteFriendToGroup, respondToGroupInvite, leaveGroup, setMemberRole,
@@ -24,7 +24,8 @@ import {
 import { orarPor } from '../pedidos/orei'
 import FolhaFazerPedido from '../components/pedidos/FolhaFazerPedido'
 import { getRoomStats } from '../groups/chapterRoomStore'
-import { getGroupMessagesSummary } from '../groups/messagesStore'
+import { getGroupMessagesSummary, getGroupMessages } from '../groups/messagesStore'
+import ComunidadeRaiz from '../components/comunidade/ComunidadeRaiz'
 import { formatRelativeTime } from '../utils/time'
 
 // Todos os 66 livros (pt/en), na mesma ordem/nomes usados em completed_keys
@@ -45,7 +46,7 @@ function formatDate(iso, lang) {
   return new Date(iso).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR')
 }
 
-export default function GroupsScreen({ session, authUser, pendingGroupPlanInvites, onRespondGroupPlanInvite, onSocialChange, onOpenGroupRoom, onOpenMessages, onOpenProfile, entryTarget, onEntryTargetConsumed, onDetailOpenChange }) {
+export default function GroupsScreen({ session, authUser, avatarUrl, onAvatarChange, pendingGroupPlanInvites, onRespondGroupPlanInvite, onSocialChange, onOpenGroupRoom, onOpenMessages, onOpenProfile, entryTarget, onEntryTargetConsumed, onDetailOpenChange }) {
   const { lang, todaySession } = session
   const [myGroups, setMyGroups] = useState([])
   const [memberCounts, setMemberCounts] = useState({})
@@ -54,24 +55,18 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
   const [friendsOpen, setFriendsOpen] = useState(false)
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
-  // Lista inteira (não só a contagem) — o cartão "Amigos" (33a) mostra os
-  // 3 primeiros em quadrados próprios (avatar + nome), não um número solto.
+  // Amigos e pedidos de amizade recebidos — a raiz mostra os primeiros
+  // amigos numa fileira e deixa responder aos pedidos ali mesmo.
   const [friends, setFriends] = useState([])
-  const [pendingFriendsCount, setPendingFriendsCount] = useState(0)
-  // Resumo de mensagens por grupo (33a: selo por linha em "Seus grupos" +
-  // soma pro sino do cabeçalho junto com pendingFriendsCount; 33b lê a
-  // lista completa por conta própria, ver messagesStore.js) — substitui o
-  // "Sala aberta agora"/roomStatsByGroup de antes: o quadro novo tirou o
-  // card escuro do topo e trocou o selo "hoje só" por mensagens de
-  // verdade (sala de capítulo + pedidos de oração + discussão, ver
-  // migration 0057), então cobre TODO grupo com coisa nova, não só o que
-  // tem sala aberta hoje.
+  const [friendRequests, setFriendRequests] = useState([])
+  // Mensagens dos grupos: o resumo por grupo (selo de cada linha e o sino)
+  // e as mais recentes, pro trecho do cartão de novidades (ver
+  // messagesStore.js e newsCard em comunidadeMath.js).
   const [messagesSummary, setMessagesSummary] = useState([])
-  // Filtro de "Seus grupos" (33a, ícone de lupa no cabeçalho) — client-side
-  // sobre myGroups, que já está todo carregado; achar amigos novos
-  // continua sendo o buscador de AddFriendsScreen.jsx (24c), não este.
-  const [groupsSearchOpen, setGroupsSearchOpen] = useState(false)
-  const [groupsSearch, setGroupsSearch] = useState('')
+  const [messages, setMessages] = useState([])
+  // Enquanto os grupos não chegam, a raiz mostra o esqueleto — sem isso a
+  // tela de "primeira vez" piscava pra quem já tem grupo.
+  const [loaded, setLoaded] = useState(false)
 
   function reload() {
     setReloadKey(k => k + 1)
@@ -82,22 +77,16 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
     getMyGroups().then(groups => {
       setMyGroups(groups)
       if (groups.length) getGroupMemberCounts(groups.map(g => g.groupId)).then(setMemberCounts).catch(() => {})
-    }).catch(err => console.error('Failed to load groups', err))
+    }).catch(err => console.error('Failed to load groups', err)).finally(() => setLoaded(true))
     getPendingGroupInvites().then(setGroupInvites).catch(err => console.error('Failed to load group invites', err))
     getFriends().then(setFriends).catch(() => {})
-    getPendingRequests().then(p => setPendingFriendsCount(p.length)).catch(() => {})
+    getPendingRequests().then(setFriendRequests).catch(() => {})
     getGroupMessagesSummary().then(setMessagesSummary).catch(() => {})
+    getGroupMessages(20).then(setMessages).catch(() => {})
   }, [reloadKey])
 
-  const messagesSummaryByGroup = Object.fromEntries(messagesSummary.map(s => [s.groupId, s]))
-  const unreadMessagesTotal = messagesSummary.reduce((sum, s) => sum + s.unreadCount, 0)
-  const bellBadgeCount = unreadMessagesTotal + pendingFriendsCount
-
   // Avisa o shell (App.jsx) se uma tela interna está aberta (um grupo ou
-  // Adicionar amigos) — 5d/24c têm cabeçalho Bento próprio; a lista (24a)
-  // também tem o seu (aHeader/bTitle abaixo) — 'groups' está sempre no
-  // bentoScreen do App.jsx desde a correção do cabeçalho duplicado
-  // (2026-09-07), então o AppHeader antigo não aparece nunca mais aqui.
+  // Amigos) — cada uma tem o seu cabeçalho, como a raiz.
   const detailOpen = !!openGroupId || friendsOpen
   useEffect(() => {
     onDetailOpenChange?.(detailOpen)
@@ -126,116 +115,39 @@ export default function GroupsScreen({ session, authUser, pendingGroupPlanInvite
     setOpenGroupId(created.groupId)
   }
 
-  async function handleRespondInvite(groupId, accept, groupName) {
-    await respondToGroupInvite(groupId, accept)
-    if (accept) logActivity('joined_group', { groupName }).catch(err => console.error('Failed to log activity', err))
+  // "Esperando você": responder a um convite de plano do grupo, a um
+  // convite para entrar num grupo ou a um pedido de amizade. O convite de
+  // plano é diferente do de membro: a pessoa já é do grupo, só decide se
+  // troca a leitura de hoje pelo plano que o moderador enviou (ver
+  // App.jsx/respondToGroupPlanInvite — nunca troca sem essa decisão).
+  async function answerWaiting(item, accept) {
+    if (item.kind === 'plan') await onRespondGroupPlanInvite?.(item.ref, accept)
+    else if (item.kind === 'group') {
+      await respondToGroupInvite(item.ref, accept)
+      if (accept) logActivity('joined_group', { groupName: item.title }).catch(err => console.error('Failed to log activity', err))
+    } else await respondToFriendRequest(item.ref, accept)
     reload()
   }
 
-  // Convite de Plano do grupo (22d) — diferente do convite de MEMBRO acima
-  // (respondToGroupInvite): aqui a pessoa já é do grupo, só está decidindo
-  // se troca a leitura de hoje pelo plano que o moderador enviou (ver
-  // App.jsx/respondToGroupPlanInvite — nunca troca sem essa decisão
-  // explícita, ver README "Duas regras de produto").
-  async function handleRespondGroupPlan(planId, accept) {
-    await onRespondGroupPlanInvite?.(planId, accept)
+  // Entrar num grupo pelo código de convite — não entra na hora: cria um
+  // pedido que um moderador do grupo aprova depois. Devolve o nome do grupo.
+  async function joinWithCode(code) {
+    const { name } = await redeemGroupInviteCode(code)
+    reload()
+    return name
   }
-
-  const pendingCount = (pendingGroupPlanInvites?.length ?? 0) + groupInvites.length
 
   return (
     <div className="master-detail">
-      {/* Master = quadro 33a (substitui 24a, ver handoff-comunidade-33/):
-          cabeçalho sem subtítulo, cartão de perfil, seus grupos, amigos,
-          criar/entrar. "Sala aberta agora" saiu daqui de propósito — volta
-          como linha do grupo (selo de mensagens abaixo) e como notificação
-          em 33b (sino no cabeçalho, onOpenMessages). */}
-      <div className={`master-pane${detailOpen ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 83, height: '100%', background: 'var(--bento-bg)' }}>
-        <div style={styles.aHeader}>
-          <p style={styles.bTitle}>{t('groups.pageTitle', undefined, lang)}</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button" style={styles.aSearchBtn}
-              onClick={() => setGroupsSearchOpen(v => { if (v) setGroupsSearch(''); return !v })}
-              aria-label={t(groupsSearchOpen ? 'groups.searchClose' : 'groups.searchGroups', undefined, lang)}
-            >
-              <AppIcon name={groupsSearchOpen ? 'X' : 'Search'} size={15} strokeWidth={2.2} color="var(--bento-ink)" />
-            </button>
-            <button type="button" style={styles.aBellBtn} onClick={() => onOpenMessages?.()} aria-label={t('groups.messagesTitle', undefined, lang)}>
-              <AppIcon name="Bell" size={16} strokeWidth={1.9} color="var(--bento-ink)" />
-              {bellBadgeCount > 0 && <span style={styles.aBellBadge}>{bellBadgeCount > 99 ? '99+' : bellBadgeCount}</span>}
-            </button>
-            <button type="button" style={styles.aAddBtn} onClick={() => setCreateSheetOpen(true)} aria-label={t('groups.createGroup', undefined, lang)}>
-              <AppIcon name="Plus" size={16} strokeWidth={2.2} color="var(--bento-accent)" />
-            </button>
-          </div>
-        </div>
-        {/* Busca de "Seus grupos" (33a, ícone de lupa) — filtra a lista
-            abaixo pelo nome, client-side; achar gente/grupo NOVO continua
-            sendo Criar grupo/Entrar com código/Adicionar amigo. */}
-        {groupsSearchOpen && (
-          <div style={{ padding: '10px 20px 0' }}>
-            <input
-              type="text"
-              autoFocus
-              style={styles.aSearchInput}
-              placeholder={t('groups.searchGroupsPlaceholder', undefined, lang)}
-              value={groupsSearch}
-              onChange={e => setGroupsSearch(e.target.value)}
-            />
-          </div>
-        )}
-        <div style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <ProfileSummaryCard session={session} authUser={authUser} myGroupsCount={myGroups.length} friendsCount={friends.length} lang={lang} onOpenProfile={onOpenProfile} />
-
-          {myGroups.length === 0 && <CreateOrJoinTiles lang={lang} onCreateTap={() => setCreateSheetOpen(true)} onReload={reload} />}
-
-          {pendingCount > 0 && (
-            <div style={styles.bCard}>
-              <div style={styles.bCardHeadRow}>
-                <p style={{ ...styles.bCardLabel, color: 'var(--bento-accent)' }}>{t('groups.pendingInvitesTitle', undefined, lang)}</p>
-                <span style={styles.bCardCount}>{pendingCount}</span>
-              </div>
-              {pendingGroupPlanInvites?.map((inv, i) => (
-                <div key={inv.planId} style={{ ...styles.bInviteRow, borderBottom: (i === pendingGroupPlanInvites.length - 1 && groupInvites.length === 0) ? 'none' : '1px solid var(--bento-line)' }}>
-                  <span style={{ ...styles.bAvatarCircle, background: 'var(--bento-mark)', color: 'var(--bento-sand-icon)' }}>
-                    <AppIcon name="Users" size={14} color="var(--bento-sand-icon)" />
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={styles.bMemberName}>{lang === 'en' ? inv.bookEn : inv.book}</p>
-                    <p style={styles.bMemberSub}>{t('groups.groupPlanInvitedBy', { group: inv.groupName }, lang)}</p>
-                  </div>
-                  <button style={styles.bDeclineBtn} onClick={() => handleRespondGroupPlan(inv.planId, false)} aria-label={t('groupAdmin.declineAction', undefined, lang)}>
-                    <AppIcon name="X" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
-                  </button>
-                  <button style={styles.bAcceptBtn} onClick={() => handleRespondGroupPlan(inv.planId, true)} aria-label={t('groupAdmin.acceptAction', undefined, lang)}>
-                    <AppIcon name="Check" size={13} strokeWidth={2.8} color="var(--bento-accent)" />
-                  </button>
-                </div>
-              ))}
-              {groupInvites.map((inv, i) => (
-                <div key={inv.groupId} style={{ ...styles.bInviteRow, borderBottom: i === groupInvites.length - 1 ? 'none' : '1px solid var(--bento-line)' }}>
-                  <span style={styles.bAvatarCircle}>{avatarInitialsOf(inv.groupName)}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={styles.bMemberName}>{inv.groupName}</p>
-                    <p style={styles.bMemberSub}>{t('groups.invitedBy', { name: inv.invitedByName }, lang)}</p>
-                  </div>
-                  <button style={styles.bDeclineBtn} onClick={() => handleRespondInvite(inv.groupId, false)} aria-label={t('groupAdmin.declineAction', undefined, lang)}>
-                    <AppIcon name="X" size={13} strokeWidth={2.4} color="var(--bento-t3)" />
-                  </button>
-                  <button style={styles.bAcceptBtn} onClick={() => handleRespondInvite(inv.groupId, true, inv.groupName)} aria-label={t('groupAdmin.acceptAction', undefined, lang)}>
-                    <AppIcon name="Check" size={13} strokeWidth={2.8} color="var(--bento-accent)" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <GroupsListSection groups={myGroups} memberCounts={memberCounts} messagesSummaryByGroup={messagesSummaryByGroup} search={groupsSearch} lang={lang} onOpen={setOpenGroupId} />
-          <FriendsPreviewCard lang={lang} friends={friends} pendingCount={pendingFriendsCount} onOpen={() => setFriendsOpen(true)} />
-
-          {myGroups.length > 0 && <CreateOrJoinTiles lang={lang} onCreateTap={() => setCreateSheetOpen(true)} onReload={reload} />}
-        </div>
+      {/* Master: a tela inicial da Comunidade (ComunidadeRaiz.jsx). */}
+      <div className={`master-pane${detailOpen ? ' hide-on-mobile' : ''}`} style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', height: '100%', background: 'var(--bento-bg)' }}>
+        <ComunidadeRaiz
+          session={session} authUser={authUser} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange}
+          loaded={loaded} groups={myGroups} memberCounts={memberCounts} messagesSummary={messagesSummary} messages={messages}
+          planInvites={pendingGroupPlanInvites} groupInvites={groupInvites} friendRequests={friendRequests} friends={friends}
+          onOpenMessages={() => onOpenMessages?.()} onOpenProfile={() => onOpenProfile?.()} onOpenGroup={setOpenGroupId} onOpenFriends={() => setFriendsOpen(true)}
+          onCreateGroup={() => setCreateSheetOpen(true)} onJoinWithCode={joinWithCode} onAnswer={answerWaiting}
+        />
       </div>
 
       {/* Detail: grupo selecionado (5d) ou Adicionar amigos (24c) */}
@@ -273,246 +185,6 @@ function GroupsEmptyState({ lang }) {
       <AppIcon name="Users" size={30} color="var(--bento-t4)" />
       <p style={{ fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 700, color: 'var(--bento-t3)' }}>{t('groups.emptyStateTitle', undefined, lang)}</p>
       <p style={{ fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t4)', maxWidth: 260 }}>{t('groups.emptyStateSub', undefined, lang)}</p>
-    </div>
-  )
-}
-
-// Cartão escuro de perfil (33a, topo da tela) — três números que são "os
-// da comunidade, não os da leitura" (grupos/amigos/% lido), como o próprio
-// handoff explica na nota de rodapé do quadro. "Desde {mês}" reaproveita
-// EXATAMENTE o cálculo que já existia em ProgressScreen.jsx (5b) — dia
-// mais antigo registrado na rotina — pra não inventar uma segunda fonte
-// pra "quando a pessoa começou". A pílula de posição usa
-// session.lastReadPosition (onde a pessoa REALMENTE parou — ver
-// lastReadPositionStore.js), caindo pra currentBlock (próximo pendente)
-// só quando ainda não existe nenhuma leitura salva.
-function ProfileSummaryCard({ session, authUser, myGroupsCount, friendsCount, lang, onOpenProfile }) {
-  const { avatarInitials, dailyRoutine, weeklyGoalDays, weeksInGoal, lastReadPosition, currentBlock, biblePercent } = session
-  const fullName = (authUser?.name ?? '').trim() || session.userName
-  const locale = lang === 'en' ? 'en' : 'pt-BR'
-
-  const earliestKey = Object.keys(dailyRoutine ?? {}).sort()[0]
-  const sinceLabel = (() => {
-    if (!earliestKey) return null
-    const [y, m] = earliestKey.split('-').map(Number)
-    const monthName = new Date(y, m - 1, 1).toLocaleDateString(locale, { month: 'long' })
-    return t('groups.profileSince', { month: lang === 'en' ? monthName : monthName.toLowerCase(), n: weeklyGoalDays ?? 5 }, lang)
-  })()
-
-  const positionBook = lastReadPosition?.book ?? currentBlock?.book ?? null
-  const positionChapter = lastReadPosition?.chapter ?? currentBlock?.chapter ?? null
-  const positionLabel = positionBook && positionChapter ? `${positionBook} ${positionChapter}` : null
-
-  const biblePercentLabel = (biblePercent ?? 0).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
-
-  return (
-    <div style={styles.pCard}>
-      <div style={styles.pIdentityRow}>
-        <span style={styles.pAvatar}>{avatarInitials}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={styles.pName}>{fullName}</p>
-          {sinceLabel && <p style={styles.pSince}>{sinceLabel}</p>}
-          <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
-            {!!weeksInGoal && <span style={styles.pPillGoal}>{t('groups.profileWeeksInGoal', { n: weeksInGoal }, lang)}</span>}
-            {positionLabel && <span style={styles.pPillPosition}>{positionLabel}</span>}
-          </div>
-        </div>
-        <button type="button" style={styles.pEditBtn} onClick={() => onOpenProfile?.()} aria-label={t('groups.myProfileBtn', undefined, lang)}>
-          <AppIcon name="Pencil" size={14} color="#fff" />
-        </button>
-      </div>
-
-      <div style={styles.pStatsRow}>
-        <div style={styles.pStatItem}>
-          <p style={styles.pStatValue}>{myGroupsCount}</p>
-          <p style={styles.pStatLabel}>{t('groups.profileGroupsLabel', undefined, lang)}</p>
-        </div>
-        <div style={{ ...styles.pStatItem, ...styles.pStatItemDivided }}>
-          <p style={styles.pStatValue}>{friendsCount}</p>
-          <p style={styles.pStatLabel}>{t('groups.profileFriendsLabel', undefined, lang)}</p>
-        </div>
-        <div style={{ ...styles.pStatItem, ...styles.pStatItemDivided }}>
-          <p style={styles.pStatValue}>{biblePercentLabel}</p>
-          <p style={styles.pStatLabel}>{t('groups.profileBibleReadLabel', undefined, lang)}</p>
-        </div>
-      </div>
-
-      <div style={styles.pFooter}>
-        <p style={styles.pFooterNote}>{t('groups.profilePrivacyNote', undefined, lang)}</p>
-        <button type="button" style={styles.pFooterBtn} onClick={() => onOpenProfile?.()}>{t('groups.myProfileBtn', undefined, lang)}</button>
-      </div>
-    </div>
-  )
-}
-
-// "Criar grupo" / "Entrar com código" (33a) — bloco próprio, separado da
-// lista de grupos (antes vivia dentro de GroupsListSection); o handoff
-// pede ele LOGO ABAIXO DO PERFIL quando a pessoa não tem grupo nenhum
-// ainda, e no fim de tudo (depois de Amigos) no caso normal — por isso o
-// componente é usado duas vezes em posições diferentes no JSX do pai, uma
-// só ativa por vez (ver myGroups.length no return de GroupsScreen).
-function CreateOrJoinTiles({ lang, onCreateTap, onReload }) {
-  const [joining, setJoining] = useState(false)
-  const [code, setCode] = useState('')
-  const [joinLoading, setJoinLoading] = useState(false)
-  const [joinError, setJoinError] = useState('')
-  const [joinSuccess, setJoinSuccess] = useState('')
-
-  // Entrar num grupo pelo código de convite (quadro 19c) — não entra na
-  // hora: cria um pedido 'requested' que um moderador do grupo aprova
-  // depois (ver redeemGroupInviteCode/groupAdmin.joinRequestsLabel).
-  async function submitJoin(e) {
-    e.preventDefault()
-    if (!code.trim()) return
-    setJoinLoading(true)
-    setJoinError('')
-    try {
-      const { name: groupName } = await redeemGroupInviteCode(code)
-      setJoinSuccess(t('groups.joinRequestSent', { group: groupName }, lang))
-      setCode('')
-      setJoining(false)
-      onReload?.()
-    } catch (err) {
-      setJoinError(
-        err.message === 'invalid_code' ? t('groups.joinCodeInvalid', undefined, lang)
-        : err.message === 'already_in_group' ? t('groups.joinCodeAlready', undefined, lang)
-        : err.message
-      )
-    } finally {
-      setJoinLoading(false)
-    }
-  }
-
-  return (
-    <>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button type="button" style={styles.aCreateTile} onClick={onCreateTap}>
-          <AppIcon name="Plus" size={17} strokeWidth={2} color="var(--bento-sand-icon)" />
-          <p style={styles.aTileTitle}>{t('groups.createGroup', undefined, lang)}</p>
-          <p style={styles.aTileSub}>{t('groups.createGroupTileSub', undefined, lang)}</p>
-        </button>
-        <button type="button" style={styles.aJoinTile} onClick={() => { setJoining(v => !v); setJoinError(''); setJoinSuccess('') }}>
-          <AppIcon name="Ticket" size={17} strokeWidth={2} color="var(--bento-ink)" />
-          <p style={{ ...styles.aTileTitle, color: 'var(--bento-ink)' }}>{t('groups.joinWithCode', undefined, lang)}</p>
-          <p style={{ ...styles.aTileSub, color: 'var(--bento-t4)' }}>{t('groups.joinWithCodeTileSub', undefined, lang)}</p>
-        </button>
-      </div>
-
-      {joining && (
-        <div style={styles.bCard}>
-          <form onSubmit={submitJoin} style={{ display: 'flex', gap: 8 }}>
-            <input
-              style={styles.bFieldInput}
-              placeholder={t('groups.joinCodePlaceholder', undefined, lang)}
-              value={code}
-              onChange={e => setCode(e.target.value)}
-              autoFocus
-            />
-            <button type="submit" style={styles.bPrimarySmallBtn} disabled={joinLoading}>
-              {joinLoading ? t('groups.loading', undefined, lang) : t('groups.join', undefined, lang)}
-            </button>
-          </form>
-        </div>
-      )}
-      {joinError && <p style={styles.bErrorText}>{joinError}</p>}
-      {joinSuccess && <p style={styles.bEmptyHint}>{joinSuccess}</p>}
-    </>
-  )
-}
-
-// Lista "Seus grupos" (33a) — selo laranja de mensagens novas por linha
-// (messagesSummaryByGroup, ver migration 0057 — substitui o selo antigo
-// que só olhava a sala de hoje). Mais de GROUPS_SHOWN_MAX grupos: mostra
-// só os primeiros + "Ver todos" expande o resto na hora, sem tela nova —
-// o handoff pede o link mas não descreve uma tela de lista completa
-// própria, e todo grupo já carrega de uma vez (não tem por que buscar de
-// novo, só revelar).
-const GROUPS_SHOWN_MAX = 4
-function GroupsListSection({ groups, memberCounts, messagesSummaryByGroup, search, lang, onOpen }) {
-  const [showAll, setShowAll] = useState(false)
-  const clean = search.trim().toLowerCase()
-  const filtered = clean ? groups.filter(g => g.name.toLowerCase().includes(clean)) : groups
-  const shownGroups = (showAll || clean) ? filtered : filtered.slice(0, GROUPS_SHOWN_MAX)
-
-  return (
-    <div style={styles.bCard}>
-      <div style={styles.bCardHeadRow}>
-        <p style={styles.bCardLabel}>{t('groups.myGroupsTitle', undefined, lang)}</p>
-        {groups.length > GROUPS_SHOWN_MAX && (
-          <button type="button" style={styles.aSeeAllLink} onClick={() => setShowAll(v => !v)}>
-            {t(showAll ? 'groups.showLess' : 'groups.seeAllGroups', undefined, lang)}
-          </button>
-        )}
-      </div>
-      {groups.length === 0 ? (
-        <p style={styles.bEmptyHint}>{t('groups.noGroupsYet', undefined, lang)}</p>
-      ) : shownGroups.length === 0 ? (
-        <p style={styles.bEmptyHint}>{t('groups.searchNoResults', undefined, lang)}</p>
-      ) : (
-        shownGroups.map((g, i) => {
-          const unread = messagesSummaryByGroup[g.groupId]?.unreadCount ?? 0
-          return (
-            <button
-              key={g.groupId}
-              style={{ ...styles.bLinkRow, borderBottom: i === shownGroups.length - 1 ? 'none' : '1px solid var(--bento-line)' }}
-              onClick={() => onOpen(g.groupId)}
-            >
-              <span style={{ ...styles.bAvatarCircle, borderRadius: 12, ...(unread > 0 ? styles.bAvatarCircleActive : {}) }}>{avatarInitialsOf(g.name)}</span>
-              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                <p style={styles.bMemberName}>{g.name}</p>
-                <p style={styles.bMemberSub}>
-                  {t(memberCounts[g.groupId] === 1 ? 'groups.memberCountOne' : 'groups.memberCountMany', { n: memberCounts[g.groupId] ?? 0 }, lang)}
-                  {g.myRole === 'moderator' ? ` · ${t('groups.youAreModerator', undefined, lang)}` : ''}
-                </p>
-              </div>
-              {unread > 0 ? <span style={styles.bUnreadBadge}>{unread}</span> : <span style={styles.bChevron}>›</span>}
-            </button>
-          )
-        })
-      )}
-    </div>
-  )
-}
-
-// Cartão "Amigos" (24a) — cada amigo em seu próprio quadrado (avatar +
-// nome), mesmo padrão visual da grade cheia de AddFriendsScreen.jsx (24c,
-// friendGridItem/friendGridAvatar/friendGridName), só que com no máximo 3
-// pra caber numa fileira, mais um quadrado "+N · Ver" pro resto — igual
-// ao quadro (Adicionar, Marina, Thiago, Ana, +9 Ver). Substitui a antiga
-// FriendsSection embutida, que agora mora inteira em AddFriendsScreen.jsx
-// (24c), aberta ao tocar em qualquer quadrado aqui.
-const FRIENDS_PREVIEW_MAX = 3
-function FriendsPreviewCard({ lang, friends, pendingCount, onOpen }) {
-  const shown = friends.slice(0, FRIENDS_PREVIEW_MAX)
-  const restCount = friends.length - shown.length
-  return (
-    <div style={styles.bCard}>
-      <div style={styles.bCardHeadRow}>
-        <p style={styles.bCardLabel}>{t('groups.myFriendsTitle', undefined, lang)}</p>
-        {pendingCount > 0 && <span style={{ ...styles.bCardCount, background: 'none', color: 'var(--bento-accent)' }}>{t('groups.pendingRequestsCount', { n: pendingCount }, lang)}</span>}
-      </div>
-      <div style={styles.friendsPreviewGrid}>
-        <button type="button" style={styles.friendsPreviewItem} onClick={onOpen}>
-          <span style={{ ...styles.friendsPreviewAvatar, ...styles.friendsPreviewAddAvatar }}>
-            <AppIcon name="Plus" size={15} strokeWidth={2.2} color="var(--bento-t3)" />
-          </span>
-          <span style={styles.friendsPreviewName}>{t('groups.addFriendShort', undefined, lang)}</span>
-        </button>
-        {shown.map(f => (
-          <button type="button" key={f.friendshipId} style={styles.friendsPreviewItem} onClick={onOpen}>
-            <span style={styles.friendsPreviewAvatar}>
-              {f.avatarUrl ? <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} /> : avatarInitialsOf(f.name)}
-            </span>
-            <span style={styles.friendsPreviewName}>{f.name}</span>
-          </button>
-        ))}
-        {restCount > 0 && (
-          <button type="button" style={styles.friendsPreviewItem} onClick={onOpen}>
-            <span style={{ ...styles.friendsPreviewAvatar, ...styles.friendsPreviewMoreAvatar }}>+{restCount}</span>
-            <span style={styles.friendsPreviewName}>{t('groups.seeAll', undefined, lang)}</span>
-          </button>
-        )}
-      </div>
     </div>
   )
 }

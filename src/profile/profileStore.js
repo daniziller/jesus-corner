@@ -83,6 +83,31 @@ export async function resolveAvatarUrl(value) {
   return data?.signedUrl ?? null
 }
 
+// Envia a foto de perfil (aba Comunidade, cartão de perfil). `blob` já é o
+// quadrado reduzido em JPEG (ver avatarImage.js). O arquivo vai pra pasta
+// da própria pessoa no bucket 'avatars' (a policy só deixa gravar ali) e
+// profiles.avatar_url passa a apontar pra ele; a foto anterior é apagada
+// em seguida, sem travar nada se isso falhar. Devolve a URL exibível.
+export async function uploadMyAvatar(blob) {
+  const userId = await getUserId()
+  if (!userId) throw new Error('Você precisa estar logado.')
+  const { data: before } = await supabase.from('profiles').select('avatar_url').eq('user_id', userId).maybeSingle()
+  const path = `${userId}/avatar-${Date.now()}.jpg`
+  const { error: uploadError } = await supabase.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg' })
+  if (uploadError) throw new Error(uploadError.message)
+  const { error } = await supabase.from('profiles').update({ avatar_url: path }).eq('user_id', userId)
+  if (error) {
+    await supabase.storage.from('avatars').remove([path])
+    throw new Error(error.message)
+  }
+  const previous = toStoragePath(before?.avatar_url)
+  if (previous && previous !== path) {
+    const { error: removeError } = await supabase.storage.from('avatars').remove([previous])
+    if (removeError) console.error('[profileStore] foto anterior não apagada:', removeError.message)
+  }
+  return resolveAvatarUrl(path)
+}
+
 // Perfil básico de um amigo (nome, bio, foto, se é público) — a RLS de
 // profiles já libera isso pra quem é amigo aceito ou colega de grupo (ver
 // 0002_friends_groups_challenges.sql); aqui só formata o retorno.
