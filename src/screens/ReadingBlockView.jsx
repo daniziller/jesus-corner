@@ -26,6 +26,7 @@ import { getReadingClockPrefs } from '../reading/readingClockPrefsStore'
 import { addReadingPaceSession } from '../reading/readingPaceStore'
 import { getGroupMarks, getGroupMarksVisible, setGroupMarksVisible, postToRoom } from '../groups/chapterRoomStore'
 import { getGroupMemberCounts } from '../groups/groupsStore'
+import NotaDeVersiculoScreen from './NotaDeVersiculoScreen'
 import { collectTagVocabulary } from '../notes/noteTags'
 import { ROUTINE_STEP_COLORS } from '../utils/routineColors'
 import { avatarPaletteFor } from './ChapterRoomScreen'
@@ -1089,23 +1090,22 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
     )
   }
 
-  // "Anotar" (39e → 39f, Bloco 4) — mesmo padrão do contextGate acima e de
-  // BookChapterScreen.jsx pra 39d: o próprio componente troca o que
-  // retorna, sem rota nova em App.jsx. "voltar"/"Salvar" (onBack/onSave)
-  // fecham 39f e voltam direto pra leitura.
-  if (wantsToAnnotate && (highlightSelection || highlightEditingId)) {
+  // "Anotar" (39e) abre a nota em um versículo (N4, handoff-biblioteca-55
+  // §7A.4) — mesmo padrão do contextGate acima: o próprio componente
+  // troca o que retorna, sem rota nova em App.jsx. A nota grava sozinha;
+  // voltar e "Pronto" fecham a tela e voltam direto pra leitura. Se o
+  // versículo já estava marcado, a nota é escrita naquela marcação.
+  const annotating = wantsToAnnotate ? (highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) ?? null : null) : null
+  if (wantsToAnnotate && (annotating || highlightSelection)) {
     return (
-      <VerseAnnotateScreen
+      <NotaDeVersiculoScreen
         lang={lang}
-        chLabel={chLabel}
-        heroBook={heroSession.book}
-        heroBookEn={heroSession.bookEn}
-        selection={highlightSelection}
-        editingHighlight={highlightEditingId ? highlights?.find(h => h.id === highlightEditingId && !h.hidden) : null}
-        myGroups={session.myGroups ?? []}
-        tagVocabulary={collectTagVocabulary(highlights)}
-        onBack={cancelHighlightCompose}
-        onSave={submitAnnotation}
+        highlight={annotating}
+        reference={annotating || !highlightSelection ? null : { book: heroSession.book, bookEn: heroSession.bookEn, chapter: highlightSelection.chapter, verses: [...highlightSelection.verses].sort((a, b) => a - b) }}
+        groups={session.myGroups}
+        sessionMode={mode === 'session' ? 'session' : 'browse'}
+        onHighlights={setHighlights}
+        onClose={cancelHighlightCompose}
       />
     )
   }

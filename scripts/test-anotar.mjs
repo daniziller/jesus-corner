@@ -194,7 +194,7 @@ check('a conta já tem aquela versão (ou uma mais nova): nada a recuperar', [pe
 check('cópia vazia ou inexistente: nada a recuperar', [pendingLocalDraft(vazia, []), pendingLocalDraft(null, [rascunhoNovo])], [null, null])
 check('a cópia recuperada, gravada, mantém cada palavra', notePayload(openNote(pendingLocalDraft(noAparelho, [rascunhoNovo])), { now: agora, trim: false }).text, 'dois e mais uma frase')
 const rascunhoLocal = ler('anotar/rascunhoLocal.js')
-check('a cópia do aparelho é uma por conta', /keyOf\(owner\)/.test(rascunhoLocal) && /`\$\{KEY\}:\$\{owner \?\? 'guest'\}`/.test(rascunhoLocal), true)
+check('a cópia do aparelho é uma por conta', /const keyOf = owner => `\$\{name\}:\$\{owner \?\? 'guest'\}`/.test(rascunhoLocal), true)
 const gancho = ler('anotar/useAnotacao.js')
 check('fechar o app não finaliza: só "Finalizar" marca a anotação como finalizada', (gancho.match(/finalize: true/g) ?? []).length, 1)
 check('a cópia no aparelho é feita a cada mudança, antes de a gravação na conta sair', /api\.keepLocal\(ownerRef\.current, payloadOf\(draft\)\)/.test(gancho), true)

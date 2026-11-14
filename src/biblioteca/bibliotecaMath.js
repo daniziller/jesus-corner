@@ -103,6 +103,7 @@ export function libraryItems({ notes = {}, highlights = [], sermonNotes = [], qu
     items.push({
       key: `pregacao:${s.id}`, type: 'pregacao', id: s.id,
       at: s.createdAt ?? (s.date ? `${s.date}T12:00:00` : s.updatedAt ?? null),
+      updatedAt: s.updatedAt ?? null,
       noteType: s.noteType ?? 'sermon', title: oneLine(s.title), preacher: oneLine(s.preacher), church: oneLine(s.church),
       passages: s.passages ?? [], text: sermonOwnWordsText(s).trim(), tags: (s.tags ?? []).filter(Boolean), draft: !s.finalizedAt,
     })

@@ -25,7 +25,7 @@ export default function QuemVe({ blocks, onToggle }) {
 const s = {
   row: { display: 'flex', gap: 6, margin: '12px 0 11px' },
   rowScroll: { overflowX: 'auto', WebkitOverflowScrolling: 'touch', margin: '12px -16px 11px', padding: '0 16px' },
-  block: { flex: 1, minWidth: 0, minHeight: 44, border: 'none', borderRadius: 16, background: 'var(--bento-line)', padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', cursor: 'pointer' },
+  block: { flex: 1, minWidth: 0, minHeight: 44, border: 'none', borderRadius: 16, background: 'var(--bento-line)', padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', textAlign: 'center', cursor: 'pointer' },
   blockFixed: { flex: '0 0 104px' },
   blockOn: { background: 'var(--bento-ink)' },
   title: { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, lineHeight: 1.15, color: 'var(--bento-ink)', margin: '0 0 4px', overflowWrap: 'anywhere' },

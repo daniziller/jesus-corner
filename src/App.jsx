@@ -36,7 +36,8 @@ import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
 import BibliotecaScreen from './screens/BibliotecaScreen'
 import AnotarScreen from './screens/AnotarScreen'
-import { recoverLocalDraft } from './anotar/recuperarRascunho'
+import NotaDeVersiculoScreen from './screens/NotaDeVersiculoScreen'
+import { recoverLocalDraft, recoverLocalNote } from './anotar/recuperarRascunho'
 import ApplicationPhrasesScreen from './screens/ApplicationPhrasesScreen'
 import ThemePlanScreen from './screens/ThemePlanScreen'
 import AddStudyScreen from './screens/AddStudyScreen'
@@ -599,12 +600,13 @@ export default function App() {
   // Biblioteca recarrega a cada visita à aba (ver NotesScreen/refreshKey).
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
   useEffect(() => { if (activeTab === 'notes') setNotesRefreshKey(k => k + 1) }, [activeTab])
-  // Um rascunho de anotação que ficou só no aparelho — o app foi fechado
+  // Um rascunho de anotação (ou uma nota de versículo) que ficou só no aparelho — o app foi fechado
   // no meio da escrita, antes de a gravação chegar à conta — é gravado ao
   // abrir o app (ver anotar/recuperarRascunho.js).
   useEffect(() => {
     if (!authUser?.email) return
-    recoverLocalDraft().then(data => { if (data.recovered) setNotesRefreshKey(k => k + 1) }).catch(err => console.error('Failed to recover note draft', err))
+    recoverLocalDraft().then(data => recoverLocalNote(undefined, data).then(after => { if (data.recovered || after.recoveredNote) setNotesRefreshKey(k => k + 1) }))
+      .catch(err => console.error('Failed to recover note draft', err))
   }, [authUser?.email])
   // Oração e Reflexão têm cronômetro rodando de verdade (setInterval, wake
   // lock) — se a tela desmontasse ao trocar de aba, como as outras, o
@@ -775,11 +777,14 @@ export default function App() {
   // blocos (visão geral) ou já direto na leitura do bloco ativo — usado pelo
   // botão "Continuar sessão" da Home pra pular a etapa do mapa.
   const [journeyEntryMode, setJourneyEntryMode] = useState('overview')
-  // A página de anotação (aba `sermonNote`): true = começar uma nova;
-  // false = retomar o rascunho em andamento (o lápis flutuante da Bíblia).
-  const [sermonNoteFresh, setSermonNoteFresh] = useState(true)
-  // O id da anotação guardada a abrir (tocada na Biblioteca), ou null.
-  const [sermonNoteEditId, setSermonNoteEditId] = useState(null)
+  // A página de anotação (aba `sermonNote`): o que abrir — { fresh: true,
+  // type, details } (uma nova; `details` abre os detalhes por cima) ·
+  // { noteId } (uma guardada, tocada na Biblioteca) · {} (o rascunho em
+  // andamento, pelo lápis flutuante da Bíblia).
+  const [noteTarget, setNoteTarget] = useState({ fresh: true, type: 'sermon' })
+  // A nota em um versículo (aba `verseNote`, N4): { highlightId } (uma
+  // nota tocada na Biblioteca) ou {} (uma nova: o seletor vem antes).
+  const [verseNoteTarget, setVerseNoteTarget] = useState({})
   // Barra de abas fixa só na raiz da aba Bíblia (B1) — JourneyScreen.jsx
   // avisa quando a navegação livre passa dela (o livro, a leitura, a
   // busca), pra esconder a barra igual à leitura
@@ -1706,23 +1711,26 @@ export default function App() {
   // abrem sempre uma anotação nova; o lápis flutuante da Bíblia retoma o
   // rascunho em andamento. Fechar a página guarda o rascunho (um rascunho
   // vazio não deixa rastro); só "Finalizar" encerra a anotação.
-  function openSermonNoteFromHome() {
-    setSermonNoteFresh(true)
-    setSermonNoteEditId(null)
+  function openNewNote(type = 'sermon', details = null) {
+    setNoteTarget({ fresh: true, type, details })
     goToTab('sermonNote')
   }
+  const openSermonNoteFromHome = () => openNewNote('sermon')
   function resumeSermonNote() {
-    setSermonNoteFresh(false)
-    setSermonNoteEditId(null)
+    setNoteTarget({})
     goToTab('sermonNote')
   }
-
   // Tocar uma anotação na Biblioteca abre a mesma página, já com ela
   // (finalizada ou não).
   function editSermonNoteFromLibrary(noteId) {
-    setSermonNoteFresh(false)
-    setSermonNoteEditId(noteId)
+    setNoteTarget({ noteId })
     goToTab('sermonNote')
+  }
+  // A nota em um versículo fora da leitura: uma nova (pela folha "Nova")
+  // ou uma já guardada (tocada na Biblioteca).
+  function openVerseNote(highlightId = null) {
+    setVerseNoteTarget(highlightId ? { highlightId } : {})
+    goToTab('verseNote')
   }
 
   // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
@@ -3354,9 +3362,11 @@ export default function App() {
     // já guardada (tocada na Biblioteca). Fechar guarda o rascunho.
     sermonNote: <AnotarScreen
       lang={session.lang} groups={myGroups}
-      target={sermonNoteEditId ? { noteId: sermonNoteEditId } : sermonNoteFresh ? { fresh: true, type: 'sermon' } : {}}
+      target={noteTarget} initialDetails={noteTarget.details ?? null}
       onClose={goBack} onFinalized={goBack} onOpenBiblePassage={openBiblePassage}
     />,
+    // A nota em um versículo (N4), fora da leitura da Bíblia.
+    verseNote: <NotaDeVersiculoScreen lang={session.lang} groups={myGroups} highlightId={verseNoteTarget.highlightId ?? null} onClose={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
       : !hasPremium ? <PremiumRequired feature="groups" lang={session.lang} onNavigate={navigateTo} />
       : <GroupsScreen session={session} authUser={authUser} pendingGroupPlanInvites={pendingGroupPlanInvites} onRespondGroupPlanInvite={respondToGroupPlanInvite} onSocialChange={refreshSocialState} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenMessages={() => goToTab('groupMessages')} onOpenProfile={() => setProfileOpen(true)} entryTarget={groupsEntryTarget} onEntryTargetConsumed={() => setGroupsEntryTarget(null)} onDetailOpenChange={setGroupsDetailOpen} />,
@@ -3566,7 +3576,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'verseNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3583,7 +3593,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || (activeTab === 'notes' && libraryPastRoot) || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'chapterRoom', 'sermonNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || (activeTab === 'notes' && libraryPastRoot) || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'chapterRoom', 'sermonNote', 'verseNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se
@@ -3640,7 +3650,7 @@ export default function App() {
               <div style={{ display: activeTab === 'notes' ? 'contents' : 'none' }}>
                 <BibliotecaScreen
                   session={session} refreshKey={notesRefreshKey} onPastRootChange={setLibraryPastRoot} searchRequest={librarySearchRequest}
-                  onNova={openSermonNoteFromHome}
+                  onNewNote={openNewNote} onNewVerseNote={() => openVerseNote()} onOpenVerseNote={openVerseNote}
                   onOpenStudies={() => navigateTo('addStudy')} onCreateStudy={() => navigateTo('createAiStudy')}
                   onOpenSermonNote={editSermonNoteFromLibrary} onOpenBible={openBiblePassage}
                   onEditApplication={() => navigateTo('applicationPhrases')} onApplicationChanged={bumpApplicationRefresh}

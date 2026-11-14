@@ -41,6 +41,8 @@
 //      Página de anotação (handoff-biblioteca-55 §7A): tela=anotar — N2 e N3, com as anotações na memória.
 //      &nota=exemplo|nova|pregacao|semtitulo|rascunho|antiga · &tipo=livre · &detalhes=tipo|title|tags|who (N3)
 //      · &grupos=0|2|3 · &grupo=escolhido · &teclado=aberto · &rede=fora · &persistir=sim · &estado=carregando|erro
+//      tela=nota — a nota em um versículo (N4). &nota=exemplo|nova|marcacao|comnota|escolher|sumiu · &grupos=0|2|3
+//      · &grupo=escolhido · &teclado=aberto · &rede=fora · &persistir=sim · tela=biblioteca&nova=abrir&rascunho=domingo|semtitulo (N1)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
 //      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
@@ -88,7 +90,8 @@ import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
 import BibliotecaScreen from '../src/screens/BibliotecaScreen'
 import AnotarScreen from '../src/screens/AnotarScreen'
-import { keepLocalDraft, readLocalDraft, clearLocalDraft } from '../src/anotar/rascunhoLocal'
+import NotaDeVersiculoScreen from '../src/screens/NotaDeVersiculoScreen'
+import { keepLocalDraft, readLocalDraft, clearLocalDraft, keepLocalNote, readLocalNote, clearLocalNote } from '../src/anotar/rascunhoLocal'
 import { verseCount } from '../src/data/versiculosPorCapitulo'
 import AddStudyScreen from '../src/screens/AddStudyScreen'
 import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSummary, studyItems, typeMeta } from '../src/biblioteca/bibliotecaMath'
@@ -516,6 +519,13 @@ const bibliotecaDePreview = {
     if (como === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
     const conta = params.get('conta') ?? 'exemplo'
     const linha = linhaDeExemplo({ conta, estudos: params.get('estudos') ?? 'andamento' })
+    // `&rascunho=domingo|semtitulo`: uma anotação não finalizada, para a
+    // linha do rascunho da folha "Nova" (N1).
+    const rascunho = params.get('rascunho')
+    if (rascunho) {
+      const domingo = new Date(2026, 10, 8, 10, 30).toISOString()
+      linha.sermon_notes = [{ id: 'sermon-rascunho', date: '2026-11-08', createdAt: domingo, updatedAt: domingo, noteType: 'sermon', title: rascunho === 'semtitulo' ? '' : 'A espera que forma', preacher: '', church: '', link: '', passages: [], text: 'Judá é o mesmo que vendeu José. Agora é ele que se oferece.', body: [{ id: 's1', type: 'text', text: 'Judá é o mesmo que vendeu José. Agora é ele que se oferece.' }], finalizedAt: null }, ...linha.sermon_notes]
+    }
     const apagados = window.__bibliotecaApagados ?? new Set()
     const data = pickLibraryData({ ...linha, notes: Object.fromEntries(Object.entries(linha.notes).filter(([key]) => !apagados.has(key))), highlights: linha.highlights.filter(h => !apagados.has(h.id)), sermon_notes: linha.sermon_notes.filter(n => !apagados.has(n.id)) })
     const readByDay = chaptersByDay(conta === 'exemplo' ? leiturasDeExemplo() : [])
@@ -541,7 +551,8 @@ const bibliotecaDePreview = {
 // A busca: `&busca=abrir` (L4), com `&em=pregacao` (o tipo de "Buscar em"),
 // `&livro=Gênesis`, `&periodo=week|month|year` (ou `&de=AAAA-MM-DD&ate=…`),
 // `&pregador=Pr. João Silva`, `&q=espera` (os resultados, L5), `&ver=tudo`
-// (o "Ver tudo" da raiz) e `&recentes=nao`.
+// (o "Ver tudo" da raiz) e `&recentes=nao`. A folha "Nova" (N1):
+// `&nova=abrir`, com `&rascunho=domingo|semtitulo` (a linha do rascunho).
 if (tela === 'biblioteca') {
   if (params.get('recentes') === 'nao' || params.get('conta') === 'nova') localStorage.removeItem('jc_library_recent_searches')
   else localStorage.setItem('jc_library_recent_searches', JSON.stringify(buscasRecentesDeExemplo))
@@ -555,7 +566,10 @@ function BibliotecaPreview({ onPastRootChange }) {
   return (
     <BibliotecaScreen
       session={session} api={bibliotecaDePreview} initialView={initialView} initialSearch={initialSearch} onPastRootChange={onPastRootChange}
-      onNova={() => alert('abrir a folha "Nova" (N1)')}
+      initialNew={params.get('nova') === 'abrir'}
+      onNewNote={(type, details) => alert(`abrir a página de anotação (N2), tipo ${type}${details ? ', com os detalhes (N3) por cima' : ', em branco'}`)}
+      onNewVerseNote={() => alert('abrir o seletor de versículo e, depois, a nota (N4)')}
+      onOpenVerseNote={id => alert(`abrir a nota de versículo (N4): ${id}`)}
       onEditApplication={() => alert('abrir a lista de frases do Perfil, onde a frase se edita')} onApplicationChanged={() => {}}
       onOpenStudies={() => alert('abrir a tela Estudos')} onCreateStudy={() => alert('criar um estudo (35d)')}
       onOpenSermonNote={id => alert(`abrir a anotação guardada (N5): ${id}`)}
@@ -576,7 +590,7 @@ function BibliotecaPreview({ onPastRootChange }) {
 // guarda as anotações entre recargas (para fechar e reabrir).
 // `&estado=carregando|erro`.
 const ALTURA_DO_TECLADO = 291
-if (tela === 'anotar' && params.get('teclado') === 'aberto') {
+if ((tela === 'anotar' || tela === 'nota') && params.get('teclado') === 'aberto') {
   Object.defineProperty(window, 'visualViewport', { configurable: true, value: { get height() { return window.innerHeight - ALTURA_DO_TECLADO }, offsetTop: 0, addEventListener() {}, removeEventListener() {} } })
 }
 function anotacoesDeExemplo() {
@@ -616,15 +630,54 @@ const guardaDeAnotacoes = (() => {
     },
   }
 })()
+// As marcações da pré-visualização. Na página de anotação (tela=anotar),
+// só as etiquetas importam; na nota de versículo (tela=nota), são as da
+// captura N4: a nota de Salmos 23:4 e mais duas, com as etiquetas medo,
+// consolo e salmos.
+function marcacoesDeExemplo() {
+  if (tela !== 'nota') return [{ id: 'h1', tags: ['espera', 'perdão'] }, { id: 'h2', tags: ['espera', 'família'] }, { id: 'h3', tags: ['espera'] }]
+  const base = { book: 'Salmos', bookEn: 'Psalms', chapter: 23, color: 'yellow', sharedGroupIds: [], createdAt: '2026-11-03T10:00:00.000Z', date: '2026-11-03', sessionMode: 'browse' }
+  return [
+    { ...base, id: 'hl-vale', kind: 'note', verses: [4], text: 'O vale é passagem, não endereço. Ele não tira o vale — anda comigo dentro dele', tags: ['medo'], sharedGroupIds: params.get('grupo') === 'escolhido' ? ['g1'] : [] },
+    { ...base, id: 'hl-pastor', verses: [1], text: '', color: 'green', tags: ['medo', 'consolo'] },
+    { ...base, id: 'hl-mesa', kind: 'note', verses: [5], text: 'Mesa posta na frente de quem me quer mal.', tags: ['medo', 'consolo', 'salmos'] },
+    { ...base, id: 'hl-agua', verses: [2], text: 'Descanso não é prêmio, é caminho.', color: 'blue', tags: [] },
+  ]
+}
+const guardaDeMarcacoes = (() => {
+  const persistir = params.get('persistir') === 'sim'
+  let lista = null
+  return {
+    ler() {
+      if (lista) return lista
+      const salvo = persistir ? sessionStorage.getItem('jc_dev_marcacoes') : null
+      lista = salvo ? JSON.parse(salvo) : marcacoesDeExemplo()
+      return lista
+    },
+    gravar(nova) {
+      lista = nova
+      if (persistir) sessionStorage.setItem('jc_dev_marcacoes', JSON.stringify(nova))
+      window.__marcacoesGravadas = nova
+      return nova
+    },
+  }
+})()
+const comRede = fazer => new Promise((resolve, reject) => setTimeout(() => {
+  if (params.get('rede') === 'fora' || window.__semRede) reject(new Error('sem rede (pré-visualização)'))
+  else resolve(fazer())
+}, 300))
 const anotarDePreview = {
   load() {
     if (estado === 'carregando') return new Promise(() => {})
     if (estado === 'erro') return Promise.reject(new Error('sem rede (pré-visualização)'))
-    return new Promise(resolve => setTimeout(() => resolve({
-      owner: 'preview', sermonNotes: guardaDeAnotacoes.ler(),
-      highlights: [{ id: 'h1', tags: ['espera', 'perdão'] }, { id: 'h2', tags: ['espera', 'família'] }, { id: 'h3', tags: ['espera'] }],
-    }), 120))
+    return new Promise(resolve => setTimeout(() => resolve({ owner: 'preview', sermonNotes: tela === 'nota' ? [] : guardaDeAnotacoes.ler(), highlights: guardaDeMarcacoes.ler() }), 120))
   },
+  createVerseNote: record => comRede(() => guardaDeMarcacoes.gravar([...guardaDeMarcacoes.ler(), record])),
+  updateVerseNote: (id, { text, tags, sharedGroupIds }) => comRede(() => guardaDeMarcacoes.gravar(guardaDeMarcacoes.ler().map(h => (h.id === id ? { ...h, text, tags: tags ?? h.tags ?? [], sharedGroupIds: sharedGroupIds ?? h.sharedGroupIds ?? [], updatedAt: new Date().toISOString() } : h)))),
+  setVerseNoteVerses: (id, verses) => comRede(() => guardaDeMarcacoes.gravar(guardaDeMarcacoes.ler().map(h => (h.id === id ? { ...h, verses } : h)))),
+  hideVerseNote: id => comRede(() => guardaDeMarcacoes.gravar(guardaDeMarcacoes.ler().map(h => (h.id === id ? { ...h, hidden: true } : h)))),
+  async publish(groupId, post) { (window.__publicacoes ??= []).push({ groupId, ...post }) },
+  keepLocalNote, readLocalNote, clearLocalNote,
   save(note) {
     return new Promise((resolve, reject) => setTimeout(() => {
       if (params.get('rede') === 'fora' || window.__semRede) { reject(new Error('sem rede (pré-visualização)')); return }
@@ -638,13 +691,14 @@ const anotarDePreview = {
     const n = verseCount(book, chapter)
     const verses = Object.fromEntries(Array.from({ length: n }, (_, i) => [String(i + 1), `Texto do versículo ${i + 1} de ${book} ${chapter}, na versão em uso.`]))
     if (book === 'Gênesis' && chapter === 43) verses['3'] = "Judá, porém, disse: “O homem nos advertiu seriamente: ‘Não voltem à minha presença, a menos que tragam o seu irmão’."
+    if (book === 'Salmos' && chapter === 23) { verses['4'] = 'Ainda que eu ande pelo vale da sombra da morte, não temerei mal algum, pois tu estás comigo.'; verses['5'] = 'Preparas um banquete para mim na presença de meus inimigos.' }
     if (book === 'Tiago' && chapter === 1) { verses['3'] = 'pois vocês sabem que, quando sua fé é provada, a perseverança tem a oportunidade de crescer.'; verses['4'] = 'E é necessário que ela cresça, pois quando estiver plenamente desenvolvida vocês serão maduros e completos, sem que nada lhes falte.' }
     return verses
   },
   versionShort: () => 'NVT',
-  async memberCounts() { return { g1: 6, g2: 8, g3: 1 } },
+  async memberCounts() { return tela === 'nota' ? { g1: 6, g2: 12, g3: 1 } : { g1: 6, g2: 8, g3: 1 } },
 }
-const gruposDeAnotar = [{ groupId: 'g1', name: 'Grupo Semente' }, { groupId: 'g2', name: 'Manhã com a Palavra' }, { groupId: 'g3', name: 'Família Almeida de Souza e agregados' }].slice(0, Number(params.get('grupos') ?? 2))
+const gruposDeAnotar = [{ groupId: 'g1', name: 'Grupo Semente' }, { groupId: 'g2', name: tela === 'nota' ? 'Batista Central' : 'Manhã com a Palavra' }, { groupId: 'g3', name: 'Família Almeida de Souza e agregados' }].slice(0, Number(params.get('grupos') ?? 2))
 function AnotarPreview() {
   const nota = params.get('nota') ?? 'exemplo'
   const target = nota === 'nova' ? { fresh: true, type: 'free' } : nota === 'pregacao' ? { fresh: true, type: 'sermon' } : nota === 'rascunho' ? {} : { noteId: nota === 'antiga' ? 'sermon-antiga' : 'sermon-espera' }
@@ -658,6 +712,28 @@ function AnotarPreview() {
         onFinalized={note => setFechada(`Finalizou: abre a anotação guardada (N5) — ${note.title || 'Sem título'}.`)}
         onOpenBiblePassage={(book, chapter, verse) => alert(`abrir a Bíblia em ${book} ${chapter}${verse ? `:${verse}` : ''}, com o lápis flutuante para voltar`)}
       />
+      {params.get('teclado') === 'aberto' && <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: ALTURA_DO_TECLADO, background: '#D1D3D9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: '#6E655C', zIndex: 50 }}>teclado</div>}
+    </>
+  )
+}
+
+// A nota em um versículo (N4, handoff-biblioteca-55 §7A.4), com as
+// marcações na memória. `&nota=exemplo` (a da captura, Salmos 23:4) ·
+// `nova` (o versículo 3, ainda sem nada) · `marcacao` (o versículo 1, já
+// marcado, sem nota) · `comnota` (o versículo 2, marcação com nota) ·
+// `escolher` (o seletor antes, como pela folha "Nova") · `sumiu`.
+// `&grupos=0|2|3` e `&grupo=escolhido` (uma nota já compartilhada).
+// `&teclado=aberto` · `&rede=fora` · `&persistir=sim` · `&estado=carregando|erro`.
+function NotaPreview() {
+  const nota = params.get('nota') ?? 'exemplo'
+  const [fechada, setFechada] = useState(false)
+  if (fechada) return <div style={{ padding: 24, fontFamily: 'var(--font-bento)', fontSize: 14, color: 'var(--bento-ink)' }} data-nota-fechada>Fechou: volta para de onde veio.</div>
+  const alvo = nota === 'nova' ? { reference: { book: 'Salmos', bookEn: 'Psalms', chapter: 23, verses: [3] } }
+    : nota === 'escolher' ? {}
+      : { highlightId: nota === 'marcacao' ? 'hl-pastor' : nota === 'comnota' ? 'hl-agua' : nota === 'sumiu' ? 'hl-nao-existe' : 'hl-vale' }
+  return (
+    <>
+      <NotaDeVersiculoScreen lang="pt" api={anotarDePreview} groups={gruposDeAnotar} {...alvo} onHighlights={lista => { window.__marcacoesNaLeitura = lista }} onClose={() => setFechada(true)} />
       {params.get('teclado') === 'aberto' && <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: ALTURA_DO_TECLADO, background: '#D1D3D9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: '#6E655C', zIndex: 50 }}>teclado</div>}
     </>
   )
@@ -682,6 +758,8 @@ function Preview() {
     body = <BibliotecaPreview onPastRootChange={setBibliotecaPastRoot} />
   } else if (screen === 'anotar') {
     body = <AnotarPreview />
+  } else if (screen === 'nota') {
+    body = <NotaPreview />
   } else if (screen === 'oracao') {
     body = <OracaoPreview />
   } else if (screen === 'reflexao') {

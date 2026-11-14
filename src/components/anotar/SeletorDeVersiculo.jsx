@@ -5,7 +5,7 @@
 // bloco só (o trecho aparece embaixo do título antes de adicionar). Devolve, em `onPick`, { book, bookEn, chapter, verseStart,
 // verseEnd, text } com o texto da versão em uso.
 import { useState } from 'react'
-import { GAMIFICATION_BOOKS } from '../../data/gamificationBlocks'
+import { GAMIFICATION_BOOKS, bookInfo } from '../../data/gamificationBlocks'
 import { verseCount } from '../../data/versiculosPorCapitulo'
 import { bookEnFor } from '../../bible/bibleSearch'
 import { bookDisplayName } from '../../busca/referencia'
@@ -15,11 +15,13 @@ import Icone from './Icone'
 
 const FONT = 'var(--font-bento)'
 
-export default function SeletorDeVersiculo({ lang, api, onPick, onClose }) {
+// `start` ({ book, chapter, selected }): abre já no capítulo, com os
+// versículos marcados — o "+ versículo" da nota (N4); aí voltar fecha.
+export default function SeletorDeVersiculo({ lang, api, onPick, onClose, confirmLabel = 'Adicionar', start = null }) {
   const [query, setQuery] = useState('')
-  const [book, setBook] = useState(null)
-  const [chapter, setChapter] = useState(null)
-  const [selected, setSelected] = useState([])
+  const [book, setBook] = useState(start ? bookInfo(start.book) : null)
+  const [chapter, setChapter] = useState(start?.chapter ?? null)
+  const [selected, setSelected] = useState(start?.selected ?? [])
   const [state, setState] = useState('idle')
 
   const step = !book ? 'book' : !chapter ? 'chapter' : 'verse'
@@ -32,7 +34,8 @@ export default function SeletorDeVersiculo({ lang, api, onPick, onClose }) {
 
   function back() {
     setState('idle')
-    if (step === 'verse') { setChapter(null); setSelected([]) }
+    if (start) onClose()
+    else if (step === 'verse') { setChapter(null); setSelected([]) }
     else if (step === 'chapter') setBook(null)
     else onClose()
   }
@@ -64,7 +67,7 @@ export default function SeletorDeVersiculo({ lang, api, onPick, onClose }) {
           {where && <p style={s.sub}>{where}</p>}
         </div>
         {step === 'verse' && selected.length > 0 && (
-          <button type="button" className="biblioteca-alvo" style={s.add} onClick={confirm} disabled={state === 'busy'} aria-label={`Adicionar ${where}`}>Adicionar</button>
+          <button type="button" className="biblioteca-alvo" style={s.add} onClick={confirm} disabled={state === 'busy'} aria-label={`${confirmLabel}: ${where}`}>{confirmLabel}</button>
         )}
       </div>
 

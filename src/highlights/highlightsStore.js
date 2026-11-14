@@ -40,6 +40,17 @@ export function updateHighlightText(_email, id, text, color, tags, sharedGroupId
   })
 }
 
+// A nota de versículo (N4) pode ser estendida aos versículos vizinhos:
+// troca só os versículos do registro.
+export function updateHighlightVerses(_email, id, verses) {
+  return withRowLock(async () => {
+    const current = await getHighlights(_email)
+    const next = current.map(h => h.id === id ? { ...h, verses, updatedAt: new Date().toISOString() } : h)
+    const updated = await updateRow({ highlights: next })
+    return updated?.highlights ?? next
+  })
+}
+
 // "Apagar" pela interface NUNCA remove o registro de verdade — só marca
 // `hidden`, escondendo de toda a UI (ver os filtros `!h.hidden` em quem lê
 // highlights). O texto que a pessoa escreveu continua no banco pra

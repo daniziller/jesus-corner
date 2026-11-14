@@ -26,13 +26,15 @@ import PregacoesScreen from './PregacoesScreen'
 import AplicacoesScreen from './AplicacoesScreen'
 import PerguntasScreen from './PerguntasScreen'
 import LeituraDoItemScreen from './LeituraDoItemScreen'
+import FolhaNova from '../components/anotar/FolhaNova'
+import { draftLine } from '../anotar/notaMath'
 import BuscaDaBibliotecaScreen from './BuscaDaBibliotecaScreen'
 
 const TYPE_SCREENS = { nota: NotasScreen, marcacao: MarcacoesScreen, reflexao: ReflexoesScreen, pregacao: PregacoesScreen, aplicacao: AplicacoesScreen, pergunta: PerguntasScreen }
 
 export default function BibliotecaScreen({
-  session, api = bibliotecaApi, refreshKey = 0, initialView = null, initialSearch = null, searchRequest = null,
-  onPastRootChange, onNova, onOpenStudies, onCreateStudy, onOpenSermonNote, onOpenBible,
+  session, api = bibliotecaApi, refreshKey = 0, initialView = null, initialSearch = null, initialNew = false, searchRequest = null,
+  onPastRootChange, onNewNote, onNewVerseNote, onOpenVerseNote, onOpenStudies, onCreateStudy, onOpenSermonNote, onOpenBible,
   onEditApplication, onApplicationChanged,
 }) {
   const { lang } = session
@@ -65,15 +67,16 @@ export default function BibliotecaScreen({
   // A lupa da tela Estudos (fora da aba) pede a busca já em "Estudos".
   useEffect(() => { if (searchRequest) openSearch(searchRequest.type) }, [searchRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // O destino de cada tipo: a anotação longa, na página dela; nota e
-  // marcação, na Bíblia, no versículo (com a nota aberta, se houver);
-  // reflexão, frase do dia e pergunta, na página de leitura; um estudo,
-  // na tela Estudos.
+  // O destino de cada tipo: a anotação longa, na página dela; a nota de
+  // versículo, na tela da nota (N4); a marcação, na Bíblia, no versículo
+  // (com a nota aberta, se houver); a nota de uma sessão de leitura, na
+  // Bíblia, no capítulo; reflexão, frase do dia e pergunta, na página de
+  // leitura; um estudo, na tela Estudos.
   function openItem(item) {
     if (item.type === 'pregacao') onOpenSermonNote(item.id)
     else if (item.type === 'estudo') onOpenStudies()
     else if (item.type === 'marcacao') onOpenBible(item.book, item.chapter, item.verses[0], item.note ? { noteId: item.id } : undefined)
-    else if (item.type === 'nota' && item.id) onOpenBible(item.book, item.chapter, item.verses[0], { noteId: item.id })
+    else if (item.type === 'nota' && item.id) onOpenVerseNote(item.id)
     else if (item.type === 'nota') onOpenBible(item.book, item.chapter)
     else setView(prev => ({ name: 'leitura', item, back: prev }))
   }
@@ -88,6 +91,18 @@ export default function BibliotecaScreen({
     else openItem(item)
   }
   const canEdit = item => item.type !== 'reflexao' && item.type !== 'pergunta'
+
+  // "Nova" abre a folha N1: anotação livre, pregação (os detalhes vêm
+  // antes da página), nota em um versículo, estudo — ou o rascunho.
+  const [novaOpen, setNovaOpen] = useState(initialNew)
+  const onNova = () => setNovaOpen(true)
+  function chooseNew(key) {
+    setNovaOpen(false)
+    if (key === 'free') onNewNote('free')
+    else if (key === 'sermon') onNewNote('sermon', 'type')
+    else if (key === 'verse') onNewVerseNote()
+    else onCreateStudy()
+  }
 
   // O menu de um item (segurar).
   const [menu, setMenu] = useState(null)
@@ -143,6 +158,12 @@ export default function BibliotecaScreen({
           lang={lang} api={api} status={bib.status} items={bib.items} readByDay={bib.readByDay} studies={bib.studies}
           onOpenSearch={() => openSearch()} onNova={onNova} onOpenType={openType} onSeeAll={() => openSearch('all', { browse: true })}
           onOpenStudies={onOpenStudies} onCreateStudy={onCreateStudy} onOpenItem={openItem}
+        />
+      )}
+      {novaOpen && (
+        <FolhaNova
+          draft={draftLine(bib.items)} onChoose={chooseNew} onClose={() => setNovaOpen(false)}
+          onOpenDraft={id => { setNovaOpen(false); onOpenSermonNote(id) }}
         />
       )}
       {menu && (

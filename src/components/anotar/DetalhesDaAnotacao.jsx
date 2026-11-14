@@ -36,7 +36,8 @@ export default function DetalhesDaAnotacao({ lang, draft, library, groups, membe
 
   const others = library.sermonNotes.filter(note => note.id !== draft.id)
   const types = typeOptions(customTypesOf(library.sermonNotes), draft.noteType)
-  const vocabulary = tagVocabulary({ highlights: library.highlights, sermonNotes: others })
+  // As etiquetas da pessoa como estavam ao abrir (a ordem não pula enquanto ela marca e desmarca).
+  const vocabulary = tagVocabulary(library)
   const warning = whoSeesWarning({ selected: draft.sharedGroupIds, passages: draft.passages })
 
   function confirmType() {
