@@ -10,7 +10,6 @@
 // via saveThemePlan (themePlansStore.js). O banco e a cópia pessoal nunca
 // se misturam: apagar do banco (withdrawStudy) não mexe em quem já usou.
 import { supabase } from '../lib/supabaseClient'
-import { resolveAvatarUrl } from '../profile/profileStore'
 
 async function getUserId() {
   const { data } = await supabase.auth.getUser()
@@ -148,11 +147,6 @@ export async function publishStudy({ title, overview, format, tags, passages, vi
   return mapStudyRow(data)
 }
 
-export async function setStudyVisibility(studyId, visibility) {
-  const { error } = await supabase.rpc('set_study_visibility', { target_study_id: studyId, new_visibility: visibility })
-  if (error) throw new Error(error.message)
-}
-
 // "Sair do banco" (4c) — apaga só a linha compartilhada (cascade nos
 // convites/usos/denúncias dela); quem já criou ou usou mantém a própria
 // cópia pessoal (theme_plans), intocada.
@@ -176,11 +170,4 @@ export async function recordStudyUse(studyId) {
 export async function acceptStudyInvite(studyId) {
   const { error } = await supabase.rpc('accept_study_invite', { target_study_id: studyId })
   if (error) throw new Error(error.message)
-}
-
-export async function reportStudy(studyId) {
-  const userId = await getUserId()
-  if (!userId) return
-  const { error } = await supabase.from('study_reports').insert({ study_id: studyId, reporter_id: userId })
-  if (error && error.code !== '23505') throw new Error(error.message)
 }

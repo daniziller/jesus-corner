@@ -17,19 +17,6 @@ export async function getGamificationRow() {
   }
 }
 
-// Grava conquistas e selos já fundidos (mergeAchievementStore/
-// mergeBookSeals). Chamado só com o resultado de uma fusão sobre a linha
-// lida dentro do mesmo lock — nunca sobrescreve uma conquista existente.
-export function saveGamification({ achievements, bookSeals }) {
-  return withRowLock(async () => {
-    const patch = {}
-    if (achievements) patch.achievements = achievements
-    if (bookSeals) patch.book_seals = bookSeals
-    const updated = await updateRow(patch)
-    return { achievements: updated?.achievements ?? achievements, bookSeals: updated?.book_seals ?? bookSeals }
-  })
-}
-
 // Lê, aplica `mutate(row)` (pura, devolve { achievements?, bookSeals? })
 // e grava, tudo dentro do lock — pra duas avaliações seguidas (fim de
 // sessão + capítulo marcado) nunca partirem da mesma linha antiga.

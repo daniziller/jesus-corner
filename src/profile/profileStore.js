@@ -83,12 +83,6 @@ export async function resolveAvatarUrl(value) {
   return data?.signedUrl ?? null
 }
 
-// Assina vários avatares de uma vez, para listas (amigos, feed, pedidos de
-// oração). Um createSignedUrl por item em série deixaria a lista lenta.
-export async function resolveAvatarUrls(rows, getValue, setValue) {
-  return Promise.all(rows.map(async row => setValue(row, await resolveAvatarUrl(getValue(row)))))
-}
-
 // Perfil básico de um amigo (nome, bio, foto, se é público) — a RLS de
 // profiles já libera isso pra quem é amigo aceito ou colega de grupo (ver
 // 0002_friends_groups_challenges.sql); aqui só formata o retorno.

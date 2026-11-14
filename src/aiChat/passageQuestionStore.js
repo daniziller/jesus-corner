@@ -28,13 +28,6 @@ function writeAll(all) {
   try { localStorage.setItem(KEY, JSON.stringify(all)) } catch { /* privado/cota cheia — só não persiste */ }
 }
 
-// Todas as perguntas já salvas de um capítulo (mais recente por último) —
-// usado pra reabrir o histórico daquele capítulo, e futuramente pra listar
-// na Biblioteca junto das notas.
-export function getQuestionsForChapter(book, chapter) {
-  return readAll()[chapterKey(book, chapter)] ?? []
-}
-
 export function getAllPassageQuestions() {
   return readAll()
 }

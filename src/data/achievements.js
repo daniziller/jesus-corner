@@ -8,7 +8,6 @@
 import { GAMIFICATION_BLOCKS } from './gamificationBlocks.js'
 
 export const TOTAL_ACHIEVEMENTS = 38
-export const DEGRAUS_POR_FAMILIA = 6
 
 // unidade: plural e singular — "faltam 8 semanas na meta" / "falta 1
 // semana na meta" (G5, G6, G9). `mede` é a frase do cartão areia de G6.

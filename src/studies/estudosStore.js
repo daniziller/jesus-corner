@@ -13,9 +13,7 @@
 // dias em que Leitura e Estudo caem juntos, "substituir" tira a Leitura
 // SÓ NAQUELE dia (ela continua nos outros dias da semana, sem atraso, sem
 // data de volta prevista); "somar" faz as duas acontecerem no mesmo dia.
-import { getThemePlans, saveThemePlan } from '../themePlans/themePlansStore'
-import { recordStudyUse } from './publicStudiesStore'
-import { deriveThemeTexts, themeTextKey } from '../themePlans/themeTexts'
+import { getThemePlans } from '../themePlans/themePlansStore'
 import { supabase } from '../lib/supabaseClient'
 
 export const MAX_STUDIES_PER_MONTH = 4
@@ -61,72 +59,6 @@ const CARDINAL_WORDS_EN = ['zero', 'one', 'two', 'three', 'four', 'five', 'six',
 export function cardinalWord(n, lang) {
   const words = lang === 'en' ? CARDINAL_WORDS_EN : CARDINAL_WORDS_PT
   return words[n] ?? String(n)
-}
-
-// Dia 1º do mês seguinte, no fuso da própria pessoa (só pra exibir — a
-// cota em si é UTC no servidor, diferença de fuso nunca chega a 1 dia
-// inteiro de erro visível aqui).
-export function nextResetDate() {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth() + 1, 1)
-}
-
-function progressOf(plan, completedSet) {
-  const texts = deriveThemeTexts(plan.passages)
-  const done = texts.filter(t => completedSet.has(themeTextKey(t))).length
-  return { texts, done, total: texts.length }
-}
-
-// "Em andamento" (41a) — o Estudo pessoal mais recente que ainda tem dia
-// por fazer. `plans` já vem mais-recente-primeiro (ver saveThemePlan).
-export function findActiveEstudo(plans, completedSet) {
-  for (const plan of plans ?? []) {
-    const { done, total } = progressOf(plan, completedSet)
-    if (total > 0 && done < total) return { plan, done, total }
-  }
-  return null
-}
-
-// Todos os Estudos pessoais (chip "Salvos", 41a) — em andamento, pausados
-// e concluídos, mais recente primeiro.
-export function listMyEstudos(plans, completedSet) {
-  return (plans ?? []).map(plan => {
-    const { done, total } = progressOf(plan, completedSet)
-    return { plan, done, total }
-  })
-}
-
-function originForBankStudy(study) {
-  if (study.groupId) return 'group'
-  if (!study.authorId) return 'jesus_corner'
-  return 'public'
-}
-
-// Adota um estudo do banco (41i "Ver" → usar) como cópia pessoal — não
-// consome cota (não é "criar"), registra o uso real (contador de "N
-// pessoas fizeram") e nunca move/edita a linha do banco (ver
-// publicStudiesStore.js). `lang` decide o idioma da cópia (mesmo campo que
-// generate-theme-plan.js grava).
-export async function adoptStudy(study, lang) {
-  const texts = deriveThemeTexts(study.passages)
-  const plan = {
-    id: `theme-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    title: study.title,
-    scope: study.overview,
-    overview: study.overview,
-    lang: lang === 'en' ? 'en' : 'pt',
-    createdAt: new Date().toISOString(),
-    days: texts.length,
-    passages: texts,
-    format: study.format,
-    minutesPerDay: study.minutesPerDay,
-    origin: originForBankStudy(study),
-    sourceStudyId: study.id,
-    authorName: study.authorName,
-  }
-  const updated = await saveThemePlan(null, plan)
-  recordStudyUse(study.id).catch(err => console.error('[estudosStore] recordStudyUse failed:', err.message))
-  return { plan, plans: updated }
 }
 
 export { getThemePlans }

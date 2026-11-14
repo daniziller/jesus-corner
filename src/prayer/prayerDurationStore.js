@@ -8,7 +8,3 @@ export function getSavedPrayerMinutes() {
   const raw = localStorage.getItem(KEY)
   return raw ? Number(raw) : null
 }
-
-export function setSavedPrayerMinutes(minutes) {
-  localStorage.setItem(KEY, String(minutes))
-}

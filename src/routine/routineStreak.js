@@ -26,14 +26,6 @@ export function modulesForDay(dayKeyStr, modules, todayKeyStr) {
   return dayKeyStr >= todayKeyStr ? modules : DEFAULT_ROUTINE_MODULES
 }
 
-// Quantos passos do plano daquele dia foram concluídos — usado pro
-// calendário mostrar dias parcialmente concluídos de forma diferente de
-// dias vazios.
-export function dayStepCount(day, modules = DEFAULT_ROUTINE_MODULES) {
-  if (!day) return 0
-  return modules.filter(step => day[step]).length
-}
-
 // Sequência de dias seguidos com todos os passos da rotina completos,
 // terminando hoje. Se hoje ainda não terminou, isso não zera a sequência na
 // hora — conta a partir de ontem, já que o dia de hoje ainda está "em
@@ -177,12 +169,5 @@ export function computeWeeklyRoutineStats(dailyRoutine, modules = DEFAULT_ROUTIN
     weeks.push({ start, totalDays, prayerDays, readingDays, studyDays, reflectionDays, fullDays })
   }
   return weeks
-}
-
-// Média de dias/semana com a rotina completa (3/3), pras semanas retornadas
-// por computeWeeklyRoutineStats — o resumo de "constância" num único número.
-export function averageFullRoutineDays(weeks) {
-  if (!weeks.length) return 0
-  return weeks.reduce((sum, w) => sum + w.fullDays, 0) / weeks.length
 }
 

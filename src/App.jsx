@@ -539,8 +539,8 @@ export default function App() {
   // encadeia os passos (Oração → Leitura → Reflexão): cada passo, ao ser
   // concluído, abre o próximo sozinho, sem voltar pro menu. null = fora do
   // modo guiado. { steps: [...], idx } — steps é só prayer/reading/reflection
-  // que estão ligados, na ordem; idx é o passo atual. Ver advanceGuided,
-  // startGuidedRoutine e GuidedFlowBanner.
+  // que estão ligados, na ordem; idx é o passo atual. Ver advanceGuided e
+  // startGuidedRoutine.
   const [guidedFlow, setGuidedFlow] = useState(null)
   const guidedFlowRef = useRef(null)
   guidedFlowRef.current = guidedFlow

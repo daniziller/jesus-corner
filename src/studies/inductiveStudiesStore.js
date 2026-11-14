@@ -15,15 +15,6 @@ export async function getInductiveStudies(_email) {
   return row?.inductive_studies ?? []
 }
 
-export function saveInductiveStudy(_email, study) {
-  return withRowLock(async () => {
-    const studies = await getInductiveStudies(_email)
-    const next = [study, ...studies.filter(s => s.id !== study.id)]
-    const updated = await updateRow({ inductive_studies: next })
-    return updated?.inductive_studies ?? next
-  })
-}
-
 export function deleteInductiveStudy(_email, studyId) {
   return withRowLock(async () => {
     const studies = await getInductiveStudies(_email)
