@@ -8,21 +8,23 @@
 // nunca quem.
 import Check from '../passos/Check'
 import { originLabel, supportLine } from '../../pedidos/pedidosMath.js'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 export default function CartaoDoPedido({ pedido, onOpen, onOrar }) {
-  const origin = originLabel(pedido)
+  const lang = currentLanguage()
+  const origin = originLabel(pedido, lang)
   return (
     <div style={s.card}>
       <button type="button" style={s.text} onClick={() => onOpen(pedido)}>
         <span style={{ ...s.origin, color: origin.kind === 'mine' ? 'var(--bento-accent)' : 'var(--bento-sand-icon)' }}>{origin.text}</span>
         <span style={s.body}>{pedido.body}</span>
-        <span style={s.support}>{supportLine(pedido, { list: true })}</span>
+        <span style={s.support}>{supportLine(pedido, { list: true, lang })}</span>
       </button>
       <button
         type="button" style={{ ...s.orei, ...(pedido.prayedToday ? s.oreiDone : null) }}
-        aria-label="Orei por este pedido" aria-pressed={pedido.prayedToday}
+        aria-label={t('pedidosTx.prayedAria')} aria-pressed={pedido.prayedToday}
         onClick={() => { if (!pedido.prayedToday) onOrar(pedido) }}
       >
         <Check size={17} color={pedido.prayedToday ? '#fff' : 'var(--bento-ink)'} />

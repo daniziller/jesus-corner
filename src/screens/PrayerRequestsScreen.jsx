@@ -30,28 +30,23 @@ import { usePedidos } from '../pedidos/usePedidos'
 import { pedidosTabs, pedidosOfTab, answeredBlock, answeredRow, cardTap, othersCard } from '../pedidos/pedidosMath'
 
 const FONT = 'var(--font-bento)'
-const EMPTY = {
-  ativos: 'Nenhum pedido por enquanto.',
-  respondidos: 'Nenhum pedido respondido ainda.',
-  grupo: 'Nenhum pedido do grupo por enquanto.',
-  amigos: 'Nenhum pedido de amigos por enquanto.',
-}
 
 // `pedidosApi`, `formApi` e `initialTab` só existem para a pré-visualização
 // de desenvolvimento.
 export default function PrayerRequestsScreen({ session, authUser, onBack, onOpenRequest, onOpenFamilia, pedidosApi, formApi, initialTab = 'ativos' }) {
   const { lang } = session
+  const Q = (k, vars) => t(`pedidosTx.${k}`, vars, lang)
   const pedidos = usePedidos({ api: pedidosApi })
   const [tab, setTab] = useState(initialTab)
   const [archiving, setArchiving] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
 
   const list = pedidos.list ?? []
-  const tabs = pedidosTabs(list)
+  const tabs = pedidosTabs(list, lang)
   // A aba dos amigos some quando o último pedido de amigo sai: volta a Ativos.
   const current = tabs.some(x => x.key === tab) ? tab : 'ativos'
   const rows = pedidosOfTab(list, current)
-  const answered = current === 'ativos' ? answeredBlock(list) : null
+  const answered = current === 'ativos' ? answeredBlock(list, lang) : null
 
   function openPedido(p) {
     if (cardTap(p) === 'responder') setArchiving(p)
@@ -78,41 +73,41 @@ export default function PrayerRequestsScreen({ session, authUser, onBack, onOpen
   return (
     <div style={s.screen}>
       <CabecalhoDoPasso
-        title="Pedidos de oração" onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)}
+        title={Q('title')} onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)}
         clock={(
           <button type="button" className="passo-alvo" style={s.newBtn} onClick={() => setAddOpen(true)}>
             <AppIcon name="Plus" size={13} strokeWidth={2.6} absoluteStrokeWidth color="var(--bento-accent)" />
-            <span>Novo</span>
+            <span>{Q('new')}</span>
           </button>
         )}
       />
 
       <div style={s.body}>
         {pedidos.othersPrayed != null && (
-          <CartaoOracoesPelosOutros card={othersCard(pedidos.othersPrayed)} onOpen={() => onOpenFamilia?.('oracao')} />
+          <CartaoOracoesPelosOutros card={othersCard(pedidos.othersPrayed, lang)} onOpen={() => onOpenFamilia?.('oracao')} />
         )}
 
-        <AbasDePedidos tabs={tabs} current={current} onChange={setTab} />
+        <AbasDePedidos tabs={tabs} current={current} onChange={setTab} label={Q('title')} />
 
         <div style={s.list} role="tabpanel">
           {pedidos.loading ? (
-            <p style={s.note}>Carregando os pedidos…</p>
+            <p style={s.note}>{Q('loading')}</p>
           ) : pedidos.error ? (
-            <p style={s.note}>Não foi possível carregar os pedidos agora.</p>
+            <p style={s.note}>{Q('loadError')}</p>
           ) : current === 'respondidos' ? (
             rows.length > 0
-              ? <BlocoRespondidos rows={rows.map(answeredRow)} onOpen={openById} />
-              : <div style={s.empty}><p style={s.emptyText}>{EMPTY.respondidos}</p></div>
+              ? <BlocoRespondidos rows={rows.map(p => answeredRow(p, lang))} onOpen={openById} />
+              : <div style={s.empty}><p style={s.emptyText}>{Q('empty_respondidos')}</p></div>
           ) : (
             <>
               {rows.map(p => <CartaoDoPedido key={p.id} pedido={p} onOpen={openPedido} onOrar={pedidos.orar} />)}
               {rows.length === 0 && (
                 <div style={s.empty}>
-                  <p style={s.emptyText}>{EMPTY[current]}</p>
+                  <p style={s.emptyText}>{Q(`empty_${current}`)}</p>
                   {current === 'ativos' && (
                     <button type="button" style={s.emptyAction} onClick={() => setAddOpen(true)}>
                       <span style={s.diamond} aria-hidden="true" />
-                      <span style={s.emptyActionText}>Fazer um pedido</span>
+                      <span style={s.emptyActionText}>{Q('makeRequest')}</span>
                       <AppIcon name="ChevronRight" size={14} strokeWidth={2.6} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
                     </button>
                   )}

@@ -4,11 +4,12 @@
 // "Oração pelos outros" e a barra entre o degrau atual e o próximo. Leva
 // à família em Minhas conquistas. `card` vem de othersCard
 // (pedidos/pedidosMath.js).
+import { t, currentLanguage } from '../../i18n'
 const FONT = 'var(--font-bento)'
 
 export default function CartaoOracoesPelosOutros({ card, onOpen }) {
   return (
-    <button type="button" style={s.card} onClick={onOpen} aria-label={`${card.aria} Abrir a família em Minhas conquistas.`}>
+    <button type="button" style={s.card} onClick={onOpen} aria-label={t('pedidosTx.openFamily', { aria: card.aria })}>
       <span style={s.top}>
         <span style={s.value}>{card.value}</span>
         <span style={s.texts}>
