@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import FolhaDeConfirmacao from '../components/comunidade/FolhaDeConfirmacao'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { getRoomStats, getRoomQuestion, setRoomQuestion, getRoomPosts, postToRoom, toggleAmen, deleteRoomPost } from '../groups/chapterRoomStore'
 
@@ -100,9 +101,13 @@ export default function ChapterRoomScreen({ group, book, bookEn, chapter, comple
     inputRef.current?.focus()
   }
 
-  async function remove(post) {
-    if (!window.confirm(L('delete') + '?')) return
-    try { await deleteRoomPost(post.id); await reload() } catch (err) { console.error('Failed to delete post', err) }
+  // Apagar uma mensagem pede confirmação numa folha do app, que espera a
+  // gravação e avisa se ela falhar.
+  const [removing, setRemoving] = useState(null)
+  async function confirmRemove() {
+    await deleteRoomPost(removing.id)
+    setRemoving(null)
+    await reload()
   }
 
   const answerAvatars = posts.slice(0, 3)
@@ -189,7 +194,7 @@ export default function ChapterRoomScreen({ group, book, bookEn, chapter, comple
                 </button>
                 <button type="button" style={{ ...s.chip, color: 'var(--bento-t3)' }} onClick={() => replyTo(post)}>{L('reply')}</button>
                 {(mine || isModerator) && (
-                  <button type="button" style={{ ...s.chip, color: 'var(--bento-t3)', marginLeft: 'auto' }} onClick={() => remove(post)}>{L('delete')}</button>
+                  <button type="button" style={{ ...s.chip, color: 'var(--bento-t3)', marginLeft: 'auto' }} onClick={() => setRemoving(post)}>{L('delete')}</button>
                 )}
               </div>
             </div>
@@ -209,6 +214,13 @@ export default function ChapterRoomScreen({ group, book, bookEn, chapter, comple
           </button>
         </div>
       </div>
+      {removing && (
+        <FolhaDeConfirmacao
+          lang={lang} title={t('community.deleteRoomPostTitle', undefined, lang)} text={t('community.deleteRoomPostText', undefined, lang)}
+          confirmLabel={t('community.delete', undefined, lang)} cancelLabel={t('community.keep', undefined, lang)}
+          onClose={() => setRemoving(null)} onConfirm={confirmRemove}
+        />
+      )}
     </div>
   )
 }

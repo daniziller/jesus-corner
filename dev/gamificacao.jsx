@@ -16,6 +16,11 @@
 //      Ordem do plano (35i): tela=ordem — "Leitura da Bíblia" com a fila do plano de verdade. &ordem=canonical|chronological|custom|free
 //      · &livros=João,Salmos,Rute (minha ordem) · &partida=Salmos:23 · &livre=João:3 · &abrir=leitura (a leitura do plano)
 //      Reiniciar a leitura do zero: tela=suaBiblia — o botão no fim da tela; a senha de mentira é "certa123". &senha=nao · &rede=fora · &gravar=falha
+//      Comunidade (redesenho 2026-11): tela=comunidade — a raiz. &grupos=0|1|3|6 · &amigos=0|2|5 · &novas=0|1|4 · &trecho=nao · &espera=0|3
+//      · &carregando=sim · &foto=sim · &envio=falha · &responder=falha. Código que entra: BC-4271 (JA = já pediu; outro = inválido)
+//      tela=grupo — a tela de um grupo. &leitura=nao · &pedido=nenhum|meu|orei · &recado=nenhum · &desafio=nao · &aviso=nao · &orar=falha · &sair=falha
+//      tela=grupo&ver=desafio|oracao|conversa|pessoas — as telas de dentro do grupo, com dados na memória. &moderador=nao · &vazio=sim · &rede=fora · &convidar=sim
+//      tela=amigos — a tela de Amigos. &amigos=0 · &pedidos=0 · &grupos=nao · &rede=fora
 //      Bíblia (handoff-biblia-52): tela=biblia — a aba de verdade (JourneyScreen), com os capítulos marcáveis na memória.
 //      &estado=b1 (a conta da captura: Gênesis 40/50, Salmos 6/150, Jonas completo) | exemplo | nova | inteira | carregando
 //      &livro=Gênesis (B2, o livro direto) &lidos=0|N (quantos capítulos dele estão lidos)
@@ -105,6 +110,16 @@ import AddStudyScreen from '../src/screens/AddStudyScreen'
 import { pickLibraryData, libraryItems, withReadings, chaptersByDay, studiesSummary, studyItems, typeMeta } from '../src/biblioteca/bibliotecaMath'
 import { bibliotecaApi } from '../src/biblioteca/bibliotecaApi'
 import ReadingOrganizeScreen from '../src/screens/ReadingOrganizeScreen'
+import ComunidadeRaiz from '../src/components/comunidade/ComunidadeRaiz'
+import GrupoInicio from '../src/components/comunidade/GrupoInicio'
+import FolhaDeConfirmacao from '../src/components/comunidade/FolhaDeConfirmacao'
+import GrupoDesafio from '../src/components/comunidade/GrupoDesafio'
+import GrupoOracao from '../src/components/comunidade/GrupoOracao'
+import GrupoConversa from '../src/components/comunidade/GrupoConversa'
+import GrupoPessoas from '../src/components/comunidade/GrupoPessoas'
+import AddFriendsScreen from '../src/screens/AddFriendsScreen'
+import { BIBLE_BLOCKS } from '../src/data/bibleBlocks'
+import { squareAvatarBlob } from '../src/profile/avatarImage'
 import { restartReading } from '../src/reading/reiniciarStore'
 import { planQueue, splitPointsFor, findPlanSession, sessionAt, resolveNextChapter } from '../src/reading/bibleOrderMath'
 import { deriveChronoProgress } from '../src/data/chronologicalPlan'
@@ -860,6 +875,198 @@ function SuaBibliaPreview({ onBack }) {
   )
 }
 
+// A raiz da Comunidade com dados de exemplo na memória: responder a um
+// convite tira a linha, entrar com código e enviar foto respondem como o
+// app (a foto é recortada de verdade; o envio é de mentira).
+const pessoas = ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida']
+const gruposDeExemplo = [
+  { groupId: 'g1', name: 'Grupo Semente', myRole: 'member', readingMode: 'shared' },
+  { groupId: 'g2', name: 'Família Almeida', myRole: 'moderator', readingMode: 'individual' },
+  { groupId: 'g3', name: 'Manhã com a Palavra', myRole: 'member', readingMode: 'individual' },
+  { groupId: 'g4', name: 'Jovens da Central', myRole: 'member', readingMode: 'shared' },
+  { groupId: 'g5', name: 'Casais', myRole: 'member', readingMode: 'individual' },
+  { groupId: 'g6', name: 'Discipulado', myRole: 'moderator', readingMode: 'shared' },
+]
+function ComunidadePreview() {
+  const n = (k, padrao) => Number(params.get(k) ?? padrao)
+  const groups = gruposDeExemplo.slice(0, n('grupos', 3))
+  const novas = n('novas', 4)
+  const [avatarUrl, setAvatarUrl] = useState(params.get('foto') === 'sim' ? 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#7A4A1E"/><circle cx="32" cy="26" r="12" fill="#E6DACB"/><rect x="12" y="42" width="40" height="30" rx="14" fill="#E6DACB"/></svg>') : null)
+  const [espera, setEspera] = useState(n('espera', 2) === 0 ? { planos: [], convites: [], pedidos: [] } : {
+    planos: n('espera', 2) >= 3 ? [{ planId: 'p1', book: 'Marcos', bookEn: 'Mark', groupName: 'Grupo Semente' }] : [],
+    convites: [{ groupId: 'g9', groupName: 'Batista Central', invitedByName: 'Rafael' }],
+    pedidos: [{ friendshipId: 'f9', name: 'Lucas Mendes', avatarUrl: null }],
+  })
+  return (
+    <ComunidadeRaiz
+      session={{ ...session, weeksInGoal: 18, weeklyGoalDays: 4, biblePercent: 4.2, dailyRoutine: { '2026-03-14': {}, '2026-11-10': {} } }}
+      authUser={{ ...authUser, name: 'Diego' }} avatarUrl={avatarUrl} onAvatarChange={setAvatarUrl}
+      photoApi={{ prepare: squareAvatarBlob, upload: async blob => { await new Promise(r => setTimeout(r, 400)); if (params.get('envio') === 'falha') throw new Error('sem rede'); window.__fotoEnviada = { tipo: blob.type, bytes: blob.size }; return URL.createObjectURL(blob) } }}
+      loaded={params.get('carregando') !== 'sim'} groups={groups} memberCounts={{ g1: 12, g2: 6, g3: 8, g4: 1, g5: 14, g6: 3 }}
+      messagesSummary={novas === 0 ? [] : novas === 1 ? [{ groupId: 'g1', unreadCount: 1 }] : [{ groupId: 'g1', unreadCount: 3 }, { groupId: 'g2', unreadCount: 1 }]}
+      messages={params.get('trecho') === 'nao' ? [] : [{ isRead: false, locked: false, body: 'Nunca tinha reparado que Nicodemos vem de noite e sai sem resposta pronta.', authorName: 'Marina', groupName: 'Grupo Semente', kind: 'sala_capitulo', contextBook: 'João', contextChapter: 3 }]}
+      planInvites={espera.planos} groupInvites={espera.convites} friendRequests={espera.pedidos}
+      friends={pessoas.slice(0, n('amigos', 5)).map((name, i) => ({ friendshipId: `f${i}`, name, avatarUrl: null }))}
+      onOpenMessages={() => alert('abrir Mensagens')} onOpenProfile={() => alert('abrir Meu perfil')} onOpenGroup={id => alert(`abrir o grupo ${id}`)}
+      onOpenFriends={() => alert('abrir Amigos')} onCreateGroup={() => alert('abrir Criar um grupo')}
+      onJoinWithCode={async code => { await new Promise(r => setTimeout(r, 300)); if (code.trim().toUpperCase() === 'BC-4271') return 'Batista Central'; throw new Error(code.trim().toUpperCase() === 'JA' ? 'already_in_group' : code.trim() === 'rede' ? 'Failed to fetch' : 'invalid_code') }}
+      onAnswer={async (item, accept) => {
+        await new Promise(r => setTimeout(r, 250))
+        if (params.get('responder') === 'falha') throw new Error('sem rede')
+        window.__respostas = [...(window.__respostas ?? []), `${item.kind}:${item.ref}:${accept ? 'sim' : 'nao'}`]
+        setEspera(e => ({ planos: e.planos.filter(p => p.planId !== item.ref), convites: e.convites.filter(c => c.groupId !== item.ref), pedidos: e.pedidos.filter(p => p.friendshipId !== item.ref) }))
+      }}
+    />
+  )
+}
+
+// As telas de dentro do grupo (Desafio, Oração, Conversa, Pessoas) com
+// dados na memória: o que a pessoa faz aparece na hora, como no app.
+// `window.__chamadas` guarda o que foi "gravado".
+function ParteDoGrupoPreview({ ver }) {
+  const moderador = params.get('moderador') !== 'nao'
+  const vazio = params.get('vazio') === 'sim'
+  const fora = params.get('rede') === 'fora'
+  const haPouco = h => new Date(Date.now() - h * 3600000).toISOString()
+  const gravar = async (nome, ...dados) => { await new Promise(r => setTimeout(r, 200)); if (fora) throw new Error('sem rede'); window.__chamadas = [...(window.__chamadas ?? []), [nome, ...dados].join(':')] }
+  const chaves = n => Array.from({ length: n }, (_, i) => `Marcos:${i + 1}`)
+  const membros = ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida', 'Diego'].map((name, i) => ({ userId: `u${i}`, name, role: i === 1 || (i === 5 && moderador) ? 'moderator' : 'member' }))
+  const [membrosAgora, setMembros] = useState(membros)
+  const banco = useState(() => ({ desafios: vazio ? [] : [
+    { id: 'd1', active: true, name: 'Maratona de Marcos', description: '', books: ['Marcos'], startsAt: haPouco(96), endsAt: new Date(Date.now() + 6.5 * 86400000).toISOString(), createdByName: 'Rafael' },
+    { id: 'd2', active: false, manuallyCompleted: true, name: 'Salmos em 30 dias', books: ['Salmos'], startsAt: haPouco(1500), endsAt: haPouco(700), createdByName: 'Ana' },
+    { id: 'd3', active: false, manuallyCompleted: false, name: '', books: ['Tiago'], startsAt: haPouco(2500), endsAt: haPouco(1900), createdByName: 'Ana' },
+  ],
+  placares: { d1: [['u5', 'Diego', 10], ['u0', 'Marina Costa', 16], ['u2', 'Ana Ribeiro', 7], ['u1', 'Rafael Souza', 12], ['u3', 'Tiago Lima', 3], ['u4', 'Júlia Almeida', 1]], d2: [['u0', 'Marina', 150], ['u1', 'Rafael', 150], ['u2', 'Ana', 20]], d3: [] },
+  pedidos: vazio ? [] : [
+    { id: 'p1', status: 'open', body: 'Pela cirurgia da minha mãe na quinta. Que ela fique em paz.', authorName: 'Ana', anonymous: false, isMine: false, prayingByMe: false, prayedEver: false, prayCount: 4, createdAt: haPouco(2) },
+    { id: 'p2', status: 'open', body: 'Estou sem emprego há quatro meses. Peço direção e calma para a minha casa.', authorName: '', anonymous: true, isMine: false, prayingByMe: true, prayedEver: true, prayCount: 9, createdAt: haPouco(30) },
+    { id: 'p3', status: 'open', body: 'Pela prova do meu filho no sábado.', authorName: 'Diego', isMine: true, prayCount: 1, createdAt: haPouco(80) },
+    { id: 'p4', status: 'closed', body: 'Pelo exame da Júlia', authorName: 'Júlia', prayCount: 3, createdAt: haPouco(700) },
+  ],
+  recados: vazio ? [] : [
+    { id: 'c1', userId: 'u5', authorName: 'Diego', body: 'Terminei Gênesis hoje. Obrigado por não me deixarem parar em José.', createdAt: haPouco(72), pinned: false, likeCount: 7, likedByMe: false },
+    { id: 'c2', userId: 'u0', authorName: 'Marina Costa', body: 'Alguém mais ficou preso em Levítico? Queria uma dica de como não parar ali.', createdAt: haPouco(48), pinned: false, likeCount: 1, likedByMe: false },
+    { id: 'c3', userId: 'u1', authorName: 'Rafael Souza', body: 'Li João 3 de novo depois da sala. “Nascer de novo” ficou outra coisa pra mim.', createdAt: haPouco(26), pinned: false, likeCount: 5, likedByMe: true },
+    { id: 'c4', userId: 'u9', authorName: 'Saiu', anonymous: true, body: 'Recado de quem saiu do grupo.', createdAt: haPouco(300), pinned: true, pinnedAt: haPouco(200), likeCount: 0, likedByMe: false },
+  ] }))[0]
+  const comum = { lang: 'pt', groupId: 'g1', groupName: 'Grupo Semente', myUserId: 'u5', isModerator: moderador, onBack: () => alert('voltar para o grupo') }
+  if (ver === 'desafio') return (
+    <GrupoDesafio
+      {...comum} chapterCounts={{ Marcos: 16, Salmos: 150, Tiago: 5 }} blocks={BIBLE_BLOCKS} onOpenBible={(livro, cap) => alert(`abrir a Bíblia em ${livro} ${cap}`)}
+      api={{
+        list: async () => banco.desafios, board: async id => banco.placares[id].map(([userId, name, n], i) => ({ userId, name, completedKeys: chaves(n), joinedAt: haPouco(90 - i) })),
+        complete: async id => { await gravar('concluir', id); banco.desafios = banco.desafios.map(x => (x.id === id ? { ...x, active: false, manuallyCompleted: true } : x)) },
+        create: async (grupo, livros, fim, nome, frase) => { await gravar('criar', nome, livros.join('+'), frase); banco.placares.novo = []; banco.desafios = [{ id: 'novo', active: true, name: nome, description: frase, books: livros, startsAt: new Date().toISOString(), endsAt: fim, createdByName: 'Diego' }, ...banco.desafios] },
+      }}
+    />
+  )
+  if (ver === 'oracao') return (
+    <GrupoOracao
+      {...comum} authUser={authUser} hasAI={false} startWriting={params.get('escrever') === 'sim'}
+      api={{
+        list: async () => { if (fora && window.__carregou) throw new Error('sem rede'); window.__carregou = true; return banco.pedidos },
+        pray: r => gravar('orei', r.id),
+        close: async id => { await gravar('encerrar', id); banco.pedidos = banco.pedidos.map(x => (x.id === id ? { ...x, status: 'closed' } : x)) },
+        remove: async id => { await gravar('apagar', id); banco.pedidos = banco.pedidos.filter(x => x.id !== id) },
+      }}
+    />
+  )
+  if (ver === 'conversa') return (
+    <GrupoConversa
+      {...comum} members={membrosAgora} pinnedNotice={params.get('aviso') === 'nao' ? '' : 'Encontro presencial no sábado, 16h, na casa da Ana. Levem a Bíblia.'}
+      api={{
+        list: async () => banco.recados,
+        post: async (grupo, texto) => { await gravar('publicar', texto); banco.recados = [...banco.recados, { id: `n${banco.recados.length}`, userId: 'u5', authorName: 'Diego', body: texto.trim(), createdAt: new Date().toISOString(), pinned: false, likeCount: 0, likedByMe: false }] },
+        remove: async id => { await gravar('apagar', id); banco.recados = banco.recados.filter(x => x.id !== id) },
+        like: id => gravar('curtir', id),
+        pin: async (id, fixar) => { await gravar(fixar ? 'fixar' : 'desafixar', id); banco.recados = banco.recados.map(x => (x.id === id ? { ...x, pinned: fixar, pinnedAt: fixar ? new Date().toISOString() : null } : x)) },
+        report: d => gravar('denunciar', d.messageId, d.reason),
+      }}
+    />
+  )
+  return (
+    <GrupoPessoas
+      {...comum} members={membrosAgora} focusInvite={params.get('convidar') === 'sim'} onChange={() => {}}
+      api={{
+        friends: async () => (params.get('amigos') === '0' ? [] : [{ userId: 'u0', name: 'Marina Costa' }, { userId: 'x1', name: 'Pedro Nunes' }, { userId: 'x2', name: 'Carla Dias' }].slice(0, params.get('amigos') === 'dentro' ? 1 : 3)),
+        setRole: async (grupo, id, papel) => { await gravar('papel', id, papel); setMembros(l => l.map(m => (m.userId === id ? { ...m, role: papel } : m))) },
+        invite: (grupo, id) => gravar('convidar', id),
+      }}
+    />
+  )
+}
+
+// A tela de Amigos com dados na memória (aceitar, adicionar e procurar
+// respondem como o app). Procurar "ana" ou um e-mail envia; "ninguem" não acha.
+function AmigosPreview() {
+  const fora = params.get('rede') === 'fora'
+  const gravar = async (nome, ...dados) => { await new Promise(r => setTimeout(r, 200)); if (fora) throw new Error('sem rede'); window.__chamadas = [...(window.__chamadas ?? []), [nome, ...dados].join(':')] }
+  const banco = useState(() => ({
+    amigos: params.get('amigos') === '0' ? [] : ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida'].map((name, i) => ({ friendshipId: `f${i}`, userId: `u${i}`, name, avatarUrl: null })),
+    pedidos: params.get('pedidos') === '0' ? [] : [{ friendshipId: 'f9', userId: 'x9', name: 'Lucas Mendes', avatarUrl: null }],
+  }))[0]
+  const lido = n => Array.from({ length: n }, (_, i) => `Gênesis:${i + 1}`)
+  return (
+    <AddFriendsScreen
+      session={{ ...session, lang: 'pt' }} authUser={{ ...authUser, id: 'eu', name: 'Diego' }} onBack={() => alert('voltar para a Comunidade')} onChange={() => {}}
+      api={{
+        friends: async () => banco.amigos, pending: async () => banco.pedidos,
+        groups: async () => (params.get('grupos') === 'nao' ? [] : [{ name: 'Grupo Semente', members: [{ userId: 'eu', name: 'Diego' }, { userId: 'u0', name: 'Marina Costa' }, { userId: 'x9', name: 'Lucas Mendes' }, { userId: 'x1', name: 'Pedro Nunes' }] }, { name: 'Família Almeida', members: [{ userId: 'x2', name: 'Carla Dias' }] }]),
+        summary: async id => { await new Promise(r => setTimeout(r, 150)); return id === 'u2' ? { isPublic: false } : { isPublic: true, completedKeys: lido(id === 'u0' ? 50 : 12), planId: 'standard' } },
+        respond: async (id, aceitar) => { await gravar('responder', id, aceitar ? 'sim' : 'nao'); const req = banco.pedidos.find(p => p.friendshipId === id); banco.pedidos = banco.pedidos.filter(p => p.friendshipId !== id); if (aceitar) banco.amigos = [...banco.amigos, { ...req }] },
+        requestByEmail: v => gravar('email', v),
+        requestByUsername: async v => { if (v === 'ninguem') throw new Error('username_not_found'); await gravar('usuario', v) },
+        requestByUserId: v => gravar('adicionar', v), remove: v => gravar('desfazer', v),
+        inviteLink: async () => 'https://exemplo.app/d/diego',
+      }}
+    />
+  )
+}
+
+// A tela de um grupo com dados de exemplo; "Sair do grupo" abre a folha de
+// confirmação de verdade.
+function GrupoPreview() {
+  const [saindo, setSaindo] = useState(false)
+  const haPouco = h => new Date(Date.now() - h * 3600000).toISOString()
+  const pedido = params.get('pedido') ?? 'outro'
+  const pedidos = pedido === 'nenhum' ? [{ id: 'pf', status: 'closed', body: 'Antigo', authorName: 'Ana', createdAt: haPouco(400), prayCount: 2 }] : [
+    { id: 'p1', status: 'open', body: 'Pela cirurgia da minha mãe na quinta. Que ela fique em paz.', authorName: 'Ana', anonymous: false, isMine: pedido === 'meu', prayingByMe: pedido === 'orei', prayedEver: pedido === 'orei', prayCount: 4, createdAt: haPouco(2) },
+    { id: 'p2', status: 'open', body: 'Emprego', authorName: '', anonymous: true, prayCount: 9, createdAt: haPouco(30) },
+    { id: 'p3', status: 'open', body: 'Prova', authorName: 'Eu', isMine: true, prayCount: 6, createdAt: haPouco(80) },
+    { id: 'p4', status: 'closed', body: 'Exame', authorName: 'Júlia', prayCount: 3, createdAt: haPouco(700) },
+  ]
+  const recados = params.get('recado') === 'nenhum' ? [] : [...Array.from({ length: 11 }, (_, i) => ({ id: `c${i}`, authorName: 'Marina', body: 'Recado antigo', createdAt: haPouco(200 + i) })), { id: 'c99', authorName: 'Rafael', anonymous: false, body: 'Li João 3 de novo depois da sala. “Nascer de novo” ficou outra coisa pra mim.', createdAt: haPouco(26) }]
+  const membros = ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida', 'Diego', 'Pedro', 'Carla', 'Lucas', 'Bia', 'Sara', 'Davi'].map((name, i) => ({ userId: `u${i}`, name, role: i < 2 ? 'moderator' : 'member' }))
+  return (
+    <>
+      <GrupoInicio
+        lang="pt" groupId="g1" groupName="Grupo Semente" readingMode="shared" members={membros}
+        pinnedNotice={params.get('aviso') === 'nao' ? null : 'Encontro presencial no sábado, 16h.'}
+        todaySession={params.get('leitura') === 'nao' ? { type: 'reflection', book: 'João' } : { book: 'João', bookEn: 'John', chStart: 3, chEnd: 4, type: 'reading' }}
+        myUserId="u5" chapterCounts={{ Marcos: 16 }}
+        api={{
+          roomStats: async () => ({ members: 12, completed: 5 }),
+          prayers: async () => pedidos, comments: async () => recados,
+          challenges: async () => (params.get('desafio') === 'nao' ? [{ id: 'd0', active: false, name: 'Antigo', books: ['Marcos'] }] : [{ id: 'd1', active: true, name: 'Maratona de Marcos', books: ['Marcos'] }]),
+          leaderboard: async () => [{ userId: 'u5', name: 'Diego', completedKeys: Array.from({ length: 10 }, (_, i) => `Marcos:${i + 1}`) }, { userId: 'u0', name: 'Marina', completedKeys: Array.from({ length: 16 }, (_, i) => `Marcos:${i + 1}`) }],
+          pray: async () => { await new Promise(r => setTimeout(r, 300)); if (params.get('orar') === 'falha') throw new Error('sem rede'); window.__orei = (window.__orei ?? 0) + 1 },
+        }}
+        onBack={() => alert('voltar para a Comunidade')} onInvite={() => alert('convidar')} onOpen={parte => alert(`abrir: ${parte}`)} onWrite={parte => alert(`escrever: ${parte}`)}
+        onOpenRoom={alvo => alert(`abrir a sala: ${alvo.group.name} · ${alvo.book} ${alvo.chapter}`)} onLeave={() => setSaindo(true)}
+      />
+      {saindo && (
+        <FolhaDeConfirmacao
+          lang="pt" title="Sair do Grupo Semente?" text="Você deixa de ver os recados, os pedidos de oração e a sala do capítulo deste grupo."
+          keeps="Sua leitura, suas notas e seus amigos continuam com você. Para voltar, basta um novo convite."
+          confirmLabel="Sair do grupo" cancelLabel="Ficar no grupo" onClose={() => setSaindo(false)}
+          onConfirm={async () => { await new Promise(r => setTimeout(r, 350)); if (params.get('sair') === 'falha') throw new Error('sem rede'); setSaindo(false); alert('saiu do grupo') }}
+        />
+      )}
+    </>
+  )
+}
+
 // "Leitura da Bíblia" (35i) com a fila do plano de verdade: a ordem, os
 // livros de "minha ordem" e o ponto de partida ficam na memória, e a faixa
 // de cima mostra a sessão de hoje que sai deles — as mesmas contas de
@@ -959,6 +1166,9 @@ function Preview() {
   const livro = params.get('livro') ?? 'Jonas'
   const [draftState, setDraftState] = useState(null)
   if (screen === 'ordem') return <OrdemPreview />
+  if (screen === 'amigos') return <div style={{ height: '100%' }}><AmigosPreview /><BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
+  if (screen === 'grupo') return <div style={{ height: '100%' }}>{params.get('ver') ? <ParteDoGrupoPreview ver={params.get('ver')} /> : <GrupoPreview />}<BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
+  if (screen === 'comunidade') return <div style={{ height: '100%', overflowY: 'auto' }}><ComunidadePreview /><BottomNav activeTab="groups" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /></div>
   if (screen === 'estudos') {
     // A tela Estudos (35h) com o cabeçalho da Biblioteca; `&lupa=nao`: como
     // abre pelo Meu Plano. (Sem servidor aqui, as listas de fora ficam
