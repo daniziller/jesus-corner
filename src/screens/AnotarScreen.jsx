@@ -13,8 +13,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAnotacao } from '../anotar/useAnotacao'
 import { anotarApi } from '../anotar/anotarApi'
 import {
-  UNTITLED, headerSecondLine, noteTypeName, passagesPill, tagsPill, annotatingLabel, topicNumbers, addTopic, topicEnter,
-  backspaceAtStart, removeCitation, insertCitation, insertDictation, passageRows, noteHasContent,
+  untitled, headerSecondLine, noteTypeName, passagesPill, tagsPill, annotatingLabel, topicNumbers, addTopic, topicEnter,
+  backspaceAtStart, removeCitation, insertCitation, insertDictation, passageRows, noteHasContent, passageLabel,
 } from '../anotar/anotarMath'
 import { useKeyboardInset } from '../passos/useKeyboardInset'
 import { useSpeechToText } from '../utils/useSpeechToText'
@@ -23,6 +23,7 @@ import DetalhesDaAnotacao from '../components/anotar/DetalhesDaAnotacao'
 import SeletorDeVersiculo from '../components/anotar/SeletorDeVersiculo'
 import FolhaDePassagens from '../components/anotar/FolhaDePassagens'
 import Icone from '../components/anotar/Icone'
+import { tr } from '../i18n/tr.js'
 
 const FONT = 'var(--font-bento)'
 const NO_GROUPS = []
@@ -33,6 +34,7 @@ const NO_GROUPS = []
 // anotação estava ao abrir ({ wasFinalized, sharedGroupIds }) — é o que
 // diz a quem levar ao grupo (ver PaginaDeAnotacao.jsx).
 export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, groups = NO_GROUPS, initialDetails = null, readOnly = false, onClose, onFinalized, onOpenBiblePassage }) {
+  const N = (key, vars) => tr(lang, `notasTx.${key}`, vars)
   const { status, draft, library, save, change, persist, leave, finalize, seconds } = useAnotacao({ api, target, countTime: !readOnly })
   const keyboardInset = useKeyboardInset()
   const keyboardOpen = keyboardInset > 0
@@ -95,20 +97,21 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
     return (
       <div style={s.screen}>
         <div style={s.header}>
-          <button type="button" className="biblioteca-alvo" style={s.close} onClick={onClose} aria-label="Fechar">
+          <button type="button" className="biblioteca-alvo" style={s.close} onClick={onClose} aria-label={N('close')}>
             <Icone name="down" />
           </button>
         </div>
-        <p style={s.problem} role="alert">{status === 'missing' ? 'Esta anotação não está mais na sua Biblioteca.' : 'Não deu para abrir a anotação agora. Confira sua internet e tente de novo.'}</p>
+        <p style={s.problem} role="alert">{status === 'missing' ? N('missingNote') : N('openError')}</p>
       </div>
     )
   }
 
   const numbers = topicNumbers(draft.body)
+  const UNTITLED = untitled(lang)
   const empty = draft.body.length === 1 && !draft.body[0].text
-  const passages = passagesPill(draft)
+  const passages = passagesPill(draft, lang)
   const tags = tagsPill(draft)
-  const typeName = noteTypeName(draft.noteType)
+  const typeName = noteTypeName(draft.noteType, lang)
 
   function apply(result) {
     change(prev => ({ ...prev, body: result.body, ...(result.passages ? { passages: result.passages } : null) }))
@@ -159,16 +162,16 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
   const tools = (
     <>
       <button type="button" style={s.tool} onPointerDown={keepFocus} onClick={() => setPicking(true)}>
-        <Icone name="plus" size={14} color="var(--bento-sand-icon)" />Versículo
+        <Icone name="plus" size={14} color="var(--bento-sand-icon)" />{N('toolVerse')}
       </button>
       <button type="button" style={s.tool} onPointerDown={keepFocus} onClick={() => apply(addTopic(draft.body, focusedId))}>
-        <Icone name="lines" size={14} />Tópico
+        <Icone name="lines" size={14} />{N('toolTopic')}
       </button>
-      <button type="button" style={s.toolSquare} onPointerDown={keepFocus} onClick={() => setDetails('tags')} aria-label="Etiquetas">#</button>
+      <button type="button" style={s.toolSquare} onPointerDown={keepFocus} onClick={() => setDetails('tags')} aria-label={N('tags')}>#</button>
       <span style={{ flex: 1 }} />
       {dictation.supported && (
         <button
-          type="button" style={{ ...s.voice, ...(dictation.listening ? s.voiceOn : null) }} aria-pressed={dictation.listening} aria-label="Ditar"
+          type="button" style={{ ...s.voice, ...(dictation.listening ? s.voiceOn : null) }} aria-pressed={dictation.listening} aria-label={N('dictate')}
           onPointerDown={keepFocus} onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
         >
           <Icone name="mic" size={17} color={dictation.listening ? 'var(--bento-ink)' : 'var(--bento-accent)'} />
@@ -182,29 +185,29 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
     <div style={{ ...s.screen, paddingBottom: keyboardInset }}>
       <div style={s.page} inert={covered ? '' : undefined}>
         <div style={s.header}>
-          <button type="button" className="biblioteca-alvo" style={s.close} onClick={close} aria-label={readOnly ? 'Voltar' : 'Fechar a anotação'}>
+          <button type="button" className="biblioteca-alvo" style={s.close} onClick={close} aria-label={readOnly ? N('back') : N('closeNote')}>
             <Icone name={readOnly ? 'left' : 'down'} />
           </button>
           {readOnly ? (
             <div style={s.heading}>
               <h1 style={{ ...s.title, ...(draft.title.trim() ? null : s.untitled) }}>{draft.title.trim() || UNTITLED}</h1>
-              <span style={s.sub}>{headerSecondLine(draft)}</span>
+              <span style={s.sub}>{headerSecondLine(draft, {}, lang)}</span>
             </div>
           ) : (
-            <button type="button" style={{ ...s.heading, ...s.headingButton }} onClick={() => setDetails('title')} aria-label={`${draft.title.trim() || UNTITLED}. Abrir os detalhes da anotação`}>
+            <button type="button" style={{ ...s.heading, ...s.headingButton }} onClick={() => setDetails('title')} aria-label={N('openDetailsAria', { title: draft.title.trim() || UNTITLED })}>
               <span style={{ ...s.title, ...(draft.title.trim() ? null : s.untitled) }}>{draft.title.trim() || UNTITLED}</span>
-              <span style={s.sub}>{headerSecondLine(draft, save)}</span>
+              <span style={s.sub}>{headerSecondLine(draft, save, lang)}</span>
             </button>
           )}
-          {!readOnly && <button type="button" className="biblioteca-alvo" style={s.finish} onClick={finish} disabled={busy}>Finalizar</button>}
+          {!readOnly && <button type="button" className="biblioteca-alvo" style={s.finish} onClick={finish} disabled={busy}>{N('finish')}</button>}
         </div>
-        {save.error && <p style={s.saveError} role="status">Não deu para gravar agora. O texto está guardado neste aparelho e vai ser gravado quando a internet voltar.</p>}
+        {save.error && <p style={s.saveError} role="status">{N('saveError')}</p>}
 
         <div style={s.pills}>
           {readOnly ? (
             <span style={s.typePill}><span style={s.typeSquare} /><span style={s.typeName}>{typeName}</span></span>
           ) : (
-            <button type="button" className="biblioteca-pastilha" style={{ ...s.typePill, cursor: 'pointer' }} onClick={() => setDetails('type')} aria-label={`Tipo: ${typeName}`}>
+            <button type="button" className="biblioteca-pastilha" style={{ ...s.typePill, cursor: 'pointer' }} onClick={() => setDetails('type')} aria-label={N('typeAria', { type: typeName })}>
               <span style={s.typeSquare} />
               <span style={s.typeName}>{typeName}</span>
               <Icone name="down" size={11} color="var(--bento-t3)" />
@@ -212,10 +215,10 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
           )}
           {passages && <button type="button" className="biblioteca-pastilha" style={s.passagesPill} onClick={() => setPassagesOpen(true)}>{passages}</button>}
           {tags && (readOnly
-            ? <span style={{ ...s.tagsPill, display: 'flex', alignItems: 'center' }} aria-label={`Etiquetas: ${draft.tags.join(', ')}`}>{tags}</span>
-            : <button type="button" className="biblioteca-pastilha" style={{ ...s.tagsPill, cursor: 'pointer' }} onClick={() => setDetails('tags')} aria-label={`Etiquetas: ${draft.tags.length}`}>{tags}</button>)}
+            ? <span style={{ ...s.tagsPill, display: 'flex', alignItems: 'center' }} aria-label={N('tagsAria', { tags: draft.tags.join(', ') })}>{tags}</span>
+            : <button type="button" className="biblioteca-pastilha" style={{ ...s.tagsPill, cursor: 'pointer' }} onClick={() => setDetails('tags')} aria-label={N('tagsAria', { tags: draft.tags.length })}>{tags}</button>)}
           <span style={{ flex: 1 }} />
-          <span style={s.time} aria-label={`${annotatingLabel(seconds())} anotando`}>{annotatingLabel(seconds())}</span>
+          <span style={s.time} aria-label={N('annotatingAria', { time: annotatingLabel(seconds(), lang) })}>{annotatingLabel(seconds(), lang)}</span>
         </div>
 
         <div style={s.scroll} data-anotar-rolagem>
@@ -224,15 +227,17 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
               {draft.body.map((seg, i) => {
                 const last = i === draft.body.length - 1
                 if (seg.type === 'quote' || seg.type === 'link') {
+                  // A referência no idioma da conta (o bloco guarda a de quando foi citado).
+                  const ref = seg.book && seg.chapter ? passageLabel(seg, lang) : seg.ref
                   return (
                     <div
                       key={seg.id} style={{ ...s.quote, ...(last ? s.lastBlock : null) }} role="group"
-                      {...(readOnly ? { 'aria-label': `Versículo citado: ${seg.ref}` } : { tabIndex: 0, onKeyDown: e => onCitationKeyDown(seg, e), 'aria-label': `Versículo citado: ${seg.ref}. Apagar remove o bloco inteiro.` })}
+                      {...(readOnly ? { 'aria-label': N('citedVerse', { ref }) } : { tabIndex: 0, onKeyDown: e => onCitationKeyDown(seg, e), 'aria-label': N('citedVerseDelete', { ref }) })}
                     >
                       {seg.type === 'quote' && <p style={s.quoteText}>&quot;{seg.text}&quot;</p>}
                       <div style={s.quoteFoot}>
-                        <span style={s.quoteRef}>{[seg.ref, api.versionShort(lang)].filter(Boolean).join(' · ')}</span>
-                        <button type="button" style={s.quoteOpen} onClick={() => openInBible({ book: seg.book, chapter: seg.chapter, verse: seg.verseStart })} aria-label={`Abrir ${seg.ref} na Bíblia`}>abrir</button>
+                        <span style={s.quoteRef}>{[ref, api.versionShort(lang)].filter(Boolean).join(' · ')}</span>
+                        <button type="button" style={s.quoteOpen} onClick={() => openInBible({ book: seg.book, chapter: seg.chapter, verse: seg.verseStart })} aria-label={N('openInBible', { ref })}>{N('open')}</button>
                       </div>
                     </div>
                   )
@@ -250,23 +255,23 @@ export default function AnotarScreen({ lang = 'pt', api = anotarApi, target, gro
                   return (
                     <div key={seg.id} style={{ ...s.topic, ...(closes ? s.topicLast : null), ...(last ? s.lastBlock : null) }}>
                       <span style={s.topicNumber} aria-hidden="true">{numbers[seg.id]}</span>
-                      <CampoDeBloco {...fieldProps} style={s.topicText} aria-label={`Tópico ${numbers[seg.id]}`} enterKeyHint="enter" />
+                      <CampoDeBloco {...fieldProps} style={s.topicText} aria-label={N('topicAria', { n: numbers[seg.id] })} enterKeyHint="enter" />
                     </div>
                   )
                 }
                 return (
                   <CampoDeBloco
                     key={seg.id} {...fieldProps} style={{ ...s.paragraph, ...(last ? s.lastBlock : null) }} className="anotar-campo"
-                    placeholder={empty ? 'Comece a escrever…' : undefined} aria-label="Texto da anotação"
+                    placeholder={empty ? N('startWriting') : undefined} aria-label={N('noteText')}
                   />
                 )
               })}
-              {!readOnly && !keyboardOpen && <div style={s.toolbar} role="toolbar" aria-label="Ferramentas">{tools}</div>}
+              {!readOnly && !keyboardOpen && <div style={s.toolbar} role="toolbar" aria-label={N('tools')}>{tools}</div>}
             </div>
           </div>
         </div>
 
-        {!readOnly && keyboardOpen && <div style={s.dock} role="toolbar" aria-label="Ferramentas">{tools}</div>}
+        {!readOnly && keyboardOpen && <div style={s.dock} role="toolbar" aria-label={N('tools')}>{tools}</div>}
       </div>
 
       {passagesOpen && <FolhaDePassagens rows={passageRows(draft, lang)} onClose={() => setPassagesOpen(false)} onOpen={row => { setPassagesOpen(false); openInBible(row) }} />}

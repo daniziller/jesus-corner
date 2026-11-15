@@ -5,10 +5,10 @@
 // node scripts/test-anotar.mjs
 import { readFileSync } from 'node:fs'
 import {
-  NOTE_TYPES, noteTypeName, customTypesOf, typeOptions, newNote, ensureBody, openNote, plainText, notePayload, noteHasContent,
+  noteTypes, noteTypeName, customTypesOf, typeOptions, newNote, ensureBody, openNote, plainText, notePayload, noteHasContent,
   topicNumbers, addTopic, topicEnter, removeCitation, backspaceAtStart, passageLabel, insertCitation, citationFromSelection,
-  passagesPill, tagsPill, annotatingLabel, saveLabel, headerSecondLine, UNTITLED, createdLine, sourceRows, fieldSuggestions,
-  tagVocabulary, tagChoices, toggleTag, ONLY_ME, whoSeesBlocks, toggleWhoSees, whoSeesLabel, WHO_SEES_NOTE, whoSeesWarning,
+  passagesPill, tagsPill, annotatingLabel, saveLabel, headerSecondLine, untitled, createdLine, sourceRows, fieldSuggestions,
+  tagVocabulary, tagChoices, toggleTag, ONLY_ME, whoSeesBlocks, toggleWhoSees, whoSeesLabel, whoSeesNote, whoSeesWarning,
   currentDraft, pendingLocalDraft, passageRows, insertDictation,
 } from '../src/anotar/anotarMath.js'
 import { libraryItems } from '../src/biblioteca/bibliotecaMath.js'
@@ -147,10 +147,10 @@ check('estado da gravação', [saveLabel({ saving: true, savedAt: t0 }), saveLab
 check('segunda linha: tipo · preletor · estado', headerSecondLine({ noteType: 'sermon', preacher: 'Pr. João Ribeiro' }, { savedAt: t0, now: t0 }), 'Sermão · Pr. João Ribeiro · salvo agora')
 check('segunda linha: anotação livre não mostra preletor que ficou de outro tipo', headerSecondLine({ noteType: 'free', preacher: 'Pr. João Ribeiro' }, {}), 'Livre')
 check('segunda linha: só o que existe', [headerSecondLine({ noteType: 'free', preacher: '' }, {}), headerSecondLine({ noteType: 'free' }, { saving: true }), headerSecondLine({ noteType: 'video', preacher: ' Tim Keller ' }, {}), headerSecondLine({ noteType: 'retiro de casais' }, {})], ['Livre', 'Livre · salvando…', 'Vídeo · Tim Keller', 'retiro de casais'])
-check('sem título', UNTITLED, 'Sem título')
+check('sem título', untitled(), 'Sem título')
 
 // ═══ Detalhes (N3) ════════════════════════════════════════════════════
-check('tipos na ordem fixa', NOTE_TYPES.map(x => x.label), ['Sermão', 'Culto', 'Aula', 'Palestra', 'Vídeo', 'Livre'])
+check('tipos na ordem fixa', noteTypes().map(x => x.label), ['Sermão', 'Culto', 'Aula', 'Palestra', 'Vídeo', 'Livre'])
 check('nome do tipo', ['sermon', 'video', 'free', 'retiro', undefined].map(noteTypeName), ['Sermão', 'Vídeo', 'Livre', 'retiro', 'Sermão'])
 check('tipos criados pela pessoa, sem repetir', customTypesOf([{ noteType: 'retiro' }, { noteType: 'sermon' }, { noteType: 'célula' }, { noteType: 'retiro' }, {}]), ['retiro', 'célula'])
 check('grade: os seis e, depois, os criados; um selecionado', typeOptions(['retiro'], 'free').map(o => `${o.label}${o.on ? '*' : ''}`), ['Sermão', 'Culto', 'Aula', 'Palestra', 'Vídeo', 'Livre*', 'retiro'])
@@ -177,7 +177,7 @@ check('desmarcar o último grupo volta a "Só eu"', [toggleWhoSees(['g1'], 'g1')
 check('grupo de que a pessoa já saiu não fica escolhido', blocos(['g9'])[0], 'Só eu/na Biblioteca*')
 check('sem grupo nenhum: só o bloco "Só eu"', whoSeesBlocks({}).map(b => b.title), ['Só eu'])
 check('quem vê, por extenso', [whoSeesLabel({ groups: grupos, selected: [] }), whoSeesLabel({ groups: grupos, selected: ['g1', 'g2'] })], ['Só eu', 'Grupo Semente · Manhã com a Palavra'])
-check('a linha fixa de "Quem vê"', WHO_SEES_NOTE, 'Nasce só sua. Se escolher um grupo, vão o texto e as passagens — as etiquetas ficam com você.')
+check('a linha fixa de "Quem vê"', whoSeesNote(), 'Nasce só sua. Se escolher um grupo, vão o texto e as passagens — as etiquetas ficam com você.')
 check('grupo escolhido numa anotação sem versículo citado: o aviso', [whoSeesWarning({ selected: ['g1'], passages: [] }), whoSeesWarning({ selected: ['g1'], passages: [{}] }), whoSeesWarning({ selected: [], passages: [] })], ['Para ir ao grupo, a anotação precisa citar um versículo.', null, null])
 
 // ── O rascunho: fechar o app no meio da escrita e reabrir ─────────────
@@ -210,11 +210,21 @@ check('ditado: entra no cursor, com espaço antes quando precisa', [insertDictat
 // ═══ Regras da página, no código ══════════════════════════════════════
 const tela = ler('screens/AnotarScreen.jsx')
 check('não existe botão "Salvar" na página de escrever', />\s*Salvar\s*</.test(tela), false)
-check('"Finalizar" e "Sem título" estão na página', [tela.includes('Finalizar'), tela.includes('UNTITLED')], [true, true])
+check('"Finalizar" e "Sem título" estão na página', [tela.includes("N('finish')"), tela.includes('UNTITLED')], [true, true])
 const detalhes = ler('components/anotar/DetalhesDaAnotacao.jsx')
 check('N3 não publica nada: escolher um grupo só guarda a escolha', /postToRoom|publish|supabase/.test(detalhes), false)
 const apiAnotar = ler('anotar/anotarApi.js')
 check('a página grava pelo mesmo caminho de sempre (saveSermonNote)', /saveSermonNote/.test(apiAnotar), true)
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: tipos', noteTypes('en').map(x => x.label), ['Sermon', 'Service', 'Class', 'Talk', 'Video', 'Free'])
+check('en: tipo criado pela pessoa fica com as palavras dela', noteTypeName('célula', 'en'), 'célula')
+check('en: pastilha de passagens e estado da gravação', [passagesPill({ passages: [1] }, 'en'), passagesPill({ passages: [1, 2] }, 'en'), saveLabel({ saving: true, lang: 'en' }), saveLabel({ savedAt: 1, now: 5 * 60000 + 1, lang: 'en' })], ['1 passage', '2 passages', 'saving…', 'saved 5 min ago'])
+check('en: segunda linha do cabeçalho', headerSecondLine({ noteType: 'service', preacher: 'Ana' }, {}, 'en'), 'Service · Ana')
+check('en: "De onde veio"', [sourceRows('sermon', 'en').map(r => r.label), sourceRows('free', 'en')[0].placeholder], [['Title', 'Speaker', 'Organization', 'Link'], 'A title for this note'])
+check('en: "Quem vê"', [whoSeesBlocks({ groups: grupos, memberCounts: { g1: 1, g2: 4 }, lang: 'en' }).map(b => `${b.title}/${b.sub}`), whoSeesLabel({ lang: 'en' })], [['Only me/in the Library', 'Grupo Semente/1 person', 'Manhã com a Palavra/4 people'], 'Only me'])
+check('en: aviso sem passagem', whoSeesWarning({ selected: ['g1'], passages: [], lang: 'en' }), 'To go to a group, the note needs to cite a verse.')
+check('en: sem título', untitled('en'), 'Untitled')
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

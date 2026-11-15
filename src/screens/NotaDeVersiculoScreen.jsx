@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNotaDeVersiculo } from '../anotar/useNotaDeVersiculo'
 import { anotarApi } from '../anotar/anotarApi'
-import { noteTitle, noteSubtitle, verseReference, verseRange, NOTE_PLACEHOLDER, WHO_SEES_VERSE_NOTE } from '../anotar/notaMath'
+import { noteTitle, noteSubtitle, verseReference, verseRange, notePlaceholder, whoSeesVerseNote } from '../anotar/notaMath'
 import { tagVocabulary, tagChoices, toggleTag, whoSeesBlocks, toggleWhoSees, insertDictation } from '../anotar/anotarMath'
 import { useKeyboardInset } from '../passos/useKeyboardInset'
 import { useSpeechToText } from '../utils/useSpeechToText'
@@ -16,6 +16,7 @@ import EtiquetasDaAnotacao from '../components/anotar/EtiquetasDaAnotacao'
 import QuemVe from '../components/anotar/QuemVe'
 import SeletorDeVersiculo from '../components/anotar/SeletorDeVersiculo'
 import Icone from '../components/anotar/Icone'
+import { tr } from '../i18n/tr.js'
 
 const FONT = 'var(--font-bento)'
 const NO_GROUPS = []
@@ -23,12 +24,13 @@ const NO_GROUPS = []
 // Sem trecho nem marcação (a folha "Nova"): o seletor de livro, capítulo
 // e versículo vem primeiro.
 export default function NotaDeVersiculoScreen({ lang = 'pt', api = anotarApi, reference = null, highlight = null, highlightId = null, onClose, ...rest }) {
+  const N = (key, vars) => tr(lang, `notasTx.${key}`, vars)
   const [picked, setPicked] = useState(reference)
   if (!picked && !highlight && !highlightId) {
     return (
       <div style={s.screen}>
         <SeletorDeVersiculo
-          lang={lang} api={api} confirmLabel="Continuar" onClose={onClose}
+          lang={lang} api={api} confirmLabel={N('continue')} onClose={onClose}
           onPick={quote => setPicked({ book: quote.book, bookEn: quote.bookEn, chapter: quote.chapter, verses: verseRange(quote.verseStart, quote.verseEnd) })}
         />
       </div>
@@ -38,6 +40,7 @@ export default function NotaDeVersiculoScreen({ lang = 'pt', api = anotarApi, re
 }
 
 function Nota({ lang, api, reference, highlight, highlightId, groups = NO_GROUPS, sessionMode = 'browse', onHighlights = null, onClose }) {
+  const N = (key, vars) => tr(lang, `notasTx.${key}`, vars)
   const { status, note, library, chosen, setChosen, verseText, save, change, setVerses, leave } = useNotaDeVersiculo({ api, lang, reference, highlight, highlightId, sessionMode, onHighlights })
   const keyboardInset = useKeyboardInset()
   const [memberCounts, setMemberCounts] = useState({})
@@ -85,11 +88,11 @@ function Nota({ lang, api, reference, highlight, highlightId, groups = NO_GROUPS
     return (
       <div style={s.screen}>
         <div style={s.header}>
-          <button type="button" className="biblioteca-alvo" style={s.back} onClick={onClose} aria-label="Voltar">
+          <button type="button" className="biblioteca-alvo" style={s.back} onClick={onClose} aria-label={N('back')}>
             <Icone name="left" />
           </button>
         </div>
-        <p style={s.problem} role="alert">{status === 'missing' ? 'Esta nota não está mais na sua Biblioteca.' : 'Não deu para abrir a nota agora. Confira sua internet e tente de novo.'}</p>
+        <p style={s.problem} role="alert">{status === 'missing' ? N('missingVerseNote') : N('openVerseError')}</p>
       </div>
     )
   }
@@ -114,38 +117,38 @@ function Nota({ lang, api, reference, highlight, highlightId, groups = NO_GROUPS
     <div style={{ ...s.screen, paddingBottom: keyboardInset }}>
       <div style={s.page} inert={extending ? '' : undefined}>
         <div style={s.header}>
-          <button type="button" className="biblioteca-alvo" style={s.back} onClick={() => close(false)} aria-label="Voltar">
+          <button type="button" className="biblioteca-alvo" style={s.back} onClick={() => close(false)} aria-label={N('back')}>
             <Icone name="left" />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={s.title}>{noteTitle(note, lang)}</h1>
-            <p style={s.sub}>{noteSubtitle({ groups, shared: note.sharedGroupIds })}</p>
+            <p style={s.sub}>{noteSubtitle({ groups, shared: note.sharedGroupIds }, lang)}</p>
           </div>
-          <button type="button" className="biblioteca-alvo" style={s.done} onClick={() => close(true)} disabled={busy}>Pronto</button>
+          <button type="button" className="biblioteca-alvo" style={s.done} onClick={() => close(true)} disabled={busy}>{N('done')}</button>
         </div>
-        {save.error && <p style={s.saveError} role="status">Não deu para gravar agora. O texto está guardado neste aparelho e vai ser gravado quando a internet voltar.</p>}
+        {save.error && <p style={s.saveError} role="status">{N('saveError')}</p>}
 
         <div style={s.scroll} data-anotar-rolagem>
           <div style={s.body}>
-            <section style={s.verse} aria-label={`Versículo: ${ref}`}>
+            <section style={s.verse} aria-label={N('verseAria', { ref })}>
               {verseText && <p style={s.verseText}>&quot;{verseText}&quot;</p>}
               <div style={s.verseFoot}>
                 <span style={s.verseRef}>{[ref, version].filter(Boolean).join(' · ')}</span>
-                <button type="button" style={s.more} onClick={() => setExtending(true)} aria-label="Estender a nota a outros versículos">+ versículo</button>
+                <button type="button" style={s.more} onClick={() => setExtending(true)} aria-label={N('extendAria')}>{N('plusVerse')}</button>
               </div>
             </section>
 
-            <section style={s.note} aria-label="A nota">
+            <section style={s.note} aria-label={N('theNote')}>
               <CampoDeBloco
-                value={note.text} onChange={text => change({ text })} focus={focus} revealKey={keyboardInset} style={s.text} aria-label="Sua nota"
+                value={note.text} onChange={text => change({ text })} focus={focus} revealKey={keyboardInset} style={s.text} aria-label={N('yourNote')}
                 onFocus={e => { fieldRef.current = e.target }}
               />
               <div style={s.tools}>
-                <button type="button" style={s.hash} onClick={showTags} aria-label="Etiquetas">#</button>
-                <span style={s.helper}>{note.text.trim() ? '' : NOTE_PLACEHOLDER}</span>
+                <button type="button" style={s.hash} onClick={showTags} aria-label={N('tags')}>#</button>
+                <span style={s.helper}>{note.text.trim() ? '' : notePlaceholder(lang)}</span>
                 {dictation.supported && (
                   <button
-                    type="button" style={{ ...s.voice, ...(dictation.listening ? s.voiceOn : null) }} aria-pressed={dictation.listening} aria-label="Ditar"
+                    type="button" style={{ ...s.voice, ...(dictation.listening ? s.voiceOn : null) }} aria-pressed={dictation.listening} aria-label={N('dictate')}
                     onPointerDown={e => e.preventDefault()} onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
                   >
                     <Icone name="mic" size={17} color={dictation.listening ? 'var(--bento-ink)' : 'var(--bento-accent)'} />
@@ -154,15 +157,15 @@ function Nota({ lang, api, reference, highlight, highlightId, groups = NO_GROUPS
               </div>
             </section>
 
-            <section ref={tagsRef} style={s.card} aria-label="Etiquetas">
-              <h2 style={s.label}>Etiquetas</h2>
+            <section ref={tagsRef} style={s.card} aria-label={N('tags')}>
+              <h2 style={s.label}>{N('tags')}</h2>
               <EtiquetasDaAnotacao choices={tagChoices(vocabulary, note.tags)} onToggle={tag => change({ tags: toggleTag(note.tags, tag) })} />
             </section>
 
-            <section style={s.who} aria-label="Quem vê">
-              <h2 style={s.label}>Quem vê</h2>
-              <QuemVe blocks={whoSeesBlocks({ groups, memberCounts, selected: chosen })} onToggle={key => setChosen(prev => toggleWhoSees(prev, key))} />
-              <p style={s.line}>{WHO_SEES_VERSE_NOTE}</p>
+            <section style={s.who} aria-label={N('whoSees')}>
+              <h2 style={s.label}>{N('whoSees')}</h2>
+              <QuemVe blocks={whoSeesBlocks({ groups, memberCounts, selected: chosen, lang })} onToggle={key => setChosen(prev => toggleWhoSees(prev, key))} />
+              <p style={s.line}>{whoSeesVerseNote(lang)}</p>
             </section>
           </div>
         </div>
@@ -170,7 +173,7 @@ function Nota({ lang, api, reference, highlight, highlightId, groups = NO_GROUPS
 
       {extending && (
         <SeletorDeVersiculo
-          lang={lang} api={api} confirmLabel="Pronto" start={{ book: note.book, chapter: note.chapter, selected: note.verses }}
+          lang={lang} api={api} confirmLabel={N('done')} start={{ book: note.book, chapter: note.chapter, selected: note.verses }}
           onClose={() => setExtending(false)}
           onPick={quote => { setExtending(false); setVerses(verseRange(quote.verseStart, quote.verseEnd)) }}
         />

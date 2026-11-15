@@ -166,7 +166,7 @@ export default function BibliotecaScreen({
       )}
       {novaOpen && (
         <FolhaNova
-          draft={draftLine(bib.items)} onChoose={chooseNew} onClose={() => setNovaOpen(false)}
+          draft={draftLine(bib.items, new Date(), lang)} onChoose={chooseNew} onClose={() => setNovaOpen(false)}
           onOpenDraft={id => { setNovaOpen(false); onOpenSermonNote(id, { draft: true }) }}
         />
       )}

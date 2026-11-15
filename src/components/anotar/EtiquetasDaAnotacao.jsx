@@ -4,6 +4,7 @@
 // ficar marcada — e "+ nova", que abre um campo curto para criar uma.
 // `choices` vem de anotarMath.js/tagChoices.
 import { useState } from 'react'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -17,7 +18,7 @@ export default function EtiquetasDaAnotacao({ choices, onToggle }) {
     setAdding(false)
   }
   return (
-    <div style={s.row} role="group" aria-label="Etiquetas">
+    <div style={s.row} role="group" aria-label={t('notasTx.tags')}>
       {choices.map(choice => (
         <button key={choice.tag} type="button" className="biblioteca-etiqueta" aria-pressed={choice.on} style={{ ...s.pill, ...(choice.on ? s.pillOn : null) }} onClick={() => onToggle(choice.tag)}>
           {choice.label}
@@ -25,12 +26,12 @@ export default function EtiquetasDaAnotacao({ choices, onToggle }) {
       ))}
       {adding ? (
         <input
-          autoFocus type="text" style={s.input} value={text} maxLength={24} placeholder="nova etiqueta" aria-label="Nova etiqueta"
+          autoFocus type="text" style={s.input} value={text} maxLength={24} placeholder={t('notasTx.newTagPh')} aria-label={t('notasTx.newTagAria')}
           onChange={e => setText(e.target.value)} onBlur={confirm}
           onKeyDown={e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') { setText(''); setAdding(false) } }}
         />
       ) : (
-        <button type="button" className="biblioteca-etiqueta" style={s.pill} onClick={() => setAdding(true)}>+ nova</button>
+        <button type="button" className="biblioteca-etiqueta" style={s.pill} onClick={() => setAdding(true)}>{t('notasTx.newTagBtn')}</button>
       )}
     </div>
   )

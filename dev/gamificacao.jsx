@@ -795,7 +795,7 @@ function AnotarPreview() {
   return (
     <>
       <PaginaDeAnotacao
-        lang="pt" api={anotarDePreview} target={{ ...target, details: params.get('detalhes') }} groups={gruposDeAnotar}
+        lang={session.lang} api={anotarDePreview} target={{ ...target, details: params.get('detalhes') }} groups={gruposDeAnotar}
         onClose={() => setFechada(true)}
         onOpenBiblePassage={(book, chapter, verse) => alert(`abrir a Bíblia em ${book} ${chapter}${verse ? `:${verse}` : ''}`)}
       />
@@ -820,7 +820,7 @@ function NotaPreview() {
       : { highlightId: nota === 'marcacao' ? 'hl-pastor' : nota === 'comnota' ? 'hl-agua' : nota === 'sumiu' ? 'hl-nao-existe' : 'hl-vale' }
   return (
     <>
-      <NotaDeVersiculoScreen lang="pt" api={anotarDePreview} groups={gruposDeAnotar} {...alvo} onHighlights={lista => { window.__marcacoesNaLeitura = lista }} onClose={() => setFechada(true)} />
+      <NotaDeVersiculoScreen lang={session.lang} api={anotarDePreview} groups={gruposDeAnotar} {...alvo} onHighlights={lista => { window.__marcacoesNaLeitura = lista }} onClose={() => setFechada(true)} />
       {params.get('teclado') === 'aberto' && <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: ALTURA_DO_TECLADO, background: '#D1D3D9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 12, fontWeight: 700, color: '#6E655C', zIndex: 50 }}>teclado</div>}
     </>
   )

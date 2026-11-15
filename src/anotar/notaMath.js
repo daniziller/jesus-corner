@@ -13,20 +13,27 @@ import { bookDisplayName } from '../busca/referencia.js'
 import { dateKey } from '../utils/dateKey.js'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors.js'
 import { whenLabel } from '../biblioteca/bibliotecaMath.js'
+import { tr } from '../i18n/tr.js'
+
+const tx = (lang, key, vars) => tr(lang, `notasTx.${key}`, vars)
 
 const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 
 // ── N1: a folha "Nova" ──────────────────────────────────────────────────
 
-// As quatro opções, na ordem fixa. Só "Anotação livre" é preta.
-export const NEW_OPTIONS = [
-  { key: 'free', title: 'Anotação livre', support: 'Uma página em branco. Dê o tipo e o título depois.', dark: true, marker: 'circle', color: 'accent' },
-  { key: 'sermon', title: 'Anotar uma pregação', support: 'Sermão, culto, aula, palestra ou vídeo', marker: 'square', color: 'sand' },
-  { key: 'verse', title: 'Nota em um versículo', support: 'Escolha o versículo e escreva sobre ele', marker: 'square', color: 'ink' },
-  { key: 'study', title: 'Criar um estudo', support: 'Um plano de leitura sobre um tema ou livro', marker: 'circle', color: 'ink' },
+// As quatro opções, na ordem fixa. Só "Anotação livre" é preta. Os textos
+// vêm de translations.js/notasTx, no idioma da conta.
+const NEW_OPTION_SHAPES = [
+  { key: 'free', dark: true, marker: 'circle', color: 'accent' },
+  { key: 'sermon', marker: 'square', color: 'sand' },
+  { key: 'verse', marker: 'square', color: 'ink' },
+  { key: 'study', marker: 'circle', color: 'ink' },
 ]
-export const NEW_TITLE = 'O que você quer guardar?'
-export const NEW_SUPPORT = 'Tudo fica só com você, na sua Biblioteca.'
+export function newOptions(lang = 'pt') {
+  return NEW_OPTION_SHAPES.map(o => ({ ...o, title: tx(lang, `new_${o.key}_title`), support: tx(lang, `new_${o.key}_sub`) }))
+}
+export const newTitle = (lang = 'pt') => tx(lang, 'newTitle')
+export const newSupport = (lang = 'pt') => tx(lang, 'newSupport')
 
 const firstWords = (text, max = 6) => {
   const words = oneLine(text).split(' ').filter(Boolean)
@@ -36,13 +43,13 @@ const firstWords = (text, max = 6) => {
 // A linha do rascunho: a anotação não finalizada mais recente — "Rascunho
 // de {quando}: {título} · continuar". Sem título, as primeiras palavras
 // do texto. Nulo sem rascunho. `items` são os itens da Biblioteca.
-export function draftLine(items, now = new Date()) {
+export function draftLine(items, now = new Date(), lang = 'pt') {
   const stamp = item => item.updatedAt ?? item.at ?? ''
   const draft = (items ?? []).filter(item => item.type === 'pregacao' && item.draft).sort((a, b) => stamp(b).localeCompare(stamp(a)))[0]
   if (!draft) return null
-  const when = whenLabel(draft.at, now, { weekday: true })
-  const title = draft.title || firstWords(draft.text) || 'Sem título'
-  return { id: draft.id, lead: `Rascunho de ${when}: `, title, tail: ' · continuar', aria: `Rascunho de ${when}: ${title}. Continuar` }
+  const when = whenLabel(draft.at, now, { weekday: true, lang })
+  const title = draft.title || firstWords(draft.text) || tx(lang, 'untitled')
+  return { id: draft.id, lead: tx(lang, 'draftLead', { when }), title, tail: tx(lang, 'draftTail'), aria: tx(lang, 'draftAria', { when, title }) }
 }
 
 // ── N4: a nota em um versículo ──────────────────────────────────────────
@@ -52,17 +59,17 @@ export function verseReference({ book, chapter, verses }, lang = 'pt') {
   return `${bookDisplayName(book, lang)} ${chapter}:${formatVerseRanges(verses)}`
 }
 
-export const noteTitle = (reference, lang = 'pt') => `Nota em ${verseReference(reference, lang)}`
+export const noteTitle = (reference, lang = 'pt') => tx(lang, 'noteOn', { ref: verseReference(reference, lang) })
 
 // A segunda linha do cabeçalho: "Salva sozinha · só sua"; compartilhada,
 // o trecho depois do ponto é o nome do grupo (dos grupos).
-export function noteSubtitle({ groups = [], shared = [] } = {}) {
+export function noteSubtitle({ groups = [], shared = [] } = {}, lang = 'pt') {
   const names = shared.map(id => groups.find(g => g.groupId === id)?.name).filter(Boolean)
-  return `Salva sozinha · ${names.length ? names.join(' · ') : 'só sua'}`
+  return tx(lang, 'noteSub', { who: names.length ? names.join(' · ') : tx(lang, 'onlyYours') })
 }
 
-export const NOTE_PLACEHOLDER = 'O que este versículo diz para você hoje?'
-export const WHO_SEES_VERSE_NOTE = 'Dá para escolher mais de um grupo. Só o texto da nota e o versículo vão.'
+export const notePlaceholder = (lang = 'pt') => tx(lang, 'notePlaceholder')
+export const whoSeesVerseNote = (lang = 'pt') => tx(lang, 'whoSeesVerseNote')
 
 // O texto do(s) versículo(s), na ordem, numa linha só.
 export function verseQuote(chapterVerses, verses) {

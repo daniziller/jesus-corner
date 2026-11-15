@@ -13,9 +13,13 @@
 import { sermonOwnWordsText } from '../notes/sermonText.js'
 import { dateKey } from '../utils/dateKey.js'
 import { formatWeekdayDate } from '../utils/weekdayDateLabel.js'
-import { formatInt, plural } from '../gamification/format.js'
+import { formatInt } from '../gamification/format.js'
 import { normalizeForSearch } from '../bible/searchNormalize.js'
 import { bookDisplayName } from '../busca/referencia.js'
+import { tr, trN } from '../i18n/tr.js'
+
+const tx = (lang, key, vars) => tr(lang, `notasTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `notasTx.${base}`, n, { n: formatInt(n, lang), ...vars })
 
 const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 
@@ -23,21 +27,18 @@ const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 
 // Os tipos de anotação, na ordem da grade de N3. "Vídeo" é o mesmo tipo
 // "Vídeo online" das listas, com o rótulo curto. "Livre" é a anotação
-// livre: uma página em branco, sem pregador nem instituição.
-export const NOTE_TYPES = [
-  { key: 'sermon', label: 'Sermão' },
-  { key: 'service', label: 'Culto' },
-  { key: 'class', label: 'Aula' },
-  { key: 'lecture', label: 'Palestra' },
-  { key: 'video', label: 'Vídeo' },
-  { key: 'free', label: 'Livre' },
-]
-const FIXED_TYPES = NOTE_TYPES.map(t => t.key)
+// livre: uma página em branco, sem pregador nem instituição. Os rótulos
+// vêm de translations.js/notasTx, no idioma da conta.
+const FIXED_TYPES = ['sermon', 'service', 'class', 'lecture', 'video', 'free']
+export function noteTypes(lang = 'pt') {
+  return FIXED_TYPES.map(key => ({ key, label: tx(lang, `type_${key}`) }))
+}
 
 // O nome curto de um tipo (a pastilha e a segunda linha de N2, a grade de
 // N3). Fora dos seis, é o tipo que a pessoa criou, com as palavras dela.
-export function noteTypeName(noteType) {
-  return NOTE_TYPES.find(t => t.key === noteType)?.label ?? (oneLine(noteType) || NOTE_TYPES[0].label)
+export function noteTypeName(noteType, lang = 'pt') {
+  if (FIXED_TYPES.includes(noteType)) return tx(lang, `type_${noteType}`)
+  return oneLine(noteType) || tx(lang, 'type_sermon')
 }
 
 // Os tipos que a pessoa já criou ("Outro tipo…"), do usado mais
@@ -53,10 +54,10 @@ export function customTypesOf(notes) {
 
 // A grade de N3: os seis, na ordem fixa, e depois os tipos criados (o da
 // anotação aberta entra mesmo que ainda não esteja em nenhuma outra).
-export function typeOptions(customTypes = [], current = null) {
+export function typeOptions(customTypes = [], current = null, lang = 'pt') {
   const custom = [...customTypes]
   if (current && !FIXED_TYPES.includes(current) && !custom.includes(current)) custom.push(current)
-  return [...NOTE_TYPES, ...custom.map(type => ({ key: type, label: type }))].map(option => ({ ...option, on: option.key === current }))
+  return [...noteTypes(lang), ...custom.map(type => ({ key: type, label: type }))].map(option => ({ ...option, on: option.key === current }))
 }
 
 // ── Abrir e gravar ──────────────────────────────────────────────────────
@@ -327,9 +328,9 @@ export function insertDictation(text, heard, start = null, end = null) {
 // ── O cabeçalho de N2 ───────────────────────────────────────────────────
 
 // "3 passagens" · "1 passagem"; nulo com zero (a pastilha não aparece).
-export function passagesPill(note) {
+export function passagesPill(note, lang = 'pt') {
   const n = (note?.passages ?? []).length
-  return n > 0 ? `${formatInt(n)} ${plural(n, 'passagem', 'passagens')}` : null
+  return n > 0 ? txN(lang, 'passages', n) : null
 }
 
 // "# 2"; nulo com zero etiquetas.
@@ -339,28 +340,28 @@ export function tagsPill(note) {
 }
 
 // O tempo anotando: "24 min" (conta só com a página aberta).
-export function annotatingLabel(seconds) {
-  return `${formatInt(Math.max(1, Math.round((seconds ?? 0) / 60)))} min`
+export function annotatingLabel(seconds, lang = 'pt') {
+  return `${formatInt(Math.max(1, Math.round((seconds ?? 0) / 60)), lang)} min`
 }
 
 // O estado da gravação: "salvando…" · "salvo agora" · "salvo há {n} min".
 // Antes da primeira gravação, nada.
-export function saveLabel({ saving = false, savedAt = null, now = Date.now() } = {}) {
-  if (saving) return 'salvando…'
+export function saveLabel({ saving = false, savedAt = null, now = Date.now(), lang = 'pt' } = {}) {
+  if (saving) return tx(lang, 'saving')
   if (!savedAt) return ''
   const minutes = Math.floor((now - savedAt) / 60000)
-  return minutes < 1 ? 'salvo agora' : `salvo há ${formatInt(minutes)} min`
+  return minutes < 1 ? tx(lang, 'savedNow') : tx(lang, 'savedAgo', { n: formatInt(minutes, lang) })
 }
 
 // A segunda linha do cabeçalho: "{Tipo} · {Preletor} · salvo agora" — só o
 // que existe. A anotação livre não tem preletor (o campo nem aparece em
 // N3), então a linha não mostra um que tenha ficado de outro tipo.
-export function headerSecondLine(note, save = {}) {
+export function headerSecondLine(note, save = {}, lang = 'pt') {
   const preacher = note?.noteType === 'free' ? '' : oneLine(note?.preacher)
-  return [noteTypeName(note?.noteType), preacher, saveLabel(save)].filter(Boolean).join(' · ')
+  return [noteTypeName(note?.noteType, lang), preacher, saveLabel({ ...save, lang })].filter(Boolean).join(' · ')
 }
 
-export const UNTITLED = 'Sem título'
+export const untitled = (lang = 'pt') => tx(lang, 'untitled')
 
 // ── Detalhes (N3) ───────────────────────────────────────────────────────
 
@@ -374,14 +375,10 @@ export function createdLine(createdAt, lang = 'pt') {
 }
 
 // As linhas de "De onde veio". Com o tipo Livre, só o Título.
-const SOURCE_ROWS = [
-  { key: 'title', label: 'Título', placeholder: 'Nome do sermão, aula ou vídeo' },
-  { key: 'preacher', label: 'Preletor', placeholder: 'Quem falou' },
-  { key: 'church', label: 'Instituição', placeholder: 'Igreja, escola, canal…' },
-  { key: 'link', label: 'Link', placeholder: 'Cole o endereço do vídeo' },
-]
-export function sourceRows(noteType) {
-  return noteType === 'free' ? [{ ...SOURCE_ROWS[0], placeholder: 'Um título para esta anotação' }] : SOURCE_ROWS
+const SOURCE_KEYS = ['title', 'preacher', 'church', 'link']
+export function sourceRows(noteType, lang = 'pt') {
+  const rows = SOURCE_KEYS.map(key => ({ key, label: tx(lang, `src_${key}`), placeholder: tx(lang, `src_${key}_ph`) }))
+  return noteType === 'free' ? [{ ...rows[0], placeholder: tx(lang, 'src_title_free_ph') }] : rows
 }
 
 // Os valores já usados num campo (Preletor, Instituição), do mais recente
@@ -429,13 +426,13 @@ export const ONLY_ME = 'only_me'
 // Os blocos de "Quem vê": "Só eu / na Biblioteca" primeiro; depois os
 // grupos da pessoa, "{n} pessoas". `selected` são os grupos escolhidos —
 // vazio é "Só eu".
-export function whoSeesBlocks({ groups = [], memberCounts = {}, selected = [] } = {}) {
+export function whoSeesBlocks({ groups = [], memberCounts = {}, selected = [], lang = 'pt' } = {}) {
   const chosen = selected.filter(id => groups.some(g => g.groupId === id))
   return [
-    { key: ONLY_ME, title: 'Só eu', sub: 'na Biblioteca', on: chosen.length === 0 },
+    { key: ONLY_ME, title: tx(lang, 'onlyMe'), sub: tx(lang, 'inLibrary'), on: chosen.length === 0 },
     ...groups.map(g => {
       const n = memberCounts[g.groupId]
-      return { key: g.groupId, title: g.name, sub: n == null ? '' : `${formatInt(n)} ${plural(n, 'pessoa', 'pessoas')}`, on: chosen.includes(g.groupId) }
+      return { key: g.groupId, title: g.name, sub: n == null ? '' : txN(lang, 'people', n), on: chosen.includes(g.groupId) }
     }),
   ]
 }
@@ -449,16 +446,14 @@ export function toggleWhoSees(selected = [], key) {
 }
 
 // Os nomes de quem vê: "Só eu" ou os grupos, por extenso.
-export function whoSeesLabel({ groups = [], selected = [] } = {}) {
+export function whoSeesLabel({ groups = [], selected = [], lang = 'pt' } = {}) {
   const names = selected.map(id => groups.find(g => g.groupId === id)?.name).filter(Boolean)
-  return names.length ? names.join(' · ') : 'Só eu'
+  return names.length ? names.join(' · ') : tx(lang, 'onlyMe')
 }
 
-export const WHO_SEES_NOTE = 'Nasce só sua. Se escolher um grupo, vão o texto e as passagens — as etiquetas ficam com você.'
+export const whoSeesNote = (lang = 'pt') => tx(lang, 'whoSeesNote')
 // Uma anotação vai para a sala do capítulo de uma passagem citada: sem
 // versículo citado, não tem para onde ir.
-export const WHO_SEES_NEEDS_PASSAGE = 'Para ir ao grupo, a anotação precisa citar um versículo.'
-
-export function whoSeesWarning({ selected = [], passages = [] } = {}) {
-  return selected.length > 0 && passages.length === 0 ? WHO_SEES_NEEDS_PASSAGE : null
+export function whoSeesWarning({ selected = [], passages = [], lang = 'pt' } = {}) {
+  return selected.length > 0 && passages.length === 0 ? tx(lang, 'whoSeesNeedsPassage') : null
 }
