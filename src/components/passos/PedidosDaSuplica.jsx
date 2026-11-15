@@ -11,13 +11,13 @@ import { useState } from 'react'
 import AppIcon from '../../icons/AppIcon'
 import Check from './Check'
 import { suplicaView, originLabel, supportLine, suplicaToggle } from '../../pedidos/pedidosMath.js'
-import { t } from '../../i18n'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 export default function PedidosDaSuplica({ list, loading, error, sessionMarks, onOrar, onDesfazer, onAdd, onOpenAll }) {
   const [expanded, setExpanded] = useState(false)
-  const view = suplicaView(list, { expanded })
+  const view = suplicaView(list, { expanded, lang: currentLanguage() })
 
   function toggle(p) {
     const action = suplicaToggle(p, sessionMarks)
@@ -44,13 +44,13 @@ export default function PedidosDaSuplica({ list, loading, error, sessionMarks, o
         <p style={s.note}>{t('passosTx.noRequests')}</p>
       ) : (
         view.rows.map(p => {
-          const origin = originLabel(p)
+          const origin = originLabel(p, currentLanguage())
           return (
             <div key={p.id} style={s.row}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ ...s.origin, color: origin.kind === 'mine' ? 'var(--bento-accent)' : 'var(--bento-sand-icon)' }}>{origin.text}</p>
                 <p style={s.body}>{p.body}</p>
-                <p style={s.support}>{supportLine(p)}</p>
+                <p style={s.support}>{supportLine(p, { lang: currentLanguage() })}</p>
               </div>
               <button
                 type="button" style={{ ...s.check, ...(p.prayedToday ? s.checkOn : null) }}

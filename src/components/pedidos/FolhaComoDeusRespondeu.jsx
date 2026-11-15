@@ -12,15 +12,18 @@
 import { useState } from 'react'
 import AppIcon from '../../icons/AppIcon'
 import FolhaInferior from '../FolhaInferior'
-import { ANSWER_OPTIONS, answerSheetState, prayedSummary, commentsLine } from '../../pedidos/pedidosMath.js'
+import { answerOptions, answerSheetState, prayedSummary, commentsLine } from '../../pedidos/pedidosMath.js'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 export default function FolhaComoDeusRespondeu({ request, onClose, onArchive, onOpenComments }) {
+  const lang = currentLanguage()
+  const OPTIONS = answerOptions(lang)
   const [selected, setSelected] = useState(null)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
-  const sheet = answerSheetState(selected)
+  const sheet = answerSheetState(selected, lang)
 
   async function save() {
     if (!sheet.canSave || saving) return
@@ -34,18 +37,18 @@ export default function FolhaComoDeusRespondeu({ request, onClose, onArchive, on
 
   return (
     <FolhaInferior onClose={onClose} labelledBy="como-deus-respondeu" fixed form>
-      <h2 style={s.title} id="como-deus-respondeu">Como Deus respondeu?</h2>
-      <p style={s.sub}>Todo pedido orado tem resposta — nem toda resposta é sim.</p>
+      <h2 style={s.title} id="como-deus-respondeu">{t('pedidosTx.howAnswered')}</h2>
+      <p style={s.sub}>{t('pedidosTx.howAnsweredSub')}</p>
 
       <div style={s.request}>
         <p style={s.requestBody}>{request.body}</p>
-        <p style={s.requestSub}>{prayedSummary(request)}</p>
+        <p style={s.requestSub}>{prayedSummary(request, Date.now(), lang)}</p>
       </div>
 
       <div style={s.grid} role="radiogroup" aria-labelledby="como-deus-respondeu">
-        {ANSWER_OPTIONS.map((opt, i) => {
+        {OPTIONS.map((opt, i) => {
           const on = opt.key === selected
-          const wide = i === ANSWER_OPTIONS.length - 1 && ANSWER_OPTIONS.length % 2 === 1
+          const wide = i === OPTIONS.length - 1 && OPTIONS.length % 2 === 1
           return (
             <button
               key={opt.key} type="button" role="radio" aria-checked={on}
@@ -60,16 +63,16 @@ export default function FolhaComoDeusRespondeu({ request, onClose, onArchive, on
       </div>
 
       <label style={s.noteCard}>
-        <span style={s.noteLabel}>O que eu vi (opcional)</span>
+        <span style={s.noteLabel}>{t('pedidosTx.whatISaw')}</span>
         <input
           className="passo-campo" style={s.noteInput} value={note} onChange={e => setNote(e.target.value)}
-          placeholder="Uma linha para lembrar daqui a um ano." maxLength={240}
+          placeholder={t('pedidosTx.whatISawPh')} maxLength={240}
         />
       </label>
 
       {onOpenComments && (
         <button type="button" style={s.comments} onClick={onOpenComments}>
-          <span style={{ flex: 1 }}>{commentsLine(request.commentCount) ? `Comentários · ${request.commentCount}` : 'Comentários'}</span>
+          <span style={{ flex: 1 }}>{commentsLine(request.commentCount, lang) ? t('pedidosTx.commentsN', { n: request.commentCount }) : t('pedidosTx.comments')}</span>
           <AppIcon name="ChevronRight" size={14} strokeWidth={2.6} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
         </button>
       )}

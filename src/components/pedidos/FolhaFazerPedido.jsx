@@ -32,6 +32,7 @@ const realApi = { getMyGroups, getGroupMemberCounts, getFriendsCount, createPray
 
 export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice = DEFAULT_WHO_SEES, onClose, onCreated, api = realApi }) {
   const L = (k, vars) => t(`addPrayerRequest.${k}`, vars, lang)
+  const Q = (k, vars) => t(`pedidosTx.${k}`, vars, lang)
   const email = authUser?.email
 
   const [groups, setGroups] = useState([])
@@ -54,8 +55,8 @@ export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice 
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState('')
 
-  const options = whoSeesOptions({ groups, memberCounts, friendsCount })
-  const form = requestFormState({ body, choice })
+  const options = whoSeesOptions({ groups, memberCounts, friendsCount, lang })
+  const form = requestFormState({ body, choice, lang })
   const canSubmit = form.canSubmit && !posting
 
   async function submit() {
@@ -89,26 +90,26 @@ export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice 
 
   return (
     <FolhaInferior onClose={onClose} labelledBy="fazer-pedido-titulo" fixed form focusField>
-      <h2 style={s.title} id="fazer-pedido-titulo">Fazer um pedido</h2>
-      <p style={s.sub}>Uma frase basta. Começa só seu — você escolhe se alguém mais vê.</p>
+      <h2 style={s.title} id="fazer-pedido-titulo">{Q('makeRequest')}</h2>
+      <p style={s.sub}>{Q('makeRequestSub')}</p>
 
       <div style={s.field}>
         <CampoQueCresce
           className="passo-campo" style={s.textarea} minHeight={46}
-          value={body} onChange={setBody} placeholder={L('placeholder')} aria-label="Seu pedido de oração" maxLength={1200}
+          value={body} onChange={setBody} placeholder={L('placeholder')} aria-label={Q('requestAria')} maxLength={1200}
         />
         <div style={s.fieldBottom}>
           <span style={{ ...s.counter, ...(form.over ? s.counterOver : null) }} aria-live={form.over ? 'polite' : 'off'}>{form.counter}</span>
           {hasAI && (
             <button type="button" className="passo-rotulo" style={{ ...s.ai, ...(body.trim() ? null : s.aiOff) }} onClick={askAiHelp} disabled={aiLoading || !body.trim()}>
-              {aiLoading ? 'Reescrevendo…' : 'Escrever com ajuda'}
+              {aiLoading ? Q('rewriting') : Q('writeWithHelp')}
             </button>
           )}
         </div>
         {aiError && <p style={s.error} role="status">{aiError}</p>}
       </div>
 
-      <p style={s.label} id="quem-ve">Quem vê</p>
+      <p style={s.label} id="quem-ve">{Q('whoSees')}</p>
       <div style={{ ...s.who, ...(options.length > 3 ? s.whoScroll : null) }} role="radiogroup" aria-labelledby="quem-ve">
         {options.map(opt => {
           const on = opt.key === choice
@@ -128,8 +129,8 @@ export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice 
       {form.showAnonymous && (
         <div style={s.anon}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={s.anonTitle} id="sem-meu-nome">Publicar sem meu nome</p>
-            <p style={s.anonSub}>Aparece como &quot;Anônimo&quot; para o grupo</p>
+            <p style={s.anonTitle} id="sem-meu-nome">{Q('anonTitle')}</p>
+            <p style={s.anonSub}>{Q('anonSub')}</p>
           </div>
           <button
             type="button" role="switch" aria-checked={anonymous} aria-labelledby="sem-meu-nome"
@@ -145,7 +146,7 @@ export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice 
       {error && <p style={s.error} role="status">{error}</p>}
 
       <button type="button" style={{ ...s.submit, ...(canSubmit ? null : s.submitOff) }} onClick={submit} disabled={!canSubmit}>
-        <span>{posting ? 'Guardando…' : form.button}</span>
+        <span>{posting ? Q('saving') : form.button}</span>
         <AppIcon name="ArrowRight" size={16} strokeWidth={2.6} color="var(--bento-ink)" style={{ flexShrink: 0 }} />
       </button>
     </FolhaInferior>

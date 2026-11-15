@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import {
   prayedTodayIds, mergePedidos, activePedidos, originLabel, peopleLine, supportLine,
   applyOrei, revertOrei, suplicaToggle, countsForOthers, prayedCounter, suplicaView, SUPLICA_LIMIT,
-  DEFAULT_WHO_SEES, MAX_PEDIDO, whoSeesOptions, requestFormState, requestPayload, ANSWER_OPTIONS, prayedSummary, answerSheetState,
+  DEFAULT_WHO_SEES, MAX_PEDIDO, whoSeesOptions, requestFormState, requestPayload, answerOptions, prayedSummary, answerSheetState,
   commentsLine, answeredPedidos, pedidosOfTab, pedidosTabs, answeredRow, answeredBlock, cardTap, othersCard, othersPrayedCount,
 } from '../src/pedidos/pedidosMath.js'
 
@@ -125,7 +125,7 @@ check('de dentro do grupo, a folha já vem com o grupo escolhido', /initialChoic
 check('a gravação recebe o que requestPayload devolve', /createPrayerRequest\(requestPayload\(\{ body, choice, anonymous \}\)\)/.test(folhaPedido), true)
 
 // ── Como Deus respondeu? (O3) ───────────────────────────────────────────
-check('as cinco respostas, na ordem da grade, com os apoios', ANSWER_OPTIONS.map(o => `${o.title} / ${o.sub}`), ['Sim / Veio como eu pedi', 'Não / Ele fechou a porta', 'Espere / Ainda não é o tempo', 'Aprenda / A situação ficou; eu mudei', 'Se mova / A resposta pedia um passo meu'])
+check('as cinco respostas, na ordem da grade, com os apoios', answerOptions().map(o => `${o.title} / ${o.sub}`), ['Sim / Veio como eu pedi', 'Não / Ele fechou a porta', 'Espere / Ainda não é o tempo', 'Aprenda / A situação ficou; eu mudei', 'Se mova / A resposta pedia um passo meu'])
 check('nenhuma vem escolhida: botão "Guardar o pedido", desabilitado', [answerSheetState(null), answerSheetState(undefined).canSave], [{ canSave: false, keepsActive: false, button: 'Guardar o pedido' }, false])
 check('"Sim", "Não", "Aprenda", "Se mova": guardam o pedido', ['sim', 'nao', 'aprenda', 'se_mova'].map(k => answerSheetState(k)), Array(4).fill({ canSave: true, keepsActive: false, button: 'Guardar o pedido' }))
 check('"Espere" mantém o pedido ativo e o botão diz "Seguir orando"', answerSheetState('espere'), { canSave: true, keepsActive: true, button: 'Seguir orando' })
@@ -164,11 +164,21 @@ const telaLista = ler('screens/PrayerRequestsScreen.jsx')
 const cartao = ler('components/pedidos/CartaoDoPedido.jsx')
 check('a lista (O1) marca pelo mesmo caminho da Súplica', [/usePedidos\(/.test(telaLista), /onOrar=\{pedidos\.orar\}/.test(telaLista), /markPraying|group_prayer_intentions/.test(telaLista + cartao)], [true, true, false])
 check('o botão da lista não desmarca: só chama o "orei" quando ainda não orei hoje', [/if \(!pedido\.prayedToday\) onOrar\(pedido\)/.test(cartao), /onDesfazer|desfazer/.test(telaLista + cartao)], [true, false])
-check('um botão por pedido: "orei", com aria-pressed; sem "Orei por isso" nem "Arquivar"', [(cartao.match(/aria-label="Orei por este pedido"/g) ?? []).length, /aria-pressed=\{pedido\.prayedToday\}/.test(cartao), /Orei por isso|Arquivar/.test(cartao + telaLista)], [1, true, false])
+check('um botão por pedido: "orei", com aria-pressed; sem "Orei por isso" nem "Arquivar"', [(cartao.match(/aria-label=\{t\('pedidosTx\.prayedAria'\)\}/g) ?? []).length, /aria-pressed=\{pedido\.prayedToday\}/.test(cartao), /Orei por isso|Arquivar/.test(cartao + telaLista)], [1, true, false])
 check('a lista e os cartões só mostram contagem — nenhum nome de quem orou', /prayedBy|sharers|quemOrou/.test(telaLista + cartao + ler('components/pedidos/BlocoRespondidos.jsx')), false)
 // A Súplica não mostra nome de quem orou nem abre comentário.
 const suplica = ler('components/passos/PedidosDaSuplica.jsx')
 check('a Súplica só mostra texto, origem e contagem — sem nomes de quem orou, sem comentários', /prayedBy|comment|Comment/.test(suplica), false)
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: origem e linha de apoio', [originLabel({ origin: 'mine' }, 'en').text, originLabel({ origin: 'friend', anonymous: true }, 'en').text, peopleLine(0, 'en'), peopleLine(1, 'en'), peopleLine(5, 'en')], ['Mine', 'Anonymous', 'No one has prayed yet', '1 person has prayed', '5 people have prayed'])
+check('en: linha de apoio de um pedido meu', supportLine({ origin: 'mine', createdAt: new Date(agora - 3 * 86400000).toISOString(), prayedToday: true, commentCount: 2 }, { list: true, now: agora, lang: 'en' }), 'Praying for 3 days · prayed today · 2 comments')
+check('en: contador e "ver todos" da súplica', [prayedCounter(1, 3, 'en'), suplicaView(lista, { lang: 'en' }).counter.endsWith('prayed')], ['1 of 3 prayed', true])
+check('en: abas', pedidosTabs(lista, 'en').map(x => x.label.split(' · ')[0]).slice(0, 3), ['Active', 'Answered', 'Group'])
+check('en: respostas', answerOptions('en').map(o => o.title), ['Yes', 'No', 'Wait', 'Learn', 'Move'])
+check('en: formulário', [requestFormState({ body: 'x', choice: 'friends', lang: 'en' }).button, requestFormState({ body: 'x', lang: 'en' }).button, whoSeesOptions({ friendsCount: 1, lang: 'en' }).map(o => `${o.title}/${o.sub}`)], ['Post request', 'Save request', ['Only me/in your journal', 'My friends/1 person']])
+check('en: folha da resposta', [answerSheetState('espere', 'en').button, answerSheetState('sim', 'en').button, commentsLine(1, 'en'), commentsLine(3, 'en')], ['Keep praying', 'Save the request', '1 comment', '3 comments'])
+check('en: cartão "orações pelos outros"', [othersCard(1, 'en').caption, othersCard(47, 'en').caption], ['prayer for others', 'prayers for others'])
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes dos pedidos (parte pura) passaram.')

@@ -5,13 +5,14 @@
 // por {tempo}", o pedido e, se houver, "o que eu vi" em itálico. `rows`
 // vem de answeredRow (pedidos/pedidosMath.js); tocar numa linha abre o
 // pedido.
+import { t, currentLanguage } from '../../i18n'
 const FONT = 'var(--font-bento)'
 
 export default function BlocoRespondidos({ rows, more, onMore, onOpen, style }) {
   return (
     <section style={{ ...s.block, ...style }} aria-labelledby="pedidos-respondidos">
       <div style={s.top}>
-        <h2 style={s.label} id="pedidos-respondidos">Respondidos</h2>
+        <h2 style={s.label} id="pedidos-respondidos">{t('pedidosTx.answered')}</h2>
         {more && <button type="button" className="passo-rotulo" style={s.more} onClick={onMore}>{more}</button>}
       </div>
       {rows.map(row => (

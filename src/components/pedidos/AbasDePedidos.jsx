@@ -8,10 +8,11 @@
 // É também o segmentado das telas de tipo da Biblioteca (Marcações: Por
 // livro · Por data · Com nota) — `label` diz do que são as abas.
 import { useRef, useEffect } from 'react'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
-export default function AbasDePedidos({ tabs, current, onChange, label = 'Pedidos de oração' }) {
+export default function AbasDePedidos({ tabs, current, onChange, label = t('pedidosTx.title') }) {
   const fits = tabs.length <= 3
   // Com quatro abas numa tela estreita, a aba escolhida vem para a vista.
   const rowRef = useRef(null)

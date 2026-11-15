@@ -9,7 +9,11 @@
 import { relativeTimeSpan } from '../prayer/prayerRequestFormat.js'
 import { FAMILIES } from '../data/achievements.js'
 import { familyState, oracaoStats } from '../gamification/familiesMath.js'
-import { formatInt, plural } from '../gamification/format.js'
+import { formatInt } from '../gamification/format.js'
+import { tr, trN } from '../i18n/tr.js'
+
+const tx = (lang, key, vars) => tr(lang, `pedidosTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `pedidosTx.${base}`, n, { n: formatInt(n, lang), ...vars })
 
 // Os pedidos em que já orei hoje, pelas minhas próprias marcas (a única
 // coisa que a conta deixa ler de group_prayer_intentions). `todayKey` é o
@@ -60,34 +64,34 @@ export function activePedidos(list) {
 // A origem, em cima do pedido: "Meu" (laranja), o nome do grupo, ou — num
 // pedido de amigo — o nome de quem pediu ("Anônimo" se foi publicado sem
 // nome). Vira maiúscula por CSS.
-export function originLabel(p) {
-  if (p.origin === 'mine') return { kind: 'mine', text: 'Meu' }
-  if (p.origin === 'group') return { kind: 'group', text: p.groupName || 'Grupo' }
-  return { kind: 'friend', text: p.anonymous || !p.authorName ? 'Anônimo' : p.authorName }
+export function originLabel(p, lang = 'pt') {
+  if (p.origin === 'mine') return { kind: 'mine', text: tx(lang, 'mine') }
+  if (p.origin === 'group') return { kind: 'group', text: p.groupName || tx(lang, 'group') }
+  return { kind: 'friend', text: p.anonymous || !p.authorName ? tx(lang, 'anonymous') : p.authorName }
 }
 
 // "5 pessoas já oraram" · "1 pessoa já orou" · "Ninguém orou ainda".
-export function peopleLine(n) {
-  if (!n) return 'Ninguém orou ainda'
-  return n === 1 ? '1 pessoa já orou' : `${n} pessoas já oraram`
+export function peopleLine(n, lang = 'pt') {
+  if (!n) return tx(lang, 'nobodyYet')
+  return n === 1 ? tx(lang, 'onePrayed') : tx(lang, 'manyPrayed', { n })
 }
 
 // "2 comentários" · "1 comentário" · "" — os comentários de um pedido
 // continuam existindo (decisão dela, 2026-11); a lista só diz quantos há.
-export function commentsLine(n) {
-  return n > 0 ? `${formatInt(n)} ${plural(n, 'comentário', 'comentários')}` : ''
+export function commentsLine(n, lang = 'pt') {
+  return n > 0 ? txN(lang, 'comments', n) : ''
 }
 
 // A linha de apoio de um pedido. Meu: "Orando há 24 dias" — o tempo desde
 // que o pedido foi feito — e, na lista (O1), " · orei hoje". De outra
 // pessoa: quantas pessoas oraram; na lista, com "Há 2 dias · " na frente.
 // Na lista, havendo comentários, a contagem vem no fim.
-export function supportLine(p, { list = false, now = Date.now() } = {}) {
-  const span = relativeTimeSpan(p.createdAt, 'pt', now)
+export function supportLine(p, { list = false, now = Date.now(), lang = 'pt' } = {}) {
+  const span = relativeTimeSpan(p.createdAt, lang, now)
   const base = p.origin === 'mine'
-    ? `Orando há ${span}${list && p.prayedToday ? ' · orei hoje' : ''}`
-    : list ? `Há ${span} · ${peopleLine(p.prayCount)}` : peopleLine(p.prayCount)
-  const comments = list ? commentsLine(p.commentCount) : ''
+    ? `${tx(lang, 'prayingFor', { span })}${list && p.prayedToday ? tx(lang, 'prayedTodaySuffix') : ''}`
+    : list ? `${tx(lang, 'agoSpan', { span })} · ${peopleLine(p.prayCount, lang)}` : peopleLine(p.prayCount, lang)
+  const comments = list ? commentsLine(p.commentCount, lang) : ''
   return comments ? `${base} · ${comments}` : base
 }
 
@@ -133,14 +137,14 @@ export function countsForOthers(p) {
 export const SUPLICA_LIMIT = 5
 
 // "1 de 3 orado" · "2 de 3 orados" · "1 de 1 orado".
-export function prayedCounter(prayed, total) {
-  return `${prayed} de ${total} ${prayed === 1 ? 'orado' : 'orados'}`
+export function prayedCounter(prayed, total, lang = 'pt') {
+  return tx(lang, prayed === 1 ? 'counterOne' : 'counterMany', { prayed, total })
 }
 
 // O cartão "Pedidos de oração" da Súplica: os pedidos ativos, na ordem da
 // lista (O1); cinco de cada vez — com mais, a linha "Ver os {n} pedidos"
 // abre o resto no lugar. Sem pedido nenhum, `empty`.
-export function suplicaView(list, { expanded = false } = {}) {
+export function suplicaView(list, { expanded = false, lang = 'pt' } = {}) {
   const active = activePedidos(list)
   const total = active.length
   const rows = expanded ? active : active.slice(0, SUPLICA_LIMIT)
@@ -148,8 +152,8 @@ export function suplicaView(list, { expanded = false } = {}) {
     rows,
     total,
     empty: total === 0,
-    counter: total ? prayedCounter(active.filter(r => r.prayedToday).length, total) : null,
-    more: !expanded && total > SUPLICA_LIMIT ? `Ver os ${total} pedidos` : null,
+    counter: total ? prayedCounter(active.filter(r => r.prayedToday).length, total, lang) : null,
+    more: !expanded && total > SUPLICA_LIMIT ? tx(lang, 'seeAllRequests', { n: total }) : null,
   }
 }
 
@@ -175,25 +179,25 @@ export function pedidosOfTab(list, tab) {
 // As abas, com a contagem: "Ativos · 3" | "Respondidos · 12" | "Do grupo ·
 // 1" — e "Amigos · 2" quando há pedido de amigo (a aba dos amigos não está
 // no quadro; entra só quando tem o que mostrar).
-export function pedidosTabs(list) {
-  const tab = (key, name) => ({ key, label: `${name} · ${formatInt(pedidosOfTab(list, key).length)}` })
-  const tabs = [tab('ativos', 'Ativos'), tab('respondidos', 'Respondidos'), tab('grupo', 'Do grupo')]
-  if (pedidosOfTab(list, 'amigos').length > 0) tabs.push(tab('amigos', 'Amigos'))
+export function pedidosTabs(list, lang = 'pt') {
+  const tab = key => ({ key, label: `${tx(lang, `tab_${key}`)} · ${formatInt(pedidosOfTab(list, key).length, lang)}` })
+  const tabs = [tab('ativos'), tab('respondidos'), tab('grupo')]
+  if (pedidosOfTab(list, 'amigos').length > 0) tabs.push(tab('amigos'))
   return tabs
 }
 
-const RESPONSE_LABEL = { sim: 'Sim', nao: 'Não', espere: 'Espere', aprenda: 'Aprenda', se_mova: 'Se mova' }
+const RESPONSE_KEYS = ['sim', 'nao', 'espere', 'aprenda', 'se_mova']
 
 // Um pedido respondido: o selo da resposta (só "Sim" é cheio), "orado por
 // {tempo}" — do dia do pedido até o da resposta —, o pedido e, se houver,
 // a linha "o que eu vi", entre aspas.
-export function answeredRow(p) {
+export function answeredRow(p, lang = 'pt') {
   const note = String(p.notaResposta ?? '').trim()
   return {
     id: p.id,
-    badge: RESPONSE_LABEL[p.resposta] ?? '',
+    badge: RESPONSE_KEYS.includes(p.resposta) ? tx(lang, `resp_${p.resposta}`) : '',
     solid: p.resposta === 'sim',
-    span: `orado por ${relativeTimeSpan(p.createdAt, 'pt', p.respondidoEm ? new Date(p.respondidoEm).getTime() : Date.now())}`,
+    span: tx(lang, 'prayedForLower', { span: relativeTimeSpan(p.createdAt, lang, p.respondidoEm ? new Date(p.respondidoEm).getTime() : Date.now()) }),
     body: p.body,
     note: note ? `"${note}"` : null,
   }
@@ -202,10 +206,10 @@ export function answeredRow(p) {
 // O bloco "RESPONDIDOS" da aba Ativos: os dois mais recentes e, havendo
 // mais, "Ver os {n}" (leva à aba Respondidos). Sem respondidos, não há
 // bloco.
-export function answeredBlock(list) {
+export function answeredBlock(list, lang = 'pt') {
   const all = answeredPedidos(list)
   if (!all.length) return null
-  return { total: all.length, more: all.length > 2 ? `Ver os ${formatInt(all.length)}` : null, rows: all.slice(0, 2).map(answeredRow) }
+  return { total: all.length, more: all.length > 2 ? tx(lang, 'seeAllN', { n: formatInt(all.length, lang) }) : null, rows: all.slice(0, 2).map(p => answeredRow(p, lang)) }
 }
 
 // O que o toque no cartão abre (fora do botão "orei"): um pedido meu,
@@ -219,19 +223,19 @@ export function cardTap(p) {
 // outras pessoas, quanto falta para o próximo degrau da família "Oração
 // pelos outros" e a barra entre o degrau atual e o próximo. No último
 // degrau, a segunda linha vira o nome dele e a barra some.
-export function othersCard(value) {
+export function othersCard(value, lang = 'pt') {
   const state = familyState(FAMILIES.find(f => f.id === 'oracao'), Math.max(0, value ?? 0), () => null)
   const top = !state.next
   return {
-    value: formatInt(state.value),
-    caption: `${plural(state.value, 'oração', 'orações')} pelos outros`,
+    value: formatInt(state.value, lang),
+    caption: tx(lang, state.value === 1 ? 'othersOne' : 'othersMany'),
     line: top
       ? state.degraus[state.degraus.length - 1].nome
-      : `${state.remaining === 1 ? 'Falta 1' : `Faltam ${formatInt(state.remaining)}`} para "${state.next.nome}"`,
+      : tx(lang, state.remaining === 1 ? 'leftOne' : 'leftMany', { n: formatInt(state.remaining, lang), name: state.next.nome }),
     progress: top ? null : state.progress,
     aria: top
-      ? `${formatInt(state.value)} orações pelos outros. ${state.degraus[state.degraus.length - 1].nome}.`
-      : `${formatInt(state.value)} ${plural(state.value, 'oração', 'orações')} pelos outros. ${state.remaining === 1 ? 'Falta 1' : `Faltam ${formatInt(state.remaining)}`} para ${state.next.nome}.`,
+      ? `${formatInt(state.value, lang)} ${tx(lang, 'othersMany')}. ${state.degraus[state.degraus.length - 1].nome}.`
+      : `${formatInt(state.value, lang)} ${tx(lang, state.value === 1 ? 'othersOne' : 'othersMany')}. ${tx(lang, state.remaining === 1 ? 'leftAriaOne' : 'leftAriaMany', { n: formatInt(state.remaining, lang), name: state.next.nome })}.`,
   }
 }
 
@@ -249,15 +253,15 @@ export const MAX_PEDIDO = 240
 // não muda isso.
 export const DEFAULT_WHO_SEES = 'only_me'
 
-const peopleCount = n => `${formatInt(n ?? 0)} ${plural(n ?? 0, 'pessoa', 'pessoas')}`
+const peopleCount = (n, lang) => txN(lang, 'people', n ?? 0)
 
 // Os blocos de "Quem vê", na ordem: "Só eu" primeiro, depois os grupos da
 // pessoa e "Meus amigos".
-export function whoSeesOptions({ groups = [], memberCounts = {}, friendsCount = 0 } = {}) {
+export function whoSeesOptions({ groups = [], memberCounts = {}, friendsCount = 0, lang = 'pt' } = {}) {
   return [
-    { key: 'only_me', title: 'Só eu', sub: 'no seu diário' },
-    ...groups.map(g => ({ key: `group:${g.groupId}`, title: g.name, sub: peopleCount(memberCounts[g.groupId]) })),
-    { key: 'friends', title: 'Meus amigos', sub: peopleCount(friendsCount) },
+    { key: 'only_me', title: tx(lang, 'onlyMe'), sub: tx(lang, 'inJournal') },
+    ...groups.map(g => ({ key: `group:${g.groupId}`, title: g.name, sub: peopleCount(memberCounts[g.groupId], lang) })),
+    { key: 'friends', title: tx(lang, 'myFriends'), sub: peopleCount(friendsCount, lang) },
   ]
 }
 
@@ -267,17 +271,15 @@ export function whoSeesOptions({ groups = [], memberCounts = {}, friendsCount = 
 // "Publicar sem meu nome" e o aviso de que só o número de quem orou é
 // mostrado. O botão fica desabilitado com o campo vazio (ou acima do
 // limite).
-export function requestFormState({ body = '', choice = DEFAULT_WHO_SEES } = {}) {
+export function requestFormState({ body = '', choice = DEFAULT_WHO_SEES, lang = 'pt' } = {}) {
   const used = body.trim().length
   const publishing = choice !== 'only_me'
   return {
     publishing,
     showAnonymous: publishing,
-    button: publishing ? 'Publicar pedido' : 'Guardar pedido',
-    note: publishing
-      ? 'Você recebe só o número de pessoas que oraram, nunca os nomes. Pode encerrar o pedido quando quiser.'
-      : 'Fica só com você, no seu diário de oração. Para pedir oração a outras pessoas, escolha um grupo acima.',
-    counter: `${formatInt(used)} / ${MAX_PEDIDO}`,
+    button: tx(lang, publishing ? 'publish' : 'keep'),
+    note: tx(lang, publishing ? 'notePublish' : 'noteKeep'),
+    counter: `${formatInt(used, lang)} / ${MAX_PEDIDO}`,
     over: used > MAX_PEDIDO,
     canSubmit: used > 0 && used <= MAX_PEDIDO,
   }
@@ -295,31 +297,27 @@ export function requestPayload({ body, choice = DEFAULT_WHO_SEES, anonymous = fa
 // ── Como Deus respondeu? (O3) ───────────────────────────────────────────
 
 // As cinco respostas, na ordem da grade (a quinta ocupa a linha inteira).
-export const ANSWER_OPTIONS = [
-  { key: 'sim', title: 'Sim', sub: 'Veio como eu pedi' },
-  { key: 'nao', title: 'Não', sub: 'Ele fechou a porta' },
-  { key: 'espere', title: 'Espere', sub: 'Ainda não é o tempo' },
-  { key: 'aprenda', title: 'Aprenda', sub: 'A situação ficou; eu mudei' },
-  { key: 'se_mova', title: 'Se mova', sub: 'A resposta pedia um passo meu' },
-]
+export function answerOptions(lang = 'pt') {
+  return RESPONSE_KEYS.map(key => ({ key, title: tx(lang, `resp_${key}`), sub: tx(lang, `respSub_${key}`) }))
+}
 
 // "Orado por 24 dias · 9 vezes" — o tempo desde que o pedido foi feito e
 // em quantos dias eu marquei "orei" nele. Sem marca nenhuma, só o tempo.
-export function prayedSummary(p, now = Date.now()) {
-  const span = `Orado por ${relativeTimeSpan(p.createdAt, 'pt', now)}`
+export function prayedSummary(p, now = Date.now(), lang = 'pt') {
+  const span = tx(lang, 'prayedForUpper', { span: relativeTimeSpan(p.createdAt, lang, now) })
   const n = p.diasOrados ?? 0
-  return n > 0 ? `${span} · ${formatInt(n)} ${plural(n, 'vez', 'vezes')}` : span
+  return n > 0 ? `${span} · ${txN(lang, 'times', n)}` : span
 }
 
 // O botão da folha. Nenhuma resposta vem escolhida, e sem escolha ele
 // fica desabilitado. "Espere" não responde o pedido: ele CONTINUA ativo
 // (`keepsActive`) e o botão diz "Seguir orando"; as outras quatro guardam
 // o pedido em Respondidos.
-export function answerSheetState(selected) {
+export function answerSheetState(selected, lang = 'pt') {
   const keepsActive = selected === 'espere'
   return {
-    canSave: ANSWER_OPTIONS.some(o => o.key === selected),
+    canSave: RESPONSE_KEYS.includes(selected),
     keepsActive,
-    button: keepsActive ? 'Seguir orando' : 'Guardar o pedido',
+    button: tx(lang, keepsActive ? 'keepPraying' : 'keepRequest'),
   }
 }
