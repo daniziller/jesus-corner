@@ -4,14 +4,15 @@
 // mostra; o que cada ação faz é de quem chama.
 import FolhaInferior from '../FolhaInferior'
 import AppIcon from '../../icons/AppIcon'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
-export default function FolhaDoItem({ title, editLabel = 'Editar', onEdit, onShare, onDelete, onClose }) {
+export default function FolhaDoItem({ title, editLabel = t('bibliotecaTx.edit'), onEdit, onShare, onDelete, onClose }) {
   const rows = [
     { key: 'edit', label: editLabel, icon: 'Pencil', run: onEdit },
-    { key: 'share', label: 'Compartilhar', icon: 'Share2', run: onShare },
-    { key: 'delete', label: 'Apagar', icon: 'Trash2', run: onDelete, danger: true },
+    { key: 'share', label: t('bibliotecaTx.share'), icon: 'Share2', run: onShare },
+    { key: 'delete', label: t('bibliotecaTx.delete'), icon: 'Trash2', run: onDelete, danger: true },
   ].filter(row => row.run)
   return (
     <FolhaInferior fixed onClose={onClose} labelledBy="biblioteca-item-titulo">

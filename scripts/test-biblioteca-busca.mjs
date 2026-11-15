@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { libraryItems, libraryCounts, withReadings, chaptersByDay, studyItems, booksOf } from '../src/biblioteca/bibliotecaMath.js'
 import {
-  SEARCH_TYPES, searchTypeLabel, NO_REFINE, isRefined, PERIODS, periodRange, periodLabel, normalizePeriod, refineItems,
+  searchTypes, searchTypeLabel, NO_REFINE, isRefined, periods, periodRange, periodLabel, normalizePeriod, refineItems,
   bookOptions, preacherOptions, refineSelectors, tagCloud, TAG_CLOUD, typeNoun, recentSub, rememberLibrarySearch,
 } from '../src/biblioteca/buscaDaBiblioteca.js'
 import {
@@ -55,11 +55,11 @@ const items = libraryItems({
 const ids = list => list.map(i => i.id ?? i.noteKey ?? i.key)
 
 // ── Buscar em ─────────────────────────────────────────────────────────
-check('os tipos de "Buscar em", na ordem', SEARCH_TYPES.map(t => t.label), ['Tudo', 'Notas', 'Marcações', 'Reflexões', 'Pregações', 'Aplicações', 'Perguntas', 'Estudos'])
+check('os tipos de "Buscar em", na ordem', searchTypes().map(t => t.label), ['Tudo', 'Notas', 'Marcações', 'Reflexões', 'Pregações', 'Aplicações', 'Perguntas', 'Estudos'])
 check('rótulo de um tipo (desconhecido cai em Tudo)', [searchTypeLabel('pregacao'), searchTypeLabel('estudo'), searchTypeLabel('x')], ['Pregações', 'Estudos', 'Tudo'])
 
 // ── Período ───────────────────────────────────────────────────────────
-check('as opções de período', PERIODS.map(p => p.label), ['Sempre', 'Esta semana', 'Este mês', 'Este ano', 'De… até…'])
+check('as opções de período', periods().map(p => p.label), ['Sempre', 'Esta semana', 'Este mês', 'Este ano', 'De… até…'])
 check('sempre: sem intervalo', periodRange({ key: 'always' }, agora), null)
 check('esta semana: de segunda até hoje', periodRange({ key: 'week' }, agora), { from: '2026-11-09', to: '2026-11-10' })
 check('esta semana, num domingo: a semana que começou na segunda', periodRange({ key: 'week' }, new Date(2026, 10, 8, 10)), { from: '2026-11-02', to: '2026-11-08' })
@@ -262,6 +262,16 @@ check('as buscas recentes ficam só no aparelho', /localStorage/.test(store) && 
 const tela = ler('screens/BuscaDaBibliotecaScreen.jsx')
 const importsDaTela = [...tela.matchAll(/from '([^']+)'/g)].map(m => m[1])
 check('a busca não lê nada além dos itens da pessoa (a tela não importa loja, rede, grupo nem amigo)', [importsDaTela.filter(i => /Store|supabase|groups|friends|prayer|pedidos/i.test(i)), /fetch\(/.test(tela)], [[], false])
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: tipos de "Buscar em"', searchTypes('en').map(t => t.label), ['All', 'Notes', 'Highlights', 'Reflections', 'Sermons', 'Applications', 'Questions', 'Studies'])
+check('en: períodos', [periods('en').map(p => p.label)[0], periodLabel({ key: 'month' }, 'en'), periodLabel({ key: 'custom', from: '2026-11-03' }, 'en')], ['Any time', 'This month', 'since Nov 3'])
+check('en: onde achou', [recentSub({ pregacao: 6 }, 'en'), recentSub({ nota: 3, marcacao: 1 }, 'en'), recentSub({ nota: 2, marcacao: 5, reflexao: 7 }, 'en'), recentSub({}, 'en')], ['6 sermons', '4 entries · notes and highlights', '14 entries · in everything', 'nothing found'])
+check('en: seletores', refineSelectors({}, tudo, 'en').map(sel => `${sel.label}: ${sel.value}`), ['Book: Any', 'Period: Any time', 'Preacher: Any'])
+const emIngles = searchLibrary({ items: tudo, search: { query: 'espera', type: 'all', ...NO_REFINE }, verseTexts: versos, readByDay: lidos, now: agora, lang: 'en' })
+const muitasEn = searchLibrary({ items: libraryItems({ notes: Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`reflection:${dia(i)}`, { text: `Eu espero no dia ${i}.`, updatedAt: ha(i, 7) }])) }), search: { query: 'espera', type: 'all', ...NO_REFINE }, now: agora, lang: 'en' })
+check('en: pastilhas e "Ver as N"', [emIngles.pills[0].label, emIngles.groups[0].label, muitasEn.groups[0].more], ['All', 'Highlights', 'See all 5 reflections'])
+check('en: sem resultado', searchLibrary({ items: tudo, search: { query: 'zzzz', type: 'all', ...NO_REFINE }, now: agora, lang: 'en' }).empty.message, 'Nothing with "zzzz" in what you saved.')
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

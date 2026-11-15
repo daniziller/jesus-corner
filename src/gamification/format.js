@@ -57,6 +57,11 @@ export function dayMonthYearShort(iso, lang = 'pt') {
   const mon = monthsOf(lang)[d.getMonth()].slice(0, 3)
   return lang === 'en' ? `${mon} ${d.getDate()} ${d.getFullYear()}` : `${d.getDate()} ${mon} ${d.getFullYear()}`
 }
+// "8 nov" · "Nov 8" — o dia e o mês abreviado (datas dos cartões).
+export function dayMonthShort(date, lang = 'pt') {
+  const mon = monthsOf(lang)[date.getMonth()].slice(0, 3)
+  return lang === 'en' ? `${mon} ${date.getDate()}` : `${date.getDate()} ${mon}`
+}
 export function monthYearLong(date, lang = 'pt') {
   return lang === 'en' ? `${monthsOf(lang)[date.getMonth()]} ${date.getFullYear()}` : `${monthsOf(lang)[date.getMonth()]} de ${date.getFullYear()}`
 }

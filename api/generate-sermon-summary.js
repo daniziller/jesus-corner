@@ -14,19 +14,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { generateSermonSummary } from './_lib/ai.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
+import { highlightIsGrounded } from './_lib/summaryCheck.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
 const MAX_TEXT_LENGTH = 8000
 const MIN_WORDS = 30 // piso do lado do servidor; o cliente já filtra em ~40
-
-function foldWords(s) {
-  return s
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(w => w.length > 3)
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
@@ -46,24 +39,23 @@ export default async function handler(req, res) {
   const wordCount = cleanText.split(/\s+/).filter(Boolean).length
   if (wordCount < MIN_WORDS) return res.status(400).json({ error: 'text_too_short' })
 
-  let raw
-  try {
-    raw = await generateSermonSummary({ text: cleanText, lang: cleanLang })
-  } catch (err) {
-    console.error('[generate-sermon-summary] AI call failed:', err.message)
-    return res.status(502).json({ error: 'ai_generation_failed' })
+  // A frase em destaque precisa ter pelo menos uma palavra de conteúdo
+  // que apareça no texto que ela escreveu (summaryCheck.js) — sem isso,
+  // não tem garantia de que a IA não inventou um assunto. Uma síntese
+  // que não passa ganha uma segunda tentativa antes de desistir.
+  let raw = null
+  for (let attempt = 1; attempt <= 2 && !raw; attempt++) {
+    let candidate
+    try {
+      candidate = await generateSermonSummary({ text: cleanText, lang: cleanLang })
+    } catch (err) {
+      console.error('[generate-sermon-summary] AI call failed:', err.message)
+      return res.status(502).json({ error: 'ai_generation_failed' })
+    }
+    if (candidate?.highlight?.trim() && highlightIsGrounded(candidate.highlight, cleanText)) raw = candidate
+    else console.error(`[generate-sermon-summary] highlight failed keyword verification (attempt ${attempt})`)
   }
-
-  // A frase em destaque precisa ter pelo menos uma palavra real (não
-  // conectivo) que apareça de verdade no texto que ela escreveu — sem
-  // isso, não tem garantia de que a IA não inventou um assunto.
-  const sourceWords = new Set(foldWords(cleanText))
-  const highlightWords = foldWords(raw.highlight ?? '')
-  const hasRealOverlap = highlightWords.some(w => sourceWords.has(w))
-  if (!raw.highlight?.trim() || !hasRealOverlap) {
-    console.error('[generate-sermon-summary] highlight failed keyword verification, discarding response')
-    return res.status(502).json({ error: 'ai_generation_failed' })
-  }
+  if (!raw) return res.status(502).json({ error: 'ai_generation_failed' })
 
   return res.status(200).json({
     ok: true,

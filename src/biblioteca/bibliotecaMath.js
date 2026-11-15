@@ -14,26 +14,35 @@ import { dateKey } from '../utils/dateKey.js'
 import { formatVerseRanges } from '../utils/verseRanges.js'
 import { bookInfo } from '../data/gamificationBlocks.js'
 import { bookDisplayName } from '../busca/referencia.js'
-import { formatInt, plural, dayMonthLong, monthName, monthYearLong } from '../gamification/format.js'
+import { formatInt, dayMonthLong, dayMonthShort, monthYearLong } from '../gamification/format.js'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
+import { tr, trN } from '../i18n/tr.js'
+
+const tx = (lang, key, vars) => tr(lang, `bibliotecaTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `bibliotecaTx.${base}`, n, { n: formatInt(n, lang), ...vars })
 
 // ── Os tipos ────────────────────────────────────────────────────────────
 
 // A ordem dos quadrados (L1 §2.4) — a mesma em toda a aba. `tone` é o
 // tratamento do tipo (Marcações em areia, Aplicações em preto, os demais
 // em branco); `marker`, o quadradinho ou círculo ao lado do nome; `color`,
-// a cor do rótulo do tipo.
+// a cor do rótulo do tipo. Os nomes (plural, singular e a linha de
+// apoio) vêm de translations.js, no idioma da conta — libraryTypes(lang).
 export const LIBRARY_TYPES = [
-  { type: 'nota', name: 'Notas', singular: 'Nota', tone: 'white', marker: 'square', color: 'ink', support: 'Presas a um versículo' },
-  { type: 'marcacao', name: 'Marcações', singular: 'Marcação', tone: 'sand', marker: 'square', color: 'sand', support: 'Trechos grifados' },
-  { type: 'reflexao', name: 'Reflexões', singular: 'Reflexão', tone: 'white', marker: 'square', color: 'accent', support: 'Do passo do plano' },
-  { type: 'pregacao', name: 'Pregações', singular: 'Pregação', tone: 'white', marker: 'square', color: 'sand', support: 'Sermões, cultos e aulas' },
-  { type: 'aplicacao', name: 'Aplicações', singular: 'Aplicação', tone: 'white', marker: 'circle', color: 'accent', support: 'Suas frases do dia' },
-  { type: 'pergunta', name: 'Perguntas', singular: 'Pergunta', tone: 'white', marker: 'circle', color: 'ink', support: 'O que você perguntou e guardou' },
+  { type: 'nota', tone: 'white', marker: 'square', color: 'ink' },
+  { type: 'marcacao', tone: 'sand', marker: 'square', color: 'sand' },
+  { type: 'reflexao', tone: 'white', marker: 'square', color: 'accent' },
+  { type: 'pregacao', tone: 'white', marker: 'square', color: 'sand' },
+  { type: 'aplicacao', tone: 'white', marker: 'circle', color: 'accent' },
+  { type: 'pergunta', tone: 'white', marker: 'circle', color: 'ink' },
 ]
+const withNames = (t, lang) => ({ ...t, name: tx(lang, `type_${t.type}`), singular: tx(lang, `one_${t.type}`), support: tx(lang, `support_${t.type}`) })
+export function libraryTypes(lang = 'pt') {
+  return LIBRARY_TYPES.map(t => withNames(t, lang))
+}
 const TYPE_OF = Object.fromEntries(LIBRARY_TYPES.map(t => [t.type, t]))
-export function typeMeta(type) {
-  return TYPE_OF[type] ?? null
+export function typeMeta(type, lang = 'pt') {
+  return TYPE_OF[type] ? withNames(TYPE_OF[type], lang) : null
 }
 
 // ── O que entra ─────────────────────────────────────────────────────────
@@ -158,15 +167,15 @@ export function withReadings(items, readByDay = {}) {
 
 // O cartão do total (L1 §2.3): "128 · anotações guardadas · em 23 livros
 // da Bíblia · 9 este mês". O que for zero some da segunda linha.
-export function totalCard(items, now = new Date()) {
+export function totalCard(items, now = new Date(), lang = 'pt') {
   const { total } = libraryCounts(items)
   const books = new Set(items.flatMap(booksOf)).size
   const month = dateKey(now).slice(0, 7)
   const thisMonth = items.filter(i => i.at && dateKey(new Date(i.at)).slice(0, 7) === month).length
   const parts = []
-  if (books > 0) parts.push(`em ${formatInt(books)} ${plural(books, 'livro', 'livros')} da Bíblia`)
-  if (thisMonth > 0) parts.push(`${formatInt(thisMonth)} este mês`)
-  return { total: formatInt(total), label: plural(total, 'anotação guardada', 'anotações guardadas'), sub: parts.join(' · ') }
+  if (books > 0) parts.push(txN(lang, 'inBooks', books))
+  if (thisMonth > 0) parts.push(tx(lang, 'thisMonth', { n: formatInt(thisMonth, lang) }))
+  return { total: formatInt(total, lang), label: txN(lang, 'saved', total), sub: parts.join(' · ') }
 }
 
 // ── Quando ──────────────────────────────────────────────────────────────
@@ -177,14 +186,14 @@ const dayNumber = date => Math.round(new Date(date.getFullYear(), date.getMonth(
 // o ano, se não for o corrente). `weekday`: de dois a seis dias atrás, o
 // dia da semana no lugar de "há N dias" — "domingo", a data de uma
 // pregação.
-export function whenLabel(iso, now = new Date(), { weekday = false } = {}) {
+export function whenLabel(iso, now = new Date(), { weekday = false, lang = 'pt' } = {}) {
   if (!iso) return ''
   const d = new Date(iso)
   const days = dayNumber(now) - dayNumber(d)
-  if (days <= 0) return 'hoje'
-  if (days === 1) return 'ontem'
-  if (days < 7) return weekday ? WEEKDAY_FULL.pt[(d.getDay() + 6) % 7] : `há ${days} dias`
-  const short = `${d.getDate()} ${monthName(d).slice(0, 3)}`
+  if (days <= 0) return tx(lang, 'today')
+  if (days === 1) return tx(lang, 'yesterday')
+  if (days < 7) return weekday ? (WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt)[(d.getDay() + 6) % 7] : tx(lang, 'daysAgo', { n: days })
+  const short = dayMonthShort(d, lang)
   return d.getFullYear() === now.getFullYear() ? short : `${short} ${d.getFullYear()}`
 }
 
@@ -194,16 +203,16 @@ export function whenLabel(iso, now = new Date(), { weekday = false } = {}) {
 // — "Presas a um versículo · última ontem". Com zero itens o quadrado
 // continua, com "0" e o apoio sem o trecho do "quando". Aplicações e
 // Perguntas têm apoio fixo. `aria` é o que o quadrado anuncia.
-export function typeTiles(items, now = new Date()) {
+export function typeTiles(items, now = new Date(), lang = 'pt') {
   const counts = libraryCounts(items)
   const latest = {}
   for (const item of byRecent(items)) if (item.at && !latest[item.type]) latest[item.type] = item.at
-  return LIBRARY_TYPES.map(meta => {
-    const count = formatInt(counts[meta.type])
+  return libraryTypes(lang).map(meta => {
+    const count = formatInt(counts[meta.type], lang)
     const last = latest[meta.type]
     let support = meta.support
-    if (last && meta.type === 'pregacao') support += ` · ${whenLabel(last, now, { weekday: true })}`
-    else if (last && meta.type !== 'aplicacao' && meta.type !== 'pergunta') support += ` · última ${whenLabel(last, now)}`
+    if (last && meta.type === 'pregacao') support += ` · ${whenLabel(last, now, { weekday: true, lang })}`
+    else if (last && meta.type !== 'aplicacao' && meta.type !== 'pergunta') support += ` · ${tx(lang, 'latest', { when: whenLabel(last, now, { lang }) })}`
     return { type: meta.type, name: meta.name, tone: meta.tone, marker: meta.marker, color: meta.color, count, support, aria: `${meta.name}, ${count}` }
   })
 }
@@ -238,11 +247,11 @@ export function chaptersByDay(chapterRows) {
 // seguem com os nomes que já tinham na Biblioteca ("Reflexão de
 // fechamento", "Seu mês").
 export function reflectionTitle(item, readByDay = {}, lang = 'pt') {
-  if (item.kind === 'livro') return `${bookDisplayName(item.book, lang)} · Reflexão de fechamento`
+  if (item.kind === 'livro') return tx(lang, 'closingReflection', { book: bookDisplayName(item.book, lang) })
   if (item.kind === 'mes') {
     const [year, month] = String(item.month).split('-').map(Number)
-    const name = monthYearLong(new Date(year, month - 1, 1))
-    return `${name.charAt(0).toUpperCase()}${name.slice(1)} · Seu mês`
+    const name = monthYearLong(new Date(year, month - 1, 1), lang)
+    return tx(lang, 'yourMonth', { month: `${name.charAt(0).toUpperCase()}${name.slice(1)}` })
   }
   const read = (readByDay[item.date] ?? []).filter(r => bookInfo(r.book))
   if (read.length) {
@@ -252,7 +261,7 @@ export function reflectionTitle(item, readByDay = {}, lang = 'pt') {
     const last = Math.max(...chapters)
     return `${bookDisplayName(book, lang)} ${first}${last !== first ? `–${last}` : ''}`
   }
-  return `Reflexão de ${dayMonthLong(`${item.date}T12:00:00`)}`
+  return tx(lang, 'reflectionOf', { date: dayMonthLong(`${item.date}T12:00:00`, lang) })
 }
 
 // A primeira resposta de uma reflexão. A nota do dia com perguntas é
@@ -274,7 +283,7 @@ const firstWords = (text, max = 6) => oneLine(text).split(' ').slice(0, max).joi
 // Pergunta — a pergunta.
 export function itemTitle(item, { readByDay = {}, lang = 'pt' } = {}) {
   if (item.type === 'reflexao') return reflectionTitle(item, readByDay, lang)
-  if (item.type === 'pregacao') return [item.preacher, item.church].filter(Boolean).join(' · ') || item.title || firstWords(item.text) || 'Anotação'
+  if (item.type === 'pregacao') return [item.preacher, item.church].filter(Boolean).join(' · ') || item.title || firstWords(item.text) || tx(lang, 'entryFallback')
   if (item.type === 'nota' || item.type === 'marcacao') return itemReference(item, lang)
   return item.text
 }
@@ -304,10 +313,10 @@ export function recentItems(items, limit = RECENT_LIMIT) {
 // tipo), quando, o título e uma linha do texto.
 export function recentRows(items, { now = new Date(), readByDay = {}, verseTexts = {}, lang = 'pt' } = {}) {
   return recentItems(items).map(item => {
-    const meta = TYPE_OF[item.type]
+    const meta = typeMeta(item.type, lang)
     return {
       key: item.key, item, label: meta.singular, color: meta.color,
-      when: whenLabel(item.at, now, { weekday: item.type === 'pregacao' }),
+      when: whenLabel(item.at, now, { weekday: item.type === 'pregacao', lang }),
       title: itemTitle(item, { readByDay, lang }),
       line: itemLine(item, { verseTexts }),
     }
@@ -331,7 +340,7 @@ export function studiesSummary({ catalog = [], ai = [], inductive = [], complete
     const doneCount = sessions[0]?.book
       ? sessions.filter(s => s.completedAt).length
       : sessions.filter(s => done.has(`${active.id}:${s.id}`)).length
-    if (total > 0) current = { id: active.id, title: active.title ?? active.titleEn ?? '', day: Math.min(doneCount + 1, total), total }
+    if (total > 0) current = { id: active.id, title: active.title ?? active.titleEn ?? '', ...(active.titleEn ? { titleEn: active.titleEn } : {}), day: Math.min(doneCount + 1, total), total }
   }
   const count = mine.length + (active && !mine.includes(active) ? 1 : 0)
   return { count, active: current }
@@ -346,7 +355,7 @@ export function studyItems({ ai = [], inductive = [], completed = [] } = {}) {
     const total = sessions.length
     const doneCount = sessions[0]?.book ? sessions.filter(s => s.completedAt).length : sessions.filter(s => done.has(`${study.id}:${s.id}`)).length
     return {
-      key: `estudo:${study.id}`, type: 'estudo', id: study.id, title: String(study.title ?? study.titleEn ?? '').trim(),
+      key: `estudo:${study.id}`, type: 'estudo', id: study.id, title: String(study.title ?? study.titleEn ?? '').trim(), titleEn: study.titleEn ? String(study.titleEn).trim() : null,
       at: study.createdAt ?? null, day: Math.min(doneCount + 1, Math.max(total, 1)), total, finished: total > 0 && doneCount >= total,
       books: [...new Set([study.book, ...sessions.map(s => s.book)].filter(Boolean))],
     }
@@ -356,19 +365,27 @@ export function studyItems({ ai = [], inductive = [], completed = [] } = {}) {
 // O cartão preto: com estudo em andamento, "{Nome} · dia {x} de {y}" e a
 // barra; sem, "{n} estudos guardados" e sem barra; sem nenhum estudo,
 // "Criar um estudo" (abre 35d).
-export function studiesCard({ count = 0, active = null } = {}) {
-  if (count === 0) return { label: 'Estudos', title: 'Criar um estudo', progress: null, action: 'create' }
-  const label = `Estudos · ${formatInt(count)}`
-  if (active) return { label, title: `${active.title} · dia ${active.day} de ${active.total}`, progress: active.day / active.total, action: 'open' }
-  return { label, title: `${formatInt(count)} ${plural(count, 'estudo guardado', 'estudos guardados')}`, progress: null, action: 'open' }
+export function studiesCard({ count = 0, active = null } = {}, lang = 'pt') {
+  if (count === 0) return { label: tx(lang, 'type_estudo'), title: tx(lang, 'createStudy'), progress: null, action: 'create' }
+  const label = tx(lang, 'studiesCount', { n: formatInt(count, lang) })
+  if (active) return { label, title: tx(lang, 'studyDay', { title: (lang === 'en' && active.titleEn) || active.title, day: active.day, total: active.total }), progress: active.day / active.total, action: 'open' }
+  return { label, title: txN(lang, 'studiesSaved', count), progress: null, action: 'open' }
 }
 
 // ── Estados ─────────────────────────────────────────────────────────────
 
 // Conta nova: nada guardado ainda — no lugar de "Recentes" entra o cartão
 // areia com dois exemplos do que se guarda ali (o texto do vazio de 4c).
-export const EMPTY_LIBRARY_TEXT = 'Nada por aqui ainda. Uma reflexão sobre o capítulo de hoje, a anotação do sermão de domingo — tudo que você escrever aparece aqui.'
+export function emptyLibraryText(lang = 'pt') {
+  return tx(lang, 'emptyLibrary')
+}
 
 export function isEmptyLibrary(items) {
   return libraryCounts(items).total === 0
+}
+
+// Os textos fixos das telas da Biblioteca (título, botões, rótulos), no
+// idioma da conta — os mesmos de translations.js/bibliotecaTx.
+export function bibliotecaText(lang, key, vars) {
+  return tx(lang, key, vars)
 }

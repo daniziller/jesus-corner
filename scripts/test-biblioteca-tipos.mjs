@@ -5,11 +5,11 @@
 import { libraryItems, libraryCounts } from '../src/biblioteca/bibliotecaMath.js'
 import {
   PAGE_SIZE, pageOf, dateLabel, monthHeading, groupByMonth, bookShort, passageShort, passagePills,
-  sermonTypeLabel, sermonsSummary, sermonTypeFilters, effectiveSermonType, SERMON_ORDERS, sermonOrderLabel, sermonList, sermonGroups, sermonCard, EMPTY_SERMONS,
+  sermonTypeLabel, sermonsSummary, sermonTypeFilters, effectiveSermonType, sermonOrders, sermonOrderLabel, sermonList, sermonGroups, sermonCard, emptySermons,
   marksSummary, marksTabs, marksByBook, bookMarksShown, marksList, markRow, withNote, shareText,
-  notesSummary, NOTES_TABS, notesByBook, noteRow, reflectionsSummary, phrasesByDate, reflectionCard,
+  notesSummary, notesTabs, notesByBook, noteRow, reflectionsSummary, phrasesByDate, reflectionCard,
   applicationsSummary, applicationFilters, applicationList, applicationCard, questionsSummary, questionCard,
-  reflectionBlocks, readingPage,
+  reflectionBlocks, readingPage, emptyNotes, emptyMarks, emptyApplications, emptyReflections, emptyQuestions,
 } from '../src/biblioteca/tiposMath.js'
 
 let failures = 0
@@ -63,7 +63,7 @@ check('filtros: Todas e só os tipos usados, do mais usado para o menos', sermon
 check('filtros: tipo com zero não aparece', sermonTypeFilters(pregacoes).some(f => f.label === 'Palestra'), false)
 check('filtros: sem anotações, só "Todas 0"', sermonTypeFilters([]).map(f => `${f.label} ${f.count}`), ['Todas 0'])
 check('filtro que sumiu volta para "Todas"', [effectiveSermonType('lecture', pregacoes), effectiveSermonType('class', pregacoes), effectiveSermonType('all', pregacoes)], ['all', 'class', 'all'])
-check('ordens', SERMON_ORDERS.map(o => o.label), ['Mais recentes', 'Mais antigas', 'Por pregador'])
+check('ordens', sermonOrders().map(o => o.label), ['Mais recentes', 'Mais antigas', 'Por pregador'])
 check('rótulo da ordem (desconhecida cai na primeira)', [sermonOrderLabel('preacher'), sermonOrderLabel('x')], ['Por pregador', 'Mais recentes'])
 check('lista: mais recentes', sermonList(pregacoes).map(p => p.id), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'])
 check('lista: mais antigas', sermonList(pregacoes, { order: 'oldest' }).map(p => p.id), ['i', 'h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'])
@@ -78,7 +78,7 @@ check('cartão sem título: "Preletor · Instituição" vira o título e a segun
 check('cartão sem título nem pregador: as primeiras palavras do texto', [cartao('g').title, cartao('g').sub, cartao('g').type], ['Uma anotação livre que começa assim', '', 'Livre'])
 check('cartão com título e sem pregador: sem segunda linha', [cartao('h').title, cartao('h').sub], ['Sem pregador', ''])
 check('cartão de tipo próprio', cartao('f').type, 'retiro de casais')
-check('vazio de Pregações', EMPTY_SERMONS, 'Nenhuma pregação anotada ainda.')
+check('vazio de Pregações', emptySermons(), 'Nenhuma pregação anotada ainda.')
 
 // ── Marcações ─────────────────────────────────────────────────────────
 const hl = (id, book, chapter, verses, dias, extra = {}) => ({ id, book, bookEn: book, chapter, verses, text: '', createdAt: ha(dias), ...extra })
@@ -122,7 +122,7 @@ const notas = libraryItems({
 check('Notas: resumo', notesSummary(notas), '5 notas · 2 livros')
 check('Notas: resumo no singular', notesSummary(notas.filter(n => n.id === 'n1')), '1 nota · 1 livro')
 check('Notas: a contagem é a mesma do quadrado da raiz', notesSummary(notas).startsWith(`${libraryCounts(notas).nota} `), true)
-check('Notas: segmentado', NOTES_TABS.map(t => t.label), ['Por livro', 'Por data'])
+check('Notas: segmentado', notesTabs().map(t => t.label), ['Por livro', 'Por data'])
 const livrosDeNotas = notesByBook(notas)
 check('Notas por livro: ordem canônica, contagem e "Ver as N"', livrosDeNotas.map(g => `${g.name}|${g.count}|${g.more}`), ['Gênesis|4 notas|Ver as 4 de Gênesis', 'Salmos|1 nota|null'])
 check('Notas por livro: as duas mais recentes (a nota de sessão entra)', bookMarksShown(livrosDeNotas[0], false).map(n => n.key), ['nota:n3', 'nota:n2'])
@@ -185,6 +185,19 @@ check('compartilhar uma marcação: o trecho, a referência e a nota — sem eti
 
 check('compartilhar uma pergunta: a pergunta, a referência e a resposta', shareText(perguntas[0]), 'Por que dois anos?\n\nGênesis 41:1\n\nO texto só marca\no tempo.')
 check('compartilhar uma nota: o texto e a referência', shareText(notas.find(n => n.id === 'n2')), 'Esquecido pelo copeiro.\n\nGênesis 40:23')
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: resumo e filtros de Pregações', [sermonsSummary(pregacoes, 'en').includes('entries'), sermonTypeFilters(pregacoes, 'en')[0].label, sermonTypeLabel('service', 'en'), sermonTypeLabel('Retiro', 'en')], [true, 'All', 'Service', 'Retiro'])
+check('en: ordens', sermonOrders('en').map(o => o.label), ['Newest', 'Oldest', 'By preacher'])
+check('en: grupo por mês', groupByMonth([{ at: ha(0) }, {}], 'en').map(g => g.label), ['November 2026', 'No date'])
+check('en: data de cartão na semana e fora', [dateLabel(ha(2), agora, 'en'), dateLabel(ha(20), agora, 'en')], ['Sun, Nov 8', 'Oct 21'])
+check('en: Marcações', [marksSummary(marcas, 'en').split(' · ')[1].endsWith('books'), marksTabs(marcas, 'en').map(t => t.label.split(' · ')[0])], [true, ['By book', 'By date', 'With a note']])
+check('en: "Ver os N" de um livro', marksByBook(marcas, 'en').find(g => g.more)?.more.startsWith('See all'), true)
+check('en: Notas', [notesTabs('en').map(t => t.label), emptyNotes('en')], [['By book', 'By date'], 'No notes yet.'])
+check('en: Aplicações', [applicationFilters(frases, 'en').map(f => f.label), applicationCard(frases[0], { now: agora, lang: 'en' }).meta.startsWith('Phrase of the day · ')], [['All', 'Done', 'Open'], true])
+check('en: Perguntas', [questionsSummary(perguntas, 'en'), questionsSummary(perguntas.slice(0, 1), 'en')], ['2 saved questions', '1 saved question'])
+check('en: vazios', [emptySermons('en'), emptyMarks('nota', 'en'), emptyApplications('open', 'en'), emptyReflections('en'), emptyQuestions('en')], ['No sermon notes yet.', 'No highlights with a note yet.', 'No open phrases.', 'No reflections yet.', 'No saved questions yet.'])
+check('en: página de uma pergunta', readingPage(perguntas[0], { now: agora, lang: 'en' }).title, 'Question')
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

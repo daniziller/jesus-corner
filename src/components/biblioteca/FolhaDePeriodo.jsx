@@ -3,7 +3,8 @@
 // quatro primeiras escolhem e fecham; "De… até…" abre os dois campos de
 // data, e "Aplicar" vale o intervalo. "Limpar" volta a "Sempre".
 import { useState } from 'react'
-import { PERIODS, normalizePeriod } from '../../biblioteca/buscaDaBiblioteca'
+import { periods, normalizePeriod } from '../../biblioteca/buscaDaBiblioteca'
+import { t, currentLanguage } from '../../i18n'
 import FolhaDeOpcoes from './FolhaDeOpcoes'
 
 const FONT = 'var(--font-bento)'
@@ -18,20 +19,20 @@ export default function FolhaDePeriodo({ period, onChange, onClose }) {
   }
   return (
     <FolhaDeOpcoes
-      title="Período" options={PERIODS} current={key} onChoose={choose} onClose={onClose} stay={k => k === 'custom'}
+      title={t('bibliotecaTx.sel_period')} options={periods(currentLanguage())} current={key} onChoose={choose} onClose={onClose} stay={k => k === 'custom'}
       onClear={period.key !== 'always' ? () => onChange({ key: 'always' }) : null}
     >
       {key === 'custom' && (
         <div style={s.dates}>
           <label style={s.field}>
-            <span style={s.fieldLabel}>De</span>
+            <span style={s.fieldLabel}>{t('bibliotecaTx.from')}</span>
             <input type="date" style={s.input} value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} />
           </label>
           <label style={s.field}>
-            <span style={s.fieldLabel}>Até</span>
+            <span style={s.fieldLabel}>{t('bibliotecaTx.until')}</span>
             <input type="date" style={s.input} value={to} min={from || undefined} onChange={e => setTo(e.target.value)} />
           </label>
-          <button type="button" style={s.apply} onClick={() => { onChange(normalizePeriod({ key: 'custom', from, to })); onClose() }}>Aplicar</button>
+          <button type="button" style={s.apply} onClick={() => { onChange(normalizePeriod({ key: 'custom', from, to })); onClose() }}>{t('bibliotecaTx.apply')}</button>
         </div>
       )}
     </FolhaDeOpcoes>

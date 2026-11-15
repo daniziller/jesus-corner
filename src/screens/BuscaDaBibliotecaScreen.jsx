@@ -14,9 +14,10 @@
 // da pessoa. As contas moram em src/biblioteca/buscaDaBiblioteca.js (os
 // filtros) e resultadosDaBusca.js (a comparação e os grupos).
 import { useRef, useState, useMemo, useEffect, useLayoutEffect } from 'react'
-import { SEARCH_TYPES, refineSelectors, bookOptions, preacherOptions, tagCloud } from '../biblioteca/buscaDaBiblioteca'
+import { searchTypes, refineSelectors, bookOptions, preacherOptions, tagCloud } from '../biblioteca/buscaDaBiblioteca'
 import { isSearching, searchLibrary, withoutFilters, foundCounts } from '../biblioteca/resultadosDaBusca'
 import { useTrechos } from '../biblioteca/useTrechos'
+import { bibliotecaText } from '../biblioteca/bibliotecaMath'
 import { useDebounced } from '../utils/useDebounced'
 import { CabecalhoDeBusca, ListaCartao, ListaLinha } from '../components/biblia/BuscaPartes'
 import RotuloDeGrupo from '../components/biblioteca/RotuloDeGrupo'
@@ -103,6 +104,7 @@ export default function BuscaDaBibliotecaScreen({
     set({ type })
   }
 
+  const L = (key, vars) => bibliotecaText(lang, key, vars)
   const selectors = refineSelectors(search, items, lang)
   const tags = tagCloud(items)
   const preachers = preacherOptions(items)
@@ -111,24 +113,24 @@ export default function BuscaDaBibliotecaScreen({
     <div style={t.screen}>
       <CabecalhoDeBusca
         value={search.query} onChange={query => set({ query })} onClear={() => fill('')} inputRef={inputRef}
-        onBack={onBack} placeholder="Palavra, referência, pregador…" label="Buscar na Biblioteca"
+        onBack={onBack} placeholder={L('searchPlaceholder')} label={L('searchLabel')}
       />
       <ListaDoTipo scrollRef={scrollRef} onScroll={e => { scrollMemory.current = e.currentTarget.scrollTop }}>
         {searching ? (
-          <FileiraDePastilhas label="Buscar em">
+          <FileiraDePastilhas label={L('searchIn')}>
             {result.pills.map(pill => (
               <PastilhaDeFiltro key={pill.key} label={pill.label} count={pill.count} active={pill.key === result.active} onClick={() => set({ type: pill.key })} />
             ))}
           </FileiraDePastilhas>
         ) : (
           <>
-            <RotuloDeGrupo>Buscar em</RotuloDeGrupo>
-            <FileiraDePastilhas label="Buscar em">
-              {SEARCH_TYPES.map(type => (
+            <RotuloDeGrupo>{L('searchIn')}</RotuloDeGrupo>
+            <FileiraDePastilhas label={L('searchIn')}>
+              {searchTypes(lang).map(type => (
                 <PastilhaDeFiltro key={type.key} label={type.label} active={type.key === search.type} onClick={() => set({ type: type.key })} />
               ))}
             </FileiraDePastilhas>
-            <RotuloDeGrupo>Refinar</RotuloDeGrupo>
+            <RotuloDeGrupo>{L('refine')}</RotuloDeGrupo>
           </>
         )}
 
@@ -144,7 +146,7 @@ export default function BuscaDaBibliotecaScreen({
             {result.empty && (
               <div style={t.empty}>
                 <p style={t.emptyText}>{result.empty.message}</p>
-                {result.empty.canClear && <button type="button" style={t.emptyButton} onClick={() => onSearchChange(withoutFilters(search))}>Buscar sem os filtros</button>}
+                {result.empty.canClear && <button type="button" style={t.emptyButton} onClick={() => onSearchChange(withoutFilters(search))}>{L('searchNoFilters')}</button>}
               </div>
             )}
             {hasMore && <div ref={sentinelRef} style={t.sentinel} aria-hidden="true" />}
@@ -153,10 +155,10 @@ export default function BuscaDaBibliotecaScreen({
           <>
             {tags.length > 0 && (
               <>
-                <RotuloDeGrupo>Suas etiquetas</RotuloDeGrupo>
-                <div style={s.tags} role="group" aria-label="Suas etiquetas">
+                <RotuloDeGrupo>{L('yourTags')}</RotuloDeGrupo>
+                <div style={s.tags} role="group" aria-label={L('yourTags')}>
                   {tags.map(tag => (
-                    <button key={tag.tag} type="button" className="biblioteca-etiqueta" style={s.tag} onClick={() => fill(tag.tag)} aria-label={`Buscar pela etiqueta ${tag.tag}, ${tag.count}`}>
+                    <button key={tag.tag} type="button" className="biblioteca-etiqueta" style={s.tag} onClick={() => fill(tag.tag)} aria-label={L('tagAria', { tag: tag.tag, n: tag.count })}>
                       {tag.label}
                       <span style={s.tagCount}>{tag.count}</span>
                     </button>
@@ -167,7 +169,7 @@ export default function BuscaDaBibliotecaScreen({
 
             {recents.length > 0 && (
               <>
-                <RotuloDeGrupo right="Limpar" onRight={onClearRecents}>Buscas recentes</RotuloDeGrupo>
+                <RotuloDeGrupo right={L('clear')} onRight={onClearRecents}>{L('recentSearches')}</RotuloDeGrupo>
                 <ListaCartao>
                   {recents.map((recent, i) => (
                     <ListaLinha key={recent.text} icon="Clock" title={recent.text} sub={recent.sub} last={i === recents.length - 1} onClick={() => fill(recent.text)} />
@@ -176,22 +178,22 @@ export default function BuscaDaBibliotecaScreen({
               </>
             )}
 
-            <p style={s.footnote}>A busca lê só o que é seu. Nada daqui vai para grupo.</p>
+            <p style={s.footnote}>{L('footnote')}</p>
           </>
         )}
       </ListaDoTipo>
 
       {sheet === 'book' && (
         <FolhaDeOpcoes
-          title="Livro" groups={bookOptions(items, lang).map(block => ({ id: block.id, name: block.name, options: block.books.map(b => ({ key: b.book, label: b.label, count: b.count })) }))}
+          title={L('sel_book')} groups={bookOptions(items, lang).map(block => ({ id: block.id, name: block.name, options: block.books.map(b => ({ key: b.book, label: b.label, count: b.count })) }))}
           current={search.book} onChoose={book => set({ book })} onClear={search.book ? () => set({ book: null }) : null} onClose={() => setSheet(null)}
-          empty="Ainda não há nada guardado em nenhum livro."
+          empty={L('noBooks')}
         />
       )}
       {sheet === 'period' && <FolhaDePeriodo period={search.period} onChange={period => set({ period })} onClose={() => setSheet(null)} />}
       {sheet === 'preacher' && (
         <FolhaDeOpcoes
-          title="Pregador" options={preachers.map(p => ({ key: p.label, label: p.label, count: p.count }))}
+          title={L('sel_preacher')} options={preachers.map(p => ({ key: p.label, label: p.label, count: p.count }))}
           current={search.preacher} onChoose={preacher => set({ preacher })} onClear={search.preacher ? () => set({ preacher: null }) : null} onClose={() => setSheet(null)}
         />
       )}

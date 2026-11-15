@@ -1,5 +1,5 @@
 // As regras que escrevem frases (hojeMath, meuPlanoMath, seuPlanoMath,
-// ajustarMath) usam chaves de
+// ajustarMath, a Bíblia, a busca e a Biblioteca) usam chaves de
 // translations.js por tx(lang, 'chave'): toda chave usada precisa existir
 // em português e em inglês, e o inglês não pode cair no português.
 import { readFileSync } from 'node:fs'
@@ -12,7 +12,7 @@ function check(label, actual, expected) {
   console.log(`${ok ? 'OK    ' : 'FALHOU'} ${label}${ok ? '' : ` — esperado ${JSON.stringify(expected)}, veio ${JSON.stringify(actual)}`}`)
 }
 
-const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx', 'src/biblia/bibliaMath.js': 'bibliaTx', 'src/busca/buscaMath.js': 'buscaTx', 'src/busca/palavra.js': 'buscaTx' }
+const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx', 'src/biblia/bibliaMath.js': 'bibliaTx', 'src/busca/buscaMath.js': 'buscaTx', 'src/busca/palavra.js': 'buscaTx', 'src/biblioteca/bibliotecaMath.js': 'bibliotecaTx', 'src/biblioteca/tiposMath.js': 'bibliotecaTx', 'src/biblioteca/buscaDaBiblioteca.js': 'bibliotecaTx', 'src/biblioteca/resultadosDaBusca.js': 'bibliotecaTx' }
 for (const [file, ns] of Object.entries(FILES)) {
   const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
   const used = new Set()
@@ -24,6 +24,22 @@ for (const [file, ns] of Object.entries(FILES)) {
   check(`${file}: chaves usadas existem em en`, missing('en'), [])
   const pt = Object.keys(STRINGS.pt[ns]).sort(), en = Object.keys(STRINGS.en[ns]).sort()
   check(`${ns}: as mesmas chaves nos dois idiomas`, pt, en)
+}
+
+// As telas da Biblioteca usam as mesmas chaves por bibliotecaText(lang,
+// 'chave'), L('chave') ou t('bibliotecaTx.chave').
+{
+  const { readdirSync } = await import('node:fs')
+  const screens = ['BibliotecaScreen', 'NotasScreen', 'MarcacoesScreen', 'PregacoesScreen', 'PerguntasScreen', 'ReflexoesScreen', 'AplicacoesScreen', 'LeituraDoItemScreen', 'BuscaDaBibliotecaScreen'].map(n => `src/screens/${n}.jsx`)
+  const parts = readdirSync(new URL('../src/components/biblioteca/', import.meta.url)).filter(f => f.endsWith('.jsx')).map(f => `src/components/biblioteca/${f}`)
+  const used = new Set()
+  for (const file of [...screens, ...parts]) {
+    const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    for (const m of src.matchAll(/(?:bibliotecaText\(lang, |\bL\(|\bt{1,2}\('bibliotecaTx\.)'?([A-Za-z0-9_]+)'/g)) used.add(m[1])
+  }
+  check('telas da Biblioteca: chaves usadas existem em pt', [...used].filter(k => STRINGS.pt.bibliotecaTx[k] == null), [])
+  check('telas da Biblioteca: chaves usadas existem em en', [...used].filter(k => STRINGS.en.bibliotecaTx[k] == null), [])
+  check('telas da Biblioteca: alguma chave foi achada', used.size > 20, true)
 }
 
 if (failures) { console.log(`\n${failures} falha(s).`); process.exit(1) }

@@ -4,12 +4,13 @@
 // cartão areia de linhas). O cabeçalho é o de sempre (CabecalhoDoPasso):
 // voltar · nome do tipo com a linha de resumo · lupa.
 import AppIcon from '../../icons/AppIcon'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 export function BotaoDaLupa({ onClick }) {
   return (
-    <button type="button" className="biblioteca-alvo" style={tipoStyles.lupa} onClick={onClick} aria-label="Buscar neste tipo">
+    <button type="button" className="biblioteca-alvo" style={tipoStyles.lupa} onClick={onClick} aria-label={t('bibliotecaTx.searchThisType')}>
       <AppIcon name="Search" size={16} strokeWidth={2.4} color="var(--bento-ink)" />
     </button>
   )
@@ -22,9 +23,9 @@ export function ListaDoTipo({ children, scrollRef = null, onScroll = null }) {
 
 // Carregando: caixas vazias, nunca um spinner de tela cheia.
 export function EstadoDoTipo({ status }) {
-  if (status === 'error') return <p style={tipoStyles.note}>Não foi possível carregar a sua Biblioteca agora.</p>
+  if (status === 'error') return <p style={tipoStyles.note}>{t('bibliotecaTx.loadError')}</p>
   return (
-    <div aria-busy="true" aria-label="Carregando" style={{ display: 'contents' }}>
+    <div aria-busy="true" aria-label={t('bibliotecaTx.loadingShort')} style={{ display: 'contents' }}>
       {[0, 1, 2].map(i => <div key={i} className="rb-context-skeleton" style={{ height: 132, borderRadius: 24, background: 'var(--bento-line)' }} />)}
     </div>
   )

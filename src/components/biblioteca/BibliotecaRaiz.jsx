@@ -9,7 +9,7 @@
 // BibliotecaScreen.jsx, que os lê uma vez para a aba inteira.
 import { useMemo } from 'react'
 import { useTrechos } from '../../biblioteca/useTrechos'
-import { totalCard, typeTiles, recentItems, recentRows, studiesCard, isEmptyLibrary, EMPTY_LIBRARY_TEXT } from '../../biblioteca/bibliotecaMath'
+import { totalCard, typeTiles, recentItems, recentRows, studiesCard, isEmptyLibrary, emptyLibraryText, bibliotecaText } from '../../biblioteca/bibliotecaMath'
 import AppIcon from '../../icons/AppIcon'
 import RotuloDeGrupo from './RotuloDeGrupo'
 import QuadradoDoTipo from './QuadradoDoTipo'
@@ -27,29 +27,30 @@ export default function BibliotecaRaiz({
   const semNota = useMemo(() => recentItems(items).filter(item => item.type === 'marcacao' && !item.note), [items])
   const verseTexts = useTrechos(semNota, api, lang)
 
-  const total = totalCard(items)
-  const tiles = typeTiles(items)
+  const L = (key, vars) => bibliotecaText(lang, key, vars)
+  const total = totalCard(items, new Date(), lang)
+  const tiles = typeTiles(items, new Date(), lang)
   const rows = recentRows(items, { readByDay, verseTexts, lang })
-  const estudos = studiesCard(studies)
+  const estudos = studiesCard(studies, lang)
 
   return (
     <div style={s.screen}>
       <div style={s.header}>
-        <h1 style={s.title}>Biblioteca</h1>
+        <h1 style={s.title}>{L('title')}</h1>
         <button type="button" className="biblioteca-alvo" style={s.nova} onClick={onNova}>
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--bento-accent)" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 1v10M1 6h10" /></svg>
-          Nova
+          {L('nova')}
         </button>
       </div>
 
       <div style={s.body}>
         <button type="button" style={s.search} onClick={onOpenSearch}>
           <AppIcon name="Search" size={16} strokeWidth={2.5} color="var(--bento-ink)" style={{ flexShrink: 0 }} />
-          <span style={s.searchText}>Buscar em tudo o que você guardou</span>
+          <span style={s.searchText}>{L('searchAll')}</span>
         </button>
 
-        {status === 'loading' ? <Esqueleto /> : status === 'error' ? (
-          <p style={s.note}>Não foi possível carregar a sua Biblioteca agora.</p>
+        {status === 'loading' ? <Esqueleto label={L('loading')} /> : status === 'error' ? (
+          <p style={s.note}>{L('loadError')}</p>
         ) : (
           <>
             <div style={s.totalCard}>
@@ -60,7 +61,7 @@ export default function BibliotecaRaiz({
               </div>
             </div>
 
-            <RotuloDeGrupo>Por tipo</RotuloDeGrupo>
+            <RotuloDeGrupo>{L('byType')}</RotuloDeGrupo>
             <div style={s.grid}>
               {tiles.map(tile => <QuadradoDoTipo key={tile.type} tile={tile} onClick={() => onOpenType(tile.type)} />)}
             </div>
@@ -68,10 +69,10 @@ export default function BibliotecaRaiz({
             <CartaoEstudos card={estudos} onClick={estudos.action === 'create' ? onCreateStudy : onOpenStudies} />
 
             {isEmptyLibrary(items) ? (
-              <div style={s.emptyCard}><p style={s.emptyText}>{EMPTY_LIBRARY_TEXT}</p></div>
+              <div style={s.emptyCard}><p style={s.emptyText}>{emptyLibraryText(lang)}</p></div>
             ) : (
               <>
-                <RotuloDeGrupo right="Ver tudo" onRight={onSeeAll}>Recentes</RotuloDeGrupo>
+                <RotuloDeGrupo right={L('seeAll')} onRight={onSeeAll}>{L('recent')}</RotuloDeGrupo>
                 <CartaoRecentes rows={rows} onOpen={onOpenItem} />
               </>
             )}
@@ -83,9 +84,9 @@ export default function BibliotecaRaiz({
 }
 
 // Carregando: as mesmas caixas, vazias — nunca um spinner de tela cheia.
-function Esqueleto() {
+function Esqueleto({ label }) {
   return (
-    <div aria-busy="true" aria-label="Carregando a sua Biblioteca" style={{ display: 'contents' }}>
+    <div aria-busy="true" aria-label={label} style={{ display: 'contents' }}>
       <div className="rb-context-skeleton" style={{ ...s.bone, height: 66, borderRadius: 24 }} />
       <div style={s.grid}>
         {[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="rb-context-skeleton" style={{ ...s.bone, height: 104, borderRadius: 22 }} />)}

@@ -3,6 +3,7 @@
 // (em pastilha — abre a Bíblia ali), o começo da resposta (até duas
 // linhas) e quando. Tocar abre a conversa guardada; segurar, o menu do
 // item (`hold`). `card` vem de tiposMath.js/questionCard.
+import { t } from '../../i18n'
 const FONT = 'var(--font-bento)'
 
 export default function CartaoDePergunta({ card, onOpen, onOpenPassage, hold }) {
@@ -12,7 +13,7 @@ export default function CartaoDePergunta({ card, onOpen, onOpenPassage, hold }) 
         <span style={s.question}>{card.question}</span>
       </button>
       <div style={s.pills}>
-        <button type="button" className="biblioteca-ref" style={s.pill} onClick={() => onOpenPassage(card.pill)} aria-label={`Abrir ${card.pill.label} na Bíblia`}>{card.pill.label}</button>
+        <button type="button" className="biblioteca-ref" style={s.pill} onClick={() => onOpenPassage(card.pill)} aria-label={t('bibliotecaTx.openInBible', { ref: card.pill.label })}>{card.pill.label}</button>
       </div>
       {/* O resto do cartão também abre a conversa (o botão acima já diz o que é). */}
       <div style={s.rest} onClick={onOpen} aria-hidden="true" {...hold}>

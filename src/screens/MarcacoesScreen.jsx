@@ -5,7 +5,8 @@
 // Tocar num trecho abre a Bíblia naquele versículo. Só lista e abre; as
 // contas moram em src/biblioteca/tiposMath.js.
 import { useState, useMemo } from 'react'
-import { marksSummary, marksTabs, marksByBook, bookMarksShown, marksList, markRow, groupByMonth, pageOf, EMPTY_MARKS } from '../biblioteca/tiposMath'
+import { marksSummary, marksTabs, marksByBook, bookMarksShown, marksList, markRow, groupByMonth, pageOf, emptyMarks } from '../biblioteca/tiposMath'
+import { bibliotecaText } from '../biblioteca/bibliotecaMath'
 import { usePaginas } from '../biblioteca/usePaginas'
 import { useSegurar } from '../biblioteca/useSegurar'
 import { useTrechos } from '../biblioteca/useTrechos'
@@ -43,11 +44,11 @@ export default function MarcacoesScreen({ lang, api, status, items, initial, onB
 
   return (
     <div style={t.screen}>
-      <CabecalhoDoPasso title="Marcações" subtitle={status === 'ready' ? marksSummary(items) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
+      <CabecalhoDoPasso title={bibliotecaText(lang, 'type_marcacao')} subtitle={status === 'ready' ? marksSummary(items, lang) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
       <ListaDoTipo>
         {status !== 'ready' ? <EstadoDoTipo status={status} /> : (
           <>
-            <AbasDePedidos tabs={marksTabs(items)} current={tab} onChange={setTab} label="Como ver as marcações" />
+            <AbasDePedidos tabs={marksTabs(items, lang)} current={tab} onChange={setTab} label={bibliotecaText(lang, 'howMarks')} />
             {tab === 'livro' ? (
               books.map(group => (
                 <CartaoDeLivro
@@ -56,14 +57,14 @@ export default function MarcacoesScreen({ lang, api, status, items, initial, onB
                 />
               ))
             ) : (
-              groupByMonth(visible).map(group => (
+              groupByMonth(visible, lang).map(group => (
                 <section key={group.key} style={t.group} aria-label={group.label}>
                   <RotuloDeGrupo>{group.label}</RotuloDeGrupo>
                   <div style={t.sandCard}>{group.items.map((item, i) => row(item, i === 0))}</div>
                 </section>
               ))
             )}
-            {(tab === 'livro' ? books.length : list.length) === 0 && <div style={t.empty}><p style={t.emptyText}>{EMPTY_MARKS[tab]}</p></div>}
+            {(tab === 'livro' ? books.length : list.length) === 0 && <div style={t.empty}><p style={t.emptyText}>{emptyMarks(tab, lang)}</p></div>}
             {tab !== 'livro' && hasMore && <div ref={sentinelRef} style={t.sentinel} aria-hidden="true" />}
           </>
         )}
