@@ -8,9 +8,13 @@ import { normalizeForSearch } from '../bible/searchNormalize.js'
 import { GAMIFICATION_BLOCKS, bookInfo } from '../data/gamificationBlocks.js'
 import { bookDisplayName } from '../busca/referencia.js'
 import { addRecentSearch } from '../busca/buscaMath.js'
-import { formatInt, plural, monthName } from '../gamification/format.js'
+import { formatInt, dayMonthShort } from '../gamification/format.js'
+import { blockName } from '../biblia/bibliaMath.js'
+import { tr } from '../i18n/tr.js'
 import { dateKey } from '../utils/dateKey.js'
 import { LIBRARY_TYPES, booksOf } from './bibliotecaMath.js'
+
+const tx = (lang, key, vars) => tr(lang, `bibliotecaTx.${key}`, vars)
 
 const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 const samePerson = name => normalizeForSearch(oneLine(name))
@@ -19,13 +23,12 @@ const samePerson = name => normalizeForSearch(oneLine(name))
 
 // As pastilhas de "Buscar em": Tudo, os seis tipos na ordem da raiz e
 // Estudos. Uma ativa por vez.
-export const SEARCH_TYPES = [
-  { key: 'all', label: 'Tudo' },
-  ...LIBRARY_TYPES.map(t => ({ key: t.type, label: t.name })),
-  { key: 'estudo', label: 'Estudos' },
-]
-export function searchTypeLabel(key) {
-  return (SEARCH_TYPES.find(t => t.key === key) ?? SEARCH_TYPES[0]).label
+export const SEARCH_TYPE_KEYS = ['all', ...LIBRARY_TYPES.map(t => t.type), 'estudo']
+export function searchTypes(lang = 'pt') {
+  return SEARCH_TYPE_KEYS.map(key => ({ key, label: tx(lang, key === 'all' ? 'all' : `type_${key}`) }))
+}
+export function searchTypeLabel(key, lang = 'pt') {
+  return tx(lang, SEARCH_TYPE_KEYS.includes(key) && key !== 'all' ? `type_${key}` : 'all')
 }
 
 // ── Refinar ─────────────────────────────────────────────────────────────
@@ -38,13 +41,10 @@ export function isRefined({ book = null, period = NO_REFINE.period, preacher = n
 }
 
 // As opções da folha de período.
-export const PERIODS = [
-  { key: 'always', label: 'Sempre' },
-  { key: 'week', label: 'Esta semana' },
-  { key: 'month', label: 'Este mês' },
-  { key: 'year', label: 'Este ano' },
-  { key: 'custom', label: 'De… até…' },
-]
+const PERIOD_KEYS = ['always', 'week', 'month', 'year', 'custom']
+export function periods(lang = 'pt') {
+  return PERIOD_KEYS.map(key => ({ key, label: tx(lang, `period_${key}`) }))
+}
 
 // O intervalo de um período, em dias do aparelho ("AAAA-MM-DD"): a
 // semana começa na segunda (como a semana do plano); o mês e o ano, no
@@ -66,20 +66,20 @@ export function periodRange(period, now = new Date()) {
   return from && to && from > to ? { from: to, to: from } : { from, to }
 }
 
-const shortDay = key => {
+const shortDay = (key, lang) => {
   const [year, month, day] = key.split('-').map(Number)
-  return `${day} ${monthName(new Date(year, month - 1, 1)).slice(0, 3)}`
+  return dayMonthShort(new Date(year, month - 1, day), lang)
 }
 
 // O que o seletor de período mostra: "Sempre", "Esta semana"… e, com
 // datas escolhidas, "3 nov – 10 nov" ("desde 3 nov", "até 10 nov").
-export function periodLabel(period) {
+export function periodLabel(period, lang = 'pt') {
   const key = period?.key ?? 'always'
-  if (key !== 'custom') return (PERIODS.find(p => p.key === key) ?? PERIODS[0]).label
+  if (key !== 'custom') return tx(lang, `period_${PERIOD_KEYS.includes(key) ? key : 'always'}`)
   const range = periodRange(period)
-  if (!range) return PERIODS[0].label
-  if (range.from && range.to) return `${shortDay(range.from)} – ${shortDay(range.to)}`
-  return range.from ? `desde ${shortDay(range.from)}` : `até ${shortDay(range.to)}`
+  if (!range) return tx(lang, 'period_always')
+  if (range.from && range.to) return `${shortDay(range.from, lang)} – ${shortDay(range.to, lang)}`
+  return range.from ? tx(lang, 'periodSince', { d: shortDay(range.from, lang) }) : tx(lang, 'periodUntil', { d: shortDay(range.to, lang) })
 }
 
 // Um período "De… até…" sem data nenhuma é o mesmo que "Sempre".
@@ -115,8 +115,8 @@ export function bookOptions(items, lang = 'pt') {
   for (const item of items) for (const book of booksOf(item)) counts[book] = (counts[book] ?? 0) + 1
   return GAMIFICATION_BLOCKS
     .map(block => ({
-      id: block.id, name: block.nome,
-      books: block.livros.filter(b => counts[b.nome]).map(b => ({ book: b.nome, label: bookDisplayName(b.nome, lang), count: formatInt(counts[b.nome]) })),
+      id: block.id, name: blockName(block.id, lang),
+      books: block.livros.filter(b => counts[b.nome]).map(b => ({ book: b.nome, label: bookDisplayName(b.nome, lang), count: formatInt(counts[b.nome], lang) })),
     }))
     .filter(block => block.books.length > 0)
 }
@@ -143,10 +143,10 @@ export function preacherOptions(items) {
 // tem pregações. `aria` é o que o seletor anuncia — "Livro: Gênesis".
 export function refineSelectors({ book = null, period = NO_REFINE.period, preacher = null } = {}, items = [], lang = 'pt') {
   const selectors = [
-    { key: 'book', label: 'Livro', value: book ? bookDisplayName(book, lang) : 'Qualquer', applied: !!book },
-    { key: 'period', label: 'Período', value: periodLabel(period), applied: normalizePeriod(period).key !== 'always' },
+    { key: 'book', label: tx(lang, 'sel_book'), value: book ? bookDisplayName(book, lang) : tx(lang, 'any'), applied: !!book },
+    { key: 'period', label: tx(lang, 'sel_period'), value: periodLabel(period, lang), applied: normalizePeriod(period).key !== 'always' },
   ]
-  if (items.some(i => i.type === 'pregacao')) selectors.push({ key: 'preacher', label: 'Pregador', value: preacher || 'Qualquer', applied: !!preacher })
+  if (items.some(i => i.type === 'pregacao')) selectors.push({ key: 'preacher', label: tx(lang, 'sel_preacher'), value: preacher || tx(lang, 'any'), applied: !!preacher })
   return selectors.map(sel => ({ ...sel, aria: `${sel.label}: ${sel.value}` }))
 }
 
@@ -169,25 +169,21 @@ export function tagCloud(items, max = TAG_CLOUD) {
 // Onde uma busca achou: com um tipo só, "6 pregações"; com dois, "4
 // anotações · notas e marcações"; com três ou mais, "18 anotações · em
 // tudo". `counts` é { tipo: n } só dos tipos com resultado.
-const TYPE_NOUN = {
-  nota: ['nota', 'notas'], marcacao: ['marcação', 'marcações'], reflexao: ['reflexão', 'reflexões'], pregacao: ['pregação', 'pregações'],
-  aplicacao: ['aplicação', 'aplicações'], pergunta: ['pergunta', 'perguntas'], estudo: ['estudo', 'estudos'],
+export function typeNoun(type, n, lang = 'pt') {
+  const noun = SEARCH_TYPE_KEYS.includes(type) && type !== 'all' ? type : 'entry'
+  return tx(lang, `noun_${noun}${n === 1 ? 'One' : 'Many'}`)
 }
-export function typeNoun(type, n) {
-  const [one, many] = TYPE_NOUN[type] ?? ['anotação', 'anotações']
-  return plural(n, one, many)
-}
-export function recentSub(counts) {
-  const found = SEARCH_TYPES.map(t => t.key).filter(key => counts?.[key] > 0)
+export function recentSub(counts, lang = 'pt') {
+  const found = SEARCH_TYPE_KEYS.filter(key => counts?.[key] > 0)
   const total = found.reduce((sum, key) => sum + counts[key], 0)
-  if (found.length === 0) return 'nada encontrado'
-  if (found.length === 1) return `${formatInt(total)} ${typeNoun(found[0], total)}`
-  const where = found.length === 2 ? found.map(key => TYPE_NOUN[key][1]).join(' e ') : 'em tudo'
-  return `${formatInt(total)} ${plural(total, 'anotação', 'anotações')} · ${where}`
+  if (found.length === 0) return tx(lang, 'nothingFound')
+  if (found.length === 1) return `${formatInt(total, lang)} ${typeNoun(found[0], total, lang)}`
+  const where = found.length === 2 ? tx(lang, 'andJoin', { a: typeNoun(found[0], 2, lang), b: typeNoun(found[1], 2, lang) }) : tx(lang, 'inEverything')
+  return `${formatInt(total, lang)} ${typeNoun('entry', total, lang)} · ${where}`
 }
 
 // Uma busca feita entra no topo das recentes (até cinco, sem repetir o
 // mesmo texto) — a mesma regra das buscas recentes da Bíblia.
-export function rememberLibrarySearch(list, { text, counts }) {
-  return addRecentSearch(list, { text: oneLine(text), sub: recentSub(counts) })
+export function rememberLibrarySearch(list, { text, counts }, lang = 'pt') {
+  return addRecentSearch(list, { text: oneLine(text), sub: recentSub(counts, lang) })
 }

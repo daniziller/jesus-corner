@@ -4,6 +4,7 @@
 // pastilhas — cada uma abre a Bíblia naquele versículo. Tocar no cartão
 // abre a anotação; segurar, o menu do item (`hold`). `card` vem de
 // tiposMath.js/sermonCard.
+import { t } from '../../i18n'
 const FONT = 'var(--font-bento)'
 
 export default function CartaoDePregacao({ card, onOpen, onOpenPassage, hold }) {
@@ -22,7 +23,7 @@ export default function CartaoDePregacao({ card, onOpen, onOpenPassage, hold }) 
       {hasPills && (
         <div style={s.pills}>
           {card.pills.map((p, i) => (
-            <button key={`${p.label}-${i}`} type="button" className="biblioteca-ref" style={s.pill} onClick={() => onOpenPassage(p)} aria-label={`Abrir ${p.label} na Bíblia`}>{p.label}</button>
+            <button key={`${p.label}-${i}`} type="button" className="biblioteca-ref" style={s.pill} onClick={() => onOpenPassage(p)} aria-label={t('bibliotecaTx.openInBible', { ref: p.label })}>{p.label}</button>
           ))}
           {card.more && <span style={{ ...s.pill, cursor: 'default' }}>{card.more}</span>}
         </div>

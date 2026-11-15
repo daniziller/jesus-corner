@@ -16,8 +16,8 @@ export function getLibraryRecentSearches() {
 }
 
 // Guarda e devolve a lista nova.
-export function rememberLibraryRecentSearch(item) {
-  const next = rememberLibrarySearch(getLibraryRecentSearches(), item)
+export function rememberLibraryRecentSearch(item, lang = 'pt') {
+  const next = rememberLibrarySearch(getLibraryRecentSearches(), item, lang)
   try {
     localStorage.setItem(KEY, JSON.stringify(next))
   } catch {

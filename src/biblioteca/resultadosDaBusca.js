@@ -18,11 +18,14 @@
 import { normalizeForSearch } from '../bible/searchNormalize.js'
 import { queryWords, highlightSegments, MIN_QUERY_LENGTH } from '../busca/palavra.js'
 import { interpretReference } from '../busca/referencia.js'
-import { formatInt, plural } from '../gamification/format.js'
+import { formatInt, dayMonthShort } from '../gamification/format.js'
+import { tr, trN } from '../i18n/tr.js'
 import { byRecent, itemReference, reflectionTitle, reflectionFirstAnswer, whenLabel } from './bibliotecaMath.js'
 import { sermonCard, sermonTypeLabel, applicationCard, reflectionBlocks, PAGE_SIZE } from './tiposMath.js'
-import { monthName } from '../gamification/format.js'
-import { SEARCH_TYPES, refineItems, isRefined, NO_REFINE } from './buscaDaBiblioteca.js'
+import { SEARCH_TYPE_KEYS, searchTypeLabel, refineItems, isRefined, NO_REFINE } from './buscaDaBiblioteca.js'
+
+const tx = (lang, key, vars) => tr(lang, `bibliotecaTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `bibliotecaTx.${base}`, n, { n: formatInt(n, lang), ...vars })
 
 const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 
@@ -186,7 +189,7 @@ export function searchFields(item, { verseTexts = {}, readByDay = {}, lang = 'pt
   }
   if (item.type === 'aplicacao') return [{ key: 'text', text: item.text, show: true }]
   if (item.type === 'pergunta') return [{ key: 'answer', text: item.answer, show: true }, { key: 'text', text: item.text }, ...ref]
-  if (item.type === 'estudo') return [{ key: 'title', text: item.title }]
+  if (item.type === 'estudo') return [{ key: 'title', text: item.title }, { key: 'title', text: item.titleEn }]
   return []
 }
 
@@ -244,10 +247,10 @@ export function fullSegments(text, query) {
 
 const plain = text => [{ text, highlighted: false }]
 
-function shortDate(iso, now) {
+function shortDate(iso, now, lang) {
   if (!iso) return ''
   const d = new Date(iso)
-  const short = `${d.getDate()} ${monthName(d).slice(0, 3)}`
+  const short = dayMonthShort(d, lang)
   return d.getFullYear() === now.getFullYear() ? short : `${short} ${d.getFullYear()}`
 }
 
@@ -266,22 +269,22 @@ export function resultRow(item, query, { verseTexts = {}, readByDay = {}, now = 
       ...base,
       quote: verse ? [...plain('"'), ...fullSegments(verse, query), ...plain('"')] : null,
       reference: itemReference(item, lang),
-      note: item.note ? [...plain('Com nota: "'), ...fullSegments(item.note, query), ...plain('"')] : null,
+      note: item.note ? [...plain(`${tx(lang, 'withNote')}"`), ...fullSegments(item.note, query), ...plain('"')] : null,
     }
   }
   if (item.type === 'aplicacao') {
-    return { ...base, quote: [...plain('"'), ...fullSegments(item.text, query), ...plain('"')], meta: applicationCard(item, { now }).meta }
+    return { ...base, quote: [...plain('"'), ...fullSegments(item.text, query), ...plain('"')], meta: applicationCard(item, { now, lang }).meta }
   }
   if (item.type === 'estudo') {
-    return { ...base, title: item.title, sub: item.total > 0 ? (item.finished ? `concluído · ${formatInt(item.total)} ${plural(item.total, 'dia', 'dias')}` : `dia ${item.day} de ${item.total}`) : '' }
+    return { ...base, title: (lang === 'en' && item.titleEn) || item.title, sub: item.total > 0 ? (item.finished ? tx(lang, 'studyFinished', { days: txN(lang, 'days', item.total) }) : tx(lang, 'studyDayOf', { day: item.day, total: item.total })) : '' }
   }
-  const when = whenLabel(item.at, now)
+  const when = whenLabel(item.at, now, { lang })
   if (item.type === 'pregacao') {
     const body = excerptSegments(item.text, query)
     const who = item.preacher ? [...fullSegments(item.preacher, query), ...plain(' · ')] : []
     const quoted = body.some(seg => seg.text) ? [...plain('"'), ...body, ...plain('"')] : []
     // A pregação mostra a data ("8 nov"), não "há 2 dias".
-    return { ...base, title: sermonCard(item, { now, lang }).title, when: shortDate(item.at, now), excerpt: [...who, ...quoted] }
+    return { ...base, title: sermonCard(item, { now, lang }).title, when: shortDate(item.at, now, lang), excerpt: [...who, ...quoted] }
   }
   if (item.type === 'pergunta') return { ...base, title: item.text, when, excerpt: excerptSegments(item.answer, query) }
   if (item.type === 'reflexao') {
@@ -299,12 +302,7 @@ export function resultRow(item, query, { verseTexts = {}, readByDay = {}, now = 
 export const GROUP_PREVIEW = 2
 
 // "Ver as 7 reflexões" · "Ver os 5 trechos"
-const MORE = {
-  nota: n => `Ver as ${n} notas`, marcacao: n => `Ver os ${n} trechos`, reflexao: n => `Ver as ${n} reflexões`, pregacao: n => `Ver as ${n} pregações`,
-  aplicacao: n => `Ver as ${n} frases`, pergunta: n => `Ver as ${n} perguntas`, estudo: n => `Ver os ${n} estudos`,
-}
-const TYPE_ORDER = SEARCH_TYPES.map(t => t.key).filter(key => key !== 'all')
-const TYPE_LABEL = Object.fromEntries(SEARCH_TYPES.map(t => [t.key, t.label]))
+const TYPE_ORDER = SEARCH_TYPE_KEYS.filter(key => key !== 'all')
 
 // A tela está em resultados (L5) quando há o que procurar: um texto de 2
 // caracteres ou mais, um refinamento aplicado (livro, período, pregador)
@@ -333,22 +331,22 @@ export function searchLibrary({ items = [], search = {}, verseTexts = {}, readBy
   const total = TYPE_ORDER.reduce((sum, key) => sum + counts[key], 0)
   const order = TYPE_ORDER.filter(key => counts[key] > 0).sort((a, b) => counts[b] - counts[a] || TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b))
   const active = type !== 'all' && counts[type] > 0 ? type : 'all'
-  const pills = [{ key: 'all', label: TYPE_LABEL.all, count: formatInt(total) }, ...order.map(key => ({ key, label: TYPE_LABEL[key], count: formatInt(counts[key]) }))]
+  const pills = [{ key: 'all', label: searchTypeLabel('all', lang), count: formatInt(total, lang) }, ...order.map(key => ({ key, label: searchTypeLabel(key, lang), count: formatInt(counts[key], lang) }))]
 
   const groups = (active === 'all' ? order : [active]).map(key => {
     const list = byRecent(found.filter(item => item.type === key))
     const visible = active === 'all' ? list.slice(0, GROUP_PREVIEW) : list.slice(0, pages * PAGE_SIZE)
     return {
-      type: key, label: TYPE_LABEL[key], count: formatInt(list.length),
+      type: key, label: searchTypeLabel(key, lang), count: formatInt(list.length, lang),
       rows: visible.map(item => resultRow(item, query, ctx)),
-      more: active === 'all' && list.length > GROUP_PREVIEW ? MORE[key](formatInt(list.length)) : null,
+      more: active === 'all' && list.length > GROUP_PREVIEW ? tx(lang, `more_${key}`, { n: formatInt(list.length, lang) }) : null,
       hasMore: active !== 'all' && visible.length < list.length,
     }
   })
 
   const refined = isRefined({ book, period, preacher }) || type !== 'all'
   const empty = total > 0 ? null : {
-    message: query ? `Nada com "${query.term}" no que você guardou.` : 'Nada guardado com esses filtros.',
+    message: query ? tx(lang, 'emptyQuery', { term: query.term }) : tx(lang, 'emptyFilters'),
     canClear: refined,
   }
   return { term: query?.term ?? '', query, counts: { all: total, ...counts }, pills, active, groups, empty }

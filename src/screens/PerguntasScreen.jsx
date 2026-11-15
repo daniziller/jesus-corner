@@ -4,8 +4,8 @@
 // conversa guardada; a referência abre a Bíblia ali. Só lista e abre; as
 // contas moram em src/biblioteca/tiposMath.js.
 import { useMemo } from 'react'
-import { questionsSummary, questionCard, groupByMonth, pageOf, EMPTY_QUESTIONS } from '../biblioteca/tiposMath'
-import { byRecent } from '../biblioteca/bibliotecaMath'
+import { questionsSummary, questionCard, groupByMonth, pageOf, emptyQuestions } from '../biblioteca/tiposMath'
+import { byRecent, bibliotecaText } from '../biblioteca/bibliotecaMath'
 import { usePaginas } from '../biblioteca/usePaginas'
 import { useSegurar } from '../biblioteca/useSegurar'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
@@ -21,13 +21,13 @@ export default function PerguntasScreen({ lang, status, items, onBack, onOpenSea
 
   return (
     <div style={t.screen}>
-      <CabecalhoDoPasso title="Perguntas" subtitle={status === 'ready' ? questionsSummary(items) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
+      <CabecalhoDoPasso title={bibliotecaText(lang, 'type_pergunta')} subtitle={status === 'ready' ? questionsSummary(items, lang) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
       <ListaDoTipo>
         {status !== 'ready' ? <EstadoDoTipo status={status} /> : items.length === 0 ? (
-          <div style={t.empty}><p style={t.emptyText}>{EMPTY_QUESTIONS}</p></div>
+          <div style={t.empty}><p style={t.emptyText}>{emptyQuestions(lang)}</p></div>
         ) : (
           <>
-            {groupByMonth(visible).map(group => (
+            {groupByMonth(visible, lang).map(group => (
               <section key={group.key} style={t.group} aria-label={group.label}>
                 <RotuloDeGrupo>{group.label}</RotuloDeGrupo>
                 {group.items.map(item => (

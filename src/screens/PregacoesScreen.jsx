@@ -7,8 +7,9 @@
 import { useState, useMemo } from 'react'
 import {
   sermonsSummary, sermonTypeFilters, effectiveSermonType, sermonList, sermonGroups, sermonCard,
-  SERMON_ORDERS, sermonOrderLabel, pageOf, EMPTY_SERMONS,
+  sermonOrders, sermonOrderLabel, pageOf, emptySermons,
 } from '../biblioteca/tiposMath'
+import { bibliotecaText } from '../biblioteca/bibliotecaMath'
 import { usePaginas } from '../biblioteca/usePaginas'
 import { useSegurar } from '../biblioteca/useSegurar'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
@@ -27,29 +28,29 @@ export default function PregacoesScreen({ lang, status, items, initial, onBack, 
   const list = useMemo(() => sermonList(items, { type, order }), [items, type, order])
   const [pages, sentinelRef] = usePaginas(`${type}|${order}`)
   const { visible, hasMore } = pageOf(list, pages)
-  const groups = sermonGroups(visible, order)
+  const groups = sermonGroups(visible, order, lang)
   const { holdProps, wasHeld } = useSegurar(onMenu)
 
   return (
     <div style={t.screen}>
-      <CabecalhoDoPasso title="Pregações" subtitle={status === 'ready' ? sermonsSummary(items) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
+      <CabecalhoDoPasso title={bibliotecaText(lang, 'type_pregacao')} subtitle={status === 'ready' ? sermonsSummary(items, lang) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
       <ListaDoTipo>
         {status !== 'ready' ? <EstadoDoTipo status={status} /> : items.length === 0 ? (
           <div style={t.empty}>
-            <p style={t.emptyText}>{EMPTY_SERMONS}</p>
-            <button type="button" style={t.emptyButton} onClick={onNova}>Anotar uma pregação</button>
+            <p style={t.emptyText}>{emptySermons(lang)}</p>
+            <button type="button" style={t.emptyButton} onClick={onNova}>{bibliotecaText(lang, 'newSermon')}</button>
           </div>
         ) : (
           <>
-            <FileiraDePastilhas label="Tipo de mensagem">
-              {sermonTypeFilters(items).map(f => (
+            <FileiraDePastilhas label={bibliotecaText(lang, 'messageType')}>
+              {sermonTypeFilters(items, lang).map(f => (
                 <PastilhaDeFiltro key={f.key} label={f.label} count={f.count} active={f.key === type} onClick={() => setChosenType(f.key)} />
               ))}
             </FileiraDePastilhas>
             {groups.map((group, i) => (
               <section key={group.key} style={t.group} aria-label={group.label}>
                 {i === 0
-                  ? <RotuloDeGrupo select right={sermonOrderLabel(order)} rightLabel={`Ordem: ${sermonOrderLabel(order)}`} onRight={() => setChoosingOrder(true)}>{group.label}</RotuloDeGrupo>
+                  ? <RotuloDeGrupo select right={sermonOrderLabel(order, lang)} rightLabel={bibliotecaText(lang, 'orderAria', { order: sermonOrderLabel(order, lang) })} onRight={() => setChoosingOrder(true)}>{group.label}</RotuloDeGrupo>
                   : <RotuloDeGrupo>{group.label}</RotuloDeGrupo>}
                 {group.items.map(item => (
                   <CartaoDePregacao
@@ -63,7 +64,7 @@ export default function PregacoesScreen({ lang, status, items, initial, onBack, 
           </>
         )}
       </ListaDoTipo>
-      {choosingOrder && <FolhaDeOpcoes title="Ordem" options={SERMON_ORDERS} current={order} onChoose={setOrder} onClose={() => setChoosingOrder(false)} />}
+      {choosingOrder && <FolhaDeOpcoes title={bibliotecaText(lang, 'order')} options={sermonOrders(lang)} current={order} onChoose={setOrder} onClose={() => setChoosingOrder(false)} />}
     </div>
   )
 }

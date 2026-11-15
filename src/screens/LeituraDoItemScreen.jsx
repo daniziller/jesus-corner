@@ -6,6 +6,7 @@
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
 import CartaoDeAplicacao from '../components/biblioteca/CartaoDeAplicacao'
 import { ListaDoTipo, tipoStyles as t } from '../components/biblioteca/TelaDeTipo'
+import { t as tt } from '../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -18,9 +19,9 @@ export default function LeituraDoItemScreen({ page, onBack, onOpenPassage }) {
           <div style={s.card}>
             <p style={s.question}>{page.question}</p>
             <div style={s.pills}>
-              <button type="button" className="biblioteca-ref" style={s.pill} onClick={() => onOpenPassage(page.pill)} aria-label={`Abrir ${page.pill.label} na Bíblia`}>{page.pill.label}</button>
+              <button type="button" className="biblioteca-ref" style={s.pill} onClick={() => onOpenPassage(page.pill)} aria-label={tt('bibliotecaTx.openInBible', { ref: page.pill.label })}>{page.pill.label}</button>
             </div>
-            <p style={{ ...s.answer, ...(page.answer ? null : s.muted) }}>{page.answer || 'Esta pergunta ficou sem resposta guardada.'}</p>
+            <p style={{ ...s.answer, ...(page.answer ? null : s.muted) }}>{page.answer || tt('bibliotecaTx.noAnswer')}</p>
           </div>
         ) : (
           <>

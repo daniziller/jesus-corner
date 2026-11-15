@@ -5,8 +5,8 @@
 // as N" — ou por data. Tocar numa nota abre a Bíblia ali, com a nota
 // aberta. Só lista e abre; as contas moram em src/biblioteca/tiposMath.js.
 import { useState, useMemo } from 'react'
-import { notesSummary, NOTES_TABS, notesByBook, bookMarksShown, noteRow, groupByMonth, pageOf, EMPTY_NOTES } from '../biblioteca/tiposMath'
-import { byRecent } from '../biblioteca/bibliotecaMath'
+import { notesSummary, notesTabs, notesByBook, bookMarksShown, noteRow, groupByMonth, pageOf, emptyNotes } from '../biblioteca/tiposMath'
+import { byRecent, bibliotecaText } from '../biblioteca/bibliotecaMath'
 import { usePaginas } from '../biblioteca/usePaginas'
 import { useSegurar } from '../biblioteca/useSegurar'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
@@ -31,12 +31,12 @@ export default function NotasScreen({ lang, status, items, initial, onBack, onOp
 
   return (
     <div style={t.screen}>
-      <CabecalhoDoPasso title="Notas" subtitle={status === 'ready' ? notesSummary(items) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
+      <CabecalhoDoPasso title={bibliotecaText(lang, 'type_nota')} subtitle={status === 'ready' ? notesSummary(items, lang) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
       <ListaDoTipo>
         {status !== 'ready' ? <EstadoDoTipo status={status} /> : (
           <>
-            <AbasDePedidos tabs={NOTES_TABS} current={tab} onChange={setTab} label="Como ver as notas" />
-            {items.length === 0 ? <div style={t.empty}><p style={t.emptyText}>{EMPTY_NOTES}</p></div> : tab === 'livro' ? (
+            <AbasDePedidos tabs={notesTabs(lang)} current={tab} onChange={setTab} label={bibliotecaText(lang, 'howNotes')} />
+            {items.length === 0 ? <div style={t.empty}><p style={t.emptyText}>{emptyNotes(lang)}</p></div> : tab === 'livro' ? (
               books.map(group => (
                 <CartaoDeLivro
                   key={group.book} tone="white" group={group} expanded={expanded.has(group.book)} renderRow={item => row(item)}
@@ -44,7 +44,7 @@ export default function NotasScreen({ lang, status, items, initial, onBack, onOp
                 />
               ))
             ) : (
-              groupByMonth(visible).map(group => (
+              groupByMonth(visible, lang).map(group => (
                 <section key={group.key} style={t.group} aria-label={group.label}>
                   <RotuloDeGrupo>{group.label}</RotuloDeGrupo>
                   <div style={t.whiteCard}>{group.items.map((item, i) => row(item, i === 0))}</div>

@@ -5,9 +5,9 @@
 // node scripts/test-biblioteca.mjs
 import { readFileSync } from 'node:fs'
 import {
-  LIBRARY_TYPES, pickLibraryData, libraryItems, libraryCounts, booksOf, totalCard, whenLabel, typeTiles,
+  LIBRARY_TYPES, libraryTypes, pickLibraryData, libraryItems, libraryCounts, booksOf, totalCard, whenLabel, typeTiles,
   itemReference, chaptersByDay, reflectionTitle, reflectionFirstAnswer, itemTitle, itemLine, recentItems, recentRows,
-  studiesSummary, studiesCard, isEmptyLibrary, sermonHasContent, EMPTY_LIBRARY_TEXT,
+  studiesSummary, studiesCard, isEmptyLibrary, sermonHasContent, emptyLibraryText,
 } from '../src/biblioteca/bibliotecaMath.js'
 
 let failures = 0
@@ -72,7 +72,7 @@ check('da linha, só as colunas da Biblioteca', Object.keys(data), ['notes', 'hi
 check('linha vazia (conta que ainda não tem linha) não quebra', pickLibraryData(null), { notes: {}, highlights: [], sermonNotes: [], aiStudies: [], inductiveStudies: [], studiesCompleted: [], activeStudyId: null })
 check('a oração não entra: nenhum item traz texto de oração', items.some(i => JSON.stringify(i).includes('SECRET')), false)
 check('a oração não entra: os tipos são só os seis', [...new Set(items.map(i => i.type))].sort(), ['aplicacao', 'marcacao', 'nota', 'pergunta', 'pregacao', 'reflexao'])
-check('a ordem dos seis tipos', LIBRARY_TYPES.map(t => t.name), ['Notas', 'Marcações', 'Reflexões', 'Pregações', 'Aplicações', 'Perguntas'])
+check('a ordem dos seis tipos', libraryTypes().map(t => t.name), ['Notas', 'Marcações', 'Reflexões', 'Pregações', 'Aplicações', 'Perguntas'])
 check('marcação com nota é UM item, em Marcações', [porChave['marcacao:h2'].type, porChave['marcacao:h2'].note, 'nota:h2' in porChave], ['marcacao', 'esquecer não é apagar', false])
 check('a nota de versículo (nasceu como nota) é Nota, não Marcação', [porChave['nota:h3'].type, 'marcacao:h3' in porChave], ['nota', false])
 check('nota de versículo sem texto não é nota: fica como marcação', [porChave['marcacao:h6']?.type, 'nota:h6' in porChave], ['marcacao', false])
@@ -97,7 +97,7 @@ check('contagens por tipo', counts, { nota: 2, marcacao: 4, reflexao: 4, pregaca
 check('o total é a soma dos seis (estudos fora)', counts.total, LIBRARY_TYPES.reduce((s, t) => s + counts[t.type], 0))
 check('conta nova: tudo zero', libraryCounts(libraryItems({})), { nota: 0, marcacao: 0, reflexao: 0, pregacao: 0, aplicacao: 0, pergunta: 0, total: 0 })
 check('conta nova é Biblioteca vazia', [isEmptyLibrary(libraryItems({})), isEmptyLibrary(items)], [true, false])
-check('o texto do vazio é o de 4c', EMPTY_LIBRARY_TEXT.startsWith('Nada por aqui ainda. Uma reflexão sobre o capítulo de hoje, a anotação do sermão de domingo'), true)
+check('o texto do vazio é o de 4c', emptyLibraryText().startsWith('Nada por aqui ainda. Uma reflexão sobre o capítulo de hoje, a anotação do sermão de domingo'), true)
 check('livros de uma pregação: os das passagens', booksOf(porChave['pregacao:s1']), ['Gênesis', 'Romanos'])
 check('livro que não existe não conta', booksOf({ type: 'nota', book: 'Livro Inventado' }), [])
 check('cartão do total', totalCard(items, agora), { total: '16', label: 'anotações guardadas', sub: 'em 5 livros da Bíblia · 8 este mês' })
@@ -179,6 +179,16 @@ check('a linha é lida uma vez só', (api.match(/fetchRow\(\)/g) ?? []).length, 
 check('os dados passam por pickLibraryData antes de virar item', /pickLibraryData\(row\)/.test(api) && !/row\.(prayer|notes|highlights|sermon_notes)/.test(api), true)
 const raiz = ler('components/biblioteca/BibliotecaRaiz.jsx')
 check('a raiz não cria, edita nem apaga nada', /save|update|delete|remove|hide|archive/i.test(raiz.replace(/\/\/.*$/gm, '')), false)
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: os nomes dos tipos', libraryTypes('en').map(t => t.name), ['Notes', 'Highlights', 'Reflections', 'Sermons', 'Applications', 'Questions'])
+check('en: quando', [0, 1, 2, 7].map(n => whenLabel(ha(n), agora, { lang: 'en' })), ['today', 'yesterday', '2 days ago', 'Nov 3'])
+check('en: quando, dia da semana e outro ano', [whenLabel(ha(2), agora, { weekday: true, lang: 'en' }), whenLabel(new Date(2025, 8, 1).toISOString(), agora, { lang: 'en' })], ['Sunday', 'Sep 1 2025'])
+check('en: o cartão do total', [totalCard(items, agora, 'en').label, totalCard(items, agora, 'en').sub.includes('books of the Bible')], ['saved entries', true])
+check('en: os quadrados', typeTiles(items, agora, 'en').map(t => t.name), ['Notes', 'Highlights', 'Reflections', 'Sermons', 'Applications', 'Questions'])
+check('en: cartão de estudos', [studiesCard({ count: 3, active: { title: 'Filipenses', titleEn: 'Philippians', day: 2, total: 6 } }, 'en').title, studiesCard({ count: 1, active: null }, 'en').title, studiesCard({ count: 0 }, 'en').title], ['Philippians · day 2 of 6', '1 saved study', 'Create a study'])
+check('en: título de reflexão sem leitura no dia', reflectionTitle({ kind: 'dia', date: '2026-11-08' }, {}, 'en'), 'Reflection from November 8')
+check('en: o texto do vazio', emptyLibraryText('en').startsWith('Nothing here yet.'), true)
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

@@ -5,8 +5,8 @@
 // houver, a frase daquele dia. Tocar abre a reflexão em leitura. Só lista
 // e abre; as contas moram em src/biblioteca/tiposMath.js.
 import { useMemo } from 'react'
-import { reflectionsSummary, reflectionCard, phrasesByDate, groupByMonth, pageOf, EMPTY_REFLECTIONS } from '../biblioteca/tiposMath'
-import { byRecent } from '../biblioteca/bibliotecaMath'
+import { reflectionsSummary, reflectionCard, phrasesByDate, groupByMonth, pageOf, emptyReflections } from '../biblioteca/tiposMath'
+import { byRecent, bibliotecaText } from '../biblioteca/bibliotecaMath'
 import { usePaginas } from '../biblioteca/usePaginas'
 import { useSegurar } from '../biblioteca/useSegurar'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
@@ -23,13 +23,13 @@ export default function ReflexoesScreen({ lang, status, items, allItems, readByD
 
   return (
     <div style={t.screen}>
-      <CabecalhoDoPasso title="Reflexões" subtitle={status === 'ready' ? reflectionsSummary(items) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
+      <CabecalhoDoPasso title={bibliotecaText(lang, 'type_reflexao')} subtitle={status === 'ready' ? reflectionsSummary(items, lang) : ''} onBack={onBack} clock={<BotaoDaLupa onClick={onOpenSearch} />} />
       <ListaDoTipo>
         {status !== 'ready' ? <EstadoDoTipo status={status} /> : items.length === 0 ? (
-          <div style={t.empty}><p style={t.emptyText}>{EMPTY_REFLECTIONS}</p></div>
+          <div style={t.empty}><p style={t.emptyText}>{emptyReflections(lang)}</p></div>
         ) : (
           <>
-            {groupByMonth(visible).map(group => (
+            {groupByMonth(visible, lang).map(group => (
               <section key={group.key} style={t.group} aria-label={group.label}>
                 <RotuloDeGrupo>{group.label}</RotuloDeGrupo>
                 {group.items.map(item => (

@@ -8,6 +8,7 @@
 // ao padrão. Sem opção nenhuma, o texto de `empty`.
 import FolhaInferior from '../FolhaInferior'
 import Check from '../passos/Check'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -17,7 +18,7 @@ export default function FolhaDeOpcoes({ title, options = null, groups = null, cu
     <FolhaInferior fixed form onClose={onClose} labelledBy="biblioteca-opcoes-titulo">
       <div style={s.head}>
         <h2 id="biblioteca-opcoes-titulo" style={s.title}>{title}</h2>
-        {onClear && <button type="button" className="biblioteca-rotulo-acao" style={s.clear} onClick={() => { onClear(); onClose() }}>Limpar</button>}
+        {onClear && <button type="button" className="biblioteca-rotulo-acao" style={s.clear} onClick={() => { onClear(); onClose() }}>{t('bibliotecaTx.clear')}</button>}
       </div>
       <div role="radiogroup" aria-labelledby="biblioteca-opcoes-titulo" style={s.sections}>
         {sections.map(section => (

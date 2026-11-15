@@ -143,12 +143,12 @@ export default function BibliotecaScreen({
           lang={lang} api={api} items={bib.items} studyItems={bib.studyItems} readByDay={bib.readByDay} refreshKey={refreshKey}
           search={search} onSearchChange={setSearch} scrollMemory={searchScroll}
           recents={recents} onClearRecents={() => setRecents(clearLibraryRecentSearches())}
-          onRemember={entry => setRecents(rememberLibraryRecentSearch(entry))}
+          onRemember={entry => setRecents(rememberLibraryRecentSearch(entry, lang))}
           onBack={() => setView(view.back ?? { name: 'raiz' })} onOpenItem={openItem}
         />
       ) : view.name === 'leitura' ? (
         <LeituraDoItemScreen
-          page={readingPage(view.item, { items: bib.items, readByDay: bib.readByDay, lang })}
+          lang={lang} page={readingPage(view.item, { items: bib.items, readByDay: bib.readByDay, lang })}
           onBack={() => setView(view.back ?? { name: 'raiz' })} onOpenPassage={openPassage}
         />
       ) : TypeScreen ? (

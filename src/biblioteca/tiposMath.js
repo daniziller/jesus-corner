@@ -11,10 +11,14 @@ import { EN_BOOK_ABBREVIATIONS } from '../bible/bookAbbreviations.js'
 import { normalizeForSearch } from '../bible/searchNormalize.js'
 import { bookInfo } from '../data/gamificationBlocks.js'
 import { bookDisplayName } from '../busca/referencia.js'
-import { formatInt, plural, monthName, monthYearLong, dayMonthLong } from '../gamification/format.js'
+import { formatInt, monthYearLong, dayMonthLong, dayMonthShort } from '../gamification/format.js'
+import { tr, trN } from '../i18n/tr.js'
 import { formatWeekdayDate } from '../utils/weekdayDateLabel.js'
 import { WEEKDAY_ABBR3 } from '../routine/weeklyDaysMath.js'
 import { byRecent, itemReference, whenLabel, reflectionTitle, reflectionFirstAnswer } from './bibliotecaMath.js'
+
+const tx = (lang, key, vars) => tr(lang, `bibliotecaTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `bibliotecaTx.${base}`, n, { n: formatInt(n, lang), ...vars })
 
 const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 const capitalize = text => `${text.charAt(0).toUpperCase()}${text.slice(1)}`
@@ -34,31 +38,33 @@ const dayNumber = date => Math.round(new Date(date.getFullYear(), date.getMonth(
 // A data de um cartão: "dom, 8 nov" na última semana (até seis dias
 // atrás, o dia da semana ainda diz qual); depois, "27 out"; fora do ano
 // corrente, com o ano.
-export function dateLabel(iso, now = new Date()) {
+export function dateLabel(iso, now = new Date(), lang = 'pt') {
   if (!iso) return ''
   const d = new Date(iso)
-  const short = `${d.getDate()} ${monthName(d).slice(0, 3)}`
+  const short = dayMonthShort(d, lang)
   if (d.getFullYear() !== now.getFullYear()) return `${short} ${d.getFullYear()}`
   const days = dayNumber(now) - dayNumber(d)
-  return days >= 0 && days < 7 ? `${WEEKDAY_ABBR3.pt[(d.getDay() + 6) % 7].toLowerCase()}, ${short}` : short
+  if (!(days >= 0 && days < 7)) return short
+  const weekday = (WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt)[(d.getDay() + 6) % 7]
+  return `${lang === 'en' ? weekday : weekday.toLowerCase()}, ${short}`
 }
 
 // "Novembro de 2026" (vira maiúscula por CSS, no rótulo do grupo).
-export function monthHeading(key) {
+export function monthHeading(key, lang = 'pt') {
   const [year, month] = key.split('-').map(Number)
-  return capitalize(monthYearLong(new Date(year, month - 1, 1)))
+  return capitalize(monthYearLong(new Date(year, month - 1, 1), lang))
 }
 
 // Itens (já na ordem em que vão aparecer) em grupos por mês. Sem data,
 // num grupo final "Sem data".
-export function groupByMonth(items) {
+export function groupByMonth(items, lang = 'pt') {
   const groups = []
   for (const item of items) {
     const d = item.at ? new Date(item.at) : null
     const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : 'sem-data'
     const last = groups[groups.length - 1]
     if (last?.key === key) last.items.push(item)
-    else groups.push({ key, label: d ? monthHeading(key) : 'Sem data', items: [item] })
+    else groups.push({ key, label: d ? monthHeading(key, lang) : tx(lang, 'noDate'), items: [item] })
   }
   return groups
 }
@@ -99,34 +105,34 @@ export function passagePills(passages, lang = 'pt') {
 // O nome de um tipo de mensagem. Os cinco de sempre (34f), "Livre" (a
 // anotação livre) e, fora deles, o tipo que a pessoa criou — com as
 // palavras dela.
-const SERMON_TYPES = { sermon: 'Sermão', service: 'Culto', class: 'Aula', lecture: 'Palestra', video: 'Vídeo online', free: 'Livre' }
-const SERMON_TYPE_ORDER = Object.keys(SERMON_TYPES)
-export function sermonTypeLabel(noteType) {
-  return SERMON_TYPES[noteType] ?? (oneLine(noteType) || SERMON_TYPES.sermon)
+const SERMON_TYPE_ORDER = ['sermon', 'service', 'class', 'lecture', 'video', 'free']
+export function sermonTypeLabel(noteType, lang = 'pt') {
+  if (SERMON_TYPE_ORDER.includes(noteType)) return tx(lang, `sermonType_${noteType}`)
+  return oneLine(noteType) || tx(lang, 'sermonType_sermon')
 }
 
 const samePerson = name => normalizeForSearch(oneLine(name))
 
 // "14 anotações · 5 pregadores" — sem pregador nenhum, só as anotações.
-export function sermonsSummary(items) {
+export function sermonsSummary(items, lang = 'pt') {
   const n = items.length
   const preachers = new Set(items.map(i => samePerson(i.preacher)).filter(Boolean)).size
-  const parts = [`${formatInt(n)} ${plural(n, 'anotação', 'anotações')}`]
-  if (preachers > 0) parts.push(`${formatInt(preachers)} ${plural(preachers, 'pregador', 'pregadores')}`)
+  const parts = [txN(lang, 'entries', n)]
+  if (preachers > 0) parts.push(txN(lang, 'preachers', preachers))
   return parts.join(' · ')
 }
 
 // As pastilhas do filtro: "Todas" e os tipos que a pessoa já usou, do
 // mais usado para o menos (no empate, a ordem de 34f; os tipos próprios
 // depois, em ordem alfabética). Tipo com zero não aparece.
-export function sermonTypeFilters(items) {
+export function sermonTypeFilters(items, lang = 'pt') {
   const counts = {}
   for (const item of items) counts[item.noteType] = (counts[item.noteType] ?? 0) + 1
   const rank = type => (SERMON_TYPE_ORDER.includes(type) ? SERMON_TYPE_ORDER.indexOf(type) : SERMON_TYPE_ORDER.length)
-  const types = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || rank(a) - rank(b) || sermonTypeLabel(a).localeCompare(sermonTypeLabel(b), 'pt'))
+  const types = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || rank(a) - rank(b) || sermonTypeLabel(a, lang).localeCompare(sermonTypeLabel(b, lang), lang))
   return [
-    { key: 'all', label: 'Todas', count: formatInt(items.length) },
-    ...types.map(type => ({ key: type, label: sermonTypeLabel(type), count: formatInt(counts[type]) })),
+    { key: 'all', label: tx(lang, 'allFem'), count: formatInt(items.length, lang) },
+    ...types.map(type => ({ key: type, label: sermonTypeLabel(type, lang), count: formatInt(counts[type], lang) })),
   ]
 }
 
@@ -136,13 +142,12 @@ export function effectiveSermonType(type, items) {
   return type !== 'all' && items.some(i => i.noteType === type) ? type : 'all'
 }
 
-export const SERMON_ORDERS = [
-  { key: 'recent', label: 'Mais recentes' },
-  { key: 'oldest', label: 'Mais antigas' },
-  { key: 'preacher', label: 'Por pregador' },
-]
-export function sermonOrderLabel(order) {
-  return (SERMON_ORDERS.find(o => o.key === order) ?? SERMON_ORDERS[0]).label
+export function sermonOrders(lang = 'pt') {
+  return ['recent', 'oldest', 'preacher'].map(key => ({ key, label: tx(lang, `order_${key}`) }))
+}
+export function sermonOrderLabel(order, lang = 'pt') {
+  const orders = sermonOrders(lang)
+  return (orders.find(o => o.key === order) ?? orders[0]).label
 }
 
 // As anotações do filtro, na ordem escolhida (antes de paginar).
@@ -160,14 +165,14 @@ export function sermonList(items, { type = 'all', order = 'recent' } = {}) {
 
 // Os grupos da lista: por mês ("Novembro de 2026") ou, na ordem "Por
 // pregador", um grupo por pregador.
-export function sermonGroups(list, order = 'recent') {
-  if (order !== 'preacher') return groupByMonth(list)
+export function sermonGroups(list, order = 'recent', lang = 'pt') {
+  if (order !== 'preacher') return groupByMonth(list, lang)
   const groups = []
   for (const item of list) {
     const key = samePerson(item.preacher) || 'sem-pregador'
     const last = groups[groups.length - 1]
     if (last?.key === key) last.items.push(item)
-    else groups.push({ key, label: item.preacher || 'Sem pregador', items: [item] })
+    else groups.push({ key, label: item.preacher || tx(lang, 'noPreacher'), items: [item] })
   }
   return groups
 }
@@ -182,36 +187,36 @@ export function sermonCard(item, { now = new Date(), lang = 'pt' } = {}) {
   const who = [item.preacher, item.church].filter(Boolean).join(' · ')
   return {
     key: item.key,
-    type: sermonTypeLabel(item.noteType),
-    date: dateLabel(item.at, now),
-    title: item.title || who || firstWords(item.text) || sermonTypeLabel(item.noteType),
+    type: sermonTypeLabel(item.noteType, lang),
+    date: dateLabel(item.at, now, lang),
+    title: item.title || who || firstWords(item.text) || sermonTypeLabel(item.noteType, lang),
     sub: item.title && who ? who : '',
     excerpt: oneLine(item.text),
     ...passagePills(item.passages, lang),
   }
 }
 
-export const EMPTY_SERMONS = 'Nenhuma pregação anotada ainda.'
+export const emptySermons = (lang = 'pt') => tx(lang, 'emptySermons')
 
 // ── Marcações (L3, §4) ──────────────────────────────────────────────────
 
 // "46 trechos · 11 livros"
-export function marksSummary(items) {
+export function marksSummary(items, lang = 'pt') {
   const n = items.length
   const books = new Set(items.map(i => i.book).filter(b => bookInfo(b))).size
-  const parts = [`${formatInt(n)} ${plural(n, 'trecho', 'trechos')}`]
-  if (books > 0) parts.push(`${formatInt(books)} ${plural(books, 'livro', 'livros')}`)
+  const parts = [txN(lang, 'passages', n)]
+  if (books > 0) parts.push(txN(lang, 'books', books))
   return parts.join(' · ')
 }
 
 export const withNote = items => items.filter(i => i.note)
 
 // O segmentado: Por livro · Por data · Com nota · {n}.
-export function marksTabs(items) {
+export function marksTabs(items, lang = 'pt') {
   return [
-    { key: 'livro', label: 'Por livro' },
-    { key: 'data', label: 'Por data' },
-    { key: 'nota', label: `Com nota · ${formatInt(withNote(items).length)}` },
+    { key: 'livro', label: tx(lang, 'tab_livro') },
+    { key: 'data', label: tx(lang, 'tab_data') },
+    { key: 'nota', label: tx(lang, 'tab_nota', { n: formatInt(withNote(items).length, lang) }) },
   ]
 }
 
@@ -240,8 +245,8 @@ function byBook(items, lang, { count, more }) {
 // mais de dois, "Ver os {n} de {Livro}" — que abre o livro no lugar.
 export function marksByBook(items, lang = 'pt') {
   return byBook(items, lang, {
-    count: n => `${formatInt(n)} ${plural(n, 'trecho', 'trechos')}`,
-    more: (n, name) => `Ver os ${formatInt(n)} de ${name}`,
+    count: n => txN(lang, 'passages', n),
+    more: (n, name) => tx(lang, 'seeMarks', { n: formatInt(n, lang), book: name }),
   })
 }
 
@@ -262,50 +267,50 @@ export function markRow(item, { now = new Date(), lang = 'pt' } = {}) {
   return {
     key: item.key,
     reference: itemReference(item, lang),
-    when: whenLabel(item.at, now),
-    note: item.note ? `Com nota: "${oneLine(item.note)}"` : null,
+    when: whenLabel(item.at, now, { lang }),
+    note: item.note ? `${tx(lang, 'withNote')}"${oneLine(item.note)}"` : null,
   }
 }
 
-export const EMPTY_MARKS = { livro: 'Nenhum trecho marcado ainda.', data: 'Nenhum trecho marcado ainda.', nota: 'Nenhuma marcação com nota ainda.' }
+export const emptyMarks = (tab, lang = 'pt') => tx(lang, tab === 'nota' ? 'emptyMarksNote' : 'emptyMarks')
 
 // ── Notas (§5) ──────────────────────────────────────────────────────────
 
 // "31 notas · 14 livros"
-export function notesSummary(items) {
+export function notesSummary(items, lang = 'pt') {
   const n = items.length
   const books = new Set(items.map(i => i.book).filter(b => bookInfo(b))).size
-  const parts = [`${formatInt(n)} ${plural(n, 'nota', 'notas')}`]
-  if (books > 0) parts.push(`${formatInt(books)} ${plural(books, 'livro', 'livros')}`)
+  const parts = [txN(lang, 'notes', n)]
+  if (books > 0) parts.push(txN(lang, 'books', books))
   return parts.join(' · ')
 }
 
-export const NOTES_TABS = [{ key: 'livro', label: 'Por livro' }, { key: 'data', label: 'Por data' }]
+export const notesTabs = (lang = 'pt') => [{ key: 'livro', label: tx(lang, 'tab_livro') }, { key: 'data', label: tx(lang, 'tab_data') }]
 
 // Por livro, no formato de L3: "{n} notas", as duas mais recentes e "Ver
 // as {n} de {Livro}".
 export function notesByBook(items, lang = 'pt') {
   return byBook(items, lang, {
-    count: n => `${formatInt(n)} ${plural(n, 'nota', 'notas')}`,
-    more: (n, name) => `Ver as ${formatInt(n)} de ${name}`,
+    count: n => txN(lang, 'notes', n),
+    more: (n, name) => tx(lang, 'seeNotes', { n: formatInt(n, lang), book: name }),
   })
 }
 
 // Uma nota: a referência, quando e o texto.
 export function noteRow(item, { now = new Date(), lang = 'pt' } = {}) {
-  return { key: item.key, reference: itemReference(item, lang), when: whenLabel(item.at, now), text: oneLine(item.text) }
+  return { key: item.key, reference: itemReference(item, lang), when: whenLabel(item.at, now, { lang }), text: oneLine(item.text) }
 }
 
-export const EMPTY_NOTES = 'Nenhuma nota ainda.'
+export const emptyNotes = (lang = 'pt') => tx(lang, 'emptyNotes')
 
 // ── Reflexões (§5) ──────────────────────────────────────────────────────
 
 // "22 reflexões · desde março de 2026"
-export function reflectionsSummary(items) {
+export function reflectionsSummary(items, lang = 'pt') {
   const n = items.length
   const first = items.map(i => i.at).filter(Boolean).sort()[0]
-  const parts = [`${formatInt(n)} ${plural(n, 'reflexão', 'reflexões')}`]
-  if (first) parts.push(`desde ${monthYearLong(new Date(first))}`)
+  const parts = [txN(lang, 'reflections', n)]
+  if (first) parts.push(tx(lang, 'since', { when: monthYearLong(new Date(first), lang) }))
   return parts.join(' · ')
 }
 
@@ -324,30 +329,30 @@ export function reflectionCard(item, { now = new Date(), readByDay = {}, phrases
   return {
     key: item.key,
     title: reflectionTitle(item, readByDay, lang),
-    when: whenLabel(item.at, now),
+    when: whenLabel(item.at, now, { lang }),
     excerpt: item.kind === 'dia' ? reflectionFirstAnswer(item.text) : oneLine(item.text),
     phrase: phrase ? `"${oneLine(phrase.text)}"` : null,
   }
 }
 
-export const EMPTY_REFLECTIONS = 'Nenhuma reflexão ainda.'
+export const emptyReflections = (lang = 'pt') => tx(lang, 'emptyReflections')
 
 // ── Aplicações (§5) ─────────────────────────────────────────────────────
 
 // "9 frases · 4 cumpridas"
-export function applicationsSummary(items) {
+export function applicationsSummary(items, lang = 'pt') {
   const n = items.length
   const done = items.filter(i => i.fulfilled).length
-  return `${formatInt(n)} ${plural(n, 'frase', 'frases')} · ${formatInt(done)} ${plural(done, 'cumprida', 'cumpridas')}`
+  return `${txN(lang, 'phrases', n)} · ${txN(lang, 'fulfilled', done)}`
 }
 
 // Todas · Cumpridas · Em aberto, com a contagem.
-export function applicationFilters(items) {
+export function applicationFilters(items, lang = 'pt') {
   const done = items.filter(i => i.fulfilled).length
   return [
-    { key: 'all', label: 'Todas', count: formatInt(items.length) },
-    { key: 'done', label: 'Cumpridas', count: formatInt(done) },
-    { key: 'open', label: 'Em aberto', count: formatInt(items.length - done) },
+    { key: 'all', label: tx(lang, 'allFem'), count: formatInt(items.length, lang) },
+    { key: 'done', label: tx(lang, 'filter_done'), count: formatInt(done, lang) },
+    { key: 'open', label: tx(lang, 'filter_open'), count: formatInt(items.length - done, lang) },
   ]
 }
 
@@ -356,30 +361,29 @@ export function applicationList(items, filter = 'all') {
 }
 
 // "1 set" · "1 set 2025" — o dia de uma frase.
-function shortDate(dateKeyStr, now) {
+function shortDate(dateKeyStr, now, lang) {
   const [year, month, day] = String(dateKeyStr).split('-').map(Number)
-  const short = `${day} ${monthName(new Date(year, month - 1, 1)).slice(0, 3)}`
+  const short = dayMonthShort(new Date(year, month - 1, day), lang)
   return year === now.getFullYear() ? short : `${short} ${year}`
 }
 
 // O cartão preto de uma frase: a frase entre aspas e "Frase do dia ·
 // {data} · cumprida" (ou "em aberto").
-export function applicationCard(item, { now = new Date() } = {}) {
+export function applicationCard(item, { now = new Date(), lang = 'pt' } = {}) {
   return {
     key: item.key,
     quote: `"${oneLine(item.text)}"`,
-    meta: `Frase do dia · ${shortDate(item.date, now)} · ${item.fulfilled ? 'cumprida' : 'em aberto'}`,
+    meta: tx(lang, 'phraseMeta', { date: shortDate(item.date, now, lang), state: tx(lang, item.fulfilled ? 'stateDone' : 'stateOpen') }),
   }
 }
 
-export const EMPTY_APPLICATIONS = { all: 'Nenhuma frase do dia ainda.', done: 'Nenhuma frase cumprida ainda.', open: 'Nenhuma frase em aberto.' }
+export const emptyApplications = (filter, lang = 'pt') => tx(lang, filter === 'done' ? 'emptyApplicationsDone' : filter === 'open' ? 'emptyApplicationsOpen' : 'emptyApplications')
 
 // ── Perguntas (§5) ──────────────────────────────────────────────────────
 
 // "6 perguntas guardadas"
-export function questionsSummary(items) {
-  const n = items.length
-  return `${formatInt(n)} ${plural(n, 'pergunta guardada', 'perguntas guardadas')}`
+export function questionsSummary(items, lang = 'pt') {
+  return txN(lang, 'questionsSaved', items.length)
 }
 
 // O cartão de uma pergunta: a pergunta, a referência de onde foi feita (em
@@ -390,11 +394,11 @@ export function questionCard(item, { now = new Date(), lang = 'pt' } = {}) {
     question: item.text,
     pill: { label: passageShort(item, lang), book: item.book, chapter: item.chapter, verse: item.verseStart ?? null },
     answer: oneLine(item.answer),
-    when: whenLabel(item.at, now),
+    when: whenLabel(item.at, now, { lang }),
   }
 }
 
-export const EMPTY_QUESTIONS = 'Nenhuma pergunta guardada ainda.'
+export const emptyQuestions = (lang = 'pt') => tx(lang, 'emptyQuestions')
 
 // ── A página de leitura (reflexão, frase do dia, pergunta) ──────────────
 
@@ -417,7 +421,7 @@ export function reflectionBlocks(text) {
 export function readingPage(item, { items = [], readByDay = {}, now = new Date(), lang = 'pt' } = {}) {
   if (item.type === 'pergunta') {
     return {
-      kind: 'pergunta', title: 'Pergunta', sub: [itemReference(item, lang), whenLabel(item.at, now)].filter(Boolean).join(' · '),
+      kind: 'pergunta', title: tx(lang, 'one_pergunta'), sub: [itemReference(item, lang), whenLabel(item.at, now, { lang })].filter(Boolean).join(' · '),
       question: item.text, answer: String(item.answer ?? '').trim(),
       pill: { label: itemReference(item, lang), book: item.book, chapter: item.chapter, verse: item.verseStart ?? null },
     }
@@ -427,10 +431,10 @@ export function readingPage(item, { items = [], readByDay = {}, now = new Date()
   const phrase = item.type === 'aplicacao' ? item : (item.kind === 'dia' ? items.find(i => i.type === 'aplicacao' && i.date === date) ?? null : null)
   return {
     kind: 'reflexao',
-    title: reflection ? reflectionTitle(reflection, readByDay, lang) : `Reflexão de ${dayMonthLong(`${date}T12:00:00`)}`,
-    sub: date ? formatWeekdayDate(date, lang) : whenLabel(item.at, now),
+    title: reflection ? reflectionTitle(reflection, readByDay, lang) : tx(lang, 'reflectionOf', { date: dayMonthLong(`${date}T12:00:00`, lang) }),
+    sub: date ? formatWeekdayDate(date, lang) : whenLabel(item.at, now, { lang }),
     blocks: reflection ? reflectionBlocks(reflection.text) : [],
-    phrase: phrase ? applicationCard(phrase, { now }) : null,
+    phrase: phrase ? applicationCard(phrase, { now, lang }) : null,
   }
 }
 
