@@ -32,18 +32,20 @@ import { totalBibleChapters } from '../plan/readingProjection'
 import { reminderLine } from '../meuPlano/seuPlanoMath'
 import { stepName } from '../meuPlano/meuPlanoMath'
 import {
-  buildPlan, weekMinutes, daysWithSomethingCount, barHeight, stepSummary, clockSummary, canDisable, LAST_BIBLE_STEP_MESSAGE,
+  buildPlan, weekMinutes, daysWithSomethingCount, barHeight, stepSummary, clockSummary, canDisable, lastBibleStepMessage,
   withEnabled, withMinutes, withMethod, withDayToggled, withClock, diffPlans, changesLine, reconcileDraft, weekFooter,
   chaptersApprox, stageMinutes, perWeekLabel, MIN_MINUTES, MAX_MINUTES, MINUTES_STEP,
 } from '../meuPlano/ajustarMath'
 import { STEP_KEYS } from '../routine/stepDaysMath'
 import { daysWithSomething } from '../meuPlano/seuPlanoMath'
+import { bookNameFor } from '../utils/progress'
 
 const FONT = 'var(--font-bento)'
 const AVG_WORDS_PER_CHAPTER = BIBLE_TOTAL_WORDS / totalBibleChapters()
 
 export default function AjustarPlanoScreen({ onOpenProfile, session, completedSet, stepMinutes, draftState, onDraftChange, onClearDraft, onSave, onBack, onNavigate, initialOpenStep = null, scrollToDays = false }) {
   const { lang, plan, routineModules, activeStudyId, currentBlock, hasNoPlan } = session
+  const P = (k, vars) => t(`planoTx.${k}`, vars, lang)
   const [saved, setSaved] = useState(null)
   const [activeStudy, setActiveStudy] = useState(null)
   const [reminder, setReminder] = useState(null)
@@ -94,12 +96,12 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
 
   const draft = draftState?.draft ?? null
   const hasActiveStudy = !!activeStudy
-  const changes = useMemo(() => (saved && draft ? diffPlans(saved, draft) : []), [saved, draft])
+  const changes = useMemo(() => (saved && draft ? diffPlans(saved, draft, lang) : []), [saved, draft, lang])
   const mins = useMemo(() => (draft ? weekMinutes(draft, hasActiveStudy) : null), [draft, hasActiveStudy])
   const proj = draft && draft.enabled.reading && !hasNoPlan
     ? computeProjection({ completedSet, readingMinutesPerDay: draft.minutes.reading, weeklyDays: draft.stepDays.reading, lang, books: session.planBooks })
     : null
-  const readingPassage = !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${currentBlock.book} ${currentBlock.chapter}` : ''
+  const readingPassage = !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${bookNameFor(currentBlock.book, lang)} ${currentBlock.chapter}` : ''
   const summaryCtx = { readingPassage, study: activeStudy ? { title: activeStudy.title, dayN: activeStudy.dayN, dayTotal: activeStudy.dayTotal } : null }
 
   function update(next) { onDraftChange?.({ saved, draft: next }) }
@@ -147,8 +149,8 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
 
   // Texto de apoio de QUANTO TEMPO (HANDOFF §12.3).
   function timeHint(key) {
-    if (key === 'prayer') return draft.prayerMethod === 'acts' ? stageMinutes(draft.minutes.prayer) : null
-    if (key === 'reading') return pace ? chaptersApprox(chaptersPerSession(pace.wordsPerMinute, draft.minutes.reading, AVG_WORDS_PER_CHAPTER)) : null
+    if (key === 'prayer') return draft.prayerMethod === 'acts' ? stageMinutes(draft.minutes.prayer, lang) : null
+    if (key === 'reading') return pace ? chaptersApprox(chaptersPerSession(pace.wordsPerMinute, draft.minutes.reading, AVG_WORDS_PER_CHAPTER), lang) : null
     if (key === 'reflection') return draft.reflectionMethod === 'questions' ? 'Perguntas geradas do trecho do dia' : null
     return null
   }
@@ -175,7 +177,7 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
   }
   function discard() { setLeaveAsk(false); onClearDraft?.(); onBack?.() }
 
-  const abbr = WEEKDAY_ABBR3.pt
+  const abbr = WEEKDAY_ABBR3[lang] ?? WEEKDAY_ABBR3.pt
 
   return (
     <div style={s.screen}>
@@ -183,7 +185,7 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
         <button style={s.backBtn} onClick={back} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
-        <p style={s.title}>Ajustar meu plano</p>
+        <p style={s.title}>{P('ajTitle')}</p>
       </div>
 
       <div ref={bodyRef} style={s.body}>
@@ -194,10 +196,10 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
           </>
         ) : (
           <>
-            <div style={s.weekCard} aria-label={`Sua semana com este plano: ${daysWithSomething(daysWithSomethingCount(draft))}`}>
+            <div style={s.weekCard} aria-label={P('ajWeekAria', { text: daysWithSomething(daysWithSomethingCount(draft), lang) })}>
               <div style={s.weekHead}>
-                <p style={s.weekLabel}>SUA SEMANA COM ESTE PLANO</p>
-                <p style={s.weekCount}>{daysWithSomething(daysWithSomethingCount(draft))}</p>
+                <p style={s.weekLabel}>{P('ajWeekLabel')}</p>
+                <p style={s.weekCount}>{daysWithSomething(daysWithSomethingCount(draft), lang)}</p>
               </div>
               <div style={s.cols}>
                 {mins.map((m, i) => (
@@ -210,16 +212,16 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
                   </div>
                 ))}
               </div>
-              <p style={s.weekFooter}>{weekFooter(draft, hasActiveStudy, proj?.finishDateLabel ?? null)}</p>
+              <p style={s.weekFooter}>{weekFooter(draft, hasActiveStudy, proj?.finishDateLabel ?? null, lang)}</p>
             </div>
 
-            <p style={s.sectionLabel}>PASSOS, NA ORDEM DO DIA</p>
+            <p style={s.sectionLabel}>{P('ajStepsLabel')}</p>
 
             {STEP_KEYS.map(key => {
               const on = draft.enabled[key]
               const open = on && openKey === key
               const name = stepName(key, lang)
-              const summary = stepSummary(key, draft, summaryCtx)
+              const summary = stepSummary(key, draft, summaryCtx, lang)
               return (
                 <div key={key} ref={el => { rowRefs.current[key] = el }} style={{ ...s.row, ...(on ? {} : s.rowOff), ...(open ? s.rowOpen : {}) }}>
                   <div
@@ -245,15 +247,15 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
                     </button>
                   </div>
                   {warningKey === key && (
-                    <p style={s.warning}>{LAST_BIBLE_STEP_MESSAGE}</p>
+                    <p style={s.warning}>{lastBibleStepMessage(lang)}</p>
                   )}
                   {open && (key === 'prayer' || key === 'reflection') && (
                     <div style={s.section}>
-                      <p style={s.sectionTitle}>COMO</p>
-                      <div style={s.modeRow} role="radiogroup" aria-label="Como">
+                      <p style={s.sectionTitle}>{P('ajHow')}</p>
+                      <div style={s.modeRow} role="radiogroup" aria-label={P('ajHow')}>
                         {(key === 'prayer'
-                          ? [['acts', 'ACTS', '4 etapas guiadas'], ['free', 'Livre', 'só o cronômetro']]
-                          : [['questions', 'Com perguntas', 'três sobre o texto'], ['free', 'Livre', 'só a folha em branco']]
+                          ? [['acts', 'ACTS', P('ajActsSub')], ['free', P('ajFreeCap'), P('ajFreeTimer')]]
+                          : [['questions', P('ajQuestionsCap'), P('ajQuestionsSub')], ['free', P('ajFreeCap'), P('ajFreeBlank')]]
                         ).map(([id, title, sub]) => {
                           const active = (key === 'prayer' ? draft.prayerMethod : draft.reflectionMethod) === id
                           return (
@@ -268,15 +270,15 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
                   )}
                   {open && !(key === 'study' && !activeStudy) && (
                     <div style={s.section}>
-                      <p style={s.sectionTitle}>QUANTO TEMPO</p>
+                      <p style={s.sectionTitle}>{P('ajHowLong')}</p>
                       <div style={s.timeRow}>
                         <span style={s.timeHint}>{timeHint(key) ?? ''}</span>
                         <div style={s.stepper}>
-                          <button type="button" aria-label="Menos 5 minutos" style={{ ...s.stepMinus, opacity: draft.minutes[key] <= MIN_MINUTES ? 0.4 : 1 }} disabled={draft.minutes[key] <= MIN_MINUTES} onClick={() => setMinutes(key, -MINUTES_STEP)}>
+                          <button type="button" aria-label={P('ajMinus5')} style={{ ...s.stepMinus, opacity: draft.minutes[key] <= MIN_MINUTES ? 0.4 : 1 }} disabled={draft.minutes[key] <= MIN_MINUTES} onClick={() => setMinutes(key, -MINUTES_STEP)}>
                             <AppIcon name="Minus" size={16} strokeWidth={2.4} color="var(--bento-ink)" />
                           </button>
                           <span style={s.stepValue}><span style={s.stepNum}>{draft.minutes[key]}</span><span style={s.stepUnit}> min</span></span>
-                          <button type="button" aria-label="Mais 5 minutos" style={{ ...s.stepPlus, opacity: draft.minutes[key] >= MAX_MINUTES ? 0.4 : 1 }} disabled={draft.minutes[key] >= MAX_MINUTES} onClick={() => setMinutes(key, MINUTES_STEP)}>
+                          <button type="button" aria-label={P('ajPlus5')} style={{ ...s.stepPlus, opacity: draft.minutes[key] >= MAX_MINUTES ? 0.4 : 1 }} disabled={draft.minutes[key] >= MAX_MINUTES} onClick={() => setMinutes(key, MINUTES_STEP)}>
                             <AppIcon name="Plus" size={16} strokeWidth={2.4} color="var(--bento-accent)" />
                           </button>
                         </div>
@@ -286,18 +288,18 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
                   {open && !(key === 'study' && !activeStudy) && (
                     <div style={s.section} ref={el => { daysRefs.current[key] = el }}>
                       <div style={s.sectionHead}>
-                        <p style={{ ...s.sectionTitle, margin: 0 }}>EM QUE DIAS</p>
-                        <span style={s.sectionValue}>{perWeekLabel(draft.stepDays[key])}</span>
+                        <p style={{ ...s.sectionTitle, margin: 0 }}>{P('ajWhichDays')}</p>
+                        <span style={s.sectionValue}>{perWeekLabel(draft.stepDays[key], lang)}</span>
                       </div>
                       <WeekdayChipRow days={draft.stepDays[key]} onChange={days => setDays(key, days)} lang="pt" tone="ajustar" />
-                      {key === 'reading' && <p style={s.daysNote}>Os outros dias podem ser do estudo.</p>}
+                      {key === 'reading' && <p style={s.daysNote}>{P('ajOtherDaysStudy')}</p>}
                     </div>
                   )}
                   {open && (key === 'reading' || key === 'study') && (
                     <button type="button" style={{ ...s.shortcut, ...(key === 'study' && !activeStudy ? { marginTop: 14 } : {}) }} onClick={() => onNavigate?.(key === 'reading' ? 'readingOrganize' : 'studyOrganize')}>
                       <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={s.shortcutTitle}>{key === 'reading' ? 'Organizar a leitura' : 'Organizar o estudo'}</span>
-                        <span style={s.shortcutSub}>{key === 'reading' ? 'Onde começar, ordem e ritmo' : 'Estudo atual e banco de estudos'}</span>
+                        <span style={s.shortcutTitle}>{P(key === 'reading' ? 'organizeReading' : 'ajOrganizeStudy')}</span>
+                        <span style={s.shortcutSub}>{P(key === 'reading' ? 'organizeReadingSub' : 'ajOrganizeStudySub')}</span>
                       </span>
                       <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
                     </button>
@@ -309,15 +311,15 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
             <div style={s.list}>
               <button ref={clockRowRef} type="button" style={{ ...s.listRow, borderBottom: '1px solid var(--bento-line)' }} onClick={() => setClockOpen(true)} aria-haspopup="dialog" aria-expanded={clockOpen}>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={s.listTitle}>Cronômetro</span>
-                  <span style={s.listSub}>{clockSummary(draft.clock)}</span>
+                  <span style={s.listTitle}>{P('ajClockTitle')}</span>
+                  <span style={s.listSub}>{clockSummary(draft.clock, lang)}</span>
                 </span>
                 <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
               </button>
               <button type="button" style={s.listRow} onClick={() => onOpenProfile?.()}>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={s.listTitle}>Lembrete diário</span>
-                  <span style={s.listSub}>{reminderLine(reminder) ?? t('routine.dailyReminderOff', undefined, lang)}</span>
+                  <span style={s.listTitle}>{P('dailyReminder')}</span>
+                  <span style={s.listSub}>{reminderLine(reminder, lang) ?? t('routine.dailyReminderOff', undefined, lang)}</span>
                 </span>
                 <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
               </button>
@@ -327,11 +329,11 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
       </div>
 
       <div style={s.footer}>
-        {saveError && <p style={s.saveError}>Não deu para salvar. Tente de novo.</p>}
-        {changes.length > 0 && !saveError && <p style={s.changesLine}>{changesLine(changes)}</p>}
+        {saveError && <p style={s.saveError}>{P('ajSaveError')}</p>}
+        {changes.length > 0 && !saveError && <p style={s.changesLine}>{changesLine(changes, lang)}</p>}
         {changes.length === 0
-          ? <button type="button" style={s.saveOff} disabled>Nada para salvar</button>
-          : <button type="button" style={{ ...s.saveOn, opacity: saving ? 0.7 : 1 }} onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar plano'}</button>}
+          ? <button type="button" style={s.saveOff} disabled>{P('ajNothingToSave')}</button>
+          : <button type="button" style={{ ...s.saveOn, opacity: saving ? 0.7 : 1 }} onClick={save} disabled={saving}>{saving ? P('ajSaving') : P('ajSavePlan')}</button>}
       </div>
 
       {clockOpen && draft && (
@@ -345,11 +347,11 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
 
       {leaveAsk && (
         <div style={s.veil} onClick={() => setLeaveAsk(false)}>
-          <div style={s.dialog} role="dialog" aria-modal="true" aria-label="Sair sem salvar?" onClick={e => e.stopPropagation()}>
-            <p style={s.dialogTitle}>Sair sem salvar?</p>
+          <div style={s.dialog} role="dialog" aria-modal="true" aria-label={P('ajLeaveTitle')} onClick={e => e.stopPropagation()}>
+            <p style={s.dialogTitle}>{P('ajLeaveTitle')}</p>
             <div style={s.dialogRow}>
-              <button type="button" style={s.dialogSecondary} onClick={discard}>Descartar</button>
-              <button type="button" style={s.dialogPrimary} onClick={() => { setLeaveAsk(false); save() }}>Salvar</button>
+              <button type="button" style={s.dialogSecondary} onClick={discard}>{P('ajDiscard')}</button>
+              <button type="button" style={s.dialogPrimary} onClick={() => { setLeaveAsk(false); save() }}>{P('ajSave')}</button>
             </div>
           </div>
         </div>
@@ -373,8 +375,8 @@ const CLOCK_ROWS = [
 function ClockSheet({ lang, clock, onToggle, onClose }) {
   return (
     <FolhaInferior onClose={onClose} labelledBy="ajustar-cronometro-titulo">
-      <p id="ajustar-cronometro-titulo" style={s.sheetTitle}>Cronômetro</p>
-      <p style={s.sheetSub}>Vale para a leitura e para o estudo.</p>
+      <p id="ajustar-cronometro-titulo" style={s.sheetTitle}>{t('planoTx.ajClockTitle', undefined, lang)}</p>
+      <p style={s.sheetSub}>{t('planoTx.ajClockSub', undefined, lang)}</p>
       {CLOCK_ROWS.map((row, i) => {
         const on = !!clock[row.key]
         const title = t(row.title, undefined, lang)
@@ -385,7 +387,7 @@ function ClockSheet({ lang, clock, onToggle, onClose }) {
               <span style={s.sheetRowSub}>{t(row.sub, undefined, lang)}</span>
             </span>
             <button
-              type="button" role="switch" aria-checked={on} aria-label={`${title}: ${on ? 'ligado' : 'desligado'}`}
+              type="button" role="switch" aria-checked={on} aria-label={`${title}: ${t(on ? 'planoTx.ajSwitchOn' : 'planoTx.ajSwitchOff', undefined, lang)}`}
               onClick={() => onToggle(row.key)}
               style={{ ...s.switch, background: on ? 'var(--bento-ink)' : 'var(--bento-t6)', justifyContent: on ? 'flex-end' : 'flex-start' }}
             >
@@ -394,7 +396,7 @@ function ClockSheet({ lang, clock, onToggle, onClose }) {
           </div>
         )
       })}
-      <button type="button" style={s.sheetDone} onClick={onClose}>Pronto</button>
+      <button type="button" style={s.sheetDone} onClick={onClose}>{t('planoTx.ajDone', undefined, lang)}</button>
     </FolhaInferior>
   )
 }

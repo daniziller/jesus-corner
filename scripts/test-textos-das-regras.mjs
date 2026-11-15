@@ -1,4 +1,5 @@
-// As regras que escrevem frases (hojeMath, meuPlanoMath) usam chaves de
+// As regras que escrevem frases (hojeMath, meuPlanoMath, seuPlanoMath,
+// ajustarMath) usam chaves de
 // translations.js por tx(lang, 'chave'): toda chave usada precisa existir
 // em português e em inglês, e o inglês não pode cair no português.
 import { readFileSync } from 'node:fs'
@@ -11,7 +12,7 @@ function check(label, actual, expected) {
   console.log(`${ok ? 'OK    ' : 'FALHOU'} ${label}${ok ? '' : ` — esperado ${JSON.stringify(expected)}, veio ${JSON.stringify(actual)}`}`)
 }
 
-const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx' }
+const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx' }
 for (const [file, ns] of Object.entries(FILES)) {
   const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
   const used = new Set()

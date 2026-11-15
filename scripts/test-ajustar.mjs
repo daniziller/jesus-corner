@@ -66,5 +66,8 @@ check('capítulos no ritmo', [chaptersApprox(1.4), chaptersApprox(1), chaptersAp
 check('min por etapa com vírgula', [stageMinutes(10), stageMinutes(20), stageMinutes(15)], ['2,5 min por etapa', '5 min por etapa', '3,8 min por etapa'])
 check('"{n} por semana"', perWeekLabel(saved.stepDays.reading), '3 por semana')
 
+// ── Em inglês ───────────────────────────────────────────────────────────
+check('inglês: dias, relógio, mudanças, rodapé e capítulos', [daysLabel([true, true, true, false, false, true, false], 'en'), daysLabel(Array(7).fill(true), 'en'), clockSummary({ showOnReading: true, warnAtZero: true, askToContinue: false }, 'en'), changesLine([{ text: 'reading 20 min' }], 'en'), chaptersApprox(1.5, 'en'), stageMinutes(10, 'en'), perWeekLabel([true, false, true, false, false, false, false], 'en')], ['Mon to Wed, Sat', 'every day', 'Shows during reading · alerts at zero', '1 change · reading 20 min', 'About one and a half chapters at your pace', '2.5 min per stage', '2 a week'])
+
 if (failures > 0) { console.error(`\n${failures} verificação(ões) falharam.`); process.exit(1) }
 console.log('\nTodos os testes do Ajustar (parte pura) passaram.')
