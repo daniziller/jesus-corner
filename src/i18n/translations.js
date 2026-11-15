@@ -2999,6 +2999,10 @@ export const STRINGS = {
         grantingBtn: 'Concedendo…',
         grantedBtn: 'Concedido ✓',
         personNotFoundError: 'Não achei ninguém com esse e-mail ou nome.',
+        ambiguousNameError: 'Mais de uma pessoa tem esse nome. Use o e-mail.',
+        alreadyPayingError: 'Essa pessoa já paga uma assinatura. A cortesia não entra por cima.',
+        alreadyLifetimeError: 'Essa pessoa já tem acesso vitalício.',
+        grantFailedError: 'Não deu para conceder agora. Tente de novo.',
       },
       // Master no celular (handoff-admin-42, Bloco 5: 42a-42e). Substitui
       // o antigo aviso de "abra num computador" — AdminMobileShell.jsx
@@ -5846,6 +5850,10 @@ export const STRINGS = {
         grantingBtn: 'Granting…',
         grantedBtn: 'Granted ✓',
         personNotFoundError: "Couldn't find anyone with that email or name.",
+        ambiguousNameError: 'More than one person has that name. Use the email.',
+        alreadyPayingError: 'This person already pays for a subscription. A courtesy cannot replace it.',
+        alreadyLifetimeError: 'This person already has lifetime access.',
+        grantFailedError: "Couldn't grant access right now. Try again.",
       },
       mobile: {
         nav: { overview: 'Overview', people: 'People', groups: 'Groups', alerts: 'Alerts', more: 'More' },

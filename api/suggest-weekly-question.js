@@ -1,11 +1,11 @@
 // Sugestão de "pergunta da semana" pro Plano do grupo — quadro 22d do
 // redesign Bento. Mesmo espírito de api/generate-reflection-questions.js:
-// GET público, cacheado na borda (a pergunta sugerida é igual pra quem abrir
-// o mesmo capítulo — o líder sempre revisa/edita antes de publicar, ver
-// README "a voz na Comunidade continua humana" — então não há nada
-// específico de usuário aqui pra justificar autenticação nem gate de IA por
-// pessoa).
+// GET cacheado na borda (a pergunta sugerida é igual pra quem abrir o mesmo
+// capítulo — o líder sempre revisa/edita antes de publicar, ver README "a
+// voz na Comunidade continua humana"). Exige só uma conta: gerar custa uma
+// chamada de IA, e aberto qualquer um na internet podia disparar várias.
 import { suggestWeeklyQuestion } from './_lib/ai.js'
+import { requireCaller } from './_lib/caller.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -45,7 +45,10 @@ function chapterFullText(chapterData) {
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' })
 
-  const { book, bookEn, chStart, chEnd, lang } = req.query
+  // Gerar custa uma chamada de IA: só pra quem tem conta.
+  if (!(await requireCaller(req, res))) return
+
+  const { book, chStart, chEnd, lang } = req.query
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const startNum = Number(chStart)
   const endNum = Number(chEnd ?? chStart)
@@ -53,7 +56,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'invalid_passage' })
   }
 
-  const bookNameForFolder = cleanLang === 'en' ? (bookEn || BOOK_EN_BY_PT[book] || book) : book
+  const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[book] : book
   const versions = BIBLE_VERSIONS[cleanLang] ?? BIBLE_VERSIONS.pt
   const folder = versions[0].folder
 

@@ -6,6 +6,7 @@
 // daí pra frente funciona como qualquer outro plano alternativo (mesmo
 // mecanismo de src/plan/resolveActivePlan.js).
 import { supabase } from '../lib/supabaseClient'
+import { authHeaders } from '../lib/authHeaders'
 
 async function getUserId() {
   const { data } = await supabase.auth.getUser()
@@ -125,17 +126,16 @@ export async function respondToGroupReadingPlan(planId, accept) {
   if (error) throw new Error(error.message)
 }
 
-// Sugestão de "pergunta da semana" (22d) — GET público, cacheado no
+// Sugestão de "pergunta da semana" (22d) — GET com o token, cacheado no
 // servidor (mesmo espírito de fetchReflectionQuestions em
 // src/aiChat/reflectionQuestionsStore.js): a pergunta sugerida é igual pra
 // quem abrir o mesmo capítulo, o líder sempre revisa/edita antes de
 // publicar (ver README, "a voz na Comunidade continua humana") — falha
 // aqui não trava o fluxo, GroupPlanProposalScreen só deixa o campo vazio
 // pra escrever na mão.
-export async function fetchWeeklyQuestionSuggestion({ book, bookEn, chStart, chEnd, lang }) {
+export async function fetchWeeklyQuestionSuggestion({ book, chStart, chEnd, lang }) {
   const params = new URLSearchParams({ book, chStart: String(chStart), chEnd: String(chEnd ?? chStart), lang: lang === 'en' ? 'en' : 'pt' })
-  if (bookEn) params.set('bookEn', bookEn)
-  const res = await fetch(`/api/suggest-weekly-question?${params}`)
+  const res = await fetch(`/api/suggest-weekly-question?${params}`, { headers: await authHeaders() })
   if (!res.ok) throw new Error(`request_failed_${res.status}`)
   const body = await res.json()
   return body.question

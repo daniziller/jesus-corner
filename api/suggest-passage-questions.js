@@ -1,13 +1,13 @@
 // Sugestões de pergunta pro menu "Perguntar" (tela 10a do redesign Bento,
 // ver design_handoff_jesus_corner/ADENDO-identidade-e-IA.md): três chips
 // gerados pro trecho selecionado. Mesmo molde de api/generate-chapter-
-// context.js — GET, público e sem limite, porque o trecho é o mesmo pra
-// quem quer que o selecione: o cache é o CDN da Vercel (Cache-Control
-// abaixo), a primeira pessoa a selecionar um trecho paga a geração e as
-// próximas recebem da borda. Nada sensível sai daqui (só três perguntas
-// sobre um versículo público); quem decide se o menu aparece é o cliente
-// (session.hasAI + o interruptor "Perguntar sobre o texto" de 10f).
+// context.js — GET, porque o trecho é o mesmo pra quem quer que o
+// selecione: o cache é o CDN da Vercel (Cache-Control abaixo), a primeira
+// pessoa a selecionar um trecho paga a geração e as próximas recebem da
+// borda. Gerar exige conta com o plano com IA (requireCaller): sem isso,
+// qualquer um na internet disparava chamadas pagas variando a URL.
 import { suggestPassageQuestions } from './_lib/ai.js'
+import { requireCaller } from './_lib/caller.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks.js'
 import { slugify } from '../src/utils/slugify.js'
@@ -36,7 +36,11 @@ function fetchBookChapters(folder, bookName) {
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' })
 
-  const { book, bookEn, chapter, verseStart, verseEnd, lang } = req.query
+  // O menu "Perguntar" só aparece pra quem tem o plano com IA (ver
+  // ReadingBlockView); quem chama sem ele cai nas três sugestões fixas.
+  if (!(await requireCaller(req, res, { needsAI: true }))) return
+
+  const { book, chapter, verseStart, verseEnd, lang } = req.query
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const chapterNum = Number(chapter)
   const vs = Number(verseStart)
@@ -46,7 +50,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'invalid_passage' })
   }
 
-  const bookNameForFolder = cleanLang === 'en' ? (bookEn || BOOK_EN_BY_PT[book] || book) : book
+  const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[book] : book
   const versions = BIBLE_VERSIONS[cleanLang] ?? BIBLE_VERSIONS.pt
   const folder = versions[0].folder
 

@@ -70,7 +70,9 @@ async function upsertFromSubscription(subscription, eventCreatedSeconds) {
     p_current_period_end: periodEndSeconds ? new Date(periodEndSeconds * 1000).toISOString() : null,
     p_event_at: new Date(eventCreatedSeconds * 1000).toISOString(),
   })
-  if (error) console.error('Failed to upsert subscription:', error.message)
+  // Falhou: responde erro pro Stripe tentar de novo (ver o catch do
+  // handler) — antes respondia "ok" e o pagante ficava sem acesso.
+  if (error) throw new Error(`Failed to upsert subscription: ${error.message}`)
 }
 
 // Pagamento único (acesso vitalício) não cria Subscription no Stripe, então
@@ -96,7 +98,7 @@ async function upsertFromOneTimeSession(session) {
     current_period_end: null,
     updated_at: new Date().toISOString(),
   })
-  if (error) console.error('Failed to upsert lifetime access:', error.message)
+  if (error) throw new Error(`Failed to upsert lifetime access: ${error.message}`)
 }
 
 export default async function handler(req, res) {

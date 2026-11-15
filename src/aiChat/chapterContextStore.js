@@ -1,6 +1,8 @@
+import { authHeaders } from '../lib/authHeaders'
+
 // Contexto antes do capítulo — tela 10c do redesign Bento (ver
 // ADENDO-identidade-e-IA.md). O conteúdo em si vem de api/generate-
-// chapter-context.js (público, cacheado na borda — ver comentário lá);
+// chapter-context.js (cacheado na borda — ver comentário lá);
 // aqui só ficam duas coisas locais ao aparelho: o interruptor "Contexto
 // antes do capítulo" (10f, AiSettingsScreen.jsx — liga por padrão) e
 // quais capítulos a pessoa já viu o contexto (pra não mostrar de novo
@@ -49,14 +51,13 @@ export function markChapterContextSeen(book, chapter, lang) {
   try { localStorage.setItem(SEEN_KEY, JSON.stringify(trimmed)) } catch { /* ignora */ }
 }
 
-// GET público (ver api/generate-chapter-context.js) — sem token, sem
+// GET com o token da conta (ver api/generate-chapter-context.js), sem
 // tratamento de limite diário: se falhar por qualquer motivo (rede,
 // offline, servidor), quem chama trata como "pula o contexto", nunca como
 // parede (ver ChapterContextScreen em ReadingBlockView.jsx).
-export async function fetchChapterContext({ book, bookEn, chapter, lang }) {
+export async function fetchChapterContext({ book, chapter, lang }) {
   const params = new URLSearchParams({ book, chapter: String(chapter), lang: lang === 'en' ? 'en' : 'pt' })
-  if (bookEn) params.set('bookEn', bookEn)
-  const res = await fetch(`/api/generate-chapter-context?${params}`)
+  const res = await fetch(`/api/generate-chapter-context?${params}`, { headers: await authHeaders() })
   if (!res.ok) throw new Error(`request_failed_${res.status}`)
   const body = await res.json()
   return body.context

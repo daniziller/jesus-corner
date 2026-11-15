@@ -12,6 +12,7 @@
 // duração, então essa é a decisão embutida.
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
+import { pickPersonByName, grantBlockedBy, likeContains } from '../_lib/accessRules.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const PREMIUM_AI_MONTHLY_BRL = 21.90
@@ -89,10 +90,16 @@ async function grantAccess(req, res, callerId) {
       page += 1
     }
   } else {
-    const { data } = await supabaseAdmin.from('profiles').select('user_id').ilike('name', `%${query}%`).limit(1).maybeSingle()
-    userId = data?.user_id ?? null
+    const { data } = await supabaseAdmin.from('profiles').select('user_id, name').ilike('name', likeContains(query)).limit(20)
+    const picked = pickPersonByName(data, query)
+    if (picked.error === 'ambiguous_name') return res.status(409).json({ error: 'ambiguous_name' })
+    userId = picked.userId ?? null
   }
   if (!userId) return res.status(404).json({ error: 'person_not_found' })
+
+  const { data: currentSub } = await supabaseAdmin.from('subscriptions').select('status, access_type').eq('user_id', userId).maybeSingle()
+  const blocked = grantBlockedBy(currentSub)
+  if (blocked) return res.status(409).json({ error: blocked })
 
   const months = DURATIONS[kind]
   const expiresAt = months ? new Date(Date.now() + months * 30 * 86400000).toISOString() : null

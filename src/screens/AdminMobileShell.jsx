@@ -19,7 +19,7 @@ import { getAdminMetrics, searchAdminUsers, listAnswerReports, sendBroadcast } f
 import {
   getModerationCase, decideModerationCase, exportModerationLog,
   getAdminGroupsList, getAdminGroupDetail, adminGroupAction, getGroupWall,
-  getAccessGrants, grantAccess,
+  getAccessGrants, grantAccess, GRANT_ERRORS,
   getMasterAlerts, decideMasterAlert, markAllAlertsSeen,
   getPersonDetail, extendPersonTrial, enterAsPerson, blockPersonAccount,
 } from '../admin/masterModerationStore'
@@ -650,12 +650,21 @@ function GrantAccessMobile({ lang, prefillEmail, onBack, onDone }) {
   const [kind, setKind] = useState('3_months')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const KINDS = ['3_months', '6_months', '12_months', 'lifetime']
 
   async function submit() {
     if (!reason.trim()) return
     setBusy(true)
-    try { await grantAccess({ emailOrName: prefillEmail, kind, reason }); onDone() } finally { setBusy(false) }
+    setError('')
+    try {
+      await grantAccess({ emailOrName: prefillEmail, kind, reason })
+      onDone()
+    } catch (err) {
+      setError(t('admin.access.' + (GRANT_ERRORS[err.message] ?? 'grantFailedError'), undefined, lang))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -671,6 +680,7 @@ function GrantAccessMobile({ lang, prefillEmail, onBack, onDone }) {
           </div>
           <p style={styles.cardKicker}>{M('grantReasonLabel', undefined, lang)}</p>
           <textarea style={styles.textArea} value={reason} onChange={e => setReason(e.target.value)} placeholder={t('admin.access.reasonPlaceholder', undefined, lang)} />
+          {error && <p role="alert" style={{ ...styles.mutedLine, color: 'var(--bento-destructive)' }}>{error}</p>}
         </div>
       </div>
       <div style={styles.footerFixed}>

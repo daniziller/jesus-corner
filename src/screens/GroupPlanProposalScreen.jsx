@@ -5,7 +5,7 @@
 // própria pessoa.
 //
 // "Pergunta da semana" (só da 1ª semana — as seguintes ficam pra quando
-// chegarem, ver comentário abaixo) já chega SUGERIDA pela IA (GET público,
+// chegarem, ver comentário abaixo) já chega SUGERIDA pela IA (GET
 // cacheado — ver api/suggest-weekly-question.js), mas sempre editável antes
 // de enviar: o quadro pede um toggle "sugerida"/"editar" à parte, mas como
 // nada é publicado antes de "Enviar para o grupo", o campo já nasce
