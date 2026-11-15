@@ -7,12 +7,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="Seu tempo. Seu plano. Sua conexão com Deus." />
-    <!-- Fraunces e Montserrat eram carregadas aqui mas não são usadas em
-         lugar nenhum do app (as famílias reais são Plus Jakarta Sans e Be
-         Vietnam Pro, definidas em src/index.css). Além do peso inútil, cada
-         carregamento mandava o IP de todo visitante pro Google antes de
-         qualquer consentimento. Para tirar as duas que sobraram, rode
-         `node scripts/fetch-fonts.mjs` — ver docs/lgpd.md. -->
+    <!-- Nenhuma fonte vem do Google aqui: a única do app (Manrope) é
+         auto-hospedada em public/fonts (ver scripts/fetch-fonts.mjs e
+         docs/lgpd.md) — carregar do CDN mandava o IP de todo visitante pro
+         Google antes de qualquer consentimento. -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />

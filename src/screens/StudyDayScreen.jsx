@@ -27,7 +27,7 @@ import { renderVerseShareImage, shareVerseImage } from '../home/verseShareImage'
 import { dateKey } from '../utils/dateKey'
 
 const FONT = 'var(--font-bento)'
-const READING_FONT = "'Be Vietnam Pro', var(--font-bento)"
+const READING_FONT = 'var(--font-bento)'
 const HOLD_MS = 450
 
 // "6:20" mm:ss sem zero à esquerda no minuto — mesmo formato de

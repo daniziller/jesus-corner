@@ -171,10 +171,10 @@ const s = {
   diamond: { width: 10, height: 10, background: 'var(--bento-accent)', transform: 'rotate(45deg)', borderRadius: 2, flexShrink: 0 },
   darkLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
   synthesisLoading: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0 },
-  synthesisBody: { fontFamily: "'Be Vietnam Pro', var(--font-bento)", fontWeight: 400, fontSize: 14.5, lineHeight: 1.6, color: 'rgba(255,255,255,.82)', margin: '0 0 14px' },
+  synthesisBody: { fontFamily: 'var(--font-bento)', fontWeight: 400, fontSize: 14.5, lineHeight: 1.6, color: 'rgba(255,255,255,.82)', margin: '0 0 14px' },
   highlightBox: { borderRadius: 16, background: 'rgba(240,102,43,.12)', padding: '14px 16px' },
   highlightLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: '0 0 6px' },
-  highlightQuote: { fontFamily: "'Be Vietnam Pro', var(--font-bento)", fontStyle: 'italic', fontSize: 14.5, lineHeight: 1.4, color: '#fff', margin: 0 },
+  highlightQuote: { fontFamily: 'var(--font-bento)', fontStyle: 'italic', fontSize: 14.5, lineHeight: 1.4, color: '#fff', margin: 0 },
 
   answersRow: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', borderRadius: 22, background: 'var(--bento-card)', padding: '16px 18px', cursor: 'pointer' },
   answersTitle: { fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },

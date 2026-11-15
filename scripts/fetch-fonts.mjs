@@ -1,4 +1,4 @@
-// Baixa Plus Jakarta Sans e Be Vietnam Pro do Google Fonts e as auto-hospeda
+// Baixa a Manrope (a fonte do app) do Google Fonts e a auto-hospeda
 // em public/fonts/, gerando o CSS com os @font-face correspondentes.
 //
 // Motivo (LGPD): enquanto as fontes vêm do CDN do Google, cada carregamento
@@ -18,10 +18,9 @@ import { join } from 'node:path'
 const OUT_DIR = join(process.cwd(), 'public', 'fonts')
 
 const FAMILIES = [
-  'Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600',
-  'Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400',
-  // Identidade "Bento" (redesign, adendo identidade-e-IA) — substitui as
-  // duas fontes acima nas telas migradas pra essa identidade.
+  // Identidade "Bento" (redesign, adendo identidade-e-IA). Plus Jakarta
+  // Sans e Be Vietnam Pro, da identidade anterior, saíram em 2026-11 —
+  // nenhuma tela usava mais.
   'Manrope:wght@400;500;600;700;800',
 ]
 
