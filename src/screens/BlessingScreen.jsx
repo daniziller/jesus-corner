@@ -5,6 +5,7 @@
 // botão vira "Terminar o dia" (leva pro fecho do dia — routineComplete até
 // o Bloco 5 desta leva trazer o 37c de verdade).
 import { t } from '../i18n'
+import AppIcon from '../icons/AppIcon'
 
 function cap(s) { return s[0].toUpperCase() + s.slice(1) }
 
@@ -89,7 +90,7 @@ export default function BlessingScreen({ session, stepMinutes, onContinueSession
               cada passo tem seu próprio rótulo por causa da concordância
               de gênero do artigo ("a leitura"/"o estudo"/"a reflexão"). */}
           <span>{nextStepKey ? L(GO_TO_BTN_KEY[nextStepKey] ?? 'goToReadingBtn') : L('finishDayBtn')}</span>
-          <span style={styles.primaryArrow}>→</span>
+          <span style={styles.primaryArrow}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
         <button style={styles.backLink} onClick={onBackToPlan}>{L('backToPlanLink')}</button>
       </div>

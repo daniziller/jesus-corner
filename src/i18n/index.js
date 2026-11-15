@@ -7,8 +7,8 @@ import { getCachedUser } from '../auth/authStore'
 import { getAppLanguage } from './appLanguageStore'
 
 export const LANGUAGES = [
-  { id: 'pt', label: 'Português', flag: '🇧🇷' },
-  { id: 'en', label: 'English', flag: '🇺🇸' },
+  { id: 'pt', label: 'Português' },
+  { id: 'en', label: 'English' },
 ]
 
 // Prioridade: idioma salvo na conta logada > idioma escolhido no

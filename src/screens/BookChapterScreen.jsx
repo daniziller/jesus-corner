@@ -36,6 +36,7 @@ import ReadingBlockView from './ReadingBlockView'
 import {
   bookHeaderSub, bookSealLine, bookNumbers, chapterCells, chapterCellAria, chapterLegend, bookFooterButton, bookActions,
 } from '../biblia/bibliaMath'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const HOLD_MS = 450
 const FONT = 'var(--font-bento)'
@@ -47,6 +48,7 @@ export default function BookChapterScreen({
   onBack, onOpenSelo, onCelebrateNow, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange,
 }) {
   const { lang } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const email = authUser?.email
 
   const [openSessionId, setOpenSessionId] = useState(initialSessionId ?? null)
@@ -118,8 +120,8 @@ export default function BookChapterScreen({
   function markWholeBook() {
     markChapters(cells.filter(c => c.state === 'next' || c.state === 'none').map(c => c.ch))
   }
-  function unmarkWholeBook() {
-    if (!window.confirm(`Desmarcar todos os capítulos de ${displayName}?`)) return
+  async function unmarkWholeBook() {
+    if (!(await perguntar({ title: t('confirmations.unmarkBookTitle', { book: displayName }, lang), text: t('confirmations.unmarkBookText', undefined, lang), confirmLabel: t('confirmations.unmarkBtn', undefined, lang) }))) return
     onMarkChaptersManually?.(bookName, cells.map(c => c.ch), false)
   }
   function runAction(key) {
@@ -292,6 +294,7 @@ export default function BookChapterScreen({
           <AppIcon name="ArrowRight" size={16} strokeWidth={2.2} color="var(--bento-accent)" />
         </button>
       </div>
+      {folha}
     </div>
   )
 }
@@ -309,7 +312,7 @@ function cellColors(state, cor, tom) {
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 0' },
-  backBtn: { width: 38, height: 38, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: FONT, fontSize: 17, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 3px' },
   headerSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: 0 },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 20px 16px', display: 'flex', flexDirection: 'column', gap: 10 },

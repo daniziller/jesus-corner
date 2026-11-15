@@ -204,7 +204,7 @@ export default function MessagesScreen({ session, authUser, blocks, onBack, onOp
                   <p style={s.archiveTitle}>{L('readBeforeToday')}</p>
                   <p style={s.archiveSub}>{L('archiveGroupCount', { group: g.groupName, n: g.totalCount })}</p>
                 </div>
-                <span style={s.archiveChevron}>›</span>
+                <span style={s.archiveChevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
               </button>
             ))}
           </>
@@ -224,7 +224,7 @@ export default function MessagesScreen({ session, authUser, blocks, onBack, onOp
 const s = {
   screen: { display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bento-bg)' },
   header: { flex: 'none', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '22px 20px 12px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 18, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: 0 },
   subtitle: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
   markReadBtn: { flexShrink: 0, border: 'none', background: 'none', padding: '6px 0 0', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer' },

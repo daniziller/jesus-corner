@@ -22,14 +22,11 @@
      identidade (handoff-app-completo, specs/LEGADO-fluxo-do-app.md §11) —
      a última tela que ainda usava esses tokens (o painel do admin,
      .btn-primary/.btn-secondary abaixo) migrou pra identidade Bento
-     também, a pedido dela ("atualize o painel do admin"). --header-bg e
-     --re sobrevivem porque ainda têm consumidor de verdade (AppHeader.jsx
-     e o ponto de pendência da barra, respectivamente) e não são, em si,
-     identidade antiga — só nomes curtos herdados. */
+     também, a pedido dela ("atualize o painel do admin"). --re
+     sobrevive porque ainda tem consumidor de verdade (o ponto de
+     pendência da barra) e não é, em si, identidade antiga — só um nome
+     curto herdado. */
   --white: #FFFFFF;
-  /* Fundo translúcido do header (AppHeader.jsx, telas ainda não migradas
-     pra Bento). */
-  --header-bg: rgba(252, 249, 248, 0.8);
   /* Ponto de pendência (pedido de amizade/convite) na barra de abas. */
   --re: #DC2626;
 
@@ -73,9 +70,7 @@
      escuro que --bento-sand-ink, usado em título/texto corrido). */
   --bento-sand-icon: #7A4A1E;
   --bento-sand-ink-strong: #3A2A18;
-  --bento-pending-border: #CFC6BC;
   /* Entre --bento-t4 e --bento-t5: subtítulo de passo ainda não feito (4b). */
-  --bento-t4-soft: #B0A79E;
   /* Sobre --bento-sand, entre --bento-sand-ink e --bento-sand-label: hint e
      números não selecionados do cartão "Ritmo da semana" (5a). */
   --bento-sand-ink-mid: #7A6B58;
@@ -95,7 +90,6 @@
   /* Cinza do card "Seu plano de hoje" (Home) quando o plano do dia já foi
      concluído — pedido dela: parar de trocar pra --bento-sand nesse
      estado, usar cinza com detalhes em preto/branco/laranja em vez disso. */
-  --bento-slate: #66625A;
   /* Texto da pílula "AGORA" na lista de passos de Meu Plano (atualização
      35a/35b) — sobre rgba(240,102,43,.18), não existia token pra isso. */
   --bento-now-text: #A63C0F;
@@ -195,20 +189,6 @@ body {
   zoom: var(--text-zoom, 1);
 }
 
-/* ── Utilitários gerais ── */
-.screen {
-  display: none;
-  flex-direction: column;
-  flex: 1;
-  overflow-y: auto;
-  height: calc(100vh - var(--nav-height));
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-}
-.screen.active { display: flex; }
-
 /* ── Bottom Nav ── */
 /* Identidade Bento (design_handoff_jesus_corner/Jesus Corner Redesign.dc.html,
    rodapé dos quadros 3c/4b/4c/5b/5f): barra branca de 76px, itens de 70px
@@ -276,8 +256,7 @@ body {
 }
 
 /* Linha de esqueleto (ChapterContextScreen, ReadingBlockView.jsx, 10c) —
-   só opacidade, sem escala (ao contrário de @keyframes pulse acima, feito
-   pra uma bolinha, não uma barra larga). */
+   só opacidade, sem escala (pra uma barra larga). */
 @keyframes barPulse {
   0%, 100% { opacity: 0.35; }
   50%      { opacity: 0.9; }
@@ -550,7 +529,6 @@ body {
    Home) pinta por cima do dropdown de notificações, mesmo ele tendo
    z-index maior, porque esse z-index só vale dentro do contexto do
    cabeçalho/sidebar. */
-.app-header { display: flex; position: relative; z-index: 40; }
 
 /* ── Sidebar (navegação lateral desktop) ── */
 .sidebar { display: none; position: relative; z-index: 40; }
@@ -693,7 +671,6 @@ body {
   .app-shell {
     flex-direction: row;
   }
-  .app-header,
   .bottom-nav {
     display: none;
   }
@@ -724,30 +701,6 @@ body {
   }
   html.admin-active .app-content-inner {
     max-width: none;
-  }
-  /* Tela de login/cadastro roda fora do .app-shell (ainda não tem sessão),
-     então sem isso os campos esticam até os 1200px de #root nessa faixa —
-     limita o cartão de formulário a uma largura de web comum e centraliza. */
-  .auth-screen {
-    align-items: center;
-    justify-content: center;
-    background: #141414;
-  }
-  .auth-screen > div:first-child {
-    max-width: 440px;
-    width: 100%;
-    border-radius: 20px 20px 0 0;
-    flex-shrink: 0;
-  }
-  .auth-sheet {
-    max-width: 440px;
-    width: 100%;
-    border-radius: 0 0 20px 20px;
-    /* !important necessário: styles.sheet no AuthScreen.jsx põe flex:1 via
-       style inline, que sempre vence regra de classe — sem isso o cartão
-       esticaria até preencher os 100vh do #root nessa faixa de tela. */
-    flex: none !important;
-    max-height: calc(100vh - 220px);
   }
 }
 

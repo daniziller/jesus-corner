@@ -127,7 +127,7 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
           <span style={s.verseRef}>{displayBook} {chapter}:{verse}</span>
           {done && <span style={s.donePill}>{L('donePill')}</span>}
           <span style={{ flex: 1 }} />
-          <span style={s.chevron}>›</span>
+          <span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
         </div>
         <p style={s.verseText}>
           {segments
@@ -186,7 +186,7 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
             </div>
             <button style={{ ...s.buildBtn, opacity: building ? .6 : 1 }} onClick={handleBuild} disabled={building}>
               <span>{building ? L('buildingBtn') : L('buildBtn', { n: days })}</span>
-              {!building && <span>→</span>}
+              {!building && <span><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>}
             </button>
             {buildError && <p style={s.buildErrorText}>{buildError}</p>}
             <p style={s.approveNote}>{L('approveNote')}</p>
@@ -231,7 +231,7 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: FONT, fontSize: 17, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
   headerSub: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
 

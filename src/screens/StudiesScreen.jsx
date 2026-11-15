@@ -5,9 +5,11 @@ import { generateStudy, getAiStudies, saveAiStudy, deleteAiStudy } from '../stud
 import RoutineStepSwitcher from '../components/RoutineStepSwitcher'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 export default function StudiesScreen({ session, authUser, onNavigate, onContinueSession, onMarkRoutineStep, onSelectActiveStudy, autoOpenStudyId, onAutoOpenStudyConsumed }) {
   const { lang, activeStudyId } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const [completedSet, setCompletedSet] = useState(() => new Set())
   const [openStudyId, setOpenStudyId] = useState(null)
   const [openSessionId, setOpenSessionId] = useState(null)
@@ -70,7 +72,7 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
   // apagados. Se o estudo apagado era o aberto/ativo, limpa ambos pra não
   // deixar ponteiro pra um estudo que não existe mais.
   async function handleDeleteStudy(study) {
-    if (!window.confirm(t('studies.deleteConfirm', undefined, lang))) return
+    if (!(await perguntar({ title: t('confirmations.deleteAiStudyTitle', undefined, lang), text: t('confirmations.cantUndo', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     try {
       const updated = await deleteAiStudy(authUser.email, study.id)
       setAiStudies(updated)
@@ -214,6 +216,7 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
         )}
         {!openStudy && <StudiesEmptyState lang={lang} />}
       </div>
+      {folha}
     </div>
   )
 }

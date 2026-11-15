@@ -37,7 +37,7 @@ export default function OnboardingDemo({ kind, onContinue, onSkip }) {
         <p style={s.body}>{copy.body}</p>
         <button type="button" style={{ ...s.btn, ...(orangeBtn ? s.btnOrange : {}) }} onClick={onContinue}>
           <span style={{ ...s.btnText, ...(orangeBtn ? { fontSize: 15.5, color: 'var(--bento-ink)' } : {}) }}>{L('continueBtn')}</span>
-          <span style={{ ...s.btnArrow, ...(orangeBtn ? { fontSize: 15, color: 'var(--bento-ink)' } : {}) }}>→</span>
+          <span style={{ ...s.btnArrow, ...(orangeBtn ? { fontSize: 15, color: 'var(--bento-ink)' } : {}) }}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
       </div>
     </div>
@@ -226,7 +226,7 @@ const s = {
   verseNum: { fontFamily: FONT, fontSize: 9, fontWeight: 800, lineHeight: 1, color: 'var(--bento-accent)', verticalAlign: 'super' },
   mark: { background: 'var(--bento-mark)', borderRadius: 4, padding: '1px 3px' },
   player: { marginTop: 'auto', borderRadius: 18, background: 'var(--bento-ink)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 11 },
-  playBtn: { width: 32, height: 32, flex: 'none', borderRadius: 12, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  playBtn: { width: 44, height: 44, flex: 'none', borderRadius: 12, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   selection: { background: 'var(--bento-select)', borderRadius: 4, padding: '1px 3px', color: 'var(--bento-select-ink)', outline: '1.5px solid var(--bento-select-border)' },
   sheet: { flex: 1, margin: '18px 0 0', borderRadius: '26px 26px 0 0', background: 'var(--bento-ink)', padding: '20px 20px 22px', display: 'flex', flexDirection: 'column' },
   cardTitle: { fontFamily: FONT, fontSize: 17, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 14px' },

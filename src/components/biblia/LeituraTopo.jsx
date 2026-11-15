@@ -72,7 +72,7 @@ export default LeituraTopo
 const s = {
   wrap: { position: 'sticky', top: 0, zIndex: 20, background: 'var(--bento-bg)', paddingBottom: 14, transition: 'transform .2s ease-out' },
   row: { display: 'flex', alignItems: 'center', gap: 8, padding: '20px 20px 0' },
-  square: { width: 38, height: 38, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
+  square: { width: 44, height: 44, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
   pill: { height: 38, minWidth: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 7, padding: '0 13px', cursor: 'pointer' },
   pillText: { fontFamily: FONT, fontSize: 13, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   dot: { width: 3.5, height: 3.5, borderRadius: 9, background: 'var(--bento-ink)', display: 'block' },

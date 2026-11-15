@@ -147,7 +147,7 @@ export default function GroupPlanProposalScreen({ session, authUser, plan, onBac
       <div style={s.footer}>
         <button style={{ ...s.sendBtn, opacity: sending ? .6 : 1 }} onClick={handleSend} disabled={sending}>
           <span style={s.sendBtnText}>{sending ? L('sendingBtn') : L('sendBtn')}</span>
-          {!sending && <span style={s.sendBtnArrow}>→</span>}
+          {!sending && <span style={s.sendBtnArrow}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>}
         </button>
       </div>
     </div>
@@ -157,7 +157,7 @@ export default function GroupPlanProposalScreen({ session, authUser, plan, onBac
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
   headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   adminTag: { flexShrink: 0, fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--bento-accent)' },

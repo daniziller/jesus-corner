@@ -29,11 +29,13 @@ import {
   computeMeuPlano, resolveMinutes, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria,
   doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay, doneTitle, weekCountSentence, STEP_ORDER, studyReturnDate,
 } from '../meuPlano/meuPlanoMath'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const FONT = 'var(--font-bento)'
 
 export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onStartGuided, onNavigate, onOpenSeuPlano, onEndStudy }) {
   const { lang, plan, routineModules, activeStudyId, dailyRoutine, currentBlock, hasNoPlan, lastReadPosition } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const [stepDays, setStepDays] = useState(null)
   const [methods, setMethods] = useState({ prayer: 'acts', reflection: 'questions' })
   const [activeStudy, setActiveStudy] = useState(null)
@@ -95,8 +97,8 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
         returnDate: stepDays ? studyReturnDate(today, stepDays.study, activeStudy.dayTotal - activeStudy.dayDone, !!dayEntry?.study) : null,
       }
     : null
-  function resumeReading() {
-    if (!window.confirm(`Retomar ${currentBlock.book} agora? O estudo fica salvo na Biblioteca.`)) return
+  async function resumeReading() {
+    if (!(await perguntar({ title: t('confirmations.resumePlanTitle', { book: currentBlock.book }, lang), text: t('confirmations.resumePlanText', undefined, lang), confirmLabel: t('confirmations.resumePlanBtn', undefined, lang) }))) return
     onEndStudy?.()
   }
 
@@ -265,6 +267,7 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
           )}
         </div>
       </div>
+      {folha}
     </div>
   )
 }
@@ -275,7 +278,7 @@ const s = {
   header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 20px 0' },
   title: { fontFamily: FONT, fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
   date: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
-  adjustBtn: { height: 34, flexShrink: 0, padding: '0 12px', borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+  adjustBtn: { height: 44, flexShrink: 0, padding: '0 14px', borderRadius: 14, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
   body: { padding: '18px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 },
   skeleton: { borderRadius: 99, background: 'var(--bento-line)' },
   barText: { display: 'flex', justifyContent: 'space-between', marginTop: 9 },

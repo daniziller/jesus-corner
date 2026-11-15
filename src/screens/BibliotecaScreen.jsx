@@ -29,6 +29,8 @@ import LeituraDoItemScreen from './LeituraDoItemScreen'
 import FolhaNova from '../components/anotar/FolhaNova'
 import { draftLine } from '../anotar/notaMath'
 import BuscaDaBibliotecaScreen from './BuscaDaBibliotecaScreen'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
+import { t } from '../i18n'
 
 const TYPE_SCREENS = { nota: NotasScreen, marcacao: MarcacoesScreen, reflexao: ReflexoesScreen, pregacao: PregacoesScreen, aplicacao: AplicacoesScreen, pergunta: PerguntasScreen }
 
@@ -38,6 +40,7 @@ export default function BibliotecaScreen({
   onEditApplication, onApplicationChanged,
 }) {
   const { lang } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const bib = useBiblioteca({ api, refreshKey })
   const [view, setView] = useState(initialView ?? { name: 'raiz' })
   const pastRoot = view.name !== 'raiz'
@@ -120,7 +123,7 @@ export default function BibliotecaScreen({
   }
   async function deleteItem(item) {
     setMenu(null)
-    if (!window.confirm('Deletar essa anotação? Não dá pra desfazer.')) return
+    if (!(await perguntar({ title: t('confirmations.deleteNoteTitle', undefined, lang), text: t('confirmations.cantUndo', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     try {
       await api.remove(item)
       // A frase fixada no Hoje pode ter saído junto.
@@ -174,6 +177,7 @@ export default function BibliotecaScreen({
           onShare={() => shareItem(menu)} onDelete={() => deleteItem(menu)} onClose={() => setMenu(null)}
         />
       )}
+      {folha}
     </>
   )
 }

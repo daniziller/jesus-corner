@@ -13,6 +13,7 @@ import { getAppLanguage } from '../i18n/appLanguageStore'
 import BrandMark from '../components/BrandMark'
 import BrandLogo from '../components/BrandLogo'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
+import AppIcon from '../icons/AppIcon'
 
 export default function WelcomeScreen({ onStart, onGoLogin }) {
   const lang = getAppLanguage() ?? 'pt'
@@ -48,7 +49,7 @@ export default function WelcomeScreen({ onStart, onGoLogin }) {
       <div style={styles.footer}>
         <button style={styles.primaryBtn} onClick={onStart}>
           <span style={styles.primaryText}>{L('startBtn')}</span>
-          <span style={styles.primaryArrow}>→</span>
+          <span style={styles.primaryArrow}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
         <button style={styles.secondaryBtn} onClick={onGoLogin}>{L('loginBtn')}</button>
         <p style={styles.note}>{L('note')}</p>

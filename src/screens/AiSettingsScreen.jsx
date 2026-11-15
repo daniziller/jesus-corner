@@ -13,6 +13,7 @@ import { getSaveQuestionsEnabled, setSaveQuestionsEnabled, clearAllPassageQuesti
 import { getGroupNoticeEnabled, setGroupNoticeEnabled } from '../groups/groupNoticeStore'
 import { getMyGroups } from '../groups/groupsStore'
 import { getReflectionMethod, setReflectionMethod } from '../reflection/reflectionMethodStore'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const TONES = [
   { id: 'direct', labelKey: 'toneDirect', subKey: 'toneDirectSub' },
@@ -23,6 +24,7 @@ const TONES = [
 export default function AiSettingsScreen({ session, onBack }) {
   const { lang } = session
   const L = (k, vars) => t(`aiSettings.${k}`, vars, lang)
+  const [perguntar, folha] = useConfirmacao(lang)
 
   // Lidos direto do localStorage no useState inicial (não há backend nem
   // outro lugar que mude esses valores enquanto esta tela está aberta),
@@ -67,8 +69,8 @@ export default function AiSettingsScreen({ session, onBack }) {
   function toggleSave() { setSaveQuestionsEnabled(!saveOn); setSaveOn(!saveOn) }
   function chooseTone(id) { setResponseTone(id); setTone(id) }
 
-  function clearQuestions() {
-    if (!window.confirm(L('clearConfirm'))) return
+  async function clearQuestions() {
+    if (!(await perguntar({ title: t('confirmations.clearSavedTitle', undefined, lang), text: t('confirmations.clearSavedText', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     clearAllPassageQuestions()
   }
 
@@ -127,6 +129,7 @@ export default function AiSettingsScreen({ session, onBack }) {
           <p style={styles.offlineText}>{L('offlineNote')}</p>
         </div>
       </div>
+      {folha}
     </div>
   )
 }
@@ -159,7 +162,7 @@ const styles = {
   // Medidas do quadro 10f: cabeçalho 24px 20px 14px, título 19/800/1.1/-.6
   // com 4px até o subtítulo 12.5/500/1.4; cartões com gap 10.
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: 'var(--font-bento)', fontSize: 19, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: '0 0 4px' },
   headerSub: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: 0 },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },

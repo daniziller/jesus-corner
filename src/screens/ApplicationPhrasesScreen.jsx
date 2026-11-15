@@ -14,11 +14,13 @@ import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, noteSessionTitleOf, pa
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const FONT = 'var(--font-bento)'
 
 export default function ApplicationPhrasesScreen({ session, authUser, onBack, onApplicationChanged }) {
   const { lang } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const [state, setState] = useState({ status: 'loading', phrases: [] })
   const [editingKey, setEditingKey] = useState(null)
   const [editText, setEditText] = useState('')
@@ -108,7 +110,7 @@ export default function ApplicationPhrasesScreen({ session, authUser, onBack, on
   }
 
   async function deletePhrase(phrase) {
-    if (!window.confirm(t('applicationPhrases.deleteConfirm', undefined, lang))) return
+    if (!(await perguntar({ title: t('confirmations.deletePhraseTitle', undefined, lang), text: t('confirmations.cantUndo', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     setBusyKey(phrase.key)
     try {
       await saveNote(authUser.email, phrase.key, '')
@@ -195,6 +197,7 @@ export default function ApplicationPhrasesScreen({ session, authUser, onBack, on
           )
         })}
       </div>
+      {folha}
     </div>
   )
 }
@@ -202,7 +205,7 @@ export default function ApplicationPhrasesScreen({ session, authUser, onBack, on
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
   headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
 

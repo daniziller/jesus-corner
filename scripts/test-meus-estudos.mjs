@@ -25,7 +25,7 @@ check('o progresso de cada um', guardados.map(e => `${e.done}/${e.total}`), ['1/
 check('um estudo do catálogo em andamento não aparece em Salvos', savedStudyEntries({ catalog: catalogo, isDone: () => true, activeStudyId: 'pentateuco' }).map(e => e.id), ['evangelhos'])
 check('sem nada guardado: lista vazia', savedStudyEntries(), [])
 check('tirar um estudo da pessoa apaga; um do catálogo só zera o progresso', guardados.map(e => removalOf(e).action), ['delete', 'delete', 'clear'])
-check('os rótulos e as confirmações de cada ação', [removalOf(guardados[0]), removalOf(guardados[2])], [{ action: 'delete', labelKey: 'deleteBtn', confirmKey: 'deleteConfirm' }, { action: 'clear', labelKey: 'clearBtn', confirmKey: 'clearConfirm' }])
+check('o rótulo de cada ação', [removalOf(guardados[0]), removalOf(guardados[2])], [{ action: 'delete', labelKey: 'deleteBtn' }, { action: 'clear', labelKey: 'clearBtn' }])
 check('zerar o progresso leva as sessões daquele estudo', guardados[2].sessionIds.length, 10)
 check('"1 de 10 feito" / "2 de 10 feitos"', [progressLine({ done: 1, total: 10 }), progressLine(guardados[2])], [{ key: 'progressOne', vars: { n: 1, total: 10 } }, { key: 'progressMany', vars: { n: 2, total: 10 } }])
 
@@ -39,13 +39,13 @@ check('convite por aceitar e convite já aceito', [inviteRow(convite), inviteRow
 check('o campo da tela filtra por título ou autor, sem diferenciar caixa', [matchesStudyQuery('', convite.study), matchesStudyQuery('rut', convite.study), matchesStudyQuery('MARI', convite.study), matchesStudyQuery('jó', convite.study)], [true, true, true, false])
 
 // os textos existem nos dois idiomas
-const chaves = ['sectionInvites', 'invitedBy', 'acceptBtn', 'continueBtn', 'sectionPublished', 'publishedPublicNone', 'publishedPublicOne', 'publishedPublicMany', 'publishedInvitedNone', 'publishedInvitedOne', 'publishedInvitedMany', 'withdrawBtn', 'withdrawConfirm', 'deleteBtn', 'deleteConfirm', 'clearBtn', 'clearConfirm', 'progressOne', 'progressMany', 'actionError']
+const chaves = ['sectionInvites', 'invitedBy', 'acceptBtn', 'continueBtn', 'sectionPublished', 'publishedPublicNone', 'publishedPublicOne', 'publishedPublicMany', 'publishedInvitedNone', 'publishedInvitedOne', 'publishedInvitedMany', 'withdrawBtn', 'deleteBtn', 'clearBtn', 'progressOne', 'progressMany', 'actionError']
 check('todo texto das quatro ações existe em português e em inglês', chaves.filter(k => !STRINGS.pt.addStudy[k] || !STRINGS.en.addStudy[k]), [])
 check('plural certo', [STRINGS.pt.addStudy.publishedPublicOne, STRINGS.pt.addStudy.publishedPublicMany.replace('{n}', '12')], ['Público · 1 pessoa fez', 'Público · 12 pessoas fizeram'])
 
 // regras, no código
 const tela = readFileSync(new URL('../src/screens/AddStudyScreen.jsx', import.meta.url), 'utf8')
-check('sair do banco, apagar e tirar da lista pedem confirmação antes', (tela.match(/window\.confirm\(/g) ?? []).length >= 2, true)
+check('sair do banco, apagar e tirar da lista pedem confirmação antes (na folha, não na caixa do navegador)', [(tela.match(/await perguntar\(/g) ?? []).length >= 2, /window\.confirm/.test(tela)], [true, false])
 check('as quatro ações estão na tela Estudos', ['api.acceptInvite(', 'api.withdraw(', 'api.remove('].every(x => tela.includes(x)), true)
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)

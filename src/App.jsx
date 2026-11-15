@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { Analytics } from '@vercel/analytics/react'
-import AppHeader from './components/AppHeader'
 import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
@@ -30,8 +29,6 @@ import ReflectionScreen from './screens/ReflectionScreen'
 import FloatingTimerPill from './components/timer/FloatingTimerPill'
 import ReadingOrganizeScreen from './screens/ReadingOrganizeScreen'
 import StudyOrganizeScreen from './screens/StudyOrganizeScreen'
-import ChooseStartScreen from './screens/ChooseStartScreen'
-import ExistingProgressScreen from './screens/ExistingProgressScreen'
 import AiSettingsScreen from './screens/AiSettingsScreen'
 import ContactScreen from './screens/ContactScreen'
 import BibliotecaScreen from './screens/BibliotecaScreen'
@@ -57,6 +54,7 @@ import MetricsScreen from './screens/MetricsScreen'
 import MetricsBlocksScreen from './screens/MetricsBlocksScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import ProfileSheet from './screens/ProfileSheet'
+import FolhaDeConfirmacao from './components/FolhaDeConfirmacao'
 import LanguageSettingsScreen from './screens/LanguageSettingsScreen'
 import AppearanceScreen from './screens/AppearanceScreen'
 import GroupAdminScreen from './screens/GroupAdminScreen'
@@ -507,6 +505,9 @@ export default function App() {
   // o primeiro), a sala de capítulo aberta e a retrospectiva do mês devida.
   const [myGroups, setMyGroups] = useState([])
   const [adminGroupId, setAdminGroupId] = useState(null)
+  // Textos de um plano por tema novo que já estavam lidos (ver
+  // offerUnmarkAlreadyRead): a folha pergunta se desmarca.
+  const [unmarkOffer, setUnmarkOffer] = useState(null)
   const [chapterRoom, setChapterRoom] = useState(null) // { group, book, bookEn, chapter }
   // Detalhe de um pedido de oração (comentários, 2026-09-19) — o request
   // inteiro (já carregado na lista), não só o id, pra abrir sem esperar
@@ -683,11 +684,6 @@ export default function App() {
   // mostravam (achado corrigindo o pacote 36-37, ver startGuidedRoutine).
   const [stepDays, setStepDaysState] = useState(null)
   const [activeBlockId, setActiveBlockId] = useState(1)
-  // "Onde começar" (28d/28e, Bloco 6) — a escolha feita em 28d, guardada só
-  // enquanto a folha 28e (reconciliação de progresso prévio) está aberta;
-  // nunca persiste sozinha (aplicar de vez é applyStartChoice/
-  // applyExistingProgressChoice, chamados só na confirmação final).
-  const [pendingStartChoice, setPendingStartChoice] = useState(null) // { book, order } | null
   // "Último texto lido" ({ book, chapter }, por dispositivo — ver
   // lastReadPositionStore.js). Alimenta o card "Continue sua leitura" da
   // Home e o botão "Continuar sessão", que reabrem exatamente esse
@@ -1775,16 +1771,6 @@ export default function App() {
     goToTab('verseNote')
   }
 
-  // Tocar num plano por tema salvo na lista da aba Plano (ver PlanScreen.jsx)
-  // — abre direto na leitura dele, sem passar pela lista de ThemePlanScreen.
-  // Mostra o plano INTEIRO (sem restringir aos textos de hoje) — é um jeito
-  // de navegar/revisar o plano todo, diferente de "Começar leitura de hoje".
-  function openThemePlanFromList(planId) {
-    setThemeAutoOpenId(planId)
-    setThemeAutoOpenKeys(null)
-    goToTab('themePlan')
-  }
-
   // "Começar leitura de hoje" no card do plano por tema ativo (ver
   // PlanScreen.jsx) — grava a escolha do dia e já abre a leitura restrita a
   // só esses textos.
@@ -1876,9 +1862,9 @@ export default function App() {
   function offerUnmarkAlreadyRead(plan) {
     const newTexts = deriveThemeTexts(plan.passages)
     const alreadyReadTexts = newTexts.filter(txt => sessionKeys(txt).some(k => completedSet.has(k)))
-    if (alreadyReadTexts.length > 0 && window.confirm(t('themePlan.unmarkReadConfirm', { count: alreadyReadTexts.length }, session.lang))) {
-      alreadyReadTexts.forEach(txt => toggleSession(txt, false))
-    }
+    // A pergunta é a folha de confirmação (desenhada junto do Perfil, lá
+    // embaixo) — antes era a caixa do navegador.
+    if (alreadyReadTexts.length > 0) setUnmarkOffer(alreadyReadTexts)
   }
 
   // "Salvar p/ depois" (22b) — persiste o plano na lista, mas não o torna
@@ -2235,7 +2221,7 @@ export default function App() {
     await persistWeeklyDays(answers.weeklyDays)
     await persistStepMinutes({ prayer: answers.prayerMinutes, reading: answers.readingMinutes, reflection: answers.reflectionMinutes })
     // "Onde começar" (28d, pergunta extra no fim do onboarding) — mesma
-    // lógica de applyStartChoice (App.jsx), só que com email explícito nulo:
+    // escolha de "onde começar", só que com email explícito nulo:
     // authUser ainda não existe neste ponto (handleAuthenticated só roda
     // logo abaixo), então os wrappers que checam `if (authUser)` (selectPlan,
     // selectActivePlan) não persistiriam nada; aqui chama a store de baixo
@@ -2540,85 +2526,6 @@ export default function App() {
   function saveCustomBookOrder(order) {
     setCustomBookOrderState(order)
     persistCustomBookOrder(order).catch(err => console.error('Failed to persist custom book order', err))
-  }
-
-  // "Onde começar" (28d, Bloco 6) — troca o plano fixo pra começar num
-  // livro/ordem escolhidos. Simplificação deliberada: "outro livro" fora
-  // de Gênesis/Mateus não reposiciona o ponteiro pro meio do testamento —
-  // a granularidade que já existe (readingOrder) é por TESTAMENTO, não por
-  // livro; qualquer livro do AT vira ot_first, qualquer um do NT vira
-  // nt_first (documentado em ChooseStartScreen.jsx).
-  function applyStartChoice(book, order) {
-    if (order === 'none') {
-      selectActivePlan({ type: 'fixed', id: 'none' })
-      return
-    }
-    const realPlanId = planId === 'none' ? 'standard' : planId
-    if (order === 'chrono') {
-      selectActivePlan({ type: 'chrono', paceId: realPlanId })
-      return
-    }
-    selectActivePlan({ type: 'fixed', id: realPlanId })
-    const block = blocks.find(b => b.books.includes(book))
-    selectReadingOrder(block && block.id >= 5 ? 'nt_first' : 'ot_first')
-  }
-
-  // Reconciliação de progresso prévio num livro (28e) — as 4 saídas do
-  // quadro. 'continue'/'reread' nunca mexem em completedSet (a marcação
-  // livre de 28c continua sendo a única fonte de verdade pro que foi lido
-  // de verdade); só 'clean' e 'finish' chamam markChaptersManuallyFor, a
-  // mesma trilha de auditoria de 28c — não conta como sessão nem hábito.
-  function applyExistingProgressChoice(book, action) {
-    const total = bookChapterCounts[book] ?? 0
-    if (action === 'reread') {
-      setLastReadPosition(book, 1)
-      setLastReadPositionState({ book, chapter: 1 })
-      return
-    }
-    if (action === 'clean') {
-      const allChapters = Array.from({ length: total }, (_, i) => i + 1)
-      markChaptersManuallyFor(book, allChapters, false)
-      setLastReadPosition(book, 1)
-      setLastReadPositionState({ book, chapter: 1 })
-      return
-    }
-    if (action === 'finish') {
-      const remaining = Array.from({ length: total }, (_, i) => i + 1).filter(ch => !completedSet.has(`${book}:${ch}`))
-      markChaptersManuallyFor(book, remaining, true)
-      return
-    }
-    // 'continue' — nada a fazer, o ponteiro (lastReadPosition/completedSet)
-    // já reflete onde a pessoa parou.
-  }
-
-  // "Continuar" em 28d — se o livro escolhido já tem progresso, abre 28e
-  // pra decidir o que fazer com ele ANTES de aplicar (setActiveTab direto,
-  // sem empilhar histórico — um só "Voltar" depois de confirmar em 28e já
-  // devolve pra tela de onde "Trocar plano" foi aberto). Sem progresso
-  // prévio, aplica de vez e volta.
-  function handleChooseStartContinue(book, order) {
-    if (order !== 'none' && book) {
-      const total = bookChapterCounts[book] ?? 0
-      let done = 0
-      for (let ch = 1; ch <= total; ch++) if (completedSet.has(`${book}:${ch}`)) done++
-      if (done > 0) {
-        setPendingStartChoice({ book, order })
-        setActiveTab('chooseStartExisting')
-        return
-      }
-    }
-    applyStartChoice(book, order)
-    goBack()
-  }
-
-  // Confirmação final de 28e — aplica ordem/livro E a reconciliação de
-  // progresso junto, na mesma ação (a pessoa só vê um botão).
-  function handleExistingProgressConfirm(action) {
-    if (!pendingStartChoice) return
-    applyStartChoice(pendingStartChoice.book, pendingStartChoice.order)
-    applyExistingProgressChoice(pendingStartChoice.book, action)
-    setPendingStartChoice(null)
-    goBack()
   }
 
   // Escolhe quais textos de um plano por tema a pessoa vai ler HOJE (card do
@@ -3302,28 +3209,19 @@ export default function App() {
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // "Seu plano" (handoff-meu-plano-47, P6) — push a partir da linha
     // "Seu plano" do Meu Plano; sem barra de abas.
-    seuPlano: <SeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onBack={goBack} onNavigate={navigateTo} onChangeDays={() => { setAdjustOpenStep('reading'); navigateTo('adjustPlan') }} />,
+    seuPlano: <SeuPlanoScreen session={session} onOpenProfile={() => setProfileOpen(true)} completedSet={completedSet} stepMinutes={stepMinutes} onBack={goBack} onNavigate={navigateTo} onChangeDays={() => { setAdjustOpenStep('reading'); navigateTo('adjustPlan') }} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;
     // "onde começar/ordem/ritmo" e "estudo atual/banco/dias" saíram pras
     // telas próprias readingOrganize (35i) e studyOrganize (35j) abaixo.
     adjustPlan: hasPremium
-      ? <AjustarPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} initialOpenStep={adjustOpenStep} scrollToDays={!!adjustOpenStep} key={adjustOpenStep ?? 'fechado'} />
+      ? <AjustarPlanoScreen session={session} onOpenProfile={() => setProfileOpen(true)} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} initialOpenStep={adjustOpenStep} scrollToDays={!!adjustOpenStep} key={adjustOpenStep ?? 'fechado'} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     readingOrganize: hasPremium
       ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} customBookOrder={customBookOrder} planPosition={planPosition} readingOrder={readingOrder} onSaveBibleOrderMode={saveBibleOrderMode} onSaveCustomBookOrder={saveCustomBookOrder} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     studyOrganize: hasPremium
       ? <StudyOrganizeScreen session={session} onEndStudy={() => selectActiveStudy(null)} onNavigate={navigateTo} onBack={goBack} onOpenStudyDetail={() => goToTab('studyDetail')} />
-      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
-    // "Onde começar" (28d/28e, Bloco 6) — "Trocar plano" em Ajustar meu
-    // plano (5a). chooseStartExisting nunca é alcançada por navegação
-    // direta (setActiveTab, não navigateTo) — só via handleChooseStartContinue.
-    chooseStart: hasPremium
-      ? <ChooseStartScreen session={session} completedSet={completedSet} bookChapterCounts={bookChapterCounts} blocks={blocks} initialChoice={pendingStartChoice} onContinue={handleChooseStartContinue} onBack={goBack} />
-      : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
-    chooseStartExisting: hasPremium && pendingStartChoice
-      ? <ExistingProgressScreen session={session} blocks={blocks} book={pendingStartChoice.book} order={pendingStartChoice.order} completedSet={completedSet} bookChapterCounts={bookChapterCounts} readingMinutes={stepMinutes.reading} onConfirm={handleExistingProgressConfirm} onBack={() => setActiveTab('chooseStart')} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     aiSettings: !session.hasAI
       ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
@@ -3582,7 +3480,7 @@ export default function App() {
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
-    upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
+    upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} onBack={goBack} />,
     // Só alcançada pelo Sidebar (telas ≥768px) — no app (<768px) o avatar
     // abre a folha ProfileSheet (renderizada fora deste mapa, ver abaixo).
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onSelectPace={selectPlan} onProfileUpdated={handleProfileUpdated} />,
@@ -3637,47 +3535,6 @@ export default function App() {
   // inteira, sem barra de navegação nem sidebar: só a Palavra e os
   // controles de leitura. Sai pela seta do próprio cabeçalho da tela.
   const immersiveReading = activeTab === 'journey' && (journeyEntryMode === 'reading' || journeyPastRoot)
-  // Telas já na identidade Bento (design_handoff_jesus_corner/Jesus Corner
-  // Redesign.dc.html — 3c, 4b, 5f, 4c, 5b, 5a, 10f, 5d, 21a): nenhum quadro
-  // tem o cabeçalho com logotipo/sino/avatar — o título de cada tela é a
-  // saudação ou o nome dela (ADENDO: "os cabeçalhos usam saudação"). O
-  // AppHeader fica só nas telas que ainda não foram desenhadas (Estudos…),
-  // e é lá que continuam o sino e o ajuste de tamanho de texto. Perfil não
-  // é mais uma dessas — virou a folha ProfileSheet (19a), aberta pelo
-  // avatar (Home e o próprio AppHeader) por cima de qualquer tela, sem
-  // navegar de aba. 'groups' SEMPRE entra aqui, aberto num grupo ou não —
-  // achado corrigido em 2026-09-07: o comentário antigo aqui dizia que a
-  // LISTA de grupos "não tem quadro no redesign" e por isso mantinha o
-  // AppHeader antigo por cima; isso datava de antes do pacote novo
-  // (rodadas 24-32) chegar — 24a é exatamente essa lista, tela canônica
-  // própria, sem logotipo/sino/avatar nenhum por cima (só "Comunidade" +
-  // contagem + busca + "+"). GroupsScreen.jsx já tinha o cabeçalho certo
-  // (aHeader/bTitle, mesmo padding-top 22px das telas sem AppHeader) desde
-  // a leva anterior — só a condição aqui é que nunca deixava ele aparecer
-  // sozinho; ficava sempre com o AppHeader antigo empilhado em cima
-  // (visível na aba Comunidade tanto com quanto sem grupo aberto, nunca
-  // notado porque a varredura de identidade olhou tokens de cor, não
-  // esse tipo de duplicação estrutural).
-  // 'profile' entrou nesta lista junto da migração pra Bento do Perfil de
-  // desktop (antes ficava de fora, com o AppHeader antigo por cima da
-  // versão antiga da tela); 'contact'/'applicationPhrases'/'themePlan'
-  // entraram junto da migração dessas telas — cada uma tem cabeçalho
-  // Bento próprio agora. 'studies' MESMO BUG de 'groups' antes de
-  // 2026-09-07 (ver comentário logo acima): StudyDetail/SessionView já
-  // tinham cabeçalho próprio (seta de voltar + título, tokens --bento-*)
-  // desde sempre, mas ficava com o AppHeader antigo (logo) empilhado em
-  // cima — "abrir o estudo ainda parece o app antigo", reportado por ela
-  // 2026-09-09. Corrigido junto com o cabeçalho de topo da lista, que
-  // agora também aparece no mobile (era hide-on-mobile) — ver
-  // StudiesScreen.jsx.
-  // 'chronologicalPlan' e 'handsFree' — bug real (varredura geral,
-  // 2026-09-19): as duas têm cabeçalho Bento próprio (seta de voltar,
-  // título) mas ficaram fora desta lista, então o AppHeader antigo (logo/
-  // sino/avatar) renderizava por cima — o exato bug já documentado/
-  // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
-  // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
-  // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'verseNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3694,7 +3551,7 @@ export default function App() {
   // ("barra de abas só em 41a") — só o hub (addStudy) mostra a barra;
   // todas as outras telas de Estudos (41b em diante) ficam empilhadas com
   // voltar, sem barra.
-  const navHidden = immersiveReading || (activeTab === 'notes' && libraryPastRoot) || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'chapterRoom', 'sermonNote', 'verseNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const navHidden = immersiveReading || (activeTab === 'notes' && libraryPastRoot) || ['adjustPlan', 'readingOrganize', 'studyOrganize', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'chapterRoom', 'sermonNote', 'verseNote', 'monthRecap', 'prayer', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groupMessages', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
   const isAdminScreen = activeTab === 'admin'
 
   // Pill flutuante global (pedido dela, 2026-10-22) — qual relógio (se
@@ -3716,11 +3573,6 @@ export default function App() {
       )}
 
       <div className="app-main">
-        {/* Header fixo (logo + avatar), presente em todas as abas — só em
-            telas <768px; a leitura imersiva usa o próprio cabeçalho compacto. */}
-        {!immersiveReading && !bentoScreen && (
-          <AppHeader avatarInitials={session.avatarInitials} avatarUrl={myAvatarUrl} onNavigate={navigateTo} onOpenProfile={() => setProfileOpen(true)} onBack={goBack} canGoBack={tabHistory.length > 0} pendingCount={pendingSocialCount} lang={session.lang} largeText={largeText} onToggleLargeText={toggleLargeText} />
-        )}
 
         {/* Conteúdo da tela ativa */}
         <div className="app-content">
@@ -3781,6 +3633,17 @@ export default function App() {
         />
       )}
 
+      {unmarkOffer && (
+        <FolhaDeConfirmacao
+          lang={session.lang}
+          title={t(unmarkOffer.length === 1 ? 'confirmations.unmarkTextsTitleOne' : 'confirmations.unmarkTextsTitleMany', { count: unmarkOffer.length }, session.lang)}
+          text={t('confirmations.unmarkTextsText', undefined, session.lang)}
+          confirmLabel={t('confirmations.unmarkBtn', undefined, session.lang)}
+          cancelLabel={t('confirmations.keepMarkedBtn', undefined, session.lang)}
+          onConfirm={async () => { unmarkOffer.forEach(txt => toggleSession(txt, false)); setUnmarkOffer(null) }}
+          onClose={() => setUnmarkOffer(null)}
+        />
+      )}
       <ProfileSheet
         open={profileOpen}
         session={session}

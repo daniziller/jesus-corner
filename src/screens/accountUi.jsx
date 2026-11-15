@@ -151,7 +151,7 @@ export const ui = {
   screen: { height: '100%', minHeight: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', fontFamily: FONT },
   col: { width: '100%', maxWidth: 440, margin: '0 auto' },
   header: { flex: 'none', padding: '22px 20px 0' },
-  backBtn: { width: 38, height: 38, borderRadius: 13, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, borderRadius: 13, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   body: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
   footer: { flex: 'none' },
   label: { fontFamily: FONT, fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 8px' },

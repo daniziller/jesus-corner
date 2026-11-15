@@ -1,16 +1,22 @@
 // FolhaDeConfirmacao.jsx — a folha que pede confirmação antes de uma ação
-// que não tem volta na Comunidade (sair de um grupo, apagar um grupo, um
-// recado, um pedido…), no lugar da caixa "OK/Cancelar" do navegador.
+// que não tem volta (sair de um grupo, apagar uma anotação, desmarcar
+// capítulos…), no lugar da caixa "OK/Cancelar" do navegador.
 // `onConfirm` devolve uma promessa: enquanto ela roda a folha espera; se
 // falhar, a folha fica aberta e avisa.
-import { useState } from 'react'
-import FolhaInferior from '../FolhaInferior'
-import AppIcon from '../../icons/AppIcon'
-import { t } from '../../i18n'
+//
+// `useConfirmacao` serve a quem só precisa de um sim ou não antes de
+// seguir (o antigo `if (!window.confirm(...)) return`):
+//   const [perguntar, folha] = useConfirmacao(lang)
+//   if (!(await perguntar({ title, confirmLabel }))) return
+//   ... e `{folha}` no que a tela desenha.
+import { useState, useCallback } from 'react'
+import FolhaInferior from './FolhaInferior'
+import AppIcon from '../icons/AppIcon'
+import { t } from '../i18n'
 
 const FONT = 'var(--font-bento)'
 
-export default function FolhaDeConfirmacao({ lang, title, text, keeps, confirmLabel, cancelLabel, onConfirm, onClose }) {
+export default function FolhaDeConfirmacao({ lang, title, text, keeps, confirmLabel, cancelLabel = t('confirmSheet.cancel', undefined, lang), onConfirm, onClose }) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -20,7 +26,7 @@ export default function FolhaDeConfirmacao({ lang, title, text, keeps, confirmLa
     try {
       await onConfirm()
     } catch (err) {
-      console.error('[comunidade] confirmar', err)
+      console.error('[confirmar]', err)
       setFailed(true)
       setBusy(false)
     }
@@ -30,21 +36,35 @@ export default function FolhaDeConfirmacao({ lang, title, text, keeps, confirmLa
     <FolhaInferior onClose={busy ? () => {} : onClose} labelledBy="confirmacao-titulo" fixed over>
       <div data-folha="confirmacao">
         <h2 style={s.title} id="confirmacao-titulo">{title}</h2>
-        <p style={s.text}>{text}</p>
+        {text && <p style={s.text}>{text}</p>}
         {keeps && (
           <div style={s.keeps}>
             <AppIcon name="Check" size={17} strokeWidth={2.4} color="var(--bento-sand-icon)" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={s.keepsText}>{keeps}</p>
           </div>
         )}
-        {failed && <p style={s.error} role="alert">{t('community.confirmFailed', undefined, lang)}</p>}
+        {failed && <p style={s.error} role="alert">{t('confirmSheet.failed', undefined, lang)}</p>}
         <button type="button" style={{ ...s.confirm, ...(busy ? { opacity: 0.5 } : null) }} onClick={confirm} disabled={busy}>
-          {busy ? t('community.confirmWorking', undefined, lang) : confirmLabel}
+          {busy ? t('confirmSheet.working', undefined, lang) : confirmLabel}
         </button>
         <button type="button" style={s.cancel} onClick={onClose} disabled={busy}>{cancelLabel}</button>
       </div>
     </FolhaInferior>
   )
+}
+
+export function useConfirmacao(lang) {
+  const [pending, setPending] = useState(null)
+  const perguntar = useCallback(options => new Promise(resolve => setPending({ options, resolve })), [])
+  const folha = pending && (
+    <FolhaDeConfirmacao
+      lang={lang}
+      {...pending.options}
+      onConfirm={async () => { pending.resolve(true); setPending(null) }}
+      onClose={() => { pending.resolve(false); setPending(null) }}
+    />
+  )
+  return [perguntar, folha]
 }
 
 const s = {

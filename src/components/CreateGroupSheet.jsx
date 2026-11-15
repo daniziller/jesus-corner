@@ -103,7 +103,7 @@ export default function CreateGroupSheet({ lang, onClose, onCreate }) {
         <div style={s.footer}>
           <button type="button" style={{ ...s.submitBtn, ...(loading || !name.trim() ? { opacity: .6 } : {}) }} onClick={submit} disabled={loading || !name.trim()}>
             <span>{loading ? t('groups.loading', undefined, lang) : L('submitBtn')}</span>
-            <span style={{ fontSize: 15, fontWeight: 700 }}>→</span>
+            <span style={{ fontSize: 15, fontWeight: 700 }}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
           </button>
         </div>
       </div>

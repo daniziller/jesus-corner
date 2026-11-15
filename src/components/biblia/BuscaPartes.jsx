@@ -76,7 +76,7 @@ export function ListaLinha({ title, sub, icon, last, clamp, onClick, ariaLabel }
 // os 12px daqui somam com o vão.
 const s = {
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '20px 20px 0' },
-  back: { width: 38, height: 38, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
+  back: { width: 44, height: 44, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
   field: { flex: 1, minWidth: 0, height: 46, borderRadius: 16, background: 'var(--bento-card)', boxShadow: 'inset 0 0 0 2px var(--bento-ink)', display: 'flex', alignItems: 'center', gap: 9, padding: '0 13px' },
   lens: { width: 16, height: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   input: { flex: 1, minWidth: 0, height: '100%', border: 'none', background: 'none', outline: 'none', padding: 0, fontFamily: FONT, fontSize: 14.5, fontWeight: 700, color: 'var(--bento-ink)', caretColor: 'var(--bento-accent)' },

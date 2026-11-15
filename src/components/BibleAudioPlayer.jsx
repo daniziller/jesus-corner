@@ -230,12 +230,12 @@ const styles = {
   // sobre laranja, como o compacto acima), tokens --bento-*.
   wrap: { background: 'var(--bento-card)', borderRadius: 16, padding: '12px 14px', margin: '2px 0 10px', display: 'flex', flexDirection: 'column', gap: 8 },
   row: { display: 'flex', alignItems: 'center', gap: 10 },
-  playBtn: { width: 38, height: 38, borderRadius: '50%', border: 'none', flexShrink: 0, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  playBtn: { width: 44, height: 44, borderRadius: '50%', border: 'none', flexShrink: 0, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   modeSel: { display: 'inline-flex', gap: 4, background: 'var(--bento-line)', borderRadius: 9, padding: 3, marginTop: 6 },
   modeBtn: { border: 'none', background: 'transparent', color: 'var(--bento-t3)', fontSize: 10.5, fontWeight: 700, fontFamily: 'var(--font-bento)', padding: '4px 9px', borderRadius: 7, cursor: 'pointer' },
   modeBtnActive: { background: '#fff', color: 'var(--bento-ink)', fontWeight: 800 },
-  stopBtn: { width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  stopBtn: { width: 44, height: 44, borderRadius: '50%', border: 'none', background: 'var(--bento-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
   track: { width: '100%', height: 4, background: 'var(--bento-line)', borderRadius: 99, overflow: 'hidden' },
   fill: { height: '100%', background: 'var(--bento-accent)', borderRadius: 99, transition: 'width .4s ease' },
 
@@ -245,7 +245,7 @@ const styles = {
   // gradiente); sem gradiente em lugar nenhum, como pede o adendo de
   // identidade.
   compactWrap: { display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bento-ink)', borderRadius: 22, padding: '14px 16px' },
-  compactPlayBtn: { width: 38, height: 38, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  compactPlayBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   compactTitle: { fontFamily: 'var(--font-bento)', fontSize: 12.5, fontWeight: 700, lineHeight: 1.2, color: 'white', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   compactTrack: { height: 4, borderRadius: 99, background: 'rgba(255,255,255,.2)', overflow: 'hidden' },
   compactFill: { height: '100%', borderRadius: 99, background: 'var(--bento-accent)', transition: 'width .4s ease' },

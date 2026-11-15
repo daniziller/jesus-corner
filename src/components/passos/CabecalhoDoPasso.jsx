@@ -29,7 +29,7 @@ export default function CabecalhoDoPasso({ title, subtitle, onBack, backLabel = 
 const s = {
   wrap: { flexShrink: 0 },
   row: { display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 0' },
-  back: { width: 38, height: 38, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
+  back: { width: 44, height: 44, flexShrink: 0, borderRadius: 13, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 3px' },
   titleAlone: { margin: 0 },
   subtitle: { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: 0 },

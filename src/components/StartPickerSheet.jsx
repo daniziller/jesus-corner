@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { t } from '../i18n'
+import AppIcon from '../icons/AppIcon'
 
 export default function StartPickerSheet({ lang, title, books, bookChapterCounts, onClose, onConfirm }) {
   const [book, setBook] = useState(null)
@@ -25,7 +26,7 @@ export default function StartPickerSheet({ lang, title, books, bookChapterCounts
           </>
         ) : (
           <>
-            <button style={styles.backRow} onClick={() => setBook(null)} aria-label={t('a11y.goBack', undefined, lang)}>‹ {picked.label}</button>
+            <button style={styles.backRow} onClick={() => setBook(null)} aria-label={t('a11y.goBack', undefined, lang)}><AppIcon name="ChevronLeft" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /> {picked.label}</button>
             <div style={styles.list}>
               <div style={styles.chapterGrid}>
                 {Array.from({ length: bookChapterCounts[picked.name] ?? 0 }, (_, i) => i + 1).map(ch => (

@@ -195,7 +195,7 @@ export default function MetricsScreen({ session, completedSet, sessionsByBlock, 
         {hasWeeklySummary && (
           <button style={s.blocksBtn} onClick={() => onNavigate?.('weeklySummaryNumbers')}>
             <span>{L('weeklySummaryRowBtn')}</span>
-            <span style={{ color: 'var(--bento-accent)', fontWeight: 700 }}>→</span>
+            <span style={{ color: 'var(--bento-accent)', fontWeight: 700 }}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
           </button>
         )}
       </div>
@@ -203,7 +203,7 @@ export default function MetricsScreen({ session, completedSet, sessionsByBlock, 
       <div style={s.footer}>
         <button style={s.blocksBtn} onClick={() => onNavigate?.('metricsBlocks')}>
           <span>{L('seeBlocksBtn')}</span>
-          <span style={{ color: 'var(--bento-accent)', fontWeight: 700 }}>→</span>
+          <span style={{ color: 'var(--bento-accent)', fontWeight: 700 }}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
       </div>
     </div>
@@ -215,7 +215,7 @@ const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flex: 'none', padding: '22px 20px 12px' },
   headerTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 18, fontWeight: 800, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: 0 },
   // 5 pílulas (week/30d/year/all/custom) rolam horizontal em telas
   // estreitas em vez de espremer o texto — scrollbar escondida global

@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import FolhaDeConfirmacao from '../components/comunidade/FolhaDeConfirmacao'
+import FolhaDeConfirmacao from '../components/FolhaDeConfirmacao'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { getRoomStats, getRoomQuestion, setRoomQuestion, getRoomPosts, postToRoom, toggleAmen, deleteRoomPost } from '../groups/chapterRoomStore'
 
@@ -229,7 +229,7 @@ export default function ChapterRoomScreen({ group, book, bookEn, chapter, comple
 const s = {
   screen: { height: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', fontFamily: FONT },
   header: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
-  backBtn: { width: 34, height: 34, borderRadius: 12, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' },
+  backBtn: { width: 44, height: 44, borderRadius: 14, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' },
   title: { fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   sub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '3px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   body: { flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },

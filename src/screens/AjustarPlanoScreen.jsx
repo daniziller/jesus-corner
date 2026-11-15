@@ -42,7 +42,7 @@ import { daysWithSomething } from '../meuPlano/seuPlanoMath'
 const FONT = 'var(--font-bento)'
 const AVG_WORDS_PER_CHAPTER = BIBLE_TOTAL_WORDS / totalBibleChapters()
 
-export default function AjustarPlanoScreen({ session, completedSet, stepMinutes, draftState, onDraftChange, onClearDraft, onSave, onBack, onNavigate, initialOpenStep = null, scrollToDays = false }) {
+export default function AjustarPlanoScreen({ onOpenProfile, session, completedSet, stepMinutes, draftState, onDraftChange, onClearDraft, onSave, onBack, onNavigate, initialOpenStep = null, scrollToDays = false }) {
   const { lang, plan, routineModules, activeStudyId, currentBlock, hasNoPlan } = session
   const [saved, setSaved] = useState(null)
   const [activeStudy, setActiveStudy] = useState(null)
@@ -314,7 +314,7 @@ export default function AjustarPlanoScreen({ session, completedSet, stepMinutes,
                 </span>
                 <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
               </button>
-              <button type="button" style={s.listRow} onClick={() => onNavigate?.('profile')}>
+              <button type="button" style={s.listRow} onClick={() => onOpenProfile?.()}>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={s.listTitle}>Lembrete diário</span>
                   <span style={s.listSub}>{reminderLine(reminder) ?? t('routine.dailyReminderOff', undefined, lang)}</span>
@@ -402,7 +402,7 @@ function ClockSheet({ lang, clock, onToggle, onClose }) {
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)', position: 'relative' },
   header: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 0' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 17, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 },
   skeleton: { borderRadius: 22, background: 'var(--bento-line)', flexShrink: 0 },
