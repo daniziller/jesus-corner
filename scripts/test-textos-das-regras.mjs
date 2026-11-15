@@ -87,5 +87,21 @@ for (const [file, ns] of Object.entries(FILES)) {
   check('pedidos: alguma chave foi achada', used.size > 20, true)
 }
 
+// As conquistas: as telas usam C('chave') ou t('conquistasTx.chave'); as
+// frases de celebration.js, tx(lang, 'chave'). Os nomes de família e de
+// degrau só existem em inglês (em português, vêm de data/achievements.js).
+{
+  const files = ['src/screens/ConquistasScreen.jsx', 'src/screens/FamiliaScreen.jsx', 'src/screens/NovaConquistaScreen.jsx', 'src/components/gamificacao/Medalha.jsx', 'src/gamification/celebrationText.js']
+  const used = new Set()
+  for (const file of files) {
+    const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    for (const m of src.matchAll(/(?:\bC\(|\btx\(lang, |\bt\('conquistasTx\.)'?([A-Za-z0-9_]+)'/g)) used.add(m[1])
+  }
+  check('conquistas: chaves usadas existem em pt', [...used].filter(k => STRINGS.pt.conquistasTx[k] == null), [])
+  check('conquistas: chaves usadas existem em en', [...used].filter(k => STRINGS.en.conquistasTx[k] == null), [])
+  const onlyEn = Object.keys(STRINGS.en.conquistasTx).filter(k => !(k in STRINGS.pt.conquistasTx))
+  check('conquistas: o que só existe em inglês são os nomes dos dados', onlyEn.filter(k => !/^(fam|deg|unitOne|unitMany|mede)_/.test(k)), [])
+}
+
 if (failures) { console.log(`\n${failures} falha(s).`); process.exit(1) }
 console.log('\nAs frases das regras existem nos dois idiomas.')

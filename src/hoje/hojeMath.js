@@ -10,6 +10,7 @@ import { STEP_ORDER, stepName, doneWord, stepsCountText, stepShortDetail } from 
 import { markedWeekdayUnion } from '../routine/stepDaysMath.js'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
 import { tr, trN } from '../i18n/tr.js'
+import { degrauName } from '../data/achievements.js'
 
 // Textos em hojeTx (translations.js); `lang` vem de quem chama, com
 // português como padrão.
@@ -177,10 +178,11 @@ export function nextAchievement(closest, lang = 'pt') {
   const n = closest.remaining
   const unit = tx(lang, `unit${n === 1 ? 'One' : 'Many'}_${closest.familyId}`)
   const remaining = txN(lang, 'remaining', n, { n: formatInt(n, lang), unit })
+  const nome = degrauName(closest.familyId, closest.degrau, lang) || closest.nome
   return {
-    familyId: closest.familyId, degrau: closest.degrau, nome: closest.nome,
+    familyId: closest.familyId, degrau: closest.degrau, nome,
     remaining, progress: closest.progress,
-    aria: tx(lang, 'nextAria', { name: closest.nome, remaining }),
+    aria: tx(lang, 'nextAria', { name: nome, remaining }),
   }
 }
 

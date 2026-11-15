@@ -13,7 +13,8 @@
 //   pontos: seis círculos r 2.4 em y=77, x = 50 + (i − 2.5) × 8
 //   degrau 4: borda interna rect 11,11 78×78 rx 21, traço 2.5
 //   degrau 6: halo rect 1.5,1.5 97×97 rx 30, traço 2.5
-import { DEGRAU_MATERIAL, familyById } from '../../data/achievements'
+import { DEGRAU_MATERIAL, familyName, blockLabel } from '../../data/achievements'
+import { t, currentLanguage } from '../../i18n'
 import { blockColorVar } from '../../data/gamificationBlocks'
 
 const DOTS_X = [30, 38, 46, 54, 62, 70]
@@ -59,7 +60,10 @@ function Glifo({ familia, cor }) {
 // `contorno`: contorno laranja de 2px em volta (o próximo degrau em G4).
 // `tracejadoLaranja`: o tracejado da não ganha em laranja (a mais perto, G5).
 export default function Medalha({ familia = null, bloco = null, degrau = 1, size = 47, ganha = false, sobreEscuro = false, contorno = false, tracejadoLaranja = false, ariaLabel }) {
-  const label = ariaLabel ?? (bloco ? `Bloco ${bloco}${ganha ? ', completo' : ''}` : `${familyById(familia)?.nome ?? ''}, degrau ${degrau} de 6${ganha ? ', ganho' : ', ainda não ganho'}`)
+  const lang = currentLanguage()
+  const label = ariaLabel ?? (bloco
+    ? t(ganha ? 'conquistasTx.medalBlockDone' : 'conquistasTx.medalBlock', { name: blockLabel(bloco, lang) }, lang)
+    : t(ganha ? 'conquistasTx.medalDegrau' : 'conquistasTx.medalDegrauNot', { name: familyName(familia, lang), n: degrau }, lang))
   const naoGanhaTile = sobreEscuro
     ? { fill: 'rgba(255,255,255,.06)', stroke: 'rgba(255,255,255,.2)' }
     : { fill: '#fff', stroke: 'var(--bento-t6)' }

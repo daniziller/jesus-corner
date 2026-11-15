@@ -7,7 +7,7 @@
 import { GAMIFICATION_BLOCKS, BIBLE_BOOKS_TOTAL, bookInfo, blockById } from '../data/gamificationBlocks.js'
 import { sealState, readingSecondsOf, countBookNotes } from '../gamification/sealDetails.js'
 import { nextUnreadChapter, computeBibleProgress } from '../gamification/bibleProgressMath.js'
-import { FAMILIES, familyAchievementId, blockAchievementId } from '../data/achievements.js'
+import { FAMILIES, familyAchievementId, blockAchievementId, degrauName } from '../data/achievements.js'
 import { formatInt, formatPct, deOf, formatDuration, dayMonthLong } from '../gamification/format.js'
 import { originOf } from '../bible/chapterOrigin.js'
 import { dateKey, parseLocalDateKey } from '../utils/dateKey.js'
@@ -277,9 +277,9 @@ export function topVisibleVerse(items, edge) {
 // ── B4: capítulo marcado (HANDOFF §5) ───────────────────────────────────
 
 // O próximo degrau da família Leitura para quem tem `lidos` capítulos.
-export function nextLeituraStep(lidos) {
+export function nextLeituraStep(lidos, lang = 'pt') {
   const d = FAMILIES.find(f => f.id === 'leitura').degraus.find(x => x.limiar > lidos)
-  return d ? { nome: d.nome, faltam: d.limiar - lidos } : null
+  return d ? { nome: degrauName('leitura', d.degrau, lang), faltam: d.limiar - lidos } : null
 }
 
 const faltamValue = (k, lang) => (k === 1 ? tx(lang, 'leftOne') : tx(lang, 'leftN', { n: formatInt(k, lang) }))
@@ -295,7 +295,7 @@ export function markedCard({ nome, displayName = nome, chapter, progress, lang =
     { value: formatInt(progress.capitulosLidos, lang), caption: tx(lang, progress.capitulosLidos === 1 ? 'chapterInBibleOne' : 'chapterInBibleMany') },
   ]
   const seal = p.faltam > 0 ? { value: faltamValue(p.faltam, lang), caption: tx(lang, 'forSealOf', { book: displayName }) } : null
-  const step = nextLeituraStep(progress.capitulosLidos)
+  const step = nextLeituraStep(progress.capitulosLidos, lang)
   const third = seal && p.faltam <= 3 ? seal : step ? { value: faltamValue(step.faltam, lang), caption: tx(lang, 'forStep', { name: step.nome }) } : seal
   if (third) numbers.push(third)
   const title = tx(lang, 'chapterRead', { book: displayName, ch: chapter })
