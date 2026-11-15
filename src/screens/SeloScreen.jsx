@@ -18,6 +18,7 @@ import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { findBibleVersion } from '../data/bibleVersions'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
+import { bookNameFor } from '../utils/progress'
 
 const FONT = 'var(--font-bento)'
 
@@ -32,11 +33,13 @@ async function loadVerse(highlight, lang) {
   const text = nums.map(n => verses[String(n)]).filter(Boolean).join(' ')
   if (!text) return null
   const refVerses = nums.length > 1 ? `${nums[0]}-${nums[nums.length - 1]}` : String(nums[0])
-  return { text, ref: `${highlight.book} ${highlight.chapter}:${refVerses} · ${version.short}` }
+  return { text, ref: `${bookNameFor(highlight.book, lang)} ${highlight.chapter}:${refVerses} · ${version.short}` }
 }
 
 export default function SeloScreen({ nome, session, gamification, onBack, onReadAgain, onOpenNotes }) {
   const { lang } = session
+  const C = (k, vars) => t(`conquistasTx.${k}`, vars, lang)
+  const displayName = bookNameFor(nome, lang)
   const seal = gamification?.bookSeals?.[nome] ?? null
   const [details, setDetails] = useState(null)
 
@@ -47,7 +50,7 @@ export default function SeloScreen({ nome, session, gamification, onBack, onRead
       const sessionRows = sRows.status === 'fulfilled' ? sRows.value : []
       const highlights = h.status === 'fulfilled' ? h.value : []
       const notes = n.status === 'fulfilled' ? n.value : {}
-      const summary = summarizeSeal(nome, { seal, chapterRows, sessionRows })
+      const summary = summarizeSeal(nome, { seal, chapterRows, sessionRows, lang })
       const highlight = firstHighlightOf(nome, highlights)
       let verse = null
       if (highlight) verse = await loadVerse(highlight, lang).catch(() => null)
@@ -67,7 +70,7 @@ export default function SeloScreen({ nome, session, gamification, onBack, onRead
         <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
-        <p style={s.title}>{nome}</p>
+        <p style={s.title}>{displayName}</p>
       </div>
 
       <div style={s.body}>
@@ -75,13 +78,13 @@ export default function SeloScreen({ nome, session, gamification, onBack, onRead
           <div style={{ ...s.sealCard, background: cor }}>
             <div style={s.sealHead}>
               <p style={s.sealKicker}>{sum.blocoNome.toUpperCase()} · {sum.posicao}/66</p>
-              {sum.completedAt && sum.dateKnown && <p style={s.sealDate}>{dayMonthYearShort(sum.completedAt)}</p>}
+              {sum.completedAt && sum.dateKnown && <p style={s.sealDate}>{dayMonthYearShort(sum.completedAt, lang)}</p>}
             </div>
             <div style={s.sealMain}>
               <p style={s.sealSigla}>{sum.sigla}</p>
               <div style={s.sealStats}>
-                <p style={s.sealStat}>{formatInt(sum.capitulos)} {sum.capitulos === 1 ? 'capítulo' : 'capítulos'}{sum.daysLabel ? ` em ${sum.daysLabel}` : ''}</p>
-                {sum.seconds > 0 && <p style={s.sealStat}>{readingTimeSentence(sum.seconds)}</p>}
+                <p style={s.sealStat}>{C(sum.capitulos === 1 ? 'chaptersOne' : 'chaptersMany', { n: formatInt(sum.capitulos, lang) })}{sum.daysLabel ? C('inDays', { days: sum.daysLabel }) : ''}</p>
+                {sum.seconds > 0 && <p style={s.sealStat}>{readingTimeSentence(sum.seconds, lang)}</p>}
               </div>
             </div>
           </div>
@@ -91,7 +94,7 @@ export default function SeloScreen({ nome, session, gamification, onBack, onRead
 
         {details?.verse && (
           <div style={s.verseCard}>
-            <p style={s.verseLabel}>O VERSÍCULO QUE VOCÊ MARCOU</p>
+            <p style={s.verseLabel}>{C('verseYouMarked')}</p>
             <p style={s.verseText}>&ldquo;{details.verse.text}&rdquo;</p>
             <p style={s.verseRef}>{details.verse.ref}</p>
           </div>
@@ -100,28 +103,28 @@ export default function SeloScreen({ nome, session, gamification, onBack, onRead
         <div style={s.list}>
           {details?.notesCount > 0 && (
             <button type="button" style={s.row} onClick={() => onOpenNotes?.()}>
-              <span style={s.rowLabel}>Suas notas neste livro</span>
-              <span style={s.rowRight}><span style={s.rowCount}>{formatInt(details.notesCount)}</span><span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span></span>
+              <span style={s.rowLabel}>{C('yourNotesBook')}</span>
+              <span style={s.rowRight}><span style={s.rowCount}>{formatInt(details.notesCount, lang)}</span><span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span></span>
             </button>
           )}
           {details?.hasLastReflection && (
             <button type="button" style={{ ...s.row, ...(details?.notesCount > 0 ? s.rowDivider : {}) }} onClick={() => onOpenNotes?.()}>
-              <span style={s.rowLabel}>Sua reflexão do último dia</span>
+              <span style={s.rowLabel}>{C('lastReflection')}</span>
               <span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
             </button>
           )}
           <button type="button" style={{ ...s.row, ...((details?.notesCount > 0 || details?.hasLastReflection) ? s.rowDivider : {}) }} onClick={() => onReadAgain?.(nome)}>
-            <span style={s.rowLabel}>Ler {nome} de novo</span>
+            <span style={s.rowLabel}>{C('readAgain', { book: displayName })}</span>
             <span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
         </div>
 
         <div style={s.readsCard}>
           <div>
-            <p style={s.readsTitle}>Leituras deste livro</p>
-            <p style={s.readsSub}>Ler de novo acrescenta um ponto ao selo</p>
+            <p style={s.readsTitle}>{C('readsTitle')}</p>
+            <p style={s.readsSub}>{C('readsSub')}</p>
           </div>
-          <div style={s.dots} aria-label={`${sum?.readings ?? 1} ${(sum?.readings ?? 1) === 1 ? 'leitura' : 'leituras'}`}>
+          <div style={s.dots} aria-label={C((sum?.readings ?? 1) === 1 ? 'readingsOne' : 'readingsMany', { n: sum?.readings ?? 1 })}>
             {[1, 2, 3].map(i => <span key={i} style={{ ...s.dot, background: i <= (sum?.readings ?? 1) ? cor : 'var(--bento-toggle-off)' }} />)}
           </div>
         </div>

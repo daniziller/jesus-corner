@@ -32,6 +32,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { computeSlices, fillPath, markerAngle, highlightPath, point, MARKER_RADIUS, CENTER } from '../../gamification/wheelGeometry'
 import { blockColorVar, blockToneVar } from '../../data/gamificationBlocks'
+import { t, currentLanguage } from '../../i18n'
+import { bookNameFor } from '../../utils/progress'
+import { deOf } from '../../gamification/format'
 
 const SLICES_BY_MODE = { livros: computeSlices('livros'), capitulos: computeSlices('capitulos') }
 const lastShown = new Map() // animateKey → reads da última pintura
@@ -71,7 +74,7 @@ export default function RodaDaBiblia({
     >
       {slices.map((s, i) => {
         const lidos = reads?.[s.nome] ?? 0
-        const label = `${s.nome}, ${lidos} de ${s.capitulos} capítulos`
+        const label = t('conquistasTx.sliceAria', { book: bookNameFor(s.nome, currentLanguage()), x: deOf(lidos, s.capitulos, currentLanguage()) })
         const group = (
           <g key={s.nome}>
             <path d={s.trail} fill={blockToneVar(s.blocoId)} />

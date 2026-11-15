@@ -20,9 +20,10 @@ import { getAllChapterReadRows } from '../bible/chapterReadLog'
 import { getAllSessions } from '../metrics/sessionDurationStore'
 import { t } from '../i18n'
 import ReiniciarLeituraSheet from '../components/biblia/ReiniciarLeituraSheet'
+import { blockLabel } from '../data/achievements'
 
 const FONT = 'var(--font-bento)'
-const MODES = [['livros', 'Livros'], ['capitulos', 'Capítulos']]
+const MODES = ['livros', 'capitulos']
 
 function readsOf(progress) {
   const out = {}
@@ -43,6 +44,7 @@ function lastCompletedBook(progress, completionDates) {
 
 export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenBook, onOpenSelo, onOpenEstante, onRestartReading, restartAuth }) {
   const { lang, todaySession, dailyRoutine } = session
+  const C = (k, vars) => t(`conquistasTx.${k}`, vars, lang)
   const [mode, setMode] = useState(getWheelMode)
   const [rows, setRows] = useState(null) // { chapterRows, sessionRows } — só pra datas/ritmo
   // "Reiniciar a leitura do zero": a folha com o que reiniciar e a senha.
@@ -80,7 +82,7 @@ export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenB
   const fullReads = useMemo(() => Object.fromEntries(GAMIFICATION_BOOKS.map(b => [b.nome, b.capitulos])), [])
 
   function pickMode(m) { setMode(m); setWheelMode(m) }
-  const pct = formatPct(progress.percent)
+  const pct = formatPct(progress.percent, lang)
 
   return (
     <div style={s.screen}>
@@ -88,9 +90,9 @@ export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenB
         <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
-        <p style={s.title}>Sua Bíblia</p>
-        <div style={s.segment} role="tablist" aria-label="Modo da roda">
-          {MODES.map(([id, label]) => (
+        <p style={s.title}>{C('yourBible')}</p>
+        <div style={s.segment} role="tablist" aria-label={C('wheelMode')}>
+          {MODES.map(id => [id, C(`mode_${id}`)]).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={mode === id} style={{ ...s.segBtn, ...(mode === id ? s.segBtnOn : {}) }} onClick={() => pickMode(id)}>{label}</button>
           ))}
         </div>
@@ -101,16 +103,16 @@ export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenB
           <RodaDaBiblia
             reads={reads} mode={mode} size={300}
             currentBook={currentBook} highlightBook={highlightBook}
-            centerLine1={pct} centerLine2="da Bíblia lida" centerSize={44}
-            ariaLabel={`${pct} da Bíblia lida, ${deOf(progress.capitulosLidos, progress.totalCapitulos)} capítulos`}
+            centerLine1={pct} centerLine2={C('ofBibleRead')} centerSize={44}
+            ariaLabel={C('wheelAria', { pct, x: deOf(progress.capitulosLidos, progress.totalCapitulos, lang) })}
             onSliceClick={nome => (progress.porLivro[nome].completo ? onOpenSelo?.(nome) : onOpenBook?.(nome))}
           />
         </div>
 
         <div style={s.statsRow}>
-          <div style={s.statCard}><p style={s.statLabel}>Capítulos</p><p style={s.statValue}>{formatInt(progress.capitulosLidos)}</p></div>
-          <div style={s.statCard}><p style={s.statLabel}>Livros</p><p style={s.statValue}>{deOf(progress.livrosCompletos, progress.totalLivros)}</p></div>
-          <div style={s.statCard}><p style={s.statLabel}>Blocos</p><p style={s.statValue}>{deOf(progress.blocosComecados, 8)}</p></div>
+          <div style={s.statCard}><p style={s.statLabel}>{C('statChapters')}</p><p style={s.statValue}>{formatInt(progress.capitulosLidos, lang)}</p></div>
+          <div style={s.statCard}><p style={s.statLabel}>{C('statBooks')}</p><p style={s.statValue}>{deOf(progress.livrosCompletos, progress.totalLivros, lang)}</p></div>
+          <div style={s.statCard}><p style={s.statLabel}>{C('statBlocks')}</p><p style={s.statValue}>{deOf(progress.blocosComecados, 8, lang)}</p></div>
         </div>
 
         <div style={s.blocksCard}>
@@ -122,13 +124,13 @@ export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenB
                 <span style={{ ...s.blockSwatch, background: blockColorVar(block.id) }} />
                 <span style={s.blockMain}>
                   <span style={s.blockTop}>
-                    <span style={s.blockName}>{block.nome}</span>
-                    <span style={{ ...s.blockCount, color: b.lidos > 0 ? 'var(--bento-ink)' : 'var(--bento-t5)' }}>{deOf(b.lidos, b.total)} cap.</span>
+                    <span style={s.blockName}>{blockLabel(block.id, lang)}</span>
+                    <span style={{ ...s.blockCount, color: b.lidos > 0 ? 'var(--bento-ink)' : 'var(--bento-t5)' }}>{C('chaptersShort', { x: deOf(b.lidos, b.total, lang) })}</span>
                   </span>
                   <span style={{ ...s.bar, background: blockToneVar(block.id) }}>
                     {b.lidos > 0 && <span style={{ ...s.barFill, background: blockColorVar(block.id), width: `max(6px, ${ratio * 100}%)` }} />}
                   </span>
-                  <span style={s.blockBooks}>{deOf(b.livrosCompletos, b.livrosTotal)} livros completos</span>
+                  <span style={s.blockBooks}>{C('booksCompleteCount', { x: deOf(b.livrosCompletos, b.livrosTotal, lang) })}</span>
                 </span>
               </button>
             )
@@ -136,24 +138,24 @@ export default function SuaBibliaScreen({ session, completedSet, onBack, onOpenB
         </div>
 
         <div style={s.sandCard}>
-          <p style={s.sandLabel}>COMO A RODA VAI FICANDO</p>
+          <p style={s.sandLabel}>{C('howWheel')}</p>
           <div style={s.miniRow}>
             <div style={s.miniCol}>
-              <RodaDaBiblia reads={reads} mode="livros" size={92} ariaLabel={`Hoje, ${pct} da Bíblia lida`} />
-              <p style={s.miniTitle}>Hoje</p>
-              <p style={s.miniSub}>{formatPct(Math.round(progress.percent))}</p>
+              <RodaDaBiblia reads={reads} mode="livros" size={92} ariaLabel={C('todayAria', { pct })} />
+              <p style={s.miniTitle}>{C('today')}</p>
+              <p style={s.miniSub}>{formatPct(Math.round(progress.percent), lang)}</p>
             </div>
             {projection?.rate && (
               <div style={s.miniCol}>
-                <RodaDaBiblia reads={projection.yearReads} mode="livros" size={92} ariaLabel={`Em um ano, no seu ritmo, ${formatPct(projection.yearPercent)}`} />
-                <p style={s.miniTitle}>Em um ano</p>
-                <p style={s.miniSub}>no seu ritmo, {formatPct(Math.round(projection.yearPercent))}</p>
+                <RodaDaBiblia reads={projection.yearReads} mode="livros" size={92} ariaLabel={C('inYearAria', { pct: formatPct(projection.yearPercent, lang) })} />
+                <p style={s.miniTitle}>{C('inYear')}</p>
+                <p style={s.miniSub}>{C('atYourPace', { pct: formatPct(Math.round(projection.yearPercent), lang) })}</p>
               </div>
             )}
             <div style={s.miniCol}>
-              <RodaDaBiblia reads={fullReads} mode="livros" size={92} ariaLabel="A Bíblia inteira" />
-              <p style={s.miniTitle}>A Bíblia inteira</p>
-              {projection?.completion && <p style={s.miniSub}>{monthYearLong(projection.completion)}</p>}
+              <RodaDaBiblia reads={fullReads} mode="livros" size={92} ariaLabel={C('wholeBible')} />
+              <p style={s.miniTitle}>{C('wholeBible')}</p>
+              {projection?.completion && <p style={s.miniSub}>{monthYearLong(projection.completion, lang)}</p>}
             </div>
           </div>
         </div>

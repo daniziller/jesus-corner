@@ -91,7 +91,7 @@ for (const [file, ns] of Object.entries(FILES)) {
 // frases de celebration.js, tx(lang, 'chave'). Os nomes de família e de
 // degrau só existem em inglês (em português, vêm de data/achievements.js).
 {
-  const files = ['src/screens/ConquistasScreen.jsx', 'src/screens/FamiliaScreen.jsx', 'src/screens/NovaConquistaScreen.jsx', 'src/components/gamificacao/Medalha.jsx', 'src/gamification/celebrationText.js']
+  const files = ['src/screens/ConquistasScreen.jsx', 'src/screens/FamiliaScreen.jsx', 'src/screens/NovaConquistaScreen.jsx', 'src/screens/EstanteScreen.jsx', 'src/screens/LivroCompletoScreen.jsx', 'src/screens/SeloScreen.jsx', 'src/screens/SuaBibliaScreen.jsx', 'src/components/gamificacao/Medalha.jsx', 'src/components/gamificacao/RodaDaBiblia.jsx', 'src/gamification/celebrationText.js', 'src/gamification/sealDetails.js']
   const used = new Set()
   for (const file of files) {
     const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')

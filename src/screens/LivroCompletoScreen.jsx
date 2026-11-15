@@ -9,48 +9,51 @@ import { blockColorVar } from '../data/gamificationBlocks'
 import { summarizeSeal, representsPhrase, terminadoEm } from '../gamification/sealDetails'
 import { formatInt } from '../gamification/format'
 import { blockAchievementId } from '../data/achievements'
-import { blockById } from '../data/gamificationBlocks'
+import { blockLabel } from '../data/achievements'
+import { t, currentLanguage } from '../i18n'
 
 const FONT = 'var(--font-bento)'
 
 // `data` = resultado de evaluateGamification (stats, progress, row,
 // newIds); `nome` = o livro terminado.
 export default function LivroCompletoScreen({ nome, data, onVerEstante, onContinuar }) {
+  const lang = currentLanguage()
+  const C = (k, vars) => t(`conquistasTx.${k}`, vars, lang)
   const [sum, setSum] = useState(null)
   useEffect(() => {
     const seal = data?.row?.bookSeals?.[nome] ?? null
-    setSum(summarizeSeal(nome, { seal, chapterRows: data?.stats?.chapterRows ?? [], sessionRows: data?.stats?.sessionRows ?? [] }))
-  }, [nome, data])
+    setSum(summarizeSeal(nome, { seal, chapterRows: data?.stats?.chapterRows ?? [], sessionRows: data?.stats?.sessionRows ?? [], lang }))
+  }, [nome, data, lang])
 
   if (!sum) return <div style={s.screen} />
   const blocoCompletado = (data?.newIds ?? []).map(id => (id.startsWith('bloco:') ? id.slice(6) : null)).find(id => id === sum.blocoId)
-  const represents = representsPhrase({ livrosCompletos: data?.progress?.livrosCompletos ?? 1, blocoCompletadoNome: blocoCompletado ? blockById(blocoCompletado).nome : null })
+  const represents = representsPhrase({ livrosCompletos: data?.progress?.livrosCompletos ?? 1, blocoCompletadoNome: blocoCompletado ? blockLabel(blocoCompletado, lang) : null }, lang)
 
   return (
     <div style={s.screen}>
       <div style={s.content}>
-        <p style={s.kicker}>LIVRO COMPLETO</p>
-        <div style={{ ...s.seal, background: blockColorVar(sum.blocoId) }} role="img" aria-label={`Selo de ${nome}, ${sum.posicao} de 66`}>
+        <p style={s.kicker}>{C('bookComplete')}</p>
+        <div style={{ ...s.seal, background: blockColorVar(sum.blocoId) }} role="img" aria-label={C('sealAria', { book: sum.displayName, pos: sum.posicao })}>
           <div style={s.sealHead}>
             <span style={s.sealKicker}>{sum.blocoNome.toUpperCase()}</span>
             <span style={s.sealKicker}>{sum.posicao}/66</span>
           </div>
           <p style={s.sealSigla}>{sum.sigla}</p>
-          <p style={s.sealName}>{nome}</p>
+          <p style={s.sealName}>{sum.displayName}</p>
           <div style={s.sealRule} />
-          {sum.completedAt && <p style={s.sealDate}>{terminadoEm(sum.completedAt)}</p>}
+          {sum.completedAt && <p style={s.sealDate}>{terminadoEm(sum.completedAt, lang)}</p>}
         </div>
-        <p style={s.title}>Parabéns, você leu {nome}.</p>
+        <p style={s.title}>{C('congratsRead', { book: sum.displayName })}</p>
         <p style={s.sub}>{represents}</p>
         <div style={s.statsRow}>
-          <div style={s.stat}><p style={s.statLabel}>Capítulos</p><p style={s.statValue}>{formatInt(sum.capitulos)}</p></div>
-          {sum.daysLabel && <div style={s.stat}><p style={s.statLabel}>Em</p><p style={s.statValue}>{sum.daysLabel}</p></div>}
-          {sum.timeLabel && <div style={s.stat}><p style={s.statLabel}>Tempo</p><p style={s.statValue}>{sum.timeLabel}</p></div>}
+          <div style={s.stat}><p style={s.statLabel}>{C('statChapters')}</p><p style={s.statValue}>{formatInt(sum.capitulos, lang)}</p></div>
+          {sum.daysLabel && <div style={s.stat}><p style={s.statLabel}>{C('statIn')}</p><p style={s.statValue}>{sum.daysLabel}</p></div>}
+          {sum.timeLabel && <div style={s.stat}><p style={s.statLabel}>{C('statTime')}</p><p style={s.statValue}>{sum.timeLabel}</p></div>}
         </div>
       </div>
       <div style={s.footer}>
-        <button type="button" style={s.primary} onClick={onVerEstante}>Ver minha estante</button>
-        <button type="button" style={s.secondary} onClick={onContinuar}>Continuar</button>
+        <button type="button" style={s.primary} onClick={onVerEstante}>{C('seeShelf')}</button>
+        <button type="button" style={s.secondary} onClick={onContinuar}>{C('continue')}</button>
       </div>
     </div>
   )

@@ -17,6 +17,7 @@ import { readingRatePerDay, projectPercentInOneYear, estimateBibleCompletion, pr
 import { computeSlices, fillPath, markerAngle, USABLE_DEGREES, START_DEGREES, GAP_BLOCK, sectorPath } from '../src/gamification/wheelGeometry.js'
 import { formatInt, formatPct, faltamPhrase, deOf, monthYearShort, dayMonthLong, formatDuration, monthYearLong } from '../src/gamification/format.js'
 import { dateKey } from '../src/utils/dateKey.js'
+import { summarizeSeal, representsPhrase, readingTimeSentence, terminadoEm } from '../src/gamification/sealDetails.js'
 import { familyCelebrationPhrase, blockCelebrationPhrase, closestPhrase, nextBlockFooter, thresholdLabel, degrauCount } from '../src/gamification/celebrationText.js'
 
 let failures = 0
@@ -256,6 +257,11 @@ check('en: celebração sem mês', familyCelebrationPhrase('livros', { nome: 'An
 check('en: celebração de bloco', blockCelebrationPhrase('profetas-menores', { nome: 'Diego', ultimoLivro: 'Malaquias' }, 'en'), 'Congratulations, Diego. With Malachi, you completed all 12 books of Minor Prophets.')
 check('en: a mais perto', closestPhrase({ familyId: 'constancia', degrau: 4, remaining: 8 }, 'en'), 'Half a year — 8 weeks on target to go')
 check('en: contagem do degrau', degrauCount('tempo', 2, 'en'), 'TIME WITH GOD · 2 OF 6')
+
+check('en: selo do livro', (({ sigla, displayName, blocoNome, daysLabel }) => [sigla, displayName, blocoNome, daysLabel])(summarizeSeal('Jonas', { seal: null, chapterRows: [], sessionRows: [], lang: 'en' })), ['Jon', 'Jonah', 'Minor Prophets', null])
+check('en: o que o livro representa', [representsPhrase({ livrosCompletos: 1 }, 'en'), representsPhrase({ livrosCompletos: 5 }, 'en'), representsPhrase({ livrosCompletos: 5, blocoCompletadoNome: 'Law' }, 'en')], ['The seal is on your shelf — and it is your first whole book.', 'The seal is on your shelf — that makes 5 books.', 'The seal is on your shelf — with it you completed Law.'])
+check('en: tempo de leitura e data', [readingTimeSentence(60, 'en'), readingTimeSentence(3600, 'en'), readingTimeSentence(7500, 'en'), terminadoEm('2026-11-10T12:00:00', 'en')], ['1 minute of reading', '1 hour of reading', '2 h 05 of reading', 'Finished on November 10'])
+check('pt: selo do livro continua igual', (({ sigla, displayName, blocoNome }) => [sigla, displayName, blocoNome])(summarizeSeal('Jonas', { seal: null, chapterRows: [], sessionRows: [] })), ['Jn', 'Jonas', 'Profetas menores'])
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)
