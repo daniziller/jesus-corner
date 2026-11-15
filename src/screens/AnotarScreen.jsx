@@ -290,7 +290,7 @@ const s = {
   screen: { position: 'relative', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   page: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 0' },
-  close: { width: 38, height: 38, flexShrink: 0, border: 'none', borderRadius: 13, background: 'var(--bento-card)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  close: { width: 44, height: 44, flexShrink: 0, border: 'none', borderRadius: 13, background: 'var(--bento-card)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   heading: { flex: 1, minWidth: 0, minHeight: 44, margin: '-3px 0', padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left' },
   headingButton: { border: 'none', background: 'none', cursor: 'pointer' },
   title: { display: 'block', maxWidth: '100%', fontFamily: FONT, fontSize: 17, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },

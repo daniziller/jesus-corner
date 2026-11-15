@@ -78,14 +78,14 @@ export default function ReportProblemScreen({ session, groupId, onBack, onSent }
               <p style={s.linkLabel}>{L('attachPersonLabel')}</p>
               <p style={s.linkSub}>{attachedUser ? attachedUser.name : L('attachPersonNone')}</p>
             </div>
-            <span style={s.chevron}>›</span>
+            <span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
           <button type="button" style={s.linkRow} onClick={() => setPickerOpen('messages')}>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <p style={s.linkLabel}>{L('attachMessagesLabel')}</p>
               <p style={s.linkSub}>{attachedMessageIds.length > 0 ? L('attachMessagesCount', { n: attachedMessageIds.length }) : L('attachMessagesNone')}</p>
             </div>
-            <span style={s.chevron}>›</span>
+            <span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
         </div>
 
@@ -146,7 +146,7 @@ function PickerSheet({ title, items, onToggle, onClose, multi }) {
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, padding: '24px 20px 20px', background: 'var(--bento-ink)', display: 'flex', flexDirection: 'column', gap: 4 },
-  backBtn: { width: 34, height: 34, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginBottom: 10 },
+  backBtn: { width: 44, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginBottom: 10 },
   headerBadge: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: '0 0 10px' },
   title: { fontFamily: FONT, fontSize: 25, fontWeight: 800, letterSpacing: '-1px', color: '#fff', margin: '0 0 8px' },
   subtitle: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.6)', margin: 0 },

@@ -173,7 +173,7 @@ export default function CreateStudyScreen({ session, initialText = '', onBack, o
       <div style={s.footer}>
         <button style={{ ...s.submitBtn, opacity: canSubmit && !generating ? 1 : .5 }} onClick={handleSubmit} disabled={!canSubmit || generating}>
           <span style={s.submitBtnText}>{generating ? L('generatingBtn') : L('submitBtn')}</span>
-          {!generating && <span style={s.submitBtnArrow}>→</span>}
+          {!generating && <span style={s.submitBtnArrow}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>}
         </button>
       </div>
     </div>
@@ -183,7 +183,7 @@ export default function CreateStudyScreen({ session, initialText = '', onBack, o
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
   headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 },

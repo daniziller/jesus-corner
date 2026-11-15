@@ -159,7 +159,7 @@ export default function ExistingProgressScreen({ session, blocks, book, order, c
       <div style={s.footer}>
         <button style={s.confirmBtn} onClick={handleConfirm}>
           <span>{footerLabel}</span>
-          <span style={{ fontSize: 15, fontWeight: 700 }}>→</span>
+          <span style={{ fontSize: 15, fontWeight: 700 }}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
       </div>
     </div>
@@ -171,7 +171,7 @@ const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flex: 'none', padding: '22px 20px 0' },
   headerTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 18, fontWeight: 800, letterSpacing: '-.6px', color: 'var(--bento-ink)', margin: 0 },
   sub: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t3)', margin: 0 },
 

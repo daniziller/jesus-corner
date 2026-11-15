@@ -176,7 +176,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
                         {progress.totalMinutes != null && ` · ~${progress.totalMinutes} ${t('routine.min', undefined, lang)}`}
                       </p>
                     </div>
-                    <span style={s.chevron}>›</span>
+                    <span style={s.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
                   </button>
                   <button style={s.deleteBtn} onClick={() => handleDelete(plan)} aria-label={L('deleteAction')}>
                     <AppIcon name="Trash2" size={13} color="var(--bento-accent)" />
@@ -195,7 +195,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerTitle: { fontFamily: FONT, fontSize: 15, fontWeight: 800, letterSpacing: '-.4px', color: 'var(--bento-ink)', margin: 0 },
   headerSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
 
@@ -213,5 +213,5 @@ const s = {
   planTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
   planMeta: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
   chevron: { fontFamily: FONT, fontSize: 15, fontWeight: 700, color: 'var(--bento-t5)', flexShrink: 0 },
-  deleteBtn: { width: 30, height: 30, border: 'none', background: 'none', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  deleteBtn: { width: 44, height: 44, border: 'none', background: 'none', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
 }

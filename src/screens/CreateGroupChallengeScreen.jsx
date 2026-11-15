@@ -114,7 +114,7 @@ export default function CreateGroupChallengeScreen({ session, groupId, onBack, o
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, padding: '24px 20px 22px', background: 'var(--bento-ink)', display: 'flex', flexDirection: 'column', gap: 4 },
-  closeBtn: { width: 34, height: 34, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginBottom: 10 },
+  closeBtn: { width: 44, height: 44, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginBottom: 10 },
   headerBadge: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: '0 0 10px' },
   title: { fontFamily: FONT, fontSize: 25, fontWeight: 800, letterSpacing: '-1px', lineHeight: 1.15, color: '#fff', margin: '0 0 8px' },
   subtitle: { fontFamily: FONT, fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,.6)', margin: 0 },

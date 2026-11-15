@@ -278,7 +278,7 @@ const s = {
   header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '22px 20px 0' },
   title: { fontFamily: FONT, fontSize: 21, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.7px', color: 'var(--bento-ink)', margin: 0 },
   date: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, lineHeight: 1.2, color: 'var(--bento-t3)', margin: '4px 0 0' },
-  adjustBtn: { height: 34, flexShrink: 0, padding: '0 12px', borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+  adjustBtn: { height: 44, flexShrink: 0, padding: '0 14px', borderRadius: 14, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
   body: { padding: '18px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 },
   skeleton: { borderRadius: 99, background: 'var(--bento-line)' },
   barText: { display: 'flex', justifyContent: 'space-between', marginTop: 9 },

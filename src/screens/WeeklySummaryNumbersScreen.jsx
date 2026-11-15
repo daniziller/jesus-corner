@@ -156,7 +156,7 @@ export default function WeeklySummaryNumbersScreen({ session, weeklyDays, summar
       <div style={s.footer}>
         <button style={s.readBtn} onClick={onOpenText}>
           <span>{L('readSummaryBtn')}</span>
-          <span style={{ color: 'var(--bento-accent)' }}>→</span>
+          <span style={{ color: 'var(--bento-accent)' }}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
       </div>
 
@@ -170,7 +170,7 @@ export default function WeeklySummaryNumbersScreen({ session, weeklyDays, summar
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 14px' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
   dateRange: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: '3px 0 0' },
   weeksChip: { flexShrink: 0, height: 34, border: 'none', borderRadius: 12, background: 'var(--bento-card)', display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', cursor: 'pointer', fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: 'var(--bento-ink)' },

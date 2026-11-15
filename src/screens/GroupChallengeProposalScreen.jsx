@@ -148,7 +148,7 @@ const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, padding: '24px 20px 20px', background: 'var(--bento-ink)', display: 'flex', flexDirection: 'column', gap: 8 },
   headerTopRow: { display: 'flex', alignItems: 'center', gap: 10 },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerBadge: { flex: 1, fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)', margin: 0 },
   refazerBtn: { border: 'none', background: 'none', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'rgba(255,255,255,.6)', cursor: 'pointer' },
   title: { fontFamily: FONT, fontSize: 23, fontWeight: 800, letterSpacing: '-.7px', lineHeight: 1.15, color: '#fff', margin: '4px 0 0' },
@@ -163,7 +163,7 @@ const s = {
   dayIndex: { flexShrink: 0, width: 24, fontFamily: FONT, fontSize: 11, fontWeight: 800, color: 'var(--bento-t4)' },
   dayRef: { fontFamily: FONT, fontSize: 13, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
   daySub: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
-  swapBtn: { width: 30, height: 30, flexShrink: 0, border: 'none', background: 'var(--bento-line)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  swapBtn: { width: 44, height: 44, flexShrink: 0, border: 'none', background: 'var(--bento-line)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   viewAllBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, border: 'none', background: 'none', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', padding: 6 },
 
   sandCard: { background: 'var(--bento-sand)', borderRadius: 20, padding: '16px 18px' },

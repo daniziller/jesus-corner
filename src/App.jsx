@@ -3306,13 +3306,13 @@ export default function App() {
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     // "Seu plano" (handoff-meu-plano-47, P6) — push a partir da linha
     // "Seu plano" do Meu Plano; sem barra de abas.
-    seuPlano: <SeuPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} onBack={goBack} onNavigate={navigateTo} onChangeDays={() => { setAdjustOpenStep('reading'); navigateTo('adjustPlan') }} />,
+    seuPlano: <SeuPlanoScreen session={session} onOpenProfile={() => setProfileOpen(true)} completedSet={completedSet} stepMinutes={stepMinutes} onBack={goBack} onNavigate={navigateTo} onChangeDays={() => { setAdjustOpenStep('reading'); navigateTo('adjustPlan') }} />,
     // Turno 35, Bloco 1 (handoff-meu-plano-35/) — 35c substitui a 5a por
     // inteiro: passos com dias próprios em vez de um "ritmo da semana" só;
     // "onde começar/ordem/ritmo" e "estudo atual/banco/dias" saíram pras
     // telas próprias readingOrganize (35i) e studyOrganize (35j) abaixo.
     adjustPlan: hasPremium
-      ? <AjustarPlanoScreen session={session} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} initialOpenStep={adjustOpenStep} scrollToDays={!!adjustOpenStep} key={adjustOpenStep ?? 'fechado'} />
+      ? <AjustarPlanoScreen session={session} onOpenProfile={() => setProfileOpen(true)} completedSet={completedSet} stepMinutes={stepMinutes} draftState={adjustDraft} onDraftChange={setAdjustDraft} onClearDraft={() => setAdjustDraft(null)} onSave={saveAdjustedPlan} onNavigate={navigateTo} onBack={goBack} initialOpenStep={adjustOpenStep} scrollToDays={!!adjustOpenStep} key={adjustOpenStep ?? 'fechado'} />
       : <PremiumRequired feature="routine" lang={session.lang} onNavigate={navigateTo} />,
     readingOrganize: hasPremium
       ? <ReadingOrganizeScreen session={session} completedSet={completedSet} blocks={blocks} bookChapterCounts={bookChapterCounts} stepMinutes={stepMinutes} bibleOrderMode={bibleOrderMode} customBookOrder={customBookOrder} planPosition={planPosition} readingOrder={readingOrder} onSaveBibleOrderMode={saveBibleOrderMode} onSaveCustomBookOrder={saveCustomBookOrder} onSetStartPosition={applyReadingStartPosition} onNavigate={navigateTo} onBack={goBack} />

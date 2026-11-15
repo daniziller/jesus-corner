@@ -219,7 +219,7 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
                 <div style={s.passagesHead}>
                   <h2 style={{ ...s.label, ...s.labelOnSand }}>{PASSAGES_LABEL}</h2>
                   {mark === 'todo' && <button type="button" style={s.mark} onClick={markOnBible} disabled={marking}>{MARK_LABEL}</button>}
-                  {mark === 'done' && <span style={s.marked} role="status">{passages.length === 1 ? 'Marcada ✓' : 'Marcadas ✓'}</span>}
+                  {mark === 'done' && <span style={s.marked} role="status">{passages.length === 1 ? 'Marcada' : 'Marcadas'}</span>}
                 </div>
                 <div style={s.pills}>
                   {passages.map(p => (
@@ -283,7 +283,7 @@ const s = {
   screen: { position: 'relative', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   page: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 0' },
-  square: { width: 38, height: 38, flexShrink: 0, border: 'none', borderRadius: 13, background: 'var(--bento-card)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  square: { width: 44, height: 44, flexShrink: 0, border: 'none', borderRadius: 13, background: 'var(--bento-card)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   dots: { display: 'flex', flexDirection: 'column', gap: 3 },
   dot: { width: 3.5, height: 3.5, borderRadius: 9, background: 'var(--bento-ink)' },
   title: { fontFamily: FONT, fontSize: 17, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: '0 0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },

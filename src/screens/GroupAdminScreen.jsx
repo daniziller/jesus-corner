@@ -281,7 +281,7 @@ export default function GroupAdminScreen({ session, authUser, myGroup, moderated
               <button key={line.key} type="button" style={styles.waitingRow} onClick={line.onClick}>
                 <span style={styles.waitingDot} />
                 <span style={styles.waitingText}>{line.text}</span>
-                <span style={styles.chevronSand}>›</span>
+                <span style={styles.chevronSand}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
               </button>
             ))}
           </div>
@@ -314,7 +314,7 @@ export default function GroupAdminScreen({ session, authUser, myGroup, moderated
               <p style={styles.actionLabel}>{L('membersRowLabel')}</p>
               <p style={styles.actionSub}>{requests.length > 0 ? L(requests.length === 1 ? 'membersRowSubPendingOne' : 'membersRowSubPendingMany', { n: group.members.length, pending: requests.length }) : L('membersRowSub', { n: group.members.length })}</p>
             </div>
-            <span style={styles.chevron}>›</span>
+            <span style={styles.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
 
           <div style={{ ...styles.actionRow, borderBottom: '1px solid var(--bento-line)' }}>
@@ -334,7 +334,7 @@ export default function GroupAdminScreen({ session, authUser, myGroup, moderated
               <p style={styles.actionLabel}>{L('readingActivityRowLabel')}</p>
               <p style={styles.actionSub}>{L(stoppedCount === 1 ? 'readingActivityRowSubOne' : 'readingActivityRowSubMany', { n: stoppedCount })}</p>
             </div>
-            <span style={styles.chevron}>›</span>
+            <span style={styles.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
 
           <button
@@ -346,7 +346,7 @@ export default function GroupAdminScreen({ session, authUser, myGroup, moderated
               <p style={styles.actionLabel}>{L('groupPlanLabel')}</p>
               <p style={styles.actionSub}>{groupPlan ? L('groupPlanSub', { book: lang === 'en' ? groupPlan.book_en : groupPlan.book, days: planTotalDays }) : L('groupPlanNone')}</p>
             </div>
-            <span style={styles.chevron}>›</span>
+            <span style={styles.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
 
           <button type="button" style={{ ...styles.actionRow, borderBottom: '1px solid var(--bento-line)' }} onClick={startEditNotice}>
@@ -355,7 +355,7 @@ export default function GroupAdminScreen({ session, authUser, myGroup, moderated
               <p style={styles.actionLabel}>{L('pinnedNoticeLabel')}</p>
               <p style={styles.actionSub}>{group.pinnedNotice ? group.pinnedNotice : L('pinnedNoticeNone')}</p>
             </div>
-            <span style={styles.chevron}>›</span>
+            <span style={styles.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
 
           <button type="button" style={styles.actionRow} onClick={() => onNavigate?.('reportProblem')}>
@@ -364,7 +364,7 @@ export default function GroupAdminScreen({ session, authUser, myGroup, moderated
               <p style={styles.actionLabel}>{L('reportProblemLabel')}</p>
               <p style={styles.actionSub}>{L('reportProblemSub')}</p>
             </div>
-            <span style={styles.chevron}>›</span>
+            <span style={styles.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
         </div>
       </div>
@@ -425,7 +425,7 @@ function EditGroupSheet({ L, name, description, saving, error, canOpenWeeklyQues
           <button style={{ ...styles.linkRow, marginTop: 6, borderTop: '1px solid var(--bento-line)' }} onClick={onOpenWeeklyQuestion}>
             <span style={styles.linkLabel}>{L('weeklyQuestionLabel')}</span>
             <span style={styles.linkSub}>{weeklyQuestionSub}</span>
-            <span style={styles.chevron}>›</span>
+            <span style={styles.chevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>
           </button>
         )}
       </div>
@@ -457,7 +457,7 @@ function NoticeSheet({ L, text, saving, error, onChangeText, onSave, onClose }) 
 const styles = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '24px 20px 4px', background: 'var(--bento-ink)' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerBadge: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
   groupIdentityRow: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px 20px', border: 'none', background: 'var(--bento-ink)', borderRadius: '0 0 24px 24px', cursor: 'pointer' },
   groupAvatar: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: 'rgba(255,255,255,.12)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 13, fontWeight: 800 },

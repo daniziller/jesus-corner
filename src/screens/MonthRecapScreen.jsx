@@ -136,7 +136,7 @@ export default function MonthRecapScreen({ recap, lang, nextBook, bookLabel, onC
 const s = {
   screen: { height: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', fontFamily: FONT },
   header: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 14px' },
-  iconBtn: { width: 34, height: 34, borderRadius: 12, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  iconBtn: { width: 44, height: 44, borderRadius: 14, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   headerLabel: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)' },
   stage: { flex: 1, minHeight: 0, padding: '0 20px', overflowY: 'auto' },
   card: { borderRadius: 28, background: 'var(--bento-ink)', padding: '26px 24px', minHeight: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' },

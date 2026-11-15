@@ -356,7 +356,7 @@ function QuestionShell({ L, n, onBack, onSkip, title, sub, subMargin, why, btnLa
         <p style={s.why}>{L('whyPrefix')}{why}</p>
         <button type="button" style={s.btn} onClick={onContinue}>
           <span style={s.btnText}>{btnLabel}</span>
-          <span style={s.btnArrow}>→</span>
+          <span style={s.btnArrow}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
       </div>
     </div>
@@ -455,7 +455,7 @@ function ResultScreen({ L, lang, answers, blocks, projection, onStart, starting 
       <div style={{ flex: 'none', padding: '22px 24px calc(32px + var(--safe-bottom))' }}>
         <button type="button" style={{ ...s.resultBtn, ...(starting ? { opacity: .7 } : {}) }} onClick={onStart} disabled={starting}>
           <span style={{ fontFamily: FONT, fontSize: 16, fontWeight: 800, lineHeight: 1, color: 'var(--bento-ink)' }}>{isNoPlan ? L('resultBtnNoPlan') : L('resultBtn', { ref: `${bookRef} 1` })}</span>
-          <span style={{ fontFamily: FONT, fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)' }}>→</span>
+          <span style={{ fontFamily: FONT, fontSize: 15, fontWeight: 700, lineHeight: 1, color: 'var(--bento-ink)' }}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
         </button>
         <p style={s.resultNote}>{L('resultNote')}</p>
       </div>
@@ -467,7 +467,7 @@ function ResultScreen({ L, lang, answers, blocks, projection, onStart, starting 
 const s = {
   screen: { height: '100%', minHeight: '100%', background: 'var(--bento-bg)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', fontFamily: FONT },
   header: { flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 22px 0' },
-  backBtn: { width: 34, height: 34, borderRadius: 12, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, borderRadius: 14, background: 'var(--bento-card)', border: 'none', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   skip: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, lineHeight: 1, color: 'var(--bento-t4)' },
   body: { flex: 1, minHeight: 0, overflowY: 'auto', padding: '30px 22px 0', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
   progress: { display: 'flex', gap: 5, margin: '0 0 22px', flex: 'none' },
@@ -502,8 +502,8 @@ const s = {
   stepRow: { borderRadius: 20, padding: '14px 14px 14px 18px', display: 'flex', alignItems: 'center', gap: 10 },
   stepLabel: { display: 'block', fontFamily: FONT, fontSize: 15, fontWeight: 800, lineHeight: 1.2, marginBottom: 2 },
   stepSub: { display: 'block', fontFamily: FONT, fontSize: 11.5, fontWeight: 500, lineHeight: 1.3 },
-  stepBtn: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  stepBtnAccent: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stepBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 12, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  stepBtnAccent: { width: 44, height: 44, flexShrink: 0, borderRadius: 12, border: 'none', background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   stepValueWrap: { width: 52, flexShrink: 0, textAlign: 'center' },
   stepValue: { fontFamily: FONT, fontSize: 20, fontWeight: 800, lineHeight: 1, letterSpacing: '-.6px' },
   stepUnit: { fontFamily: FONT, fontSize: 10, fontWeight: 600, lineHeight: 1, marginLeft: 2 },

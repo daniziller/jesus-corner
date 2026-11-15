@@ -337,13 +337,13 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             </div>
           )}
 
-          <Row icon="Globe" label={L('languageLabel')} sub={`${currentLang.flag} ${currentLang.label}`} onPress={() => setLangPickerOpen(v => !v)} last={!langPickerOpen} />
+          <Row icon="Globe" label={L('languageLabel')} sub={currentLang.label} onPress={() => setLangPickerOpen(v => !v)} last={!langPickerOpen} />
           {langPickerOpen && (
             <div style={s.expandPanel}>
               <div style={{ display: 'flex', gap: 8 }}>
                 {LANGUAGES.map(l => (
                   <button key={l.id} onClick={() => { onChangeLanguage?.(l.id); setLangPickerOpen(false) }} style={{ ...s.chip, flex: 1, ...(currentLang.id === l.id ? s.chipActive : {}) }}>
-                    {l.flag} {l.label}
+                    {l.label}
                   </button>
                 ))}
               </div>
@@ -487,7 +487,7 @@ function Row({ icon, iconColor, label, sub, onPress, right, last }) {
         <p style={s.rowLabel}>{label}</p>
         {sub && <p style={s.rowSub}>{sub}</p>}
       </div>
-      {right ?? (onPress && <span style={s.rowChevron}>›</span>)}
+      {right ?? (onPress && <span style={s.rowChevron}><AppIcon name="ChevronRight" size={14} strokeWidth={2.2} style={{ verticalAlign: '-2px' }} /></span>)}
     </div>
   )
 }

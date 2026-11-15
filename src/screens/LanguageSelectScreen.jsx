@@ -13,6 +13,7 @@ import { LANGUAGES } from '../i18n'
 import BrandMark from '../components/BrandMark'
 import BrandLogo from '../components/BrandLogo'
 import { setAppLanguage } from '../i18n/appLanguageStore'
+import AppIcon from '../icons/AppIcon'
 
 export default function LanguageSelectScreen({ onSelect }) {
   function choose(lang) {
@@ -34,9 +35,9 @@ export default function LanguageSelectScreen({ onSelect }) {
       <div style={s.footer}>
         {LANGUAGES.map(l => (
           <button key={l.id} style={s.langBtn} onClick={() => choose(l.id)}>
-            <span style={s.langFlag}>{l.flag}</span>
+            <span style={s.langFlag} aria-hidden="true">{l.id.toUpperCase()}</span>
             <span style={s.langLabel}>{l.label}</span>
-            <span style={s.langArrow}>→</span>
+            <span style={s.langArrow}><AppIcon name="ArrowRight" size={16} strokeWidth={2.4} style={{ verticalAlign: '-3px' }} /></span>
           </button>
         ))}
       </div>
@@ -52,7 +53,7 @@ const s = {
   subtitle: { fontFamily: 'var(--font-bento)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.6, color: 'rgba(255,255,255,.55)', margin: 0, textWrap: 'pretty' },
   footer: { flex: 'none', padding: '0 26px calc(32px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 10 },
   langBtn: { display: 'flex', alignItems: 'center', gap: 14, width: '100%', border: 'none', background: 'rgba(255,255,255,.07)', borderRadius: 18, padding: '16px 18px', cursor: 'pointer', fontFamily: 'var(--font-bento)', textAlign: 'left' },
-  langFlag: { fontSize: 26, flexShrink: 0 },
+  langFlag: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-bento)', fontSize: 13, fontWeight: 800, letterSpacing: '.06em', color: '#fff' },
   langLabel: { flex: 1, fontSize: 15, fontWeight: 700, color: '#fff' },
   langArrow: { fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,.5)' },
 }

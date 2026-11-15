@@ -18,7 +18,7 @@ import { BIBLE_CHAPTERS } from '../data/gamificationBlocks'
 
 const FONT = 'var(--font-bento)'
 
-export default function SeuPlanoScreen({ session, completedSet, stepMinutes, onBack, onNavigate, onChangeDays }) {
+export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, stepMinutes, onBack, onNavigate, onChangeDays }) {
   const { lang, plan, routineModules, dailyRoutine, currentBlock, chaptersRead, hasNoPlan } = session
   const [stepDays, setStepDays] = useState(null)
   const [useLearnedPace, setUseLearnedPace] = useState(false)
@@ -123,7 +123,7 @@ export default function SeuPlanoScreen({ session, completedSet, stepMinutes, onB
             </span>
             <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
           </button>
-          <button type="button" style={s.row} onClick={() => onNavigate?.('profile')}>
+          <button type="button" style={s.row} onClick={() => onOpenProfile?.()}>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={s.rowTitle}>Lembrete diário</span>
               <span style={s.rowSub}>{reminderLine(reminder) ?? t('routine.dailyReminderOff', undefined, lang)}</span>
@@ -139,9 +139,9 @@ export default function SeuPlanoScreen({ session, completedSet, stepMinutes, onB
 const s = {
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 0' },
-  backBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   title: { flex: 1, minWidth: 0, fontFamily: FONT, fontSize: 17, fontWeight: 800, letterSpacing: '-.5px', color: 'var(--bento-ink)', margin: 0 },
-  adjustBtn: { height: 34, flexShrink: 0, padding: '0 12px', borderRadius: 12, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
+  adjustBtn: { height: 44, flexShrink: 0, padding: '0 14px', borderRadius: 14, border: 'none', background: '#fff', display: 'flex', alignItems: 'center', gap: 7, fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },
   body: { flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 20px 22px', display: 'flex', flexDirection: 'column', gap: 12 },
   card: { borderRadius: 24, background: 'var(--bento-card)', padding: '18px 18px 16px' },
   cardHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
