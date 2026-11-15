@@ -6,6 +6,7 @@
 // (HomeScreen): a folha só mostra.
 import FolhaInferior from '../FolhaInferior'
 import AppIcon from '../../icons/AppIcon'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -14,22 +15,22 @@ export default function FolhaVersiculo({ verse, saved, sharing, onSave, onShare,
   const ref = `${verse.ref}${verse.version ? ` · ${verse.version}` : ''}`
   return (
     <FolhaInferior fixed onClose={onClose} labelledBy="hoje-versiculo-titulo">
-      <p id="hoje-versiculo-titulo" style={s.title}>Versículo do dia</p>
+      <p id="hoje-versiculo-titulo" style={s.title}>{t('hojeTx.verseTitle')}</p>
       <p style={s.verse}>&ldquo;{verse.text}&rdquo;</p>
       {canOpen ? (
-        <button type="button" style={s.refBtn} onClick={onOpenText} aria-label={`${ref}. Ir para o texto na Bíblia`}>
+        <button type="button" style={s.refBtn} onClick={onOpenText} aria-label={t('hojeTx.goToText', { ref })}>
           {ref}
           <AppIcon name="ChevronRight" size={14} strokeWidth={2.2} color="var(--bento-t5)" />
         </button>
       ) : <p style={s.ref}>{ref}</p>}
       <div style={s.actions}>
-        <button type="button" style={s.secondary} onClick={onSave} disabled={saved} aria-label={saved ? 'Versículo salvo' : 'Salvar versículo'}>
+        <button type="button" style={s.secondary} onClick={onSave} disabled={saved} aria-label={t(saved ? 'hojeTx.savedAria' : 'hojeTx.saveAria')}>
           <AppIcon name="BookMarked" size={15} strokeWidth={2} color="var(--bento-ink)" />
-          {saved ? 'Salvo' : 'Salvar'}
+          {t(saved ? 'hojeTx.saved' : 'hojeTx.save')}
         </button>
-        <button type="button" style={s.primary} onClick={onShare} disabled={sharing} aria-label="Compartilhar versículo">
+        <button type="button" style={s.primary} onClick={onShare} disabled={sharing} aria-label={t('hojeTx.shareAria')}>
           <AppIcon name="Share2" size={15} strokeWidth={2} color="#fff" />
-          Compartilhar
+          {t('hojeTx.share')}
         </button>
       </div>
     </FolhaInferior>

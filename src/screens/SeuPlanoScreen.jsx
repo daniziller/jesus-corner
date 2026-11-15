@@ -97,7 +97,7 @@ export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, s
                   <>
                     <div style={s.chips}>
                       {row.chips.map(c => (
-                        <span key={c.key} style={{ ...s.chip, ...s.chip_[c.state] }}>{stepName(c.key)}</span>
+                        <span key={c.key} style={{ ...s.chip, ...s.chip_[c.state] }}>{stepName(c.key, lang)}</span>
                       ))}
                     </div>
                     {row.fulfilled

@@ -16,6 +16,7 @@
 import { useEffect, useState } from 'react'
 import AppIcon from '../../icons/AppIcon'
 import { dateKey } from '../../utils/dateKey'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 // Passos já mostrados como feitos nesta sessão do app ("dia:passo").
@@ -38,14 +39,14 @@ export default function CartaoPlano({ card, onOpenPlan, onAction }) {
 
   const navigable = card.kind !== 'error'
   const { button } = card
-  const headLabel = `Seu plano de hoje: ${[card.title, ...(card.right ?? [])].join(', ')}${navigable ? '. Abrir Meu Plano' : ''}`
+  const headLabel = `${t('hojeTx.todayPlanAria', { text: [card.title, ...(card.right ?? [])].join(', ') })}${navigable ? `. ${t('hojeTx.openPlan')}` : ''}`
   const Head = navigable ? 'button' : 'div'
 
   return (
     <div style={{ ...s.card, cursor: navigable ? 'pointer' : 'default' }} onClick={navigable ? onOpenPlan : undefined}>
       <Head type={navigable ? 'button' : undefined} style={{ ...s.head, marginBottom: card.steps.length > 0 || button ? 13 : 0 }} aria-label={navigable ? headLabel : undefined}>
         <span style={s.headLeft}>
-          <span style={s.label}>SEU PLANO DE HOJE</span>
+          <span style={s.label}>{t('hojeTx.todayPlan')}</span>
           <span style={s.title}>{card.title}</span>
           {card.line && <span style={s.line}>{card.line}</span>}
         </span>

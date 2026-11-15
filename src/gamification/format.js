@@ -1,54 +1,64 @@
-// format.js — frases e números da gamificação, em português com vírgula
-// decimal e ponto de milhar (HANDOFF §8). Pura; reaproveita formatPercent
-// (bible/formatPercent.js). Testes em scripts/test-gamificacao.mjs.
+// format.js — frases e números da gamificação: em português com vírgula
+// decimal e ponto de milhar (HANDOFF §8), e em inglês quando `lang` é
+// 'en'. Pura; reaproveita formatPercent (bible/formatPercent.js). Testes
+// em scripts/test-gamificacao.mjs.
 import { formatPercent } from '../bible/formatPercent.js'
 
-export function formatInt(n) {
-  return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+const localeOf = lang => (lang === 'en' ? 'en-US' : 'pt-BR')
+
+export function formatInt(n, lang = 'pt') {
+  return Number(n).toLocaleString(localeOf(lang), { maximumFractionDigits: 0 })
 }
 
 // "4,2%" — uma casa decimal quando existe (formatPercent já decide).
-export function formatPct(value) {
-  return `${formatPercent(value, 'pt')}%`
+export function formatPct(value, lang = 'pt') {
+  return `${formatPercent(value, lang)}%`
 }
 
 export function plural(n, singular, pluralForm) {
   return n === 1 ? singular : pluralForm
 }
 
-// "faltam 9 capítulos" / "falta 1 capítulo"
-export function faltamPhrase(n, singular, pluralForm) {
+// "faltam 9 capítulos" / "falta 1 capítulo" · "9 chapters to go"
+export function faltamPhrase(n, singular, pluralForm, lang = 'pt') {
+  if (lang === 'en') return `${formatInt(n, lang)} ${n === 1 ? singular : pluralForm} to go`
   return n === 1 ? `falta 1 ${singular}` : `faltam ${formatInt(n)} ${pluralForm}`
 }
 
-// "{lidos} de {total}"
-export function deOf(a, b) {
-  return `${formatInt(a)} de ${formatInt(b)}`
+// "{lidos} de {total}" · "{read} of {total}"
+export function deOf(a, b, lang = 'pt') {
+  return `${formatInt(a, lang)} ${lang === 'en' ? 'of' : 'de'} ${formatInt(b, lang)}`
 }
 
-const MONTHS_PT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+const MONTHS = {
+  pt: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'],
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+}
+const monthsOf = lang => MONTHS[lang] ?? MONTHS.pt
 
-export function monthName(date) {
-  return MONTHS_PT[date.getMonth()]
+export function monthName(date, lang = 'pt') {
+  return monthsOf(lang)[date.getMonth()]
 }
 
-// "mar/25" (G6)
-export function monthYearShort(iso) {
+// "mar/25" (G6) · "Mar/25"
+export function monthYearShort(iso, lang = 'pt') {
   const d = new Date(iso)
-  return `${MONTHS_PT[d.getMonth()].slice(0, 3)}/${String(d.getFullYear()).slice(-2)}`
+  return `${monthsOf(lang)[d.getMonth()].slice(0, 3)}/${String(d.getFullYear()).slice(-2)}`
 }
 
-// "28 de agosto" (G8) · "28 ago 2025" (G10) · "março de 2029" (G2)
-export function dayMonthLong(iso) {
+// "28 de agosto" (G8) · "28 ago 2025" (G10) · "março de 2029" (G2);
+// em inglês "August 28" · "Aug 28 2025" · "March 2029".
+export function dayMonthLong(iso, lang = 'pt') {
   const d = new Date(iso)
-  return `${d.getDate()} de ${MONTHS_PT[d.getMonth()]}`
+  return lang === 'en' ? `${monthsOf(lang)[d.getMonth()]} ${d.getDate()}` : `${d.getDate()} de ${monthsOf(lang)[d.getMonth()]}`
 }
-export function dayMonthYearShort(iso) {
+export function dayMonthYearShort(iso, lang = 'pt') {
   const d = new Date(iso)
-  return `${d.getDate()} ${MONTHS_PT[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`
+  const mon = monthsOf(lang)[d.getMonth()].slice(0, 3)
+  return lang === 'en' ? `${mon} ${d.getDate()} ${d.getFullYear()}` : `${d.getDate()} ${mon} ${d.getFullYear()}`
 }
-export function monthYearLong(date) {
-  return `${MONTHS_PT[date.getMonth()]} de ${date.getFullYear()}`
+export function monthYearLong(date, lang = 'pt') {
+  return lang === 'en' ? `${monthsOf(lang)[date.getMonth()]} ${date.getFullYear()}` : `${monthsOf(lang)[date.getMonth()]} de ${date.getFullYear()}`
 }
 
 // Horas/minutos de uma soma de segundos: "52 min" até 59 min, "1 h 05"

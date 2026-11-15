@@ -298,8 +298,12 @@ const todaySession = estado === 'inteira'
   ? { book: 'Apocalipse', chStart: 22, chEnd: 22, type: 'reading', needsThemePick: false, title: 'Apocalipse 22', id: 1 }
   : { book: 'Gênesis', chStart: 42, chEnd: 42, type: 'reading', needsThemePick: false, title: 'Gênesis 42', id: 1 }
 
+// &lang=en: a pré-visualização em inglês (a sessão e o t() sem idioma).
+const previewLang = params.get('lang') === 'en' ? 'en' : 'pt'
+try { localStorage.setItem('jc_app_language', previewLang) } catch { /* sem localStorage */ }
+
 const session = {
-  lang: 'pt', userName: 'Diego', avatarInitials: 'DZ', todaySession,
+  lang: previewLang, userName: 'Diego', avatarInitials: 'DZ', todaySession,
   routineModules: planoState === 'um' ? ['prayer'] : ['prayer', 'reading', 'study', 'reflection'], plan,
   todayRoutine: {}, dailyRoutine,
   lastReadPosition: { book: 'Gênesis', chapter: 41 },

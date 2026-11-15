@@ -218,7 +218,7 @@ export default function AjustarPlanoScreen({ onOpenProfile, session, completedSe
             {STEP_KEYS.map(key => {
               const on = draft.enabled[key]
               const open = on && openKey === key
-              const name = stepName(key)
+              const name = stepName(key, lang)
               const summary = stepSummary(key, draft, summaryCtx)
               return (
                 <div key={key} ref={el => { rowRefs.current[key] = el }} style={{ ...s.row, ...(on ? {} : s.rowOff), ...(open ? s.rowOpen : {}) }}>

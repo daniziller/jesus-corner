@@ -203,5 +203,10 @@ check('rótulo da aba: "Comunidade, 9 mensagens novas"', communityTabLabel('Comu
 check('rótulo da aba: singular e acima de 99 (o número real)', [communityTabLabel('Comunidade', 1), communityTabLabel('Comunidade', 120)], ['Comunidade, 1 mensagem nova', 'Comunidade, 120 mensagens novas'])
 check('total = soma dos grupos', [totalUnreadMessages([{ unreadCount: 4 }, { unreadCount: 5 }, { unreadCount: 0 }, {}]), totalUnreadMessages([]), totalUnreadMessages(null)], [9, 0, 0])
 
+// ── Em inglês ───────────────────────────────────────────────────────────
+check('inglês: arias da caminhada', [weeksAria(1, 'en'), daysAria(2, 5, 'en'), sealsAria(3, 66, 'en')], ['1 week on target', '2 of 5 days on target this week', '3 seals of 66 books'])
+check('inglês: linhas do Para hoje', paraHojeRows({ summary: { seen: false, period: 'Nov 9–15' }, verse: null, verseLoading: false, application: null, lang: 'en' }).map(r => [r.title, r.subtitle]), [['Your week summary', 'Nov 9–15 is ready'], ['Take sermon notes', 'Opens the Bible with the note sheet']])
+check('inglês: cartão do plano em dia de descanso', (({ title, line, button }) => [title, line, button.label])(buildPlanCard({ loadError: false, stepDays: { prayer: [true, false, false, false, false, false, false], reading: Array(7).fill(false), study: Array(7).fill(false), reflection: Array(7).fill(false) }, routineModules: ['prayer'], state: { kind: 'rest', steps: [] }, ctx: {}, nextWeekdayIdx: 0, lang: 'en' })), ['Today is a rest day', 'Back on Monday.', 'I want to read today anyway'])
+
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes do Hoje (parte pura) passaram.')

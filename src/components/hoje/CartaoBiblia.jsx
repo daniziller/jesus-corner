@@ -7,28 +7,31 @@ import AppIcon from '../../icons/AppIcon'
 import { bookInfo } from '../../data/gamificationBlocks'
 import { formatPct } from '../../gamification/format'
 import { chaptersLine, bibleBookLine, bibleCardAria } from '../../hoje/hojeMath'
+import { bookNameFor } from '../../utils/progress'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 export default function CartaoBiblia({ progress, reads, currentBook, finishedIso, onOpen }) {
   const marker = !progress.bibliaInteira && currentBook && bookInfo(currentBook) ? currentBook : null
-  const line = bibleBookLine(progress, currentBook, finishedIso)
+  const lang = currentLanguage()
+  const line = bibleBookLine(progress, currentBook, finishedIso, lang, b => bookNameFor(b, lang))
   return (
     <div
-      style={s.card} role="button" tabIndex={0} aria-label={bibleCardAria(progress)} onClick={onOpen}
+      style={s.card} role="button" tabIndex={0} aria-label={bibleCardAria(progress, lang)} onClick={onOpen}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.() } }}
     >
       <span style={s.wheel} aria-hidden="true">
         <RodaDaBiblia
           reads={reads} mode="livros" size={132} currentBook={marker}
           centerLine1={formatPct(progress.percent)} centerSize={54} centerSpacing={-2}
-          centerLine2="da Bíblia" centerLine2Size={24} centerLine2Weight={700} centerLine2Y={184}
+          centerLine2={t('hojeTx.bibleCenter')} centerLine2Size={24} centerLine2Weight={700} centerLine2Y={184}
           animateKey="hoje"
         />
       </span>
       <div style={s.text}>
-        <p style={s.label}>SUA BÍBLIA</p>
-        <p style={s.chapters}>{chaptersLine(progress)}</p>
+        <p style={s.label}>{t('hojeTx.yourBible')}</p>
+        <p style={s.chapters}>{chaptersLine(progress, lang)}</p>
         {line && <p style={s.book}>{line}</p>}
       </div>
       <AppIcon name="ChevronRight" size={14} strokeWidth={2.2} color="var(--bento-t5)" />

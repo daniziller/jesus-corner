@@ -45,6 +45,7 @@ import { bookInfo } from '../data/gamificationBlocks'
 import { loadGamificationStats } from '../gamification/evaluate'
 import { recentSeals } from '../gamification/sealDetails'
 import { bibleFinishedIso, buildPlanCard, nextAchievement, paraHojeRows } from '../hoje/hojeMath'
+import { bookNameFor } from '../utils/progress'
 
 
 // "Terça, 2 de setembro" / "Tuesday, September 2" — mesmo formato de
@@ -277,10 +278,11 @@ export default function HomeScreen({
     loadError: stepDaysLoadError, stepDays, routineModules, state: planState,
     ctx: {
       prayerMethod, reflectionMethod, study: activeStudy,
-      readingPassage: !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${currentBlock.book} ${currentBlock.chapter}` : '',
-      readingDonePassage: lastReadPosition?.book && lastReadPosition?.chapter ? `${lastReadPosition.book} ${lastReadPosition.chapter}` : '',
+      readingPassage: !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${bookNameFor(currentBlock.book, lang)} ${currentBlock.chapter}` : '',
+      readingDonePassage: lastReadPosition?.book && lastReadPosition?.chapter ? `${bookNameFor(lastReadPosition.book, lang)} ${lastReadPosition.chapter}` : '',
     },
     nextWeekdayIdx: stepDays ? (tomorrowCard({ routineModules, stepDays, minutes: planMinutes, todayIdx: todayWeekdayIdx })?.weekdayIdx ?? null) : null,
+    lang,
   })
   // O botão do cartão: 'start' é a MESMA função do botão do Meu Plano
   // (abre o passo de agora e emenda os seguintes); as outras só navegam.
@@ -320,6 +322,7 @@ export default function HomeScreen({
     summary: latestSummary ? { seen: !!latestSummary.seen, period: recapPeriodLabel(latestSummary, lang) } : null,
     verse: verseData, verseLoading: loading,
     application: pinnedEntry ? { text: pinnedEntry.text, fulfilled: !!pinnedEntry.fulfilled, writtenToday: wroteApplicationToday, visible: getShowApplicationCard() } : null,
+    lang,
   })
   function handleParaHojeOpen(key) {
     if (key === 'challenge') onOpenBiblePassage?.(challengeDay.book, challengeDay.chStart)
@@ -369,7 +372,7 @@ export default function HomeScreen({
   // Bloco 3 — PRÓXIMA CONQUISTA: "a mais perto", a mesma função de
   // Minhas conquistas, sobre a mesma carga. Null = tudo conquistado (ou a
   // carga falhou): o cartão não aparece.
-  const nextConquista = useMemo(() => (gami?.states ? nextAchievement(pickClosest(gami.states.families)) : null), [gami])
+  const nextConquista = useMemo(() => (gami?.states ? nextAchievement(pickClosest(gami.states.families), lang) : null), [gami, lang])
   const bibleFinishedAt = useMemo(
     () => (bibleProgress.bibliaInteira && gami ? bibleFinishedIso(gami.stats.chapterRows) : null),
     [bibleProgress.bibliaInteira, gami],
