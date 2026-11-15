@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
-import FolhaDeConfirmacao from '../components/comunidade/FolhaDeConfirmacao'
+import FolhaDeConfirmacao from '../components/FolhaDeConfirmacao'
 import { avatarInitialsOf } from '../utils/avatarInitials'
 import { getRoomStats, getRoomQuestion, setRoomQuestion, getRoomPosts, postToRoom, toggleAmen, deleteRoomPost } from '../groups/chapterRoomStore'
 

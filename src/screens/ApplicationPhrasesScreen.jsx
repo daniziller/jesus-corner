@@ -14,11 +14,13 @@ import { getNotes, saveNote, noteTextOf, noteUpdatedAtOf, noteSessionTitleOf, pa
 import { getPinnedApplicationPhrase, setPinnedApplicationPhrase } from '../reflection/applicationPhraseStore'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const FONT = 'var(--font-bento)'
 
 export default function ApplicationPhrasesScreen({ session, authUser, onBack, onApplicationChanged }) {
   const { lang } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const [state, setState] = useState({ status: 'loading', phrases: [] })
   const [editingKey, setEditingKey] = useState(null)
   const [editText, setEditText] = useState('')
@@ -108,7 +110,7 @@ export default function ApplicationPhrasesScreen({ session, authUser, onBack, on
   }
 
   async function deletePhrase(phrase) {
-    if (!window.confirm(t('applicationPhrases.deleteConfirm', undefined, lang))) return
+    if (!(await perguntar({ title: t('confirmations.deletePhraseTitle', undefined, lang), text: t('confirmations.cantUndo', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     setBusyKey(phrase.key)
     try {
       await saveNote(authUser.email, phrase.key, '')
@@ -195,6 +197,7 @@ export default function ApplicationPhrasesScreen({ session, authUser, onBack, on
           )
         })}
       </div>
+      {folha}
     </div>
   )
 }

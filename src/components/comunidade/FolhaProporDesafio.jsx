@@ -84,7 +84,7 @@ export default function FolhaProporDesafio({ lang, blocks, onClose, onCreate }) 
         </div>
 
         {error && <p style={s.error} role="alert">{error}</p>}
-        <button type="submit" style={{ ...s.primary, ...(busy ? { opacity: 0.5 } : null) }} disabled={busy}>{busy ? L('confirmWorking') : L('startChallenge')}</button>
+        <button type="submit" style={{ ...s.primary, ...(busy ? { opacity: 0.5 } : null) }} disabled={busy}>{busy ? t('confirmSheet.working', undefined, lang) : L('startChallenge')}</button>
         <button type="button" style={s.cancel} onClick={onClose} disabled={busy}>{L('cancel')}</button>
       </form>
     </FolhaInferior>

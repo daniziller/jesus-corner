@@ -57,6 +57,7 @@ import MetricsScreen from './screens/MetricsScreen'
 import MetricsBlocksScreen from './screens/MetricsBlocksScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import ProfileSheet from './screens/ProfileSheet'
+import FolhaDeConfirmacao from './components/FolhaDeConfirmacao'
 import LanguageSettingsScreen from './screens/LanguageSettingsScreen'
 import AppearanceScreen from './screens/AppearanceScreen'
 import GroupAdminScreen from './screens/GroupAdminScreen'
@@ -507,6 +508,9 @@ export default function App() {
   // o primeiro), a sala de capítulo aberta e a retrospectiva do mês devida.
   const [myGroups, setMyGroups] = useState([])
   const [adminGroupId, setAdminGroupId] = useState(null)
+  // Textos de um plano por tema novo que já estavam lidos (ver
+  // offerUnmarkAlreadyRead): a folha pergunta se desmarca.
+  const [unmarkOffer, setUnmarkOffer] = useState(null)
   const [chapterRoom, setChapterRoom] = useState(null) // { group, book, bookEn, chapter }
   // Detalhe de um pedido de oração (comentários, 2026-09-19) — o request
   // inteiro (já carregado na lista), não só o id, pra abrir sem esperar
@@ -1876,9 +1880,9 @@ export default function App() {
   function offerUnmarkAlreadyRead(plan) {
     const newTexts = deriveThemeTexts(plan.passages)
     const alreadyReadTexts = newTexts.filter(txt => sessionKeys(txt).some(k => completedSet.has(k)))
-    if (alreadyReadTexts.length > 0 && window.confirm(t('themePlan.unmarkReadConfirm', { count: alreadyReadTexts.length }, session.lang))) {
-      alreadyReadTexts.forEach(txt => toggleSession(txt, false))
-    }
+    // A pergunta é a folha de confirmação (desenhada junto do Perfil, lá
+    // embaixo) — antes era a caixa do navegador.
+    if (alreadyReadTexts.length > 0) setUnmarkOffer(alreadyReadTexts)
   }
 
   // "Salvar p/ depois" (22b) — persiste o plano na lista, mas não o torna
@@ -3582,7 +3586,7 @@ export default function App() {
     handsFree: hasPremium
       ? <HandsFreeScreen session={session} onExit={goBack} onNavigate={navigateTo} onMarkRoutineStep={markRoutineStep} onFinishReading={finishReadingFromHandsFree} />
       : <PremiumRequired feature="handsFree" lang={session.lang} onNavigate={navigateTo} />,
-    upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} />,
+    upgrade: <UpgradeScreen session={session} subscription={subscription} onSubscriptionRefreshed={refreshSubscription} onBack={goBack} />,
     // Só alcançada pelo Sidebar (telas ≥768px) — no app (<768px) o avatar
     // abre a folha ProfileSheet (renderizada fora deste mapa, ver abaixo).
     profile: <ProfileScreen  session={session} authUser={authUser} subscription={subscription} isAdmin={isAdmin} onNavigate={navigateTo} onLogout={handleLogout} onResetProgress={handleResetProgress} onChangeLanguage={changeLanguage} onChangeReadingOrder={selectReadingOrder} onSelectPace={selectPlan} onProfileUpdated={handleProfileUpdated} />,
@@ -3677,7 +3681,7 @@ export default function App() {
   // corrigido aqui antes pra 'groups'/'studies'. handsFree também faltava
   // em navHidden (abaixo) — tela full-bleed com o próprio X de fechar, sem
   // lugar pra barra de abas embaixo.
-  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'verseNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree'].includes(activeTab)
+  const bentoScreen = ['home', 'routine', 'journey', 'sermonNote', 'verseNote', 'notes', 'profile', 'adjustPlan', 'readingOrganize', 'studyOrganize', 'chooseStart', 'chooseStartExisting', 'metrics', 'metricsBlocks', 'aiSettings', 'contact', 'applicationPhrases', 'suaBiblia', 'conquistas', 'familia', 'novaConquista', 'livroCompleto', 'estante', 'selo', 'seuPlano', 'themePlan', 'chronologicalPlan', 'chapterRoom', 'monthRecap', 'prayer', 'prayerRequests', 'prayerRequestDetail', 'blessing', 'readingChoice', 'physicalReading', 'readingSummary', 'reflection', 'routineComplete', 'language', 'appearance', 'groupAdmin', 'reportedMessage', 'groupMembers', 'groupReadingActivity', 'createChallenge', 'groupChallengeProposal', 'reportProblem', 'addStudy', 'createStudy', 'studyProposal', 'createAiStudy', 'studyProposalNew', 'groupPlanProposal', 'groupPlanReader', 'weeklySummaryNumbers', 'weeklySummaryText', 'weeklySummaryPrayerGroup', 'admin', 'groups', 'groupMessages', 'studies', 'publicStudies', 'studyDay', 'studyDayComplete', 'studyDetail', 'studyComplete', 'handsFree', 'upgrade'].includes(activeTab)
   // Sub-telas Bento cujo quadro não tem barra inferior (5a: o rodapé é o
   // botão "Salvar plano"; 10f: o rodapé é o aviso de offline; 10d: o
   // rodapé é "Próxima pergunta"); saem pela própria seta de voltar / ao
@@ -3781,6 +3785,17 @@ export default function App() {
         />
       )}
 
+      {unmarkOffer && (
+        <FolhaDeConfirmacao
+          lang={session.lang}
+          title={t(unmarkOffer.length === 1 ? 'confirmations.unmarkTextsTitleOne' : 'confirmations.unmarkTextsTitleMany', { count: unmarkOffer.length }, session.lang)}
+          text={t('confirmations.unmarkTextsText', undefined, session.lang)}
+          confirmLabel={t('confirmations.unmarkBtn', undefined, session.lang)}
+          cancelLabel={t('confirmations.keepMarkedBtn', undefined, session.lang)}
+          onConfirm={async () => { unmarkOffer.forEach(txt => toggleSession(txt, false)); setUnmarkOffer(null) }}
+          onClose={() => setUnmarkOffer(null)}
+        />
+      )}
       <ProfileSheet
         open={profileOpen}
         session={session}

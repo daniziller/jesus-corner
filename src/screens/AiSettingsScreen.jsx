@@ -13,6 +13,7 @@ import { getSaveQuestionsEnabled, setSaveQuestionsEnabled, clearAllPassageQuesti
 import { getGroupNoticeEnabled, setGroupNoticeEnabled } from '../groups/groupNoticeStore'
 import { getMyGroups } from '../groups/groupsStore'
 import { getReflectionMethod, setReflectionMethod } from '../reflection/reflectionMethodStore'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const TONES = [
   { id: 'direct', labelKey: 'toneDirect', subKey: 'toneDirectSub' },
@@ -23,6 +24,7 @@ const TONES = [
 export default function AiSettingsScreen({ session, onBack }) {
   const { lang } = session
   const L = (k, vars) => t(`aiSettings.${k}`, vars, lang)
+  const [perguntar, folha] = useConfirmacao(lang)
 
   // Lidos direto do localStorage no useState inicial (não há backend nem
   // outro lugar que mude esses valores enquanto esta tela está aberta),
@@ -67,8 +69,8 @@ export default function AiSettingsScreen({ session, onBack }) {
   function toggleSave() { setSaveQuestionsEnabled(!saveOn); setSaveOn(!saveOn) }
   function chooseTone(id) { setResponseTone(id); setTone(id) }
 
-  function clearQuestions() {
-    if (!window.confirm(L('clearConfirm'))) return
+  async function clearQuestions() {
+    if (!(await perguntar({ title: t('confirmations.clearSavedTitle', undefined, lang), text: t('confirmations.clearSavedText', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     clearAllPassageQuestions()
   }
 
@@ -127,6 +129,7 @@ export default function AiSettingsScreen({ session, onBack }) {
           <p style={styles.offlineText}>{L('offlineNote')}</p>
         </div>
       </div>
+      {folha}
     </div>
   )
 }

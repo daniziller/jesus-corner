@@ -38,6 +38,7 @@ import { sessionKeys } from '../utils/progress'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import ReadingBlockView from './ReadingBlockView'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const FONT = 'var(--font-bento)'
 
@@ -52,6 +53,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 export default function ThemePlanScreen({ session, authUser, completedSet, plans, isAdmin, onPlansChanged, autoOpenPlanId, autoOpenKeys, onToggleSession, onToggleChapter, onNavigate, onCreateStudy, onGoToReflectionFrom, onBack }) {
   const { lang } = session
   const L = (k, vars) => t(`themePlan.${k}`, vars, lang)
+  const [perguntar, folha] = useConfirmacao(lang)
   const [activePlanId, setActivePlanId] = useState(autoOpenPlanId ?? null)
 
   const recentPlansCount = plans.filter(p => p.createdAt && Date.now() - new Date(p.createdAt).getTime() < THIRTY_DAYS_MS).length
@@ -69,7 +71,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
   }, [autoOpenPlanId])
 
   async function handleDelete(plan) {
-    if (!window.confirm(t('themePlan.deleteConfirm', undefined, lang))) return
+    if (!(await perguntar({ title: t('confirmations.deleteThemePlanTitle', undefined, lang), text: t('confirmations.cantUndo', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     try {
       const updated = await deleteThemePlan(authUser.email, plan.id)
       onPlansChanged?.(updated)
@@ -185,6 +187,7 @@ export default function ThemePlanScreen({ session, authUser, completedSet, plans
           </div>
         )}
       </div>
+      {folha}
     </div>
   )
 }

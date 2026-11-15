@@ -36,6 +36,7 @@ import ReadingBlockView from './ReadingBlockView'
 import {
   bookHeaderSub, bookSealLine, bookNumbers, chapterCells, chapterCellAria, chapterLegend, bookFooterButton, bookActions,
 } from '../biblia/bibliaMath'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const HOLD_MS = 450
 const FONT = 'var(--font-bento)'
@@ -47,6 +48,7 @@ export default function BookChapterScreen({
   onBack, onOpenSelo, onCelebrateNow, initialSessionId, initialTextOpen, initialFocusVerse, onActiveChapterChange,
 }) {
   const { lang } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const email = authUser?.email
 
   const [openSessionId, setOpenSessionId] = useState(initialSessionId ?? null)
@@ -118,8 +120,8 @@ export default function BookChapterScreen({
   function markWholeBook() {
     markChapters(cells.filter(c => c.state === 'next' || c.state === 'none').map(c => c.ch))
   }
-  function unmarkWholeBook() {
-    if (!window.confirm(`Desmarcar todos os capítulos de ${displayName}?`)) return
+  async function unmarkWholeBook() {
+    if (!(await perguntar({ title: t('confirmations.unmarkBookTitle', { book: displayName }, lang), text: t('confirmations.unmarkBookText', undefined, lang), confirmLabel: t('confirmations.unmarkBtn', undefined, lang) }))) return
     onMarkChaptersManually?.(bookName, cells.map(c => c.ch), false)
   }
   function runAction(key) {
@@ -292,6 +294,7 @@ export default function BookChapterScreen({
           <AppIcon name="ArrowRight" size={16} strokeWidth={2.2} color="var(--bento-accent)" />
         </button>
       </div>
+      {folha}
     </div>
   )
 }

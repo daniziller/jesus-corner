@@ -47,6 +47,7 @@ import { meusEstudosApi } from '../studies/meusEstudosApi'
 import { savedStudyEntries, removalOf, progressLine, publishedLine, inviteRow, matchesStudyQuery } from '../studies/meusEstudosMath'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
 import { BotaoDaLupa } from '../components/biblioteca/TelaDeTipo'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const FONT = 'var(--font-bento)'
 const CHIPS = ['all', 'jesusCorner', 'groups', 'public', 'saved']
@@ -54,6 +55,7 @@ const CHIPS = ['all', 'jesusCorner', 'groups', 'public', 'saved']
 export default function AddStudyScreen({ session, api = meusEstudosApi, onBack, onOpenSearch = null, onCreateStudy, onChangeStudyDays, onOpenPreview, onOpenPublicBank, onOpenStudyDetail, onOpenCatalogStudy }) {
   const { lang, activeStudyId } = session
   const L = (k, vars) => t(`addStudy.${k}`, vars, lang)
+  const [perguntar, folha] = useConfirmacao(lang)
 
   const [query, setQuery] = useState('')
   const [chip, setChip] = useState('all')
@@ -154,13 +156,17 @@ export default function AddStudyScreen({ session, api = meusEstudosApi, onBack, 
   }
   // "Sair do banco": tira o estudo que publiquei; quem já usou fica com a
   // própria cópia.
-  function withdraw(study) {
-    if (!window.confirm(L('withdrawConfirm'))) return
+  async function withdraw(study) {
+    if (!(await perguntar({ title: t('confirmations.withdrawTitle', undefined, lang), text: t('confirmations.withdrawText', undefined, lang), confirmLabel: t('confirmations.withdrawBtn', undefined, lang) }))) return
     act(study.id, async () => { await api.withdraw(study.id); await loadShared() })
   }
   // "Apagar" um estudo guardado, ou "Tirar da lista" um do catálogo.
-  function removeSaved(entry) {
-    if (!window.confirm(L(removalOf(entry).confirmKey))) return
+  async function removeSaved(entry) {
+    const clearing = removalOf(entry).action === 'clear'
+    const asked = clearing
+      ? { title: t('confirmations.removeStudyTitle', undefined, lang), text: t('confirmations.removeStudyText', undefined, lang), confirmLabel: t('confirmations.removeBtn', undefined, lang) }
+      : { title: t('confirmations.deleteStudyTitle', undefined, lang), text: t('confirmations.deleteStudyText', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }
+    if (!(await perguntar(asked))) return
     act(entry.id, async () => { await api.remove(entry); await loadMine() })
   }
   // Um estudo do catálogo abre na tela dele; os meus, na prévia.
@@ -362,6 +368,7 @@ export default function AddStudyScreen({ session, api = meusEstudosApi, onBack, 
           <p style={s.trustText}>{L('trustNote')}</p>
         </div>
       </div>
+      {folha}
     </div>
   )
 }

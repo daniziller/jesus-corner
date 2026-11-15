@@ -29,11 +29,13 @@ import {
   computeMeuPlano, resolveMinutes, stepsCountText, barRightText, buttonLabel, nowCardLabel, nowCardMinutes, nowCardAria,
   doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay, doneTitle, weekCountSentence, STEP_ORDER, studyReturnDate,
 } from '../meuPlano/meuPlanoMath'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 
 const FONT = 'var(--font-bento)'
 
 export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onStartGuided, onNavigate, onOpenSeuPlano, onEndStudy }) {
   const { lang, plan, routineModules, activeStudyId, dailyRoutine, currentBlock, hasNoPlan, lastReadPosition } = session
+  const [perguntar, folha] = useConfirmacao(lang)
   const [stepDays, setStepDays] = useState(null)
   const [methods, setMethods] = useState({ prayer: 'acts', reflection: 'questions' })
   const [activeStudy, setActiveStudy] = useState(null)
@@ -95,8 +97,8 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
         returnDate: stepDays ? studyReturnDate(today, stepDays.study, activeStudy.dayTotal - activeStudy.dayDone, !!dayEntry?.study) : null,
       }
     : null
-  function resumeReading() {
-    if (!window.confirm(`Retomar ${currentBlock.book} agora? O estudo fica salvo na Biblioteca.`)) return
+  async function resumeReading() {
+    if (!(await perguntar({ title: t('confirmations.resumePlanTitle', { book: currentBlock.book }, lang), text: t('confirmations.resumePlanText', undefined, lang), confirmLabel: t('confirmations.resumePlanBtn', undefined, lang) }))) return
     onEndStudy?.()
   }
 
@@ -265,6 +267,7 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
           )}
         </div>
       </div>
+      {folha}
     </div>
   )
 }

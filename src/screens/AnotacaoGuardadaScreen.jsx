@@ -20,6 +20,8 @@ import {
 import DetalhesDaAnotacao from '../components/anotar/DetalhesDaAnotacao'
 import FolhaDoItem from '../components/biblioteca/FolhaDoItem'
 import Icone from '../components/anotar/Icone'
+import { useConfirmacao } from '../components/FolhaDeConfirmacao'
+import { t } from '../i18n'
 
 const FONT = 'var(--font-bento)'
 const NO_GROUPS = []
@@ -27,6 +29,7 @@ const NO_GROUPS = []
 // `notice`: o que acabou de acontecer ao finalizar — { shared: [{ groupId,
 // postId }], failed: [groupId], reason } (ver PaginaDeAnotacao.jsx).
 export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, noteId, groups = NO_GROUPS, notice: arrivedWith = null, onBack, onContinue, onRead, onOpenBiblePassage, onDeleted }) {
+  const [perguntar, folha] = useConfirmacao(lang)
   const { status, draft, library, change, leave, discard } = useAnotacao({ api, target: { noteId }, countTime: false })
   const [summary, setSummary] = useState({ state: 'idle', data: null })
   const [highlights, setHighlights] = useState(null)
@@ -143,7 +146,7 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
   }
   async function remove() {
     setMenu(false)
-    if (!window.confirm('Deletar essa anotação? Não dá pra desfazer.')) return
+    if (!(await perguntar({ title: t('confirmations.deleteNoteTitle', undefined, lang), text: t('confirmations.cantUndo', undefined, lang), confirmLabel: t('confirmations.deleteBtn', undefined, lang) }))) return
     discard()
     try {
       await api.remove(draft.id)
@@ -271,6 +274,7 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
           onEdit={() => { setMenu(false); openDetails('type') }} onShare={share} onDelete={remove}
         />
       )}
+      {folha}
     </div>
   )
 }

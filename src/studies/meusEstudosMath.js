@@ -24,8 +24,8 @@ export function savedStudyEntries({ ai = [], inductive = [], catalog = [], isDon
 // fixo do app — só o progresso é zerado, e ele sai da lista.
 export function removalOf(entry) {
   return entry.kind === 'catalog'
-    ? { action: 'clear', labelKey: 'clearBtn', confirmKey: 'clearConfirm' }
-    : { action: 'delete', labelKey: 'deleteBtn', confirmKey: 'deleteConfirm' }
+    ? { action: 'clear', labelKey: 'clearBtn' }
+    : { action: 'delete', labelKey: 'deleteBtn' }
 }
 
 // A linha de apoio de um estudo do catálogo já começado: "2 de 10 feitos".

@@ -20,7 +20,7 @@ import GrupoOracao from '../components/comunidade/GrupoOracao'
 import GrupoConversa from '../components/comunidade/GrupoConversa'
 import GrupoPessoas from '../components/comunidade/GrupoPessoas'
 import Cabecalho from '../components/comunidade/Cabecalho'
-import FolhaDeConfirmacao from '../components/comunidade/FolhaDeConfirmacao'
+import FolhaDeConfirmacao from '../components/FolhaDeConfirmacao'
 import { leavePlan } from '../comunidade/comunidadeMath'
 
 // Todos os 66 livros (pt/en), na mesma ordem/nomes usados em completed_keys

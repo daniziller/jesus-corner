@@ -24,6 +24,7 @@ import { resolveEntitlement } from '../billing/entitlement'
 import { formatAmount } from '../billing/formatAmount'
 import { redeemInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
+import Cabecalho from '../components/comunidade/Cabecalho'
 
 // Comparativo curto — o que cada tier entrega. `tier` marca a partir de
 // qual nível o item está incluído.
@@ -40,7 +41,7 @@ const COMPARE = [
 
 const TIER_RANK = { free: 0, premium: 1, premium_ai: 2 }
 
-export default function UpgradeScreen({ session, subscription, onSubscriptionRefreshed }) {
+export default function UpgradeScreen({ session, subscription, onSubscriptionRefreshed, onBack }) {
   const { lang } = session
   const [currency, setCurrency] = useState('brl')
   const currencyTouchedRef = useRef(false)
@@ -184,6 +185,10 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
 
   return (
     <div style={s.screen}>
+      {/* Cabeçalho próprio (voltar + título), como as outras telas novas —
+          antes era a única tela que ainda recebia o cabeçalho antigo do
+          app (logo, sino, avatar) por cima. */}
+      <Cabecalho lang={lang} title={t('billing.pageTitle', undefined, lang)} onBack={onBack} />
       <div style={s.body}>
 
         <div style={s.hero}>
