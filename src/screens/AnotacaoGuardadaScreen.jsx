@@ -13,15 +13,16 @@ import { anotarApi } from '../anotar/anotarApi'
 import { shareNote } from '../anotar/levarAoGrupo'
 import { whoSeesLabel } from '../anotar/anotarMath'
 import {
-  savedTitle, savedHeaderLine, SUMMARY_LABEL, SUMMARY_NOTE, summaryPlan, storedSummary, summaryParts, savedNumbers, savedPoints,
-  POINTS_LABEL, PASSAGES_LABEL, MARK_LABEL, savedPassages, passagesToMark, markState, readLine, groupsToShare, sharedLine,
-  NOT_SHARED_NO_PASSAGE, NOT_SHARED_FAILED, shareTextOfNote,
+  savedTitle, savedHeaderLine, summaryLabel, summaryNote, summaryPlan, storedSummary, summaryParts, savedNumbers, savedPoints,
+  pointsLabel, passagesLabel, markLabel, savedPassages, passagesToMark, markState, readLine, groupsToShare, sharedLine,
+  notSharedNoPassage, notSharedFailed, shareTextOfNote,
 } from '../anotar/guardadaMath'
 import DetalhesDaAnotacao from '../components/anotar/DetalhesDaAnotacao'
 import FolhaDoItem from '../components/biblioteca/FolhaDoItem'
 import Icone from '../components/anotar/Icone'
 import { useConfirmacao } from '../components/FolhaDeConfirmacao'
 import { t } from '../i18n'
+import { tr } from '../i18n/tr.js'
 
 const FONT = 'var(--font-bento)'
 const NO_GROUPS = []
@@ -29,6 +30,7 @@ const NO_GROUPS = []
 // `notice`: o que acabou de acontecer ao finalizar — { shared: [{ groupId,
 // postId }], failed: [groupId], reason } (ver PaginaDeAnotacao.jsx).
 export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, noteId, groups = NO_GROUPS, notice: arrivedWith = null, onBack, onContinue, onRead, onOpenBiblePassage, onDeleted }) {
+  const N = (key, vars) => tr(lang, `notasTx.${key}`, vars)
   const [perguntar, folha] = useConfirmacao(lang)
   const { status, draft, library, change, leave, discard } = useAnotacao({ api, target: { noteId }, countTime: false })
   const [summary, setSummary] = useState({ state: 'idle', data: null })
@@ -76,22 +78,22 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
     return (
       <div style={s.screen}>
         <div style={s.header}>
-          <button type="button" className="biblioteca-alvo" style={s.square} onClick={onBack} aria-label="Voltar">
+          <button type="button" className="biblioteca-alvo" style={s.square} onClick={onBack} aria-label={N('back')}>
             <Icone name="left" />
           </button>
         </div>
-        <p style={s.problem} role="alert">{status === 'missing' ? 'Esta anotação não está mais na sua Biblioteca.' : 'Não deu para abrir a anotação agora. Confira sua internet e tente de novo.'}</p>
+        <p style={s.problem} role="alert">{status === 'missing' ? N('missingNote') : N('openError')}</p>
       </div>
     )
   }
 
   const marks = highlights ?? library.highlights
-  const numbers = savedNumbers(draft)
+  const numbers = savedNumbers(draft, lang)
   const points = savedPoints(draft)
   const passages = savedPassages(draft, lang)
   const mark = markState(draft, marks)
-  const shared = notice ? sharedLine(groups, notice.shared.map(x => x.groupId)) : null
-  const notShared = notice?.failed.length ? (notice.reason === 'no_passage' ? NOT_SHARED_NO_PASSAGE : NOT_SHARED_FAILED) : null
+  const shared = notice ? sharedLine(groups, notice.shared.map(x => x.groupId), lang) : null
+  const notShared = notice?.failed.length ? (notice.reason === 'no_passage' ? notSharedNoPassage(lang) : notSharedFailed(lang)) : null
 
   // Sair desta tela (voltar, continuar, ler): o que mudou nos detalhes
   // fica gravado antes.
@@ -160,14 +162,14 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
     <div style={s.screen}>
       <div style={s.page} inert={details ? '' : undefined}>
         <div style={s.header}>
-          <button type="button" className="biblioteca-alvo" style={s.square} onClick={() => go(onBack)} aria-label="Voltar">
+          <button type="button" className="biblioteca-alvo" style={s.square} onClick={() => go(onBack)} aria-label={N('back')}>
             <Icone name="left" />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ ...s.title, ...(draft.title.trim() ? null : s.untitled) }}>{savedTitle(draft)}</h1>
-            <p style={s.sub}>{savedHeaderLine(draft)}</p>
+            <h1 style={{ ...s.title, ...(draft.title.trim() ? null : s.untitled) }}>{savedTitle(draft, lang)}</h1>
+            <p style={s.sub}>{savedHeaderLine(draft, new Date(), lang)}</p>
           </div>
-          <button type="button" className="biblioteca-alvo" style={s.square} onClick={() => setMenu(true)} aria-label="Mais opções" aria-haspopup="dialog">
+          <button type="button" className="biblioteca-alvo" style={s.square} onClick={() => setMenu(true)} aria-label={N('moreOptions')} aria-haspopup="dialog">
             <span style={s.dots} aria-hidden="true"><span style={s.dot} /><span style={s.dot} /><span style={s.dot} /></span>
           </button>
         </div>
@@ -175,21 +177,21 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
         <div style={s.scroll}>
           <div style={s.body}>
             {summary.state !== 'none' && summary.state !== 'idle' && (
-              <section style={s.summary} aria-label={SUMMARY_LABEL} aria-busy={summary.state === 'loading'}>
-                <h2 style={s.summaryLabel}>{SUMMARY_LABEL}</h2>
+              <section style={s.summary} aria-label={summaryLabel(lang)} aria-busy={summary.state === 'loading'}>
+                <h2 style={s.summaryLabel}>{summaryLabel(lang)}</h2>
                 {summary.state === 'loading' ? (
-                  <p style={{ ...s.summaryText, ...s.summaryWait }}>Analisando o que você escreveu…</p>
+                  <p style={{ ...s.summaryText, ...s.summaryWait }}>{N('analyzing')}</p>
                 ) : (
                   <>
                     <p style={s.summaryText}>{summaryParts(summary.data).before}<strong style={s.summaryKey}>{summaryParts(summary.data).highlight}</strong>{summaryParts(summary.data).after}</p>
-                    <p style={s.summaryNote}>{SUMMARY_NOTE}</p>
+                    <p style={s.summaryNote}>{summaryNote(lang)}</p>
                   </>
                 )}
               </section>
             )}
 
             {numbers.length > 0 && (
-              <section style={s.numbers} aria-label="Em números">
+              <section style={s.numbers} aria-label={N('inNumbers')}>
                 {numbers.map(n => (
                   <div key={n.key} style={{ flex: 1, minWidth: 0 }}>
                     <p style={s.number}>{n.value}</p>
@@ -201,8 +203,8 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
             )}
 
             {points.length > 0 && (
-              <section style={s.points} aria-label={POINTS_LABEL}>
-                <h2 style={s.label}>{POINTS_LABEL}</h2>
+              <section style={s.points} aria-label={pointsLabel(lang)}>
+                <h2 style={s.label}>{pointsLabel(lang)}</h2>
                 <ol style={s.pointList}>
                   {points.map(point => (
                     <li key={point.key} style={s.point}>
@@ -215,15 +217,15 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
             )}
 
             {passages.length > 0 && (
-              <section style={s.passages} aria-label={PASSAGES_LABEL}>
+              <section style={s.passages} aria-label={passagesLabel(lang)}>
                 <div style={s.passagesHead}>
-                  <h2 style={{ ...s.label, ...s.labelOnSand }}>{PASSAGES_LABEL}</h2>
-                  {mark === 'todo' && <button type="button" style={s.mark} onClick={markOnBible} disabled={marking}>{MARK_LABEL}</button>}
-                  {mark === 'done' && <span style={s.marked} role="status">{passages.length === 1 ? 'Marcada' : 'Marcadas'}</span>}
+                  <h2 style={{ ...s.label, ...s.labelOnSand }}>{passagesLabel(lang)}</h2>
+                  {mark === 'todo' && <button type="button" style={s.mark} onClick={markOnBible} disabled={marking}>{markLabel(lang)}</button>}
+                  {mark === 'done' && <span style={s.marked} role="status">{N(passages.length === 1 ? 'markedOne' : 'markedMany')}</span>}
                 </div>
                 <div style={s.pills}>
                   {passages.map(p => (
-                    <button key={p.key} type="button" className="biblioteca-etiqueta" style={s.pill} onClick={() => go(() => onOpenBiblePassage(p.book, p.chapter, p.verse ?? undefined))} aria-label={`Abrir ${p.label} na Bíblia`}>{p.label}</button>
+                    <button key={p.key} type="button" className="biblioteca-etiqueta" style={s.pill} onClick={() => go(() => onOpenBiblePassage(p.book, p.chapter, p.verse ?? undefined))} aria-label={N('openInBible', { ref: p.label })}>{p.label}</button>
                   ))}
                 </div>
               </section>
@@ -232,30 +234,30 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
             {shared && (
               <p style={s.notice} role="status">
                 <span style={{ flex: 1, minWidth: 0 }}>{shared}</span>
-                <button type="button" style={s.undo} onClick={undoShare}>Desfazer</button>
+                <button type="button" style={s.undo} onClick={undoShare}>{N('undo')}</button>
               </p>
             )}
             {notShared && <p style={{ ...s.notice, ...s.noticeProblem }} role="status">{notShared}</p>}
 
-            <section style={s.list} aria-label="Mais">
+            <section style={s.list} aria-label={N('more')}>
               <button type="button" style={{ ...s.row, ...s.rowLine }} onClick={() => go(onRead)}>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={s.rowTitle}>Ler a anotação inteira</span>
-                  <span style={s.rowSub}>{readLine(draft)}</span>
+                  <span style={s.rowTitle}>{N('readWhole')}</span>
+                  <span style={s.rowSub}>{readLine(draft, lang)}</span>
                 </span>
                 <Icone name="right" size={14} strokeWidth={2.2} color="var(--bento-t5)" />
               </button>
               <button type="button" style={s.row} onClick={() => openDetails('who')}>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={s.rowTitle}>Quem vê</span>
-                  <span style={s.rowSub}>{whoSeesLabel({ groups, selected: draft.sharedGroupIds })}</span>
+                  <span style={s.rowTitle}>{N('whoSees')}</span>
+                  <span style={s.rowSub}>{whoSeesLabel({ groups, selected: draft.sharedGroupIds, lang })}</span>
                 </span>
                 <Icone name="right" size={14} strokeWidth={2.2} color="var(--bento-t5)" />
               </button>
             </section>
 
             <button type="button" style={s.continue} onClick={() => go(onContinue)}>
-              <span>Continuar escrevendo</span>
+              <span>{N('keepWriting')}</span>
               <Icone name="arrow" size={15} strokeWidth={2.2} color="var(--bento-accent)" />
             </button>
           </div>
@@ -270,7 +272,7 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
       )}
       {menu && (
         <FolhaDoItem
-          title={savedTitle(draft)} editLabel="Editar detalhes" onClose={() => setMenu(false)}
+          title={savedTitle(draft, lang)} editLabel={N('editDetails')} onClose={() => setMenu(false)}
           onEdit={() => { setMenu(false); openDetails('type') }} onShare={share} onDelete={remove}
         />
       )}

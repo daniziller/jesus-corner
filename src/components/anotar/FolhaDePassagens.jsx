@@ -4,16 +4,17 @@
 // ali. `rows` vem de anotarMath.js/passageRows.
 import FolhaInferior from '../FolhaInferior'
 import Icone from './Icone'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 export default function FolhaDePassagens({ rows, onOpen, onClose }) {
   return (
     <FolhaInferior fixed form onClose={onClose} labelledBy="anotar-passagens-titulo">
-      <h2 id="anotar-passagens-titulo" style={s.title}>Passagens citadas</h2>
+      <h2 id="anotar-passagens-titulo" style={s.title}>{t('notasTx.citedPassages')}</h2>
       <div style={s.card}>
         {rows.map((row, i) => (
-          <button key={row.key} type="button" style={{ ...s.row, ...(i > 0 ? s.rowLine : null) }} onClick={() => onOpen(row)} aria-label={`Abrir ${row.label} na Bíblia`}>
+          <button key={row.key} type="button" style={{ ...s.row, ...(i > 0 ? s.rowLine : null) }} onClick={() => onOpen(row)} aria-label={t('notasTx.openInBible', { ref: row.label })}>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={s.label}>{row.label}</span>
               {row.text && <span style={s.text}>{row.text}</span>}

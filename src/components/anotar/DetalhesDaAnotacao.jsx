@@ -8,15 +8,17 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   typeOptions, customTypesOf, sourceRows, fieldSuggestions, createdLine, tagVocabulary, tagChoices, toggleTag,
-  whoSeesBlocks, toggleWhoSees, whoSeesWarning, WHO_SEES_NOTE,
+  whoSeesBlocks, toggleWhoSees, whoSeesWarning, whoSeesNote,
 } from '../../anotar/anotarMath'
 import Icone from './Icone'
 import QuemVe from './QuemVe'
 import EtiquetasDaAnotacao from './EtiquetasDaAnotacao'
+import { tr } from '../../i18n/tr.js'
 
 const FONT = 'var(--font-bento)'
 
 export default function DetalhesDaAnotacao({ lang, draft, library, groups, memberCounts, focus = null, onChange, onClose }) {
+  const N = (key, vars) => tr(lang, `notasTx.${key}`, vars)
   const [creatingType, setCreatingType] = useState(false)
   const [typeText, setTypeText] = useState('')
   const titleRef = useRef(null)
@@ -35,10 +37,10 @@ export default function DetalhesDaAnotacao({ lang, draft, library, groups, membe
   }, [onClose])
 
   const others = library.sermonNotes.filter(note => note.id !== draft.id)
-  const types = typeOptions(customTypesOf(library.sermonNotes), draft.noteType)
+  const types = typeOptions(customTypesOf(library.sermonNotes), draft.noteType, lang)
   // As etiquetas da pessoa como estavam ao abrir (a ordem não pula enquanto ela marca e desmarca).
   const vocabulary = tagVocabulary(library)
-  const warning = whoSeesWarning({ selected: draft.sharedGroupIds, passages: draft.passages })
+  const warning = whoSeesWarning({ selected: draft.sharedGroupIds, passages: draft.passages, lang })
 
   function confirmType() {
     const clean = typeText.trim()
@@ -50,21 +52,21 @@ export default function DetalhesDaAnotacao({ lang, draft, library, groups, membe
   return (
     <div style={s.layer} role="dialog" aria-modal="true" aria-labelledby="anotar-detalhes-titulo">
       <div style={s.header}>
-        <button type="button" className="biblioteca-alvo" style={s.close} onClick={onClose} aria-label="Fechar os detalhes">
+        <button type="button" className="biblioteca-alvo" style={s.close} onClick={onClose} aria-label={N('closeDetails')}>
           <Icone name="down" />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 id="anotar-detalhes-titulo" style={s.title}>Detalhes da anotação</h1>
+          <h1 id="anotar-detalhes-titulo" style={s.title}>{N('detailsTitle')}</h1>
           <p style={s.sub}>{createdLine(draft.createdAt, lang)}</p>
         </div>
-        <button type="button" className="biblioteca-alvo" style={s.done} onClick={onClose}>Pronto</button>
+        <button type="button" className="biblioteca-alvo" style={s.done} onClick={onClose}>{N('done')}</button>
       </div>
 
       <div style={s.scroll}>
         <div style={s.body}>
-          <section style={s.card} aria-label="O que você está anotando">
-            <h2 style={s.label}>O que você está anotando</h2>
-            <div style={s.grid} role="radiogroup" aria-label="O que você está anotando">
+          <section style={s.card} aria-label={N('whatNoting')}>
+            <h2 style={s.label}>{N('whatNoting')}</h2>
+            <div style={s.grid} role="radiogroup" aria-label={N('whatNoting')}>
               {types.map(option => (
                 <button key={option.key} type="button" role="radio" aria-checked={option.on} style={{ ...s.type, ...(option.on ? s.typeOn : null) }} onClick={() => onChange({ noteType: option.key })}>
                   <span style={{ ...s.dot, ...(option.on ? s.dotOn : null) }} />
@@ -74,25 +76,25 @@ export default function DetalhesDaAnotacao({ lang, draft, library, groups, membe
             </div>
             {creatingType ? (
               <input
-                autoFocus type="text" style={s.typeInput} value={typeText} maxLength={32} placeholder="Retiro, célula, devocional em família…" aria-label="Outro tipo"
+                autoFocus type="text" style={s.typeInput} value={typeText} maxLength={32} placeholder={N('otherTypePh')} aria-label={N('otherType')}
                 onChange={e => setTypeText(e.target.value)} onBlur={confirmType}
                 onKeyDown={e => { if (e.key === 'Enter') confirmType(); if (e.key === 'Escape') { setTypeText(''); setCreatingType(false) } }}
               />
             ) : (
               <button type="button" className="biblioteca-alvo" style={s.otherType} onClick={() => setCreatingType(true)}>
-                <span style={{ flex: 1 }}>Outro tipo…</span>
+                <span style={{ flex: 1 }}>{N('otherTypeDots')}</span>
                 <Icone name="right" size={14} strokeWidth={2.2} color="var(--bento-t5)" />
               </button>
             )}
           </section>
 
-          <section style={s.source} aria-label="De onde veio">
+          <section style={s.source} aria-label={N('whereFrom')}>
             <div style={s.labelRow}>
-              <h2 style={s.label}>De onde veio</h2>
-              <span style={s.hint}>tudo opcional</span>
+              <h2 style={s.label}>{N('whereFrom')}</h2>
+              <span style={s.hint}>{N('allOptional')}</span>
             </div>
             <div style={{ height: 6 }} />
-            {sourceRows(draft.noteType).map((row, i, rows) => {
+            {sourceRows(draft.noteType, lang).map((row, i, rows) => {
               const suggestions = row.key === 'preacher' || row.key === 'church' ? fieldSuggestions(others, row.key) : []
               return (
                 <label key={row.key} style={{ ...s.row, ...(i < rows.length - 1 ? s.rowLine : null) }}>
@@ -110,21 +112,21 @@ export default function DetalhesDaAnotacao({ lang, draft, library, groups, membe
             })}
           </section>
 
-          <section ref={tagsRef} style={s.card} aria-label="Etiquetas">
+          <section ref={tagsRef} style={s.card} aria-label={N('tags')}>
             <div style={s.labelRow}>
-              <h2 style={s.label}>Etiquetas</h2>
-              <span style={s.hint}>para achar depois</span>
+              <h2 style={s.label}>{N('tags')}</h2>
+              <span style={s.hint}>{N('findLater')}</span>
             </div>
             <EtiquetasDaAnotacao choices={tagChoices(vocabulary, draft.tags)} onToggle={tag => onChange({ tags: toggleTag(draft.tags, tag) })} />
           </section>
 
-          <section ref={whoRef} style={s.who} aria-label="Quem vê">
-            <h2 style={s.label}>Quem vê</h2>
+          <section ref={whoRef} style={s.who} aria-label={N('whoSees')}>
+            <h2 style={s.label}>{N('whoSees')}</h2>
             <QuemVe
-              blocks={whoSeesBlocks({ groups, memberCounts, selected: draft.sharedGroupIds })}
+              blocks={whoSeesBlocks({ groups, memberCounts, selected: draft.sharedGroupIds, lang })}
               onToggle={key => onChange({ sharedGroupIds: toggleWhoSees(draft.sharedGroupIds, key) })}
             />
-            <p style={s.note}>{WHO_SEES_NOTE}</p>
+            <p style={s.note}>{whoSeesNote(lang)}</p>
             {warning && <p style={s.warning} role="status">{warning}</p>}
           </section>
         </div>

@@ -5,40 +5,45 @@
 // linha de "Ler a anotação inteira" e o que vai ao grupo. Testes em
 // scripts/test-guardada.mjs.
 import { sermonOwnWordsText, sermonOwnWordCount } from '../notes/sermonText.js'
-import { formatInt, plural, monthName } from '../gamification/format.js'
+import { formatInt, dayMonthLong } from '../gamification/format.js'
+import { tr, trN } from '../i18n/tr.js'
 import { DEFAULT_HIGHLIGHT_COLOR } from '../data/highlightColors.js'
 import { dateKey } from '../utils/dateKey.js'
-import { noteTypeName, passageLabel, UNTITLED } from './anotarMath.js'
+import { noteTypeName, passageLabel, untitled } from './anotarMath.js'
 import { findHighlight, newNoteId } from './notaMath.js'
+
+const tx = (lang, key, vars) => tr(lang, `notasTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `notasTx.${base}`, n, { n: formatInt(n, lang), ...vars })
 
 const oneLine = text => String(text ?? '').replace(/\s+/g, ' ').trim()
 
 // ── Cabeçalho ───────────────────────────────────────────────────────────
 
 // "2 de setembro"; de outro ano, "2 de setembro de 2025".
-export function longDate(day, now = new Date()) {
+export function longDate(day, now = new Date(), lang = 'pt') {
   if (!day) return ''
   const [year, month, date] = String(day).slice(0, 10).split('-').map(Number)
   if (!year || !month || !date) return ''
-  const text = `${date} de ${monthName(new Date(year, month - 1, 1))}`
-  return year === now.getFullYear() ? text : `${text} de ${year}`
+  const text = dayMonthLong(new Date(year, month - 1, date), lang)
+  if (year === now.getFullYear()) return text
+  return lang === 'en' ? `${text}, ${year}` : `${text} de ${year}`
 }
 
-export const savedTitle = note => oneLine(note?.title) || UNTITLED
+export const savedTitle = (note, lang = 'pt') => oneLine(note?.title) || untitled(lang)
 
 // "{Tipo} · {Preletor} · {data}" — só o que existe. A anotação livre não
 // tem preletor.
-export function savedHeaderLine(note, now = new Date()) {
+export function savedHeaderLine(note, now = new Date(), lang = 'pt') {
   const preacher = note?.noteType === 'free' ? '' : oneLine(note?.preacher)
   const day = note?.date ?? (note?.createdAt ? dateKey(new Date(note.createdAt)) : '')
-  return [noteTypeName(note?.noteType), preacher, longDate(day, now)].filter(Boolean).join(' · ')
+  return [noteTypeName(note?.noteType, lang), preacher, longDate(day, now, lang)].filter(Boolean).join(' · ')
 }
 
 // ── A síntese ───────────────────────────────────────────────────────────
 
 export const SUMMARY_MIN_WORDS = 40
-export const SUMMARY_LABEL = 'O que ficou desta anotação'
-export const SUMMARY_NOTE = 'Escrito a partir das suas próprias palavras. Nada foi acrescentado.'
+export const summaryLabel = (lang = 'pt') => tx(lang, 'summaryLabel')
+export const summaryNote = (lang = 'pt') => tx(lang, 'summaryNote')
 
 // A impressão digital do que a pessoa escreveu: muda quando o texto muda.
 export function wordsFingerprint(note) {
@@ -82,20 +87,20 @@ export const savedPoints = note => (note?.body ?? []).filter(seg => seg?.type ==
 // "{n} min" / anotando · {n} / pontos · {n} / passagens. Um número zero
 // não tem coluna; os três zerados, a lista vem vazia (o cartão não
 // aparece).
-export function savedNumbers(note) {
+export function savedNumbers(note, lang = 'pt') {
   const minutes = minutesOf(note)
   const points = savedPoints(note).length
   const passages = (note?.passages ?? []).length
   return [
-    minutes > 0 && { key: 'time', value: `${formatInt(minutes)} min`, label: 'anotando' },
-    points > 0 && { key: 'points', value: formatInt(points), label: plural(points, 'ponto', 'pontos') },
-    passages > 0 && { key: 'passages', value: formatInt(passages), label: plural(passages, 'passagem', 'passagens') },
+    minutes > 0 && { key: 'time', value: `${formatInt(minutes, lang)} min`, label: tx(lang, 'annotating') },
+    points > 0 && { key: 'points', value: formatInt(points, lang), label: tx(lang, points === 1 ? 'pointWordOne' : 'pointWordMany') },
+    passages > 0 && { key: 'passages', value: formatInt(passages, lang), label: tx(lang, passages === 1 ? 'passageWordOne' : 'passageWordMany') },
   ].filter(Boolean)
 }
 
-export const POINTS_LABEL = 'Os pontos que você marcou'
-export const PASSAGES_LABEL = 'As passagens'
-export const MARK_LABEL = 'Marcar na Bíblia'
+export const pointsLabel = (lang = 'pt') => tx(lang, 'pointsLabel')
+export const passagesLabel = (lang = 'pt') => tx(lang, 'passagesLabel')
+export const markLabel = (lang = 'pt') => tx(lang, 'markLabel')
 
 // As pastilhas das passagens, com a referência por extenso.
 export function savedPassages(note, lang = 'pt') {
@@ -132,9 +137,9 @@ export function markState(note, highlights = []) {
 // ── A lista ─────────────────────────────────────────────────────────────
 
 // "412 palavras · # espera · # família".
-export function readLine(note) {
+export function readLine(note, lang = 'pt') {
   const words = sermonOwnWordCount(note)
-  return [`${formatInt(words)} ${plural(words, 'palavra', 'palavras')}`, ...(note?.tags ?? []).filter(Boolean).map(tag => `# ${tag}`)].join(' · ')
+  return [txN(lang, 'words', words), ...(note?.tags ?? []).filter(Boolean).map(tag => `# ${tag}`)].join(' · ')
 }
 
 // O que aparece e o que some em N5.
@@ -169,22 +174,22 @@ export function groupsToShare({ chosen = [], wasFinalized = false, finalizedNow 
 
 // A linha de confirmação: "Compartilhada com {grupo}." (com dois ou mais,
 // "… com A e B." / "… com A, B e C.").
-export function sharedLine(groups = [], ids = []) {
+export function sharedLine(groups = [], ids = [], lang = 'pt') {
   const names = ids.map(id => groups.find(g => g.groupId === id)?.name).filter(Boolean)
   if (names.length === 0) return null
-  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`
-  return `Compartilhada com ${list}.`
+  const list = names.length === 1 ? names[0] : tx(lang, 'andJoin', { a: names.slice(0, -1).join(', '), b: names[names.length - 1] })
+  return tx(lang, 'sharedWith', { list })
 }
 
-export const NOT_SHARED_NO_PASSAGE = 'Não foi ao grupo: para ir, a anotação precisa citar um versículo.'
-export const NOT_SHARED_FAILED = 'Não deu para levar ao grupo agora. Escolha o grupo de novo em "Quem vê" quando a internet voltar.'
+export const notSharedNoPassage = (lang = 'pt') => tx(lang, 'notSharedNoPassage')
+export const notSharedFailed = (lang = 'pt') => tx(lang, 'notSharedFailed')
 
 // ── Compartilhar (para fora do app) ─────────────────────────────────────
 
 // O texto de "Compartilhar": o título, de onde veio, as palavras da
 // pessoa e as passagens — como a página de anotação já compartilhava.
 export function shareTextOfNote(note, lang = 'pt') {
-  const source = [noteTypeName(note?.noteType), note?.noteType === 'free' ? '' : oneLine(note?.preacher), oneLine(note?.church)].filter(Boolean).join(' · ')
+  const source = [noteTypeName(note?.noteType, lang), note?.noteType === 'free' ? '' : oneLine(note?.preacher), oneLine(note?.church)].filter(Boolean).join(' · ')
   const passages = (note?.passages ?? []).map(p => passageLabel(p, lang)).join(', ')
-  return [savedTitle(note), source, sermonOwnWordsText(note).trim(), passages].filter(Boolean).join('\n\n')
+  return [savedTitle(note, lang), source, sermonOwnWordsText(note).trim(), passages].filter(Boolean).join('\n\n')
 }

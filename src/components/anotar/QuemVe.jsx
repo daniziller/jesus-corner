@@ -3,12 +3,13 @@
 // selecionado; depois os grupos da pessoa, com quantas pessoas. Mais de um
 // grupo pode ser escolhido; "Só eu" desmarca os grupos. Com mais de dois
 // grupos a fileira rola de lado. `blocks` vem de anotarMath.js/whoSeesBlocks.
+import { t } from '../../i18n'
 const FONT = 'var(--font-bento)'
 
 export default function QuemVe({ blocks, onToggle }) {
   const scrolls = blocks.length > 3
   return (
-    <div role="group" aria-label="Quem vê" style={{ ...s.row, ...(scrolls ? s.rowScroll : null) }}>
+    <div role="group" aria-label={t('notasTx.whoSees')} style={{ ...s.row, ...(scrolls ? s.rowScroll : null) }}>
       {blocks.map(block => (
         <button
           key={block.key} type="button" aria-pressed={block.on}

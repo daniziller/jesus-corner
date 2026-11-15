@@ -5,8 +5,8 @@
 // node scripts/test-guardada.mjs
 import { readFileSync } from 'node:fs'
 import {
-  longDate, savedTitle, savedHeaderLine, SUMMARY_LABEL, SUMMARY_NOTE, wordsFingerprint, summaryPlan, storedSummary, summaryParts,
-  savedPoints, savedNumbers, POINTS_LABEL, PASSAGES_LABEL, MARK_LABEL, savedPassages, passagesToMark, markState, readLine, savedBlocks,
+  longDate, savedTitle, savedHeaderLine, summaryLabel, summaryNote, wordsFingerprint, summaryPlan, storedSummary, summaryParts,
+  savedPoints, savedNumbers, pointsLabel, passagesLabel, markLabel, savedPassages, passagesToMark, markState, readLine, savedBlocks,
   groupPostOfNote, groupsToShare, sharedLine, shareTextOfNote,
 } from '../src/anotar/guardadaMath.js'
 import { openNote, notePayload } from '../src/anotar/anotarMath.js'
@@ -47,7 +47,7 @@ check('os três zerados: o cartão não aparece', [savedNumbers({ text: 'uma ano
 check('milhar com ponto', savedNumbers({ durationSeconds: 72000 * 60 / 60 })[0].value, '1.200 min')
 check('os pontos, numerados em ordem (tópico vazio não conta)', savedPoints(nota).map(p => `${p.n}. ${p.text}`), ['1. A fome que obriga a voltar', '2. O irmão que precisa ser entregue', '3. A garantia que alguém oferece com o próprio nome'])
 check('as passagens, por extenso', savedPassages(nota).map(p => [p.label, p.book, p.chapter, p.verse]), [['Gênesis 43:3', 'Gênesis', 43, 3], ['Gênesis 41:51', 'Gênesis', 41, 51], ['Tiago 1:3-4', 'Tiago', 1, 3]])
-check('rótulos fixos', [SUMMARY_LABEL, SUMMARY_NOTE, POINTS_LABEL, PASSAGES_LABEL, MARK_LABEL], ['O que ficou desta anotação', 'Escrito a partir das suas próprias palavras. Nada foi acrescentado.', 'Os pontos que você marcou', 'As passagens', 'Marcar na Bíblia'])
+check('rótulos fixos', [summaryLabel(), summaryNote(), pointsLabel(), passagesLabel(), markLabel()], ['O que ficou desta anotação', 'Escrito a partir das suas próprias palavras. Nada foi acrescentado.', 'Os pontos que você marcou', 'As passagens', 'Marcar na Bíblia'])
 
 // ── a linha de "Ler a anotação inteira" ───────────────────────────────
 const palavras = longo.split(/\s+/).length + 6 + 6 + 9
@@ -108,6 +108,14 @@ const pagina = ler('screens/PaginaDeAnotacao.jsx')
 check('levar ao grupo passa sempre por `groupsToShare` (nada vai sem a pessoa ter escolhido)', /groupsToShare\(/.test(pagina) && /groupsToShare\(/.test(tela), true)
 const sala = ler('groups/chapterRoomStore.js')
 check('publicar devolve o id da publicação, para o "Desfazer"', /\.select\('id'\)/.test(sala) && /return data\?\.id \?\? null/.test(sala), true)
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: data longa', [longDate('2026-09-02', em2026, 'en'), longDate('2025-09-02', em2026, 'en')], ['September 2', 'September 2, 2025'])
+check('en: cabeçalho', savedHeaderLine(nota, em2026, 'en'), 'Sermon · Pr. João Ribeiro · September 2')
+check('en: três números', savedNumbers(nota, 'en').map(n => `${n.value} ${n.label}`), ['24 min taking notes', '3 points', '3 passages'])
+check('en: linha de leitura', readLine(nota, 'en').startsWith(`${palavras} words`), true)
+check('en: confirmação de compartilhar', [sharedLine(grupos, ['g1'], 'en'), sharedLine(grupos, ['g1', 'g2', 'g3'], 'en').startsWith('Shared with Grupo Semente, ')], ['Shared with Grupo Semente.', true])
+check('en: rótulos', [summaryLabel('en'), markLabel('en'), savedTitle({ title: '' }, 'en')], ['What stayed from this note', 'Mark in the Bible', 'Untitled'])
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)

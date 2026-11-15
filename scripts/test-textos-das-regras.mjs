@@ -12,7 +12,7 @@ function check(label, actual, expected) {
   console.log(`${ok ? 'OK    ' : 'FALHOU'} ${label}${ok ? '' : ` — esperado ${JSON.stringify(expected)}, veio ${JSON.stringify(actual)}`}`)
 }
 
-const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx', 'src/biblia/bibliaMath.js': 'bibliaTx', 'src/busca/buscaMath.js': 'buscaTx', 'src/busca/palavra.js': 'buscaTx', 'src/biblioteca/bibliotecaMath.js': 'bibliotecaTx', 'src/biblioteca/tiposMath.js': 'bibliotecaTx', 'src/biblioteca/buscaDaBiblioteca.js': 'bibliotecaTx', 'src/biblioteca/resultadosDaBusca.js': 'bibliotecaTx' }
+const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx', 'src/biblia/bibliaMath.js': 'bibliaTx', 'src/busca/buscaMath.js': 'buscaTx', 'src/busca/palavra.js': 'buscaTx', 'src/biblioteca/bibliotecaMath.js': 'bibliotecaTx', 'src/biblioteca/tiposMath.js': 'bibliotecaTx', 'src/biblioteca/buscaDaBiblioteca.js': 'bibliotecaTx', 'src/biblioteca/resultadosDaBusca.js': 'bibliotecaTx', 'src/anotar/notaMath.js': 'notasTx', 'src/anotar/anotarMath.js': 'notasTx', 'src/anotar/guardadaMath.js': 'notasTx' }
 for (const [file, ns] of Object.entries(FILES)) {
   const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
   const used = new Set()
@@ -40,6 +40,21 @@ for (const [file, ns] of Object.entries(FILES)) {
   check('telas da Biblioteca: chaves usadas existem em pt', [...used].filter(k => STRINGS.pt.bibliotecaTx[k] == null), [])
   check('telas da Biblioteca: chaves usadas existem em en', [...used].filter(k => STRINGS.en.bibliotecaTx[k] == null), [])
   check('telas da Biblioteca: alguma chave foi achada', used.size > 20, true)
+}
+
+// As telas do editor de notas usam N('chave') ou t('notasTx.chave').
+{
+  const { readdirSync } = await import('node:fs')
+  const files = ['AnotarScreen', 'NotaDeVersiculoScreen', 'AnotacaoGuardadaScreen'].map(n => `src/screens/${n}.jsx`)
+    .concat(readdirSync(new URL('../src/components/anotar/', import.meta.url)).filter(f => f.endsWith('.jsx')).map(f => `src/components/anotar/${f}`))
+  const used = new Set()
+  for (const file of files) {
+    const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    for (const m of src.matchAll(/(?:\bN\(|\bt\('notasTx\.)'?([A-Za-z0-9_]+)'/g)) used.add(m[1])
+  }
+  check('editor de notas: chaves usadas existem em pt', [...used].filter(k => STRINGS.pt.notasTx[k] == null), [])
+  check('editor de notas: chaves usadas existem em en', [...used].filter(k => STRINGS.en.notasTx[k] == null), [])
+  check('editor de notas: alguma chave foi achada', used.size > 40, true)
 }
 
 if (failures) { console.log(`\n${failures} falha(s).`); process.exit(1) }

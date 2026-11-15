@@ -3,19 +3,21 @@
 // opções — só "Anotação livre" em preto — e, se há uma anotação não
 // finalizada, a linha do rascunho. `draft` vem de notaMath.js/draftLine.
 import FolhaInferior from '../FolhaInferior'
-import { NEW_OPTIONS, NEW_TITLE, NEW_SUPPORT } from '../../anotar/notaMath'
+import { newOptions, newTitle, newSupport } from '../../anotar/notaMath'
 import Icone from './Icone'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 const MARKER = { accent: 'var(--bento-accent)', sand: 'var(--bento-sand-icon)', ink: 'var(--bento-ink)' }
 
 export default function FolhaNova({ draft = null, onChoose, onOpenDraft, onClose }) {
+  const lang = currentLanguage()
   return (
     <FolhaInferior fixed form onClose={onClose} labelledBy="biblioteca-nova-titulo">
-      <h2 id="biblioteca-nova-titulo" style={s.title}>{NEW_TITLE}</h2>
-      <p style={s.support}>{NEW_SUPPORT}</p>
+      <h2 id="biblioteca-nova-titulo" style={s.title}>{newTitle(lang)}</h2>
+      <p style={s.support}>{newSupport(lang)}</p>
       <div style={s.options}>
-        {NEW_OPTIONS.map(option => (
+        {newOptions(lang).map(option => (
           <button key={option.key} type="button" style={{ ...s.option, ...(option.dark ? s.optionDark : null) }} onClick={() => onChoose(option.key)}>
             <span style={{ ...s.marker, borderRadius: option.marker === 'circle' ? 99 : 3, background: MARKER[option.color] }} />
             <span style={{ flex: 1, minWidth: 0 }}>

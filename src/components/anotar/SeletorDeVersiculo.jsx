@@ -12,12 +12,15 @@ import { bookDisplayName } from '../../busca/referencia'
 import { normalizeForSearch } from '../../bible/searchNormalize'
 import { citationFromSelection, passageLabel } from '../../anotar/anotarMath'
 import Icone from './Icone'
+import { tr } from '../../i18n/tr.js'
 
 const FONT = 'var(--font-bento)'
 
 // `start` ({ book, chapter, selected }): abre já no capítulo, com os
 // versículos marcados — o "+ versículo" da nota (N4); aí voltar fecha.
-export default function SeletorDeVersiculo({ lang, api, onPick, onClose, confirmLabel = 'Adicionar', start = null }) {
+export default function SeletorDeVersiculo({ lang, api, onPick, onClose, confirmLabel: givenLabel = null, start = null }) {
+  const N = (key, vars) => tr(lang, `notasTx.${key}`, vars)
+  const confirmLabel = givenLabel ?? N('add')
   const [query, setQuery] = useState('')
   const [book, setBook] = useState(start ? bookInfo(start.book) : null)
   const [chapter, setChapter] = useState(start?.chapter ?? null)
@@ -27,7 +30,7 @@ export default function SeletorDeVersiculo({ lang, api, onPick, onClose, confirm
   const step = !book ? 'book' : !chapter ? 'chapter' : 'verse'
   const wanted = normalizeForSearch(query.trim())
   const books = GAMIFICATION_BOOKS.filter(b => !wanted || normalizeForSearch(bookDisplayName(b.nome, lang)).includes(wanted))
-  const title = step === 'book' ? 'Escolha o livro' : step === 'chapter' ? 'Escolha o capítulo' : 'Escolha os versículos'
+  const title = N(step === 'book' ? 'pickBook' : step === 'chapter' ? 'pickChapter' : 'pickVerses')
   // Embaixo do título, o que já está escolhido: "Tiago", "Tiago 1",
   // "Tiago 1:3-4" (do menor ao maior versículo marcado).
   const where = step === 'book' ? null : passageLabel({ book: book.nome, chapter: chapter ?? '', verseStart: selected.length ? Math.min(...selected) : null, verseEnd: selected.length ? Math.max(...selected) : null }, lang).trim()
@@ -59,7 +62,7 @@ export default function SeletorDeVersiculo({ lang, api, onPick, onClose, confirm
   return (
     <div style={s.layer} role="dialog" aria-modal="true" aria-labelledby="anotar-seletor-titulo">
       <div style={s.header}>
-        <button type="button" className="biblioteca-alvo" style={s.back} onClick={back} aria-label="Voltar">
+        <button type="button" className="biblioteca-alvo" style={s.back} onClick={back} aria-label={N('back')}>
           <Icone name="left" />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -72,22 +75,22 @@ export default function SeletorDeVersiculo({ lang, api, onPick, onClose, confirm
       </div>
 
       <div style={s.scroll}>
-        {state === 'error' && <p style={s.error} role="alert">Não deu para buscar o texto agora. Confira sua internet e tente de novo.</p>}
+        {state === 'error' && <p style={s.error} role="alert">{N('fetchError')}</p>}
         {step === 'book' && (
           <>
-            <input type="search" className="busca-campo" style={s.search} value={query} placeholder="Buscar livro…" aria-label="Buscar livro" autoFocus onChange={e => setQuery(e.target.value)} />
+            <input type="search" className="busca-campo" style={s.search} value={query} placeholder={N('searchBook')} aria-label={N('searchBookAria')} autoFocus onChange={e => setQuery(e.target.value)} />
             <div style={s.list}>
               {books.map(b => (
                 <button key={b.nome} type="button" style={s.row} onClick={() => setBook(b)}>{bookDisplayName(b.nome, lang)}</button>
               ))}
-              {books.length === 0 && <p style={s.none}>Nenhum livro com esse nome.</p>}
+              {books.length === 0 && <p style={s.none}>{N('noBook')}</p>}
             </div>
           </>
         )}
         {step === 'chapter' && (
           <div style={s.grid}>
             {Array.from({ length: book.capitulos }, (_, i) => i + 1).map(n => (
-              <button key={n} type="button" style={s.cell} onClick={() => setChapter(n)} aria-label={`Capítulo ${n}`}>{n}</button>
+              <button key={n} type="button" style={s.cell} onClick={() => setChapter(n)} aria-label={N('chapterAria', { n })}>{n}</button>
             ))}
           </div>
         )}
@@ -95,7 +98,7 @@ export default function SeletorDeVersiculo({ lang, api, onPick, onClose, confirm
           <div style={s.grid}>
             {Array.from({ length: verseCount(book.nome, chapter) }, (_, i) => i + 1).map(n => {
               const on = selected.includes(n)
-              return <button key={n} type="button" aria-pressed={on} style={{ ...s.cell, ...(on ? s.cellOn : null) }} onClick={() => toggle(n)} aria-label={`Versículo ${n}`}>{n}</button>
+              return <button key={n} type="button" aria-pressed={on} style={{ ...s.cell, ...(on ? s.cellOn : null) }} onClick={() => toggle(n)} aria-label={N('verseN', { n })}>{n}</button>
             })}
           </div>
         )}

@@ -5,7 +5,7 @@
 // node scripts/test-nota.mjs
 import { readFileSync } from 'node:fs'
 import {
-  NEW_OPTIONS, NEW_TITLE, NEW_SUPPORT, draftLine, verseReference, noteTitle, noteSubtitle, NOTE_PLACEHOLDER, WHO_SEES_VERSE_NOTE,
+  newOptions, newTitle, newSupport, draftLine, verseReference, noteTitle, noteSubtitle, notePlaceholder, whoSeesVerseNote,
   verseQuote, verseRange, findHighlight, openVerseNote, newVerseNoteRecord, pauseAction, emptyAction, groupsToPublish, groupPost, pendingLocalNote,
 } from '../src/anotar/notaMath.js'
 import { whoSeesBlocks } from '../src/anotar/anotarMath.js'
@@ -21,10 +21,10 @@ function check(label, got, want) {
 const ler = caminho => readFileSync(new URL(`../src/${caminho}`, import.meta.url), 'utf8')
 
 // ═══ N1 ═══════════════════════════════════════════════════════════════
-check('quatro opções, na ordem fixa', NEW_OPTIONS.map(o => o.title), ['Anotação livre', 'Anotar uma pregação', 'Nota em um versículo', 'Criar um estudo'])
-check('só "Anotação livre" é preta', NEW_OPTIONS.filter(o => o.dark).map(o => o.key), ['free'])
-check('os apoios, palavra por palavra', NEW_OPTIONS.map(o => o.support), ['Uma página em branco. Dê o tipo e o título depois.', 'Sermão, culto, aula, palestra ou vídeo', 'Escolha o versículo e escreva sobre ele', 'Um plano de leitura sobre um tema ou livro'])
-check('título e apoio da folha', [NEW_TITLE, NEW_SUPPORT], ['O que você quer guardar?', 'Tudo fica só com você, na sua Biblioteca.'])
+check('quatro opções, na ordem fixa', newOptions().map(o => o.title), ['Anotação livre', 'Anotar uma pregação', 'Nota em um versículo', 'Criar um estudo'])
+check('só "Anotação livre" é preta', newOptions().filter(o => o.dark).map(o => o.key), ['free'])
+check('os apoios, palavra por palavra', newOptions().map(o => o.support), ['Uma página em branco. Dê o tipo e o título depois.', 'Sermão, culto, aula, palestra ou vídeo', 'Escolha o versículo e escreva sobre ele', 'Um plano de leitura sobre um tema ou livro'])
+check('título e apoio da folha', [newTitle(), newSupport()], ['O que você quer guardar?', 'Tudo fica só com você, na sua Biblioteca.'])
 
 const terca = new Date(2026, 10, 10, 10, 0)
 const iso = (dia, hora = 10) => new Date(2026, 10, dia, hora, 0).toISOString()
@@ -46,7 +46,7 @@ const trecho = { book: 'Salmos', bookEn: 'Psalms', chapter: 23, verses: [4] }
 check('cabeçalho: "Nota em Salmos 23:4"', [noteTitle(trecho), noteTitle({ ...trecho, verses: [5, 4] }), verseReference({ ...trecho, verses: [4, 6] })], ['Nota em Salmos 23:4', 'Nota em Salmos 23:4–5', 'Salmos 23:4, 6'])
 const grupos = [{ groupId: 'g1', name: 'Grupo Semente' }, { groupId: 'g2', name: 'Batista Central' }]
 check('segunda linha: "Salva sozinha · só sua"; compartilhada, o nome do grupo', [noteSubtitle({ groups: grupos, shared: [] }), noteSubtitle({ groups: grupos, shared: ['g1'] }), noteSubtitle({ groups: grupos, shared: ['g1', 'g2'] }), noteSubtitle({ groups: grupos, shared: ['saiu'] })], ['Salva sozinha · só sua', 'Salva sozinha · Grupo Semente', 'Salva sozinha · Grupo Semente · Batista Central', 'Salva sozinha · só sua'])
-check('textos fixos', [NOTE_PLACEHOLDER, WHO_SEES_VERSE_NOTE], ['O que este versículo diz para você hoje?', 'Dá para escolher mais de um grupo. Só o texto da nota e o versículo vão.'])
+check('textos fixos', [notePlaceholder(), whoSeesVerseNote()], ['O que este versículo diz para você hoje?', 'Dá para escolher mais de um grupo. Só o texto da nota e o versículo vão.'])
 check('o texto dos versículos, na ordem', verseQuote({ 4: 'Ainda que eu ande\npelo vale', 5: 'Preparas um banquete' }, [5, 4]), 'Ainda que eu ande pelo vale Preparas um banquete')
 check('"+ versículo": do menor ao maior', [verseRange(4, 4), verseRange(3, 6)], [[4], [3, 4, 5, 6]])
 
@@ -95,7 +95,7 @@ check('a conta já tem aquele texto, ou a nota foi apagada, ou a cópia está va
 // ═══ Regras, no código ════════════════════════════════════════════════
 const tela = ler('screens/NotaDeVersiculoScreen.jsx')
 check('não existe botão "Salvar" na nota de versículo', />\s*Salvar\s*</.test(tela), false)
-check('"Pronto" está na tela', />Pronto</.test(tela), true)
+check('"Pronto" está na tela', />\{N\('done'\)\}</.test(tela), true)
 const gancho = ler('anotar/useNotaDeVersiculo.js')
 check('só "Pronto" leva a nota a um grupo: publicar acontece num lugar só, depois do `done`', [(gancho.match(/api\.publish\(/g) ?? []).length, gancho.indexOf('if (!done') < gancho.indexOf('api.publish(')], [1, true])
 check('ao pausar, os grupos não são gravados nem publicados (só texto e etiquetas)', /updateVerseNote\(current\.id, \{ text: current\.text\.trim\(\), tags: current\.tags \}\)/.test(gancho), true)
@@ -103,6 +103,12 @@ check('a cópia no aparelho é feita a cada mudança', /api\.keepLocalNote\(owne
 check('a recuperação roda uma de cada vez (duas juntas criariam a mesma nota duas vezes)', /recovering\.then\(run, run\)/.test(ler('anotar/recuperarRascunho.js')), true)
 const leitura = ler('screens/ReadingBlockView.jsx')
 check('as ações do versículo (39e) abrem a tela da nota, e a leitura não publica nada em grupo', [/<NotaDeVersiculoScreen/.test(leitura), /postToRoom/.test(leitura)], [true, false])
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: a folha "Nova"', [newOptions('en').map(o => o.title), newTitle('en')], [['Free note', 'Take sermon notes', 'Note on a verse', 'Create a study'], 'What do you want to save?'])
+check('en: linha do rascunho', (({ lead, title, tail }) => `${lead}${title}${tail}`)(draftLine(itens, terca, 'en')), 'Draft from Sunday: A espera que forma · continue')
+check('en: título e linha da nota de versículo', [noteTitle(trecho, 'en'), noteSubtitle({ groups: grupos, shared: [] }, 'en'), noteSubtitle({ groups: grupos, shared: ['g1'] }, 'en')], ['Note on Psalms 23:4', 'Saves on its own · only yours', 'Saves on its own · Grupo Semente'])
+check('en: textos fixos', notePlaceholder('en'), 'What is this verse saying to you today?')
 
 console.log(failures === 0 ? '\nTudo certo.' : `\n${failures} falha(s).`)
 if (failures) process.exit(1)
