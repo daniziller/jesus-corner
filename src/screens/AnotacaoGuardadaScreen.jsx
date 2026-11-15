@@ -27,7 +27,7 @@ const NO_GROUPS = []
 // `notice`: o que acabou de acontecer ao finalizar — { shared: [{ groupId,
 // postId }], failed: [groupId], reason } (ver PaginaDeAnotacao.jsx).
 export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, noteId, groups = NO_GROUPS, notice: arrivedWith = null, onBack, onContinue, onRead, onOpenBiblePassage, onDeleted }) {
-  const { status, draft, library, change, leave } = useAnotacao({ api, target: { noteId }, countTime: false })
+  const { status, draft, library, change, leave, discard } = useAnotacao({ api, target: { noteId }, countTime: false })
   const [summary, setSummary] = useState({ state: 'idle', data: null })
   const [highlights, setHighlights] = useState(null)
   const [marking, setMarking] = useState(false)
@@ -144,6 +144,7 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
   async function remove() {
     setMenu(false)
     if (!window.confirm('Deletar essa anotação? Não dá pra desfazer.')) return
+    discard()
     try {
       await api.remove(draft.id)
       onDeleted()

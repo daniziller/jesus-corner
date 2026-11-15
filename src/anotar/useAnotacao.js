@@ -32,6 +32,11 @@ export function useAnotacao({ api = anotarApi, target = {}, countTime = true } =
   const dirtyRef = useRef(false)
   const storedRef = useRef(false)
   const closedRef = useRef(false)
+  // "Finalizar" em curso: qualquer gravação que saia nesse meio-tempo (o
+  // autosave da última tecla, a pausa do app) grava já finalizada — senão
+  // ela entrava na fila depois e voltava a anotação a rascunho.
+  const finalizingRef = useRef(false)
+  const autosaveTimerRef = useRef(null)
   const mountedRef = useRef(true)
   const startRef = useRef(Date.now())
   const baseSecondsRef = useRef(0)
@@ -71,7 +76,7 @@ export function useAnotacao({ api = anotarApi, target = {}, countTime = true } =
   const persist = useCallback(async ({ finalize = false } = {}) => {
     const current = draftRef.current
     if (!current || !noteHasContent(current)) return null
-    const payload = payloadOf(current, finalize)
+    const payload = payloadOf(current, finalize || finalizingRef.current)
     api.keepLocal(ownerRef.current, payload)
     dirtyRef.current = false
     if (mountedRef.current) setSave(s => ({ ...s, saving: true }))
@@ -102,6 +107,7 @@ export function useAnotacao({ api = anotarApi, target = {}, countTime = true } =
     if (!draft || !dirtyRef.current) return undefined
     if (noteHasContent(draft)) api.keepLocal(ownerRef.current, payloadOf(draft))
     const timer = setTimeout(() => { persist() }, AUTOSAVE_MS)
+    autosaveTimerRef.current = timer
     return () => clearTimeout(timer)
   }, [draft, api, payloadOf, persist])
 
@@ -140,7 +146,10 @@ export function useAnotacao({ api = anotarApi, target = {}, countTime = true } =
   }, [api, persist])
 
   const finalize = useCallback(async () => {
+    finalizingRef.current = true
+    clearTimeout(autosaveTimerRef.current)
     const saved = await persist({ finalize: true })
+    if (!saved) finalizingRef.current = false
     if (saved) {
       closedRef.current = true
       if (mountedRef.current) setDraft(prev => (prev ? { ...prev, finalizedAt: saved.finalizedAt } : prev))
@@ -148,5 +157,14 @@ export function useAnotacao({ api = anotarApi, target = {}, countTime = true } =
     return saved
   }, [persist])
 
-  return { status, draft, library, save, change, persist, leave, finalize, seconds }
+  // A anotação vai ser apagada: nada mais grava (nem o autosave pendente,
+  // nem a gravação ao sair) e a cópia do aparelho sai — senão ela voltava.
+  const discard = useCallback(() => {
+    closedRef.current = true
+    dirtyRef.current = false
+    clearTimeout(autosaveTimerRef.current)
+    if (draftRef.current) api.clearLocal(ownerRef.current, draftRef.current.id)
+  }, [api])
+
+  return { status, draft, library, save, change, persist, leave, finalize, discard, seconds }
 }

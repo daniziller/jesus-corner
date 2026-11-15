@@ -16,6 +16,7 @@
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 import { requireAdmin } from '../_lib/adminAuth.js'
+import { fetchAllPaged } from '../_lib/paged.js'
 import { sendEmail } from '../_lib/resend.js'
 import { listAllUsers } from '../_lib/adminUsers.js'
 import { emailFooterLinksHtml } from '../_lib/emailFooter.js'
@@ -45,8 +46,8 @@ async function resolveSegmentPreset(preset, allowed) {
   if (preset === 'inactive14d') {
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
     const [sessionRes, chaptersRes] = await Promise.all([
-      supabaseAdmin.from('session_seconds').select('user_id').gte('created_at', since),
-      supabaseAdmin.from('chapters_read').select('user_id').gte('created_at', since),
+      fetchAllPaged(supabaseAdmin, 'session_seconds', 'user_id', { apply: q => q.gte('created_at', since) }),
+      fetchAllPaged(supabaseAdmin, 'chapters_read', 'user_id', { apply: q => q.gte('created_at', since) }),
     ])
     if (sessionRes.error) throw sessionRes.error
     if (chaptersRes.error) throw chaptersRes.error
@@ -54,7 +55,7 @@ async function resolveSegmentPreset(preset, allowed) {
     return new Set([...allowed].filter(id => !activeIds.has(id)))
   }
   if (preset === 'noGroup') {
-    const { data, error } = await supabaseAdmin.from('reading_group_members').select('user_id').eq('status', 'joined')
+    const { data, error } = await fetchAllPaged(supabaseAdmin, 'reading_group_members', 'user_id', { apply: q => q.eq('status', 'joined'), order: ['group_id', 'user_id'] })
     if (error) throw error
     const inGroupIds = new Set((data ?? []).map(r => r.user_id))
     return new Set([...allowed].filter(id => !inGroupIds.has(id)))

@@ -1,7 +1,7 @@
 // GrupoOracao.jsx — os pedidos de oração de um grupo: os abertos (cada um
 // com "Orei por isso" e quantas pessoas oraram — nunca quem), o pedido da
-// própria pessoa em destaque com "Encerrar pedido", os encerrados e
-// "Fazer um pedido". Moderador pode apagar um pedido.
+// própria pessoa em destaque com "Encerrar pedido", os pedidos dela que já
+// foram encerrados e "Fazer um pedido". Moderador pode apagar um pedido.
 import { useEffect, useState } from 'react'
 import { t } from '../../i18n'
 import AppIcon from '../../icons/AppIcon'
@@ -11,11 +11,22 @@ import FolhaFazerPedido from '../pedidos/FolhaFazerPedido'
 import { e, Esqueleto } from './estilos'
 import { avatarInitialsOf } from '../../utils/avatarInitials'
 import { formatRelativeTime } from '../../utils/time'
-import { getPrayerRequestsFeed, deletePrayerRequest, closePrayerRequest } from '../../groups/prayerRequestsStore'
+import { getPrayerRequestsFeed, getMyPrayerRequests, deletePrayerRequest, closePrayerRequest } from '../../groups/prayerRequestsStore'
 import { orarPor } from '../../pedidos/orei'
 import { plural, prayerLists, markPrayed } from '../../comunidade/comunidadeMath'
 
-const realApi = { list: getPrayerRequestsFeed, pray: orarPor, close: closePrayerRequest, remove: deletePrayerRequest }
+// Os abertos do grupo vêm do feed (que só traz abertos); os encerrados são
+// os da própria pessoa neste grupo — a folha de encerrar promete que o
+// pedido "vai para os encerrados", e antes ele simplesmente sumia.
+async function listGroupRequests(groupId) {
+  const [open, mine] = await Promise.all([getPrayerRequestsFeed(groupId), getMyPrayerRequests()])
+  const closed = mine
+    .filter(r => r.groupId === groupId && r.status !== 'open')
+    .map(r => ({ ...r, anonymous: false, authorName: '', status: 'closed' }))
+  return [...open, ...closed]
+}
+
+const realApi = { list: listGroupRequests, pray: orarPor, close: closePrayerRequest, remove: deletePrayerRequest }
 
 export default function GrupoOracao({ lang, groupId, groupName, isModerator, authUser, hasAI, startWriting = false, onBack, api = realApi }) {
   const L = (k, vars) => t(`community.${k}`, vars, lang)
@@ -109,7 +120,7 @@ export default function GrupoOracao({ lang, groupId, groupName, isModerator, aut
         </button>
       </div>
 
-      {addOpen && <FolhaFazerPedido lang={lang} authUser={authUser} hasAI={hasAI} onClose={() => setAddOpen(false)} onCreated={reload} />}
+      {addOpen && <FolhaFazerPedido lang={lang} authUser={authUser} hasAI={hasAI} initialChoice={`group:${groupId}`} onClose={() => setAddOpen(false)} onCreated={reload} />}
       {confirming && (
         <FolhaDeConfirmacao
           lang={lang} onClose={() => setConfirming(null)} onConfirm={confirm}

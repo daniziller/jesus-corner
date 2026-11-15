@@ -50,6 +50,14 @@ export async function getGroupWall(groupId) {
 export function getAccessGrants() {
   return authorizedPost('/api/admin/access', { op: 'list' })
 }
+// Um caso da fila tem alguém sobre quem agir? A denúncia de mensagem
+// sempre tem; um problema reportado só quando o admin anexou uma pessoa.
+// Sem ninguém, silenciar e bloquear não aparecem (antes fechavam o caso
+// sem fazer nada).
+export function casePerson(detail) {
+  return detail?.kind === 'message_report' || !!detail?.attachedUserId
+}
+
 // Código de erro de /api/admin/access → chave de texto (admin.access.*).
 export const GRANT_ERRORS = {
   person_not_found: 'personNotFoundError',

@@ -11,12 +11,12 @@
 // PlanScreen.jsx (lista "Sessões do plano", que reflete sempre o plano
 // ativo no momento, não só o fixo) — extraído pra cá pra não duplicar essa
 // lógica nos dois lugares.
-import { PLANS } from '../data/bibleBlocks'
-import { deriveChronoProgress } from '../data/chronologicalPlan'
-import { deriveThemeTexts, themeTextKey } from '../themePlans/themeTexts'
-import { sessionKeys } from '../utils/progress'
-import { planQueue, splitPointsFor, findPlanSession, planTotals } from '../reading/bibleOrderMath'
-import { findCurrentReadingSession } from '../reading/findCurrentReadingSession'
+import { PLANS } from '../data/bibleBlocks.js'
+import { deriveChronoProgress } from '../data/chronologicalPlan.js'
+import { deriveThemeTexts, themeTextKey } from '../themePlans/themeTexts.js'
+import { sessionKeys } from '../utils/progress.js'
+import { planQueue, splitPointsFor, findPlanSession, planTotals } from '../reading/bibleOrderMath.js'
+import { findCurrentReadingSession } from '../reading/findCurrentReadingSession.js'
 
 // title/theme são os campos atuais/antigos do título de um plano por tema —
 // planos salvos antes da tela ganhar campo de título separado do escopo
@@ -52,6 +52,11 @@ export function themePlanProgress(themePlan, completedSet) {
 // Além dos totais, devolve `current` ({ session, block }) — a sessão onde
 // o plano está — e `queue` (a fila do plano; nula nos planos por tema e
 // de grupo, que não são a leitura contínua).
+//
+// Um plano por tema ou de grupo que já terminou (ou não tem texto, ou não
+// existe mais) não segura a leitura de hoje: a pessoa volta ao plano da
+// Bíblia, na ordem que escolheu — cronológica inclusive. Antes o Hoje
+// ficava preso na última leitura do estudo, já lida, sem saída.
 export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, readingMinutesOverride, planOrder = null) {
   const queueOf = kind => planQueue(kind, planOrder?.mode ?? 'canonical', planOrder?.customOrder ?? null, planOrder?.position ?? null, planOrder?.readingOrder ?? 'ot_first')
 
@@ -79,7 +84,7 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
       const syntheticBlock = {
         id: `theme:${themePlan.id}`, name: title, nameEn: title,
         sessionsTotal: texts.length, icon: 'Sparkles', gradientKey: 'purple', percent,
-        status: doneCount === texts.length ? 'done' : doneCount > 0 ? 'active' : 'todo',
+        status: doneCount > 0 ? 'active' : 'todo',
       }
 
       // Escolha de HOJE — soma `minutes` só dos textos escolhidos que ainda
@@ -98,7 +103,7 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
       }
       const needsThemePick = Boolean(themePlan.passages) && doneCount < texts.length && !hasTodayPick
 
-      return {
+      if (doneCount < texts.length) return {
         kind: 'theme',
         icon: 'Sparkles',
         label: title,
@@ -114,7 +119,6 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
         queue: null,
       }
     }
-    // Plano referenciado não existe mais (deletado) — cai no fallback fixo.
   }
 
   // Plano do grupo (22d) — mesma mecânica do plano por tema (mesmo formato
@@ -124,17 +128,19 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
   // sempre avança na ordem, uma leitura de cada vez, igual cronológico/fixo.
   if (activeAltPlan?.type === 'group') {
     const groupPlan = groupPlans?.find(p => p.id === activeAltPlan.planId)
-    if (groupPlan) {
-      const texts = deriveThemeTexts(groupPlan.passages).map(s => ({
+    const texts = groupPlan
+      ? deriveThemeTexts(groupPlan.passages).map(s => ({
         ...s,
         status: sessionKeys(s).every(k => completedSet.has(k)) ? 'done' : 'pending',
       }))
-      const doneCount = texts.filter(s => s.status === 'done').length
-      const percent = texts.length ? Math.round((doneCount / texts.length) * 100) : 0
+      : []
+    const doneCount = texts.filter(s => s.status === 'done').length
+    if (doneCount < texts.length) {
+      const percent = Math.round((doneCount / texts.length) * 100)
       const syntheticBlock = {
         id: `group:${groupPlan.id}`, name: groupPlan.title, nameEn: groupPlan.title,
         sessionsTotal: texts.length, icon: 'Users', gradientKey: 'purple', percent,
-        status: doneCount === texts.length ? 'done' : doneCount > 0 ? 'active' : 'todo',
+        status: doneCount > 0 ? 'active' : 'todo',
       }
       return {
         kind: 'group',
@@ -151,17 +157,22 @@ export function resolveActivePlanSessions(activeAltPlan, themePlans, completedSe
         queue: null,
       }
     }
-    // Plano referenciado não existe mais (deletado/não aceito) — cai no
-    // fallback fixo.
   }
 
-  if (activeAltPlan?.type === 'chrono') {
+  // Daqui pra baixo, a leitura contínua. Vindo de um estudo que acabou (ver
+  // acima), a ordem guardada decide se é a cronológica.
+  const studyEnded = activeAltPlan?.type === 'theme' || activeAltPlan?.type === 'group'
+  const chronoPaceId = activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId
+    : studyEnded && planOrder?.mode === 'chronological' ? (planId === 'none' ? 'standard' : planId)
+    : null
+  if (chronoPaceId) {
     const queue = queueOf('chrono')
-    const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId, splitPointsFor(queue.start))
-    const pace = PLANS.find(p => p.id === activeAltPlan.paceId) ?? PLANS.find(p => p.id === 'standard')
+    const chrono = deriveChronoProgress(completedSet, chronoPaceId, splitPointsFor(queue.start))
+    const pace = PLANS.find(p => p.id === chronoPaceId) ?? PLANS.find(p => p.id === 'standard')
     const { done: doneCount, total: totalCount } = planTotals({ ...chrono, ...queue })
     return {
       kind: 'chrono',
+      paceId: pace.id,
       icon: 'Hourglass',
       label: pace.label,
       labelEn: pace.labelEn,

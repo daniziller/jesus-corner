@@ -9,6 +9,8 @@
 // PostgREST, nem pro service role.
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
+import { fetchAllPaged } from '../_lib/paged.js'
+import { brazilToday } from '../_lib/brazilDay.js'
 import { listAllUsers } from '../_lib/adminUsers.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -119,11 +121,12 @@ export default async function handler(req, res) {
   const language = req.body?.language === 'pt' || req.body?.language === 'en' ? req.body.language : null
   const windowStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
   const now = new Date()
-  const startOfTodayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+  const { iso: startOfTodayIso, dateKey: todayKey } = brazilToday(now.getTime())
   const in48hIso = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString()
 
-  let funnelEventsQuery = supabaseAdmin.from('onboarding_events').select('session_id, step').gte('created_at', windowStart)
-  if (language) funnelEventsQuery = funnelEventsQuery.eq('language', language)
+  const funnelEventsQuery = fetchAllPaged(supabaseAdmin, 'onboarding_events', 'session_id, step', {
+    apply: q => (language ? q.gte('created_at', windowStart).eq('language', language) : q.gte('created_at', windowStart)),
+  })
 
   const [
     totalUsersRes, newByDayRes, subsRes, contactTotalRes, contactUnansweredRes, funnelEventsRes,
@@ -142,12 +145,12 @@ export default async function handler(req, res) {
     // app aberto" à parte, então isto é "fez algo de leitura/oração/
     // reflexão hoje", um proxy honesto de ativo, não literalmente "abriu o
     // app".
-    supabaseAdmin.from('session_seconds').select('user_id').gte('data', startOfTodayIso.slice(0, 10)),
-    supabaseAdmin.from('chapters_read').select('user_id').gte('created_at', startOfTodayIso),
+    fetchAllPaged(supabaseAdmin, 'session_seconds', 'user_id', { apply: q => q.gte('data', todayKey) }),
+    fetchAllPaged(supabaseAdmin, 'chapters_read', 'user_id', { apply: q => q.gte('created_at', startOfTodayIso) }),
     supabaseAdmin.from('text_ai_chats').select('id', { count: 'exact', head: true }).eq('role', 'user').gte('created_at', startOfTodayIso),
     supabaseAdmin.from('ai_answer_reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabaseAdmin.from('reading_groups').select('id', { count: 'exact', head: true }),
-    supabaseAdmin.from('reading_group_members').select('user_id').eq('status', 'joined'),
+    fetchAllPaged(supabaseAdmin, 'reading_group_members', 'user_id', { apply: q => q.eq('status', 'joined'), order: ['group_id', 'user_id'] }),
   ])
 
   const firstError = [totalUsersRes, newByDayRes, subsRes, contactTotalRes, contactUnansweredRes, funnelEventsRes, sessionTodayRes, chaptersTodayRes, aiChatsTodayRes, pendingReportsRes, groupsCountRes, groupMembersRes].find(r => r.error)

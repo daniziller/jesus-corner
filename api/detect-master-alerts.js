@@ -28,14 +28,19 @@ async function detectDenuncia() {
     .from('group_message_reports')
     .select('id, reason, group:reading_groups!group_message_reports_group_id_fkey(name)')
     .eq('status', 'escalated')
+  // insert (e não upsert com onConflict): o índice único de master_alerts é
+  // parcial (where source_id is not null), e o Postgres recusa índice
+  // parcial como alvo de ON CONFLICT — o upsert falhava sempre, em
+  // silêncio, e nenhum alerta de denúncia nascia. Repetido = 23505, ignorado.
   for (const r of reports ?? []) {
-    await supabaseAdmin.from('master_alerts').upsert({
+    const { error } = await supabaseAdmin.from('master_alerts').insert({
       kind: 'denuncia', source: 'group_message_reports', source_id: r.id,
       title: 'Denúncia escalada',
       detail: `${r.group?.name ?? 'Grupo'} · motivo: ${r.reason}`,
       primary_action: 'moderation_case',
       status: 'open', updated_at: new Date().toISOString(),
-    }, { onConflict: 'kind,source,source_id', ignoreDuplicates: true })
+    })
+    if (error && error.code !== '23505') console.error('[detect-master-alerts] denúncia', error.message)
   }
 }
 

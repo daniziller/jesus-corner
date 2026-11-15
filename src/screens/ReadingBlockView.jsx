@@ -374,7 +374,7 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
     recordPaceSampleIfNeeded()
     const next = getNextSessionFor(heroSession)
     if (!next) { goToReflectionAfterReading(); return }
-    if (heroSession.status !== 'done') onToggleSession(heroSession, true)
+    if (heroSession.status !== 'done') onToggleSession(heroSession, true, { keepReading: true })
     keepClockOnNextSessionChange.current = true
     featureSession(next)
   }

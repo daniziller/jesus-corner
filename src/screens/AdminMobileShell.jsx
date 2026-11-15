@@ -19,7 +19,7 @@ import { getAdminMetrics, searchAdminUsers, listAnswerReports, sendBroadcast } f
 import {
   getModerationCase, decideModerationCase, exportModerationLog,
   getAdminGroupsList, getAdminGroupDetail, adminGroupAction, getGroupWall,
-  getAccessGrants, grantAccess, GRANT_ERRORS,
+  getAccessGrants, grantAccess, GRANT_ERRORS, casePerson,
   getMasterAlerts, decideMasterAlert, markAllAlertsSeen,
   getPersonDetail, extendPersonTrial, enterAsPerson, blockPersonAccount,
 } from '../admin/masterModerationStore'
@@ -376,13 +376,23 @@ function ModerationCaseMobile({ lang, kind, id, onBack, onDecided }) {
   const [detail, setDetail] = useState(null)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   useEffect(() => { setDetail(null); getModerationCase(kind, id).then(setDetail).catch(() => {}) }, [kind, id])
 
   if (!detail) return <div style={styles.loadingBody}><p style={styles.hint}>{t('admin.loading', undefined, lang)}</p></div>
 
   async function decide(decision) {
+    if (decision === 'blocked_account' && !window.confirm(t('admin.moderation.blockAccountConfirm', undefined, lang))) return
     setBusy(true)
-    try { await decideModerationCase({ kind, id, decision, reason }); onDecided() } finally { setBusy(false) }
+    setError('')
+    try {
+      await decideModerationCase({ kind, id, decision, reason })
+      onDecided()
+    } catch (err) {
+      setError(err.message === 'already_decided' ? t('admin.moderation.alreadyDecidedError', undefined, lang) : err.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -458,9 +468,10 @@ function ModerationCaseMobile({ lang, kind, id, onBack, onDecided }) {
           </div>
         ) : (
           <div style={styles.fourBtnGrid}>
-            <button type="button" className="btn-primary" style={styles.footerBtnPrimary} disabled={busy || !reason.trim()} onClick={() => decide('deleted_message')}>{t('admin.moderation.deleteMessageBtn', undefined, lang)}</button>
-            <button type="button" style={styles.footerBtnSecondary} disabled={busy || !reason.trim()} onClick={() => decide('muted_user')}>{t('admin.moderation.mute7Btn', undefined, lang)}</button>
-            <button type="button" style={styles.footerBtnDestructive} disabled={busy || !reason.trim()} onClick={() => decide('blocked_account')}>{t('admin.moderation.blockAccountBtn', undefined, lang)}</button>
+            {error && <p role="alert" style={{ ...styles.mutedLine, gridColumn: '1 / -1', color: 'var(--bento-destructive)' }}>{error}</p>}
+            {detail.kind === 'message_report' && <button type="button" className="btn-primary" style={styles.footerBtnPrimary} disabled={busy || !reason.trim()} onClick={() => decide('deleted_message')}>{t('admin.moderation.deleteMessageBtn', undefined, lang)}</button>}
+            {casePerson(detail) && <button type="button" style={styles.footerBtnSecondary} disabled={busy || !reason.trim()} onClick={() => decide('muted_user')}>{t('admin.moderation.mute7Btn', undefined, lang)}</button>}
+            {casePerson(detail) && <button type="button" style={styles.footerBtnDestructive} disabled={busy || !reason.trim()} onClick={() => decide('blocked_account')}>{t('admin.moderation.blockAccountBtn', undefined, lang)}</button>}
             <button type="button" style={styles.footerBtnMuted} disabled={busy} onClick={() => decide('archived')}>{M('archiveNoActionBtn', undefined, lang)}</button>
           </div>
         )}
@@ -968,10 +979,20 @@ function MoreAccessMobile({ lang, onBack }) {
   const reload = useCallback(() => { getAccessGrants().then(setData).catch(() => {}) }, [])
   useEffect(() => { reload() }, [reload])
 
+  const [error, setError] = useState('')
   async function submit() {
     if (!form.emailOrName.trim() || !form.reason.trim()) return
     setBusy(true)
-    try { await grantAccess({ emailOrName: form.emailOrName, kind: form.kind, reason: form.reason }); setForm({ open: false, emailOrName: '', kind: '3_months', reason: '' }); reload() } finally { setBusy(false) }
+    setError('')
+    try {
+      await grantAccess({ emailOrName: form.emailOrName, kind: form.kind, reason: form.reason })
+      setForm({ open: false, emailOrName: '', kind: '3_months', reason: '' })
+      reload()
+    } catch (err) {
+      setError(t('admin.access.' + (GRANT_ERRORS[err.message] ?? 'grantFailedError'), undefined, lang))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -996,6 +1017,7 @@ function MoreAccessMobile({ lang, onBack }) {
               ))}
             </div>
             <textarea style={styles.textArea} placeholder={t('admin.access.reasonPlaceholder', undefined, lang)} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
+            {error && <p role="alert" style={{ ...styles.mutedLine, color: 'var(--bento-destructive)' }}>{error}</p>}
             <button type="button" className="btn-primary" style={{ ...styles.footerBtnPrimary, width: '100%' }} disabled={busy || !form.emailOrName.trim() || !form.reason.trim()} onClick={submit}>{M('grantConfirmBtn', undefined, lang)}</button>
           </div>
         )}
@@ -1015,11 +1037,27 @@ function MoreMessagesMobile({ lang, onBack }) {
   const [bodyPt, setBodyPt] = useState('')
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
 
+  // Só português (o formulário do celular tem um texto só — mandar o mesmo
+  // texto em português pra quem usa o app em inglês seria pior); a tela diz
+  // isso. Depois de enviar, os campos limpam: antes o botão continuava
+  // ativo e um segundo toque mandava o push de novo pra todo mundo.
   async function submit() {
-    if (!titlePt.trim() || !bodyPt.trim()) return
+    if (!titlePt.trim() || !bodyPt.trim() || busy) return
     setBusy(true)
-    try { await sendBroadcast({ languages: ['pt'], titlePt, titleEn: titlePt, bodyPt, bodyEn: bodyPt, sendPush: true, recipientMode: 'all' }); setDone(true) } finally { setBusy(false) }
+    setError('')
+    setDone(false)
+    try {
+      await sendBroadcast({ languages: ['pt'], titlePt, titleEn: titlePt, bodyPt, bodyEn: bodyPt, sendPush: true, recipientMode: 'all' })
+      setTitlePt('')
+      setBodyPt('')
+      setDone(true)
+    } catch {
+      setError(M('broadcastFailed', undefined, lang))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -1029,7 +1067,9 @@ function MoreMessagesMobile({ lang, onBack }) {
         <div style={styles.whiteCard}>
           <input style={styles.textInput} placeholder={M('broadcastTitlePlaceholder', undefined, lang)} value={titlePt} onChange={e => setTitlePt(e.target.value)} />
           <textarea style={styles.textArea} placeholder={M('broadcastBodyPlaceholder', undefined, lang)} value={bodyPt} onChange={e => setBodyPt(e.target.value)} />
+          <p style={styles.mutedLine}>{M('broadcastPtOnly', undefined, lang)}</p>
           {done && <p style={styles.mutedLine}>{M('broadcastSent', undefined, lang)}</p>}
+          {error && <p role="alert" style={{ ...styles.mutedLine, color: 'var(--bento-destructive)' }}>{error}</p>}
         </div>
       </div>
       <div style={styles.footerFixed}>
