@@ -5,10 +5,11 @@
 // segunda linha nem a barra, com o botão "Novo" no lugar do relógio.
 import AppIcon from '../../icons/AppIcon'
 import BarraDoDia from './BarraDoDia'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
-export default function CabecalhoDoPasso({ title, subtitle, onBack, backLabel = 'Voltar', clock = null, segments, barLabel }) {
+export default function CabecalhoDoPasso({ title, subtitle, onBack, backLabel = t('passosTx.back'), clock = null, segments, barLabel }) {
   return (
     <div style={s.wrap}>
       <div style={s.row}>

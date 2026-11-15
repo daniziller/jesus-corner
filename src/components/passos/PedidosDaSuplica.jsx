@@ -11,6 +11,7 @@ import { useState } from 'react'
 import AppIcon from '../../icons/AppIcon'
 import Check from './Check'
 import { suplicaView, originLabel, supportLine, suplicaToggle } from '../../pedidos/pedidosMath.js'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -30,17 +31,17 @@ export default function PedidosDaSuplica({ list, loading, error, sessionMarks, o
         {/* O rótulo leva à lista de pedidos (O1) — é a entrada dela para
             quem ora no ACTS. */}
         <h3 style={s.label} id="suplica-pedidos">
-          <button type="button" className="passo-rotulo" style={s.labelButton} onClick={onOpenAll} aria-label="Pedidos de oração. Abrir a lista de pedidos.">Pedidos de oração</button>
+          <button type="button" className="passo-rotulo" style={s.labelButton} onClick={onOpenAll} aria-label={t('passosTx.requestsAria')}>{t('passosTx.requestsTitle')}</button>
         </h3>
         {view.counter && <span style={s.counter} role="status">{view.counter}</span>}
       </div>
 
       {loading ? (
-        <p style={s.note}>Carregando os pedidos…</p>
+        <p style={s.note}>{t('passosTx.loadingRequests')}</p>
       ) : error ? (
-        <p style={s.note}>Não foi possível carregar os pedidos agora.</p>
+        <p style={s.note}>{t('passosTx.requestsError')}</p>
       ) : view.empty ? (
-        <p style={s.note}>Nenhum pedido por enquanto.</p>
+        <p style={s.note}>{t('passosTx.noRequests')}</p>
       ) : (
         view.rows.map(p => {
           const origin = originLabel(p)
@@ -53,7 +54,7 @@ export default function PedidosDaSuplica({ list, loading, error, sessionMarks, o
               </div>
               <button
                 type="button" style={{ ...s.check, ...(p.prayedToday ? s.checkOn : null) }}
-                aria-pressed={p.prayedToday} aria-label={`Orei por este pedido: ${p.body}`}
+                aria-pressed={p.prayedToday} aria-label={t('passosTx.prayedFor', { body: p.body })}
                 onClick={() => toggle(p)}
               >
                 <Check size={16} color={p.prayedToday ? '#fff' : 'var(--bento-t5)'} />
@@ -72,7 +73,7 @@ export default function PedidosDaSuplica({ list, loading, error, sessionMarks, o
 
       <button type="button" style={s.line} onClick={onAdd}>
         <span style={s.diamond} aria-hidden="true" />
-        <span style={s.lineText}>Fazer um pedido</span>
+        <span style={s.lineText}>{t('passosTx.makeRequest')}</span>
         <AppIcon name="ChevronRight" size={14} strokeWidth={2.6} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
       </button>
     </section>

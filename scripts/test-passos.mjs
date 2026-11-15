@@ -110,7 +110,7 @@ const reflexao = readFileSync(new URL('../src/screens/ReflectionScreen.jsx', imp
 const comPerguntas = reflexao.slice(reflexao.indexOf('if (withQuestions) {'), reflexao.indexOf('// ── Livre (37b) — sem mudança'))
 check('com perguntas: um cartão de pergunta (um campo) por vez', [(comPerguntas.match(/<CartaoPergunta\b/g) ?? []).length, /<textarea/.test(comPerguntas)], [2, false])
 check('a reflexão só grava na Biblioteca da própria pessoa — nada de grupo, sala ou comentário', /groupsStore|chapterRoomStore|commentsStore|messagesStore|postToRoom|shareTo/.test(reflexao), false)
-check('"Trocar" não aparece na pergunta fixa e a troca mexe só na pergunta atual', [/secondary: q\.fixed \? null : 'Trocar'/.test(readFileSync(new URL('../src/passos/reflexaoMath.js', import.meta.url), 'utf8')), /prev\.map\(\(q, i\) => \(i === idx \? \(pair\[idx\] \?\? pair\[0\]\) : q\)\)/.test(reflexao)], [true, true])
+check('"Trocar" não aparece na pergunta fixa e a troca mexe só na pergunta atual', [/secondary: q\.fixed \? null : tx\(lang, 'swap'\)/.test(readFileSync(new URL('../src/passos/reflexaoMath.js', import.meta.url), 'utf8')), /prev\.map\(\(q, i\) => \(i === idx \? \(pair\[idx\] \?\? pair\[0\]\) : q\)\)/.test(reflexao)], [true, true])
 
 // ── S5: o dia concluído ─────────────────────────────────────────────────
 check('topo: "32 minutos / com Deus." (10 + 17 + 5)', minutesHeadline(600 + 1020 + 300), ['32 minutos', 'com Deus.'])
@@ -134,7 +134,7 @@ check('frase de hoje: entre aspas; sem frase, o cartão não aparece', [dayPhras
 const dia = readFileSync(new URL('../src/screens/DayCompleteScreen.jsx', import.meta.url), 'utf8')
 const editor = readFileSync(new URL('../src/screens/DayShareScreen.jsx', import.meta.url), 'utf8')
 check('S5 não tem confete, "Parabéns" nem emoji', /confet|Parabéns|Incrível|🎉/i.test(dia.replace(/\/\/[^\n]*/g, '')), false)
-check('S5 termina num botão só, preto: "Voltar ao plano"', [(dia.match(/<RodapeDoPasso\b/g) ?? []).length, /primary=\{\{ label: 'Voltar ao plano', onClick: onBack, dark: true \}\}/.test(dia)], [1, true])
+check('S5 termina num botão só, preto: "Voltar ao plano"', [(dia.match(/<RodapeDoPasso\b/g) ?? []).length, /primary=\{\{ label: P\('backToPlan'\), onClick: onBack, dark: true \}\}/.test(dia)], [1, true])
 check('compartilhar e salvar a imagem ficam no editor, não no resumo', [/shareDayCompleteImage|downloadDayCompleteImage|renderDayCompleteImage/.test(dia), /shareDayCompleteImage/.test(editor) && /downloadDayCompleteImage/.test(editor)], [false, true])
 
 // ── Privacidade: o que se escreve na oração não sai da tela ─────────────
@@ -146,6 +146,15 @@ check('o cartão de escrita não guarda nem envia o texto', forbidden.test(escri
 const oracao = readFileSync(new URL('../src/screens/PrayerScreen.jsx', import.meta.url), 'utf8')
 check('a tela da oração nunca passa o que foi escrito a um armazenamento', /(saveNote|postComment|postToRoom|sendMessage)\(/.test(oracao), false)
 check('o texto das etapas só vive no estado da tela (stageNotes)', [/stageNotes/.test(oracao), /stageNotes[^\n]*(save|post|send|store)\w*\(/i.test(oracao)], [true, false])
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: barra e relógio', [dayBarAria(hoje, 'reading', 'en'), clockAria(600, 0, true, 'en'), clockAria(600, 660, false, 'en')], ['Step 2 of 3, Reading', '10 minutes left. Tap to pause.', 'Planned time ended 1 minute ago. Clock paused. Tap to continue.'])
+check('en: etapa da oração', [actsTrailAria(PRAYER_STAGES, 1, 'en'), stageCardLabel(0, 4, 150, 'en'), actsFooter(PRAYER_STAGES, 3, 'en').skip, actsFooter(PRAYER_STAGES, 3, 'en').primary], ['Stage 2 of 4, Confession', 'Stage 1 of 4 · 2.5 min', 'Skip', 'Finish prayer'])
+const vEn = reflectionView({ questions: reflectionQuestions(['A?', 'B?'], 'C?'), current: 0, todaysSteps: hoje, dayEntry: {}, lang: 'en' })
+check('en: reflexão', [vEn.label, vEn.secondary, vEn.primary, vEn.list.title, vEn.list.rows.map(r => r.sub)], ['Question 1 of 3', 'Swap', 'Next question', 'Later', ['Optional', 'Becomes your phrase of the day']])
+check('en: botão final e cartão do trecho', [reflectionFinishLabel(hoje, { prayer: true, reading: true }, 'en'), passageCard({ reference: 'Genesis 41', text: 'x', marked: true }, 'en').label, answerPreview('', 'en')], ['Finish the day', 'Genesis 41 · the passage you marked', 'No answer'])
+check('en: dia concluído', [minutesHeadline(1920, 'en'), minutesHeadline(0, 'en'), readingLabel({ book: 'Gênesis', chStart: 41, chEnd: 42 }, 'en')], [['32 minutes', 'with God.'], ['Your time', 'with God.'], 'Genesis 41–42'])
+check('en: os três números', dayNumbers({ week: { feitos: 1, meta: 4 }, book: { name: 'Gênesis', lidos: 41, total: 50 }, biblePercent: 4.3, lang: 'en' }).map(n => `${n.value} ${n.caption}`), ['1 of 4 days this week', '41 of 50 in Genesis', '4.3% of the Bible'])
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes dos passos (parte pura) passaram.')

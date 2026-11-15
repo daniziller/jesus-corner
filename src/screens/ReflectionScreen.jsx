@@ -28,7 +28,8 @@ import { dateKey } from '../utils/dateKey'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { useStepTimer } from '../timer/useStepTimer'
 import { usePlanTotalToday } from '../timer/usePlanTotalToday'
-import { resolveMinutes } from '../meuPlano/meuPlanoMath'
+import { resolveMinutes, stepName } from '../meuPlano/meuPlanoMath'
+import { bookNameFor } from '../utils/progress'
 import { dayBarSegments, dayBarAria, stepSubtitle } from '../passos/passosMath'
 import { reflectionQuestions, reflectionView, passageCard, combineQaText } from '../passos/reflexaoMath'
 import { useKeyboardInset } from '../passos/useKeyboardInset'
@@ -52,6 +53,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   const { lang } = session
   const guided = session.guided?.step === 'reflection'
   const L = (k, vars) => t(`reflection.${k}`, vars, lang)
+  const P = (k, vars) => t(`passosTx.${k}`, vars, lang)
   const email = authUser?.email
   const method = useMemo(getReflectionMethod, [])
   const effectiveMethod = method === 'questions' && session.hasAI ? 'questions' : 'free'
@@ -60,7 +62,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   const TOTAL_SECONDS = totalMinutes * 60
 
   const hasChapter = !!lastReadChapterInfo?.book
-  const chapterLabel = hasChapter ? `${lastReadChapterInfo.book} ${verseSpan(lastReadChapterInfo.chStart, lastReadChapterInfo.chEnd)}` : ''
+  const chapterLabel = hasChapter ? `${bookNameFor(lastReadChapterInfo.book, lang)} ${verseSpan(lastReadChapterInfo.chStart, lastReadChapterInfo.chEnd)}` : ''
 
   const { running, elapsedSeconds: elapsed, start, toggle: toggleRunning, pause, computeElapsed } = useStepTimer()
   const planPriorSeconds = usePlanTotalToday()
@@ -94,7 +96,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
         const chapters = await fetchBookText(versionId, bookKey).catch(() => null)
         const chapterData = chapters?.[String(today.chapter)]
         const quote = [...today.verses].sort((a, b) => a - b).map(v => chapterData?.verses?.[String(v)]).filter(Boolean).join(' ')
-        if (quote) return { reference: `${today.book} ${today.chapter}`, text: quote, marked: true }
+        if (quote) return { reference: `${bookNameFor(today.book, lang)} ${today.chapter}`, text: quote, marked: true }
       }
       if (!hasChapter) return null
       const bookKey = lang === 'en' ? (lastReadChapterInfo.bookEn || lastReadChapterInfo.book) : lastReadChapterInfo.book
@@ -158,7 +160,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   const [current, setCurrent] = useState(initialQuestion)
   // Enquanto as perguntas geradas não chegam, a tela espera na primeira.
   const loadingQuestions = withQuestions && hasChapter && !questions && !questionsError
-  const view = reflectionView({ questions: list, current, answers, todaysSteps: session.todaysSteps, dayEntry: session.todayRoutine })
+  const view = reflectionView({ questions: list, current, answers, todaysSteps: session.todaysSteps, dayEntry: session.todayRoutine, lang })
 
   function setAnswer(text) {
     if (list[view.index].fixed) { q3TouchedRef.current = true; setQ3Text(text); return }
@@ -319,15 +321,15 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   const keyboardInset = useKeyboardInset()
 
   if (withQuestions) {
-    const card = passageCard(passage ?? {})
+    const card = passageCard(passage ?? {}, lang)
     return (
       <div style={{ ...styles.screen, paddingBottom: keyboardInset, boxSizing: 'border-box' }}>
         <CabecalhoDoPasso
-          title="Reflexão" subtitle={stepSubtitle(session.todaysSteps, 'reflection', 'com perguntas')}
+          title={stepName('reflection', lang)} subtitle={stepSubtitle(session.todaysSteps, 'reflection', P('withQuestions'), lang)}
           onBack={handleBack} backLabel={t('a11y.goBack', undefined, lang)}
-          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} />}
+          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} lang={lang} />}
           segments={dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'reflection' })}
-          barLabel={dayBarAria(session.todaysSteps, 'reflection')}
+          barLabel={dayBarAria(session.todaysSteps, 'reflection', lang)}
         />
 
         <div ref={bodyRef} style={styles.questionsBody}>
@@ -342,8 +344,8 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
 
           {loadingQuestions ? (
             <>
-              <CartaoPergunta label="Pergunta 1 de 3" markers={[true, false, false]} question="Preparando as perguntas deste trecho…" />
-              <ListaDePerguntas list={{ title: 'Depois', rows: [{ index: 2, n: 3, text: L('question3Fixed'), sub: 'Vira a sua frase do dia', tappable: false }] }} />
+              <CartaoPergunta label={P('questionOf', { n: 1, total: 3 })} markers={[true, false, false]} question={P('preparing')} />
+              <ListaDePerguntas list={{ title: P('later'), rows: [{ index: 2, n: 3, text: L('question3Fixed'), sub: P('becomesPhrase'), tappable: false }] }} />
             </>
           ) : (
             <>
@@ -362,7 +364,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
             </>
           )}
 
-          <p style={styles.privacyLine}>Fica na sua Biblioteca. Nada vai ao grupo sem você compartilhar.</p>
+          <p style={styles.privacyLine}>{P('privacyReflection')}</p>
         </div>
 
         {pendingPin ? (
@@ -372,9 +374,9 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
           />
         ) : (
           <RodapeDoPasso
-            secondary={view.secondary && !loadingQuestions ? { label: swapping ? 'Trocando…' : view.secondary, onClick: swapCurrent, disabled: swapping } : null}
+            secondary={view.secondary && !loadingQuestions ? { label: swapping ? P('swapping') : view.secondary, onClick: swapCurrent, disabled: swapping } : null}
             primary={loadingQuestions
-              ? { label: 'Próxima pergunta', disabled: true }
+              ? { label: P('nextQuestion'), disabled: true }
               : { label: view.primary, onClick: view.last ? finishQuestions : () => goToQuestion(view.index + 1) }}
           />
         )}

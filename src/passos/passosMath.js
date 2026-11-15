@@ -4,7 +4,9 @@
 // pastilhas de frase). As telas só mostram o que sai daqui.
 import { stepName } from '../meuPlano/meuPlanoMath.js'
 import { formatClock } from '../timer/formatClock.js'
-import { tr } from '../i18n/tr.js'
+import { tr, trN } from '../i18n/tr.js'
+
+const tx = (lang, key, vars) => tr(lang, `passosTx.${key}`, vars)
 
 // ── A barra do dia e o cabeçalho ────────────────────────────────────────
 
@@ -30,9 +32,9 @@ export function dayBarSegments({ todaysSteps, minutes, dayEntry, current }) {
 }
 
 // "Passo 1 de 3, Oração" — o texto alternativo da barra.
-export function dayBarAria(todaysSteps, key) {
+export function dayBarAria(todaysSteps, key, lang = 'pt') {
   const { n, total } = stepPosition(todaysSteps, key)
-  return `Passo ${n} de ${total}, ${stepName(key)}`
+  return tx(lang, 'stepAria', { n, total, name: stepName(key, lang) })
 }
 
 // "Passo 1 de 3 · ACTS" — a linha de baixo do cabeçalho do passo.
@@ -52,14 +54,14 @@ export function clockDisplay(totalSeconds, elapsedSeconds) {
 
 // O que o leitor de tela ouve — muda de minuto em minuto, não a cada
 // segundo.
-export function clockAria(totalSeconds, elapsedSeconds, running) {
+export function clockAria(totalSeconds, elapsedSeconds, running, lang = 'pt') {
   const remaining = Math.round(totalSeconds - elapsedSeconds)
   const minutes = Math.ceil(Math.abs(remaining) / 60)
-  const amount = `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`
+  const amount = trN(lang, 'passosTx.minutes', minutes)
   const base = remaining > 0
-    ? `${minutes === 1 ? 'Falta' : 'Faltam'} ${amount}`
-    : remaining === 0 ? 'Tempo previsto encerrado' : `Tempo previsto encerrado há ${amount}`
-  return running ? `${base}. Toque para pausar.` : `${base}. Relógio pausado. Toque para continuar.`
+    ? tx(lang, minutes === 1 ? 'remainOne' : 'remainMany', { amount })
+    : remaining === 0 ? tx(lang, 'timeUp') : tx(lang, 'timeUpAgo', { amount })
+  return tx(lang, running ? 'tapPause' : 'tapResume', { base })
 }
 
 // ── Oração ACTS (S1/S2) ─────────────────────────────────────────────────
@@ -77,19 +79,19 @@ export function actsTrail(stages, currentIdx, lang = 'pt') {
 // "Etapa 2 de 4, Confissão" — o texto alternativo da trilha.
 export function actsTrailAria(stages, currentIdx, lang = 'pt') {
   const st = stages[currentIdx]
-  return `Etapa ${currentIdx + 1} de ${stages.length}, ${st.title[lang] ?? st.title.pt}`
+  return tx(lang, 'stageAria', { n: currentIdx + 1, total: stages.length, name: st.title[lang] ?? st.title.pt })
 }
 
 // "2,5" · "3" · "3,8" — minutos de uma etapa, com uma casa quando precisa.
-export function stageMinutes(seconds) {
+export function stageMinutes(seconds, lang = 'pt') {
   const rounded = Math.round((Math.max(0, seconds) / 60) * 10) / 10
-  return String(rounded).replace('.', ',')
+  return lang === 'en' ? String(rounded) : String(rounded).replace('.', ',')
 }
 
 // "Etapa 2 de 4 · 2,5 min" — o rótulo do cartão preto (vira maiúscula por
 // CSS).
-export function stageCardLabel(currentIdx, total, stageSeconds) {
-  return `Etapa ${currentIdx + 1} de ${total} · ${stageMinutes(stageSeconds)} min`
+export function stageCardLabel(currentIdx, total, stageSeconds, lang = 'pt') {
+  return tx(lang, 'stageCard', { n: currentIdx + 1, total, min: stageMinutes(stageSeconds, lang) })
 }
 
 // O rodapé: "Pular" à esquerda; o botão laranja nomeia a próxima etapa e,
@@ -97,9 +99,9 @@ export function stageCardLabel(currentIdx, total, stageSeconds) {
 export function actsFooter(stages, currentIdx, lang = 'pt') {
   const next = stages[currentIdx + 1]
   return {
-    skip: 'Pular',
+    skip: tx(lang, 'skip'),
     last: !next,
-    primary: next ? (next.title[lang] ?? next.title.pt) : 'Terminar a oração',
+    primary: next ? (next.title[lang] ?? next.title.pt) : tx(lang, 'finishPrayer'),
   }
 }
 

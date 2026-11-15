@@ -10,6 +10,7 @@
 import { useState } from 'react'
 import { insertStarter } from '../../passos/passosMath.js'
 import CampoQueCresce from './CampoQueCresce'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -25,7 +26,7 @@ export default function CartaoDeEscrita({ starters, value, onChange }) {
 
   return (
     <div style={s.card}>
-      <p style={s.label}>Se ajudar, comece assim</p>
+      <p style={s.label}>{t('passosTx.startHint')}</p>
       <div style={s.pills}>
         {starters.map(phrase => (
           <button key={phrase} type="button" className="passo-pastilha" style={s.pill} onClick={() => writeStarter(phrase)}>
@@ -35,11 +36,11 @@ export default function CartaoDeEscrita({ starters, value, onChange }) {
       </div>
       <CampoQueCresce
         className="passo-campo" style={s.field} minHeight={96} focusEndKey={focusEndKey}
-        placeholder="Escreva, ou só ore. Nada aqui é obrigatório."
-        aria-label="O que você quer dizer a Deus. Opcional."
+        placeholder={t('passosTx.writePh')}
+        aria-label={t('passosTx.writeAria')}
         value={value} onChange={onChange}
       />
-      <p style={s.privacy}>Só seu. Nunca vai para grupo nem para a Biblioteca.</p>
+      <p style={s.privacy}>{t('passosTx.privacyPrayer')}</p>
     </div>
   )
 }
