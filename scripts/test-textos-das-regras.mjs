@@ -12,7 +12,7 @@ function check(label, actual, expected) {
   console.log(`${ok ? 'OK    ' : 'FALHOU'} ${label}${ok ? '' : ` — esperado ${JSON.stringify(expected)}, veio ${JSON.stringify(actual)}`}`)
 }
 
-const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx', 'src/biblia/bibliaMath.js': 'bibliaTx', 'src/busca/buscaMath.js': 'buscaTx', 'src/busca/palavra.js': 'buscaTx', 'src/biblioteca/bibliotecaMath.js': 'bibliotecaTx', 'src/biblioteca/tiposMath.js': 'bibliotecaTx', 'src/biblioteca/buscaDaBiblioteca.js': 'bibliotecaTx', 'src/biblioteca/resultadosDaBusca.js': 'bibliotecaTx', 'src/anotar/notaMath.js': 'notasTx', 'src/anotar/anotarMath.js': 'notasTx', 'src/anotar/guardadaMath.js': 'notasTx' }
+const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx', 'src/biblia/bibliaMath.js': 'bibliaTx', 'src/busca/buscaMath.js': 'buscaTx', 'src/busca/palavra.js': 'buscaTx', 'src/biblioteca/bibliotecaMath.js': 'bibliotecaTx', 'src/biblioteca/tiposMath.js': 'bibliotecaTx', 'src/biblioteca/buscaDaBiblioteca.js': 'bibliotecaTx', 'src/biblioteca/resultadosDaBusca.js': 'bibliotecaTx', 'src/anotar/notaMath.js': 'notasTx', 'src/anotar/anotarMath.js': 'notasTx', 'src/anotar/guardadaMath.js': 'notasTx', 'src/passos/passosMath.js': 'passosTx', 'src/passos/reflexaoMath.js': 'passosTx', 'src/passos/diaConcluidoMath.js': 'passosTx' }
 for (const [file, ns] of Object.entries(FILES)) {
   const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
   const used = new Set()
@@ -55,6 +55,21 @@ for (const [file, ns] of Object.entries(FILES)) {
   check('editor de notas: chaves usadas existem em pt', [...used].filter(k => STRINGS.pt.notasTx[k] == null), [])
   check('editor de notas: chaves usadas existem em en', [...used].filter(k => STRINGS.en.notasTx[k] == null), [])
   check('editor de notas: alguma chave foi achada', used.size > 40, true)
+}
+
+// As telas dos passos usam P('chave') ou t('passosTx.chave').
+{
+  const { readdirSync } = await import('node:fs')
+  const files = ['PrayerScreen', 'ReflectionScreen', 'DayCompleteScreen'].map(n => `src/screens/${n}.jsx`)
+    .concat(readdirSync(new URL('../src/components/passos/', import.meta.url)).filter(f => f.endsWith('.jsx')).map(f => `src/components/passos/${f}`))
+  const used = new Set()
+  for (const file of files) {
+    const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+    for (const m of src.matchAll(/(?:\bP\(|\bt\('passosTx\.)'?([A-Za-z0-9_]+)'/g)) used.add(m[1])
+  }
+  check('passos: chaves usadas existem em pt', [...used].filter(k => STRINGS.pt.passosTx[k] == null), [])
+  check('passos: chaves usadas existem em en', [...used].filter(k => STRINGS.en.passosTx[k] == null), [])
+  check('passos: alguma chave foi achada', used.size > 15, true)
 }
 
 if (failures) { console.log(`\n${failures} falha(s).`); process.exit(1) }

@@ -24,6 +24,7 @@ import BarraDoDia from '../components/passos/BarraDoDia'
 import Check from '../components/passos/Check'
 import RodapeDoPasso from '../components/passos/RodapeDoPasso'
 import DayShareScreen from './DayShareScreen'
+import { t } from '../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -65,16 +66,17 @@ export default function DayCompleteScreen({ session, authUser, completedSet, ste
     return <DayShareScreen session={session} readingSession={readingSession} phrase={phrase} minutes={seconds} onBack={() => setSharing(false)} />
   }
 
-  const headline = minutesHeadline(seconds.prayer + seconds.reading + seconds.reflection)
-  const rows = dayRows({ steps, seconds, reading: readingLabel(readingSession), study })
-  const numbers = dayNumbers({ week, book, study: hasStudyStep ? study : null, biblePercent })
+  const headline = minutesHeadline(seconds.prayer + seconds.reading + seconds.reflection, lang)
+  const rows = dayRows({ steps, seconds, reading: readingLabel(readingSession, lang), study, lang })
+  const numbers = dayNumbers({ week, book, study: hasStudyStep ? study : null, biblePercent, lang })
+  const P = k => t(`passosTx.${k}`, undefined, lang)
   const quote = dayPhrase(phrase)
 
   return (
     <div style={s.screen}>
       <div style={s.scroll}>
         <div style={s.top}>
-          <p style={s.eyebrow}>Dia concluído</p>
+          <p style={s.eyebrow}>{P('dayDone')}</p>
           <h1 style={s.headline}>{headline[0]}<br />{headline[1]}</h1>
         </div>
 
@@ -103,22 +105,22 @@ export default function DayCompleteScreen({ session, authUser, completedSet, ste
 
           {quote && (
             <div style={s.phraseCard}>
-              <p style={s.phraseLabel}>Sua frase de hoje</p>
+              <p style={s.phraseLabel}>{P('yourPhraseToday')}</p>
               <p style={s.phrase}>{quote}</p>
             </div>
           )}
 
           <button type="button" style={s.share} onClick={() => setSharing(true)}>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={s.shareTitle}>Compartilhar meu dia</span>
-              <span style={s.shareSub}>Você escolhe o que entra na imagem</span>
+              <span style={s.shareTitle}>{P('shareDay')}</span>
+              <span style={s.shareSub}>{P('shareDaySub')}</span>
             </span>
             <AppIcon name="ChevronRight" size={14} strokeWidth={2.6} color="var(--bento-t5)" style={{ flexShrink: 0 }} />
           </button>
         </div>
       </div>
 
-      <RodapeDoPasso primary={{ label: 'Voltar ao plano', onClick: onBack, dark: true }} />
+      <RodapeDoPasso primary={{ label: P('backToPlan'), onClick: onBack, dark: true }} />
     </div>
   )
 }

@@ -3,6 +3,7 @@
 // perguntas que ainda faltam, só para ler. Na última, vira "JÁ
 // RESPONDIDAS": as anteriores com o começo do que foi escrito (ou "Sem
 // resposta"), e tocar numa volta a ela. `list` vem de reflectionView.
+import { t } from '../../i18n'
 const FONT = 'var(--font-bento)'
 
 export default function ListaDePerguntas({ list, onOpen }) {
@@ -20,7 +21,7 @@ export default function ListaDePerguntas({ list, onOpen }) {
           </>
         )
         return row.tappable ? (
-          <button key={row.index} type="button" style={{ ...s.row, ...s.rowButton }} onClick={() => onOpen(row.index)} aria-label={`Voltar à pergunta ${row.n}: ${row.text} ${row.sub}`}>
+          <button key={row.index} type="button" style={{ ...s.row, ...s.rowButton }} onClick={() => onOpen(row.index)} aria-label={t('passosTx.backToQuestion', { n: row.n, text: row.text, sub: row.sub })}>
             {inner}
           </button>
         ) : (

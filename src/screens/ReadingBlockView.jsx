@@ -1029,10 +1029,10 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
         } : {
           plan: true,
           clock: showReadingClock
-            ? <RelogioDoPasso totalSeconds={targetClockSeconds} elapsedSeconds={stepElapsedSeconds} running={!clockPaused} onToggle={() => setClockPaused(p => !p)} flash={zeroFlash} />
+            ? <RelogioDoPasso lang={lang} totalSeconds={targetClockSeconds} elapsedSeconds={stepElapsedSeconds} running={!clockPaused} onToggle={() => setClockPaused(p => !p)} flash={zeroFlash} />
             : null,
           daySegments: dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'reading' }),
-          dayLabel: dayBarAria(session.todaysSteps, 'reading'),
+          dayLabel: dayBarAria(session.todaysSteps, 'reading', lang),
         })}
       />
       {/* "Relembre onde a história parou" (follow-up, turno 39) — em cima

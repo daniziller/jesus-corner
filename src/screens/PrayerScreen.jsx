@@ -41,6 +41,7 @@ import CartaoAgora from '../components/passos/CartaoAgora'
 import CartaoDeEscrita from '../components/passos/CartaoDeEscrita'
 import PedidosDaSuplica from '../components/passos/PedidosDaSuplica'
 import RodapeDoPasso from '../components/passos/RodapeDoPasso'
+import { stepName } from '../meuPlano/meuPlanoMath'
 
 // `active`: a tela está na frente (ela fica montada, escondida, depois da
 // primeira visita — ver prayerVisitedRef em App.jsx). `pedidosApi`,
@@ -187,17 +188,17 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
     return (
       <div style={{ ...styles.screen, paddingBottom: keyboardInset, boxSizing: 'border-box' }}>
         <CabecalhoDoPasso
-          title="Oração" subtitle={stepSubtitle(session.todaysSteps, 'prayer', 'ACTS')}
+          title={stepName('prayer', lang)} subtitle={stepSubtitle(session.todaysSteps, 'prayer', 'ACTS', lang)}
           onBack={handleBack} backLabel={t('a11y.goBack', undefined, lang)}
-          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} flash={justZeroed} />}
+          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} flash={justZeroed} lang={lang} />}
           segments={dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'prayer' })}
-          barLabel={dayBarAria(session.todaysSteps, 'prayer')}
+          barLabel={dayBarAria(session.todaysSteps, 'prayer', lang)}
         />
 
         <div ref={bodyRef} style={styles.actsBody}>
           <TrilhaActs trail={actsTrail(PRAYER_STAGES, currentStageIdx, lang)} ariaLabel={actsTrailAria(PRAYER_STAGES, currentStageIdx, lang)} />
           <CartaoAgora
-            label={stageCardLabel(currentStageIdx, PRAYER_STAGES.length, stageDurations[currentStageIdx])}
+            label={stageCardLabel(currentStageIdx, PRAYER_STAGES.length, stageDurations[currentStageIdx], lang)}
             title={stage.title[lang] ?? stage.title.pt}
             text={stage.explanation[lang] ?? stage.explanation.pt}
           />

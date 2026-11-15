@@ -11,12 +11,12 @@ import { clockDisplay, clockAria } from '../../passos/passosMath.js'
 
 const FONT = 'var(--font-bento)'
 
-export default function RelogioDoPasso({ totalSeconds, elapsedSeconds, running, onToggle, flash = false }) {
+export default function RelogioDoPasso({ totalSeconds, elapsedSeconds, running, onToggle, flash = false, lang = 'pt' }) {
   const { text, overtime } = clockDisplay(totalSeconds, elapsedSeconds)
   return (
     <button
       type="button" className="passo-alvo" style={{ ...s.pill, ...(flash ? s.flash : null) }}
-      onClick={onToggle} aria-label={clockAria(totalSeconds, elapsedSeconds, running)} aria-live="off"
+      onClick={onToggle} aria-label={clockAria(totalSeconds, elapsedSeconds, running, lang)} aria-live="off"
     >
       <span style={{ ...s.dot, opacity: running ? 1 : 0.35 }} aria-hidden="true" />
       <span style={{ ...s.time, opacity: running ? 1 : 0.65, ...(overtime ? s.overtime : null) }} aria-hidden="true">{text}</span>
