@@ -1,7 +1,7 @@
 // Fecho da leitura — tela 37e do pacote 36-37 (ver
 // handoff-passos-36-37/HANDOFF-36-37-passos.md). Mesmo espírito de
 // api/generate-chapter-context.js/generate-reflection-questions.js: GET
-// público, cacheado na borda (o conteúdo é igual pra quem leu o mesmo
+// com conta, cacheado na borda (o conteúdo é igual pra quem leu o mesmo
 // trecho — implicação técnica 6 do antigo ADENDO-identidade-e-IA.md,
 // reaproveitada aqui). Regra do handoff ("toda referência gerada passa
 // pela checagem contra o texto da versão do usuário antes de aparecer"):
@@ -10,6 +10,7 @@
 // inteira é descartada (502), nunca sai meio-verificada (mesmo padrão de
 // verifyCitation em api/ask-about-passage.js).
 import { generateReadingSummary } from './_lib/ai.js'
+import { requireCaller } from './_lib/caller.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -68,7 +69,11 @@ function verifyMoments(moments, chapters, chStart, chEnd) {
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' })
 
-  const { book, bookEn, chStart, chEnd, lang } = req.query
+  // Gerar custa uma chamada de IA: só pra quem tem conta. A tela de fecho
+  // aparece pra todo mundo (com ou sem plano), então basta estar logado.
+  if (!(await requireCaller(req, res))) return
+
+  const { book, chStart, chEnd, lang } = req.query
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const startNum = Number(chStart)
   const endNum = Number(chEnd ?? chStart)
@@ -76,7 +81,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'invalid_passage' })
   }
 
-  const bookNameForFolder = cleanLang === 'en' ? (bookEn || BOOK_EN_BY_PT[book] || book) : book
+  const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[book] : book
   const versions = BIBLE_VERSIONS[cleanLang] ?? BIBLE_VERSIONS.pt
   const folder = versions[0].folder
 

@@ -46,7 +46,9 @@ export default async function handler(req, res) {
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     if (count > 0) continue
 
-    await supabaseAdmin.from('subscriptions').update({ status: 'none', updated_at: new Date().toISOString() }).eq('user_id', grant.user_id)
+    // Só desfaz se a linha ainda é a cortesia: quem assinou ou comprou o
+    // vitalício durante a cortesia continua com o acesso que pagou.
+    await supabaseAdmin.from('subscriptions').update({ status: 'none', updated_at: new Date().toISOString() }).eq('user_id', grant.user_id).eq('access_type', 'free')
     await supabaseAdmin.from('access_grants').update({ revoked_at: new Date().toISOString() }).eq('id', grant.id)
     reverted += 1
   }

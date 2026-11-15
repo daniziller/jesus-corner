@@ -24,7 +24,7 @@ import {
 import {
   getModerationQueue, getModerationCase, decideModerationCase, exportModerationLog,
   getAdminGroupsList, getAdminGroupDetail, adminGroupAction, getGroupWall,
-  getAccessGrants, grantAccess,
+  getAccessGrants, grantAccess, GRANT_ERRORS,
 } from '../admin/masterModerationStore'
 import AdminMobileShell from './AdminMobileShell'
 
@@ -1763,7 +1763,7 @@ function AccessSection({ lang }) {
       setTimeout(() => setGranted(false), 1800)
       reload()
     } catch (err) {
-      setGrantError(err.message === 'person_not_found' ? A('personNotFoundError') : err.message)
+      setGrantError(GRANT_ERRORS[err.message] ? A(GRANT_ERRORS[err.message]) : err.message)
     } finally {
       setGranting(false)
     }

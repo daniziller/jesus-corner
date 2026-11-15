@@ -2,9 +2,10 @@
 // design_handoff_jesus_corner/ADENDO-identidade-e-IA.md) e o botão
 // "Relembre onde a história parou" (turno 39, follow-up). Diferente de
 // api/ask-about-passage.js (por usuário, autenticado, com limite diário):
-// isto é GET, público e sem limite — o conteúdo é igual pra todo mundo que
+// isto é GET e sem limite diário — o conteúdo é igual pra todo mundo que
 // abre o mesmo capítulo (implicação técnica 6 do adendo: "podem ser
-// gerados uma vez por capítulo e cacheados").
+// gerados uma vez por capítulo e cacheados"). Ler o que já está no cache
+// é livre; gerar um capítulo novo exige conta com o plano com IA.
 //
 // Cache de verdade: chapter_contexts (migration 0060) — consulta ANTES de
 // gerar; só chama a IA na primeira vez que alguém abre um capítulo+idioma,
@@ -14,6 +15,7 @@
 // vezes" é a tabela, não o CDN.
 import { createClient } from '@supabase/supabase-js'
 import { generateChapterContext } from './_lib/ai.js'
+import { requireCaller } from './_lib/caller.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -70,7 +72,7 @@ function formatPriorSections(sections, beforeChapter) {
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' })
 
-  const { book, bookEn, chapter, lang } = req.query
+  const { book, chapter, lang } = req.query
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const chapterNum = Number(chapter)
   if (!book || !VALID_BOOKS.has(book) || !Number.isInteger(chapterNum) || chapterNum < 1) {
@@ -91,7 +93,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, context: cached.context })
   }
 
-  const bookNameForFolder = cleanLang === 'en' ? (bookEn || BOOK_EN_BY_PT[book] || book) : book
+  // Daqui pra baixo gera de verdade (custa uma chamada de IA e grava pra
+  // sempre no cache): só pra quem tem o plano com IA, como a tela de
+  // contexto (ver ReadingBlockView). O nome do livro em inglês vem sempre
+  // do mapa, nunca de quem chama — o resultado é gravado sob `book`.
+  if (!(await requireCaller(req, res, { needsAI: true }))) return
+
+  const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[book] : book
   const versions = BIBLE_VERSIONS[cleanLang] ?? BIBLE_VERSIONS.pt
   const folder = versions[0].folder
 

@@ -50,6 +50,14 @@ export async function getGroupWall(groupId) {
 export function getAccessGrants() {
   return authorizedPost('/api/admin/access', { op: 'list' })
 }
+// Código de erro de /api/admin/access → chave de texto (admin.access.*).
+export const GRANT_ERRORS = {
+  person_not_found: 'personNotFoundError',
+  ambiguous_name: 'ambiguousNameError',
+  already_paying: 'alreadyPayingError',
+  already_lifetime: 'alreadyLifetimeError',
+}
+
 export function grantAccess({ emailOrName, kind, reason }) {
   return authorizedPost('/api/admin/access', { op: 'grant', emailOrName, kind, reason })
 }

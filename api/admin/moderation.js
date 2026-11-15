@@ -198,7 +198,8 @@ async function decideCase(req, res, callerId) {
 
   if (decision === 'deleted_message' && kind === 'message_report') {
     const table2 = caseRow.message_kind === 'comment' ? 'group_comments' : 'group_chapter_posts'
-    await supabaseAdmin.from(table2).delete().eq('id', caseRow.message_id)
+    // Só do grupo da denúncia: o id da mensagem vem de quem denunciou.
+    await supabaseAdmin.from(table2).delete().eq('id', caseRow.message_id).eq('group_id', groupId)
   } else if (decision === 'muted_user' && targetUserId) {
     await supabaseAdmin.from('reading_group_members').update({ silenced_until: new Date(Date.now() + 7 * 86400000).toISOString() }).eq('group_id', groupId).eq('user_id', targetUserId)
   } else if (decision === 'blocked_account' && targetUserId) {

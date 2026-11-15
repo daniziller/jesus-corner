@@ -7,6 +7,7 @@
 // (api/ask-about-passage.js), que decide a resposta e confere a citação —
 // aqui só guarda o resultado depois de já verificado.
 import { supabase } from '../lib/supabaseClient'
+import { authHeaders } from '../lib/authHeaders'
 import { getResponseTone } from './aiPreferencesStore'
 
 const KEY = 'jc_passage_questions'
@@ -104,13 +105,12 @@ export function setSaveQuestionsEnabled(enabled) {
 // Manda a pergunta pro servidor (que decide/verifica a resposta) e, se
 // guardar estiver ligado, já salva o par pergunta+resposta localmente antes
 // de devolver — quem chama não precisa se preocupar em salvar depois.
-// Sugestões de pergunta pro menu 10a — GET público, cacheado na borda
+// Sugestões de pergunta pro menu 10a — GET com o token, cacheado na borda
 // (ver api/suggest-passage-questions.js). Quem chama trata falha como
 // "usa as três sugestões fixas", nunca como erro visível.
-export async function fetchPassageSuggestions({ book, bookEn, chapter, verseStart, verseEnd, lang }) {
+export async function fetchPassageSuggestions({ book, chapter, verseStart, verseEnd, lang }) {
   const params = new URLSearchParams({ book, chapter: String(chapter), verseStart: String(verseStart), verseEnd: String(verseEnd), lang: lang === 'en' ? 'en' : 'pt' })
-  if (bookEn) params.set('bookEn', bookEn)
-  const res = await fetch(`/api/suggest-passage-questions?${params}`)
+  const res = await fetch(`/api/suggest-passage-questions?${params}`, { headers: await authHeaders() })
   if (!res.ok) throw new Error(`request_failed_${res.status}`)
   const body = await res.json()
   return Array.isArray(body.questions) ? body.questions.slice(0, 3) : []
