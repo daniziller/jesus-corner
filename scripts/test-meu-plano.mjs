@@ -101,5 +101,13 @@ check('linha Meus estudos', [studiesLine(1, 2), studiesLine(2, 1), studiesLine(0
 check('hora sem zero à esquerda', [formatHour(at(6, 42)), formatHour(at(19, 5))], ['6:42', '19:05'])
 check('minutos com fallback do plano', resolveMinutes({ prayer: null, reading: 20, study: null, reflection: null }, { prayerMinutes: 10, readingMinutes: 15, reflectionMinutes: 8 }), { prayer: 10, reading: 20, study: 15, reflection: 8 })
 
+// ── Em inglês ───────────────────────────────────────────────────────────
+{
+  const st = computeMeuPlano({ routineModules: ['prayer', 'reading', 'reflection'], stepDays: { prayer: Array(7).fill(true), reading: Array(7).fill(true), study: Array(7).fill(false), reflection: Array(7).fill(true) }, minutes: { prayer: 10, reading: 15, study: 15, reflection: 5 }, dayEntry: { prayer: true, prayerAt: '2026-11-15T09:42:00' }, todayIdx: 0 })
+  check('inglês: contagem, barra, botão e rótulo do agora', [stepsCountText(1, 3, 'en'), barRightText(st, 'en'), buttonLabel(st, 'en'), nowCardLabel(st, 'en'), nowCardAria(st, 'en')], ['1 of 3 steps', '20 min left', 'Start reading', 'NOW · STEP 2 OF 3', 'Now, step 2 of 3, Reading, 15 minutes'])
+  check('inglês: descrições, frase de passos e linhas', [stepDescription('prayer', 'upcoming', { prayerMethod: 'acts' }, 'en'), stepDescription('reading', 'now', { readingPassage: 'Genesis 41' }, 'en'), stepsSentence(['prayer', 'study', 'reflection'], 'en'), seuPlanoLine(1, 'March 2029', 'en'), studiesLine(1, 2, 'en'), doneTitle(3, 'en'), weekCountSentence(1, 2, 6, 'en')], ['ACTS · four guided stages', 'Genesis 41 — where you left off', 'Prayer, study and reflection', '1 reading a week · ends in March 2029', '1 saved · 2 completed', 'You did all three steps.', 'Tuesday counts toward your week: 2 of 6 days.'])
+  check('português continua o padrão', [buttonLabel(st), stepsCountText(1, 3)], ['Começar a leitura', '1 de 3 passos'])
+}
+
 if (failures > 0) { console.error(`\n${failures} verificação(ões) falharam.`); process.exit(1) }
 console.log('\nTodos os testes do Meu Plano (parte pura) passaram.')

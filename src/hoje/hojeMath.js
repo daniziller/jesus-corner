@@ -5,31 +5,36 @@
 // stores — testado em scripts/test-hoje.mjs.
 import { formatInt, formatPct, deOf, monthYearLong } from '../gamification/format.js'
 import { footerBook } from '../gamification/bibleProgressMath.js'
-import { familyById } from '../data/achievements.js'
 import { bookInfo } from '../data/gamificationBlocks.js'
 import { STEP_ORDER, stepName, doneWord, stepsCountText, stepShortDetail } from '../meuPlano/meuPlanoMath.js'
 import { markedWeekdayUnion } from '../routine/stepDaysMath.js'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
+import { tr, trN } from '../i18n/tr.js'
+
+// Textos em hojeTx (translations.js); `lang` vem de quem chama, com
+// português como padrão.
+const tx = (lang, key, vars) => tr(lang, `hojeTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `hojeTx.${base}`, n, vars)
 
 // ── Bloco 1: Sua caminhada (HANDOFF §3) ─────────────────────────────────
 
 // "50 de 1.189 capítulos"
-export function chaptersLine(progress) {
-  return `${deOf(progress.capitulosLidos, progress.totalCapitulos)} capítulos`
+export function chaptersLine(progress, lang = 'pt') {
+  return `${deOf(progress.capitulosLidos, progress.totalCapitulos, lang)} ${tx(lang, 'chapters')}`
 }
 
 // Terceira linha do cartão da Bíblia: "Gênesis 41 de 50 · faltam 9 para o
 // selo" · "falta 1 para o selo" · "Comece por onde quiser" (nada lido
 // ainda) · "Terminada em setembro de 2026" (Bíblia inteira; vazio enquanto
 // a data não chegou).
-export function bibleBookLine(progress, currentBook, finishedIso) {
-  if (progress.bibliaInteira) return finishedIso ? `Terminada em ${monthYearLong(new Date(finishedIso))}` : ''
-  if (progress.capitulosLidos === 0) return 'Comece por onde quiser'
+export function bibleBookLine(progress, currentBook, finishedIso, lang = 'pt', bookLabel = b => b) {
+  if (progress.bibliaInteira) return finishedIso ? tx(lang, 'finishedIn', { date: monthYearLong(new Date(finishedIso), lang) }) : ''
+  if (progress.capitulosLidos === 0) return tx(lang, 'startAnywhere')
   const book = footerBook(progress, currentBook)
   const p = book ? progress.porLivro[book] : null
-  if (!p) return 'Comece por onde quiser'
-  const faltam = p.faltam === 1 ? 'falta 1 para o selo' : `faltam ${formatInt(p.faltam)} para o selo`
-  return `${book} ${deOf(p.lidos, p.total)} · ${faltam}`
+  if (!p) return tx(lang, 'startAnywhere')
+  const faltam = txN(lang, 'sealLeft', p.faltam, { n: formatInt(p.faltam, lang) })
+  return `${bookLabel(book)} ${deOf(p.lidos, p.total, lang)} · ${faltam}`
 }
 
 // Data em que a Bíblia foi terminada: o capítulo lido mais recente.
@@ -40,17 +45,17 @@ export function bibleFinishedIso(chapterRows) {
 }
 
 // Rótulos dos quatro alvos da caminhada (leitor de tela).
-export function bibleCardAria(progress) {
-  return `Sua Bíblia, ${formatPct(progress.percent)} lida, ${deOf(progress.capitulosLidos, progress.totalCapitulos)} capítulos`
+export function bibleCardAria(progress, lang = 'pt') {
+  return tx(lang, 'bibleAria', { pct: formatPct(progress.percent, lang), chapters: deOf(progress.capitulosLidos, progress.totalCapitulos, lang) })
 }
-export function weeksAria(total) {
-  return `${formatInt(total)} ${total === 1 ? 'semana' : 'semanas'} na meta`
+export function weeksAria(total, lang = 'pt') {
+  return txN(lang, 'weeksAria', total, { n: formatInt(total, lang) })
 }
-export function daysAria(feitos, meta) {
-  return `${feitos} de ${meta} ${meta === 1 ? 'dia' : 'dias'} na meta esta semana`
+export function daysAria(feitos, meta, lang = 'pt') {
+  return txN(lang, 'daysAria', meta, { done: feitos })
 }
-export function sealsAria(completos, totalLivros) {
-  return `${completos} ${completos === 1 ? 'selo' : 'selos'} de ${totalLivros} livros`
+export function sealsAria(completos, totalLivros, lang = 'pt') {
+  return txN(lang, 'sealsAria', completos, { total: totalLivros })
 }
 
 // Os sete pontos do quadrado "Dias": quatro estados visuais a partir dos
@@ -83,10 +88,10 @@ export function planCardKind({ loadError, stepDays, routineModules, state }) {
 }
 
 // As duas linhas à direita do cabeçalho; null onde o quadro não as tem.
-export function planHeaderRight(kind, state) {
-  if (kind === 'before') return [`${state.total} ${state.total === 1 ? 'passo' : 'passos'}`, `${state.totalMinutes} min`]
-  if (kind === 'during') return [stepsCountText(state.doneCount, state.total), state.remainingMinutes === 1 ? 'falta 1 min' : `faltam ${state.remainingMinutes} min`]
-  if (kind === 'done') return ['Plano completo', `${state.totalMinutes} min`]
+export function planHeaderRight(kind, state, lang = 'pt') {
+  if (kind === 'before') return [txN(lang, 'planSteps', state.total), `${state.totalMinutes} min`]
+  if (kind === 'during') return [stepsCountText(state.doneCount, state.total, lang), txN(lang, 'leftMin', state.remainingMinutes)]
+  if (kind === 'done') return [tx(lang, 'planComplete'), `${state.totalMinutes} min`]
   return null
 }
 
@@ -95,67 +100,70 @@ export function planHeaderRight(kind, state) {
 // seguintes (o mesmo do Meu Plano), 'plan' vai pra aba Meu Plano, 'read'
 // é a leitura livre, 'adjust' abre o Ajustar, 'retry' recarrega os dias.
 const PLAN_BUTTONS = {
-  before: { label: 'Começar meu plano', primary: true, arrow: true, action: 'start' },
-  during: { label: 'Continuar meu plano', primary: true, arrow: true, action: 'start' },
-  done: { label: 'Ver meu plano', primary: false, arrow: false, action: 'plan' },
-  rest: { label: 'Quero ler hoje mesmo assim', primary: false, arrow: false, action: 'read' },
-  noPlan: { label: 'Criar meu plano', primary: true, arrow: true, action: 'adjust' },
-  error: { label: 'Tentar novamente', primary: false, arrow: false, action: 'retry' },
+  before: { labelKey: 'btnStart', primary: true, arrow: true, action: 'start' },
+  during: { labelKey: 'btnContinue', primary: true, arrow: true, action: 'start' },
+  done: { labelKey: 'btnSee', primary: false, arrow: false, action: 'plan' },
+  rest: { labelKey: 'btnReadAnyway', primary: false, arrow: false, action: 'read' },
+  noPlan: { labelKey: 'btnCreate', primary: true, arrow: true, action: 'adjust' },
+  error: { labelKey: 'btnRetry', primary: false, arrow: false, action: 'retry' },
 }
-export function planButton(kind) {
-  return PLAN_BUTTONS[kind] ?? null
+export function planButton(kind, lang = 'pt') {
+  const b = PLAN_BUTTONS[kind]
+  if (!b) return null
+  const { labelKey, ...rest } = b
+  return { label: tx(lang, labelKey), ...rest }
 }
 
 // Título: a leitura de hoje ("Gênesis 42" — depois de feita, o que foi
 // lido); em dia de estudo, o nome do estudo; sem leitura nem estudo hoje,
 // o nome do primeiro passo.
-export function planTitle(kind, state, ctx) {
-  if (kind === 'rest') return 'Hoje é descanso'
-  if (kind === 'noPlan') return 'Monte seu plano'
-  if (kind === 'error') return 'Não foi possível carregar seu plano'
+export function planTitle(kind, state, ctx, lang = 'pt') {
+  if (kind === 'rest') return tx(lang, 'restTitle')
+  if (kind === 'noPlan') return tx(lang, 'noPlanTitle')
+  if (kind === 'error') return tx(lang, 'errorTitle')
   const reading = state.steps.find(s => s.key === 'reading')
-  if (reading) return (reading.status === 'done' ? ctx.readingDonePassage : null) || ctx.readingPassage || stepName('reading')
-  if (state.steps.some(s => s.key === 'study')) return ctx.study?.title || stepName('study')
-  return stepName(state.steps[0].key)
+  if (reading) return (reading.status === 'done' ? ctx.readingDonePassage : null) || ctx.readingPassage || stepName('reading', lang)
+  if (state.steps.some(s => s.key === 'study')) return ctx.study?.title || stepName('study', lang)
+  return stepName(state.steps[0].key, lang)
 }
 
 // A linha solta abaixo do título: "Volta quinta." no descanso (o próximo
 // dia com algo marcado) e a dica do erro de carregamento.
-export function planLine(kind, nextWeekdayIdx) {
-  if (kind === 'rest') return nextWeekdayIdx == null ? null : `Volta ${WEEKDAY_FULL.pt[nextWeekdayIdx]}.`
-  if (kind === 'error') return 'Verifique sua conexão e tente de novo.'
+export function planLine(kind, nextWeekdayIdx, lang = 'pt') {
+  if (kind === 'rest') return nextWeekdayIdx == null ? null : tx(lang, 'backOn', { day: (WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt)[nextWeekdayIdx] })
+  if (kind === 'error') return tx(lang, 'errorLine')
   return null
 }
 
 // As linhas da lista: só os passos de hoje. `right` = "{n} min" a fazer,
 // "feita"/"feito" concordando com o passo; `aria` = nome, minutos e
 // feito/a fazer.
-export function planSteps(state, ctx) {
+export function planSteps(state, ctx, lang = 'pt') {
   return state.steps.map(step => {
     const done = step.status === 'done'
     const detailCtx = step.key === 'reading' && done && ctx.readingDonePassage ? { ...ctx, readingPassage: ctx.readingDonePassage } : ctx
-    const name = stepName(step.key)
+    const name = stepName(step.key, lang)
     return {
       key: step.key, name, done,
-      detail: stepShortDetail(step.key, detailCtx),
-      right: done ? doneWord(step.key) : `${step.minutes} min`,
-      aria: `${name}, ${step.minutes} ${step.minutes === 1 ? 'minuto' : 'minutos'}, ${done ? doneWord(step.key) : 'a fazer'}`,
+      detail: stepShortDetail(step.key, detailCtx, lang),
+      right: done ? doneWord(step.key, lang) : `${step.minutes} min`,
+      aria: txN(lang, 'stepAria', step.minutes, { name, state: done ? doneWord(step.key, lang) : tx(lang, 'toDo') }),
     }
   })
 }
 
 // O cartão inteiro, pronto pra desenhar.
-export function buildPlanCard({ loadError, stepDays, routineModules, state, ctx, nextWeekdayIdx }) {
+export function buildPlanCard({ loadError, stepDays, routineModules, state, ctx, nextWeekdayIdx, lang = 'pt' }) {
   const kind = planCardKind({ loadError, stepDays, routineModules, state })
   if (kind === 'loading') return { kind }
   const withSteps = kind === 'before' || kind === 'during' || kind === 'done'
   return {
     kind,
-    title: planTitle(kind, state, ctx),
-    right: planHeaderRight(kind, state),
-    line: planLine(kind, nextWeekdayIdx),
-    steps: withSteps ? planSteps(state, ctx) : [],
-    button: planButton(kind),
+    title: planTitle(kind, state, ctx, lang),
+    right: planHeaderRight(kind, state, lang),
+    line: planLine(kind, nextWeekdayIdx, lang),
+    steps: withSteps ? planSteps(state, ctx, lang) : [],
+    button: planButton(kind, lang),
   }
 }
 
@@ -164,15 +172,15 @@ export function buildPlanCard({ loadError, stepDays, routineModules, state, ctx,
 // conquistas, a mesma função. Aqui só entram as palavras: quanto falta,
 // na unidade curta da família ("falta 1 h", "faltam 8 semanas"). Null
 // com tudo conquistado: o cartão não aparece.
-export function nextAchievement(closest) {
+export function nextAchievement(closest, lang = 'pt') {
   if (!closest) return null
-  const fam = familyById(closest.familyId)
   const n = closest.remaining
-  const remaining = n === 1 ? `falta 1 ${fam.unidadeCurtaSingular}` : `faltam ${formatInt(n)} ${fam.unidadeCurta}`
+  const unit = tx(lang, `unit${n === 1 ? 'One' : 'Many'}_${closest.familyId}`)
+  const remaining = txN(lang, 'remaining', n, { n: formatInt(n, lang), unit })
   return {
     familyId: closest.familyId, degrau: closest.degrau, nome: closest.nome,
     remaining, progress: closest.progress,
-    aria: `Próxima conquista: ${closest.nome}, ${remaining}`,
+    aria: tx(lang, 'nextAria', { name: closest.nome, remaining }),
   }
 }
 
@@ -202,29 +210,29 @@ function quoted(text) {
   return /^["“]/.test(t) ? t : `"${t}"`
 }
 
-export function paraHojeRows({ challenge, summary, verse, verseLoading, application }) {
+export function paraHojeRows({ challenge, summary, verse, verseLoading, application, lang = 'pt' }) {
   const rows = []
   if (challenge) {
     rows.push({
-      key: 'challenge', title: `Desafio · ${challenge.title}`,
+      key: 'challenge', title: tx(lang, 'challenge', { title: challenge.title }),
       subtitle: [challenge.ref, challenge.dayTitle].filter(Boolean).join(' · '),
-      right: challenge.done ? { kind: 'done', label: 'Lida' } : { kind: 'button', label: 'Já li' },
+      right: challenge.done ? { kind: 'done', label: tx(lang, 'challengeRead') } : { kind: 'button', label: tx(lang, 'challengeMark') },
     })
   }
   if (summary && !summary.seen) {
-    rows.push({ key: 'summary', title: 'Resumo da sua semana', subtitle: `${summary.period} está pronto`, right: { kind: 'chevron' } })
+    rows.push({ key: 'summary', title: tx(lang, 'summaryTitle'), subtitle: tx(lang, 'summaryReady', { period: summary.period }), right: { kind: 'chevron' } })
   }
   if (verseLoading) {
-    rows.push({ key: 'verse', title: 'Versículo do dia', subtitle: null, right: { kind: 'chevron' } })
+    rows.push({ key: 'verse', title: tx(lang, 'verseTitle'), subtitle: null, right: { kind: 'chevron' } })
   } else if (verse?.text) {
-    rows.push({ key: 'verse', title: 'Versículo do dia', subtitle: `${quoted(verse.text)} ${verseShortRef(verse)}`.trim(), right: { kind: 'chevron' } })
+    rows.push({ key: 'verse', title: tx(lang, 'verseTitle'), subtitle: `${quoted(verse.text)} ${verseShortRef(verse)}`.trim(), right: { kind: 'chevron' } })
   }
   if (application?.text && application.visible && !application.writtenToday) {
     rows.push({
-      key: 'application', title: 'Sua aplicação de ontem', subtitle: quoted(application.text),
-      right: application.fulfilled ? { kind: 'done', label: 'Cumprida' } : { kind: 'button', label: 'Cumpri' },
+      key: 'application', title: tx(lang, 'applicationTitle'), subtitle: quoted(application.text),
+      right: application.fulfilled ? { kind: 'done', label: tx(lang, 'applicationDone') } : { kind: 'button', label: tx(lang, 'applicationMark') },
     })
   }
-  rows.push({ key: 'sermon', title: 'Anotar uma pregação', subtitle: 'Abre a Bíblia com a folha de anotação', right: { kind: 'chevron' } })
+  rows.push({ key: 'sermon', title: tx(lang, 'sermonTitle'), subtitle: tx(lang, 'sermonSub'), right: { kind: 'chevron' } })
   return rows
 }

@@ -30,12 +30,14 @@ import {
   doneLine, stepDescription, tomorrowCard, seuPlanoLine, studiesLine, stepName, minLabel, isStudyOnlyDay, doneTitle, weekCountSentence, STEP_ORDER, studyReturnDate,
 } from '../meuPlano/meuPlanoMath'
 import { useConfirmacao } from '../components/FolhaDeConfirmacao'
+import { bookNameFor } from '../utils/progress'
 
 const FONT = 'var(--font-bento)'
 
 export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onStartGuided, onNavigate, onOpenSeuPlano, onEndStudy }) {
   const { lang, plan, routineModules, activeStudyId, dailyRoutine, currentBlock, hasNoPlan, lastReadPosition } = session
   const [perguntar, folha] = useConfirmacao(lang)
+  const P = (k, vars) => t(`planoTx.${k}`, vars, lang)
   const [stepDays, setStepDays] = useState(null)
   const [methods, setMethods] = useState({ prayer: 'acts', reflection: 'questions' })
   const [activeStudy, setActiveStudy] = useState(null)
@@ -75,12 +77,12 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
   )
   const loading = stepDays === null
 
-  const readingPassage = !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${currentBlock.book} ${currentBlock.chapter}` : ''
+  const readingPassage = !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${bookNameFor(currentBlock.book, lang)} ${currentBlock.chapter}` : ''
   const ctx = {
     prayerMethod: methods.prayer, reflectionMethod: methods.reflection, readingPassage,
     study: activeStudy, studyToday: isStudyOnlyDay(state),
   }
-  const tomorrow = tomorrowCard({ routineModules, stepDays, minutes, todayIdx })
+  const tomorrow = tomorrowCard({ routineModules, stepDays, minutes, todayIdx, lang })
   const proj = stepDays ? computeProjection({ completedSet, readingMinutesPerDay: minutes.reading, weeklyDays: stepDays.reading, lang, books: session.planBooks }) : null
   const readingDays = stepDays ? stepDays.reading.filter(Boolean).length : 0
   const planName = t('routine.bibleWholeLabel', undefined, lang)
@@ -93,19 +95,19 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
   const studyOnly = isStudyOnlyDay(state)
   const pause = studyOnly && activeStudy && !hasNoPlan && currentBlock?.book
     ? {
-        title: `${currentBlock.book} pausado em ${currentBlock.chapter}`,
+        title: P('pausedAt', { book: bookNameFor(currentBlock.book, lang), ch: currentBlock.chapter }),
         returnDate: stepDays ? studyReturnDate(today, stepDays.study, activeStudy.dayTotal - activeStudy.dayDone, !!dayEntry?.study) : null,
       }
     : null
   async function resumeReading() {
-    if (!(await perguntar({ title: t('confirmations.resumePlanTitle', { book: currentBlock.book }, lang), text: t('confirmations.resumePlanText', undefined, lang), confirmLabel: t('confirmations.resumePlanBtn', undefined, lang) }))) return
+    if (!(await perguntar({ title: t('confirmations.resumePlanTitle', { book: bookNameFor(currentBlock.book, lang) }, lang), text: t('confirmations.resumePlanText', undefined, lang), confirmLabel: t('confirmations.resumePlanBtn', undefined, lang) }))) return
     onEndStudy?.()
   }
 
   // Trecho da linha de passo feito: a leitura mostra o capítulo LIDO
   // (lastReadPosition), não o próximo (que é o do cartão "Seu plano").
   function passageFor(key) {
-    if (key === 'reading') return lastReadPosition?.book && lastReadPosition?.chapter ? `${lastReadPosition.book} ${lastReadPosition.chapter}` : readingPassage
+    if (key === 'reading') return lastReadPosition?.book && lastReadPosition?.chapter ? `${bookNameFor(lastReadPosition.book, lang)} ${lastReadPosition.chapter}` : readingPassage
     if (key === 'study') return activeStudy?.reference ?? ''
     return ''
   }
@@ -115,12 +117,12 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
       <div style={s.scroll}>
         <div style={s.header}>
           <div>
-            <p style={s.title}>Meu plano</p>
+            <p style={s.title}>{P('title')}</p>
             <p style={s.date}>{formatToday(lang)}</p>
           </div>
           <button type="button" style={s.adjustBtn} onClick={() => onNavigate?.('adjustPlan')}>
             <AppIcon name="SlidersHorizontal" size={15} strokeWidth={2.2} color="var(--bento-ink)" />
-            Ajustar
+            {P('adjust')}
           </button>
         </div>
 
@@ -136,10 +138,10 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
             <>
               {state.kind !== 'rest' && (
                 <div>
-                  <BarraDoDia segments={state.steps} height={6} role="progressbar" aria-valuemin={0} aria-valuemax={state.total} aria-valuenow={state.doneCount} aria-label={stepsCountText(state.doneCount, state.total)} />
+                  <BarraDoDia segments={state.steps} height={6} role="progressbar" aria-valuemin={0} aria-valuemax={state.total} aria-valuenow={state.doneCount} aria-label={stepsCountText(state.doneCount, state.total, lang)} />
                   <div style={s.barText}>
-                    <span style={s.barLeft}>{stepsCountText(state.doneCount, state.total)}</span>
-                    <span style={s.barRight}>{barRightText(state)}</span>
+                    <span style={s.barLeft}>{stepsCountText(state.doneCount, state.total, lang)}</span>
+                    <span style={s.barRight}>{barRightText(state, lang)}</span>
                   </div>
                 </div>
               )}
@@ -159,26 +161,26 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
                         <div style={{ ...s.content, paddingBottom: last ? 0 : 14 }}>
                           {st.status === 'done' && (
                             <div style={s.lineRow}>
-                              <span style={s.doneName}>{stepName(st.key)}</span>
-                              <span style={s.doneMeta}>{doneLine(st, passageFor(st.key))}</span>
+                              <span style={s.doneName}>{stepName(st.key, lang)}</span>
+                              <span style={s.doneMeta}>{doneLine(st, passageFor(st.key), lang)}</span>
                               <span style={s.doneMin}>{minLabel(st.minutes)}</span>
                             </div>
                           )}
                           {st.status === 'upcoming' && (
                             <div style={s.lineRow}>
-                              <span style={s.upName}>{stepName(st.key)}</span>
-                              <span style={s.upMeta}>{stepDescription(st.key, 'upcoming', ctx)}</span>
+                              <span style={s.upName}>{stepName(st.key, lang)}</span>
+                              <span style={s.upMeta}>{stepDescription(st.key, 'upcoming', ctx, lang)}</span>
                               <span style={s.upMin}>{minLabel(st.minutes)}</span>
                             </div>
                           )}
                           {st.status === 'now' && (
-                            <div style={s.card} role="group" aria-label={nowCardAria(state)}>
+                            <div style={s.card} role="group" aria-label={nowCardAria(state, lang)}>
                               <div style={s.cardTop}>
-                                <span style={s.cardLabel}>{nowCardLabel(state)}</span>
+                                <span style={s.cardLabel}>{nowCardLabel(state, lang)}</span>
                                 <span style={s.cardMin}>{minLabel(nowCardMinutes(st))}</span>
                               </div>
-                              <p style={s.cardName}>{stepName(st.key)}</p>
-                              <p style={{ ...s.cardDesc, marginBottom: st.key === 'study' && activeStudy ? 12 : 16 }}>{stepDescription(st.key, 'now', ctx)}</p>
+                              <p style={s.cardName}>{stepName(st.key, lang)}</p>
+                              <p style={{ ...s.cardDesc, marginBottom: st.key === 'study' && activeStudy ? 12 : 16 }}>{stepDescription(st.key, 'now', ctx, lang)}</p>
                               {st.key === 'study' && activeStudy && activeStudy.dayTotal > 0 && (
                                 <div style={s.trail} aria-hidden="true">
                                   {Array.from({ length: activeStudy.dayTotal }, (_, d) => (
@@ -187,12 +189,12 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
                                 </div>
                               )}
                               <button type="button" style={s.cta} onClick={() => onStartGuided?.()}>
-                                <span>{buttonLabel(state)}</span>
+                                <span>{buttonLabel(state, lang)}</span>
                                 <AppIcon name="ArrowRight" size={16} strokeWidth={2.2} color="var(--bento-ink)" />
                               </button>
                               <button type="button" style={s.listen} onClick={() => onNavigate?.('handsFree')}>
                                 <AppIcon name="AudioLines" size={14} strokeWidth={2} color="rgba(255,255,255,.7)" />
-                                <span>Prefiro só ouvir</span>
+                                <span>{P('listenOnly')}</span>
                               </button>
                             </div>
                           )}
@@ -205,19 +207,19 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
 
               {state.kind === 'done' && (
                 <div style={{ ...s.bigCard, marginTop: 6 }}>
-                  <p style={{ ...s.bigLabel, color: 'var(--bento-sand-icon)' }}>PLANO DE HOJE COMPLETO</p>
-                  <p style={s.doneTitle}>{doneTitle(state.total)}</p>
-                  {weekGoal && <p style={s.bigText}>{weekCountSentence(todayIdx, weekGoal.doneCount, weekGoal.markedCount)}</p>}
-                  <button type="button" style={s.secondary} onClick={() => onNavigate?.('journey')}>Ler mais, por conta própria</button>
+                  <p style={{ ...s.bigLabel, color: 'var(--bento-sand-icon)' }}>{P('planDone')}</p>
+                  <p style={s.doneTitle}>{doneTitle(state.total, lang)}</p>
+                  {weekGoal && <p style={s.bigText}>{weekCountSentence(todayIdx, weekGoal.doneCount, weekGoal.markedCount, lang)}</p>}
+                  <button type="button" style={s.secondary} onClick={() => onNavigate?.('journey')}>{P('readMore')}</button>
                 </div>
               )}
 
               {state.kind === 'rest' && (
                 <div style={{ ...s.bigCard, padding: '20px 18px 16px' }}>
-                  <p style={s.bigLabel}>HOJE É DESCANSO</p>
-                  <p style={s.restTitle}>Nada marcado para hoje.</p>
-                  <p style={{ ...s.bigText, marginBottom: 16 }}>Descanso faz parte do plano. A sua semana não perde nada por isso.</p>
-                  <button type="button" style={s.secondary} onClick={() => onNavigate?.(hasNoPlan ? 'adjustPlan' : 'journey')}>Quero ler hoje mesmo assim</button>
+                  <p style={s.bigLabel}>{P('restLabel')}</p>
+                  <p style={s.restTitle}>{P('restTitle')}</p>
+                  <p style={{ ...s.bigText, marginBottom: 16 }}>{P('restText')}</p>
+                  <button type="button" style={s.secondary} onClick={() => onNavigate?.(hasNoPlan ? 'adjustPlan' : 'journey')}>{P('readAnyway')}</button>
                 </div>
               )}
 
@@ -225,9 +227,9 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
                 <div style={{ ...s.pauseCard, marginTop: state.kind === 'during' || state.kind === 'before' ? 6 : 0 }}>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={s.pauseTitle}>{pause.title}</span>
-                    {pause.returnDate && <span style={s.pauseSub}>Volta em {dayMonthLong(pause.returnDate.toISOString())}, quando o estudo terminar</span>}
+                    {pause.returnDate && <span style={s.pauseSub}>{P('returnsOn', { date: dayMonthLong(pause.returnDate.toISOString(), lang) })}</span>}
                   </span>
-                  <button type="button" style={s.resumeBtn} onClick={resumeReading}>Retomar já</button>
+                  <button type="button" style={s.resumeBtn} onClick={resumeReading}>{P('resumeNow')}</button>
                 </div>
               )}
 
@@ -241,9 +243,9 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
               {!studyOnly && (
                 <button type="button" style={s.planRow} onClick={() => onOpenSeuPlano?.()}>
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={s.planLabel}>SEU PLANO</span>
-                    <span style={s.planTitle}>{planName}{readingPassage ? ` · ${readingPassage} de ${currentBlock.bookChapters}` : ''}</span>
-                    <span style={s.planLine}>{seuPlanoLine(readingDays, proj?.finishDateLabel ?? null)}</span>
+                    <span style={s.planLabel}>{P('yourPlan')}</span>
+                    <span style={s.planTitle}>{planName}{readingPassage ? ` · ${P('passageOf', { passage: readingPassage, n: currentBlock.bookChapters })}` : ''}</span>
+                    <span style={s.planLine}>{seuPlanoLine(readingDays, proj?.finishDateLabel ?? null, lang)}</span>
                   </span>
                   <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
                 </button>
@@ -252,14 +254,14 @@ export default function MeuPlanoScreen({ session, completedSet, stepMinutes, onS
               <div style={s.studiesCard}>
                 <button type="button" style={{ ...s.studiesRow, height: 56, borderBottom: '1px solid var(--bento-line)' }} onClick={() => onNavigate?.('addStudy')}>
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={s.studiesTitle}>Meus estudos</span>
-                    {studies && <span style={s.studiesSub}>{studiesLine(studies.saved, studies.completed)}</span>}
+                    <span style={s.studiesTitle}>{P('myStudies')}</span>
+                    {studies && <span style={s.studiesSub}>{studiesLine(studies.saved, studies.completed, lang)}</span>}
                   </span>
                   <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
                 </button>
                 <button type="button" style={{ ...s.studiesRow, height: 52 }} onClick={() => onNavigate?.('createAiStudy')}>
                   <span style={s.diamond} aria-hidden="true" />
-                  <span style={{ ...s.studiesTitle, flex: 1 }}>Criar um estudo</span>
+                  <span style={{ ...s.studiesTitle, flex: 1 }}>{P('createStudy')}</span>
                   <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
                 </button>
               </div>

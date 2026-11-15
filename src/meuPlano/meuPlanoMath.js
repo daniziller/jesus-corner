@@ -9,19 +9,25 @@
 // cobrança. P1–P5 são a mesma rota: o estado sai dos dados, nunca de flag.
 import { STEP_KEYS, stepsScheduledForWeekday, nextScheduledWeekday, markedWeekdayUnion } from '../routine/stepDaysMath.js'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
+import { tr, trN } from '../i18n/tr.js'
+
+// Textos em planoTx (translations.js); `lang` vem de quem chama, com
+// português como padrão.
+const tx = (lang, key, vars) => tr(lang, `planoTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `planoTx.${base}`, n, vars)
 
 export const STEP_ORDER = STEP_KEYS // ['prayer', 'reading', 'study', 'reflection']
 
-export const STEP_NAME = { prayer: 'Oração', reading: 'Leitura', study: 'Estudo', reflection: 'Reflexão' }
+const STEP_KEY = { prayer: 'stepPrayer', reading: 'stepReading', study: 'stepStudy', reflection: 'stepReflection' }
 // Artigo e concordância: Oração/Leitura/Reflexão são femininas, Estudo é
 // masculino ("feita"/"feito", "a oração"/"o estudo").
 const STEP_FEM = { prayer: true, reading: true, study: false, reflection: true }
 const STEP_ARTICLE = { prayer: 'a', reading: 'a', study: 'o', reflection: 'a' }
 
-export function stepName(key) { return STEP_NAME[key] ?? key }
-export function stepNameLower(key) { return stepName(key).toLowerCase() }
-export function doneWord(key) { return STEP_FEM[key] ? 'feita' : 'feito' }
-export function offWord(key) { return STEP_FEM[key] ? 'Desligada' : 'Desligado' }
+export function stepName(key, lang = 'pt') { return STEP_KEY[key] ? tx(lang, STEP_KEY[key]) : key }
+export function stepNameLower(key, lang = 'pt') { return stepName(key, lang).toLowerCase() }
+export function doneWord(key, lang = 'pt') { return tx(lang, STEP_FEM[key] ? 'doneFem' : 'doneMasc') }
+export function offWord(key, lang = 'pt') { return tx(lang, STEP_FEM[key] ? 'offFem' : 'offMasc') }
 
 // "6:42" — 24 h, sem zero à esquerda na hora (HANDOFF §10).
 export function formatHour(iso) {
@@ -84,29 +90,30 @@ export function computeMeuPlano({ routineModules, stepDays, minutes, dayEntry, t
 }
 
 // "1 de 3 passos" · "1 de 1 passo"
-export function stepsCountText(doneCount, total) {
-  return `${doneCount} de ${total} ${total === 1 ? 'passo' : 'passos'}`
+export function stepsCountText(doneCount, total, lang = 'pt') {
+  return txN(lang, 'stepsCount', total, { done: doneCount })
 }
 
 // Texto da direita da barra (HANDOFF §3.3).
-export function barRightText(state) {
-  if (state.kind === 'before') return `${state.totalMinutes} min no total`
-  if (state.kind === 'done') return `${state.totalMinutes} min com Deus hoje`
-  return `faltam ${state.remainingMinutes} min`
+export function barRightText(state, lang = 'pt') {
+  if (state.kind === 'before') return tx(lang, 'barBefore', { n: state.totalMinutes })
+  if (state.kind === 'done') return tx(lang, 'barDone', { n: state.totalMinutes })
+  return tx(lang, 'barLeft', { n: state.remainingMinutes })
 }
 
 // Rótulo do botão único (HANDOFF §3.4).
-export function buttonLabel(state) {
+export function buttonLabel(state, lang = 'pt') {
   if (!state.now) return null
-  if (state.doneCount === 0 && !state.now.interrupted) return 'Começar meu plano'
+  if (state.doneCount === 0 && !state.now.interrupted) return tx(lang, 'startPlan')
   const key = state.now.key
-  const verb = state.now.interrupted ? 'Continuar' : 'Começar'
-  return `${verb} ${STEP_ARTICLE[key]} ${stepNameLower(key)}`
+  // Em português vai o artigo ("a oração", "o estudo"); em inglês, não.
+  const step = lang === 'en' ? stepNameLower(key, lang) : `${STEP_ARTICLE[key]} ${stepNameLower(key, lang)}`
+  return tx(lang, state.now.interrupted ? 'continueStep' : 'startStep', { step })
 }
 
-export function nowCardLabel(state) {
+export function nowCardLabel(state, lang = 'pt') {
   if (!state.now) return ''
-  return `AGORA · PASSO ${state.now.index + 1} DE ${state.total}`
+  return tx(lang, 'nowLabel', { i: state.now.index + 1, n: state.total })
 }
 
 // Minutos no topo do cartão preto: o que falta quando o relógio já correu
@@ -119,15 +126,15 @@ export function nowCardMinutes(step) {
 }
 
 // aria-label do cartão preto: "Agora, passo 2 de 3, Leitura, 15 minutos".
-export function nowCardAria(state) {
+export function nowCardAria(state, lang = 'pt') {
   if (!state.now) return ''
   const m = nowCardMinutes(state.now)
-  return `Agora, passo ${state.now.index + 1} de ${state.total}, ${stepName(state.now.key)}, ${m} ${m === 1 ? 'minuto' : 'minutos'}`
+  return txN(lang, 'nowAria', m, { i: state.now.index + 1, total: state.total, name: stepName(state.now.key, lang) })
 }
 
 // Linha de um passo feito: "feita às 6:42" ou "Gênesis 41 · feita às 7:01".
-export function doneLine(step, passage) {
-  const at = step.doneAt ? `${doneWord(step.key)} às ${formatHour(step.doneAt)}` : doneWord(step.key)
+export function doneLine(step, passage, lang = 'pt') {
+  const at = step.doneAt ? tx(lang, 'doneAt', { done: doneWord(step.key, lang), time: formatHour(step.doneAt) }) : doneWord(step.key, lang)
   return passage ? `${passage} · ${at}` : at
 }
 
@@ -135,47 +142,47 @@ export function doneLine(step, passage) {
 // ctx: { prayerMethod: 'acts'|'free', reflectionMethod: 'questions'|'free',
 //        readingPassage: 'Gênesis 41', study: { title, dayN, dayTotal,
 //        reference } | null, studyToday: bool }
-export function stepDescription(key, status, ctx) {
+export function stepDescription(key, status, ctx, lang = 'pt') {
   const now = status === 'now'
-  if (key === 'prayer') return ctx.prayerMethod === 'free' ? 'livre' : 'ACTS · quatro etapas guiadas'
-  if (key === 'reading') return ctx.readingPassage ? `${ctx.readingPassage} — onde você parou` : ''
+  if (key === 'prayer') return tx(lang, ctx.prayerMethod === 'free' ? 'free' : 'actsLong')
+  if (key === 'reading') return ctx.readingPassage ? tx(lang, 'readingWhere', { passage: ctx.readingPassage }) : ''
   if (key === 'study') {
     const s = ctx.study
     if (!s) return ''
-    const base = `${s.title} · dia ${s.dayN} de ${s.dayTotal}`
+    const base = tx(lang, 'studyDay', { title: s.title, d: s.dayN, total: s.dayTotal })
     return now && s.reference ? `${base} · ${s.reference}` : base
   }
   // reflection
-  if (ctx.studyToday) return 'a pergunta do estudo'
-  if (ctx.reflectionMethod === 'free') return 'folha em branco'
-  return now ? 'Três perguntas sobre o texto' : 'três perguntas sobre o texto'
+  if (ctx.studyToday) return tx(lang, 'reflectionStudy')
+  if (ctx.reflectionMethod === 'free') return tx(lang, 'reflectionBlank')
+  return tx(lang, now ? 'reflectionQuestionsNow' : 'reflectionQuestions')
 }
 
 // "Oração, estudo e reflexão" — só o primeiro em maiúscula.
-export function stepsSentence(keys) {
-  const names = keys.map(stepNameLower)
+export function stepsSentence(keys, lang = 'pt') {
+  const names = keys.map(k => stepNameLower(k, lang))
   if (names.length === 0) return ''
   const first = names[0].charAt(0).toUpperCase() + names[0].slice(1)
   if (names.length === 1) return first
   const rest = names.slice(1)
-  return `${[first, ...rest.slice(0, -1)].join(', ')} e ${rest[rest.length - 1]}`
+  return `${[first, ...rest.slice(0, -1)].join(', ')} ${tx(lang, 'and')} ${rest[rest.length - 1]}`
 }
 
 // Detalhe curto de um passo, pra lista do cartão do plano no Hoje
 // (handoff-hoje-50 §4): "ACTS" ou "livre" · "{Livro} {cap}" · "{nome},
 // dia {n}" · "com perguntas" ou "livre". Mesmo `ctx` de stepDescription;
 // sem trecho de leitura ou sem estudo ativo, não há detalhe.
-export function stepShortDetail(key, ctx) {
-  if (key === 'prayer') return ctx.prayerMethod === 'free' ? 'livre' : 'ACTS'
+export function stepShortDetail(key, ctx, lang = 'pt') {
+  if (key === 'prayer') return ctx.prayerMethod === 'free' ? tx(lang, 'free') : 'ACTS'
   if (key === 'reading') return ctx.readingPassage || ''
-  if (key === 'study') return ctx.study ? `${ctx.study.title}, dia ${ctx.study.dayN}` : ''
-  return ctx.reflectionMethod === 'free' ? 'livre' : 'com perguntas'
+  if (key === 'study') return ctx.study ? tx(lang, 'studyDayShort', { title: ctx.study.title, d: ctx.study.dayN }) : ''
+  return tx(lang, ctx.reflectionMethod === 'free' ? 'free' : 'withQuestions')
 }
 
 // Cartão "Amanhã" (HANDOFF §3.5): o próximo dia com algo marcado a partir
 // de amanhã; rótulo "AMANHÃ · DIA" ou "PRÓXIMO DIA · DIA". Null quando
 // nenhum dia tem nada.
-export function tomorrowCard({ routineModules, stepDays, minutes, todayIdx }) {
+export function tomorrowCard({ routineModules, stepDays, minutes, todayIdx, lang = 'pt' }) {
   const enabled = new Set(routineModules ?? [])
   const active = STEP_ORDER.filter(k => enabled.has(k))
   if (!stepDays) return null
@@ -185,44 +192,42 @@ export function tomorrowCard({ routineModules, stepDays, minutes, todayIdx }) {
   const keys = stepsScheduledForWeekday(stepDays, active, idx)
   const total = keys.reduce((s, k) => s + (minutes[k] ?? 0), 0)
   const isTomorrow = idx === (todayIdx + 1) % 7
-  const dayName = WEEKDAY_FULL.pt[idx].toUpperCase()
+  const dayName = (WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt)[idx].toUpperCase()
   return {
-    label: `${isTomorrow ? 'AMANHÃ' : 'PRÓXIMO DIA'} · ${dayName}`,
-    text: `${stepsSentence(keys)} · ${total} min`,
+    label: `${tx(lang, isTomorrow ? 'tomorrow' : 'nextDay')} · ${dayName}`,
+    text: `${stepsSentence(keys, lang)} · ${total} min`,
     weekdayIdx: idx,
   }
 }
 
 // "3 leituras por semana · termina em março de 2029"
-export function seuPlanoLine(readingDaysCount, finishLabel) {
-  const n = readingDaysCount
-  const left = `${n} ${n === 1 ? 'leitura' : 'leituras'} por semana`
-  return finishLabel ? `${left} · termina em ${finishLabel}` : left
+export function seuPlanoLine(readingDaysCount, finishLabel, lang = 'pt') {
+  const left = txN(lang, 'readings', readingDaysCount)
+  return finishLabel ? `${left} · ${tx(lang, 'endsIn', { date: finishLabel })}` : left
 }
 
 // "1 salvo · 2 concluídos"
-export function studiesLine(saved, completed) {
-  return `${saved} ${saved === 1 ? 'salvo' : 'salvos'} · ${completed} ${completed === 1 ? 'concluído' : 'concluídos'}`
+export function studiesLine(saved, completed, lang = 'pt') {
+  return `${txN(lang, 'saved', saved)} · ${txN(lang, 'completed', completed)}`
 }
 
 // "Terça, 2 de setembro" → nome do dia pra "{Dia} já conta..." (P3).
-export function weekdayCapitalized(idx) {
-  const n = WEEKDAY_FULL.pt[idx]
+export function weekdayCapitalized(idx, lang = 'pt') {
+  const n = (WEEKDAY_FULL[lang] ?? WEEKDAY_FULL.pt)[idx]
   return n.charAt(0).toUpperCase() + n.slice(1)
 }
 
 // Número por extenso até dez (P3: "Você fez os três passos.").
-const NUMBER_WORDS = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez']
-export function doneTitle(total) {
-  if (total === 1) return 'Você fez o passo de hoje.'
-  const word = NUMBER_WORDS[total] ?? String(total)
-  return `Você fez os ${word} passos.`
+export function doneTitle(total, lang = 'pt') {
+  if (total === 1) return tx(lang, 'doneTitleOne')
+  const word = tx(lang, 'numberWords').split(',')[total] ?? String(total)
+  return tx(lang, 'doneTitleMany', { word })
 }
 
 // P3: "Terça já conta para a sua semana: 2 de 6 dias." — a meta é o número
 // de dias com algo marcado (computeStepWeekGoal, a regra que já existe).
-export function weekCountSentence(todayIdx, feitos, meta) {
-  return `${weekdayCapitalized(todayIdx)} já conta para a sua semana: ${feitos} de ${meta} ${meta === 1 ? 'dia' : 'dias'}.`
+export function weekCountSentence(todayIdx, feitos, meta, lang = 'pt') {
+  return txN(lang, 'weekCount', meta, { day: weekdayCapitalized(todayIdx, lang), done: feitos })
 }
 
 // P5: a data em que o estudo termina — "Volta em {d} de {mês}, quando o

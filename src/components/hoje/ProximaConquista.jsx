@@ -5,6 +5,7 @@
 // `next` vem de nextAchievement(pickClosest(...)); quem chama não desenha
 // o cartão quando ele é null (tudo conquistado).
 import Medalha from '../gamificacao/Medalha'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -19,7 +20,7 @@ export default function ProximaConquista({ next, onOpen }) {
       </span>
       <div style={s.right} aria-hidden="true">
         <div style={s.top}>
-          <p style={s.label}>PRÓXIMA CONQUISTA</p>
+          <p style={s.label}>{t('hojeTx.nextAchievement')}</p>
           <p style={s.remaining}>{next.remaining}</p>
         </div>
         <p style={s.name}>{next.nome}</p>

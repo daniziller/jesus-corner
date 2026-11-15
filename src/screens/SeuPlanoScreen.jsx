@@ -15,11 +15,13 @@ import { getMyReminderSchedule } from '../notifications/pushStore'
 import { resolveMinutes, stepName } from '../meuPlano/meuPlanoMath'
 import { computeWeekRows, daysWithSomething, countDaysWithSomething, paceSentence, readingHeadline, readingSubline, reminderLine } from '../meuPlano/seuPlanoMath'
 import { BIBLE_CHAPTERS } from '../data/gamificationBlocks'
+import { bookNameFor } from '../utils/progress'
 
 const FONT = 'var(--font-bento)'
 
 export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, stepMinutes, onBack, onNavigate, onChangeDays }) {
   const { lang, plan, routineModules, dailyRoutine, currentBlock, chaptersRead, hasNoPlan } = session
+  const P = (k, vars) => t(`planoTx.${k}`, vars, lang)
   const [stepDays, setStepDays] = useState(null)
   const [useLearnedPace, setUseLearnedPace] = useState(false)
   const [reminder, setReminder] = useState(null)
@@ -33,7 +35,7 @@ export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, s
   }, [])
 
   const minutes = useMemo(() => resolveMinutes(stepMinutes, plan), [stepMinutes, plan])
-  const rows = useMemo(() => (stepDays ? computeWeekRows({ stepDays, routineModules, minutes, dailyRoutine }) : []), [stepDays, routineModules, minutes, dailyRoutine])
+  const rows = useMemo(() => (stepDays ? computeWeekRows({ stepDays, routineModules, minutes, dailyRoutine, lang }) : []), [stepDays, routineModules, minutes, dailyRoutine, lang])
   const readingDays = stepDays ? stepDays.reading.filter(Boolean).length : 0
   const proj = stepDays && !hasNoPlan ? computeProjection({ completedSet, readingMinutesPerDay: minutes.reading, weeklyDays: stepDays.reading, lang, books: session.planBooks }) : null
   const planName = t('routine.bibleWholeLabel', undefined, lang)
@@ -45,31 +47,31 @@ export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, s
         <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
-        <p style={s.title}>Seu plano</p>
+        <p style={s.title}>{P('seuTitle')}</p>
         <button type="button" style={s.adjustBtn} onClick={() => onNavigate?.('adjustPlan')}>
           <AppIcon name="SlidersHorizontal" size={15} strokeWidth={2.2} color="var(--bento-ink)" />
-          Ajustar
+          {P('adjust')}
         </button>
       </div>
 
       <div style={s.body}>
         <div style={s.card}>
           <div style={s.cardHead}>
-            <p style={s.label}>LEITURA</p>
+            <p style={s.label}>{P('readingLabel')}</p>
             <p style={s.planName}>{planName}</p>
           </div>
           {currentBlock?.book && currentBlock?.chapter && (
-            <p style={s.headline}>{readingHeadline(currentBlock.book, currentBlock.chapter, currentBlock.bookChapters)}</p>
+            <p style={s.headline}>{readingHeadline(bookNameFor(currentBlock.book, lang), currentBlock.chapter, currentBlock.bookChapters, lang)}</p>
           )}
-          <p style={s.subline}>{readingSubline(currentBlock?.name ?? '', chaptersRead ?? 0, BIBLE_CHAPTERS)}</p>
+          <p style={s.subline}>{readingSubline((lang === 'en' ? currentBlock?.nameEn : null) ?? currentBlock?.name ?? '', chaptersRead ?? 0, BIBLE_CHAPTERS, lang)}</p>
           <div style={s.track} role="progressbar" aria-valuemin={0} aria-valuemax={BIBLE_CHAPTERS} aria-valuenow={chaptersRead ?? 0}>
             {chaptersRead > 0 && <span style={{ ...s.fill, width: `max(8px, ${bar}%)` }} />}
           </div>
           <div style={s.divider} />
           {proj?.finishDateLabel ? (
             <>
-              <p style={s.finish}>Termina em {proj.finishDateLabel}</p>
-              <p style={s.pace}>{paceSentence(proj.chaptersPerDay, useLearnedPace, readingDays)}</p>
+              <p style={s.finish}>{P('finishesIn', { date: proj.finishDateLabel })}</p>
+              <p style={s.pace}>{paceSentence(proj.chaptersPerDay, useLearnedPace, readingDays, lang)}</p>
             </>
           ) : (
             stepDays && <div className="rb-context-skeleton" style={{ height: 36, borderRadius: 8, background: 'var(--bento-line)' }} />
@@ -78,8 +80,8 @@ export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, s
 
         <div style={s.weekCard}>
           <div style={{ ...s.cardHead, marginBottom: 0 }}>
-            <p style={s.label}>SUA SEMANA</p>
-            <p style={s.planName}>{daysWithSomething(countDaysWithSomething(stepDays, routineModules))}</p>
+            <p style={s.label}>{P('yourWeek')}</p>
+            <p style={s.planName}>{daysWithSomething(countDaysWithSomething(stepDays, routineModules), lang)}</p>
           </div>
           {rows.length === 0 ? (
             <div className="rb-context-skeleton" style={{ height: 300, borderRadius: 12, background: 'var(--bento-line)', margin: '14px 0' }} />
@@ -87,21 +89,21 @@ export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, s
             const dayStyle = row.isToday ? s.dayToday : row.state === 'done' ? s.dayDone : s.dayOther
             return (
               <div key={row.key} style={{ ...s.weekRow, ...(i > 0 ? s.weekRowDivider : {}) }}>
-                <div style={{ ...s.day, ...dayStyle.box }} aria-label={`${row.abbr} ${row.dayNumber}${row.isToday ? ', hoje' : ''}`}>
+                <div style={{ ...s.day, ...dayStyle.box }} aria-label={`${row.abbr} ${row.dayNumber}${row.isToday ? `, ${P('today')}` : ''}`}>
                   <span style={{ ...s.dayAbbr, color: dayStyle.abbr }}>{row.abbr}</span>
                   <span style={{ ...s.dayNum, color: dayStyle.num }}>{row.dayNumber}</span>
                 </div>
                 {row.state === 'rest' ? (
-                  <span style={s.restText}>Dia de descanso</span>
+                  <span style={s.restText}>{P('restDay')}</span>
                 ) : (
                   <>
                     <div style={s.chips}>
                       {row.chips.map(c => (
-                        <span key={c.key} style={{ ...s.chip, ...s.chip_[c.state] }}>{stepName(c.key)}</span>
+                        <span key={c.key} style={{ ...s.chip, ...s.chip_[c.state] }}>{stepName(c.key, lang)}</span>
                       ))}
                     </div>
                     {row.fulfilled
-                      ? <span style={s.rightDone}>feito</span>
+                      ? <span style={s.rightDone}>{P('doneMasc')}</span>
                       : <span style={s.rightMin}>{row.minutes} min</span>}
                   </>
                 )}
@@ -112,21 +114,21 @@ export default function SeuPlanoScreen({ onOpenProfile, session, completedSet, s
 
         <button type="button" style={s.changeDays} onClick={() => onChangeDays?.()}>
           <AppIcon name="SlidersHorizontal" size={15} strokeWidth={2.2} color="var(--bento-ink)" />
-          Mudar meus dias
+          {P('changeDays')}
         </button>
 
         <div style={s.list}>
           <button type="button" style={{ ...s.row, borderBottom: '1px solid var(--bento-line)' }} onClick={() => onNavigate?.('readingOrganize')}>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={s.rowTitle}>Organizar a leitura</span>
-              <span style={s.rowSub}>Onde começar, ordem e ritmo</span>
+              <span style={s.rowTitle}>{P('organizeReading')}</span>
+              <span style={s.rowSub}>{P('organizeReadingSub')}</span>
             </span>
             <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
           </button>
           <button type="button" style={s.row} onClick={() => onOpenProfile?.()}>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={s.rowTitle}>Lembrete diário</span>
-              <span style={s.rowSub}>{reminderLine(reminder) ?? t('routine.dailyReminderOff', undefined, lang)}</span>
+              <span style={s.rowTitle}>{P('dailyReminder')}</span>
+              <span style={s.rowSub}>{reminderLine(reminder, lang) ?? t('routine.dailyReminderOff', undefined, lang)}</span>
             </span>
             <AppIcon name="ChevronRight" size={14} strokeWidth={2} color="var(--bento-t5)" />
           </button>

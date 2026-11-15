@@ -8,13 +8,14 @@
 // li"), o botão é um alvo à parte (44px de área) e chama onAction(key) sem
 // navegar; depois de marcado vira texto.
 import AppIcon from '../../icons/AppIcon'
+import { t } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 export default function ParaHoje({ rows, onOpen, onAction }) {
   return (
     <div style={s.card}>
-      <p style={s.label}>PARA HOJE</p>
+      <p style={s.label}>{t('hojeTx.forToday')}</p>
       {rows.map((row, i) => (
         <div key={row.key} style={{ ...s.row, borderBottom: i < rows.length - 1 ? '1px solid var(--bento-line)' : 'none' }}>
           <button type="button" style={s.main} onClick={() => onOpen?.(row.key)}>

@@ -2,7 +2,7 @@
 // `lang` via prop: t() sempre lê o idioma do usuário logado no momento da
 // chamada (mesmo padrão de getCurrentUser() no authStore), então qualquer
 // re-render após uma troca de idioma já mostra o texto certo.
-import { STRINGS } from './translations'
+import { tr } from './tr.js'
 import { getCachedUser } from '../auth/authStore'
 import { getAppLanguage } from './appLanguageStore'
 
@@ -21,8 +21,5 @@ export function currentLanguage() {
 // vars, retorna a string crua (pode conter {placeholders} pra você mesmo
 // interpolar, como faz auth.mockEmailBody ao misturar com JSX em negrito).
 export function t(key, vars, lang = currentLanguage()) {
-  const lookup = (l) => key.split('.').reduce((node, part) => node?.[part], STRINGS[l])
-  const raw = lookup(lang) ?? lookup('pt') ?? key
-  if (!vars || typeof raw !== 'string') return raw
-  return Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, v), raw)
+  return tr(lang, key, vars)
 }

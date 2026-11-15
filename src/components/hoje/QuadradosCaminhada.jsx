@@ -14,6 +14,7 @@ import { bookInfo } from '../../data/gamificationBlocks'
 import { formatInt } from '../../gamification/format'
 import { computeWeeksInGoal, computeWeekCapsules, computeWeekDayStates, computeCurrentWeekGoal } from '../../gamification/weeksMath'
 import { weeksAria, daysAria, sealsAria, dayDotKind } from '../../hoje/hojeMath'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
@@ -37,6 +38,7 @@ export default function QuadradosCaminhada({
   dailyRoutine, goalHistory, weeklyGoalDays, weeklyDays, firstActivityKey,
   livrosCompletos, totalLivros, sealNames, onOpenMetrics, onOpenEstante,
 }) {
+  const lang = currentLanguage()
   const weeks = useMemo(() => {
     if (!goalHistory) return null
     const today = new Date()
@@ -52,16 +54,16 @@ export default function QuadradosCaminhada({
   return (
     <div style={s.row}>
       <Quadrado
-        label="SEMANAS" caption="na meta" onOpen={onOpenMetrics}
-        number={weeks ? formatInt(weeks.total) : null} ariaLabel={weeks ? weeksAria(weeks.total) : 'Semanas na meta'}
+        label={t('hojeTx.weeks')} caption={t('hojeTx.onTarget')} onOpen={onOpenMetrics}
+        number={weeks ? formatInt(weeks.total, lang) : null} ariaLabel={weeks ? weeksAria(weeks.total, lang) : t('hojeTx.weeksOnTarget')}
       >
         {weeks ? <CapsulasDeSemanas capsules={weeks.capsules} height={10} gap={2} /> : bar}
       </Quadrado>
 
       <Quadrado
-        label="DIAS" caption="esta semana" onOpen={onOpenMetrics}
-        number={weeks ? `${weeks.week.feitos} de ${weeks.week.meta}` : null}
-        ariaLabel={weeks ? daysAria(weeks.week.feitos, weeks.week.meta) : 'Dias na meta esta semana'}
+        label={t('hojeTx.days')} caption={t('hojeTx.thisWeek')} onOpen={onOpenMetrics}
+        number={weeks ? t('hojeTx.daysOf', { done: weeks.week.feitos, n: weeks.week.meta }) : null}
+        ariaLabel={weeks ? daysAria(weeks.week.feitos, weeks.week.meta, lang) : t('hojeTx.daysOnTarget')}
       >
         <span style={s.dots} aria-hidden="true">
           {days.map(d => <span key={d.key} style={{ ...s.dot, ...s.dot_[dayDotKind(d.state)] }} />)}
@@ -69,8 +71,8 @@ export default function QuadradosCaminhada({
       </Quadrado>
 
       <Quadrado
-        label="SELOS" caption={`de ${totalLivros} livros`} onOpen={onOpenEstante}
-        number={formatInt(livrosCompletos)} ariaLabel={sealsAria(livrosCompletos, totalLivros)}
+        label={t('hojeTx.seals')} caption={t('hojeTx.ofBooks', { n: totalLivros })} onOpen={onOpenEstante}
+        number={formatInt(livrosCompletos, lang)} ariaLabel={sealsAria(livrosCompletos, totalLivros, lang)}
       >
         {livrosCompletos === 0
           ? <SeloDeLivro size={22} radius={7} />
