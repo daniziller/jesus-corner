@@ -89,10 +89,11 @@ export default function BookChapterScreen({
   }, [email, bookName])
 
   const cells = useMemo(() => chapterCells(bookName, total, completedSet, originMap), [bookName, total, completedSet, originMap])
-  const legend = chapterLegend(cells)
-  const numbers = stats && p.lidos > 0 ? bookNumbers({ nome: bookName, ...stats }) : null
-  const footer = bookFooterButton(displayName, p, completedSet)
-  const actions = bookActions(displayName, p)
+  const legend = chapterLegend(cells, lang)
+  const numbers = stats && p.lidos > 0 ? bookNumbers({ nome: bookName, ...stats, lang }) : null
+  // O nome dos dados (português) acha o próximo capítulo; o de exibição vai no texto.
+  const footer = bookFooterButton(bookName, p, completedSet, lang, displayName)
+  const actions = bookActions(bookName, p, lang, displayName)
   const cor = blockColorVar(info.blocoId)
   const tom = blockToneVar(info.blocoId)
 
@@ -205,7 +206,7 @@ export default function BookChapterScreen({
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={s.headerTitle}>{displayName}</p>
-          <p style={s.headerSub}>{bookHeaderSub(bookName)}</p>
+          <p style={s.headerSub}>{bookHeaderSub(bookName, lang)}</p>
         </div>
         <BibleVersionChip lang={lang} versionId={versionId} onChange={setVersionId} />
       </div>
@@ -219,11 +220,11 @@ export default function BookChapterScreen({
               ariaLabel={p.completo ? `Selo de ${displayName}` : undefined}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={s.count}>{deOf(p.lidos, total)}</p>
-              <p style={s.sealLine}>{bookSealLine(p, stats?.seal)}</p>
+              <p style={s.count}>{deOf(p.lidos, total, lang)}</p>
+              <p style={s.sealLine}>{bookSealLine(p, stats?.seal, lang)}</p>
             </div>
           </div>
-          <div style={{ ...s.bar, background: tom }} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={p.lidos} aria-label={`${deOf(p.lidos, total)} capítulos lidos`}>
+          <div style={{ ...s.bar, background: tom }} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={p.lidos} aria-label={t('bibliaTx.chaptersRead', { text: deOf(p.lidos, total, lang) }, lang)}>
             {p.lidos > 0 && <div style={{ ...s.barFill, width: `${(p.lidos / total) * 100}%`, background: cor }} />}
           </div>
           {p.lidos > 0 && (
@@ -242,14 +243,14 @@ export default function BookChapterScreen({
 
         <div style={s.gridCard}>
           <div style={s.gridHead}>
-            <p style={s.label}>CAPÍTULOS</p>
-            <span style={s.gridHint}>toque abre · segure marca</span>
+            <p style={s.label}>{t('bibliaTx.chaptersLabel', undefined, lang)}</p>
+            <span style={s.gridHint}>{t('bibliaTx.gridHint', undefined, lang)}</span>
           </div>
           <div style={s.grid}>
             {cells.map(cell => (
               <button
                 key={cell.ch} type="button" className="biblia-casa"
-                aria-label={chapterCellAria(cell)} aria-keyshortcuts={cell.state === 'next' || cell.state === 'none' ? 'M' : undefined}
+                aria-label={chapterCellAria(cell, lang)} aria-keyshortcuts={cell.state === 'next' || cell.state === 'none' ? 'M' : undefined}
                 style={{ ...s.cell, ...cellColors(cell.state, cor, tom) }}
                 onPointerDown={() => startHold(cell)}
                 onPointerUp={cancelHold}

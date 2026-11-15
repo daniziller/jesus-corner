@@ -73,7 +73,7 @@ import ParaHoje from '../src/components/hoje/ParaHoje'
 import BottomNav from '../src/components/BottomNav'
 import JourneyScreen from '../src/screens/JourneyScreen'
 import BibliaRaiz from '../src/components/biblia/BibliaRaiz'
-import { deriveProgress, computeBookChapterCounts } from '../src/utils/progress'
+import { deriveProgress, computeBookChapterCounts, bookNameFor } from '../src/utils/progress'
 import SuaBibliaScreen from '../src/screens/SuaBibliaScreen'
 import { PLANS } from '../src/data/bibleBlocks'
 import { GAMIFICATION_BOOKS, bookInfo } from '../src/data/gamificationBlocks'
@@ -405,7 +405,7 @@ function BibliaPreview({ onPastRootChange }) {
     const block = blocks.find(x => x.books.includes(livro))
     return (
       <BookChapterScreen
-        session={session} authUser={authUser} block={block} bookName={livro} displayName={livro}
+        session={session} authUser={authUser} block={block} bookName={livro} displayName={bookNameFor(livro, session.lang)}
         browseSessionsByBlock={browseSessionsByBlock} completedSet={done}
         onToggleSession={() => {}} onToggleChapter={(sn, chapter, on) => mark(sn.book, [chapter], on)}
         onMarkChaptersManually={(book, chapters, on) => mark(book, chapters, on)} onOpenSelo={nome => alert(`abrir o selo de ${nome}`)}

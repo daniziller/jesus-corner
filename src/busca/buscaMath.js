@@ -6,48 +6,45 @@ import { bookDisplayName } from './referencia.js'
 import { dateKey } from '../utils/dateKey.js'
 import { relativeDayPeriod } from '../bible/relativeDayPeriod.js'
 import { dayMonthLong, formatInt } from '../gamification/format.js'
-import { bookInfo, blockById } from '../data/gamificationBlocks.js'
+import { bookInfo } from '../data/gamificationBlocks.js'
+import { tr, trN } from '../i18n/tr.js'
+import { blockName } from '../biblia/bibliaMath.js'
+
+const tx = (lang, key, vars) => tr(lang, `buscaTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `buscaTx.${base}`, n, vars)
 
 // O texto de apoio do campo — o mesmo da raiz (B1).
-export const SEARCH_HINT = 'Livro, referência, palavra ou tema'
 
 // Os filtros de tipo (B5/B6), na ordem das pastilhas.
-export const TYPE_FILTERS = [
-  { id: 'all', label: 'Tudo' },
-  { id: 'books', label: 'Livros' },
-  { id: 'verses', label: 'Versículos' },
-  { id: 'passages', label: 'Passagens' },
-  { id: 'themes', label: 'Temas' },
-  { id: 'notes', label: 'Minhas notas' },
-]
+export function typeFilters(lang = 'pt') {
+  return ['all', 'books', 'verses', 'passages', 'themes', 'notes'].map(id => ({ id, label: tx(lang, id) }))
+}
 
 // Cartão areia "Ir direto a um texto" (B5): os quatro exemplos.
 export const REFERENCE_EXAMPLES = ['jo 3 16', 'Salmo 23', '1co 13', 'rm 8:28-39']
 
 // ── Onde você estava ────────────────────────────────────────────────────
 
-const PERIOD = { morning: 'de manhã', afternoon: 'à tarde', evening: 'à noite' }
-
 // "hoje de manhã" · "ontem à noite" · "sábado à noite" · "em 14 de
 // setembro" (de uma semana pra trás, o dia da semana já não diz qual).
-export function whenPhrase(iso, now = new Date()) {
+export function whenPhrase(iso, now = new Date(), lang = 'pt') {
   const days = Math.round((new Date(dateKey(now)) - new Date(dateKey(new Date(iso)))) / 86400000)
-  if (days >= 7) return `em ${dayMonthLong(iso)}`
-  const { day, period } = relativeDayPeriod(iso, 'pt', now)
-  return `${day === 'today' ? 'hoje' : day === 'yesterday' ? 'ontem' : day} ${PERIOD[period]}`
+  if (days >= 7) return tx(lang, 'onDate', { date: dayMonthLong(iso, lang) })
+  const { day, period } = relativeDayPeriod(iso, lang, now)
+  return `${day === 'today' ? tx(lang, 'today') : day === 'yesterday' ? tx(lang, 'yesterday') : day} ${tx(lang, period)}`
 }
 
 // Até duas linhas: a sessão de hoje e a última leitura livre. Some o que
 // não existir; lista vazia = o grupo não aparece. `free`: { book (nome já
 // no idioma da conta), chapter, verse, readAt }.
-export function whereYouWere({ sessionTitle, free, now = new Date() }) {
+export function whereYouWere({ sessionTitle, free, now = new Date(), lang = 'pt' }) {
   const rows = []
-  if (sessionTitle) rows.push({ key: 'session', title: sessionTitle, sub: 'Sessão de hoje · conta no plano' })
+  if (sessionTitle) rows.push({ key: 'session', title: sessionTitle, sub: tx(lang, 'sessionSub') })
   if (free?.book && free?.chapter) {
     rows.push({
       key: 'free',
-      title: `${free.book} ${free.chapter}${free.verse > 1 ? `, versículo ${free.verse}` : ''}`,
-      sub: free.readAt ? `Leitura livre · ${whenPhrase(free.readAt, now)}` : 'Leitura livre',
+      title: `${free.book} ${free.chapter}${free.verse > 1 ? `, ${tx(lang, 'verseN', { n: free.verse })}` : ''}`,
+      sub: free.readAt ? `${tx(lang, 'freeReading')} · ${whenPhrase(free.readAt, now, lang)}` : tx(lang, 'freeReading'),
     })
   }
   return rows
@@ -100,7 +97,7 @@ export function bookRow(nome, progress, lang = 'pt') {
   return {
     book: nome,
     title: bookDisplayName(nome, lang),
-    sub: `${blockById(info.blocoId).nome} · ${formatInt(info.capitulos)} ${info.capitulos === 1 ? 'capítulo' : 'capítulos'} · ${formatInt(lidos)} ${lidos === 1 ? 'lido' : 'lidos'}`,
+    sub: txN(lang, 'bookRow', info.capitulos, { block: blockName(info.blocoId, lang), n: formatInt(info.capitulos, lang), read: txN(lang, 'read', lidos, { n: formatInt(lidos, lang) }) }),
   }
 }
 

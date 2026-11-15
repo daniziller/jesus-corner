@@ -31,7 +31,7 @@ const LeituraTopo = forwardRef(function LeituraTopo({
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
         {onOpenPicker ? (
-          <button type="button" className="biblia-alvo" style={s.pill} onClick={onOpenPicker} aria-label={`${title}, trocar de capítulo`}>
+          <button type="button" className="biblia-alvo" style={s.pill} onClick={onOpenPicker} aria-label={t('bibliaTx.changeChapter', { title }, lang)}>
             <span style={s.pillText}>{title}</span>
             <AppIcon name="ChevronDown" size={12} strokeWidth={2.4} color="var(--bento-t3)" style={{ flexShrink: 0 }} />
           </button>
@@ -42,7 +42,7 @@ const LeituraTopo = forwardRef(function LeituraTopo({
         {plan ? clock : (
           <>
             <BibleVersionChip lang={lang} versionId={versionId} onChange={onChangeVersion} />
-            <button type="button" className="biblia-alvo" style={{ ...s.square, flexDirection: 'column', gap: 3 }} onClick={onOpenMenu} aria-label="Mais opções">
+            <button type="button" className="biblia-alvo" style={{ ...s.square, flexDirection: 'column', gap: 3 }} onClick={onOpenMenu} aria-label={t('bibliaTx.moreOptions', undefined, lang)}>
               <span style={s.dot} /><span style={s.dot} /><span style={s.dot} />
             </button>
           </>

@@ -16,17 +16,23 @@ import { formatInt } from '../gamification/format.js'
 import { testamentOfBook } from '../biblia/bibliaMath.js'
 import { bookDisplayName } from './referencia.js'
 import { bookRow, passageReference } from './buscaMath.js'
+import { tr, trN } from '../i18n/tr.js'
+
+const tx = (lang, key, vars) => tr(lang, `buscaTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `buscaTx.${base}`, n, vars)
 
 export const MIN_QUERY_LENGTH = 2
 export const VERSES_PREVIEW = 4
 export const VERSES_PAGE = 30
 
 // Filtro de testamento (B6).
-export const TESTAMENT_FILTERS = [
-  { id: 'all', label: 'Toda a Bíblia' },
-  { id: 'at', label: 'Antigo Testamento' },
-  { id: 'nt', label: 'Novo Testamento' },
-]
+export function testamentFilters(lang = 'pt') {
+  return [
+    { id: 'all', label: tx(lang, 'wholeBible') },
+    { id: 'at', label: tx(lang, 'oldTestament') },
+    { id: 'nt', label: tx(lang, 'newTestament') },
+  ]
+}
 
 const inTestament = (book, testament) => testament === 'all' || testamentOfBook(book) === testament
 const order = book => bookInfo(book)?.posicao ?? 999
@@ -122,20 +128,20 @@ export function searchPassages(matcher, passages, lang = 'pt', testament = 'all'
     .map(p => {
       const whole = p.versInicio == null && p.capInicio === p.capFim
       const n = whole ? verseCount(p.livro, p.capInicio) : 0
-      return { passage: p, title: p.nome, sub: whole ? `${passageReference(p, lang)} · ${formatInt(n)} ${n === 1 ? 'versículo' : 'versículos'}` : passageReference(p, lang) }
+      return { passage: p, title: p.nome, sub: whole ? `${passageReference(p, lang)} · ${txN(lang, 'verses', n, { n: formatInt(n, lang) })}` : passageReference(p, lang) }
     })
 }
 
 function themeEdge(passage, lang, last) {
-  if (lang !== 'en' && passage.book === 'Salmos') return `${last ? 'ao' : 'do'} Salmo ${passage.chStart}`
-  return `${last ? 'a' : 'de'} ${bookDisplayName(passage.book, lang)} ${passage.chStart}`
+  if (passage.book === 'Salmos') return tx(lang, last ? 'themeToPsalm' : 'themeFromPsalm', { ch: passage.chStart })
+  return tx(lang, last ? 'themeToBook' : 'themeFromBook', { book: bookDisplayName(passage.book, lang), ch: passage.chStart })
 }
 
 // "18 trechos · do Salmo 23 a Apocalipse 7".
 export function themeSub(theme, lang = 'pt') {
   const list = theme.passages ?? []
   const n = list.length
-  const count = `${formatInt(n)} ${n === 1 ? 'trecho' : 'trechos'}`
+  const count = txN(lang, 'sections', n, { n: formatInt(n, lang) })
   return n ? `${count} · ${themeEdge(list[0], lang, false)} ${themeEdge(list[n - 1], lang, true)}` : count
 }
 
@@ -195,11 +201,11 @@ export function searchCounts({ books = [], verses = [], passages = [], themes = 
   return { all: counts.books + counts.verses + counts.passages + counts.themes + counts.notes, ...counts }
 }
 
-const PILLS = [['all', 'Tudo'], ['books', 'Livros'], ['verses', 'Versículos'], ['passages', 'Passagens'], ['themes', 'Temas'], ['notes', 'Notas']]
+const PILLS = [['all', 'all'], ['books', 'books'], ['verses', 'verses'], ['passages', 'passages'], ['themes', 'themes'], ['notes', 'notesPill']]
 
 // As pastilhas com contagem (B6): "Tudo" e só os tipos que têm resultado.
-export function filterPills(counts) {
-  return PILLS.filter(([id]) => id === 'all' || counts[id] > 0).map(([id, label]) => ({ id, label, count: counts[id] }))
+export function filterPills(counts, lang = 'pt') {
+  return PILLS.filter(([id]) => id === 'all' || counts[id] > 0).map(([id, key]) => ({ id, label: tx(lang, key), count: counts[id] }))
 }
 
 // O filtro que vale: o escolhido, se tem resultado; senão, "Tudo".
@@ -209,21 +215,21 @@ export function effectiveFilter(filter, counts) {
 
 // ── Textos ──────────────────────────────────────────────────────────────
 
-export function versesLabel(n) {
-  return `${formatInt(n)} ${n === 1 ? 'versículo' : 'versículos'}`
+export function versesLabel(n, lang = 'pt') {
+  return txN(lang, 'verses', n, { n: formatInt(n, lang) })
 }
-export function seeAllVersesLabel(n) {
-  return `Ver os ${formatInt(n)} versículos`
+export function seeAllVersesLabel(n, lang = 'pt') {
+  return tx(lang, 'seeAllVerses', { n: formatInt(n, lang) })
 }
-export function themeRecentSub(n) {
-  return `Tema · ${formatInt(n)} ${n === 1 ? 'trecho' : 'trechos'}`
+export function themeRecentSub(n, lang = 'pt') {
+  return txN(lang, 'themeRecent', n, { n: formatInt(n, lang) })
 }
 // Nada encontrado: o termo como foi digitado e o nome curto da versão.
 // Quando só o filtro de testamento esvaziou o resultado, diz o testamento.
-export function emptyMessage(query, versionShort, testament = 'all') {
-  const where = testament === 'at' ? 'no Antigo Testamento' : testament === 'nt' ? 'no Novo Testamento' : `na ${versionShort}`
+export function emptyMessage(query, versionShort, testament = 'all', lang = 'pt') {
+  const where = testament === 'at' ? tx(lang, 'emptyInOld') : testament === 'nt' ? tx(lang, 'emptyInNew') : tx(lang, 'emptyInVersion', { version: versionShort })
   return {
-    title: `Nada com "${String(query).trim()}" ${where}.`,
-    sub: 'A busca é no texto desta versão. Tente outra palavra, ou procure por tema.',
+    title: tx(lang, 'emptyTitle', { query: String(query).trim(), where }),
+    sub: tx(lang, 'emptySub'),
   }
 }

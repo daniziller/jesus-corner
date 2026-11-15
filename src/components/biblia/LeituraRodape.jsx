@@ -18,11 +18,12 @@ import { forwardRef } from 'react'
 import AppIcon from '../../icons/AppIcon'
 import { blockColorVar } from '../../data/gamificationBlocks'
 import { markButton } from '../../biblia/bibliaMath'
+import { t, currentLanguage } from '../../i18n'
 
 const FONT = 'var(--font-bento)'
 
 const LeituraRodape = forwardRef(function LeituraRodape({ card, blocoId, done, onTools, onMark, onUnmark, onCloseCard, onNext, onConclude }, ref) {
-  const button = markButton(done)
+  const button = markButton(done, currentLanguage())
   return (
     <div ref={ref} style={{ ...s.fixed, ...(card ? s.fixedCard : s.fixedBar) }}>
       <span role="status" aria-live="polite" style={s.srOnly}>{card ? card.aria : ''}</span>
@@ -36,7 +37,7 @@ const LeituraRodape = forwardRef(function LeituraRodape({ card, blocoId, done, o
               <p style={s.cardTitle}>{card.title}</p>
               <p style={s.cardSub}>{card.sub}</p>
             </div>
-            <button type="button" style={s.cardClose} onClick={onCloseCard} aria-label="Fechar">
+            <button type="button" style={s.cardClose} onClick={onCloseCard} aria-label={t('bibliaTx.close')}>
               <AppIcon name="X" size={16} strokeWidth={1.8} absoluteStrokeWidth color="rgba(255,255,255,.5)" />
             </button>
           </div>
@@ -57,12 +58,12 @@ const LeituraRodape = forwardRef(function LeituraRodape({ card, blocoId, done, o
         </div>
       ) : (
         <>
-          <button type="button" style={{ ...s.tools, ...(onConclude ? s.flat : null) }} onClick={onTools} aria-label="Ferramentas">
+          <button type="button" style={{ ...s.tools, ...(onConclude ? s.flat : null) }} onClick={onTools} aria-label={t('bibliaTx.tools')}>
             <AppIcon name="Pencil" size={16} strokeWidth={1.8} absoluteStrokeWidth color="var(--bento-ink)" />
           </button>
           {onConclude ? (
             <button type="button" style={s.conclude} onClick={onConclude}>
-              <span>Concluir a leitura</span>
+              <span>{t('bibliaTx.concludeReading')}</span>
               <AppIcon name="ArrowRight" size={16} strokeWidth={2.6} color="var(--bento-ink)" style={{ flexShrink: 0 }} />
             </button>
           ) : (

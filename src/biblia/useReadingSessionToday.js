@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { getStepDays } from '../routine/stepDaysStore'
 import { dateKey } from '../utils/dateKey'
 import { readingSessionToday } from './bibliaMath'
+import { bookNameFor } from '../utils/progress'
 
 export function useReadingSessionToday(session) {
   const [stepDays, setStepDays] = useState(undefined)
@@ -23,8 +24,8 @@ export function useReadingSessionToday(session) {
     return () => { alive = false }
   }, [])
 
-  const { routineModules, dailyRoutine, currentBlock, hasNoPlan } = session
-  const passage = !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${currentBlock.book} ${currentBlock.chapter}` : ''
+  const { routineModules, dailyRoutine, currentBlock, hasNoPlan, lang } = session
+  const passage = !hasNoPlan && currentBlock?.book && currentBlock?.chapter ? `${bookNameFor(currentBlock.book, lang)} ${currentBlock.chapter}` : ''
   if (stepDays === undefined) return undefined
   if (stepDays === null) return passage || null
   const today = new Date()

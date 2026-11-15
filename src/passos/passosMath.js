@@ -4,6 +4,7 @@
 // pastilhas de frase). As telas só mostram o que sai daqui.
 import { stepName } from '../meuPlano/meuPlanoMath.js'
 import { formatClock } from '../timer/formatClock.js'
+import { tr } from '../i18n/tr.js'
 
 // ── A barra do dia e o cabeçalho ────────────────────────────────────────
 
@@ -35,9 +36,9 @@ export function dayBarAria(todaysSteps, key) {
 }
 
 // "Passo 1 de 3 · ACTS" — a linha de baixo do cabeçalho do passo.
-export function stepSubtitle(todaysSteps, key, mode) {
+export function stepSubtitle(todaysSteps, key, mode, lang = 'pt') {
   const { n, total } = stepPosition(todaysSteps, key)
-  return `Passo ${n} de ${total}${mode ? ` · ${mode}` : ''}`
+  return `${tr(lang, 'planoTx.stepOfTotal', { n, total })}${mode ? ` · ${mode}` : ''}`
 }
 
 // ── O relógio ───────────────────────────────────────────────────────────

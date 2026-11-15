@@ -983,10 +983,10 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   const bookProgress = bibleProgress.porLivro[heroSession.book] ?? null
   const freeChapterDone = freeReading && completedSet.has(`${heroSession.book}:${heroSession.chStart}`)
   const freeCard = freeReading && freeChapterDone && markedChapter === heroSession.chStart
-    ? markedCard({ nome: heroSession.book, displayName: heroBookDisplayName, chapter: heroSession.chStart, progress: bibleProgress })
+    ? markedCard({ nome: heroSession.book, displayName: heroBookDisplayName, chapter: heroSession.chStart, progress: bibleProgress, lang })
     : null
   const thread = bookProgress
-    ? readingThread(bookProgress, freeReading ? { free: !freeCard } : { step: stepSubtitle(session.todaysSteps, 'reading') })
+    ? readingThread(bookProgress, freeReading ? { free: !freeCard, lang } : { step: stepSubtitle(session.todaysSteps, 'reading', undefined, lang), lang })
     : null
   // Altura do rodapé, medida — vira o respiro de baixo da rolagem (ver o
   // JSX). 90 = a barra dos quadros B3 e S3 (14 + 54 + 22); o cartão de
