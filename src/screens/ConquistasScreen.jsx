@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppIcon from '../icons/AppIcon'
 import Medalha from '../components/gamificacao/Medalha'
-import { FAMILIES, TOTAL_ACHIEVEMENTS, familyAchievementId, blockAchievementId, ALL_ACHIEVEMENT_IDS } from '../data/achievements'
+import { FAMILIES, TOTAL_ACHIEVEMENTS, familyAchievementId, blockAchievementId, ALL_ACHIEVEMENT_IDS, familyName, degrauName, blockLabel } from '../data/achievements'
 import { GAMIFICATION_BLOCKS, blockColorVar } from '../data/gamificationBlocks'
 import { loadGamificationStats } from '../gamification/evaluate'
 import { pickClosest, unseenIds } from '../gamification/achievementsMath'
@@ -25,6 +25,7 @@ const FONT = 'var(--font-bento)'
 
 export default function ConquistasScreen({ session, completedSet, gamification, onBack, onOpenFamilia, onOpenEstante, onSeen }) {
   const { lang, dailyRoutine, weeklyGoalDays } = session
+  const C = (k, vars) => t(`conquistasTx.${k}`, vars, lang)
   const store = gamification?.achievements ?? {}
   const [data, setData] = useState(null)
   // Pontos de "nova" desta visita — fixados assim que a linha gravada
@@ -48,7 +49,7 @@ export default function ConquistasScreen({ session, completedSet, gamification, 
 
   const earnedCount = useMemo(() => ALL_ACHIEVEMENT_IDS.filter(id => store[id]).length, [store])
   const closest = data ? pickClosest(data.states.families) : null
-  const sinceMonth = data?.firstActivityIso ? monthName(new Date(data.firstActivityIso)) : null
+  const sinceMonth = data?.firstActivityIso ? monthName(new Date(data.firstActivityIso), lang) : null
   const blocksEarned = GAMIFICATION_BLOCKS.filter(b => store[blockAchievementId(b.id)]).length
   const nextBlock = data ? nextBlockToLight(data.progress) : null
 
@@ -58,14 +59,14 @@ export default function ConquistasScreen({ session, completedSet, gamification, 
         <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
-        <p style={s.title}>Minhas conquistas</p>
+        <p style={s.title}>{C('myAchievements')}</p>
       </div>
 
       <div style={s.body}>
         <div style={s.hero}>
           <div style={s.heroTop}>
-            <p style={s.heroBig}>{formatInt(earnedCount)}</p>
-            <p style={s.heroCaption}>de {TOTAL_ACHIEVEMENTS} conquistas{sinceMonth ? <><br />desde {sinceMonth}</> : null}</p>
+            <p style={s.heroBig}>{formatInt(earnedCount, lang)}</p>
+            <p style={s.heroCaption}>{C('ofTotal', { total: TOTAL_ACHIEVEMENTS })}{sinceMonth ? <><br />{C('since', { month: sinceMonth })}</> : null}</p>
           </div>
           <div style={s.ticks} aria-hidden="true">
             {Array.from({ length: TOTAL_ACHIEVEMENTS }, (_, i) => (
@@ -77,8 +78,8 @@ export default function ConquistasScreen({ session, completedSet, gamification, 
               <button type="button" style={s.closest} onClick={() => onOpenFamilia?.(closest.familyId)}>
                 <Medalha familia={closest.familyId} degrau={closest.degrau} size={44} ganha={false} sobreEscuro tracejadoLaranja />
                 <span style={s.closestText}>
-                  <span style={s.closestLabel}>A MAIS PERTO</span>
-                  <span style={s.closestPhrase}>{closestPhrase(closest)}</span>
+                  <span style={s.closestLabel}>{C('closest')}</span>
+                  <span style={s.closestPhrase}>{closestPhrase(closest, lang)}</span>
                 </span>
               </button>
             ) : null
@@ -94,16 +95,16 @@ export default function ConquistasScreen({ session, completedSet, gamification, 
           return (
             <button key={fam.id} type="button" style={s.famCard} onClick={() => onOpenFamilia?.(fam.id)}>
               <span style={s.famHead}>
-                <span style={s.famName}>{fam.nome}</span>
-                <span style={s.famCount}>{earnedN} de 6</span>
+                <span style={s.famName}>{familyName(fam.id, lang)}</span>
+                <span style={s.famCount}>{C('countOf6', { n: earnedN })}</span>
               </span>
               <span style={s.famMedals}>
                 {fam.degraus.map(d => {
                   const id = familyAchievementId(fam.id, d.degrau)
                   return (
                     <span key={d.degrau} style={s.medalWrap}>
-                      <Medalha familia={fam.id} degrau={d.degrau} size={47} ganha={!!store[id]} ariaLabel={`${d.nome}, ${store[id] ? 'ganha' : 'ainda não'}`} />
-                      {dotIds?.has(id) && <span style={s.newDot} aria-label="nova" />}
+                      <Medalha familia={fam.id} degrau={d.degrau} size={47} ganha={!!store[id]} ariaLabel={C(store[id] ? 'medalEarned' : 'medalNotYet', { name: degrauName(fam.id, d.degrau, lang) })} />
+                      {dotIds?.has(id) && <span style={s.newDot} aria-label={C('newDot')} />}
                     </span>
                   )
                 })}
@@ -112,8 +113,8 @@ export default function ConquistasScreen({ session, completedSet, gamification, 
                 st ? (
                   <>
                     <span style={s.nextRow}>
-                      <span style={s.nextLabel}>Próxima: <strong style={s.nextName}>{st.next?.nome}</strong></span>
-                      <span style={s.nextCount}>{deOf(st.value, st.next?.limiar ?? 0)}</span>
+                      <span style={s.nextLabel}>{C('next')} <strong style={s.nextName}>{st.next ? degrauName(fam.id, st.next.degrau, lang) : ''}</strong></span>
+                      <span style={s.nextCount}>{deOf(st.value, st.next?.limiar ?? 0, lang)}</span>
                     </span>
                     <span style={s.bar}><span style={{ ...s.barFill, width: `${Math.round(st.progress * 100)}%` }} /></span>
                   </>
@@ -127,24 +128,24 @@ export default function ConquistasScreen({ session, completedSet, gamification, 
 
         <button type="button" style={s.famCard} onClick={() => onOpenEstante?.()}>
           <span style={s.famHead}>
-            <span style={s.famName}>Blocos da Bíblia</span>
-            <span style={s.famCount}>{blocksEarned} de 8</span>
+            <span style={s.famName}>{C('bibleBlocks')}</span>
+            <span style={s.famCount}>{C('countOf8', { n: blocksEarned })}</span>
           </span>
           <span style={s.blockGrid}>
             {GAMIFICATION_BLOCKS.map(b => (
               <span key={b.id} style={s.blockCell}>
                 <span style={s.medalWrap}>
                   <Medalha bloco={b.id} size={50} ganha={!!store[blockAchievementId(b.id)]} />
-                  {dotIds?.has(blockAchievementId(b.id)) && <span style={s.newDot} aria-label="nova" />}
+                  {dotIds?.has(blockAchievementId(b.id)) && <span style={s.newDot} aria-label={C('newDot')} />}
                 </span>
-                <span style={s.blockName}>{b.nome}</span>
+                <span style={s.blockName}>{blockLabel(b.id, lang)}</span>
               </span>
             ))}
           </span>
           {data && (
             <span style={s.blockFooter}>
               <span style={{ ...s.footDot, background: nextBlock ? blockColorVar(nextBlock.id) : 'var(--bento-accent)' }} />
-              <span style={s.footText}>{nextBlockFooter(data.progress, nextBlock)}</span>
+              <span style={s.footText}>{nextBlockFooter(data.progress, nextBlock, lang)}</span>
             </span>
           )}
         </button>

@@ -14,12 +14,18 @@ import { FAMILIES, familyAchievementId } from '../data/achievements'
 import { computeBibleProgress, closestSeal, nextUnreadChapter } from '../gamification/bibleProgressMath'
 import { formatInt, deOf, faltamPhrase } from '../gamification/format'
 import { t } from '../i18n'
+import { familyUnit, blockLabel } from '../data/achievements'
+import { bookNameFor } from '../utils/progress'
+import { bookShort } from '../biblioteca/tiposMath'
 
 const FONT = 'var(--font-bento)'
 const LIVROS = FAMILIES.find(f => f.id === 'livros')
 
 export default function EstanteScreen({ session, completedSet, gamification, scrollToBlock = null, onBack, onOpenSelo, onOpenBook, onOpenBookAt }) {
   const { lang } = session
+  const C = (k, vars) => t(`conquistasTx.${k}`, vars, lang)
+  const sigla = l => (lang === 'en' ? bookShort(l.nome, lang) : l.sigla)
+  const book = nome => bookNameFor(nome, lang)
   const store = gamification?.achievements ?? {}
   const progress = useMemo(() => computeBibleProgress(completedSet), [completedSet])
   const next = closestSeal(progress)
@@ -39,15 +45,15 @@ export default function EstanteScreen({ session, completedSet, gamification, scr
         <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
-        <p style={s.title}>Minha estante</p>
-        <p style={s.count}>{deOf(progress.livrosCompletos, progress.totalLivros)}</p>
+        <p style={s.title}>{C('myShelf')}</p>
+        <p style={s.count}>{deOf(progress.livrosCompletos, progress.totalLivros, lang)}</p>
       </div>
 
       <div style={s.body}>
         <div style={s.hero}>
           <div style={s.heroHead}>
-            <p style={s.heroLabel}>LIVROS COMPLETOS</p>
-            {nextDegrau && <p style={s.heroNext}>próxima: {formatInt(nextDegrau.limiar)} {nextDegrau.limiar === 1 ? 'livro' : 'livros'}</p>}
+            <p style={s.heroLabel}>{C('booksCompleteLabel')}</p>
+            {nextDegrau && <p style={s.heroNext}>{C('nextBooks', { n: formatInt(nextDegrau.limiar, lang), unit: familyUnit('livros', nextDegrau.limiar, lang) })}</p>}
           </div>
           <div style={s.ladder}>
             {LIVROS.degraus.map(d => {
@@ -63,10 +69,10 @@ export default function EstanteScreen({ session, completedSet, gamification, scr
           </div>
           {next && (
             <button type="button" style={s.nextSeal} onClick={() => onOpenBookAt?.(next.nome, nextUnreadChapter(next.nome, next.total, completedSet))}>
-              <SeloDeLivro sigla={GAMIFICATION_BLOCKS.flatMap(b => b.livros).find(l => l.nome === next.nome).sigla} blocoId={GAMIFICATION_BLOCKS.find(b => b.livros.some(l => l.nome === next.nome)).id} lidos={next.lidos} total={next.total} size={36} ariaLabel={`${next.nome}, ${next.lidos} de ${next.total} capítulos`} />
+              <SeloDeLivro sigla={sigla(GAMIFICATION_BLOCKS.flatMap(b => b.livros).find(l => l.nome === next.nome))} blocoId={GAMIFICATION_BLOCKS.find(b => b.livros.some(l => l.nome === next.nome)).id} lidos={next.lidos} total={next.total} size={36} ariaLabel={C('sealAriaProgress', { book: book(next.nome), x: deOf(next.lidos, next.total, lang) })} />
               <span style={s.nextText}>
-                <span style={s.nextLabel}>O PRÓXIMO SELO</span>
-                <span style={s.nextPhrase}>{next.nome} — {faltamPhrase(next.faltam, 'capítulo', 'capítulos')}</span>
+                <span style={s.nextLabel}>{C('nextSeal')}</span>
+                <span style={s.nextPhrase}>{book(next.nome)} — {faltamPhrase(next.faltam, lang === 'en' ? 'chapter' : 'capítulo', lang === 'en' ? 'chapters' : 'capítulos', lang)}</span>
               </span>
             </button>
           )}
@@ -79,16 +85,16 @@ export default function EstanteScreen({ session, completedSet, gamification, scr
               <div key={block.id} ref={el => { shelfRefs.current[block.id] = el }} style={{ ...s.shelf, ...(i > 0 ? s.shelfDivider : {}) }}>
                 <div style={s.shelfHead}>
                   <span style={{ ...s.swatch, background: blockColorVar(block.id) }} />
-                  <span style={s.shelfName}>{block.nome}</span>
-                  <span style={{ ...s.shelfCount, color: bp.livrosCompletos > 0 ? 'var(--bento-ink)' : 'var(--bento-t5)' }}>{deOf(bp.livrosCompletos, bp.livrosTotal)}</span>
+                  <span style={s.shelfName}>{blockLabel(block.id, lang)}</span>
+                  <span style={{ ...s.shelfCount, color: bp.livrosCompletos > 0 ? 'var(--bento-ink)' : 'var(--bento-t5)' }}>{deOf(bp.livrosCompletos, bp.livrosTotal, lang)}</span>
                 </div>
                 <div style={s.grid}>
                   {block.livros.map(l => {
                     const p = progress.porLivro[l.nome]
                     return (
                       <SeloDeLivro
-                        key={l.nome} sigla={l.sigla} blocoId={block.id} lidos={p.lidos} total={p.total} size={44}
-                        ariaLabel={`${l.nome}, ${p.completo ? 'completo' : `${p.lidos} de ${p.total} capítulos`}`}
+                        key={l.nome} sigla={sigla(l)} blocoId={block.id} lidos={p.lidos} total={p.total} size={44}
+                        ariaLabel={p.completo ? C('sealAriaDone', { book: book(l.nome) }) : C('sealAriaProgress', { book: book(l.nome), x: deOf(p.lidos, p.total, lang) })}
                         onClick={() => (p.completo ? onOpenSelo?.(l.nome) : onOpenBook?.(l.nome))}
                       />
                     )

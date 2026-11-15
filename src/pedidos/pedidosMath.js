@@ -7,7 +7,7 @@
 // orou — só quantas pessoas (`prayCount`). O nome que pode aparecer é o de
 // quem PEDIU, e só num pedido de amigo que não foi publicado sem nome.
 import { relativeTimeSpan } from '../prayer/prayerRequestFormat.js'
-import { FAMILIES } from '../data/achievements.js'
+import { FAMILIES, degrauName } from '../data/achievements.js'
 import { familyState, oracaoStats } from '../gamification/familiesMath.js'
 import { formatInt } from '../gamification/format.js'
 import { tr, trN } from '../i18n/tr.js'
@@ -230,12 +230,12 @@ export function othersCard(value, lang = 'pt') {
     value: formatInt(state.value, lang),
     caption: tx(lang, state.value === 1 ? 'othersOne' : 'othersMany'),
     line: top
-      ? state.degraus[state.degraus.length - 1].nome
-      : tx(lang, state.remaining === 1 ? 'leftOne' : 'leftMany', { n: formatInt(state.remaining, lang), name: state.next.nome }),
+      ? degrauName('oracao', 6, lang)
+      : tx(lang, state.remaining === 1 ? 'leftOne' : 'leftMany', { n: formatInt(state.remaining, lang), name: degrauName('oracao', state.next.degrau, lang) }),
     progress: top ? null : state.progress,
     aria: top
-      ? `${formatInt(state.value, lang)} ${tx(lang, 'othersMany')}. ${state.degraus[state.degraus.length - 1].nome}.`
-      : `${formatInt(state.value, lang)} ${tx(lang, state.value === 1 ? 'othersOne' : 'othersMany')}. ${tx(lang, state.remaining === 1 ? 'leftAriaOne' : 'leftAriaMany', { n: formatInt(state.remaining, lang), name: state.next.nome })}.`,
+      ? `${formatInt(state.value, lang)} ${tx(lang, 'othersMany')}. ${degrauName('oracao', 6, lang)}.`
+      : `${formatInt(state.value, lang)} ${tx(lang, state.value === 1 ? 'othersOne' : 'othersMany')}. ${tx(lang, state.remaining === 1 ? 'leftAriaOne' : 'leftAriaMany', { n: formatInt(state.remaining, lang), name: degrauName('oracao', state.next.degrau, lang) })}.`,
   }
 }
 

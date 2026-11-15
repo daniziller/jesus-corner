@@ -6,20 +6,23 @@
 // frase com o fato e a escada da família.
 import { useMemo } from 'react'
 import Medalha from '../components/gamificacao/Medalha'
-import { familyById, parseAchievementId, blockAchievementId, BLOCK_ACHIEVEMENTS } from '../data/achievements'
+import { familyById, parseAchievementId, blockAchievementId, BLOCK_ACHIEVEMENTS, degrauName, blockLabel } from '../data/achievements'
 import { GAMIFICATION_BLOCKS, blockById } from '../data/gamificationBlocks'
 import { familyRatePerMonth, monthsToNext, dateInMonths } from '../gamification/familiesMath'
 import { familyCelebrationPhrase, blockCelebrationPhrase, thresholdLabel, degrauCount } from '../gamification/celebrationText'
 import { monthName } from '../gamification/format'
+import { t, currentLanguage } from '../i18n'
 
 const FONT = 'var(--font-bento)'
 
 // `data` = resultado de evaluateGamification/loadGamificationStats
 // (states, stats, progress, row, firstActivityIso).
 export default function NovaConquistaScreen({ celebration, data, userName, onContinue, onOpenConquistas }) {
+  const lang = currentLanguage()
+  const C = (k, vars) => t(`conquistasTx.${k}`, vars, lang)
   const parsed = parseAchievementId(celebration.id)
   const store = data?.row?.achievements ?? {}
-  const sinceMonth = data?.firstActivityIso ? monthName(new Date(data.firstActivityIso)) : null
+  const sinceMonth = data?.firstActivityIso ? monthName(new Date(data.firstActivityIso), lang) : null
 
   const view = useMemo(() => {
     if (parsed.blocoId) {
@@ -29,9 +32,9 @@ export default function NovaConquistaScreen({ celebration, data, userName, onCon
       const ultimo = [...bloco.livros].map(l => l.nome).sort((a, b) => ((dates[a] ?? '') < (dates[b] ?? '') ? 1 : -1))[0]
       return {
         medal: <Medalha bloco={parsed.blocoId} size={168} ganha sobreEscuro />,
-        nome: bloco.nome,
-        phrase: blockCelebrationPhrase(parsed.blocoId, { nome: userName, ultimoLivro: dates[ultimo] ? ultimo : null }),
-        cardLabel: `BLOCOS DA BÍBLIA · ${earnedBlocks} DE 8`,
+        nome: blockLabel(parsed.blocoId, lang),
+        phrase: blockCelebrationPhrase(parsed.blocoId, { nome: userName, ultimoLivro: dates[ultimo] ? ultimo : null }, lang),
+        cardLabel: C('blocksCard', { n: earnedBlocks }),
         nextIn: null,
         ladder: GAMIFICATION_BLOCKS.map(b => ({ key: b.id, medal: <Medalha bloco={b.id} size={40} ganha={!!store[blockAchievementId(b.id)]} sobreEscuro />, label: null, state: store[blockAchievementId(b.id)] ? 'ganha' : 'depois' })),
       }
@@ -45,13 +48,13 @@ export default function NovaConquistaScreen({ celebration, data, userName, onCon
     let nextIn = null
     if (st?.next && data?.stats) {
       const months = monthsToNext(st.remaining, familyRatePerMonth(fam.id, data.stats, data.states))
-      if (months != null) nextIn = monthName(dateInMonths(months))
+      if (months != null) nextIn = monthName(dateInMonths(months), lang)
     }
     return {
       medal: <Medalha familia={fam.id} degrau={parsed.degrau} size={168} ganha sobreEscuro />,
-      nome: degrau.nome,
-      phrase: familyCelebrationPhrase(fam.id, { nome: userName, value, sinceMonth }),
-      cardLabel: degrauCount(fam.id, parsed.degrau),
+      nome: degrauName(fam.id, degrau.degrau, lang),
+      phrase: familyCelebrationPhrase(fam.id, { nome: userName, value, sinceMonth }, lang),
+      cardLabel: degrauCount(fam.id, parsed.degrau, lang),
       nextIn,
       ladder: fam.degraus.map(d => {
         const ganha = d.degrau <= parsed.degrau
@@ -59,7 +62,7 @@ export default function NovaConquistaScreen({ celebration, data, userName, onCon
         return {
           key: d.degrau,
           medal: <Medalha familia={fam.id} degrau={d.degrau} size={40} ganha={ganha} sobreEscuro contorno={isNext} />,
-          label: thresholdLabel(fam.id, d.limiar),
+          label: thresholdLabel(fam.id, d.limiar, lang),
           state: ganha ? 'ganha' : isNext ? 'proxima' : 'depois',
         }
       }),
@@ -69,7 +72,7 @@ export default function NovaConquistaScreen({ celebration, data, userName, onCon
   return (
     <div style={s.screen}>
       <div style={s.content}>
-        <p style={s.kicker}>NOVA CONQUISTA</p>
+        <p style={s.kicker}>{C('newAchievement')}</p>
         <div style={s.medalWrap}>{view.medal}</div>
         <p style={s.name}>{view.nome}</p>
         <p style={s.phrase}>{view.phrase}</p>
@@ -77,7 +80,7 @@ export default function NovaConquistaScreen({ celebration, data, userName, onCon
         <div style={s.card}>
           <div style={s.cardHead}>
             <p style={s.cardLabel}>{view.cardLabel}</p>
-            {view.nextIn && <p style={s.cardNext}>próxima em {view.nextIn}</p>}
+            {view.nextIn && <p style={s.cardNext}>{C('nextIn', { month: view.nextIn })}</p>}
           </div>
           <div style={s.ladder}>
             {view.ladder.map(item => (
@@ -91,8 +94,8 @@ export default function NovaConquistaScreen({ celebration, data, userName, onCon
       </div>
 
       <div style={s.footer}>
-        <button type="button" style={s.primary} onClick={onContinue}>Continuar</button>
-        <button type="button" style={s.secondary} onClick={onOpenConquistas}>Ver minhas conquistas</button>
+        <button type="button" style={s.primary} onClick={onContinue}>{C('continue')}</button>
+        <button type="button" style={s.secondary} onClick={onOpenConquistas}>{C('seeMine')}</button>
       </div>
     </div>
   )

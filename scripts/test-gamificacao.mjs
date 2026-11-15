@@ -6,7 +6,7 @@
 // troca de meta semanal, virada de semana e de fuso, limiares exatos
 // (9/10, 10/10, 11/10), mais migração idempotente e formatação.
 import { GAMIFICATION_BLOCKS, GAMIFICATION_BOOKS, BIBLE_CHAPTERS, bookInfo } from '../src/data/gamificationBlocks.js'
-import { FAMILIES, ALL_ACHIEVEMENT_IDS, TOTAL_ACHIEVEMENTS, parseAchievementId, DEGRAU_MATERIAL } from '../src/data/achievements.js'
+import { FAMILIES, ALL_ACHIEVEMENT_IDS, TOTAL_ACHIEVEMENTS, parseAchievementId, DEGRAU_MATERIAL, familyName, degrauName, familyUnit, familyMede, blockLabel } from '../src/data/achievements.js'
 import { BIBLE_BLOCKS, SESSIONS_BY_PLAN } from '../src/data/bibleBlocks.js'
 import { computeBookChapterCounts } from '../src/utils/progress.js'
 import { computeBibleProgress, closestSeal, nextUnreadChapter, nextBlockToLight } from '../src/gamification/bibleProgressMath.js'
@@ -17,7 +17,8 @@ import { readingRatePerDay, projectPercentInOneYear, estimateBibleCompletion, pr
 import { computeSlices, fillPath, markerAngle, USABLE_DEGREES, START_DEGREES, GAP_BLOCK, sectorPath } from '../src/gamification/wheelGeometry.js'
 import { formatInt, formatPct, faltamPhrase, deOf, monthYearShort, dayMonthLong, formatDuration, monthYearLong } from '../src/gamification/format.js'
 import { dateKey } from '../src/utils/dateKey.js'
-import { familyCelebrationPhrase, blockCelebrationPhrase, closestPhrase, nextBlockFooter, thresholdLabel } from '../src/gamification/celebrationText.js'
+import { summarizeSeal, representsPhrase, readingTimeSentence, terminadoEm } from '../src/gamification/sealDetails.js'
+import { familyCelebrationPhrase, blockCelebrationPhrase, closestPhrase, nextBlockFooter, thresholdLabel, degrauCount } from '../src/gamification/celebrationText.js'
 
 let failures = 0
 function check(label, actual, expected) {
@@ -244,6 +245,23 @@ check('mar/25', monthYearShort(new Date(2025, 2, 15).toISOString()), 'mar/25')
 check('28 de agosto', dayMonthLong(new Date(2025, 7, 28, 12).toISOString()), '28 de agosto')
 check('março de 2029', monthYearLong(new Date(2029, 2, 1)), 'março de 2029')
 check('52 min / 1 h 05 / 2 h', [formatDuration(3120), formatDuration(3900), formatDuration(7200)], ['52 min', '1 h 05', '2 h'])
+
+// ── Em inglês ─────────────────────────────────────────────────────────
+check('en: nomes das famílias', FAMILIES.map(f => familyName(f.id, 'en')), ['Consistency', 'Reading', 'Time with God', 'Praying for others', 'Complete books'])
+check('en: todo degrau tem nome em inglês', FAMILIES.flatMap(f => f.degraus.map(d => degrauName(f.id, d.degrau, 'en'))).filter(n => !n || n.startsWith('conquistasTx')), [])
+check('en: português continua vindo dos dados', [familyName('oracao'), degrauName('oracao', 2), familyUnit('constancia', 1), familyMede('livros')], ['Oração pelos outros', 'Cinquenta orações', 'semana na meta', FAMILIES[4].mede])
+check('en: unidades e o que mede', [familyUnit('constancia', 1, 'en'), familyUnit('constancia', 8, 'en'), familyMede('livros', 'en')], ['week on target', 'weeks on target', 'Counts the books in which you read every chapter.'])
+check('en: blocos', [blockLabel('lei', 'en'), blockLabel('lei')], ['Law', 'Lei'])
+check('en: celebração de família', familyCelebrationPhrase('tempo', { nome: 'Ana', value: 10, sinceMonth: 'June' }, 'en'), 'Congratulations, Ana. Since June, adding up prayer, reading and reflection, that is 10 whole hours.')
+check('en: celebração sem mês', familyCelebrationPhrase('livros', { nome: 'Ana', value: 1, sinceMonth: null }, 'en'), 'Congratulations, Ana. You read 1 whole book.')
+check('en: celebração de bloco', blockCelebrationPhrase('profetas-menores', { nome: 'Diego', ultimoLivro: 'Malaquias' }, 'en'), 'Congratulations, Diego. With Malachi, you completed all 12 books of Minor Prophets.')
+check('en: a mais perto', closestPhrase({ familyId: 'constancia', degrau: 4, remaining: 8 }, 'en'), 'Half a year — 8 weeks on target to go')
+check('en: contagem do degrau', degrauCount('tempo', 2, 'en'), 'TIME WITH GOD · 2 OF 6')
+
+check('en: selo do livro', (({ sigla, displayName, blocoNome, daysLabel }) => [sigla, displayName, blocoNome, daysLabel])(summarizeSeal('Jonas', { seal: null, chapterRows: [], sessionRows: [], lang: 'en' })), ['Jon', 'Jonah', 'Minor Prophets', null])
+check('en: o que o livro representa', [representsPhrase({ livrosCompletos: 1 }, 'en'), representsPhrase({ livrosCompletos: 5 }, 'en'), representsPhrase({ livrosCompletos: 5, blocoCompletadoNome: 'Law' }, 'en')], ['The seal is on your shelf — and it is your first whole book.', 'The seal is on your shelf — that makes 5 books.', 'The seal is on your shelf — with it you completed Law.'])
+check('en: tempo de leitura e data', [readingTimeSentence(60, 'en'), readingTimeSentence(3600, 'en'), readingTimeSentence(7500, 'en'), terminadoEm('2026-11-10T12:00:00', 'en')], ['1 minute of reading', '1 hour of reading', '2 h 05 of reading', 'Finished on November 10'])
+check('pt: selo do livro continua igual', (({ sigla, displayName, blocoNome }) => [sigla, displayName, blocoNome])(summarizeSeal('Jonas', { seal: null, chapterRows: [], sessionRows: [] })), ['Jn', 'Jonas', 'Profetas menores'])
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`)

@@ -5,7 +5,8 @@
 //
 // Não existe ponto, XP, nível nem ranking em lugar nenhum deste sistema
 // (HANDOFF §0) — uma conquista é um fato cruzado, nunca um saldo.
-import { GAMIFICATION_BLOCKS } from './gamificationBlocks.js'
+import { GAMIFICATION_BLOCKS, blockById } from './gamificationBlocks.js'
+import { tr } from '../i18n/tr.js'
 
 export const TOTAL_ACHIEVEMENTS = 38
 
@@ -90,6 +91,29 @@ export const FAMILIES = [
 const FAMILY_BY_ID = new Map(FAMILIES.map(f => [f.id, f]))
 export function familyById(id) {
   return FAMILY_BY_ID.get(id) ?? null
+}
+
+// Os nomes no idioma da conta. Em português, os dados acima são a fonte;
+// em inglês, translations.js/conquistasTx (fam_, deg_, unit*_, mede_) e,
+// para os blocos, os mesmos nomes da aba Bíblia (bibliaTx.block_).
+const tx = (lang, key, vars) => tr(lang, `conquistasTx.${key}`, vars)
+export function familyName(id, lang = 'pt') {
+  return lang === 'en' ? tx(lang, `fam_${id}`) : familyById(id)?.nome ?? ''
+}
+export function degrauName(id, degrau, lang = 'pt') {
+  return lang === 'en' ? tx(lang, `deg_${id}_${degrau}`) : familyById(id)?.degraus.find(d => d.degrau === degrau)?.nome ?? ''
+}
+// "8 semanas na meta" · "1 week on target" — só a unidade, no número certo.
+export function familyUnit(id, n, lang = 'pt') {
+  if (lang === 'en') return tx(lang, `unit${n === 1 ? 'One' : 'Many'}_${id}`)
+  const fam = familyById(id)
+  return n === 1 ? fam?.unidadeSingular ?? '' : fam?.unidade ?? ''
+}
+export function familyMede(id, lang = 'pt') {
+  return lang === 'en' ? tx(lang, `mede_${id}`) : familyById(id)?.mede ?? ''
+}
+export function blockLabel(blocoId, lang = 'pt') {
+  return lang === 'en' ? tr(lang, `bibliaTx.block_${blocoId}`) : blockById(blocoId)?.nome ?? ''
 }
 
 // Material de cada degrau (HANDOFF §5.2): o glifo nunca muda, só o

@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import AppIcon from '../icons/AppIcon'
 import Medalha from '../components/gamificacao/Medalha'
-import { familyById, familyAchievementId } from '../data/achievements'
+import { familyById, familyAchievementId, familyName, degrauName, familyUnit, familyMede } from '../data/achievements'
 import { loadGamificationStats } from '../gamification/evaluate'
 import { earnedAtOf } from '../gamification/achievementsMath'
 import { formatInt, deOf, monthYearShort } from '../gamification/format'
@@ -43,12 +43,12 @@ export default function FamiliaScreen({ familyId, session, completedSet, gamific
         <button style={s.backBtn} onClick={onBack} aria-label={t('a11y.goBack', undefined, lang)}>
           <AppIcon name="ChevronLeft" size={16} strokeWidth={2} color="var(--bento-ink)" />
         </button>
-        <p style={s.title}>{fam.nome}</p>
-        <p style={s.count}>{earnedN} de 6</p>
+        <p style={s.title}>{familyName(fam.id, lang)}</p>
+        <p style={s.count}>{t('conquistasTx.countOf6', { n: earnedN }, lang)}</p>
       </div>
 
       <div style={s.body}>
-        <div style={s.sandCard}><p style={s.sandText}><RichText text={fam.mede} /></p></div>
+        <div style={s.sandCard}><p style={s.sandText}><RichText text={familyMede(fam.id, lang)} /></p></div>
 
         <div style={s.card}>
           {fam.degraus.map((d, i) => {
@@ -61,15 +61,15 @@ export default function FamiliaScreen({ familyId, session, completedSet, gamific
               <div key={d.degrau} style={{ ...s.row, ...(i > 0 ? s.rowDivider : {}) }}>
                 <Medalha familia={fam.id} degrau={d.degrau} size={58} ganha={ganha} />
                 <div style={s.rowMain}>
-                  <p style={{ ...s.rowName, color: distante ? 'var(--bento-t4)' : 'var(--bento-ink)' }}>{d.nome}</p>
-                  <p style={s.rowLimiar}>{formatInt(d.limiar)} {d.limiar === 1 ? fam.unidadeSingular : fam.unidade}</p>
+                  <p style={{ ...s.rowName, color: distante ? 'var(--bento-t4)' : 'var(--bento-ink)' }}>{degrauName(fam.id, d.degrau, lang)}</p>
+                  <p style={s.rowLimiar}>{formatInt(d.limiar, lang)} {familyUnit(fam.id, d.limiar, lang)}</p>
                   {isNext && st && (
                     <span style={s.bar}><span style={{ ...s.barFill, width: `${Math.round(st.progress * 100)}%` }} /></span>
                   )}
                 </div>
                 <div style={s.rowRight}>
-                  {ganha && earnedAt && <p style={s.rowDate}>{monthYearShort(earnedAt)}</p>}
-                  {isNext && st && <p style={s.rowNext}>{deOf(st.value, d.limiar)}</p>}
+                  {ganha && earnedAt && <p style={s.rowDate}>{monthYearShort(earnedAt, lang)}</p>}
+                  {isNext && st && <p style={s.rowNext}>{deOf(st.value, d.limiar, lang)}</p>}
                   {distante && <p style={s.rowDash}>—</p>}
                 </div>
               </div>
