@@ -12,6 +12,18 @@ import { formatInt, formatPct, deOf, formatDuration, dayMonthLong } from '../gam
 import { originOf } from '../bible/chapterOrigin.js'
 import { dateKey, parseLocalDateKey } from '../utils/dateKey.js'
 import { todaysSteps } from '../meuPlano/meuPlanoMath.js'
+import { tr, trN } from '../i18n/tr.js'
+
+// Textos em bibliaTx (translations.js); `lang` vem de quem chama, com
+// português como padrão. Os nomes de livro chegam como estão nos dados
+// (português, a chave de tudo); quem desenha passa o nome de exibição.
+const tx = (lang, key, vars) => tr(lang, `bibliaTx.${key}`, vars)
+const txN = (lang, base, n, vars) => trN(lang, `bibliaTx.${base}`, n, vars)
+
+// Nome de um bloco (os oito da gamificação) no idioma.
+export function blockName(id, lang = 'pt') {
+  return tx(lang, `block_${id}`)
+}
 
 // ── B1: a raiz (HANDOFF §2) ─────────────────────────────────────────────
 
@@ -19,6 +31,14 @@ export const TESTAMENTS = [
   { id: 'at', nome: 'Antigo Testamento', linhas: ['Antigo', 'Testamento'] },
   { id: 'nt', nome: 'Novo Testamento', linhas: ['Novo', 'Testamento'] },
 ]
+
+// Os dois testamentos com nome e linhas no idioma.
+export function testaments(lang = 'pt') {
+  return [
+    { id: 'at', nome: tx(lang, 'oldTestament'), linhas: [tx(lang, 'oldLine1'), tx(lang, 'testamentLine2')] },
+    { id: 'nt', nome: tx(lang, 'newTestament'), linhas: [tx(lang, 'newLine1'), tx(lang, 'testamentLine2')] },
+  ]
+}
 
 export function blocksOfTestament(id) {
   return GAMIFICATION_BLOCKS.filter(b => b.testamento === id)
@@ -51,25 +71,25 @@ export function testamentProgress(progress, id) {
 
 // Os textos de um cartão de testamento: "5,4%", "50 de 929 capítulos
 // lidos", "faltam 879" (ou "completo").
-export function testamentTexts(tp) {
+export function testamentTexts(tp, lang = 'pt') {
   return {
-    percent: formatPct(tp.percent),
-    chapters: `${deOf(tp.lidos, tp.total)} capítulos lidos`,
-    remaining: tp.completo ? 'completo' : `faltam ${formatInt(tp.faltam)}`,
+    percent: formatPct(tp.percent, lang),
+    chapters: tx(lang, 'chaptersRead', { text: deOf(tp.lidos, tp.total, lang) }),
+    remaining: tp.completo ? tx(lang, 'complete') : tx(lang, 'leftN', { n: formatInt(tp.faltam, lang) }),
   }
 }
 
 // Cartão de progresso: "4,2%", "50 de 1.189 capítulos", "1 livro completo
 // · 3 blocos começados".
-export function progressCardTexts(progress) {
+export function progressCardTexts(progress, lang = 'pt') {
   const l = progress.livrosCompletos
   const b = progress.blocosComecados
-  const chapters = `${deOf(progress.capitulosLidos, progress.totalCapitulos)} capítulos`
+  const chapters = tx(lang, 'chapters', { text: deOf(progress.capitulosLidos, progress.totalCapitulos, lang) })
   return {
-    percent: formatPct(progress.percent),
+    percent: formatPct(progress.percent, lang),
     chapters,
-    line: `${formatInt(l)} ${l === 1 ? 'livro completo' : 'livros completos'} · ${b} ${b === 1 ? 'bloco começado' : 'blocos começados'}`,
-    aria: `Sua Bíblia, ${formatPct(progress.percent)} lida, ${chapters}`,
+    line: `${txN(lang, 'booksDone', l, { n: formatInt(l, lang) })} · ${txN(lang, 'blocksStarted', b)}`,
+    aria: tx(lang, 'bibleAria', { pct: formatPct(progress.percent, lang), chapters }),
   }
 }
 
@@ -81,25 +101,25 @@ export function blockBarSegments(progress) {
 }
 
 // "0 de 5 livros" · "1 de 12 livros" no cabeçalho de um bloco.
-export function blockBooksCount(blockProgress) {
-  return `${blockProgress.livrosCompletos} de ${blockProgress.livrosTotal} livros`
+export function blockBooksCount(blockProgress, lang = 'pt') {
+  return tx(lang, 'blockBooks', { done: blockProgress.livrosCompletos, total: blockProgress.livrosTotal })
 }
 
-function chaptersWord(n) {
-  return n === 1 ? '1 capítulo' : `${formatInt(n)} capítulos`
+function chaptersWord(n, lang = 'pt') {
+  return txN(lang, 'chapterWord', n, { n: formatInt(n, lang) })
 }
 
 // A pastilha de um livro: o estado (o mesmo do selo), a linha de apoio e
 // o rótulo de leitor de tela ("Gênesis, 40 de 50 capítulos").
-export function bookTile(nome, p) {
+export function bookTile(nome, p, lang = 'pt', display = nome) {
   const state = sealState(p.lidos, p.total)
   const support = state === 'completo'
-    ? `${chaptersWord(p.total)} · completo`
-    : state === 'andamento' ? deOf(p.lidos, p.total) : chaptersWord(p.total)
+    ? tx(lang, 'tileComplete', { chapters: chaptersWord(p.total, lang) })
+    : state === 'andamento' ? deOf(p.lidos, p.total, lang) : chaptersWord(p.total, lang)
   return {
     state, support,
     ratio: p.total ? p.lidos / p.total : 0,
-    aria: `${nome}, ${deOf(p.lidos, p.total)} ${p.total === 1 ? 'capítulo' : 'capítulos'}`,
+    aria: txN(lang, 'tileAria', p.total, { name: display, text: deOf(p.lidos, p.total, lang) }),
   }
 }
 
@@ -117,13 +137,13 @@ export function readingSessionToday({ routineModules, stepDays, todayIdx, dayEnt
 // O cartão preto "continuar": a sessão de hoje (botão "Ler") e a leitura
 // livre (linha). Sem sessão, a leitura livre ocupa o cartão; sem as duas,
 // não há cartão (null). O versículo só entra quando é conhecido.
-export function continueCard({ sessionTitle, free }) {
+export function continueCard({ sessionTitle, free, lang = 'pt', bookLabel = b => b }) {
   const freeLine = free?.book && free?.chapter
-    ? { passage: `${free.book} ${free.chapter}`, verse: free.verse > 1 ? free.verse : null }
+    ? { passage: `${bookLabel(free.book)} ${free.chapter}`, verse: free.verse > 1 ? free.verse : null }
     : null
   if (!sessionTitle && !freeLine) return null
   return {
-    label: sessionTitle ? 'SESSÃO DE HOJE · CONTA NO PLANO' : 'CONTINUAR A LEITURA LIVRE',
+    label: tx(lang, sessionTitle ? 'sessionToday' : 'continueFree'),
     sessionTitle: sessionTitle || null,
     free: freeLine,
   }
@@ -132,19 +152,19 @@ export function continueCard({ sessionTitle, free }) {
 // ── B2: o livro (HANDOFF §3) ────────────────────────────────────────────
 
 // "Lei · livro 1 de 66"
-export function bookHeaderSub(nome) {
+export function bookHeaderSub(nome, lang = 'pt') {
   const info = bookInfo(nome)
-  return `${blockById(info.blocoId).nome} · livro ${info.posicao} de ${BIBLE_BOOKS_TOTAL}`
+  return tx(lang, 'bookHeader', { block: blockName(info.blocoId, lang), n: info.posicao, total: BIBLE_BOOKS_TOTAL })
 }
 
 // A frase ao lado do selo: "Faltam 10 capítulos para o selo" · "Falta 1
 // capítulo para o selo" · "50 capítulos para o selo" (nada lido) · "Selo
 // ganho em 14 de setembro" (completo; sem a data conhecida, "Selo ganho").
 // `seal` é a entrada do livro na linha gravada ({ completedAt, dateKnown }).
-export function bookSealLine(p, seal) {
-  if (p.completo) return seal?.completedAt && seal.dateKnown !== false ? `Selo ganho em ${dayMonthLong(seal.completedAt)}` : 'Selo ganho'
-  if (p.lidos === 0) return `${chaptersWord(p.total)} para o selo`
-  return p.faltam === 1 ? 'Falta 1 capítulo para o selo' : `Faltam ${formatInt(p.faltam)} capítulos para o selo`
+export function bookSealLine(p, seal, lang = 'pt') {
+  if (p.completo) return seal?.completedAt && seal.dateKnown !== false ? tx(lang, 'sealEarnedOn', { date: dayMonthLong(seal.completedAt, lang) }) : tx(lang, 'sealEarned')
+  if (p.lidos === 0) return tx(lang, 'forTheSeal', { chapters: chaptersWord(p.total, lang) })
+  return txN(lang, 'sealLeft', p.faltam, { n: formatInt(p.faltam, lang) })
 }
 
 // Data do primeiro capítulo lido do livro (o registro mais antigo em
@@ -163,16 +183,16 @@ export function countBookMarks(nome, highlights) {
 // Os três números do livro. Cada um só aparece quando existe de verdade:
 // tempo de leitura (zero = nada registrado, some), dias desde o primeiro
 // capítulo (sem data registrada, some) e notas + marcações (sempre).
-export function bookNumbers({ nome, sessionRows, chapterRows, notes, highlights, today = new Date() }) {
+export function bookNumbers({ nome, sessionRows, chapterRows, notes, highlights, today = new Date(), lang = 'pt' }) {
   const out = []
   const seconds = readingSecondsOf(nome, sessionRows)
-  if (seconds > 0) out.push({ key: 'time', value: formatDuration(seconds), caption: 'de leitura' })
+  if (seconds > 0) out.push({ key: 'time', value: formatDuration(seconds), caption: tx(lang, 'ofReading') })
   const first = firstChapterIso(nome, chapterRows)
   if (first) {
     const days = Math.max(1, Math.round((parseLocalDateKey(dateKey(today)) - parseLocalDateKey(dateKey(new Date(first)))) / 86400000))
-    out.push({ key: 'days', value: `${formatInt(days)} ${days === 1 ? 'dia' : 'dias'}`, caption: 'desde o primeiro' })
+    out.push({ key: 'days', value: txN(lang, 'days', days, { n: formatInt(days, lang) }), caption: tx(lang, 'sinceFirst') })
   }
-  out.push({ key: 'notes', value: formatInt(countBookNotes(nome, notes) + countBookMarks(nome, highlights)), caption: 'notas e marcações' })
+  out.push({ key: 'notes', value: formatInt(countBookNotes(nome, notes) + countBookMarks(nome, highlights), lang), caption: tx(lang, 'notesAndMarks') })
   return out
 }
 
@@ -189,34 +209,34 @@ export function chapterCells(nome, total, completedSet, originMap) {
   })
 }
 
-const CELL_WORDS = { app: 'lido no app', manual: 'marcado à mão', next: 'próximo', none: 'não lido' }
-export function chapterCellAria(cell) {
-  return `Capítulo ${cell.ch}, ${CELL_WORDS[cell.state]}`
+const CELL_KEYS = { app: 'cellApp', manual: 'cellManual', next: 'cellNext', none: 'cellNone' }
+export function chapterCellAria(cell, lang = 'pt') {
+  return tx(lang, 'cellAria', { ch: cell.ch, state: tx(lang, CELL_KEYS[cell.state]) })
 }
 
 // A legenda: só os estados que existem na grade, nesta ordem.
-export function chapterLegend(cells) {
-  return ['app', 'manual', 'next'].filter(st => cells.some(c => c.state === st)).map(st => ({ state: st, label: CELL_WORDS[st] }))
+export function chapterLegend(cells, lang = 'pt') {
+  return ['app', 'manual', 'next'].filter(st => cells.some(c => c.state === st)).map(st => ({ state: st, label: tx(lang, CELL_KEYS[st]) }))
 }
 
 // O botão fixo do rodapé: "Abrir Gênesis 41" (o próximo não lido) ·
 // "Começar Gênesis" (nada lido) · "Ler Gênesis de novo" (completo, abre o
 // capítulo 1).
-export function bookFooterButton(nome, p, completedSet) {
-  if (p.completo) return { label: `Ler ${nome} de novo`, chapter: 1 }
-  if (p.lidos === 0) return { label: `Começar ${nome}`, chapter: 1 }
+export function bookFooterButton(nome, p, completedSet, lang = 'pt', display = nome) {
+  if (p.completo) return { label: tx(lang, 'readAgain', { book: display }), chapter: 1 }
+  if (p.lidos === 0) return { label: tx(lang, 'startBook', { book: display }), chapter: 1 }
   const next = nextUnreadChapter(nome, p.total, completedSet)
-  return { label: `Abrir ${nome} ${next}`, chapter: next }
+  return { label: tx(lang, 'openBook', { book: display, ch: next }), chapter: next }
 }
 
 // As duas linhas da lista de ações. Livro completo: a primeira vira
 // "Desmarcar o livro".
-export function bookActions(nome, p) {
+export function bookActions(nome, p, lang = 'pt', display = nome) {
   return [
     p.completo
-      ? { key: 'unmark', title: 'Desmarcar o livro', sub: p.total === 1 ? 'O capítulo volta a não lido' : `Os ${formatInt(p.total)} capítulos voltam a não lidos` }
-      : { key: 'mark', title: 'Marcar o livro inteiro como lido', sub: `Para quem já leu ${nome} antes do app` },
-    { key: 'plan', title: 'Começar meu plano aqui', sub: `Faz de ${nome} o ponto de partida` },
+      ? { key: 'unmark', title: tx(lang, 'unmarkBook'), sub: txN(lang, 'unmark', p.total, { n: formatInt(p.total, lang) }) }
+      : { key: 'mark', title: tx(lang, 'markBook'), sub: tx(lang, 'markBookSub', { book: display }) },
+    { key: 'plan', title: tx(lang, 'startPlanHere'), sub: tx(lang, 'startPlanHereSub', { book: display }) },
   ]
 }
 
@@ -226,23 +246,23 @@ export function bookActions(nome, p) {
 // "· leitura livre" só entra na leitura livre — e sai enquanto o cartão
 // de capítulo marcado (B4) está na tela, que já diz isso. Na leitura do
 // plano (S3), `step` ("Passo 2 de 3") vem na frente.
-export function readingThread(p, { free = false, step = '' } = {}) {
+export function readingThread(p, { free = false, step = '', lang = 'pt' } = {}) {
   return {
     ratio: p.total > 0 ? p.lidos / p.total : 0,
-    text: `${step ? `${step} · ` : ''}${deOf(p.lidos, p.total)} ${p.lidos === 1 ? 'lido' : 'lidos'}${free ? ' · leitura livre' : ''}`,
+    text: `${step ? `${step} · ` : ''}${deOf(p.lidos, p.total, lang)} ${tx(lang, p.lidos === 1 ? 'readOne' : 'readMany')}${free ? ` · ${tx(lang, 'freeReading')}` : ''}`,
   }
 }
 
 // Rótulo do capítulo em cima do texto: "Salmo 23" no livro de Salmos,
 // "Capítulo 3" nos outros (vira maiúscula por CSS).
 export function chapterLabel(nome, chapter, lang = 'pt') {
-  const word = nome === 'Salmos' ? (lang === 'en' ? 'Psalm' : 'Salmo') : (lang === 'en' ? 'Chapter' : 'Capítulo')
+  const word = tx(lang, nome === 'Salmos' ? 'psalm' : 'chapter')
   return `${word} ${chapter}`
 }
 
 // O botão da barra inferior da leitura livre.
-export function markButton(done) {
-  return done ? { done: true, label: 'Lido · desmarcar' } : { done: false, label: 'Marcar como lido' }
+export function markButton(done, lang = 'pt') {
+  return done ? { done: true, label: tx(lang, 'readUnmark') } : { done: false, label: tx(lang, 'markRead') }
 }
 
 // O versículo que está no topo da área de leitura — `items` são os
@@ -262,28 +282,28 @@ export function nextLeituraStep(lidos) {
   return d ? { nome: d.nome, faltam: d.limiar - lidos } : null
 }
 
-const faltamValue = k => (k === 1 ? 'falta 1' : `faltam ${formatInt(k)}`)
+const faltamValue = (k, lang) => (k === 1 ? tx(lang, 'leftOne') : tx(lang, 'leftN', { n: formatInt(k, lang) }))
 
 // O cartão que entra no lugar da barra quando o capítulo é marcado.
 // `progress` já é o de DEPOIS da marcação. O terceiro número aponta o
 // próximo degrau de Leitura — ou o selo do livro, quando faltam 3
 // capítulos ou menos pra ele. No último capítulo não há "Seguir para".
-export function markedCard({ nome, displayName = nome, chapter, progress }) {
+export function markedCard({ nome, displayName = nome, chapter, progress, lang = 'pt' }) {
   const p = progress.porLivro[nome]
   const numbers = [
-    { value: deOf(p.lidos, p.total), caption: `em ${displayName}` },
-    { value: formatInt(progress.capitulosLidos), caption: progress.capitulosLidos === 1 ? 'capítulo na Bíblia' : 'capítulos na Bíblia' },
+    { value: deOf(p.lidos, p.total, lang), caption: tx(lang, 'inBook', { book: displayName }) },
+    { value: formatInt(progress.capitulosLidos, lang), caption: tx(lang, progress.capitulosLidos === 1 ? 'chapterInBibleOne' : 'chapterInBibleMany') },
   ]
-  const seal = p.faltam > 0 ? { value: faltamValue(p.faltam), caption: `para o selo de ${displayName}` } : null
+  const seal = p.faltam > 0 ? { value: faltamValue(p.faltam, lang), caption: tx(lang, 'forSealOf', { book: displayName }) } : null
   const step = nextLeituraStep(progress.capitulosLidos)
-  const third = seal && p.faltam <= 3 ? seal : step ? { value: faltamValue(step.faltam), caption: `para "${step.nome}"` } : seal
+  const third = seal && p.faltam <= 3 ? seal : step ? { value: faltamValue(step.faltam, lang), caption: tx(lang, 'forStep', { name: step.nome }) } : seal
   if (third) numbers.push(third)
-  const title = `${displayName} ${chapter} lido`
+  const title = tx(lang, 'chapterRead', { book: displayName, ch: chapter })
   return {
     title,
-    sub: 'Leitura livre · não mexe no seu plano',
+    sub: tx(lang, 'freeSub'),
     numbers,
-    next: chapter < p.total ? { chapter: chapter + 1, label: `Seguir para ${displayName} ${chapter + 1}` } : null,
+    next: chapter < p.total ? { chapter: chapter + 1, label: tx(lang, 'goTo', { book: displayName, ch: chapter + 1 }) } : null,
     aria: `${title}. ${numbers.map(n => `${n.value} ${n.caption}`).join(', ')}.`,
   }
 }

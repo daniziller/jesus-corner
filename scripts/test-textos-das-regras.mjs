@@ -12,7 +12,7 @@ function check(label, actual, expected) {
   console.log(`${ok ? 'OK    ' : 'FALHOU'} ${label}${ok ? '' : ` — esperado ${JSON.stringify(expected)}, veio ${JSON.stringify(actual)}`}`)
 }
 
-const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx' }
+const FILES = { 'src/hoje/hojeMath.js': 'hojeTx', 'src/meuPlano/meuPlanoMath.js': 'planoTx', 'src/meuPlano/seuPlanoMath.js': 'planoTx', 'src/meuPlano/ajustarMath.js': 'planoTx', 'src/biblia/bibliaMath.js': 'bibliaTx', 'src/busca/buscaMath.js': 'buscaTx', 'src/busca/palavra.js': 'buscaTx' }
 for (const [file, ns] of Object.entries(FILES)) {
   const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
   const used = new Set()

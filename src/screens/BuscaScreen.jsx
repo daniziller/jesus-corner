@@ -35,9 +35,9 @@ import { getSelectedVersionId } from '../bible-text/bibleVersionSelection'
 import { computeBibleProgress } from '../gamification/bibleProgressMath'
 import { NAMED_PASSAGES } from '../data/passagensComNome'
 import { interpretReference, formatReference, openReferenceLabel, referencePreview, referenceKind, wholeChapterRow, bookDisplayName } from '../busca/referencia'
-import { SEARCH_HINT, TYPE_FILTERS, REFERENCE_EXAMPLES, whereYouWere, passageReference, passageStart, featuredPassages } from '../busca/buscaMath'
+import { typeFilters as typeFilterList, REFERENCE_EXAMPLES, whereYouWere, passageReference, passageStart, featuredPassages } from '../busca/buscaMath'
 import {
-  VERSES_PREVIEW, VERSES_PAGE, TESTAMENT_FILTERS, buildMatcher, highlightSegments, searchVerses, searchBooks, searchPassages, searchThemes, searchNotes,
+  VERSES_PREVIEW, VERSES_PAGE, testamentFilters, buildMatcher, highlightSegments, searchVerses, searchBooks, searchPassages, searchThemes, searchNotes,
   searchCounts, filterPills, effectiveFilter, versesLabel, seeAllVersesLabel, themeRecentSub, emptyMessage,
 } from '../busca/palavra'
 import { getRecentSearches, rememberSearch, clearRecentSearches } from '../busca/recentSearchesStore'
@@ -82,6 +82,7 @@ export default function BuscaScreen({
   onBack, onOpenChapter, onOpenBook, onOpenTheme, onReadSession, onOpenFree,
 }) {
   const { lang } = session
+  const K = (k, vars) => t(`buscaTx.${k}`, vars, lang)
   const email = authUser?.email
   const versionId = getSelectedVersionId(lang)
   const [query, setQuery] = useState(initialQuery ?? '')
@@ -181,31 +182,31 @@ export default function BuscaScreen({
     onOpenChapter(target.book, target.chapter, target.verse ?? undefined)
   }
   function openBook(row) {
-    remember({ text: row.title, sub: 'Livro' })
+    remember({ text: row.title, sub: K('book') })
     onOpenBook(row.book)
   }
   // `searched`: veio de um resultado (entra nas buscas recentes); as
   // "mais procuradas" da tela vazia não são busca.
   function openPassage(p, searched = false) {
     const start = passageStart(p)
-    if (searched) remember({ text: term, sub: 'Passagem' })
+    if (searched) remember({ text: term, sub: K('passage') })
     onOpenChapter(start.book, start.chapter, start.verse ?? undefined)
   }
   function openVerse(e) {
-    remember({ text: term, sub: versesLabel(found.verses.length) })
+    remember({ text: term, sub: versesLabel(found.verses.length, lang) })
     onOpenChapter(e.book, e.chapter, e.verse)
   }
   function seeAllVerses() {
-    remember({ text: term, sub: versesLabel(found.verses.length) })
+    remember({ text: term, sub: versesLabel(found.verses.length, lang) })
     setFilter('verses')
   }
   function openTheme(theme) {
-    remember({ text: term, sub: themeRecentSub(theme.count) })
+    remember({ text: term, sub: themeRecentSub(theme.count, lang) })
     onOpenTheme(theme.id, query)
   }
   // Nota de versículo: a leitura abre no versículo, com a nota aberta.
   function openNote(note) {
-    remember({ text: term, sub: 'Nota' })
+    remember({ text: term, sub: K('note') })
     onOpenChapter(note.book, note.chapter, note.verse ?? undefined, note.noteId ? { noteId: note.noteId } : undefined)
   }
 
@@ -213,7 +214,7 @@ export default function BuscaScreen({
   // que têm resultado, com a contagem (B6).
   function typeFilters(pills, active) {
     return (
-      <div style={s.filters} role="group" aria-label="Tipo de resultado">
+      <div style={s.filters} role="group" aria-label={K('resultType')}>
         {pills.map(f => (
           <button key={f.id} type="button" className="busca-filtro" style={{ ...s.filter, ...(active === f.id ? s.filterOn : null) }} aria-pressed={active === f.id} onClick={() => setFilter(f.id)}>
             {f.label}
@@ -225,27 +226,27 @@ export default function BuscaScreen({
   }
   const countAt = n => <span style={s.count}>{n}</span>
   const empty = nothing || (anyResult && counts.all === 0)
-    ? emptyMessage(query, findBibleVersion(versionId)?.short ?? '', anyResult ? testament : 'all')
+    ? emptyMessage(query, findBibleVersion(versionId)?.short ?? '', anyResult ? testament : 'all', lang)
     : null
 
-  const where = whereYouWere({ sessionTitle, free: free ? { ...free, book: bookDisplayName(free.book, lang) } : null })
+  const where = whereYouWere({ sessionTitle, free: free ? { ...free, book: bookDisplayName(free.book, lang) } : null, lang })
   const featured = featuredPassages(NAMED_PASSAGES)
 
   return (
     <div style={s.screen}>
       <CabecalhoDeBusca
         value={query} onChange={setQuery} onClear={() => fill('')} inputRef={inputRef}
-        onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)} placeholder={SEARCH_HINT} label="Buscar na Bíblia"
+        onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)} placeholder={t('bibliaTx.searchHint', undefined, lang)} label={t('bibliaTx.searchBible', undefined, lang)}
       />
 
       <div style={s.body}>
         {idle ? (
           <>
-            {typeFilters(TYPE_FILTERS, filter)}
+            {typeFilters(typeFilterList(lang), filter)}
 
             <div style={s.direct}>
-              <p style={s.directLabel}>IR DIRETO A UM TEXTO</p>
-              <p style={s.directText}>Escreva a referência do jeito que lembrar — com abreviação, sem acento, sem dois-pontos.</p>
+              <p style={s.directLabel}>{K('goDirect')}</p>
+              <p style={s.directText}>{K('goDirectText')}</p>
               <div style={s.examples}>
                 {REFERENCE_EXAMPLES.map(example => (
                   <button key={example} type="button" className="busca-exemplo" style={s.example} onClick={() => fill(example)}>{example}</button>
@@ -255,7 +256,7 @@ export default function BuscaScreen({
 
             {where.length > 0 && (
               <>
-                <GrupoRotulo>ONDE VOCÊ ESTAVA</GrupoRotulo>
+                <GrupoRotulo>{K('whereYouWere')}</GrupoRotulo>
                 <ListaCartao>
                   {where.map((row, i) => (
                     <ListaLinha key={row.key} title={row.title} sub={row.sub} last={i === where.length - 1} onClick={row.key === 'session' ? onReadSession : onOpenFree} />
@@ -266,7 +267,7 @@ export default function BuscaScreen({
 
             {recents.length > 0 && (
               <>
-                <GrupoRotulo right={<button type="button" className="busca-limpar" style={s.clearRecents} onClick={() => setRecents(clearRecentSearches())}>Limpar</button>}>BUSCAS RECENTES</GrupoRotulo>
+                <GrupoRotulo right={<button type="button" className="busca-limpar" style={s.clearRecents} onClick={() => setRecents(clearRecentSearches())}>{K('clear')}</button>}>{K('recent')}</GrupoRotulo>
                 <ListaCartao>
                   {recents.map((r, i) => (
                     <ListaLinha key={r.text} icon="Clock" title={r.text} sub={r.sub} last={i === recents.length - 1} onClick={() => fill(r.text)} />
@@ -277,7 +278,7 @@ export default function BuscaScreen({
 
             {featured.length > 0 && (
               <>
-                <GrupoRotulo>PASSAGENS MAIS PROCURADAS</GrupoRotulo>
+                <GrupoRotulo>{K('popular')}</GrupoRotulo>
                 <ListaCartao>
                   {featured.map((p, i) => (
                     <ListaLinha key={p.nome} title={p.nome} sub={passageReference(p, lang)} last={i === featured.length - 1} onClick={() => openPassage(p)} />
@@ -290,7 +291,7 @@ export default function BuscaScreen({
           <>
             {primary && (
               <div style={s.go}>
-                <p style={s.goLabel}>IR DIRETO</p>
+                <p style={s.goLabel}>{K('go')}</p>
                 <p style={s.goTitle}>{formatReference(primary, lang)}</p>
                 {textOf(primary)?.status === 'ready' && <p style={s.goText}>{textOf(primary).text}</p>}
                 {!textOf(primary) && <span className="rb-context-skeleton" style={s.goSkeleton} />}
@@ -303,7 +304,7 @@ export default function BuscaScreen({
 
             {readings.length > 1 && (
               <>
-                <GrupoRotulo>TAMBÉM PODE SER</GrupoRotulo>
+                <GrupoRotulo>{K('couldBe')}</GrupoRotulo>
                 <ListaCartao>
                   {readings.slice(1).map((r, i, list) => (
                     <ListaLinha key={readingKey(r)} title={formatReference(r, lang)} sub={textOf(r)?.text} clamp last={i === list.length - 1} onClick={() => openReading(r)} />
@@ -314,18 +315,18 @@ export default function BuscaScreen({
 
             {chapterRow && (
               <>
-                <GrupoRotulo>O CAPÍTULO INTEIRO</GrupoRotulo>
+                <GrupoRotulo>{K('wholeChapter')}</GrupoRotulo>
                 <ListaCartao>
                   <ListaLinha title={chapterRow.title} sub={chapterRow.sub} last onClick={() => openReading(primary, { whole: true })} />
                 </ListaCartao>
               </>
             )}
 
-            {(anyResult || nothing) && typeFilters(nothing ? TYPE_FILTERS : filterPills(counts), nothing ? filter : shown)}
+            {(anyResult || nothing) && typeFilters(nothing ? typeFilterList(lang) : filterPills(counts, lang), nothing ? filter : shown)}
 
             {anyResult && (
-              <div style={s.testaments} role="group" aria-label="Testamento">
-                {TESTAMENT_FILTERS.map(f => (
+              <div style={s.testaments} role="group" aria-label={K('testament')}>
+                {testamentFilters(lang).map(f => (
                   <button key={f.id} type="button" className="busca-testamento" style={{ ...s.testament, ...(testament === f.id ? s.testamentOn : null) }} aria-pressed={testament === f.id} onClick={() => setTestament(f.id)}>
                     {f.label}
                   </button>
@@ -342,7 +343,7 @@ export default function BuscaScreen({
 
             {show('books') && found.books.length > 0 && (
               <>
-                <GrupoRotulo right={countAt(found.books.length)}>LIVROS</GrupoRotulo>
+                <GrupoRotulo right={countAt(found.books.length)}>{K('booksLabel')}</GrupoRotulo>
                 <ListaCartao>
                   {found.books.map((row, i) => (
                     <ListaLinha key={row.book} title={row.title} sub={row.sub} last={i === found.books.length - 1} onClick={() => openBook(row)} />
@@ -353,7 +354,7 @@ export default function BuscaScreen({
 
             {show('passages') && found.passages.length > 0 && (
               <>
-                <GrupoRotulo right={countAt(found.passages.length)}>PASSAGENS</GrupoRotulo>
+                <GrupoRotulo right={countAt(found.passages.length)}>{K('passagesLabel')}</GrupoRotulo>
                 <ListaCartao>
                   {found.passages.map((row, i) => (
                     <ListaLinha key={row.title} title={row.title} sub={row.sub} last={i === found.passages.length - 1} onClick={() => openPassage(row.passage, true)} />
@@ -364,7 +365,7 @@ export default function BuscaScreen({
 
             {show('verses') && loadingVerses && (
               <>
-                <GrupoRotulo>VERSÍCULOS</GrupoRotulo>
+                <GrupoRotulo>{K('versesLabel')}</GrupoRotulo>
                 <div style={s.verses}>
                   {[0, 1, 2].map(i => <span key={i} className="rb-context-skeleton" style={s.verseSkeleton} />)}
                 </div>
@@ -373,7 +374,7 @@ export default function BuscaScreen({
 
             {show('verses') && found.verses.length > 0 && (
               <>
-                <GrupoRotulo right={countAt(found.verses.length)}>VERSÍCULOS</GrupoRotulo>
+                <GrupoRotulo right={countAt(found.verses.length)}>{K('versesLabel')}</GrupoRotulo>
                 <div style={{ ...s.verses, paddingBottom: shown === 'all' && found.verses.length > VERSES_PREVIEW ? 0 : 4 }}>
                   {verses.map((e, i) => (
                     <button key={`${e.book}:${e.chapter}:${e.verse}`} type="button" style={{ ...s.verse, borderBottom: i === verses.length - 1 ? 'none' : '1px solid var(--bento-line)' }} onClick={() => openVerse(e)}>
@@ -385,7 +386,7 @@ export default function BuscaScreen({
                   ))}
                   {shown === 'all' && found.verses.length > VERSES_PREVIEW && (
                     <button type="button" style={s.seeAll} onClick={seeAllVerses}>
-                      {seeAllVersesLabel(found.verses.length)}
+                      {seeAllVersesLabel(found.verses.length, lang)}
                       <AppIcon name="ArrowRight" size={16} strokeWidth={1.8} absoluteStrokeWidth color="var(--bento-accent)" />
                     </button>
                   )}
@@ -396,7 +397,7 @@ export default function BuscaScreen({
 
             {show('themes') && found.themes.length > 0 && (
               <>
-                <GrupoRotulo right={countAt(found.themes.length)}>TEMAS</GrupoRotulo>
+                <GrupoRotulo right={countAt(found.themes.length)}>{K('themesLabel')}</GrupoRotulo>
                 <button type="button" style={s.theme} onClick={() => openTheme(found.themes[0])}>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={s.themeTitle}>{found.themes[0].title}</span>
@@ -416,7 +417,7 @@ export default function BuscaScreen({
 
             {show('notes') && found.notes.length > 0 && (
               <>
-                <GrupoRotulo right={countAt(found.notes.length)}>NAS SUAS NOTAS</GrupoRotulo>
+                <GrupoRotulo right={countAt(found.notes.length)}>{K('inNotes')}</GrupoRotulo>
                 <ListaCartao>
                   {found.notes.map((note, i) => (
                     <ListaLinha key={note.key} title={note.title} sub={note.sub} clamp last={i === found.notes.length - 1} onClick={() => openNote(note)} />

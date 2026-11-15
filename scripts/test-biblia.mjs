@@ -179,5 +179,16 @@ check('bloco fecha com livro que já tinha selo: ainda parabéns (o bloco é nov
 check('bloco e livro já ganhos: cartão', markOutcome({ nome: 'Deuteronômio', chapter: 34, completedSet: quaseLei, sealedBooks: new Set(['Deuteronômio']), earnedIds: new Set(['bloco:lei']) }), 'card')
 check('capítulo que já estava lido: cartão (nada novo)', markOutcome({ nome: 'Salmos', chapter: 1, completedSet: antes }), 'card')
 
+// ── Em inglês ───────────────────────────────────────────────────────────
+{
+  const pr = computeBibleProgress(new Set(['Gênesis:1', 'Gênesis:2']))
+  const p = pr.porLivro['Gênesis']
+  check('inglês: cartões, pastilha, selo, botão e cartão marcado', [
+    testamentTexts(testamentProgress(pr, 'at'), 'en').chapters, progressCardTexts(pr, 'en').line, bookTile('Gênesis', p, 'en', 'Genesis').aria,
+    bookSealLine(p, null, 'en'), bookFooterButton('Gênesis', p, new Set(['Gênesis:1', 'Gênesis:2']), 'en', 'Genesis').label, markButton(false, 'en').label,
+    markedCard({ nome: 'Gênesis', displayName: 'Genesis', chapter: 2, progress: pr, lang: 'en' }).title, bookHeaderSub('Gênesis', 'en'),
+  ], ['2 of 929 chapters read', '0 books complete · 1 section started', 'Genesis, 2 of 50 chapters', '48 chapters left for the seal', 'Open Genesis 3', 'Mark as read', 'Genesis 2 read', 'Law · book 1 of 66'])
+}
+
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes da aba Bíblia (parte pura) passaram.')

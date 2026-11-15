@@ -17,14 +17,15 @@
 // `sessionTitle`: undefined enquanto os dias do plano carregam (o cartão
 // preto fica em esqueleto), null sem sessão hoje, ou o trecho.
 import { useMemo, useState } from 'react'
-import { SEARCH_HINT } from '../../busca/buscaMath'
+import { bookNameFor } from '../../utils/progress'
+import { t } from '../../i18n'
 import AppIcon from '../../icons/AppIcon'
 import BibleVersionChip from '../bible/BibleVersionChip'
 import { blockColorVar, blockToneVar } from '../../data/gamificationBlocks'
 import { computeBibleProgress } from '../../gamification/bibleProgressMath'
 import { getTestamentChoice, setTestamentChoice } from '../../bible/testamentChoiceStore'
 import {
-  TESTAMENTS, blocksOfTestament, initialTestament, testamentProgress, testamentTexts,
+  testaments, blockName, blocksOfTestament, initialTestament, testamentProgress, testamentTexts,
   progressCardTexts, blockBarSegments, blockBooksCount, bookTile, continueCard,
 } from '../../biblia/bibliaMath'
 
@@ -45,30 +46,32 @@ export default function BibliaRaiz({
     setTestamentChoice(id)
   }
 
-  const card = useMemo(() => progressCardTexts(progress), [progress])
+  const B = (k, vars) => t(`bibliaTx.${k}`, vars, lang)
+  const TESTAMENTS = testaments(lang)
+  const card = useMemo(() => progressCardTexts(progress, lang), [progress, lang])
   const segments = useMemo(() => blockBarSegments(progress), [progress])
   // As 66 pastilhas, montadas uma vez por mudança de progresso — a troca
   // de testamento só escolhe qual metade mostrar.
   const blocksByTestament = useMemo(() => Object.fromEntries(TESTAMENTS.map(t => [t.id, blocksOfTestament(t.id).map(block => ({
     block,
     bp: progress.porBloco.find(b => b.id === block.id),
-    books: block.livros.map(l => ({ nome: l.nome, ...bookTile(l.nome, progress.porLivro[l.nome]) })),
-  }))])), [progress])
+    books: block.livros.map(l => ({ nome: l.nome, label: bookNameFor(l.nome, lang), ...bookTile(l.nome, progress.porLivro[l.nome], lang, bookNameFor(l.nome, lang)) })),
+  }))])), [progress, lang]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadingContinue = sessionTitle === undefined
-  const cont = loadingContinue ? null : continueCard({ sessionTitle, free })
+  const cont = loadingContinue ? null : continueCard({ sessionTitle, free, lang, bookLabel: b => bookNameFor(b, lang) })
 
   return (
     <div style={s.screen}>
       <div style={s.header}>
-        <p style={s.title}>Bíblia</p>
+        <p style={s.title}>{B('title')}</p>
         <BibleVersionChip lang={lang} versionId={versionId} onChange={onChangeVersion} />
       </div>
 
       <div style={s.body}>
         <button type="button" style={s.search} onClick={onOpenSearch}>
           <AppIcon name="Search" size={17} strokeWidth={2} color="var(--bento-ink)" style={{ flexShrink: 0 }} />
-          <span style={s.searchText}>{SEARCH_HINT}</span>
+          <span style={s.searchText}>{B('searchHint')}</span>
         </button>
 
         <div style={s.progressCard} role="button" tabIndex={0} aria-label={card.aria} onClick={onOpenSuaBiblia} onKeyDown={activate(onOpenSuaBiblia)}>
@@ -98,7 +101,7 @@ export default function BibliaRaiz({
                   <p style={s.sessionTitle}>{cont.sessionTitle}</p>
                 </div>
                 <button type="button" style={s.readBtn} onClick={onRead}>
-                  Ler
+                  {B('read')}
                   <AppIcon name="ArrowRight" size={16} strokeWidth={2.2} color="var(--bento-ink)" />
                 </button>
               </div>
@@ -107,7 +110,7 @@ export default function BibliaRaiz({
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ ...s.continueLabel, display: 'block' }}>{cont.label}</span>
                   <span style={{ ...s.sessionTitle, display: 'block' }}>{cont.free.passage}</span>
-                  {cont.free.verse && <span style={s.freeAloneVerse}>versículo {cont.free.verse}</span>}
+                  {cont.free.verse && <span style={s.freeAloneVerse}>{B('verseN', { n: cont.free.verse })}</span>}
                 </span>
                 <AppIcon name="ChevronRight" size={14} strokeWidth={2.2} color="rgba(255,255,255,.5)" />
               </button>
@@ -115,7 +118,7 @@ export default function BibliaRaiz({
             {cont.sessionTitle && cont.free && (
               <button type="button" style={s.freeRow} onClick={onOpenFree}>
                 <span style={s.freeText}>
-                  Leitura livre · <strong style={s.freeStrong}>{cont.free.passage}</strong>{cont.free.verse ? `, versículo ${cont.free.verse}` : ''}
+                  {B('freeReadingLabel')} · <strong style={s.freeStrong}>{cont.free.passage}</strong>{cont.free.verse ? `, ${B('verseN', { n: cont.free.verse })}` : ''}
                 </span>
                 <AppIcon name="ChevronRight" size={14} strokeWidth={2.2} color="rgba(255,255,255,.5)" />
               </button>
@@ -123,21 +126,21 @@ export default function BibliaRaiz({
           </div>
         )}
 
-        <div style={s.testaments} role="tablist" aria-label="Testamento">
+        <div style={s.testaments} role="tablist" aria-label={B('testament')}>
           {TESTAMENTS.map(t => {
             const on = t.id === testament
-            const tx = testamentTexts(testamentProgress(progress, t.id))
+            const tx = testamentTexts(testamentProgress(progress, t.id), lang)
             const tp = testamentProgress(progress, t.id)
             return (
               <button
                 key={t.id} type="button" role="tab" aria-selected={on} aria-controls="biblia-livros"
-                aria-label={`${t.nome}, ${tx.percent} lido, ${tx.chapters}, ${tx.remaining}`}
+                aria-label={B('testamentAria', { name: t.nome, pct: tx.percent, chapters: tx.chapters, remaining: tx.remaining })}
                 style={{ ...s.testament, background: on ? 'var(--bento-ink)' : 'var(--bento-card)' }}
                 onClick={() => selectTestament(t.id)}
               >
                 <span style={{ ...s.testamentName, color: on ? '#fff' : 'var(--bento-ink)' }}>{t.linhas[0]}<br />{t.linhas[1]}</span>
                 <span style={{ ...s.testamentPct, color: on ? 'var(--bento-accent)' : 'var(--bento-ink)' }}>
-                  {tx.percent} <span style={s.testamentPctWord}>lido</span>
+                  {tx.percent} <span style={s.testamentPctWord}>{B('readWord')}</span>
                 </span>
                 <span style={{ ...s.testamentTrack, background: on ? 'rgba(255,255,255,.14)' : 'var(--bento-line)' }}>
                   {tp.lidos > 0 && <span style={{ ...s.testamentFill, width: `${tp.percent}%` }} />}
@@ -154,8 +157,8 @@ export default function BibliaRaiz({
             <div key={block.id} style={s.block}>
               <div style={s.blockHead}>
                 <span style={{ ...s.blockSwatch, background: blockColorVar(block.id) }} />
-                <span style={s.blockName}>{block.nome}</span>
-                <span style={{ ...s.blockCount, color: bp.livrosCompletos > 0 ? 'var(--bento-ink)' : 'var(--bento-t5)' }}>{blockBooksCount(bp)}</span>
+                <span style={s.blockName}>{blockName(block.id, lang)}</span>
+                <span style={{ ...s.blockCount, color: bp.livrosCompletos > 0 ? 'var(--bento-ink)' : 'var(--bento-t5)' }}>{blockBooksCount(bp, lang)}</span>
               </div>
               <div style={{ ...s.blockTrack, background: blockToneVar(block.id) }}>
                 {bp.lidos > 0 && <div style={{ ...s.blockFill, width: `${(bp.lidos / bp.total) * 100}%`, background: blockColorVar(block.id) }} />}
@@ -185,7 +188,7 @@ function Pastilha({ book, blockId, onOpen }) {
     <button type="button" style={style} aria-label={book.aria} onClick={() => onOpen?.(book.nome)}>
       {going && <span aria-hidden="true" style={{ ...s.tileStrip, width: `${book.ratio * 100}%`, background: blockToneVar(blockId) }} />}
       <span style={s.tileNameRow}>
-        <span style={{ ...s.tileName, color: done ? '#fff' : 'var(--bento-ink)' }}>{book.nome}</span>
+        <span style={{ ...s.tileName, color: done ? '#fff' : 'var(--bento-ink)' }}>{book.label}</span>
         {done && <AppIcon name="Check" size={12} strokeWidth={1.7} absoluteStrokeWidth color="#fff" style={{ flexShrink: 0 }} />}
       </span>
       <span style={{ ...s.tileSupport, fontWeight: going ? 700 : 600, color: done ? 'rgba(255,255,255,.75)' : going ? cor : 'var(--bento-t3)' }}>{book.support}</span>

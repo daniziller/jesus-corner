@@ -4,9 +4,10 @@
 // node scripts/test-busca.mjs
 import { readFileSync } from 'node:fs'
 import { interpretReference, formatReference, openReferenceLabel, referencePreview, referenceKind, wholeChapterRow, bookDisplayName } from '../src/busca/referencia.js'
-import { SEARCH_HINT, TYPE_FILTERS, REFERENCE_EXAMPLES, whenPhrase, whereYouWere, addRecentSearch, passageReference, passageStart, featuredPassages, bookRow } from '../src/busca/buscaMath.js'
+import { STRINGS } from '../src/i18n/translations.js'
+import { typeFilters, REFERENCE_EXAMPLES, whenPhrase, whereYouWere, addRecentSearch, passageReference, passageStart, featuredPassages, bookRow } from '../src/busca/buscaMath.js'
 import { computeBibleProgress } from '../src/gamification/bibleProgressMath.js'
-import { MIN_QUERY_LENGTH, VERSES_PREVIEW, VERSES_PAGE, TESTAMENT_FILTERS, queryWords, buildMatcher, matchesText, highlightSegments, searchVerses, searchBooks, searchPassages, searchThemes, themeSub, searchNotes, searchCounts, filterPills, effectiveFilter, versesLabel, seeAllVersesLabel, themeRecentSub, emptyMessage } from '../src/busca/palavra.js'
+import { MIN_QUERY_LENGTH, VERSES_PREVIEW, VERSES_PAGE, testamentFilters, queryWords, buildMatcher, matchesText, highlightSegments, searchVerses, searchBooks, searchPassages, searchThemes, themeSub, searchNotes, searchCounts, filterPills, effectiveFilter, versesLabel, seeAllVersesLabel, themeRecentSub, emptyMessage } from '../src/busca/palavra.js'
 import { normalizeForSearch } from '../src/bible/searchNormalize.js'
 import { THEMES } from '../src/bible/themes.js'
 import { NAMED_PASSAGES } from '../src/data/passagensComNome.js'
@@ -89,8 +90,8 @@ check('"O capítulo inteiro": só quando há versículo', [wholeChapterRow(jo316
 check('nome do livro no idioma da conta', [bookDisplayName('João', 'en'), bookDisplayName('João'), formatReference(jo316, 'en'), openReferenceLabel(jo316, 'en')], ['John', 'João', 'John 3:16', 'Abrir John 3 no versículo 16'])
 
 // ── Textos fixos ────────────────────────────────────────────────────────
-check('texto de apoio do campo', SEARCH_HINT, 'Livro, referência, palavra ou tema')
-check('filtros de tipo, na ordem', TYPE_FILTERS.map(f => f.label), ['Tudo', 'Livros', 'Versículos', 'Passagens', 'Temas', 'Minhas notas'])
+check('texto de apoio do campo', [STRINGS.pt.bibliaTx.searchHint, STRINGS.en.bibliaTx.searchHint], ['Livro, referência, palavra ou tema', 'Book, reference, word or theme'])
+check('filtros de tipo, na ordem', typeFilters().map(f => f.label), ['Tudo', 'Livros', 'Versículos', 'Passagens', 'Temas', 'Minhas notas'])
 check('os quatro exemplos, e todos são referências que existem', [REFERENCE_EXAMPLES, REFERENCE_EXAMPLES.map(e => read(e)?.[0])], [['jo 3 16', 'Salmo 23', '1co 13', 'rm 8:28-39'], ['João 3:16', 'Salmos 23', '1 Coríntios 13', 'Romanos 8:28-39']])
 
 // ── Onde você estava ────────────────────────────────────────────────────
@@ -213,7 +214,7 @@ check('contagens: "Tudo" é a soma', contagem, { all: 18, books: 0, verses: 14, 
 check('pastilhas: só os tipos com resultado, na ordem, com o número', filterPills(contagem).map(p => `${p.label} ${p.count}`), ['Tudo 18', 'Versículos 14', 'Passagens 2', 'Temas 1', 'Notas 1'])
 check('pastilhas: nada encontrado → só "Tudo 0"', filterPills(searchCounts({})).map(p => `${p.label} ${p.count}`), ['Tudo 0'])
 check('filtro que vale: o escolhido se tem resultado, senão "Tudo"', [effectiveFilter('verses', contagem), effectiveFilter('books', contagem), effectiveFilter('all', contagem)], ['verses', 'all', 'all'])
-check('filtro de testamento: três opções fixas', TESTAMENT_FILTERS.map(f => f.label), ['Toda a Bíblia', 'Antigo Testamento', 'Novo Testamento'])
+check('filtro de testamento: três opções fixas, nos dois idiomas', [testamentFilters().map(f => f.label), testamentFilters('en').map(f => f.label)], [['Toda a Bíblia', 'Antigo Testamento', 'Novo Testamento'], ['Whole Bible', 'Old Testament', 'New Testament']])
 
 // ── Textos ──────────────────────────────────────────────────────────────
 check('"Ver os 14 versículos" e milhar com ponto', [seeAllVersesLabel(14), seeAllVersesLabel(1189)], ['Ver os 14 versículos', 'Ver os 1.189 versículos'])
