@@ -4,6 +4,11 @@
 // de UI: botões, rótulos, telas.
 export const STRINGS = {
   pt: {
+    errorScreen: {
+      title: 'Algo deu errado',
+      body: 'Esta tela encontrou um problema. O que você já salvou continua guardado.',
+      reload: 'Recarregar o app',
+    },
     nav: {
       home: 'Hoje', prayer: 'Oração', journey: 'Bíblia', routine: 'Meu Plano', groups: 'Comunidade', studies: 'Estudos', stats: 'Progresso', profile: 'Perfil', admin: 'Admin', notes: 'Biblioteca',
     },
@@ -938,6 +943,7 @@ export const STRINGS = {
     // Bento 19c — Administração do grupo, só pra quem modera algum grupo.
     groupAdmin: {
       pageSub: '{n} membros',
+      switchGroupLabel: 'Grupo administrado',
       noGroupHint: 'Você não modera nenhum grupo no momento.',
       loadError: 'Não foi possível carregar o painel do grupo agora.',
       retryBtn: 'Tentar novamente',
@@ -2910,6 +2916,8 @@ export const STRINGS = {
         deleteMessageBtn: 'Remover mensagem',
         mute7Btn: 'Silenciar 7 dias',
         blockAccountBtn: 'Bloquear conta',
+        blockAccountConfirm: 'Bloquear esta conta? A pessoa não consegue mais entrar, e não há como desbloquear pelo app.',
+        alreadyDecidedError: 'Este caso já foi decidido.',
         archiveBtn: 'Arquivar',
         decision: {
           deleted_message: 'mensagem removida',
@@ -3145,6 +3153,8 @@ export const STRINGS = {
         broadcastBodyPlaceholder: 'Mensagem para todo mundo',
         broadcastSendBtn: 'Enviar para todos',
         broadcastSent: 'Enviado.',
+        broadcastPtOnly: 'Vai para quem usa o app em português. Para escrever também em inglês, use o painel no computador.',
+        broadcastFailed: 'Não deu para enviar agora. Tente de novo.',
         grantConfirmBtn: 'Conceder acesso',
         abdicatedLabel: 'receita abdicada/mês',
         never: 'nunca',
@@ -3155,6 +3165,11 @@ export const STRINGS = {
     },
   },
   en: {
+    errorScreen: {
+      title: 'Something went wrong',
+      body: 'This screen ran into a problem. Everything you saved is still there.',
+      reload: 'Reload the app',
+    },
     nav: {
       home: 'Today', prayer: 'Prayer', journey: 'Bible', routine: 'My Plan', groups: 'Community', studies: 'Studies', stats: 'Progress', profile: 'Profile', admin: 'Admin', notes: 'Library',
     },
@@ -3983,6 +3998,7 @@ export const STRINGS = {
     },
     groupAdmin: {
       pageSub: '{n} members',
+      switchGroupLabel: 'Group you manage',
       noGroupHint: "You don't moderate any group right now.",
       loadError: "Couldn't load the group panel right now.",
       retryBtn: 'Try again',
@@ -5769,6 +5785,8 @@ export const STRINGS = {
         deleteMessageBtn: 'Delete message',
         mute7Btn: 'Mute for 7 days',
         blockAccountBtn: 'Block account',
+        blockAccountConfirm: 'Block this account? The person can no longer sign in, and there is no way to unblock from the app.',
+        alreadyDecidedError: 'This case has already been decided.',
         archiveBtn: 'Archive',
         decision: {
           deleted_message: 'message removed',
@@ -5984,6 +6002,8 @@ export const STRINGS = {
         broadcastBodyPlaceholder: 'Message for everyone',
         broadcastSendBtn: 'Send to everyone',
         broadcastSent: 'Sent.',
+        broadcastPtOnly: 'Goes to people using the app in Portuguese. To also write in English, use the panel on a computer.',
+        broadcastFailed: "Couldn't send right now. Try again.",
         grantConfirmBtn: 'Grant access',
         abdicatedLabel: 'revenue given up/month',
         never: 'never',

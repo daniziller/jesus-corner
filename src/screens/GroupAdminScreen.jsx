@@ -56,10 +56,12 @@ function hoursAgoLabel(iso, lang) {
   return t('groupAdmin.daysAgo', { n: Math.floor(hours / 24) }, lang)
 }
 
-export default function GroupAdminScreen({ session, authUser, onBack, onNavigate, onOpenGroupRoom, onOpenMembers, onOpenReadingActivity, onOpenReportedMessages }) {
+// `myGroup`: o grupo administrado agora; `moderatedGroups`: todos os que a
+// pessoa modera — com mais de um, o painel mostra a troca de grupo (antes
+// só o primeiro da lista era administrável).
+export default function GroupAdminScreen({ session, authUser, myGroup, moderatedGroups = [], onSwitchGroup, onBack, onNavigate, onOpenGroupRoom, onOpenMembers, onOpenReadingActivity, onOpenReportedMessages }) {
   const lang = session.lang
   const L = (k, vars) => t(`groupAdmin.${k}`, vars, lang)
-  const myGroup = session.myGroups?.find(g => g.myRole === 'moderator') ?? session.myGroups?.[0]
   const groupId = myGroup?.groupId
 
   const [group, setGroup] = useState(null)
@@ -263,6 +265,15 @@ export default function GroupAdminScreen({ session, authUser, onBack, onNavigate
       </button>
 
       <div style={styles.body}>
+        {moderatedGroups.length > 1 && (
+          <div role="group" aria-label={L('switchGroupLabel')} style={styles.switchRow}>
+            {moderatedGroups.map(g => (
+              <button key={g.groupId} type="button" aria-pressed={g.groupId === groupId} style={{ ...styles.switchChip, ...(g.groupId === groupId ? styles.switchChipOn : null) }} onClick={() => onSwitchGroup?.(g.groupId)}>
+                {g.name}
+              </button>
+            ))}
+          </div>
+        )}
         {waitingLines.length > 0 ? (
           <div style={styles.waitingCard}>
             <p style={styles.waitingLabel}>{L('waitingLabel')}</p>
@@ -452,6 +463,9 @@ const styles = {
   groupAvatar: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: 'rgba(255,255,255,.12)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, fontSize: 13, fontWeight: 800 },
   groupName: { fontFamily: FONT, fontSize: 19, fontWeight: 800, letterSpacing: '-.5px', color: '#fff', margin: '0 0 2px' },
   groupSub: { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)', margin: 0 },
+  switchRow: { display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px' },
+  switchChip: { flexShrink: 0, minHeight: 44, padding: '0 16px', borderRadius: 14, border: 'none', background: 'var(--bento-card)', color: 'var(--bento-ink)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800 },
+  switchChipOn: { background: 'var(--bento-ink)', color: '#fff' },
   emptyHint: { fontFamily: FONT, fontSize: 13, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', padding: '0 20px' },
   retryBtn: { height: 40, padding: '0 20px', borderRadius: 14, border: 'none', background: 'var(--bento-ink)', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800, color: '#fff' },
 

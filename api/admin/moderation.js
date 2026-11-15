@@ -157,7 +157,7 @@ async function getCase(res, kind, id) {
     if (error || !r) return res.status(404).json({ error: 'not_found' })
     return res.status(200).json({
       kind: 'admin_report', id: r.id, groupId: r.group_id, groupName: r.group?.name ?? '',
-      category: r.category, body: r.body, attachedName: r.attached?.name ?? null, createdAt: r.created_at,
+      category: r.category, body: r.body, attachedUserId: r.attached_user_id, attachedName: r.attached?.name ?? null, createdAt: r.created_at,
     })
   }
 
@@ -192,22 +192,46 @@ async function decideCase(req, res, callerId) {
   const table = kind === 'message_report' ? 'group_message_reports' : 'admin_reports'
   const { data: caseRow, error: fetchError } = await supabaseAdmin.from(table).select('*').eq('id', id).maybeSingle()
   if (fetchError || !caseRow) return res.status(404).json({ error: 'not_found' })
+  // Decidir duas vezes mandava o aviso duas vezes pra mesma pessoa.
+  if (caseRow.status === 'resolved') return res.status(409).json({ error: 'already_decided' })
 
   const groupId = caseRow.group_id
   const targetUserId = kind === 'message_report' ? caseRow.reported_user_id : caseRow.attached_user_id
+  // Cada ação precisa do que ela age sobre. Antes, "Remover mensagem" num
+  // problema reportado (que não tem mensagem) não apagava nada, mas a
+  // pessoa recebia "Uma mensagem sua foi removida"; sem pessoa anexada,
+  // silenciar e bloquear fechavam o caso sem fazer nada.
+  if (decision === 'deleted_message' && kind !== 'message_report') return res.status(400).json({ error: 'no_message' })
+  if ((decision === 'muted_user' || decision === 'blocked_account') && !targetUserId) return res.status(400).json({ error: 'no_person' })
 
-  if (decision === 'deleted_message' && kind === 'message_report') {
+  if (decision === 'deleted_message') {
     const table2 = caseRow.message_kind === 'comment' ? 'group_comments' : 'group_chapter_posts'
     // Só do grupo da denúncia: o id da mensagem vem de quem denunciou.
-    await supabaseAdmin.from(table2).delete().eq('id', caseRow.message_id).eq('group_id', groupId)
-  } else if (decision === 'muted_user' && targetUserId) {
-    await supabaseAdmin.from('reading_group_members').update({ silenced_until: new Date(Date.now() + 7 * 86400000).toISOString() }).eq('group_id', groupId).eq('user_id', targetUserId)
-  } else if (decision === 'blocked_account' && targetUserId) {
-    await supabaseAdmin.auth.admin.updateUserById(targetUserId, { ban_duration: '876000h' })
+    const { error } = await supabaseAdmin.from(table2).delete().eq('id', caseRow.message_id).eq('group_id', groupId)
+    if (error) return res.status(500).json({ error: 'action_failed' })
+  } else if (decision === 'muted_user') {
+    const { error } = await supabaseAdmin.from('reading_group_members').update({ silenced_until: new Date(Date.now() + 7 * 86400000).toISOString() }).eq('group_id', groupId).eq('user_id', targetUserId)
+    if (error) return res.status(500).json({ error: 'action_failed' })
+  } else if (decision === 'blocked_account') {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, { ban_duration: '876000h' })
+    if (error) return res.status(500).json({ error: 'action_failed' })
     await supabaseAdmin.from('blocked_accounts').upsert({ user_id: targetUserId, blocked_by: callerId, reason, blocked_at: new Date().toISOString() })
   }
 
-  await supabaseAdmin.from(table).update({ status: 'resolved' }).eq('id', id)
+  // A denúncia guarda o que foi decidido e quando (a aba "Resolvidos" e o
+  // tempo médio de resposta leem isso). Outras denúncias da MESMA mensagem
+  // saem da fila junto — antes cada uma pedia uma decisão e mandava um
+  // aviso novo.
+  const decidedAt = new Date().toISOString()
+  if (kind === 'message_report') {
+    await supabaseAdmin.from(table)
+      .update({ status: 'resolved', decision, decision_reason: reason || null, decided_by: callerId, decided_at: decidedAt })
+      .eq('message_id', caseRow.message_id).neq('status', 'resolved')
+  } else {
+    await supabaseAdmin.from(table).update({ status: 'resolved' }).eq('id', id)
+  }
+  // O alerta da Master que apontava pra este caso também fecha.
+  await supabaseAdmin.from('master_alerts').update({ status: 'resolved', updated_at: decidedAt }).eq('source_id', id)
 
   if (targetUserId) {
     await supabaseAdmin.from('moderation_actions').insert({

@@ -11,6 +11,7 @@
 // lendo). Qualquer um dos dois sinaliza; o texto explica qual foi.
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
+import { fetchAllPaged } from '../_lib/paged.js'
 
 export const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const TWO_DAYS_MS = 2 * 86400000
@@ -32,11 +33,8 @@ export async function computeGroupStats(group, members) {
   let readingPct = 0
   let lastReadDaysAgo = null
   if (userIds.length > 0) {
-    const { data: reads } = await supabaseAdmin
-      .from('chapters_read')
-      .select('user_id, created_at')
-      .in('user_id', userIds)
-      .gte('created_at', new Date(Date.now() - FOURTEEN_DAYS_MS).toISOString())
+    const since = new Date(Date.now() - FOURTEEN_DAYS_MS).toISOString()
+    const { data: reads } = await fetchAllPaged(supabaseAdmin, 'chapters_read', 'user_id, created_at', { apply: q => q.in('user_id', userIds).gte('created_at', since) })
     const readingIds = new Set((reads ?? []).filter(r => Date.now() - new Date(r.created_at).getTime() < SEVEN_DAYS_MS).map(r => r.user_id))
     readingPct = Math.round((readingIds.size / memberCount) * 100)
     const lastRead = (reads ?? []).reduce((max, r) => Math.max(max, new Date(r.created_at).getTime()), 0)
@@ -65,9 +63,7 @@ async function listGroups(res) {
     .order('created_at', { ascending: false })
   if (error) return res.status(500).json({ error: 'query_failed' })
 
-  const { data: allMembers } = await supabaseAdmin
-    .from('reading_group_members')
-    .select('group_id, user_id, status, joined_at, role, member:profiles!reading_group_members_user_id_fkey(name)')
+  const { data: allMembers } = await fetchAllPaged(supabaseAdmin, 'reading_group_members', 'group_id, user_id, status, joined_at, role, member:profiles!reading_group_members_user_id_fkey(name)', { order: ['group_id', 'user_id'] })
   // "2 denúncias" no cartão do grupo sinalizado (42e, mobile) — abertas
   // (aguardando decisão do admin do grupo OU já escaladas), por grupo.
   const { data: openReports } = await supabaseAdmin

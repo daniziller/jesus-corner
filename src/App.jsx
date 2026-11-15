@@ -69,7 +69,7 @@ import ReportProblemScreen from './screens/ReportProblemScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
 import HandsFreeScreen from './screens/HandsFreeScreen'
-import { getCurrentUser, logout, updateLanguage } from './auth/authStore'
+import { getCurrentUser, logout, updateLanguage, needsPasswordChange } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone } from './progress/progressStore'
 import { restartReading } from './reading/reiniciarStore'
 import { markChaptersManually, unmarkChaptersManually } from './bible/manualChapterMarks'
@@ -107,7 +107,6 @@ import StudyDayCompleteScreen from './screens/StudyDayCompleteScreen'
 import StudyDetailScreen from './screens/StudyDetailScreen'
 import StudyCompleteScreen from './screens/StudyCompleteScreen'
 import { themeTextKey, deriveThemeTexts } from './themePlans/themeTexts'
-import { deriveChronoProgress } from './data/chronologicalPlan'
 import { getReadingOrder, setReadingOrder as persistReadingOrder } from './reading/readingOrderStore'
 import { getReadingSeconds } from './reading/readingTimeStore'
 import ChapterRoomScreen from './screens/ChapterRoomScreen'
@@ -227,6 +226,7 @@ function buildSession(authUser, blocks, sessionsByBlock, dailyRoutine, planId, c
   }
   const activePlan = {
     kind: activePlanData.kind,
+    paceId: activePlanData.paceId ?? null,
     icon: activePlanData.icon,
     label: lang === 'en' ? activePlanData.labelEn : activePlanData.label,
     readingMinutes: activePlanData.readingMinutes,
@@ -415,6 +415,9 @@ export default function App() {
   // o caso de quem chega pelo login; isto cobre quem já estava com sessão
   // aberta quando a política mudou.
   const [consentRefreshNeeded, setConsentRefreshNeeded] = useState(false)
+  // Conta antiga (senha era um PIN de 6 dígitos) que ainda não trocou: a
+  // troca era pedida só no login, e recarregar a página pulava a tela.
+  const [passwordChangeNeeded, setPasswordChangeNeeded] = useState(false)
   // "Já tenho conta" (boas-vindas 13a / ritmo do convidado / criar conta
   // 13c) — força AuthScreen em modo login mesmo num dispositivo que nunca
   // autenticou aqui (sem isso, cairia sempre nas boas-vindas do convidado,
@@ -503,6 +506,7 @@ export default function App() {
   // Leitura social (17a–17c): grupos da pessoa (o botão "Grupo" do leitor usa
   // o primeiro), a sala de capítulo aberta e a retrospectiva do mês devida.
   const [myGroups, setMyGroups] = useState([])
+  const [adminGroupId, setAdminGroupId] = useState(null)
   const [chapterRoom, setChapterRoom] = useState(null) // { group, book, bookEn, chapter }
   // Detalhe de um pedido de oração (comentários, 2026-09-19) — o request
   // inteiro (já carregado na lista), não só o id, pra abrir sem esperar
@@ -1067,6 +1071,7 @@ export default function App() {
       // etapa existe pra evitar. Consentimento entra só no cadastro de
       // verdade (ver SignupStep, que já grava tudo antes de liberar o app).
       if (!user.isGuest) await flushPendingConsents().catch(() => false)
+      setPasswordChangeNeeded(user.isGuest ? false : await needsPasswordChange().catch(() => false))
       setConsentRefreshNeeded(user.isGuest ? false : await needsConsentRefresh().catch(() => false))
       setBootstrapped(true)
     }
@@ -1598,45 +1603,41 @@ export default function App() {
   // primeira por ler na fila do plano (ver findPlanSession em
   // bibleOrderMath.js); nos planos por tema e de grupo, a tela deles.
   function continueToday() {
+    // Mesmo cálculo da leitura de hoje (resolveActivePlan.js): um estudo
+    // que acabou ou sumiu já devolveu a pessoa ao plano da Bíblia, então
+    // não abre a tela de um plano que não tem mais o que ler.
+    const todayThemePicks = dailyRoutine[dateKey()]?.themePicks
+    const active = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, groupPlans, stepMinutes?.reading, planOrder)
     // "Sem plano" (28d) — não existe "sessão de hoje" pra abrir; manda pra
     // aba Bíblia em modo livre, onde a pessoa lê e marca o que quiser (ver
     // session.hasNoPlan em buildSession).
-    if (planId === 'none' && !activeAltPlan) {
+    if (planId === 'none' && active.kind === 'fixed') {
       goToTab('journey')
       return
     }
-    if (activeAltPlan?.type === 'theme') {
-      const themePlan = themePlans.find(p => p.id === activeAltPlan.planId)
-      if (themePlan) {
-        const todayThemePicks = dailyRoutine[dateKey()]?.themePicks
-        const activePlanData = resolveActivePlanSessions(activeAltPlan, themePlans, completedSet, blocks, sessionsByBlock, planId, todayThemePicks, undefined, undefined, planOrder)
-        // Sem escolha de hoje ainda — manda pra aba Plano, onde mora o
-        // checklist de textos (ver PlanScreen.jsx), em vez de abrir a
-        // leitura direto (não saberia o que abrir).
-        if (activePlanData.needsThemePick) {
-          goToTab('routine')
-          return
-        }
-        setThemeAutoOpenId(themePlan.id)
-        setThemeAutoOpenKeys(todayThemePicks?.planId === themePlan.id ? todayThemePicks.keys : null)
-        goToTab('themePlan')
+    if (active.kind === 'theme') {
+      // Sem escolha de hoje ainda — manda pra aba Plano, onde mora o
+      // checklist de textos, em vez de abrir a leitura direto (não saberia
+      // o que abrir).
+      if (active.needsThemePick) {
+        goToTab('routine')
         return
       }
+      setThemeAutoOpenId(activeAltPlan.planId)
+      setThemeAutoOpenKeys(todayThemePicks?.planId === activeAltPlan.planId ? todayThemePicks.keys : null)
+      goToTab('themePlan')
+      return
     }
-    if (activeAltPlan?.type === 'chrono') {
-      const queue = planQueue('chrono', bibleOrderMode, customBookOrder, planPosition, readingOrder)
-      const chrono = deriveChronoProgress(completedSet, activeAltPlan.paceId, splitPointsFor(queue.start))
-      const { session: chronoSession, block } = findPlanSession({ ...chrono, ...queue })
-      setChronoAutoOpenMovementId(block.id)
-      setChronoAutoOpenSessionId(chronoSession.id)
+    if (active.kind === 'chrono') {
+      setChronoAutoOpenMovementId(active.current.block.id)
+      setChronoAutoOpenSessionId(active.current.session.id)
       goToTab('chronologicalPlan')
       return
     }
-    // Plano do grupo (22d) — sem "sessão de hoje" restrita como o por tema
-    // (needsThemePick não existe aqui, ver resolveActivePlan.js), então
-    // sempre dá pra abrir direto no leitor (GroupPlanReaderScreen.jsx acha
-    // sozinho onde a pessoa parou, via completedSet).
-    if (activeAltPlan?.type === 'group') {
+    // Plano do grupo (22d) — sem "sessão de hoje" restrita como o por tema,
+    // então abre direto no leitor (GroupPlanReaderScreen.jsx acha sozinho
+    // onde a pessoa parou, via completedSet).
+    if (active.kind === 'group') {
       goToTab('groupPlanReader')
       return
     }
@@ -2159,8 +2160,10 @@ export default function App() {
     // "Começar a reflexão" leva pra Reflexão já no passo certo. Se a
     // Leitura era o último passo, o modo guiado só termina — a Reflexão
     // extra que 37e oferece segue fora do fluxo, como sempre foi.
+    // Também sem timer pendente: quem escolheu "Continuar lendo" segurou o
+    // avanço (toggleSession com keepReading) e conclui depois por aqui.
     const gf = guidedFlowRef.current
-    if (gf && gf.steps[gf.idx] === 'reading' && guidedAdvancingRef.current) {
+    if (gf && gf.steps[gf.idx] === 'reading' && (guidedAdvancingRef.current || guidedReadingComplete(completedSetRef.current))) {
       clearTimeout(guidedAdvanceTimerRef.current)
       guidedAdvanceTimerRef.current = null
       guidedAdvancingRef.current = false
@@ -2245,6 +2248,13 @@ export default function App() {
     } else if (answers.startBook) {
       const block = blocks.find(b => b.books.includes(answers.startBook))
       await persistReadingOrder(null, block && block.id >= 5 ? 'nt_first' : 'ot_first')
+      // O resultado do onboarding promete "Começo em {livro} 1": o ponto de
+      // partida do plano (ver bibleOrderMath.js) começa ali, sem marcar
+      // nada como lido. Antes só o testamento era guardado e o plano abria
+      // em Gênesis ou Mateus.
+      const position = { start: { book: answers.startBook, chapter: 1 }, free: null }
+      await persistPlanPosition(position)
+      setPlanPositionState(position)
     }
     saveOnboardingAnswers(answers)
     // O lembrete (15c) só vira inscrição push com uma conta de verdade —
@@ -2426,12 +2436,20 @@ export default function App() {
     setProfileOpen(false)
     setStepDaysState(null)
     setDailyRoutine({})
+    // O que ficava da conta anterior pra próxima no mesmo aparelho: o
+    // parabéns ainda não mostrado, as conquistas carregadas, um ajuste de
+    // plano não salvo e o grupo escolhido no painel.
+    setPendingCelebration(null)
+    setGamification(null)
+    setAdjustDraft(null)
+    setAdminGroupId(null)
+    setPasswordChangeNeeded(false)
     resetPremiumSpeechAuth()
     // Caches por pessoa no localStorage (sem namespace por conta): a
     // próxima conta no mesmo aparelho via as perguntas à IA, o "você parou
     // em…" e os capítulos recentes de quem saiu.
     try {
-      for (const k of ['jc_passage_questions', 'jc_last_read_position', 'jc_recent_chapters', 'jc_free_reading_position']) localStorage.removeItem(k)
+      for (const k of ['jc_passage_questions', 'jc_last_read_position', 'jc_recent_chapters', 'jc_free_reading_position', 'jc_library_recent_searches', 'jc_bible_recent_searches']) localStorage.removeItem(k)
     } catch { /* sem localStorage */ }
     setLastReadPositionState(null)
     setActiveTab('home')
@@ -2444,8 +2462,12 @@ export default function App() {
   // essas listas ficarem em dia.
   function refreshSocialState() {
     if (!authUser?.email) return
-    Promise.all([getMyActiveChallenges(), getPendingSocialCount(), getMyAcceptedGroupPlans(), getMyPendingGroupPlanInvites()])
-      .then(([challenges, pendingSocial, acceptedGroupPlans, pendingGroupPlans]) => {
+    // Os grupos também: criar, entrar ou sair de um grupo muda a linha
+    // "Administração do grupo" do Perfil e o papel na sala do capítulo —
+    // antes só um recarregamento do app atualizava.
+    Promise.all([getMyActiveChallenges(), getPendingSocialCount(), getMyAcceptedGroupPlans(), getMyPendingGroupPlanInvites(), getMyGroups()])
+      .then(([challenges, pendingSocial, acceptedGroupPlans, pendingGroupPlans, groups]) => {
+        setMyGroups(groups ?? [])
         setActiveChallenges(challenges)
         setPendingSocialCount(pendingSocial)
         setGroupPlans(acceptedGroupPlans)
@@ -2502,7 +2524,9 @@ export default function App() {
     }
     setBibleOrderModeState(mode)
     persistBibleOrderMode(mode).catch(err => console.error('Failed to persist bible order mode', err))
-    const noStudyPausing = !activeAltPlan || activeAltPlan.type === 'chrono' || activeAltPlan.type === 'fixed'
+    // Um estudo que já acabou não pausa mais nada (ver resolveActivePlan.js).
+    const studyKind = sessionRef.current?.activePlan?.kind
+    const noStudyPausing = studyKind !== 'theme' && studyKind !== 'group'
     if (!noStudyPausing) return
     if (mode === 'chronological') {
       selectActivePlan({ type: 'chrono', paceId: planId === 'none' ? 'standard' : planId })
@@ -2873,7 +2897,11 @@ export default function App() {
   // progresso é salvo por capítulo (não por id de sessão), então sobrevive a
   // trocas de plano. Atualiza o estado local na hora (UI otimista) e persiste
   // em segundo plano.
-  function toggleSession(session, done) {
+  // `keepReading`: a pessoa escolheu "Continuar lendo" depois de concluir
+  // — o trecho conta como lido, mas o modo guiado não avança sozinho pro
+  // próximo passo (ele avança quando ela concluir de fato, ver
+  // goToReflectionFrom).
+  function toggleSession(session, done, { keepReading = false } = {}) {
     if (!authUser) return
     const keys = sessionKeys(session)
     // completedSetRef (e não o `completedSet` do render) — varredura
@@ -2907,7 +2935,7 @@ export default function App() {
         setLastReadPosition(session.book, session.chEnd)
         setLastReadPositionState({ book: session.book, chapter: session.chEnd })
       }
-      if (guidedReadingComplete(nextSet)) advanceGuided('reading')
+      if (guidedReadingComplete(nextSet) && !keepReading) advanceGuided('reading')
     }
   }
 
@@ -3066,6 +3094,23 @@ export default function App() {
     )
   }
 
+  // Sessão ativa de uma conta que ainda precisa trocar a senha — a mesma
+  // tela do login, antes de qualquer outra coisa. Ao terminar, a AuthScreen
+  // já conferiu também o consentimento.
+  if (passwordChangeNeeded) {
+    return (
+      <>
+        <AuthScreen
+          initialMode="forcePasswordChange"
+          planId={planId}
+          onAuthenticated={() => { setPasswordChangeNeeded(false); setConsentRefreshNeeded(false) }}
+          onBack={handleLogout}
+        />
+        <Analytics />
+      </>
+    )
+  }
+
   // Sessão ativa mas consentimento desatualizado (a política mudou de
   // versão desde o último "aceito") — bloqueia tudo até reconsentir ou sair.
   if (consentRefreshNeeded) {
@@ -3210,7 +3255,9 @@ export default function App() {
   // Grupo que a pessoa modera — mesma derivação de GroupAdminScreen.jsx
   // (42i), reaproveitada aqui pras telas de Bloco 3 (42m/42n/42o), que só
   // são alcançáveis a partir do painel daquele mesmo grupo.
-  const myModeratorGroup = session.myGroups?.find(g => g.myRole === 'moderator') ?? session.myGroups?.[0]
+  // Com mais de um grupo moderado, vale o escolhido no painel (adminGroupId).
+  const moderatedGroups = myGroups.filter(g => g.myRole === 'moderator')
+  const myModeratorGroup = moderatedGroups.find(g => g.groupId === adminGroupId) ?? moderatedGroups[0] ?? myGroups[0]
 
   const screens = {
     // Rodada 34 (2026-09-07, handoff-hoje-34/HANDOFF-34a-hoje.md) — Hoje
@@ -3411,7 +3458,7 @@ export default function App() {
     groupPlanReader: <GroupPlanReaderScreen session={session} authUser={authUser} completedSet={completedSet} plan={groupPlans.find(p => p.id === activeAltPlan?.planId)} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onBack={goBack} onGoToReflectionFrom={goToReflectionFrom} />,
     chronologicalPlan: !hasPremium
       ? <PremiumRequired feature="generic" lang={session.lang} onNavigate={navigateTo} />
-      : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={activeAltPlan?.type === 'chrono' ? activeAltPlan.paceId : 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} autoOpenSessionId={chronoAutoOpenSessionId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
+      : <ChronologicalPlanScreen session={session} authUser={authUser} completedSet={completedSet} paceId={session.activePlan.paceId ?? 'standard'} autoOpenMovementId={chronoAutoOpenMovementId} autoOpenSessionId={chronoAutoOpenSessionId} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onNavigate={navigateTo} onGoToReflectionFrom={goToReflectionFrom} onBack={goBack} />,
     journey: <JourneyScreen onOpenSuaBiblia={() => goToTab('suaBiblia')} onOpenSelo={openSelo} onCelebrateNow={celebrateGamificationNow} session={session} authUser={authUser} stepMinutes={stepMinutes} blocks={blocks} sessionsByBlock={sessionsByBlock} browseSessionsByBlock={browseSessionsByBlock} completedSet={completedSet} onToggleSession={toggleSession} onToggleChapter={toggleChapter} onMarkChaptersManually={markChaptersManuallyFor} initialBlockId={activeBlockId} entryMode={journeyEntryMode} resumeSessionId={journeyResumeSessionId} forceChapterContext={forceChapterContextNext} browseJumpTarget={browseJumpTarget} onBrowseJumpConsumed={() => setBrowseJumpTarget(null)} onNavigate={navigateTo} onContinueSession={continueToday} onMovePlan={movePlanTo} onGoToReflectionFrom={goToReflectionFrom} onExitReading={() => { exitGuidedRoutine(); setJourneyEntryMode('overview'); goBack() }} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onPastRootChange={setJourneyPastRoot} onBuildThemeStudy={buildThemeStudy} onOpenSermonNote={resumeSermonNote} />,
     // A anotação longa (handoff-biblioteca-55 §7A): a página de escrever
     // (N2) — uma nova ou o rascunho em andamento — e a anotação guardada
@@ -3441,7 +3488,9 @@ export default function App() {
       ? <ChapterRoomScreen
           group={chapterRoom.group} book={chapterRoom.book} bookEn={chapterRoom.bookEn} chapter={chapterRoom.chapter}
           completed={completedSet.has(`${chapterRoom.book}:${chapterRoom.chapter}`)}
-          isModerator={chapterRoom.group.myRole === 'moderator'}
+          // O papel vem dos grupos da pessoa: nem toda entrada (a tela do
+          // grupo, as Mensagens) manda myRole junto com o grupo.
+          isModerator={chapterRoom.group.myRole === 'moderator' || myGroups.some(g => g.groupId === chapterRoom.group.groupId && g.myRole === 'moderator')}
           lang={session.lang} authUser={authUser} onBack={goBack}
         />
       : null,
@@ -3547,7 +3596,7 @@ export default function App() {
     // 42i "Painel do grupo" (handoff-admin-42, Bloco 2) — substitui a 19c
     // antiga por inteiro (README do pacote). Alcançada pela folha do
     // Perfil ou pelo cabeçalho do grupo em Comunidade.
-    groupAdmin: <GroupAdminScreen session={session} authUser={authUser} onBack={goBack} onNavigate={navigateTo} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenReportedMessages={groupId => { setReportedMessageGroupId(groupId); goToTab('reportedMessage') }} onOpenMembers={groupId => { setGroupMembersGroupId(groupId); goToTab('groupMembers') }} onOpenReadingActivity={groupId => { setGroupReadingActivityGroupId(groupId); goToTab('groupReadingActivity') }} />,
+    groupAdmin: <GroupAdminScreen session={session} authUser={authUser} myGroup={myModeratorGroup} moderatedGroups={moderatedGroups} onSwitchGroup={setAdminGroupId} onBack={goBack} onNavigate={navigateTo} onOpenGroupRoom={target => { setChapterRoom(target); goToTab('chapterRoom') }} onOpenReportedMessages={groupId => { setReportedMessageGroupId(groupId); goToTab('reportedMessage') }} onOpenMembers={groupId => { setGroupMembersGroupId(groupId); goToTab('groupMembers') }} onOpenReadingActivity={groupId => { setGroupReadingActivityGroupId(groupId); goToTab('groupReadingActivity') }} />,
     // Mensagem denunciada (handoff-admin-42, 42l) — fila do admin do grupo.
     reportedMessage: reportedMessageGroupId
       ? <ReportedMessageScreen session={session} groupId={reportedMessageGroupId} onBack={goBack} />

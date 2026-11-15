@@ -2,9 +2,10 @@
 // 53-54 §8). Folha inferior aberta pela lista de pedidos ("Novo"), pela
 // Súplica e pela aba de oração de um grupo.
 //
-// "Quem vê" são blocos lado a lado, e o padrão é SEMPRE "Só eu": toda vez
-// que a folha abre, de onde quer que abra — a última escolha não é
-// lembrada. Com "Só eu" o pedido é guardado no diário da pessoa. Ele só é
+// "Quem vê" são blocos lado a lado, e o padrão é "Só eu" toda vez que a
+// folha abre — a última escolha não é lembrada. A exceção é a aba de
+// oração de um grupo (`initialChoice`): ali a pessoa tocou em "o grupo ora
+// por você", então o grupo já vem escolhido. Com "Só eu" o pedido é guardado no diário da pessoa. Ele só é
 // publicado se ela escolher um grupo (ou "Meus amigos") e tocar em
 // "Publicar pedido"; aí aparece também "Publicar sem meu nome", que vem
 // desligado.
@@ -29,7 +30,7 @@ import { DEFAULT_WHO_SEES, whoSeesOptions, requestFormState, requestPayload } fr
 const FONT = 'var(--font-bento)'
 const realApi = { getMyGroups, getGroupMemberCounts, getFriendsCount, createPrayerRequest, composePrayerRequestDraft }
 
-export default function FolhaFazerPedido({ lang, authUser, hasAI, onClose, onCreated, api = realApi }) {
+export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice = DEFAULT_WHO_SEES, onClose, onCreated, api = realApi }) {
   const L = (k, vars) => t(`addPrayerRequest.${k}`, vars, lang)
   const email = authUser?.email
 
@@ -46,7 +47,7 @@ export default function FolhaFazerPedido({ lang, authUser, hasAI, onClose, onCre
   }, [])
 
   const [body, setBody] = useState('')
-  const [choice, setChoice] = useState(DEFAULT_WHO_SEES)
+  const [choice, setChoice] = useState(initialChoice)
   const [anonymous, setAnonymous] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')

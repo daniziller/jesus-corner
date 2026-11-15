@@ -24,7 +24,7 @@ import {
 import {
   getModerationQueue, getModerationCase, decideModerationCase, exportModerationLog,
   getAdminGroupsList, getAdminGroupDetail, adminGroupAction, getGroupWall,
-  getAccessGrants, grantAccess, GRANT_ERRORS,
+  getAccessGrants, grantAccess, GRANT_ERRORS, casePerson,
 } from '../admin/masterModerationStore'
 import AdminMobileShell from './AdminMobileShell'
 
@@ -1300,13 +1300,14 @@ function ModerationSection({ lang, onDecided }) {
   async function decide(decision) {
     if (!selected || busy) return
     if (decision !== 'archived' && !reason.trim()) return
+    if (decision === 'blocked_account' && !window.confirm(M('blockAccountConfirm'))) return
     setBusy(true)
     setError('')
     try {
       await decideModerationCase({ kind: selected.kind, id: selected.id, decision, reason })
       reload()
     } catch (err) {
-      setError(err.message)
+      setError(err.message === 'already_decided' ? M('alreadyDecidedError') : err.message)
     } finally {
       setBusy(false)
     }
@@ -1382,13 +1383,13 @@ function ModerationSection({ lang, onDecided }) {
                 placeholder={M('reasonPlaceholder', { name: caseDetail.reportedName || caseDetail.attachedName || '' })}
               />
               <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                {caseDetail.kind !== 'ai_answer' && (
+                {caseDetail.kind === 'message_report' && (
                   <button className="btn-primary" style={{ width: 'auto', padding: '10px 16px' }} disabled={busy || !reason.trim()} onClick={() => decide('deleted_message')}>{M('deleteMessageBtn')}</button>
                 )}
-                {caseDetail.kind !== 'ai_answer' && (
+                {casePerson(caseDetail) && (
                   <button className="btn-secondary" style={{ width: 'auto', padding: '10px 16px' }} disabled={busy || !reason.trim()} onClick={() => decide('muted_user')}>{M('mute7Btn')}</button>
                 )}
-                {caseDetail.kind !== 'ai_answer' && (
+                {casePerson(caseDetail) && (
                   <button style={styles.destructiveBtn} disabled={busy || !reason.trim()} onClick={() => decide('blocked_account')}>{M('blockAccountBtn')}</button>
                 )}
                 <button className="btn-secondary" style={{ width: 'auto', padding: '10px 16px' }} disabled={busy} onClick={() => decide('archived')}>{M('archiveBtn')}</button>

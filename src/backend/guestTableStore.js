@@ -57,12 +57,21 @@ export async function insertRow(table, row) {
 // Lê todas as linhas da tabela real (autenticado) ou do array local
 // (convidado) — usado pelos cálculos que precisam da lista inteira (ex:
 // total de segundos por passo, capítulos marcados manualmente).
+//
+// Em páginas: a API do banco devolve no máximo 1.000 linhas por consulta, e
+// quem lê todo dia passa disso (uma linha de tempo a cada ~30 s, um
+// capítulo por linha) — o resto sumia das métricas e dos selos sem aviso.
+const PAGE = 1000
 export async function selectRows(table) {
   const userId = await getUserId()
   if (!userId) return readGuestRows(table)
-  const { data, error } = await supabase.from(table).select('*').eq('user_id', userId)
-  if (error) throw error
-  return data ?? []
+  const rows = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase.from(table).select('*').eq('user_id', userId).order('id').range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...(data ?? []))
+    if (!data || data.length < PAGE) return rows
+  }
 }
 
 // Apaga todas as linhas da pessoa numa tabela (a conta, ou o array local
