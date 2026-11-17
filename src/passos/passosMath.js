@@ -94,6 +94,24 @@ export function stageCardLabel(currentIdx, total, stageSeconds, lang = 'pt') {
   return tx(lang, 'stageCard', { n: currentIdx + 1, total, min: stageMinutes(stageSeconds, lang) })
 }
 
+// O relógio da etapa, no cartão preto: o que falta da etapa atual
+// ("01:42") e quanto dela já passou (a barra). Zerada, conta para cima,
+// como o relógio do passo — informa, não cobra. A duração já vem com o
+// que "Pular" redistribuiu.
+export function stageClock(stageSeconds, stageElapsed) {
+  const { text, overtime } = clockDisplay(stageSeconds, stageElapsed)
+  const progress = stageSeconds > 0 ? Math.max(0, Math.min(1, stageElapsed / stageSeconds)) : 1
+  return { text, overtime, progress }
+}
+
+// O que o leitor de tela ouve do relógio da etapa — de minuto em minuto.
+export function stageClockAria(stageSeconds, stageElapsed, lang = 'pt') {
+  const remaining = Math.round(stageSeconds - stageElapsed)
+  if (remaining <= 0) return tx(lang, 'stageTimeUp')
+  const minutes = Math.ceil(remaining / 60)
+  return tx(lang, minutes === 1 ? 'stageLeftOne' : 'stageLeftMany', { amount: trN(lang, 'passosTx.minutes', minutes) })
+}
+
 // O rodapé: "Pular" à esquerda; o botão laranja nomeia a próxima etapa e,
 // na última, termina a oração.
 export function actsFooter(stages, currentIdx, lang = 'pt') {

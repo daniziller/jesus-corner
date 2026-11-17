@@ -26,7 +26,7 @@ import { playStageChime } from '../utils/chime'
 import { useStepTimer } from '../timer/useStepTimer'
 import { usePlanTotalToday } from '../timer/usePlanTotalToday'
 import { resolveMinutes } from '../meuPlano/meuPlanoMath'
-import { dayBarSegments, dayBarAria, stepSubtitle, actsTrail, actsTrailAria, stageCardLabel, actsFooter } from '../passos/passosMath'
+import { dayBarSegments, dayBarAria, stepSubtitle, actsTrail, actsTrailAria, stageCardLabel, actsFooter, stageClock, stageClockAria } from '../passos/passosMath'
 import { useKeyboardInset } from '../passos/useKeyboardInset'
 import { usePedidos } from '../pedidos/usePedidos'
 import { t } from '../i18n'
@@ -185,6 +185,11 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
     const stage = PRAYER_STAGES[currentStageIdx]
     const isSuplica = stage.id === 'suplica'
     const footer = actsFooter(PRAYER_STAGES, currentStageIdx, lang)
+    // O relógio da etapa: o tempo dela que já passou é o total corrido menos
+    // o que as etapas anteriores levaram.
+    const stageSeconds = stageDurations[currentStageIdx]
+    const stageElapsed = Math.max(0, elapsed - stageElapsedBefore)
+    const stageTimer = { ...stageClock(stageSeconds, stageElapsed), aria: stageClockAria(stageSeconds, stageElapsed, lang), running }
     return (
       <div style={{ ...styles.screen, paddingBottom: keyboardInset, boxSizing: 'border-box' }}>
         <CabecalhoDoPasso
@@ -199,6 +204,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
           <TrilhaActs trail={actsTrail(PRAYER_STAGES, currentStageIdx, lang)} ariaLabel={actsTrailAria(PRAYER_STAGES, currentStageIdx, lang)} />
           <CartaoAgora
             label={stageCardLabel(currentStageIdx, PRAYER_STAGES.length, stageDurations[currentStageIdx], lang)}
+            clock={stageTimer}
             title={stage.title[lang] ?? stage.title.pt}
             text={stage.explanation[lang] ?? stage.explanation.pt}
           />
