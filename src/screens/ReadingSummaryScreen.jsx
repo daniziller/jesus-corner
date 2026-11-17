@@ -41,15 +41,18 @@ export default function ReadingSummaryScreen({ session, authUser, descriptor, on
 
   const [summary, setSummary] = useState(null)
   const [summaryFailed, setSummaryFailed] = useState(false)
+  // "Tentar de novo" pede outra vez (o servidor já tenta duas vezes).
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     if (!hasChapter) return
     let cancelled = false
+    setSummaryFailed(false)
     fetchReadingSummary({ book: descriptor.book, bookEn: descriptor.bookEn, chStart: descriptor.chStart, chEnd: descriptor.chEnd, lang })
-      .then(s => { if (!cancelled) setSummary(s) })
+      .then(s => { if (cancelled) return; if (s?.thesis && s.moments?.length) setSummary(s); else setSummaryFailed(true) })
       .catch(() => { if (!cancelled) setSummaryFailed(true) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [descriptor?.book, descriptor?.chStart, descriptor?.chEnd])
+  }, [descriptor?.book, descriptor?.chStart, descriptor?.chEnd, attempt])
 
   const [chapterVerseText, setChapterVerseText] = useState(null)
   const [highlights, setHighlights] = useState([])
@@ -136,6 +139,15 @@ export default function ReadingSummaryScreen({ session, authUser, descriptor, on
           <div style={styles.card}><p style={styles.loadingHint}>{L('loading')}</p></div>
         )}
 
+        {/* Sem resumo, a tela não fica vazia: diz o que houve e deixa
+            tentar de novo — a Reflexão segue disponível no rodapé. */}
+        {!summary && summaryFailed && hasChapter && (
+          <div style={styles.card} role="status">
+            <p style={styles.loadingHint}>{L('failed')}</p>
+            <button type="button" style={styles.retryBtn} onClick={() => setAttempt(n => n + 1)}>{L('retry')}</button>
+          </div>
+        )}
+
         {markedItems.length > 0 && (
           <div style={styles.markedCard}>
             <div style={styles.markedHeader}>
@@ -188,6 +200,7 @@ export default function ReadingSummaryScreen({ session, authUser, descriptor, on
 
 const FONT = 'var(--font-bento)'
 const styles = {
+  retryBtn: { marginTop: 12, minHeight: 44, padding: '0 16px', border: 'none', borderRadius: 14, background: 'var(--bento-line)', fontFamily: FONT, fontSize: 13.5, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   screen: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bento-bg)' },
   header: { flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 14px' },
   backBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 14, border: 'none', background: 'var(--bento-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
