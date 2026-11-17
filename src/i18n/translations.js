@@ -1949,6 +1949,9 @@ export const STRINGS = {
       whereInBibleLabel: 'Onde estou na Bíblia',
       dayLabel: 'Dia',
       myPhraseTodayLabel: 'Minha frase de hoje',
+      sealLeftOne: 'falta {n} para o selo',
+      sealLeftMany: 'faltam {n} para o selo',
+      sealDone: 'livro completo',
     },
     handsFree: {
       introTitle: 'Modo mãos-livres',
@@ -5377,6 +5380,9 @@ export const STRINGS = {
       whereInBibleLabel: 'Where I am in the Bible',
       dayLabel: 'Day',
       myPhraseTodayLabel: "Today's phrase",
+      sealLeftOne: '{n} to go for the seal',
+      sealLeftMany: '{n} to go for the seal',
+      sealDone: 'book complete',
     },
     handsFree: {
       introTitle: 'Hands-free mode',

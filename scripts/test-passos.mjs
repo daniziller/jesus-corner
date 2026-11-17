@@ -164,5 +164,14 @@ check('leitor de tela da etapa', [stageClockAria(150, 48), stageClockAria(150, 1
 const oracaoTela = readFileSync(new URL('../src/screens/PrayerScreen.jsx', import.meta.url), 'utf8')
 check('a tela passa o relógio da etapa para o cartão preto', [/clock=\{stageTimer\}/.test(oracaoTela), /elapsed - stageElapsedBefore/.test(oracaoTela)], [true, true])
 
+// ── A imagem de "Compartilhar meu dia" (layout escuro, 17/11) ─────────
+const imagem = readFileSync(new URL('../src/routine/dayCompleteImage.js', import.meta.url), 'utf8')
+check('a imagem desenha a roda da Bíblia com a geometria do app', [/computeSlices\('livros'\)/.test(imagem), /function drawWheel/.test(imagem), /markerAngle\(current/.test(imagem)], [true, true, true])
+check('a frase vai num cartão laranja e os passos numa barra', [/fillStyle = ACCENT; ctx.fill\(\)\n\s+let py/.test(imagem), /include\.times[\s\S]*steps\.forEach/.test(imagem)], [true, true])
+check('o editor passa o livro, a semana e a roda para a imagem', [/book=\{book\} week=\{week\} reads=\{reads\}/.test(dia), /currentBook: book\?\.name/.test(editor), /week: week \?/.test(editor)], [true, true, true])
+check('nenhum texto fixo em português dentro da imagem', /['"`](Dia|Minha frase|faltam|dias nesta|da Bíblia|com Deus)/.test(imagem), false)
+const { STRINGS: S2 } = await import('../src/i18n/translations.js')
+check('os textos novos da imagem existem nos dois idiomas', ['sealLeftOne', 'sealLeftMany', 'sealDone'].every(k => S2.pt.dayComplete[k] && S2.en.dayComplete[k]), true)
+
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes dos passos (parte pura) passaram.')

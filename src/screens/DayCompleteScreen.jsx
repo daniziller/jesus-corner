@@ -55,15 +55,18 @@ export default function DayCompleteScreen({ session, authUser, completedSet, ste
   const week = goalHistory ? computeCurrentWeekGoal(dailyRoutine, goalHistory, weeklyGoalDays) : null
   // O livro lido hoje, na estrutura da gamificação (lidos, total, bloco).
   const bookName = (steps ?? []).includes('reading') && readingSession?.type !== 'reflection' ? readingSession?.book : null
+  const bibleProgress = useMemo(() => (completedSet ? computeBibleProgress(completedSet) : null), [completedSet])
   const book = useMemo(() => {
     const info = bookName && bookInfo(bookName)
-    const progress = info && completedSet ? computeBibleProgress(completedSet).porLivro[bookName] : null
+    const progress = info && bibleProgress ? bibleProgress.porLivro[bookName] : null
     return progress ? { name: bookName, lidos: progress.lidos, total: progress.total, blocoId: info.blocoId } : null
-  }, [bookName, completedSet])
+  }, [bookName, bibleProgress])
+  // A roda da imagem de compartilhar: capítulos lidos em cada livro.
+  const reads = useMemo(() => (bibleProgress ? Object.fromEntries(Object.entries(bibleProgress.porLivro).map(([nome, p]) => [nome, p.lidos])) : {}), [bibleProgress])
 
   const [sharing, setSharing] = useState(false)
   if (sharing) {
-    return <DayShareScreen session={session} readingSession={readingSession} phrase={phrase} minutes={seconds} onBack={() => setSharing(false)} />
+    return <DayShareScreen session={session} readingSession={readingSession} phrase={phrase} minutes={seconds} book={book} week={week} reads={reads} onBack={() => setSharing(false)} />
   }
 
   const headline = minutesHeadline(seconds.prayer + seconds.reading + seconds.reflection, lang)

@@ -11,12 +11,14 @@ import { renderDayCompleteImage, shareDayCompleteImage, downloadDayCompleteImage
 import { formatWeekdayDate } from '../utils/weekdayDateLabel'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
+import { bookNameFor } from '../utils/progress'
+import { formatInt, deOf } from '../gamification/format'
 import AppIcon from '../icons/AppIcon'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
 
 const CHIP_KEYS = ['phrase', 'times', 'whereInBible', 'name']
 
-export default function DayShareScreen({ session, readingSession, phrase, minutes, onBack }) {
+export default function DayShareScreen({ session, readingSession, phrase, minutes, book = null, week = null, reads = {}, onBack }) {
   const { lang, userName, dailyRoutine, weeksInGoal, biblePercent } = session
   const L = (k, vars) => t(`dayComplete.${k}`, vars, lang)
 
@@ -28,8 +30,10 @@ export default function DayShareScreen({ session, readingSession, phrase, minute
   const dateLabel = formatWeekdayDate(dateKey(), lang)
   const percentRead = `${(biblePercent ?? 0).toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
   const chapterShort = readingSession && readingSession.type !== 'reflection'
-    ? `${readingSession.book} ${readingSession.chStart}`
+    ? `${bookNameFor(readingSession.book, lang)} ${readingSession.chStart}`
     : null
+  const totalMinutes = Math.max(1, Math.round((minutes.prayer + minutes.reading + minutes.reflection) / 60))
+  const faltam = book ? book.total - book.lidos : 0
 
   const titleWithName = chapterShort ? L('titleWithName', { name: userName, chapter: chapterShort }) : L('titleWithNameNoChapter', { name: userName })
   const titleWithoutName = chapterShort ? L('titleNoName', { chapter: chapterShort }) : L('titleNoNameNoChapter')
@@ -41,17 +45,25 @@ export default function DayShareScreen({ session, readingSession, phrase, minute
     minutes, totalSeconds,
     weeksInGoal: weeksInGoal ?? 0,
     percentRead, chapterShort,
+    reads, currentBook: book?.name ?? null,
+    book: book ? { label: chapterShort ?? bookNameFor(book.name, lang), lidos: book.lidos, total: book.total, blocoId: book.blocoId } : null,
+    week: week ? { feitos: week.feitos, meta: week.meta } : null,
     labels: {
       prayer: t('home.routinePrayer', undefined, lang),
       reading: t('home.routineReading', undefined, lang),
       reflection: t('home.routineReflection', undefined, lang),
-      timeToday: L('timeTodayLabel'),
-      weeksInGoal: L('weeksInGoalLabel'),
-      whereInBible: L('whereInBibleLabel'),
       day: L('dayLabel'),
-      myPhraseToday: L('myPhraseTodayLabel'),
+      minutes: t(totalMinutes === 1 ? 'passosTx.minutesOne' : 'passosTx.minutesMany', { n: formatInt(totalMinutes, lang) }, lang),
+      withGod: t('passosTx.withGod', undefined, lang),
+      phraseSub: L('myPhraseTodayLabel'),
+      ofBible: t('passosTx.ofBible', undefined, lang),
+      bookCount: book ? deOf(book.lidos, book.total, lang) : '',
+      sealLeft: book && faltam > 0 ? L(faltam === 1 ? 'sealLeftOne' : 'sealLeftMany', { n: formatInt(faltam, lang) }) : (book ? L('sealDone') : ''),
+      weekValue: week ? deOf(week.feitos, week.meta, lang) : '',
+      daysThisWeek: t('passosTx.daysThisWeek', undefined, lang),
+      min: 'min',
     },
-  }), [dayNumber, dateLabel, userName, titleWithName, titleWithoutName, phrase, minutes, totalSeconds, weeksInGoal, percentRead, chapterShort, lang])
+  }), [dayNumber, dateLabel, userName, titleWithName, titleWithoutName, phrase, minutes, totalSeconds, weeksInGoal, percentRead, chapterShort, reads, book, week, totalMinutes, faltam, lang])
 
   const [previewUrl, setPreviewUrl] = useState(null)
   useEffect(() => {
@@ -90,7 +102,7 @@ export default function DayShareScreen({ session, readingSession, phrase, minute
 
   return (
     <div style={styles.screen}>
-      <CabecalhoDoPasso title="Compartilhar meu dia" subtitle="Você escolhe o que entra na imagem" onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)} />
+      <CabecalhoDoPasso title={t('passosTx.shareDay', undefined, lang)} subtitle={t('passosTx.shareDaySub', undefined, lang)} onBack={onBack} backLabel={t('a11y.goBack', undefined, lang)} />
 
       <div style={styles.body}>
         <div style={styles.imageWrap}>
@@ -133,7 +145,9 @@ const styles = {
   // O teto de 62vh (largura derivada da altura, proporção exata) é pra o
   // cartão não tomar a tela inteira e deixar os chips à vista com um rolar
   // curto — mesmo espírito do maxHeight de 48vh na prévia de ReadingBlockView.
-  imageWrap: { flexShrink: 0, alignSelf: 'center', width: '100%', maxWidth: 'calc(62vh * 9 / 16)', borderRadius: 28, overflow: 'hidden', background: '#1A1714', aspectRatio: '9 / 16' },
+  // Teto de 52vh: com a prévia menor, os quatro botões cabem embaixo dela
+  // sem ficar escondidos atrás do rodapé (achado em 17/11).
+  imageWrap: { flexShrink: 0, alignSelf: 'center', width: '100%', maxWidth: 'calc(52vh * 9 / 16)', borderRadius: 28, overflow: 'hidden', background: '#1A1714', aspectRatio: '9 / 16' },
   // `contain`, não `cover` (achado 2026-09-09, reportado por ela: o
   // título do cartão saía cortado por cima) — a imagem já É exatamente
   // 1080×1920 (9:16, igual ao aspectRatio do container), então os dois
