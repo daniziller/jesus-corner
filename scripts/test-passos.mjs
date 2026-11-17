@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs'
 import {
   stepPosition, dayBarSegments, dayBarAria, stepSubtitle, clockDisplay, clockAria,
-  actsTrail, actsTrailAria, stageMinutes, stageCardLabel, actsFooter, starterText, insertStarter,
+  actsTrail, actsTrailAria, stageMinutes, stageCardLabel, actsFooter, starterText, insertStarter, stageClock, stageClockAria,
 } from '../src/passos/passosMath.js'
 import { PRAYER_STAGES } from '../src/prayer/prayerStages.js'
 import { readingThread } from '../src/biblia/bibliaMath.js'
@@ -155,6 +155,14 @@ check('en: reflexão', [vEn.label, vEn.secondary, vEn.primary, vEn.list.title, v
 check('en: botão final e cartão do trecho', [reflectionFinishLabel(hoje, { prayer: true, reading: true }, 'en'), passageCard({ reference: 'Genesis 41', text: 'x', marked: true }, 'en').label, answerPreview('', 'en')], ['Finish the day', 'Genesis 41 · the passage you marked', 'No answer'])
 check('en: dia concluído', [minutesHeadline(1920, 'en'), minutesHeadline(0, 'en'), readingLabel({ book: 'Gênesis', chStart: 41, chEnd: 42 }, 'en')], [['32 minutes', 'with God.'], ['Your time', 'with God.'], 'Genesis 41–42'])
 check('en: os três números', dayNumbers({ week: { feitos: 1, meta: 4 }, book: { name: 'Gênesis', lidos: 41, total: 50 }, biblePercent: 4.3, lang: 'en' }).map(n => `${n.value} ${n.caption}`), ['1 of 4 days this week', '41 of 50 in Genesis', '4.3% of the Bible'])
+
+// ── O relógio de cada etapa (cartão preto) ────────────────────────────
+check('relógio da etapa: o que falta e a barra', [stageClock(150, 0), stageClock(150, 48), stageClock(150, 150)], [{ text: '02:30', overtime: false, progress: 0 }, { text: '01:42', overtime: false, progress: 0.32 }, { text: '00:00', overtime: false, progress: 1 }])
+check('relógio da etapa: passou do tempo, conta para cima e a barra fica cheia', stageClock(150, 170), { text: '00:20', overtime: true, progress: 1 })
+check('relógio da etapa: etapa que "Pular" deixou maior', stageClock(200, 50).text, '02:30')
+check('leitor de tela da etapa', [stageClockAria(150, 48), stageClockAria(150, 100), stageClockAria(150, 150), stageClockAria(150, 48, 'en')], ['Faltam 2 minutos nesta etapa', 'Falta 1 minuto nesta etapa', 'Tempo da etapa encerrado', '2 minutes left in this stage'])
+const oracaoTela = readFileSync(new URL('../src/screens/PrayerScreen.jsx', import.meta.url), 'utf8')
+check('a tela passa o relógio da etapa para o cartão preto', [/clock=\{stageTimer\}/.test(oracaoTela), /elapsed - stageElapsedBefore/.test(oracaoTela)], [true, true])
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes dos passos (parte pura) passaram.')
