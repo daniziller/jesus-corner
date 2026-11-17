@@ -12,7 +12,8 @@
 // api/ask-about-passage.js).
 import { generateReadingSummary } from './_lib/ai.js'
 import { requireCaller } from './_lib/caller.js'
-import { pickMoments, summaryHasText } from './_lib/readingSummaryCheck.js'
+import { pickMoments, summaryHasText, verificationReport } from './_lib/readingSummaryCheck.js'
+import { describeAiFailure } from './_lib/aiErrorReport.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -88,12 +89,13 @@ export default async function handler(req, res) {
     try {
       candidate = await generateReadingSummary({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang })
     } catch (err) {
-      console.error(`[generate-reading-summary] AI call failed (attempt ${attempt}):`, err.message)
+      // Só a forma do problema (qual regra do formato falhou), nunca o texto gerado.
+      console.error(`[generate-reading-summary] AI call failed (attempt ${attempt}) ${book} ${startNum}-${endNum} ${cleanLang}: ${describeAiFailure(err)}`)
       continue
     }
     const moments = pickMoments(candidate?.moments, chapters, startNum, endNum)
     if (moments && summaryHasText(candidate)) result = { ...candidate, moments }
-    else console.error(`[generate-reading-summary] response failed verification (attempt ${attempt})`)
+    else console.error(`[generate-reading-summary] response failed verification (attempt ${attempt}) ${book} ${startNum}-${endNum} ${cleanLang}: ${verificationReport(candidate, chapters, startNum, endNum)}`)
   }
   if (!result) return res.status(502).json({ error: 'ai_generation_failed' })
 

@@ -15,6 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateSermonSummary } from './_lib/ai.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { highlightIsGrounded } from './_lib/summaryCheck.js'
+import { describeAiFailure } from './_lib/aiErrorReport.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
     try {
       candidate = await generateSermonSummary({ text: cleanText, lang: cleanLang })
     } catch (err) {
-      console.error('[generate-sermon-summary] AI call failed:', err.message)
+      console.error('[generate-sermon-summary] AI call failed:', describeAiFailure(err))
       return res.status(502).json({ error: 'ai_generation_failed' })
     }
     if (candidate?.highlight?.trim() && highlightIsGrounded(candidate.highlight, cleanText)) raw = candidate
