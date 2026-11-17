@@ -5,12 +5,15 @@
 // trecho — implicação técnica 6 do antigo ADENDO-identidade-e-IA.md,
 // reaproveitada aqui). Regra do handoff ("toda referência gerada passa
 // pela checagem contra o texto da versão do usuário antes de aparecer"):
-// verifyMoments() abaixo confere cada um dos 3 "momentos" contra o texto
-// bíblico real ANTES de devolver — se qualquer um não bater, a resposta
-// inteira é descartada (502), nunca sai meio-verificada (mesmo padrão de
-// verifyCitation em api/ask-about-passage.js).
+// pickMoments() (_lib/readingSummaryCheck.js) confere cada "momento"
+// contra o texto bíblico real ANTES de devolver — um momento que não bate
+// sai; com menos de 2 certos, a resposta é descartada (502) e não sai
+// meio-verificada (mesmo espírito de verifyCitation em
+// api/ask-about-passage.js).
 import { generateReadingSummary } from './_lib/ai.js'
 import { requireCaller } from './_lib/caller.js'
+import { pickMoments, summaryHasText, verificationReport } from './_lib/readingSummaryCheck.js'
+import { describeAiFailure } from './_lib/aiErrorReport.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -47,24 +50,6 @@ function chapterFullText(chapterData) {
     .join(' ')
 }
 
-// Confere se os 3 "momentos" gerados apontam pra versículos de verdade —
-// capítulo dentro da faixa lida, e verseStart/verseEnd dentro do que o
-// capítulo realmente tem (sem cobrir 0 texto, o que indicaria faixa
-// inventada). Não bater um só = descarta a resposta inteira.
-function verifyMoments(moments, chapters, chStart, chEnd) {
-  if (!Array.isArray(moments) || moments.length !== 3) return false
-  return moments.every(m => {
-    if (m.chapter < chStart || m.chapter > chEnd) return false
-    if (m.verseStart < 1 || m.verseEnd < m.verseStart) return false
-    const chapterData = chapters[String(m.chapter)]
-    if (!chapterData?.verses) return false
-    const text = Array.from(
-      { length: m.verseEnd - m.verseStart + 1 },
-      (_, i) => chapterData.verses[String(m.verseStart + i)]
-    ).filter(Boolean).join(' ')
-    return text.length > 0
-  })
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' })
@@ -94,18 +79,25 @@ export default async function handler(req, res) {
   const bookInfoSource = cleanLang === 'en' ? BOOK_INFO_EN : BOOK_INFO
   const bookInfo = bookInfoSource[book] ?? null
 
-  let result
-  try {
-    result = await generateReadingSummary({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang })
-  } catch (err) {
-    console.error('[generate-reading-summary] AI call failed:', err.message)
-    return res.status(502).json({ error: 'ai_generation_failed' })
+  // Duas tentativas: a IA às vezes devolve fora do formato ou com uma
+  // faixa de versículos que não existe — a segunda chamada costuma vir
+  // certa. Cada momento é conferido contra o texto real
+  // (readingSummaryCheck.js); os ruins saem, e o fecho vale com 2 ou 3.
+  let result = null
+  for (let attempt = 1; attempt <= 2 && !result; attempt++) {
+    let candidate
+    try {
+      candidate = await generateReadingSummary({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang })
+    } catch (err) {
+      // Só a forma do problema (qual regra do formato falhou), nunca o texto gerado.
+      console.error(`[generate-reading-summary] AI call failed (attempt ${attempt}) ${book} ${startNum}-${endNum} ${cleanLang}: ${describeAiFailure(err)}`)
+      continue
+    }
+    const moments = pickMoments(candidate?.moments, chapters, startNum, endNum)
+    if (moments && summaryHasText(candidate)) result = { ...candidate, moments }
+    else console.error(`[generate-reading-summary] response failed verification (attempt ${attempt}) ${book} ${startNum}-${endNum} ${cleanLang}: ${verificationReport(candidate, chapters, startNum, endNum)}`)
   }
-
-  if (!verifyMoments(result.moments, chapters, startNum, endNum)) {
-    console.error('[generate-reading-summary] moments failed verification, discarding response')
-    return res.status(502).json({ error: 'ai_generation_failed' })
-  }
+  if (!result) return res.status(502).json({ error: 'ai_generation_failed' })
 
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=2592000, stale-while-revalidate=86400')
   return res.status(200).json({ ok: true, summary: result })

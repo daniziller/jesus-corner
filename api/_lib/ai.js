@@ -642,7 +642,7 @@ const ReadingSummarySchema = z.object({
     verseStart: z.number().int().min(1).describe('Primeiro versículo deste momento, dentro do capítulo acima.'),
     verseEnd: z.number().int().min(1).describe('Último versículo deste momento (igual a verseStart se for um só).'),
     text: z.string().describe('Uma frase (no idioma pedido) descrevendo o que acontece nesse momento especificamente.'),
-  })).length(3).describe('Exatamente 3 momentos, em ordem cronológica dentro do trecho, cobrindo do início ao fim do que foi lido (sem sobrepor faixas de versículo).'),
+  })).min(2).max(4).describe('3 momentos, em ordem cronológica dentro do trecho, cobrindo do início ao fim do que foi lido (sem sobrepor faixas de versículo). Em trechos muito curtos, 2 bastam.'),
   threadOfStory: z.string().describe('Uma frase (no idioma pedido) ligando este trecho ao que veio ANTES e ao que vem DEPOIS na história bíblica mais ampla — o que faz a Bíblia parecer uma coisa só, não capítulos soltos. Pode citar o capítulo anterior/seguinte por nome.'),
   aboutGod: z.string().describe('Uma frase (no idioma pedido) sobre o que este trecho revela especificamente sobre o caráter/ação de Deus — ancorada no texto, não genérica.'),
   characterName: z.string().describe('O nome (no idioma pedido) do personagem humano central deste trecho — quem protagoniza a ação.'),
