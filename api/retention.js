@@ -114,6 +114,13 @@ const POLICIES = [
     reason: 'uso mensal da escrita assistida — 13 meses',
   },
   {
+    table: 'admin_access_log',
+    days: 730,
+    // Quem do time abriu o quê no painel (0085) — prestação de contas,
+    // 24 meses, igual ao registro de moderação.
+    reason: 'registro de acesso ao painel — 24 meses',
+  },
+  {
     table: 'consent_archive',
     days: 1826,
     column: 'archived_at',

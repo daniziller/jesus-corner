@@ -70,6 +70,7 @@ import GroupChallengeProposalScreen from './screens/GroupChallengeProposalScreen
 import ReportProblemScreen from './screens/ReportProblemScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
+import AdminMfaGate from './admin/AdminMfaGate'
 import HandsFreeScreen from './screens/HandsFreeScreen'
 import { getCurrentUser, logout, updateLanguage, needsPasswordChange } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone } from './progress/progressStore'
@@ -3570,7 +3571,7 @@ export default function App() {
       : null,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
-    ...(isAdmin ? { admin: <AdminScreen session={session} onExitAdmin={exitAdmin} /> } : {}),
+    ...(isAdmin ? { admin: <AdminMfaGate lang={session.lang} onExit={exitAdmin}><AdminScreen session={session} onExitAdmin={exitAdmin} /></AdminMfaGate> } : {}),
     // Notas e Estudos são Premium — pra assinante ficam montadas persistentes
     // (display:contents, mais abaixo); pra grátis caem aqui.
     ...(hasPremium ? {} : {
