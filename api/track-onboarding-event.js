@@ -13,7 +13,7 @@ import { supabaseAdmin } from './_lib/invites.js'
 // OnboardingFlow.jsx substituiu — nada gravava esses eventos havia tempo,
 // o funil do admin (23a) ficava mostrando quase só zero.
 const ALLOWED_STEPS = new Set([
-  'welcome', 'history', 'pains', 'demo', 'minutes', 'days', 'reminder', 'chooseStart', 'result',
+  'welcome', 'history', 'pains', 'demo', 'minutes', 'days', 'reminder', 'chooseStart', 'plans', 'result',
   'signup', 'signup_completed', 'checkout_started', 'subscribed',
 ])
 

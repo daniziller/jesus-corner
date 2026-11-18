@@ -45,6 +45,7 @@
 //      um minuto só, ou nenhum registrado) · &frase=nao (sem frase escrita hoje) · &dia=estudo (oração, estudo e
 //      reflexão: "Estudo · Ansiedade, dia 2" e "dia 2 de 7 / no estudo") · &dia=um (só a oração)
 //      · "Compartilhar meu dia" abre o editor da imagem (37d)
+//      tela=assinatura — a tela de assinatura (grátis × Premium). &assinatura=nenhuma|ativa|anual · tela=planos — "Grátis e Premium" do onboarding
 //      tela=pedidos — a lista de pedidos (O1), com os pedidos na memória. &aba=ativos|respondidos|grupo|amigos
 //      · &pedidos=3|0|7|erro|carregando (7 traz dois de amigos e a aba Amigos) · &respondidos=12|2|0
 //      · &oracoes=47|0|49|1200 (o cartão "orações pelos outros") · &comentarios=2 (contagem na linha de um pedido)
@@ -123,6 +124,8 @@ import GrupoOracao from '../src/components/comunidade/GrupoOracao'
 import GrupoConversa from '../src/components/comunidade/GrupoConversa'
 import GrupoPessoas from '../src/components/comunidade/GrupoPessoas'
 import AddFriendsScreen from '../src/screens/AddFriendsScreen'
+import UpgradeScreen from '../src/screens/UpgradeScreen'
+import OnboardingPlans from '../src/screens/OnboardingPlans'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks'
 import { squareAvatarBlob } from '../src/profile/avatarImage'
 import { restartReading } from '../src/reading/reiniciarStore'
@@ -1206,6 +1209,13 @@ function Preview() {
     body = <ReflexaoPreview />
   } else if (screen === 'dia') {
     body = <DiaPreview />
+  } else if (screen === 'assinatura') {
+    const qual = params.get('assinatura') ?? 'nenhuma'
+    const sub = qual === 'ativa' ? { access_type: 'recurring', status: 'active', plan: 'monthly', amount_cents: 2700, currency: 'brl', tier: 'premium' }
+      : qual === 'anual' ? { access_type: 'recurring', status: 'active', plan: 'annual', amount_cents: 11990, currency: 'brl', tier: 'premium' } : null
+    body = <UpgradeScreen session={session} subscription={sub} onBack={() => alert('voltar')} />
+  } else if (screen === 'planos') {
+    body = <OnboardingPlans lang={params.get('lang') === 'en' ? 'en' : 'pt'} onContinue={() => alert('continuar')} onBack={() => alert('voltar')} />
   } else if (screen === 'pedidos') {
     body = (
       <PrayerRequestsScreen

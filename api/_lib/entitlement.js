@@ -4,7 +4,10 @@
 // aqui, que também resolve o `tier` (premium vs premium_ai).
 //
 // Espelha resolveEntitlement de src/billing/entitlement.js — mantenha os
-// dois em sincronia.
+// dois em sincronia. Desde 2026-11-18 só há uma versão paga: qualquer
+// assinatura ativa dá tudo, IA incluída (inclusive a quem assinou o antigo
+// "Premium" sem IA). `ai_tier_required` continua sendo o erro de quem não
+// assina.
 //
 // Uso:
 //   const ent = await fetchEntitlement(supabase, caller.id)
@@ -30,6 +33,5 @@ export async function fetchEntitlement(supabase, userId) {
 
   if (!isActive(sub)) return { active: false, tier: 'free', hasPremium: false, hasAI: false }
 
-  const tier = sub.tier === 'premium_ai' ? 'premium_ai' : 'premium'
-  return { active: true, tier, hasPremium: true, hasAI: tier === 'premium_ai' }
+  return { active: true, tier: 'premium', hasPremium: true, hasAI: true }
 }

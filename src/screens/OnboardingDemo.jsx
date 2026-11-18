@@ -22,6 +22,10 @@ export default function OnboardingDemo({ kind, onContinue, onSkip }) {
   }[kind] ?? { title: L('demoReadingTitle'), body: L('demoReadingBody') }
   // 14f é a única com o botão laranja (texto escuro) e 54px.
   const orangeBtn = kind === 'group'
+  // Perguntar sobre o texto (14c) e a comunidade (14f) são do Premium —
+  // a demonstração diz isso no chip, em vez de vender como se fosse de
+  // graça (pedido dela, 2026-11-18).
+  const premium = kind === 'ask' || kind === 'group'
 
   return (
     <div style={s.screen}>
@@ -32,7 +36,10 @@ export default function OnboardingDemo({ kind, onContinue, onSkip }) {
         {kind === 'ask' ? <AskCard L={L} /> : kind === 'week' ? <WeekCard L={L} /> : kind === 'group' ? <GroupCard L={L} /> : <ReadingCard L={L} />}
       </div>
       <div style={s.footer}>
-        <div style={s.chip}><span style={s.chipDot} /><span style={s.chipText}>{L('demoChip')}</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div style={s.chip}><span style={s.chipDot} /><span style={s.chipText}>{L('demoChip')}</span></div>
+          {premium && <div style={s.premiumChip}><span style={s.premiumChipText}>{L('demoPremium')}</span></div>}
+        </div>
         <p style={s.title}>{copy.title}</p>
         <p style={s.body}>{copy.body}</p>
         <button type="button" style={{ ...s.btn, ...(orangeBtn ? s.btnOrange : {}) }} onClick={onContinue}>
@@ -211,6 +218,8 @@ const s = {
   card: { height: '100%', borderRadius: 26, background: 'var(--bento-card)', boxSizing: 'border-box', overflow: 'hidden' },
   footer: { flex: 'none', padding: '20px 24px calc(30px + var(--safe-bottom))' },
   chip: { display: 'inline-flex', alignItems: 'center', gap: 8, height: 26, borderRadius: 99, background: 'var(--bento-card)', padding: '0 12px 0 8px', margin: '0 0 16px' },
+  premiumChip: { display: 'inline-flex', alignItems: 'center', height: 26, padding: '0 10px', borderRadius: 99, background: 'var(--bento-ink)', margin: '0 0 16px' },
+  premiumChipText: { fontFamily: FONT, fontSize: 10.5, fontWeight: 800, lineHeight: 1, letterSpacing: '.02em', color: 'var(--bento-accent)' },
   chipDot: { width: 8, height: 8, borderRadius: 99, background: 'var(--bento-accent)' },
   chipText: { fontFamily: FONT, fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--bento-ink)' },
   title: { fontFamily: FONT, fontSize: 25, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-1.1px', color: 'var(--bento-ink)', margin: '0 0 8px', textWrap: 'pretty' },

@@ -196,7 +196,7 @@ export default function ProfileSheet({
     if (subscription?.access_type === 'free') return t('billing.subscriptionFreeSub', undefined, lang)
     if (subscription?.access_type === 'lifetime') return t('billing.subscriptionLifetimeSub', undefined, lang)
     if (session.hasPremium) {
-      const tierName = t(session.tier === 'premium' ? 'billing.tiers.premium' : 'billing.tiers.premiumAi', undefined, lang)
+      const tierName = t('billing.tiers.premium', undefined, lang)
       if (subscription?.access_type === 'recurring' && subscription.amount_cents != null && subscription.currency) {
         const key = subscription.plan === 'annual' ? 'billing.subscriptionRecurringAnnualSub' : 'billing.subscriptionRecurringSub'
         return `${tierName} · ${t(key, { amount: formatAmount(subscription.amount_cents, subscription.currency) }, lang)}`
