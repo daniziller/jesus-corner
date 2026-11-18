@@ -1,11 +1,12 @@
 // Testes do limite de IA (pedido dela, 2026-11-18): a conta grátis não usa
-// IA nenhuma; cada conta Premium gasta até US$1,50 por mês, somando o texto
-// gerado e a voz natural.
+// IA nenhuma; cada conta Premium gasta até US$1,50 por mês em texto gerado.
+// A voz natural fica fora do limite (gerada uma vez por trecho, guardada pra
+// todos).
 // node scripts/test-limite-ia.mjs
 import { readFileSync, readdirSync } from 'node:fs'
 import {
   MODEL_PRICES, MONTHLY_BUDGET_MICROS, budgetMonth, budgetResetsAt, tokensOf, costMicros, budgetState,
-  readBudget, meterAi, recordModelUsage, speechCostMicros, recordSpeechUsage,
+  readBudget, meterAi, recordModelUsage,
 } from '../api/_lib/aiBudget.js'
 import { STRINGS } from '../src/i18n/translations.js'
 
@@ -78,21 +79,14 @@ await Promise.all([
 ])
 check('duas pessoas ao mesmo tempo: cada uma paga o seu', db4.rpcCalls.map(([, a]) => [a.p_user_id, a.p_cost_micros]).sort(), [['a', 2000], ['b', 10_000]])
 
-// ── A voz natural entra no mesmo limite ─────────────────────────────────
-const VOZ = ler('api/tts.js').match(/const MODEL = '([^']+)'/)[1]
-check('a voz usada em tts.js tem preço na tabela', VOZ, 'openai/gpt-4o-mini-tts')
-check('voz: um minuto de leitura (~750 caracteres) custa ~1,5 centavo', speechCostMicros(750, VOZ), 15_113)
-check('voz: um capítulo médio (~3.500 caracteres) custa ~7 centavos', speechCostMicros(3500, VOZ), 70_525)
-check('voz: nada lido, nada cobrado', [speechCostMicros(0, VOZ), speechCostMicros(-5, VOZ)], [0, 0])
-const db5 = fakeDb()
-await meterAi('v', 'voz-natural', async () => { recordSpeechUsage(VOZ, 3500) }, { db: db5, nowMs: agora })
-check('voz gerada é gravada na conta de quem ouviu, junto com o texto', db5.rpcCalls.map(([, a]) => [a.p_user_id, a.p_cost_micros, a.p_input_tokens]), [['v', 70_525, 875]])
+// ── A voz natural fica fora do limite ───────────────────────────────────
 const tts = ler('api/tts.js')
-const ordem = (...trechos) => trechos.map(t => tts.indexOf(t))
-check('tts.js: Premium, depois o cache, depois o teto, depois gera medindo', (([a, b, c, d]) => [a > 0, a < b, b < c, c < d])(ordem('if (!ent.hasPremium)', 'findCachedAudio(cachePath)', 'ensureAiBudget(res, userId)', 'generateSpeech({')), [true, true, true, true])
-check('tts.js: o áudio gerado é medido e cobrado de quem pediu', [/meterAi\(userId, 'voz-natural'/.test(tts), /recordSpeechUsage\(MODEL, clean\.length\)/.test(tts)], [true, true])
+check('tts.js: não confere nem cobra o limite mensal da pessoa', [/ensureAiBudget|meterAi|recordSpeechUsage|aiBudget/.test(tts)], [false])
+check('tts.js: continua exigindo o Premium', /if \(!ent\.hasPremium\) return res\.status\(403\)/.test(tts), true)
+check('aiBudget.js: sem cálculo de custo de voz', /speechCostMicros|recordSpeechUsage|SPEECH_PRICES/.test(ler('api/_lib/aiBudget.js')), false)
 const fala = ler('src/audio/premiumSpeech.js')
-check('app: sem saldo, o trecho cai pra voz do aparelho, mas os guardados continuam vindo', [/if \(res\.status === 429\) throw new Error\('tts_budget_reached'\)/.test(fala), /budgetReached = true/.test(fala)], [true, false])
+check('app: sem tratamento de limite na voz (o servidor não recusa mais por limite)', /tts_budget_reached/.test(fala), false)
+check('a mensagem do limite diz que a voz natural continua', [STRINGS.pt.aiChat.budgetReached.includes('voz natural continua'), STRINGS.en.aiChat.budgetReached.includes('natural voice keeps')], [true, true])
 
 // ── Toda geração passa pelo limite ──────────────────────────────────────
 const ai = ler('api/_lib/ai.js')

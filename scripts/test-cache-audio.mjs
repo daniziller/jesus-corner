@@ -1,6 +1,6 @@
 // Testes do cache do áudio da voz natural no servidor (pedido dela,
 // 2026-11-18): cada trecho é gerado uma vez e servido a todos os
-// assinantes, sem gastar o limite de ninguém.
+// assinantes. A voz fica fora do limite mensal de IA da pessoa.
 // node scripts/test-cache-audio.mjs
 import { readFileSync } from 'node:fs'
 import { ttsCachePath, findCachedAudio, storeAudio, TTS_BUCKET, SIGNED_URL_SECONDS } from '../api/_lib/ttsCache.js'
@@ -46,7 +46,7 @@ check('bucket e validade do link', [TTS_BUCKET, SIGNED_URL_SECONDS], ['tts-audio
 // ── O endpoint ──────────────────────────────────────────────────────────
 const tts = ler('api/tts.js')
 const pos = t => tts.indexOf(t)
-check('já guardado: devolve o link antes de conferir o limite e sem gerar', [pos('findCachedAudio(cachePath)') < pos('ensureAiBudget(res, userId)'), /if \(cachedUrl\) \{\n[^}]*return res\.status\(200\)\.json\(\{ url: cachedUrl \}\)/.test(tts)], [true, true])
+check('já guardado: devolve o link sem gerar', [pos('findCachedAudio(cachePath)') < pos('generateSpeech({'), /if \(cachedUrl\) \{\n[^}]*return res\.status\(200\)\.json\(\{ url: cachedUrl \}\)/.test(tts)], [true, true])
 check('o Premium vem antes do cache (a voz natural é do Premium)', pos('if (!ent.hasPremium)') < pos('findCachedAudio(cachePath)'), true)
 check('gerado agora: guarda antes de responder', pos('await storeAudio(cachePath, bytes') > pos('generateSpeech({') && pos('await storeAudio(cachePath, bytes') < pos('res.status(200).send(bytes)'), true)
 check('a chave usa as mesmas instruções que vão pro modelo', [/const instructions = INSTRUCTIONS\[cleanLang\]/.test(tts), /ttsCachePath\(\{ model: MODEL, voice: VOICE, lang: cleanLang, instructions, text: clean \}\)/.test(tts), /instructions,\n/.test(tts)], [true, true, true])
