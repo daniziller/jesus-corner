@@ -11,6 +11,7 @@ import BrandMark from './components/BrandMark'
 import BrandLogo from './components/BrandLogo'
 import SignupScreen from './screens/SignupScreen'
 import ConsentRefreshScreen from './screens/ConsentRefreshScreen'
+import AiConsentSheet from './privacy/AiConsentSheet'
 import { needsConsentRefresh, flushPendingConsents } from './privacy/consent'
 import LanguageSelectScreen from './screens/LanguageSelectScreen'
 import { migrateGuestRow } from './backend/userDataStore'
@@ -1097,8 +1098,8 @@ export default function App() {
       setIsAdmin(adminStatus)
       // Consentimento em dia? Se a política mudou de versão desde o último
       // "aceito", reapresenta antes de liberar o app (LGPD — não basta
-      // pegar quem passa pelo login). Falha silenciosa: erro de rede aqui
-      // não pode travar quem já consentiu. Convidado (redesign 1g/etapa 7)
+      // pegar quem passa pelo login). Falha fechada, com o que o aparelho
+      // já confirmou como reserva (ver needsConsentRefresh em consent.js). Convidado (redesign 1g/etapa 7)
       // nunca passa por aqui — sem sessão real, needsConsentRefresh() só
       // enxergaria uma tabela vazia (RLS) e diria "falta consentir",
       // travando a leitura ANTES de existir conta — exatamente o que essa
@@ -1106,7 +1107,7 @@ export default function App() {
       // verdade (ver SignupStep, que já grava tudo antes de liberar o app).
       if (!user.isGuest) await flushPendingConsents().catch(() => false)
       setPasswordChangeNeeded(user.isGuest ? false : await needsPasswordChange().catch(() => false))
-      setConsentRefreshNeeded(user.isGuest ? false : await needsConsentRefresh().catch(() => false))
+      setConsentRefreshNeeded(user.isGuest ? false : await needsConsentRefresh(user.id))
       setBootstrapped(true)
     }
     // Sem .catch, qualquer falha (sem rede no PWA instalado, 5xx do
@@ -3723,6 +3724,7 @@ export default function App() {
         onSelectPace={selectPlan}
         onProfileUpdated={handleProfileUpdated}
       />
+      <AiConsentSheet />
       <Analytics />
     </div>
     </PlanClockContext.Provider>

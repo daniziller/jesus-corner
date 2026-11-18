@@ -17,8 +17,6 @@ import { signup, resendConfirmationEmail, isValidPassword } from '../auth/authSt
 import { markHasAuthenticated } from '../auth/hasAuthKey'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
-import { termsUrl, privacyUrl } from '../utils/legalLinks'
-import AppIcon from '../icons/AppIcon'
 import { PLANS } from '../data/bibleBlocks'
 import { setSelectedPlanId } from '../plan/planStore'
 import { setReadingOrder } from '../reading/readingOrderStore'
@@ -26,6 +24,7 @@ import { setStepMinutes } from '../plan/stepMinutesStore'
 import { savePendingOnboardingChoices } from '../onboarding/pendingOnboardingChoices'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import { recordConsents, PURPOSES } from '../privacy/consent'
+import ConsentChoices, { EMPTY_CHOICES, requiredChecked, consentRecords } from '../privacy/ConsentChoices'
 import { migrateGuestRow, hasGuestRow } from '../backend/userDataStore'
 import { clearGuestInviteState } from '../onboarding/guestInviteStore'
 import { AccountShell, AccountField, AccountPasswordField, AccountPrimaryButton, AccountError, SentCard, formatCountdown, FONT, ui } from './accountUi'
@@ -45,13 +44,10 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  // Consentimento por finalidade — ver src/privacy/consent.js. Os dois são
-  // obrigatórios e começam desmarcados. O quadro 13c traz uma única linha
-  // (idade + termos + privacidade); a segunda linha, no mesmo estilo, é o
-  // consentimento específico para dados de convicção religiosa, que a LGPD
-  // (art. 11) exige destacado e separado — por isso não foi fundido.
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
-  const [agreedToSensitive, setAgreedToSensitive] = useState(false)
+  // Consentimento por finalidade — ver src/privacy/ConsentChoices.jsx:
+  // idade, termos e dados sobre a fé (obrigatórios) e escrita assistida e
+  // e-mails (opcionais), cada um na sua caixa, todos desmarcados.
+  const [consent, setConsent] = useState(EMPTY_CHOICES)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [confirmationEmail, setConfirmationEmail] = useState(null)
@@ -60,12 +56,12 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
     e?.preventDefault?.()
     if (loading) return
     if (!isValidPassword(password)) { setError(L('passwordRule')); return }
-    if (!agreedToTerms || !agreedToSensitive) { setError(t('auth.mustAgreeToTerms', undefined, lang)); return }
+    if (!requiredChecked(consent)) { setError(t('auth.mustAgreeToTerms', undefined, lang)); return }
     setLoading(true)
     try {
       // O quadro não tem o toggle de perfil público: a conta nasce privada
-      // (dá pra abrir depois em Perfil), e ninguém recebe e-mail de
-      // novidades sem ter pedido (opt-in, nunca opt-out).
+      // (dá pra abrir depois em Perfil). A idade (18+) vem da caixa própria
+      // e o servidor recusa os termos sem ela (api/record-consent.js).
       const hadGuestRow = hasGuestRow()
       const user = await signup({ name: name.trim(), email, password, language: lang, isPublic: false, ageConfirmed: true })
       setError('')
@@ -85,9 +81,7 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
       // sem isso, o handleAuthenticated do AuthScreen chamaria
       // needsConsentRefresh() antes da linha existir no banco.
       await recordConsents([
-        { purpose: PURPOSES.TERMS, granted: true },
-        { purpose: PURPOSES.SENSITIVE_DATA, granted: true },
-        { purpose: PURPOSES.MARKETING_EMAIL, granted: false },
+        ...consentRecords(consent),
         { purpose: PURPOSES.PUBLIC_PROFILE, granted: false },
       ])
 
@@ -153,16 +147,7 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
           <AccountPasswordField label={L('passwordLabel')} value={password} onChange={setPassword} height={50} autoComplete="new-password" hint={L('passwordHint')} />
         </div>
 
-        <ConsentRow checked={agreedToTerms} onToggle={() => setAgreedToTerms(v => !v)}>
-          {L('consentPrefix')}
-          <a href={termsUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.consentLink} onClick={e => e.stopPropagation()}>{L('consentTerms')}</a>
-          {L('consentMiddle')}
-          <a href={privacyUrl(lang)} target="_blank" rel="noopener noreferrer" style={styles.consentLink} onClick={e => e.stopPropagation()}>{L('consentPrivacy')}</a>
-          {L('consentSuffix')}
-        </ConsentRow>
-        <ConsentRow checked={agreedToSensitive} onToggle={() => setAgreedToSensitive(v => !v)}>
-          {t('auth.agreeToSensitiveData', undefined, lang)}
-        </ConsentRow>
+        <ConsentChoices value={consent} onChange={setConsent} lang={lang} />
 
         <AccountError text={error} style={{ margin: 0 }} />
         {/* Enter no formulário envia; o botão visível fica no rodapé. */}
@@ -190,20 +175,6 @@ export default function SignupScreen({ chaptersRead = 0, planId, onAuthenticated
       footer={footer}
       footerStyle={{ padding: '12px 20px calc(26px + var(--safe-bottom))' }}
     />
-  )
-}
-
-// Linha de consentimento: quadradinho 26px raio 9 (laranja com check quando
-// marcado; vazio, na cor de campo, quando não) + texto 12px.
-function ConsentRow({ checked, onToggle, children }) {
-  return (
-    <div style={styles.consentCard} role="checkbox" aria-checked={checked} tabIndex={0} onClick={onToggle}
-      onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggle() } }}>
-      <div style={{ ...styles.consentBox, background: checked ? 'var(--bento-accent)' : 'var(--bento-line)' }}>
-        {checked && <AppIcon name="Check" size={14} strokeWidth={2.8} color="var(--bento-ink)" />}
-      </div>
-      <p style={styles.consentText}>{children}</p>
-    </div>
   )
 }
 
@@ -279,8 +250,4 @@ const styles = {
   sandDot: { width: 7, height: 7, borderRadius: 99, background: 'var(--bento-sand-icon)', flex: 'none' },
   sandText: { fontFamily: FONT, fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: 'var(--bento-sand-ink)', margin: 0 },
   card: { borderRadius: 24, background: 'var(--bento-card)', padding: 20 },
-  consentCard: { borderRadius: 20, background: 'var(--bento-card)', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer' },
-  consentBox: { width: 26, height: 26, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' },
-  consentText: { flex: 1, fontFamily: FONT, fontSize: 12, fontWeight: 500, lineHeight: 1.4, color: 'var(--bento-t2)', margin: 0 },
-  consentLink: { color: 'var(--bento-accent)', fontWeight: 700, textDecoration: 'none' },
 }

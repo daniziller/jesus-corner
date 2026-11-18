@@ -101,7 +101,7 @@ const semPremium = endpoints.filter(f => f !== 'send-weekly-digest.js').filter(f
 check('todo endpoint com IA exige o Premium (o grátis não gera nada)', semPremium, [])
 check('resumo da leitura e pergunta da semana agora exigem Premium', [/needsAI: true, budget: true/.test(ler('api/generate-reading-summary.js')), /needsAI: true, budget: true/.test(ler('api/suggest-weekly-question.js'))], [true, true])
 const digest = ler('api/send-weekly-digest.js')
-check('resumo semanal: texto só para quem assina e tem saldo', [/premiumUsers\.has\(row\.user_id\) && !\(await readBudget\(row\.user_id\)\)\.exhausted/.test(digest), /let summaryText = null/.test(digest)], [true, true])
+check('resumo semanal: texto só para quem assina, consentiu a escrita assistida e tem saldo', [/premiumUsers\.has\(row\.user_id\) && aiConsent\.get\(row\.user_id\) && !\(await readBudget\(row\.user_id\)\)\.exhausted/.test(digest), /let summaryText = null/.test(digest)], [true, true])
 check('as telas do resumo semanal aguentam o resumo sem texto', [/\{current\.summary && \(/.test(ler('src/screens/WeeklySummaryTextScreen.jsx')), /const written = current\.summary \?\? null/.test(ler('src/screens/WeeklySummaryPrayerGroupScreen.jsx'))], [true, true])
 check('a migração cria a tabela e a RPC só para o service role', (m => [/create table if not exists public\.ai_usage_monthly/.test(m), /revoke all on function public\.add_ai_usage[^;]*from public, anon, authenticated/.test(m), /grant execute on function public\.add_ai_usage[^;]*to service_role/.test(m)])(ler('supabase/migrations/0079_limite_ia.sql')), [true, true, true])
 

@@ -11,12 +11,17 @@ const LINK_STYLE = 'font-size:11px;font-weight:700;color:#9D4300;text-decoration
 // quebrar NO MEIO da palavra, cortando as 2 últimas letras pra linha de
 // baixo. Texto corrido quebra nos espaços entre os links, nunca no meio
 // de um deles (cada link também tem white-space:nowrap, por garantia).
-export function emailFooterLinksHtml() {
+// `unsubscribe`: { url, lang } nos e-mails que a pessoa pode desligar
+// (resumo semanal, novidades) — ver api/_lib/emailConsent.js.
+export function emailFooterLinksHtml({ unsubscribe } = {}) {
+  const unsubscribeLine = unsubscribe?.url
+    ? `<p style="margin:14px 0 0;text-align:center;font-size:11px;line-height:1.6;color:#A3A3A3;">${unsubscribe.lang === 'en' ? "Don't want these emails?" : 'Não quer mais estes e-mails?'} <a href="${unsubscribe.url}" style="color:#737373;text-decoration:underline;">${unsubscribe.lang === 'en' ? 'Unsubscribe' : 'Descadastrar'}</a></p>`
+    : ''
   return `<p style="margin:20px 0 0;text-align:center;line-height:1.8;">
               <a href="https://app.jesuscorner.app" style="${LINK_STYLE}">app.jesuscorner.app</a>
               <span style="color:#D4D4D4;font-size:11px;"> &nbsp;·&nbsp; </span>
               <a href="https://www.instagram.com/jesuscorner.app/" style="${LINK_STYLE}">Instagram</a>
               <span style="color:#D4D4D4;font-size:11px;"> &nbsp;·&nbsp; </span>
               <a href="mailto:info@jesuscorner.app" style="${LINK_STYLE}">info@jesuscorner.app</a>
-            </p>`
+            </p>${unsubscribeLine}`
 }

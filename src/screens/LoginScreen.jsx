@@ -7,6 +7,8 @@
 // "Não tem conta? Criar conta" leva ao 13c.
 import { useState } from 'react'
 import { login, loginWithProvider, enabledOAuthProviders } from '../auth/authStore'
+import { savePendingConsents } from '../privacy/consent'
+import ConsentChoices, { EMPTY_CHOICES, requiredChecked, consentRecords } from '../privacy/ConsentChoices'
 import { t } from '../i18n'
 import { getAppLanguage } from '../i18n/appLanguageStore'
 import { AccountShell, AccountField, AccountPasswordField, AccountPrimaryButton, AccountError, FONT, ui } from './accountUi'
@@ -22,6 +24,13 @@ export default function LoginScreen({ onAuthenticated, onBack, onGoSignup, onGoF
   // VITE_OAUTH_PROVIDERS em .env.example) — sem nenhum, o divisor "ou" e os
   // dois botões do quadro 13b ficam de fora até a configuração existir.
   const providers = enabledOAuthProviders()
+  // Antes de ir pro Google/Apple, as caixas de consentimento (revisão de
+  // LGPD, 2026-11-18): a conta pode ser criada no retorno do provedor, sem
+  // passar pelo cadastro, e o consentimento tem que vir antes. As escolhas
+  // ficam guardadas no aparelho e são gravadas na primeira entrada com
+  // sessão (flushPendingConsents, em AuthScreen/App).
+  const [consentFor, setConsentFor] = useState(null)
+  const [consent, setConsent] = useState(EMPTY_CHOICES)
 
   async function submit(e) {
     e.preventDefault()
@@ -40,6 +49,8 @@ export default function LoginScreen({ onAuthenticated, onBack, onGoSignup, onGoF
 
   async function withProvider(provider) {
     setError('')
+    if (!requiredChecked(consent)) { setConsentFor(provider); return }
+    savePendingConsents(consentRecords(consent))
     try {
       await loginWithProvider(provider)
     } catch (err) {
@@ -47,6 +58,26 @@ export default function LoginScreen({ onAuthenticated, onBack, onGoSignup, onGoF
         ? L('providerUnavailable', { provider: provider === 'google' ? 'Google' : 'Apple' })
         : err.message)
     }
+  }
+
+  const providerName = consentFor === 'google' ? 'Google' : 'Apple'
+  if (consentFor) {
+    return (
+      <AccountShell
+        onBack={() => { setConsentFor(null); setError('') }}
+        body={(
+          <>
+            <p style={styles.title}>{L('oauthConsentTitle', { provider: providerName })}</p>
+            <p style={styles.subtitle}>{L('oauthConsentBody')}</p>
+            <ConsentChoices value={consent} onChange={setConsent} lang={lang} />
+            <AccountError text={error} />
+          </>
+        )}
+        bodyStyle={{ padding: '26px 20px 0' }}
+        footer={<AccountPrimaryButton label={L(consentFor)} disabled={!requiredChecked(consent)} onClick={() => withProvider(consentFor)} style={{ margin: 0 }} />}
+        footerStyle={{ padding: '12px 20px calc(26px + var(--safe-bottom))' }}
+      />
+    )
   }
 
   const body = (

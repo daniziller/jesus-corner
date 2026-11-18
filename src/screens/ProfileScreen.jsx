@@ -8,6 +8,8 @@ import { termsUrl, privacyUrl } from '../utils/legalLinks'
 import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
+import { getOptionalConsentState, setConsent, PURPOSES } from '../privacy/consent'
+import { isUnderMinAge } from '../privacy/minAge'
 import { calculateAge, ageToApproxBirthdate } from '../utils/age'
 import { getShowApplicationCard, setShowApplicationCard } from '../reflection/applicationCardVisibilityStore'
 import { PLANS } from '../data/bibleBlocks'
@@ -44,6 +46,7 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
   const [langPickerOpen, setLangPickerOpen] = useState(false)
   const [readingOrderPickerOpen, setReadingOrderPickerOpen] = useState(false)
   const [pacePickerOpen, setPacePickerOpen] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
   // Card da frase de aplicação na Home (ver HomeScreen.jsx) — preferência
   // só de UI, por dispositivo (localStorage, não backend).
   const [showApplicationCard, setShowApplicationCardState] = useState(getShowApplicationCard)
@@ -183,7 +186,13 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
       // O Perfil só pede idade — convertemos pra uma data sintética antes de
       // guardar (ver ageToApproxBirthdate em src/utils/age.js).
       const birthdate = ageToApproxBirthdate(ageNum)
+      // O app é para maiores de 18 (src/privacy/minAge.js) — o Perfil não
+      // aceita uma idade menor.
+      if (isUnderMinAge(birthdate)) { setSaveError(L('ageUnderMinError')); setSaving(false); return }
       await updateProfile({ name: editName, birthdate, bio: editBio, isPublic: editIsPublic })
+      // Perfil público é consentimento opcional (LGPD art. 8º): cada troca
+      // fica registrada, como as outras finalidades.
+      if (editIsPublic !== (profile?.isPublic ?? false)) setConsent(PURPOSES.PUBLIC_PROFILE, editIsPublic).catch(() => {})
       setProfile({ bio: editBio.trim(), avatarUrl, isPublic: editIsPublic })
       onProfileUpdated?.({ name: editName.trim(), birthdate, avatarUrl })
       setEditMode(false)
@@ -420,6 +429,8 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
             <Row icon="Wrench" label={L('adminLabel')} sub={L('adminSub')} onPress={() => onNavigate('admin')} />
           )}
           <Row icon="Instagram" label={L('instagramLabel')} sub={L('instagramSub')} onPress={() => window.open('https://www.instagram.com/jesuscorner.app/', '_blank', 'noopener,noreferrer')} />
+          <Row icon="Shield" label={L('privacyChoicesLabel')} sub={L('privacyChoicesSub')} onPress={() => setPrivacyOpen(v => !v)} last={false} />
+          {privacyOpen && <PrivacyChoices lang={lang} />}
           <Row icon="Download" label={L('exportDataLabel')} sub={L('exportDataSub')} onPress={handleExport} />
           <Row icon="LogOut" label={L('logoutLabel')} sub={L('logoutSub')} onPress={onLogout} />
           <Row icon="Trash2" iconColor="var(--bento-accent)" label={L('deleteAccountLabel')} sub={L('deleteAccountSub')} onPress={() => setDeleteOpen(true)} last />
@@ -501,6 +512,44 @@ function Switch({ value, onChange, disabled }) {
     >
       <span style={{ ...s.switchThumb, background: value ? 'var(--bento-accent)' : '#fff' }} />
     </button>
+  )
+}
+
+// Privacidade (revisão de LGPD, 2026-11-18): as finalidades opcionais, cada
+// uma liga/desliga, gravando no registro de consentimento (art. 8º §5º e
+// art. 18 IX — revogar tão fácil quanto dar). As obrigatórias (termos e
+// dados sobre a fé) não têm botão aqui: sem elas o app não funciona, e o
+// caminho para retirá-las é excluir a conta — a linha de baixo diz isso.
+function PrivacyChoices({ lang }) {
+  const L = (k, vars) => t(`profile.${k}`, vars, lang)
+  const [state, setState] = useState(null)
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => { getOptionalConsentState().then(setState).catch(() => setError(L('privacyLoadError'))) }, [])
+  async function toggle(purpose) {
+    const next = !state[purpose]
+    setBusy(purpose); setError('')
+    try {
+      await setConsent(purpose, next)
+      setState(prev => ({ ...prev, [purpose]: next }))
+    } catch {
+      setError(L('privacySaveError'))
+    } finally { setBusy('') }
+  }
+  const items = [
+    [PURPOSES.AI_PROCESSING, 'privacyAiLabel', 'privacyAiSub'],
+    [PURPOSES.WEEKLY_EMAIL, 'privacyWeeklyLabel', 'privacyWeeklySub'],
+    [PURPOSES.MARKETING_EMAIL, 'privacyMarketingLabel', 'privacyMarketingSub'],
+  ]
+  return (
+    <div style={s.expandPanel}>
+      {!state && !error && <p style={s.hintText}>{L('privacyLoading')}</p>}
+      {state && items.map(([purpose, label, sub]) => (
+        <Row key={purpose} label={L(label)} sub={L(sub)} right={<Switch value={!!state[purpose]} disabled={busy === purpose} onChange={() => toggle(purpose)} />} />
+      ))}
+      {error && <p style={s.errorText}>{error}</p>}
+      <p style={{ ...s.hintText, textAlign: 'left' }}>{L('privacyRequiredNote')}</p>
+    </div>
   )
 }
 

@@ -49,7 +49,7 @@ export default function AuthScreen({ onAuthenticated, initialMode, onBack, planI
     // Consentimento guardado no aparelho num cadastro sem sessão (confirmação
     // de e-mail) — envia agora que existe sessão (ver consent.js).
     await flushPendingConsents().catch(() => false)
-    const needsRefresh = await needsConsentRefresh().catch(() => false)
+    const needsRefresh = await needsConsentRefresh(user.id)
     if (needsRefresh) {
       setPendingUser(user)
       setMode('consentRefresh')
