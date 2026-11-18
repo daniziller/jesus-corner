@@ -35,6 +35,7 @@
 //      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
 //      7 inclui amigo e anônimo) · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
 //      · &feitos=prayer,reading (passos já feitos hoje) · &minutos=12 (duração da oração) · &metodo=livre (36c, sem mudança)
+//      &plano=sim (com oracao/reflexao/biblia&leitura=plano) — a tela dentro do plano guiado, com o relógio do plano no topo.
 //      tela=reflexao — a reflexão com perguntas (S4), com as perguntas na memória. &pergunta=1|2|3 (a pergunta aberta)
 //      · &perguntas=ok|erro|carregando|limite (a geração) · &trecho=marcado|lido|nenhum (o cartão areia)
 //      · &feitos=prayer,reading (com um passo faltando, "Terminar a reflexão") · &dia=estudo|um · &metodo=livre (37b, sem mudança)
@@ -96,6 +97,9 @@ import PrayerScreen from '../src/screens/PrayerScreen'
 import DayCompleteScreen from '../src/screens/DayCompleteScreen'
 import PrayerRequestsScreen from '../src/screens/PrayerRequestsScreen'
 import ReflectionScreen from '../src/screens/ReflectionScreen'
+import PlanClockBar from '../src/components/timer/PlanClockBar'
+import { usePlanClock } from '../src/timer/usePlanClock'
+import { PlanClockContext } from '../src/timer/PlanClockContext'
 import { setReflectionMethod } from '../src/reflection/reflectionMethodStore'
 import { setPrayerMethod } from '../src/prayer/prayerMethodStore'
 import { mergePedidos } from '../src/pedidos/pedidosMath'
@@ -1283,6 +1287,7 @@ function Preview() {
   }
   // A aba Bíblia com a barra de abas de verdade — que some fora da raiz
   // (livro, leitura, busca), como no App.
+  if (screen === 'biblia' && params.get('plano') === 'sim') return <PlanoGuiadoPreview><BibliaPreview onPastRootChange={setBibliaPastRoot} /></PlanoGuiadoPreview>
   if (screen === 'biblia') {
     return (
       <div style={{ height: '100%' }}>
@@ -1295,7 +1300,24 @@ function Preview() {
     ? <BottomNav activeTab="home" onNavigate={t => alert(`aba: ${t}`)} groupsUnread={Number(params.get('msgs'))} groupsHasPending={params.get('pendente') === '1'} lang="pt" />
     : screen === 'pedidos' ? <BottomNav activeTab="routine" onNavigate={t => alert(`aba: ${t}`)} lang="pt" />
       : screen === 'biblioteca' && !bibliotecaPastRoot ? <BottomNav activeTab="notes" onNavigate={t => alert(`aba: ${t}`)} lang="pt" /> : null
+  if (params.get('plano') === 'sim') return <PlanoGuiadoPreview>{body}</PlanoGuiadoPreview>
   return <div style={{ height: '100%' }}>{body}{nav}</div>
+}
+
+// `&plano=sim` — a tela como fica dentro do plano guiado: o relógio do plano
+// numa faixa no topo, andando, e o relógio do passo ligado a ele.
+function PlanoGuiadoPreview({ children }) {
+  const clock = usePlanClock()
+  useEffect(() => { clock.resume() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const link = { inPlan: true, running: clock.running, toggle: clock.toggle }
+  return (
+    <PlanClockContext.Provider value={link}>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <PlanClockBar lang={params.get('lang') ?? 'pt'} running={clock.running} computeSeconds={clock.computeSeconds} onToggle={clock.toggle} onOpen={() => alert('ir para o passo de agora')} />
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>{children}</div>
+      </div>
+    </PlanClockContext.Provider>
+  )
 }
 
 createRoot(document.getElementById('root')).render(<StrictMode><Preview /></StrictMode>)

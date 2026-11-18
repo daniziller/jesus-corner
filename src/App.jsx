@@ -27,6 +27,9 @@ import PhysicalReadingScreen from './screens/PhysicalReadingScreen'
 import ReadingSummaryScreen from './screens/ReadingSummaryScreen'
 import ReflectionScreen from './screens/ReflectionScreen'
 import FloatingTimerPill from './components/timer/FloatingTimerPill'
+import PlanClockBar from './components/timer/PlanClockBar'
+import { usePlanClock } from './timer/usePlanClock'
+import { PlanClockContext } from './timer/PlanClockContext'
 import ReadingOrganizeScreen from './screens/ReadingOrganizeScreen'
 import StudyOrganizeScreen from './screens/StudyOrganizeScreen'
 import AiSettingsScreen from './screens/AiSettingsScreen'
@@ -569,6 +572,19 @@ export default function App() {
   const [guidedFlow, setGuidedFlow] = useState(null)
   const guidedFlowRef = useRef(null)
   guidedFlowRef.current = guidedFlow
+  // O relógio do plano (pedido de 18/11): conta para cima todo o tempo em
+  // que a pessoa está dentro do plano guiado, com pausa e play, numa faixa
+  // no topo (PlanClockBar). Anda ao entrar no plano, pausa ao sair dele
+  // (continuar o plano no mesmo dia retoma de onde parou) e zera no Dia
+  // concluído. Os relógios dos passos andam juntos com ele (ver
+  // timer/PlanClockContext.js e timer/useStepClockInPlan.js).
+  const planClock = usePlanClock()
+  const inPlan = guidedFlow != null
+  useEffect(() => {
+    if (inPlan) planClock.resume()
+    else planClock.pause()
+  }, [inPlan]) // eslint-disable-line react-hooks/exhaustive-deps
+  const planLink = useMemo(() => ({ inPlan, running: planClock.running, toggle: planClock.toggle }), [inPlan, planClock.running, planClock.toggle])
   // Snapshot pra tela de fechamento do dia (37c, DayCompleteScreen) —
   // { steps, readingSession }, montado no fim da rotina guiada (ver
   // advanceGuided abaixo) e limpo ao voltar pra Hoje. steps é a mesma lista
@@ -639,6 +655,8 @@ export default function App() {
     if (activeTab !== 'prayer' && prayerNeedsResetRef.current) { prayerNeedsResetRef.current = false; setPrayerRunKey(k => k + 1) }
     if (activeTab !== 'reflection' && reflectionNeedsResetRef.current) { reflectionNeedsResetRef.current = false; setReflectionRunKey(k => k + 1) }
   }, [activeTab])
+  // Dia concluído: o plano de hoje acabou, o relógio do plano zera.
+  useEffect(() => { if (activeTab === 'routineComplete') planClock.reset() }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
   // Biblioteca recarrega a cada visita à aba (ver BibliotecaScreen/refreshKey).
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
   useEffect(() => { if (activeTab === 'notes') setNotesRefreshKey(k => k + 1) }, [activeTab])
@@ -1344,6 +1362,9 @@ export default function App() {
     if (!gf || guidedAdvancingRef.current || gf.steps[gf.idx] !== fromStep) return
     guidedAdvancingRef.current = true
     const nextIdx = gf.idx + 1
+    // Último passo: o relógio do plano para no toque de "Terminar o dia",
+    // não depois da pausa até o Dia concluído.
+    if (nextIdx >= gf.steps.length) planClock.pause()
     guidedAdvanceTimerRef.current = setTimeout(() => {
       guidedAdvancingRef.current = false
       guidedAdvanceTimerRef.current = null
@@ -2434,6 +2455,7 @@ export default function App() {
     // de estudo, perfil aberto, "último lido" etc.
     setGuidedFlow(null)
     guidedAdvancingRef.current = false
+    planClock.reset()
     setRoutineCompleteInfo(null)
     setLastReadSession(null)
     setAiStudyDraft(null)
@@ -3579,13 +3601,25 @@ export default function App() {
   // rodando ao mesmo tempo é borda rara (teria que deixar um ligado,
   // sair, abrir o outro e também ligar); Oração ganha a prioridade nesse
   // caso só pra sempre mostrar só um.
-  const floatingTimer = activeTab !== 'prayer' && prayerTimerRunning
+  // Dentro do plano guiado quem flutua é o relógio do plano (PlanClockBar).
+  const floatingTimer = inPlan ? null : activeTab !== 'prayer' && prayerTimerRunning
     ? { controlsRef: prayerTimerControlsRef, tab: 'prayer' }
     : activeTab !== 'reflection' && reflectionTimerRunning
       ? { controlsRef: reflectionTimerControlsRef, tab: 'reflection' }
       : null
 
+  // Tocar no relógio do plano, de uma tela do caminho (pedidos, bênção),
+  // volta para o passo de agora.
+  function openCurrentPlanStep() {
+    const step = guidedFlow?.steps[guidedFlow.idx]
+    if (!step) return
+    const tab = guidedTabFor(step)
+    if (step === 'reading') { if (!['journey', 'themePlan', 'chronologicalPlan', 'readingChoice', 'physicalReading'].includes(activeTab)) goToReadingStep(); return }
+    if (activeTab !== tab) goToTab(tab)
+  }
+
   return (
+    <PlanClockContext.Provider value={planLink}>
     <div className="app-shell">
       {/* Navegação lateral — só visível em telas ≥768px (ver index.css) */}
       {isDesktop && !immersiveReading && !isAdminScreen && (
@@ -3593,6 +3627,10 @@ export default function App() {
       )}
 
       <div className="app-main">
+
+        {inPlan && (
+          <PlanClockBar lang={session.lang} running={planClock.running} computeSeconds={planClock.computeSeconds} onToggle={planClock.toggle} onOpen={openCurrentPlanStep} />
+        )}
 
         {/* Conteúdo da tela ativa */}
         <div className="app-content">
@@ -3681,6 +3719,7 @@ export default function App() {
       />
       <Analytics />
     </div>
+    </PlanClockContext.Provider>
   )
 }
 
