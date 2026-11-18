@@ -8,6 +8,7 @@
 // (mesma tabela text_ai_chats, mesmo teto de 40/dia).
 import { createClient } from '@supabase/supabase-js'
 import { generateReflectionQuestionPair } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
@@ -79,6 +80,8 @@ export default async function handler(req, res) {
 
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, caller.id))) return
 
   const { book, bookEn, chStart, chEnd, lang, avoidQuestions } = req.body ?? {}
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -115,7 +118,7 @@ export default async function handler(req, res) {
 
   let result
   try {
-    result = await generateReflectionQuestionPair({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang, avoidQuestions: cleanAvoid })
+    result = await meterAi(caller.id, 'perguntas-da-reflexao', () => generateReflectionQuestionPair({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang, avoidQuestions: cleanAvoid }))
   } catch (err) {
     console.error('[generate-reflection-question-pair] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

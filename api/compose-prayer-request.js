@@ -6,6 +6,7 @@
 // endpoint só gera o rascunho, nunca publica nada sozinho.
 import { createClient } from '@supabase/supabase-js'
 import { composePrayerRequest } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -42,6 +43,8 @@ export default async function handler(req, res) {
 
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, caller.id))) return
 
   const { text, lang } = req.body ?? {}
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -63,7 +66,7 @@ export default async function handler(req, res) {
 
   let result
   try {
-    result = await composePrayerRequest({ text: cleanText, lang: cleanLang })
+    result = await meterAi(caller.id, 'pedido-de-oracao', () => composePrayerRequest({ text: cleanText, lang: cleanLang }))
   } catch (err) {
     console.error('[compose-prayer-request] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

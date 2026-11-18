@@ -11,6 +11,7 @@
 // inteira é descartada.
 import { createClient } from '@supabase/supabase-js'
 import { generateStudySynthesis } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -29,6 +30,8 @@ export default async function handler(req, res) {
 
   const ent = await fetchEntitlement(supabase, userData.user.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, userData.user.id))) return
 
   const { answers, lang } = req.body ?? {}
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -42,7 +45,7 @@ export default async function handler(req, res) {
 
   let raw
   try {
-    raw = await generateStudySynthesis({ answers: cleanAnswers, lang: cleanLang })
+    raw = await meterAi(userData.user.id, 'sintese-do-estudo', () => generateStudySynthesis({ answers: cleanAnswers, lang: cleanLang }))
   } catch (err) {
     console.error('[generate-study-synthesis] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

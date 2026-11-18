@@ -29,7 +29,7 @@ const NO_GROUPS = []
 
 // `notice`: o que acabou de acontecer ao finalizar — { shared: [{ groupId,
 // postId }], failed: [groupId], reason } (ver PaginaDeAnotacao.jsx).
-export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, noteId, groups = NO_GROUPS, notice: arrivedWith = null, onBack, onContinue, onRead, onOpenBiblePassage, onDeleted }) {
+export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, noteId, groups = NO_GROUPS, notice: arrivedWith = null, canSummarize = true, onBack, onContinue, onRead, onOpenBiblePassage, onDeleted }) {
   const N = (key, vars) => tr(lang, `notasTx.${key}`, vars)
   const [perguntar, folha] = useConfirmacao(lang)
   const { status, draft, library, change, leave, discard } = useAnotacao({ api, target: { noteId }, countTime: false })
@@ -58,7 +58,9 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
   const fingerprint = plan?.fingerprint ?? null
   useEffect(() => {
     if (!plan) return
-    if (plan.action === 'none') { setSummary({ state: 'none', data: null }); return }
+    // A síntese é gerada: só no Premium (`canSummarize`, pedido dela,
+    // 2026-11-18). No grátis nem pede nem mostra.
+    if (!canSummarize || plan.action === 'none') { setSummary({ state: 'none', data: null }); return }
     if (plan.action === 'stored') { setSummary({ state: 'ready', data: plan.summary }); return }
     if (asked.current === fingerprint) return
     asked.current = fingerprint
@@ -71,7 +73,7 @@ export default function AnotacaoGuardadaScreen({ lang = 'pt', api = anotarApi, n
       })
       .catch(err => { console.error('[anotar] síntese', err); setSummary({ state: 'none', data: null }) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fingerprint, plan?.action])
+  }, [fingerprint, plan?.action, canSummarize])
 
   if (status === 'loading') return <div style={s.screen} aria-busy="true" />
   if (status !== 'ready' || !draft) {

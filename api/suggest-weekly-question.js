@@ -5,6 +5,7 @@
 // voz na Comunidade continua humana"). Exige só uma conta: gerar custa uma
 // chamada de IA, e aberto qualquer um na internet podia disparar várias.
 import { suggestWeeklyQuestion } from './_lib/ai.js'
+import { meterAi } from './_lib/aiBudget.js'
 import { requireCaller } from './_lib/caller.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
@@ -46,7 +47,9 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' })
 
   // Gerar custa uma chamada de IA: só pra quem tem conta.
-  if (!(await requireCaller(req, res))) return
+  // Gerar exige o Premium e saldo no limite mensal de IA (api/_lib/aiBudget.js).
+  const who = await requireCaller(req, res, { needsAI: true, budget: true })
+  if (!who) return
 
   const { book, chStart, chEnd, lang } = req.query
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -71,7 +74,7 @@ export default async function handler(req, res) {
 
   let question
   try {
-    question = await suggestWeeklyQuestion({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang })
+    question = await meterAi(who.caller.id, 'pergunta-da-semana', () => suggestWeeklyQuestion({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang }))
   } catch (err) {
     console.error('[suggest-weekly-question] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

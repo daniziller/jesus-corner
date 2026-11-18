@@ -9,6 +9,7 @@
 // tempo de leitura — nunca confia na IA pra número de minutos).
 import { createClient } from '@supabase/supabase-js'
 import { generateGroupChallenge } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { BIBLE_BLOCKS, WORDS_PER_MINUTE } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -62,6 +63,8 @@ export default async function handler(req, res) {
   // generate-study.js, reconferida no servidor.
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, caller.id))) return
 
   const { groupId, text, lang } = req.body ?? {}
   const cleanText = (text ?? '').trim()
@@ -79,7 +82,7 @@ export default async function handler(req, res) {
 
   let aiResult
   try {
-    aiResult = await generateGroupChallenge(cleanText, CANONICAL_BOOKS, cleanLang)
+    aiResult = await meterAi(caller.id, 'desafio-do-grupo', () => generateGroupChallenge(cleanText, CANONICAL_BOOKS, cleanLang))
   } catch (err) {
     console.error('[generate-group-challenge] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

@@ -17,6 +17,7 @@
 // "overview" só, sem tradução).
 import { createClient } from '@supabase/supabase-js'
 import { generateStudy } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { isAdminEmail } from './_lib/adminAuth.js'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks.js'
@@ -72,6 +73,8 @@ export default async function handler(req, res) {
   // client) e exige o tier Premium + IA.
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, caller.id))) return
 
   // Bug real (varredura geral, 2026-09-19): esta checagem tinha desviado da
   // de generate-theme-plan.js — continuava numa janela rolante de 30 dias
@@ -114,7 +117,7 @@ export default async function handler(req, res) {
 
   let draft
   try {
-    draft = await generateStudy(cleanScope, CANONICAL_BOOKS, cleanLang)
+    draft = await meterAi(caller.id, 'estudo', () => generateStudy(cleanScope, CANONICAL_BOOKS, cleanLang))
   } catch (err) {
     console.error('[generate-study] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

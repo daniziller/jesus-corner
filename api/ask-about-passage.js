@@ -16,6 +16,7 @@
 // por dia, de propósito — não tem sentido dar 40+40 perguntas separadas).
 import { createClient } from '@supabase/supabase-js'
 import { answerAboutPassage } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
@@ -136,6 +137,8 @@ export default async function handler(req, res) {
 
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, caller.id))) return
 
   const { book, bookEn, chapter, verseStart, verseEnd, question, lang, tone } = req.body ?? {}
   const cleanTone = ['direct', 'explained', 'study'].includes(tone) ? tone : 'explained'
@@ -181,7 +184,7 @@ export default async function handler(req, res) {
 
   let answer
   try {
-    answer = await answerAboutPassage({ book, chapter, verseStart, verseEnd, passageText, bookInfo, question: cleanQuestion, lang: cleanLang, tone: cleanTone })
+    answer = await meterAi(caller.id, 'pergunta-trecho', () => answerAboutPassage({ book, chapter, verseStart, verseEnd, passageText, bookInfo, question: cleanQuestion, lang: cleanLang, tone: cleanTone }))
   } catch (err) {
     console.error('[ask-about-passage] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

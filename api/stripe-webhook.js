@@ -50,7 +50,9 @@ async function upsertFromSubscription(subscription, eventCreatedSeconds) {
   const plan = subscription.metadata?.plan ?? planFromInterval(item?.price?.recurring?.interval)
   // Tier vem do metadata gravado em api/create-checkout-session.js. Sem ele
   // (assinaturas antigas, criadas quando havia plano único), assume o
-  // pacote completo — era o que aquele plano dava.
+  // pacote completo — era o que aquele plano dava. Desde 2026-11-18 o tier
+  // é só registro: qualquer assinatura ativa dá tudo (ver
+  // api/_lib/entitlement.js).
   const tier = subscription.metadata?.tier === 'premium' ? 'premium' : 'premium_ai'
   // Nas versões atuais da API do Stripe, current_period_end mora no item da
   // assinatura, não mais na Subscription — mas mantém o fallback pro campo

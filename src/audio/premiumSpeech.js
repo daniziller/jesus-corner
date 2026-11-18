@@ -38,6 +38,9 @@ async function authToken() {
   return _authToken
 }
 
+// Bateu o limite mensal de IA nesta sessão (ver getAudioBlob).
+let budgetReached = false
+
 // Devolve um Blob de áudio pro texto — do cache, ou gerando no servidor.
 async function getAudioBlob(text, lang) {
   let cache = null
@@ -49,6 +52,11 @@ async function getAudioBlob(text, lang) {
     if (hit) return hit.blob()
   }
 
+  // Sem saldo no limite mensal (429 do servidor): nesta sessão o app não
+  // pede mais a voz natural — vai direto pra voz do aparelho, sem esperar
+  // uma recusa a cada trecho. O que já está no cache continua tocando.
+  if (budgetReached) throw new Error('tts_budget_reached')
+
   const token = await authToken()
   if (!token) throw new Error('no_auth')
 
@@ -57,6 +65,7 @@ async function getAudioBlob(text, lang) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ text, lang }),
   })
+  if (res.status === 429) { budgetReached = true; throw new Error('tts_budget_reached') }
   if (!res.ok) throw new Error(`tts_http_${res.status}`)
   const ctype = res.headers.get('content-type') || ''
   if (!ctype.startsWith('audio/')) throw new Error(`tts_bad_type_${ctype}`)

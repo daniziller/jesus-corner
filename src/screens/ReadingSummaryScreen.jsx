@@ -36,6 +36,10 @@ export default function ReadingSummaryScreen({ session, authUser, descriptor, on
   const email = authUser?.email
 
   const hasChapter = !!descriptor?.book && descriptor?.type !== 'reflection'
+  // O resumo (tese e momentos) é gerado: só no Premium (pedido dela,
+  // 2026-11-18 — a conta grátis não usa nada gerado). No grátis a tela
+  // mostra o que já é da pessoa (marcações, tempo) e segue pra Reflexão.
+  const canSummarize = hasChapter && !!session.hasAI
   const minutes = Math.max(1, Math.round((descriptor?.words ?? 0) / WORDS_PER_MINUTE))
   const chapterLabel = hasChapter ? `${descriptor.book} ${verseSpan(descriptor.chStart, descriptor.chEnd)}` : ''
 
@@ -44,7 +48,7 @@ export default function ReadingSummaryScreen({ session, authUser, descriptor, on
   // "Tentar de novo" pede outra vez (o servidor já tenta duas vezes).
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    if (!hasChapter) return
+    if (!canSummarize) return
     let cancelled = false
     setSummaryFailed(false)
     fetchReadingSummary({ book: descriptor.book, bookEn: descriptor.bookEn, chStart: descriptor.chStart, chEnd: descriptor.chEnd, lang })
@@ -135,13 +139,13 @@ export default function ReadingSummaryScreen({ session, authUser, descriptor, on
           </div>
         )}
 
-        {!summary && !summaryFailed && hasChapter && (
+        {!summary && !summaryFailed && canSummarize && (
           <div style={styles.card}><p style={styles.loadingHint}>{L('loading')}</p></div>
         )}
 
         {/* Sem resumo, a tela não fica vazia: diz o que houve e deixa
             tentar de novo — a Reflexão segue disponível no rodapé. */}
-        {!summary && summaryFailed && hasChapter && (
+        {!summary && summaryFailed && canSummarize && (
           <div style={styles.card} role="status">
             <p style={styles.loadingHint}>{L('failed')}</p>
             <button type="button" style={styles.retryBtn} onClick={() => setAttempt(n => n + 1)}>{L('retry')}</button>

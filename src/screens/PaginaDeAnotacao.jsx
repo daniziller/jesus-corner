@@ -19,7 +19,7 @@ import AnotacaoGuardadaScreen from './AnotacaoGuardadaScreen'
 // `target`: o que abrir — { fresh: true, type, details } (uma nova) ·
 // { noteId } (um rascunho, na página) · { noteId, saved: true } (uma já
 // finalizada, na tela da anotação guardada) · {} (o rascunho em andamento).
-export default function PaginaDeAnotacao({ lang = 'pt', api = anotarApi, target, groups, onClose, onOpenBiblePassage }) {
+export default function PaginaDeAnotacao({ lang = 'pt', api = anotarApi, target, groups, canSummarize = true, onClose, onOpenBiblePassage }) {
   const [view, setView] = useState(() => (target.saved ? { name: 'saved', noteId: target.noteId, notice: null } : { name: 'write', target, details: target.details ?? null }))
 
   // Leva a anotação aos grupos que ainda não a receberam e devolve o que
@@ -38,7 +38,7 @@ export default function PaginaDeAnotacao({ lang = 'pt', api = anotarApi, target,
   if (view.name === 'saved') {
     return (
       <AnotacaoGuardadaScreen
-        lang={lang} api={api} noteId={view.noteId} groups={groups} notice={view.notice}
+        lang={lang} api={api} noteId={view.noteId} groups={groups} notice={view.notice} canSummarize={canSummarize}
         onBack={onClose} onDeleted={onClose} onOpenBiblePassage={onOpenBiblePassage}
         onContinue={() => setView({ name: 'write', target: { noteId: view.noteId }, from: 'saved' })}
         onRead={() => setView({ name: 'write', target: { noteId: view.noteId }, readOnly: true, from: 'saved' })}

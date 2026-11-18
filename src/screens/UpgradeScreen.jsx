@@ -1,11 +1,16 @@
-// Tela de assinatura — dois tiers pagos (Premium e Premium + IA), cada um
-// com plano mensal ou anual, em BRL ou USD (ver STORE_TIERS em
-// ../billing/storeTiers, mesmos valores usados nas lojas nativas e no
-// Stripe/web).
+// Tela de assinatura — duas versões (pedido dela, 2026-11-18): a grátis,
+// com recursos limitados, e o Premium, pago por mês (R$27 no Brasil, US$7
+// no resto do mundo) ou por ano (R$267 / US$57) —
+// PAID_PLANS em ../billing/storeTiers, os mesmos valores das lojas nativas
+// e do Stripe/web. O comparativo vem de
+// ../billing/planFeatures, a mesma lista que o onboarding mostra.
 //
-// Aparece tanto pra quem está no tier grátis e quer assinar (via aba
+// Aparece tanto pra quem está no grátis e quer assinar (via aba
 // "Assinatura" ou por um cadeado de recurso Premium) quanto pelo link
-// "Minha assinatura" no Perfil (pra quem já assina, ver/trocar o plano).
+// "Minha assinatura" no Perfil (pra quem já assina, ver e gerenciar).
+// Quem assinou um plano que não se vende mais (o antigo "Premium + IA")
+// continua nele, no preço que paga — a tela só mostra o que é e o caminho
+// pra gerenciar.
 //
 // Contribuição única (acesso vitalício) e o acesso grátis concedido pelo
 // admin (`access_type: 'free'`) não são mais formas de compra — só o
@@ -19,35 +24,21 @@ import {
   getDigitalGoodsService, getPlaySkuDetails, startPlayBillingPurchase,
   isIOSApp, getIOSProducts, startIOSPurchase,
 } from '../billing/subscriptionStore'
-import { STORE_TIERS, getStoreTier, GOOGLE_PLAY_SUBSCRIPTION_ID } from '../billing/storeTiers'
-import { resolveEntitlement } from '../billing/entitlement'
+import { PAID_PLANS, GOOGLE_PLAY_SUBSCRIPTION_ID, paidPlanCents, annualFreeMonths, currencyForCountry } from '../billing/storeTiers'
+import { FREE_FEATURES, PREMIUM_FEATURES } from '../billing/planFeatures'
 import { formatAmount } from '../billing/formatAmount'
 import { redeemInviteCode } from '../invites/inviteStore'
 import { trackOnboardingEvent } from '../analytics/onboardingEvents'
 import Cabecalho from '../components/comunidade/Cabecalho'
 
-// Comparativo curto — o que cada tier entrega. `tier` marca a partir de
-// qual nível o item está incluído.
-const COMPARE = [
-  { key: 'reading', tier: 'free' },
-  { key: 'prayer', tier: 'free' },
-  { key: 'basicProgress', tier: 'free' },
-  { key: 'voice', tier: 'premium' },
-  { key: 'guided', tier: 'premium' },
-  { key: 'chrono', tier: 'premium' },
-  { key: 'community', tier: 'premium' },
-  { key: 'ai', tier: 'premium_ai' },
-]
-
-const TIER_RANK = { free: 0, premium: 1, premium_ai: 2 }
-
 export default function UpgradeScreen({ session, subscription, onSubscriptionRefreshed, onBack }) {
   const { lang } = session
-  const [currency, setCurrency] = useState('brl')
+  const [currency, setCurrency] = useState(() => currencyForCountry(null, lang))
   const currencyTouchedRef = useRef(false)
-  const [selectedTier, setSelectedTier] = useState('premium_ai') // 'premium' | 'premium_ai'
-  const [mode, setMode] = useState('monthly') // 'monthly' | 'annual'
-  const [changingPlan, setChangingPlan] = useState(false)
+  const [interval, setBillingInterval] = useState('month') // 'month' | 'year'
+  // "Não encontramos uma cobrança ativa vinculada" (portal do Stripe sem
+  // assinatura): mostra o botão de assinar de novo mesmo com o status ativo.
+  const [resubscribing, setResubscribing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [showRedeem, setShowRedeem] = useState(false)
@@ -59,13 +50,14 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
   const [storeContext, setStoreContext] = useState('stripe')
   const [storePrices, setStorePrices] = useState({}) // basePlanId/productId -> preço real da loja
 
+  // Brasil paga em reais; o resto do mundo, em dólar.
   useEffect(() => {
     let cancelled = false
     fetch('/api/geo').then(res => res.json()).then(({ country }) => {
-      if (!cancelled && !currencyTouchedRef.current && country && country !== 'BR') setCurrency('usd')
+      if (!cancelled && !currencyTouchedRef.current && country) setCurrency(currencyForCountry(country, lang))
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [])
+  }, [lang])
 
   useEffect(() => {
     let cancelled = false
@@ -87,8 +79,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
         const details = await getPlaySkuDetails([GOOGLE_PLAY_SUBSCRIPTION_ID])
         if (!cancelled) setStorePrices(details)
       } else {
-        const ids = Object.values(STORE_TIERS).map(tr => tr.appleProductId)
-        const details = await getIOSProducts(ids)
+        const details = await getIOSProducts(Object.values(PAID_PLANS).map(pl => pl.appleProductId))
         if (!cancelled) setStorePrices(details)
       }
     }
@@ -96,33 +87,29 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
     return () => { cancelled = true }
   }, [storeContext])
 
-  const entitlement = resolveEntitlement(subscription)
   const isLifetime = subscription?.access_type === 'lifetime' && subscription?.status === 'active'
   const isRecurringActive = subscription?.access_type === 'recurring' && isPremiumActive(subscription)
+  const isFreeGrant = subscription?.access_type === 'free' && subscription?.status === 'active'
   const isStoreContext = storeContext !== 'stripe'
 
-  const storeTier = getStoreTier(selectedTier, mode)
-  const storeKey = storeContext === 'google_play' ? storeTier.googlePlayBasePlan : storeTier.appleProductId
-  const storePrice = isStoreContext ? storePrices[storeKey] : null
-  const displayCurrency = storePrice?.currency ? storePrice.currency.toLowerCase() : currency
-  const amountCents = storePrice
-    ? Math.round(parseFloat(storePrice.value) * 100)
-    : Math.round(storeTier[currency] * 100)
-
-  // Economia do anual vs 12× o mensal, pro selo de desconto.
-  const monthlyTier = getStoreTier(selectedTier, 'monthly')
-  const annualSavingPct = Math.round(100 - (getStoreTier(selectedTier, 'annual')[currency] / (monthlyTier[currency] * 12)) * 100)
+  // Na loja, o preço que aparece é o que a loja vai cobrar; fora dela, o
+  // de PAID_PLANS na moeda escolhida.
+  function priceOf(iv) {
+    const option = PAID_PLANS[iv]
+    const storeKey = storeContext === 'google_play' ? option.googlePlayBasePlan : option.appleProductId
+    const storePrice = isStoreContext ? storePrices[storeKey] : null
+    const cur = storePrice?.currency ? storePrice.currency.toLowerCase() : currency
+    const cents = storePrice ? Math.round(parseFloat(storePrice.value) * 100) : paidPlanCents(currency, iv)
+    return formatAmount(cents, cur)
+  }
+  const plan = PAID_PLANS[interval]
+  const priceLabel = priceOf(interval)
+  const freeMonths = annualFreeMonths(currency)
 
   function switchCurrency(next) {
     currencyTouchedRef.current = true
     setCurrency(next)
     setError('')
-  }
-
-  function startChangingPlan() {
-    setSelectedTier(entitlement.tier === 'premium' ? 'premium' : 'premium_ai')
-    setMode(subscription.plan === 'annual' ? 'annual' : 'monthly')
-    setChangingPlan(true)
   }
 
   async function handleSubmit() {
@@ -134,13 +121,13 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
     trackOnboardingEvent('checkout_started')
     try {
       if (storeContext === 'google_play') {
-        await startPlayBillingPurchase({ sku: GOOGLE_PLAY_SUBSCRIPTION_ID, basePlanId: storeTier.googlePlayBasePlan })
+        await startPlayBillingPurchase({ sku: GOOGLE_PLAY_SUBSCRIPTION_ID, basePlanId: plan.googlePlayBasePlan })
         window.location.href = '/?checkout=success'
       } else if (storeContext === 'apple') {
-        await startIOSPurchase({ productId: storeTier.appleProductId, mode })
+        await startIOSPurchase({ productId: plan.appleProductId, mode: interval === 'year' ? 'annual' : 'monthly' })
         window.location.href = '/?checkout=success'
       } else {
-        const url = await startCheckout({ interval: mode === 'annual' ? 'year' : 'month', currency, tier: selectedTier })
+        const url = await startCheckout({ currency, interval })
         window.location.href = url
       }
     } catch (err) {
@@ -157,7 +144,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
       window.location.href = url
     } catch {
       setError(t('billing.managePortalFallbackError', undefined, lang))
-      startChangingPlan()
+      setResubscribing(true)
     }
   }
 
@@ -178,10 +165,12 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
     }
   }
 
-  const showPicker = !isLifetime && (!isRecurringActive || changingPlan)
+  const showPicker = !isLifetime && (!isRecurringActive || resubscribing)
+  const perMonth = t('billing.perMonth', undefined, lang)
+  const unit = t(interval === 'year' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)
   const submitLabel = submitting
     ? t('billing.redirecting', undefined, lang)
-    : t('billing.subscribeBtn', { amount: formatAmount(amountCents, displayCurrency), unit: t(mode === 'annual' ? 'billing.perYear' : 'billing.perMonth', undefined, lang) }, lang)
+    : t('billing.subscribeBtn', { amount: priceLabel, unit }, lang)
 
   return (
     <div style={s.screen}>
@@ -194,34 +183,26 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
         <div style={s.hero}>
           <span style={s.heroIcon}><AppIcon name="Crown" size={22} color="var(--bento-ink)" /></span>
           <p style={s.heroTitle}>{t('billing.heroTitle', undefined, lang)}</p>
+          <p style={s.heroPrice}>{priceOf('month')}<span style={s.heroPriceUnit}>{perMonth}</span></p>
+          <p style={s.heroOr}>{t('billing.orAnnual', { amount: priceOf('year') }, lang)}</p>
           <p style={s.heroSub}>{t('billing.heroSub', undefined, lang)}</p>
         </div>
 
+        {/* Comparativo das duas versões: o que o grátis tem (as duas colunas
+            marcadas) e o que só o Premium tem. */}
         <div style={s.card}>
-          <p style={s.missionTitle}>{t('billing.missionTitle', undefined, lang)}</p>
-          <p style={s.missionBody}>{t('billing.missionBody', undefined, lang)}</p>
-        </div>
-
-        {/* Comparativo dos 3 níveis */}
-        <div style={s.card}>
-          {COMPARE.map(row => {
-            const inFree = row.tier === 'free'
-            const inPremium = TIER_RANK[row.tier] <= 1
-            return (
-              <div key={row.key} style={s.compareRow}>
-                <span style={s.compareLabel}>{t(`billing.compare.${row.key}`, undefined, lang)}</span>
-                <span style={s.compareCell}>{inFree ? <AppIcon name="Check" size={13} color="var(--bento-t4)" /> : <span style={s.compareDash}>–</span>}</span>
-                <span style={s.compareCell}>{inPremium ? <AppIcon name="Check" size={13} color="var(--bento-accent)" /> : <span style={s.compareDash}>–</span>}</span>
-                <span style={s.compareCell}><AppIcon name="Check" size={13} color="var(--bento-accent)" /></span>
-              </div>
-            )
-          })}
           <div style={{ ...s.compareRow, ...s.compareHeadRow }}>
             <span style={s.compareLabel} />
             <span style={s.compareCellHead}>{t('billing.tiers.free', undefined, lang)}</span>
-            <span style={s.compareCellHead}>{t('billing.tiers.premium', undefined, lang)}</span>
-            <span style={s.compareCellHead}>{t('billing.tiers.premiumAi', undefined, lang)}</span>
+            <span style={{ ...s.compareCellHead, color: 'var(--bento-accent)' }}>{t('billing.tiers.premium', undefined, lang)}</span>
           </div>
+          {[...FREE_FEATURES.map(key => ({ key, free: true })), ...PREMIUM_FEATURES.map(key => ({ key, free: false }))].map((row, i, all) => (
+            <div key={row.key} style={{ ...s.compareRow, ...(i === all.length - 1 ? { borderBottom: 'none' } : null) }}>
+              <span style={s.compareLabel}>{t(`billing.features.${row.key}`, undefined, lang)}</span>
+              <span style={s.compareCell}>{row.free ? <AppIcon name="Check" size={13} color="var(--bento-t4)" /> : <span style={s.compareDash}>–</span>}</span>
+              <span style={s.compareCell}><AppIcon name="Check" size={13} color="var(--bento-accent)" /></span>
+            </div>
+          ))}
         </div>
 
         {isLifetime && (
@@ -232,21 +213,17 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
           </div>
         )}
 
-        {isRecurringActive && !changingPlan && (
+        {isRecurringActive && !resubscribing && (
           <div style={s.statusCard}>
             <p style={s.statusLabel}>{t('billing.currentContributionTitle', undefined, lang)}</p>
-            <p style={s.statusTitle}>
-              {t(entitlement.tier === 'premium' ? 'billing.tiers.premium' : 'billing.tiers.premiumAi', undefined, lang)}
-            </p>
+            <p style={s.statusTitle}>{t('billing.tiers.premium', undefined, lang)}</p>
             <p style={s.statusAmount}>
               {subscription.amount_cents != null && subscription.currency
                 ? `${formatAmount(subscription.amount_cents, subscription.currency)}${t(subscription.plan === 'annual' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}`
                 : '—'}
             </p>
+            <p style={s.statusSub}>{t('billing.allIncludedSub', undefined, lang)}</p>
             <div style={s.statusActions}>
-              <button style={s.secondaryBtn} onClick={startChangingPlan}>
-                {t('billing.changeAmountBtn', undefined, lang)}
-              </button>
               <button style={s.secondaryBtn} onClick={handleManagePayment}>
                 {t('billing.managePaymentBtn', undefined, lang)}
               </button>
@@ -254,33 +231,34 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
           </div>
         )}
 
-        {subscription?.access_type === 'free' && subscription?.status === 'active' && (
+        {isFreeGrant && (
           <div style={s.statusCard}>
             <p style={s.statusTitle}>{t('billing.alreadyFreeTitle', undefined, lang)}</p>
             <p style={s.statusSub}>{t('billing.alreadyFreeSub', undefined, lang)}</p>
           </div>
         )}
 
-        {showPicker && (
+        {showPicker && !isFreeGrant && (
           <>
-            {/* Escolha do tier */}
-            <div style={s.tierRow}>
-              {['premium', 'premium_ai'].map(tr => {
-                const active = selectedTier === tr
-                const priceTier = getStoreTier(tr, mode)
+            {/* Mensal ou anual: cada opção com o próprio preço; o anual diz
+                quantos meses sai de graça. */}
+            <div style={s.intervalRow} role="radiogroup" aria-label={t('billing.intervalLabel', undefined, lang)}>
+              {['month', 'year'].map(iv => {
+                const on = interval === iv
                 return (
                   <button
-                    key={tr}
-                    style={{ ...s.tierCard, ...(active ? s.tierCardActive : {}) }}
-                    onClick={() => { setSelectedTier(tr); setError('') }}
+                    key={iv} type="button" role="radio" aria-checked={on}
+                    style={{ ...s.intervalCard, ...(on ? s.intervalCardOn : null) }}
+                    onClick={() => { setBillingInterval(iv); setError('') }}
                   >
-                    {tr === 'premium_ai' && <span style={s.tierBadge}>{t('billing.mostPopular', undefined, lang)}</span>}
-                    <span style={{ ...s.tierName, color: active ? '#fff' : 'var(--bento-ink)' }}>{t(tr === 'premium' ? 'billing.tiers.premium' : 'billing.tiers.premiumAi', undefined, lang)}</span>
-                    <span style={{ ...s.tierPrice, color: active ? 'var(--bento-accent)' : 'var(--bento-ink)' }}>
-                      {formatAmount(Math.round(priceTier[currency] * 100), currency)}
-                      <span style={{ ...s.tierPriceUnit, color: active ? 'rgba(255,255,255,.5)' : 'var(--bento-t3)' }}>{t(mode === 'annual' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}</span>
+                    {iv === 'year' && freeMonths > 0 && (
+                      <span style={s.intervalBadge}>{t(freeMonths === 1 ? 'billing.freeMonthsOne' : 'billing.freeMonthsMany', { n: freeMonths }, lang)}</span>
+                    )}
+                    <span style={{ ...s.intervalName, color: on ? 'rgba(255,255,255,.6)' : 'var(--bento-t3)' }}>{t(iv === 'year' ? 'billing.modeAnnual' : 'billing.modeMonthly', undefined, lang)}</span>
+                    <span style={{ ...s.intervalPrice, color: on ? '#fff' : 'var(--bento-ink)' }}>
+                      {priceOf(iv)}
+                      <span style={{ ...s.intervalUnit, color: on ? 'rgba(255,255,255,.5)' : 'var(--bento-t3)' }}>{t(iv === 'year' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}</span>
                     </span>
-                    <span style={{ ...s.tierDesc, color: active ? 'rgba(255,255,255,.55)' : 'var(--bento-t3)' }}>{t(tr === 'premium' ? 'billing.tiers.premiumDesc' : 'billing.tiers.premiumAiDesc', undefined, lang)}</span>
                   </button>
                 )
               })}
@@ -299,30 +277,19 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
               </>
             )}
 
-            <div style={s.segmentToggleWide}>
-              <button style={{ ...s.segmentBtnWide, ...(mode === 'monthly' ? s.segmentBtnActive : {}) }} onClick={() => { setMode('monthly'); setError('') }}>
-                {t('billing.modeMonthly', undefined, lang)}
-              </button>
-              <button style={{ ...s.segmentBtnWide, ...(mode === 'annual' ? s.segmentBtnActive : {}) }} onClick={() => { setMode('annual'); setError('') }}>
-                {t('billing.modeAnnual', undefined, lang)}
-                {annualSavingPct > 0 && <span style={s.saveTag}>{t('billing.savePct', { pct: annualSavingPct }, lang)}</span>}
-              </button>
-            </div>
-
-            <div style={s.amountSection}>
-              <p style={s.fixedPrice}>
-                {formatAmount(amountCents, displayCurrency)}
-                <span style={s.fixedPriceUnit}>{t(mode === 'annual' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}</span>
-              </p>
-            </div>
-
             <button style={{ ...s.primaryBtn, opacity: submitting ? .6 : 1 }} disabled={submitting} onClick={handleSubmit}>
               {submitLabel}
             </button>
+            <p style={s.cancelNote}>{t('billing.cancelAnytime', undefined, lang)}</p>
           </>
         )}
 
         {error && <p style={s.errorMsg}>{error}</p>}
+
+        <div style={s.card}>
+          <p style={s.missionTitle}>{t('billing.missionTitle', undefined, lang)}</p>
+          <p style={s.missionBody}>{t('billing.missionBody', undefined, lang)}</p>
+        </div>
 
         {!showRedeem ? (
           <button style={s.redeemLink} onClick={() => setShowRedeem(true)}>
@@ -362,15 +329,18 @@ const s = {
   hero:        { borderRadius: 24, padding: '22px 20px', background: 'var(--bento-ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center' },
   heroIcon:    { width: 40, height: 40, borderRadius: 13, background: 'var(--bento-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   heroTitle:   { fontFamily: FONT, fontSize: 15, fontWeight: 800, color: '#fff', marginTop: 4, letterSpacing: '-0.2px' },
-  heroSub:     { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.55)', lineHeight: 1.5, maxWidth: 280, margin: 0 },
+  heroPrice:   { fontFamily: FONT, fontSize: 30, fontWeight: 900, color: 'var(--bento-accent)', letterSpacing: '-0.6px', display: 'flex', alignItems: 'baseline', gap: 3, margin: '2px 0 4px' },
+  heroPriceUnit: { fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)' },
+  heroOr:      { fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.7)', margin: '-2px 0 6px' },
+  heroSub:     { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.55)', lineHeight: 1.5, maxWidth: 290, margin: 0 },
 
   card:        { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 18px' },
   missionTitle:{ fontFamily: FONT, fontSize: 12, fontWeight: 800, color: 'var(--bento-ink)', marginBottom: 6 },
   missionBody: { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.55, margin: 0 },
 
-  compareRow:  { display: 'grid', gridTemplateColumns: '1fr 42px 52px 66px', alignItems: 'center', gap: 4, padding: '7px 0', borderBottom: '1px solid var(--bento-line)' },
-  compareHeadRow: { order: -1, borderBottom: '1px solid var(--bento-divider)', borderTop: 'none' },
-  compareLabel:{ fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-ink)' },
+  compareRow:  { display: 'grid', gridTemplateColumns: '1fr 48px 60px', alignItems: 'center', gap: 4, padding: '8px 0', borderBottom: '1px solid var(--bento-line)' },
+  compareHeadRow: { borderBottom: '1px solid var(--bento-divider)', paddingTop: 0 },
+  compareLabel:{ fontFamily: FONT, fontSize: 12, fontWeight: 600, lineHeight: 1.35, color: 'var(--bento-ink)' },
   compareCell: { display: 'flex', justifyContent: 'center', alignItems: 'center' },
   compareCellHead: { fontFamily: FONT, fontSize: 9.5, fontWeight: 800, color: 'var(--bento-t4)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.2, lineHeight: 1.15 },
   compareDash: { fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t5)' },
@@ -382,27 +352,21 @@ const s = {
   statusSub:   { fontFamily: FONT, fontSize: 12, fontWeight: 500, color: 'var(--bento-t3)', lineHeight: 1.5, maxWidth: 280 },
   statusActions:{ display: 'flex', gap: 8, width: '100%', marginTop: 8 },
 
-  tierRow:     { display: 'flex', gap: 10 },
-  tierCard:    { position: 'relative', flex: 1, minWidth: 0, background: 'var(--bento-card)', border: 'none', borderRadius: 20, padding: '16px 14px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, cursor: 'pointer', fontFamily: FONT, textAlign: 'left' },
-  tierCardActive: { background: 'var(--bento-ink)' },
-  tierBadge:   { position: 'absolute', top: -9, right: 10, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, padding: '3px 7px', borderRadius: 7 },
-  tierName:    { fontSize: 12.5, fontWeight: 800 },
-  tierPrice:   { fontSize: 17, fontWeight: 900, letterSpacing: '-0.4px', display: 'flex', alignItems: 'baseline', gap: 3 },
-  tierPriceUnit: { fontSize: 10, fontWeight: 700 },
-  tierDesc:    { fontSize: 10.5, fontWeight: 500, lineHeight: 1.4 },
 
+  intervalRow: { display: 'flex', gap: 10, paddingTop: 8 },
+  intervalCard:{ position: 'relative', flex: 1, minWidth: 0, border: 'none', borderRadius: 20, background: 'var(--bento-card)', padding: '16px 14px 14px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, cursor: 'pointer', fontFamily: FONT, textAlign: 'left' },
+  intervalCardOn: { background: 'var(--bento-ink)' },
+  intervalBadge: { position: 'absolute', top: -9, right: 10, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, padding: '3px 8px', borderRadius: 7 },
+  intervalName:{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.1em' },
+  intervalPrice:{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px', display: 'flex', alignItems: 'baseline', gap: 3 },
+  intervalUnit:{ fontSize: 11, fontWeight: 700 },
   currencyRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   currencyLabel:{ fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)' },
   segmentToggle:{ display: 'flex', gap: 4, background: 'var(--bento-line)', borderRadius: 12, padding: 3 },
   segmentBtn:  { padding: '7px 14px', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', borderRadius: 9, border: 'none', background: 'transparent' },
   segmentBtnActive:{ color: '#fff', background: 'var(--bento-ink)' },
-  segmentToggleWide: { display: 'flex', gap: 4, background: 'var(--bento-line)', borderRadius: 14, padding: 4 },
-  segmentBtnWide: { flex: 1, textAlign: 'center', padding: '10px 8px', fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-t3)', cursor: 'pointer', borderRadius: 10, border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  saveTag:     { fontSize: 9, fontWeight: 800, background: 'rgba(255,255,255,.22)', borderRadius: 5, padding: '1px 4px' },
+  cancelNote:  { fontFamily: FONT, fontSize: 11.5, fontWeight: 600, color: 'var(--bento-t3)', textAlign: 'center', margin: '-2px 0 0' },
   modeNote:    { fontFamily: FONT, fontSize: 11.5, fontWeight: 500, color: 'var(--bento-t3)', textAlign: 'center', marginTop: -6 },
-  amountSection:{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', padding: '8px 0 4px' },
-  fixedPrice:  { fontFamily: FONT, fontSize: 30, fontWeight: 900, color: 'var(--bento-ink)', letterSpacing: '-0.5px', display: 'flex', alignItems: 'baseline', gap: 4 },
-  fixedPriceUnit: { fontSize: 14, fontWeight: 700, color: 'var(--bento-t3)' },
 
   primaryBtn:  { width: '100%', height: 56, borderRadius: 18, border: 'none', background: 'var(--bento-accent)', fontFamily: FONT, fontSize: 15, fontWeight: 800, color: 'var(--bento-ink)', cursor: 'pointer' },
   secondaryBtn:{ flex: 1, height: 44, borderRadius: 14, border: 'none', background: 'var(--bento-line)', fontFamily: FONT, fontSize: 12.5, fontWeight: 700, color: 'var(--bento-ink)', cursor: 'pointer' },

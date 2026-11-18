@@ -1,5 +1,11 @@
 // OnboardingFlow.jsx — o onboarding até o primeiro capítulo (quadros
-// 15a → 15b → uma demonstração 14x → 15f → 27a → 15c → 28d → 15e).
+// 15a → 15b → uma demonstração 14x → 15f → 27a → 15c → 28d → "Grátis e
+// Premium" → 15e).
+//
+// "Grátis e Premium" (OnboardingPlans.jsx, pedido dela, 2026-11-18): antes
+// do resultado, a pessoa vê o que é grátis para sempre, o que o Premium
+// acrescenta e quanto custa — o onboarding montava um plano com partes
+// pagas sem dizer isso em lugar nenhum.
 //
 // Cinco perguntas numeradas, cada uma com "Pular" no mesmo lugar e a linha
 // "Por que eu pergunto"; uma demonstração escolhida pela dor marcada no 15b;
@@ -23,6 +29,7 @@ import { getAppLanguage } from '../i18n/appLanguageStore'
 import AppIcon from '../icons/AppIcon'
 import OnboardingDemo from './OnboardingDemo'
 import ChooseStartScreen from './ChooseStartScreen'
+import OnboardingPlans from './OnboardingPlans'
 import WeeklyDaysPicker from '../components/WeeklyDaysPicker'
 import { deriveProgress, computeBookChapterCounts } from '../utils/progress'
 import { computeProjection, formatYearsMonths } from '../plan/readingProjection'
@@ -40,7 +47,7 @@ const FONT = 'var(--font-bento)'
 // não numeradas entre elas. 28d "aparece no fim do onboarding" (nota do
 // próprio quadro 28d no handoff) — por isso vem depois da última pergunta,
 // não entre as outras.
-const STEPS = ['history', 'pains', 'demo', 'minutes', 'days', 'reminder', 'chooseStart', 'result']
+const STEPS = ['history', 'pains', 'demo', 'minutes', 'days', 'reminder', 'chooseStart', 'plans', 'result']
 const TOTAL_QUESTIONS = 5
 const EMPTY_SET = new Set()
 
@@ -156,6 +163,10 @@ export default function OnboardingFlow({ onFinish, onBack }) {
         onBack={back}
       />
     )
+  }
+
+  if (step === 'plans') {
+    return <OnboardingPlans lang={lang} onContinue={next} onBack={back} />
   }
 
   if (step === 'result') {
@@ -428,6 +439,9 @@ function ResultScreen({ L, lang, answers, blocks, projection, onStart, starting 
       ? <>{L('resultReminderPrefix')}<strong style={s.strong}>{formatClock(answers.reminder.hour, answers.reminder.minute)}</strong>{L('resultReminderSuffix')}</>
       : <>{L('resultNoReminder')}</>,
     ...(answers.pains.includes('understand') ? [<><strong style={s.strong}>{L('resultAi')}</strong>{L('resultAiSuffix')}</>] : []),
+    // Oração e o encadeamento dos passos são do plano guiado, Premium —
+    // quem ficou com oração no plano fica sabendo antes de criar a conta.
+    ...(answers.prayerMinutes > 0 ? [<>{L('resultGuidedPrefix')}<strong style={s.strong}>{L('resultGuided')}</strong>{L('resultGuidedSuffix')}</>] : []),
     ...(answers.readOnly ? [<><strong style={s.strong}>{L('resultReadOnly')}</strong>{L('resultReadOnlySuffix')}</>] : []),
     // Só ritmo, sem data — decisão da autora: uma data de conclusão logo na
     // primeira sessão pode assustar; a data completa só aparece depois, nas

@@ -1,8 +1,10 @@
 // Cria uma Stripe Checkout Session pra quem já está logado no app — modelo
-// de assinatura com preço fixo (2 planos: mensal e anual, em BRL ou USD).
-// Nunca confia em valor mandado pelo cliente: o preço vem sempre desta
-// tabela fixa, calculada aqui no servidor a partir de interval/currency
-// (essas sim são escolhas legítimas de UI). Contribuição única (pagamento
+// de assinatura com preço fixo: o Premium, mensal ou anual, em BRL ou USD
+// (pedido dela, 2026-11-18: R$27/mês ou R$267/ano no Brasil, US$7/mês ou
+// US$57/ano no resto do mundo). Nunca confia em valor mandado pelo
+// cliente: o preço vem sempre de PAID_PLANS (src/billing/storeTiers.js),
+// calculado aqui no servidor a partir da moeda e do intervalo (essas sim
+// são escolhas legítimas de UI). Contribuição única (pagamento
 // avulso, acesso vitalício) foi descontinuada — só sobrevive o tratamento
 // de quem já tinha (ver api/stripe-webhook.js e
 // src/billing/subscriptionStore.js). Runtime Node (não edge, diferente de
@@ -17,6 +19,7 @@
 // rede do cartão — foi exatamente esse erro real que apareceu em produção.
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { paidPlanCents, normalizeInterval } from '../src/billing/storeTiers.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -27,21 +30,9 @@ const APP_URL = 'https://app.jesuscorner.app'
 // quem está comprando.
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-// Fonte única dos preços fixos cobrados via Stripe/web — mesmos valores
-// exibidos em src/screens/UpgradeScreen.jsx, em src/billing/storeTiers.js
-// (lojas) e no site. Dois tiers × dois intervalos:
-//   premium     — R$12,90/mês · R$119,90/ano · US$3,99/mês · US$34,99/ano
-//   premium_ai  — R$21,90/mês · R$199,90/ano · US$7,99/mês · US$74,99/ano
-const FIXED_PRICES_CENTS = {
-  premium: {
-    brl: { month: 1290, year: 11990 },
-    usd: { month: 399, year: 3499 },
-  },
-  premium_ai: {
-    brl: { month: 2190, year: 19990 },
-    usd: { month: 799, year: 7499 },
-  },
-}
+// O preço vem de PAID_PLANS (src/billing/storeTiers.js) — o mesmo das
+// lojas e da tela de assinatura. Um tier só; o intervalo é mês ou ano.
+const TIER = 'premium'
 
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
 // Evita criar um Product novo no Stripe a cada checkout (o que aconteceria
@@ -86,12 +77,11 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  const { interval: requestedInterval, currency: requestedCurrency, tier: requestedTier } = req.body ?? {}
-  // Mensal ou anual, default 'month' se vier algo inválido/ausente.
-  const interval = requestedInterval === 'year' ? 'year' : 'month'
-  // Tier — 'premium' ou 'premium_ai', default 'premium_ai' (o pacote
-  // completo) se vier algo inválido/ausente.
-  const tier = requestedTier === 'premium' ? 'premium' : 'premium_ai'
+  // Mensal ou anual ('month' se vier algo inválido/ausente). Clientes
+  // antigos ainda mandam `tier`: é ignorado — só existe o Premium.
+  const { currency: requestedCurrency, interval: requestedInterval } = req.body ?? {}
+  const interval = normalizeInterval(requestedInterval)
+  const tier = TIER
 
   // Confia na escolha explícita da pessoa; só cai pro IP se o corpo não
   // mandar nada (cliente antigo em cache, por exemplo).
@@ -99,8 +89,8 @@ export default async function handler(req, res) {
     ? requestedCurrency
     : (req.headers['x-vercel-ip-country'] === 'BR' ? 'brl' : 'usd')
 
-  // Preço fixo — nunca vem do cliente, sempre desta tabela.
-  const amountCents = FIXED_PRICES_CENTS[tier][currency][interval]
+  // Preço fixo — nunca vem do cliente.
+  const amountCents = paidPlanCents(currency, interval)
 
   // Convite de desconto pendente pro e-mail de quem está comprando (ver
   // api/admin/create-invite.js) — aplica o Coupon direto na sessão, sem

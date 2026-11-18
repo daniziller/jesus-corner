@@ -134,7 +134,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   const seenQuestionsRef = useRef([])
 
   function questionsErrorText(err) {
-    return err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang) : L('questionsError')
+    return err.message === 'ai_budget_reached' ? t('aiChat.budgetReached') : err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang) : L('questionsError')
   }
   function fetchPair() {
     return questionsApi({

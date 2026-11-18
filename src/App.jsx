@@ -3404,7 +3404,7 @@ export default function App() {
     // A anotação longa (handoff-biblioteca-55 §7A): a página de escrever
     // (N2) — uma nova ou o rascunho em andamento — e a anotação guardada
     // (N5), ao finalizar e ao tocar numa já finalizada na Biblioteca.
-    sermonNote: <PaginaDeAnotacao lang={session.lang} groups={myGroups} target={noteTarget} onClose={goBack} onOpenBiblePassage={openBiblePassage} />,
+    sermonNote: <PaginaDeAnotacao lang={session.lang} groups={myGroups} target={noteTarget} canSummarize={!!session.hasAI} onClose={goBack} onOpenBiblePassage={openBiblePassage} />,
     // A nota em um versículo (N4), fora da leitura da Bíblia.
     verseNote: <NotaDeVersiculoScreen lang={session.lang} groups={myGroups} highlightId={verseNoteTarget.highlightId ?? null} onClose={goBack} />,
     groups:  !meetsMinAge ? <MinAgeRestricted lang={session.lang} />
@@ -3550,12 +3550,17 @@ export default function App() {
     groupReadingActivity: groupReadingActivityGroupId
       ? <GroupReadingActivityScreen session={session} groupId={groupReadingActivityGroupId} onBack={goBack} />
       : null,
-    // 42m "Criar desafio" (handoff-admin-42, Bloco 3).
-    createChallenge: myModeratorGroup
+    // 42m "Criar desafio" (handoff-admin-42, Bloco 3). O desafio é gerado:
+    // só no Premium — um moderador que deixou de assinar vê o cadeado.
+    createChallenge: !session.hasAI
+      ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
+      : myModeratorGroup
       ? <CreateGroupChallengeScreen session={session} groupId={myModeratorGroup.groupId} onBack={goBack} onProposalReady={proposal => { setChallengeProposal(proposal); goToTab('groupChallengeProposal') }} />
       : null,
     // 42n "A proposta" (handoff-admin-42, Bloco 3).
-    groupChallengeProposal: (myModeratorGroup && challengeProposal)
+    groupChallengeProposal: !session.hasAI
+      ? <PremiumRequired feature="ai" lang={session.lang} onNavigate={navigateTo} />
+      : (myModeratorGroup && challengeProposal)
       ? <GroupChallengeProposalScreen session={session} groupId={myModeratorGroup.groupId} proposal={challengeProposal} onBack={goBack} onPublished={() => { setChallengeProposal(null); navigateTo('groupAdmin') }} />
       : null,
     // 42o "Reportar problema" (handoff-admin-42, Bloco 3).

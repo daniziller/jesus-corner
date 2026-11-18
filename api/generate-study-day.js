@@ -17,6 +17,7 @@
 // aceito da IA (mesma regra de ouro de generate-theme-plan.js).
 import { createClient } from '@supabase/supabase-js'
 import { generateStudyDayContent } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -60,6 +61,8 @@ export default async function handler(req, res) {
   // de cota aqui, só de assinatura (mesmo recurso de IA de sempre).
   const ent = await fetchEntitlement(supabase, userData.user.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, userData.user.id))) return
 
   const { book, bookEn, chStart, chEnd, scope, lang } = req.body ?? {}
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -83,7 +86,7 @@ export default async function handler(req, res) {
 
   let raw
   try {
-    raw = await generateStudyDayContent({ book, chStart: startNum, chEnd: endNum, chapterText, scope: cleanScope, lang: cleanLang })
+    raw = await meterAi(userData.user.id, 'dia-de-estudo', () => generateStudyDayContent({ book, chStart: startNum, chEnd: endNum, chapterText, scope: cleanScope, lang: cleanLang }))
   } catch (err) {
     console.error('[generate-study-day] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

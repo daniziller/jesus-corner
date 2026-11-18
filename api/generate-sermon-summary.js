@@ -13,6 +13,7 @@
 // inventou um assunto que não estava lá.
 import { createClient } from '@supabase/supabase-js'
 import { generateSermonSummary } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { highlightIsGrounded } from './_lib/summaryCheck.js'
 import { describeAiFailure } from './_lib/aiErrorReport.js'
@@ -33,6 +34,8 @@ export default async function handler(req, res) {
 
   const ent = await fetchEntitlement(supabase, userData.user.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'ai_tier_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, userData.user.id))) return
 
   const { text, lang } = req.body ?? {}
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -48,7 +51,7 @@ export default async function handler(req, res) {
   for (let attempt = 1; attempt <= 2 && !raw; attempt++) {
     let candidate
     try {
-      candidate = await generateSermonSummary({ text: cleanText, lang: cleanLang })
+      candidate = await meterAi(userData.user.id, 'sintese-da-pregacao', () => generateSermonSummary({ text: cleanText, lang: cleanLang }))
     } catch (err) {
       console.error('[generate-sermon-summary] AI call failed:', describeAiFailure(err))
       return res.status(502).json({ error: 'ai_generation_failed' })

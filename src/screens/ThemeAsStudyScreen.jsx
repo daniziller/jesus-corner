@@ -82,7 +82,7 @@ export default function ThemeAsStudyScreen({ session, theme, completedSet, onBac
     } catch (err) {
       console.error('Failed to build theme study', err)
       setBuildError(
-        err.message === 'subscription_required' ? L('errorSubscription')
+        err.message === 'ai_budget_reached' ? t('aiChat.budgetReached') : err.message === 'subscription_required' ? L('errorSubscription')
         : err.message === 'plan_limit_reached' ? L('errorLimit')
         : L('errorGeneric')
       )

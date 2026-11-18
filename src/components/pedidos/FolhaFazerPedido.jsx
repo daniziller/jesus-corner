@@ -84,7 +84,7 @@ export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice 
     try {
       setBody(await api.composePrayerRequestDraft({ text: draft, lang }))
     } catch (err) {
-      setAiError(err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang) : L('aiAssistError'))
+      setAiError(err.message === 'ai_budget_reached' ? t('aiChat.budgetReached') : err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang) : L('aiAssistError'))
     } finally {
       setAiLoading(false)
     }

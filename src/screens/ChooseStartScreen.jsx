@@ -131,7 +131,12 @@ export default function ChooseStartScreen({ session, completedSet, bookChapterCo
             <button style={s.orderRow} onClick={() => setOrder('chrono')}>
               <Radio on={order === 'chrono'} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={s.orderRowTitle}>{L('chronoOrderTitle')}</p>
+                <p style={s.orderRowTitle}>
+                  {L('chronoOrderTitle')}
+                  {/* A ordem cronológica é do Premium — no onboarding e
+                      para quem está no grátis, a opção diz isso. */}
+                  {!session.hasPremium && <span style={s.premiumTag}>{t('billing.tiers.premium', undefined, lang)}</span>}
+                </p>
                 <p style={s.orderRowSub}>{L('chronoOrderSub')}</p>
               </div>
             </button>
@@ -228,6 +233,7 @@ const s = {
   orderLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--bento-t4)', margin: '0 0 6px' },
   orderRow: { width: '100%', display: 'flex', alignItems: 'center', gap: 14, height: 56, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' },
   orderRowTitle: { fontFamily: FONT, fontSize: 14, fontWeight: 700, color: 'var(--bento-ink)', margin: '0 0 2px' },
+  premiumTag: { display: 'inline-block', marginLeft: 8, padding: '3px 7px', borderRadius: 7, background: 'var(--bento-ink)', fontFamily: FONT, fontSize: 9, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--bento-accent)', verticalAlign: '2px' },
   orderRowSub: { fontFamily: FONT, fontSize: 11, fontWeight: 500, color: 'var(--bento-t3)', margin: 0 },
 
   chooseBookRow: { display: 'flex', alignItems: 'center', gap: 14, borderRadius: 22, background: 'rgba(255,255,255,.6)', padding: '16px 20px', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' },

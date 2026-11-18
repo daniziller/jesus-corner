@@ -1689,7 +1689,8 @@ function VersePerguntarScreen({
 
         {state?.status === 'error' && (
           <p style={askStyles.errorText}>
-            {state.error === 'subscription_required' ? LA('errorSubscription')
+            {state.error === 'ai_budget_reached' ? t('aiChat.budgetReached', undefined, lang)
+              : state.error === 'subscription_required' ? LA('errorSubscription')
               : state.error === 'daily_limit_reached' ? LA('errorLimit')
               : state.error === 'citation_unverifiable' ? LA('errorCitation')
               : LA('errorGeneric')}
@@ -2634,7 +2635,8 @@ function AiChatPanel({ session, lang }) {
     } catch (err) {
       if (err.remaining != null) setLimitStatus({ used: err.used, remaining: err.remaining, max: err.max })
       setError(
-        err.message === 'subscription_required' ? t('aiChat.subscriptionRequired', undefined, lang)
+        err.message === 'ai_budget_reached' ? t('aiChat.budgetReached', undefined, lang)
+        : err.message === 'subscription_required' ? t('aiChat.subscriptionRequired', undefined, lang)
         : err.message === 'daily_limit_reached' ? t('aiChat.dailyLimitReached', undefined, lang)
         : t('aiChat.genericError', undefined, lang)
       )

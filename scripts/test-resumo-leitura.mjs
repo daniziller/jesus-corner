@@ -40,7 +40,8 @@ check('fecho sem a oração não', summaryHasText({ ...full, prayer: '' }), fals
 const endpoint = readFileSync(new URL('../api/generate-reading-summary.js', import.meta.url), 'utf8')
 check('o servidor tenta duas vezes e usa a conferência nova', [/attempt <= 2/.test(endpoint), /pickMoments\(/.test(endpoint)], [true, true])
 const tela = readFileSync(new URL('../src/screens/ReadingSummaryScreen.jsx', import.meta.url), 'utf8')
-check('sem resumo, a tela avisa e deixa tentar de novo', [/summaryFailed && hasChapter/.test(tela), /L\('retry'\)/.test(tela), /setAttempt\(/.test(tela)], [true, true, true])
+check('sem resumo, a tela avisa e deixa tentar de novo', [/summaryFailed && canSummarize/.test(tela), /L\('retry'\)/.test(tela), /setAttempt\(/.test(tela)], [true, true, true])
+check('no grátis o resumo nem é pedido (é gerado: só no Premium)', [/const canSummarize = hasChapter && !!session\.hasAI/.test(tela), /if \(!canSummarize\) return\n\s*let cancelled = false\n\s*setSummaryFailed\(false\)\n\s*fetchReadingSummary/.test(tela)], [true, true])
 const { STRINGS } = await import('../src/i18n/translations.js')
 check('os textos do aviso existem nos dois idiomas', [STRINGS.pt.readingSummary.failed, STRINGS.en.readingSummary.retry].every(Boolean), true)
 

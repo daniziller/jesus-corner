@@ -6,12 +6,15 @@
 // (Cache Storage) — cada trecho é gerado uma vez por dispositivo e depois
 // toca de graça e offline. Este endpoint não persiste nada; só gera.
 //
-// Custo: gpt-4o-mini-tts é barato (~centavos por capítulo). Guardas contra
-// abuso: exige login + assinatura ativa, e limita o tamanho por requisição.
-// Um teto diário por usuário pode entrar depois se o uso pedir.
+// Custo: gpt-4o-mini-tts (~centavos por capítulo). Guardas: exige login +
+// assinatura ativa, limita o tamanho por requisição e entra no limite
+// mensal de IA por pessoa (US$1,50, somado ao texto gerado — ver
+// api/_lib/aiBudget.js). Sem saldo, responde 429 e o app passa a ler com
+// a voz do aparelho.
 import { createClient } from '@supabase/supabase-js'
 import { generateSpeech } from 'ai'
 import { fetchEntitlement } from './_lib/entitlement.js'
+import { ensureAiBudget, meterAi, recordSpeechUsage } from './_lib/aiBudget.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -46,6 +49,8 @@ export default async function handler(req, res) {
   // recurso do tier Premium (não exige o tier de IA).
   const ent = await fetchEntitlement(supabase, userId)
   if (!ent.hasPremium) return res.status(403).json({ error: 'premium_required' })
+  // Limite mensal de IA por pessoa, o mesmo do texto gerado.
+  if (!(await ensureAiBudget(res, userId))) return
 
   const { text, lang } = req.body || {}
   if (typeof text !== 'string' || !text.trim()) {
@@ -54,16 +59,23 @@ export default async function handler(req, res) {
   const clean = text.trim().slice(0, MAX_CHARS)
 
   try {
-    const { audio } = await generateSpeech({
-      model: MODEL,
-      text: clean,
-      voice: VOICE,
-      outputFormat: 'mp3',
-      language: lang === 'en' ? 'en' : 'pt',
-      instructions: lang === 'en'
-        ? 'Read calmly and clearly, at a gentle, unhurried pace, like an audiobook narrator for a devotional. Warm and reverent, never dramatic.'
-        : 'Leia com calma e clareza, num ritmo suave e sem pressa, como um narrador de audiolivro devocional. Tom acolhedor e reverente, nunca dramático.',
-      speed: 1,
+    const instructions = lang === 'en'
+      ? 'Read calmly and clearly, at a gentle, unhurried pace, like an audiobook narrator for a devotional. Warm and reverent, never dramatic.'
+      : 'Leia com calma e clareza, num ritmo suave e sem pressa, como um narrador de audiolivro devocional. Tom acolhedor e reverente, nunca dramático.'
+    // Só o áudio que de fato saiu é cobrado da pessoa (a estimativa usa o
+    // tamanho do texto lido; as instruções entram como texto de entrada).
+    const { audio } = await meterAi(userId, 'voz-natural', async () => {
+      const result = await generateSpeech({
+        model: MODEL,
+        text: clean,
+        voice: VOICE,
+        outputFormat: 'mp3',
+        language: lang === 'en' ? 'en' : 'pt',
+        instructions,
+        speed: 1,
+      })
+      recordSpeechUsage(MODEL, clean.length)
+      return result
     })
     const bytes = Buffer.from(audio.uint8Array)
     res.setHeader('Content-Type', audio.mediaType || 'audio/mpeg')
