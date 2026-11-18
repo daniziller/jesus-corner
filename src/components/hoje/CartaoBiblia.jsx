@@ -24,7 +24,7 @@ export default function CartaoBiblia({ progress, reads, currentBook, finishedIso
       <span style={s.wheel} aria-hidden="true">
         <RodaDaBiblia
           reads={reads} mode="livros" size={132} currentBook={marker}
-          centerLine1={formatPct(progress.percent)} centerSize={54} centerSpacing={-2}
+          centerLine1={formatPct(progress.percent, lang)} centerSize={54} centerSpacing={-2}
           centerLine2={t('hojeTx.bibleCenter')} centerLine2Size={24} centerLine2Weight={700} centerLine2Y={184}
           animateKey="hoje"
         />
