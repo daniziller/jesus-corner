@@ -41,13 +41,17 @@ export default function FolhaInferior({ onClose, labelledBy, fixed = false, form
 
   // Teclado ouvido no documento, não só na folha: se o foco escapar (um
   // botão que se desabilita depois do toque, por exemplo), Esc ainda fecha
-  // e Tab volta pra dentro.
+  // e Tab volta pra dentro. Com uma folha por cima de outra (`over`), só a
+  // de cima — a última folha aberta no documento — responde ao teclado;
+  // senão um Esc fechava as duas de uma vez.
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
   useEffect(() => {
     function onKeyDown(e) {
+      if (e.key !== 'Escape' && e.key !== 'Tab') return
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]')
+      if (dialogs.length && dialogs[dialogs.length - 1] !== sheetRef.current) return
       if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); return }
-      if (e.key !== 'Tab') return
       const focusables = [...(sheetRef.current?.querySelectorAll(FOCUSABLE) ?? [])]
       if (focusables.length === 0) return
       const first = focusables[0], last = focusables[focusables.length - 1]

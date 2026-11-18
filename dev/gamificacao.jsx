@@ -33,7 +33,8 @@
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Passos do plano (handoff-passos-pedidos-53-54): tela=oracao — a oração ACTS (S1/S2), com os pedidos na memória.
 //      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
-//      7 inclui amigo e anônimo) · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
+//      7 inclui amigo e anônimo, e o rótulo/"Ver os 7 pedidos" abrem a folha com todos, abas e o relógio da etapa)
+//      · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
 //      · &feitos=prayer,reading (passos já feitos hoje) · &minutos=12 (duração da oração) · &metodo=livre (36c, sem mudança)
 //      &plano=sim (com oracao/reflexao/biblia&leitura=plano) — a tela dentro do plano guiado, com o relógio do plano no topo.
 //      tela=reflexao — a reflexão com perguntas (S4), com as perguntas na memória. &pergunta=1|2|3 (a pergunta aberta)

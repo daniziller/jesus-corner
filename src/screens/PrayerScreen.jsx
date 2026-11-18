@@ -6,7 +6,11 @@
 //     trilha das quatro etapas, o cartão preto com a orientação e, embaixo,
 //     o cartão de escrita (Adoração, Confissão, Gratidão) ou a lista de
 //     pedidos (Súplica). O botão laranja leva à etapa seguinte e, na
-//     última, termina a oração.
+//     última, termina a oração. Na Súplica, o rótulo do cartão e "Ver os
+//     {n} pedidos" abrem TODOS os pedidos numa folha por cima da tela,
+//     com o relógio da etapa dentro dela — a oração não pausa nem sai da
+//     tela (pedido dela, 2026-11-18); a lista de pedidos (O1) fica como
+//     saída secundária da folha, e essa sim pausa.
 //   · livre (36c, handoff-passos-36-37): sem etapas — não mudou.
 //
 // O motor é o mesmo dos dois: o relógio (useStepTimer), o aviso quando uma
@@ -41,6 +45,7 @@ import TrilhaActs from '../components/passos/TrilhaActs'
 import CartaoAgora from '../components/passos/CartaoAgora'
 import CartaoDeEscrita from '../components/passos/CartaoDeEscrita'
 import PedidosDaSuplica from '../components/passos/PedidosDaSuplica'
+import FolhaPedidosDaSuplica from '../components/passos/FolhaPedidosDaSuplica'
 import RodapeDoPasso from '../components/passos/RodapeDoPasso'
 import { stepName } from '../meuPlano/meuPlanoMath'
 
@@ -89,6 +94,8 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
   // "Fazer um pedido" sem sair da oração — ao guardar, a lista recarrega
   // com o pedido novo.
   const [addRequestOpen, setAddRequestOpen] = useState(false)
+  // A folha com todos os pedidos da Súplica, por cima da oração.
+  const [requestsSheetOpen, setRequestsSheetOpen] = useState(false)
 
   const zeroedStagesRef = useRef(new Set())
 
@@ -227,7 +234,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
             <PedidosDaSuplica
               list={pedidos.list} loading={pedidos.loading} error={pedidos.error} sessionMarks={pedidos.sessionMarks}
               onOrar={pedidos.orar} onDesfazer={pedidos.desfazer} onAdd={() => setAddRequestOpen(true)}
-              onOpenAll={() => { pause(); onNavigate?.('prayerRequests') }}
+              onOpenAll={() => setRequestsSheetOpen(true)}
             />
           )}
         </div>
@@ -237,9 +244,18 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
           primary={{ label: footer.primary, onClick: footer.last ? finishPrayer : () => advanceStage(false) }}
         />
 
+        {requestsSheetOpen && isSuplica && (
+          <FolhaPedidosDaSuplica
+            list={pedidos.list} loading={pedidos.loading} error={pedidos.error} sessionMarks={pedidos.sessionMarks}
+            clock={stageTimer}
+            onOrar={pedidos.orar} onDesfazer={pedidos.desfazer} onAdd={() => setAddRequestOpen(true)}
+            onOpenFullList={() => { setRequestsSheetOpen(false); pause(); onNavigate?.('prayerRequests') }}
+            onClose={() => setRequestsSheetOpen(false)}
+          />
+        )}
         {addRequestOpen && (
           <FolhaFazerPedido
-            lang={lang} authUser={authUser} hasAI={session.hasAI} api={formApi}
+            lang={lang} authUser={authUser} hasAI={session.hasAI} api={formApi} over={requestsSheetOpen}
             onClose={() => setAddRequestOpen(false)}
             onCreated={() => { setAddRequestOpen(false); pedidos.reload() }}
           />

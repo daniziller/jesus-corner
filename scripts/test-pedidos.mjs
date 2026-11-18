@@ -4,7 +4,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import {
   prayedTodayIds, mergePedidos, activePedidos, originLabel, peopleLine, supportLine,
-  applyOrei, revertOrei, suplicaToggle, countsForOthers, prayedCounter, suplicaView, SUPLICA_LIMIT,
+  applyOrei, revertOrei, suplicaToggle, countsForOthers, prayedCounter, suplicaView, SUPLICA_LIMIT, suplicaSheetTabs, suplicaSheetView,
   DEFAULT_WHO_SEES, MAX_PEDIDO, whoSeesOptions, requestFormState, requestPayload, answerOptions, prayedSummary, answerSheetState,
   commentsLine, answeredPedidos, pedidosOfTab, pedidosTabs, answeredRow, answeredBlock, cardTap, othersCard, othersPrayedCount,
 } from '../src/pedidos/pedidosMath.js'
@@ -76,11 +76,21 @@ check('contador: "1 de 3 orado" (o quadro S2)', suplicaView(tres).counter, '1 de
 check('contador: plural e singular', [prayedCounter(2, 3), prayedCounter(0, 3), prayedCounter(1, 1), prayedCounter(3, 3)], ['2 de 3 orados', '0 de 3 orados', '1 de 1 orado', '3 de 3 orados'])
 check('Súplica com três: todos, na ordem da lista, sem "Ver os"', (v => [v.rows.map(r => r.id), v.total, v.more, v.empty])(suplicaView(tres)), [['a', 'b', 'c'], 3, null, false])
 const sete = [...lista, meu('f', 'seis', 5), meu('g', 'sete', 6)]
-check(`mais de ${SUPLICA_LIMIT}: mostram-se ${SUPLICA_LIMIT} e a linha "Ver os 7 pedidos"`, (v => [v.rows.length, v.total, v.more, v.counter])(suplicaView(sete)), [5, 7, 'Ver os 7 pedidos', '1 de 7 orado'])
-check('aberta no lugar: os sete, e a linha some', (v => [v.rows.length, v.more])(suplicaView(sete, { expanded: true })), [7, null])
+check(`mais de ${SUPLICA_LIMIT}: mostram-se ${SUPLICA_LIMIT} e a linha "Ver os 7 pedidos" (abre a folha)`, (v => [v.rows.length, v.total, v.more, v.counter])(suplicaView(sete)), [5, 7, 'Ver os 7 pedidos', '1 de 7 orado'])
 check('exatamente cinco: sem a linha', suplicaView(sete.slice(0, 5)).more, null)
 check('nenhum pedido ativo: vazio, sem contador', suplicaView([meu('z', 'respondido', 61, { status: 'closed' })]), { rows: [], total: 0, empty: true, counter: null, more: null })
 check('lista ainda não carregada', suplicaView(undefined).empty, true)
+
+// ── A folha de pedidos da Súplica (todos, sem sair da oração) ───────────
+check('folha: abas Ativos · Do grupo · Amigos, com a contagem, quando há dos três', suplicaSheetTabs(sete).map(x => x.label), ['Ativos · 7', 'Do grupo · 1', 'Amigos · 2'])
+check('folha: só meus pedidos — uma aba só, e a folha não a mostra', [suplicaSheetTabs([a, c]).map(x => x.key), suplicaSheetView([a, c]).tabs], [['ativos'], []])
+check('folha: meus e do grupo, sem amigo — sem a aba Amigos', suplicaSheetTabs(tres).map(x => x.key), ['ativos', 'grupo'])
+check('folha: sem Respondidos — na Súplica se ora pelos ativos', [suplicaSheetTabs([...sete, meu('z', 'respondido', 61, { status: 'closed' })]).some(x => x.key === 'respondidos'), suplicaSheetView([...sete, meu('z', 'x', 61, { status: 'closed' })]).rows.some(r => r.id === 'z')], [false, false])
+check('folha: Ativos traz os sete, na ordem da lista, com o contador do cartão', (v => [v.rows.map(r => r.id), v.total, v.counter, v.allPrayed, v.empty])(suplicaSheetView(sete)), [['a', 'b', 'c', 'd', 'e', 'f', 'g'], 7, '1 de 7 orado', null, false])
+check('folha: a aba Do grupo só os do grupo; Amigos só os de amigos — o contador continua o de todos', [suplicaSheetView(sete, 'grupo').rows.map(r => r.id), suplicaSheetView(sete, 'amigos').rows.map(r => r.id), suplicaSheetView(sete, 'amigos').counter], [['b'], ['d', 'e'], '1 de 7 orado'])
+check('folha: uma aba que não existe mais cai em Ativos', (v => [v.current, v.rows.length])(suplicaSheetView(tres, 'amigos')), ['ativos', 3])
+check('folha: orei por todos hoje — a frase no lugar do número', (v => [v.counter, v.allPrayed])(suplicaSheetView(tres.map(p => ({ ...p, prayedToday: true })))), ['3 de 3 orados', 'Você orou por todos os pedidos de hoje.'])
+check('folha: nenhum pedido', suplicaSheetView([]), { tabs: [], current: 'ativos', rows: [], total: 0, empty: true, counter: null, allPrayed: null })
 
 // ── A lista de pedidos (O1) ─────────────────────────────────────────────
 const respondido = (id, body, criadoHa, respondidoHa, resposta, nota = null) => meu(id, body, criadoHa, { status: 'closed', resposta, notaResposta: nota, respondidoEm: ha(respondidoHa) })
@@ -151,7 +161,7 @@ check('toda leitura das marcas de "orei" filtra pela própria pessoa', [leituras
 const orei = ler('pedidos/orei.js')
 check('orei.js é quem grava e desfaz a marca', [/markPraying\(request\.id\)/.test(orei), /unmarkPrayingToday\(request\.id\)/.test(orei)], [true, true])
 check('orar por pedido próprio não avisa a família "Oração pelos outros"', /function notify\(request\) \{\s*if \(!countsForOthers\(request\)\) return/.test(orei), true)
-const pecasDaSuplica = ['screens/PrayerScreen.jsx', 'components/passos/PedidosDaSuplica.jsx', 'pedidos/usePedidos.js', 'pedidos/pedidosApi.js']
+const pecasDaSuplica = ['screens/PrayerScreen.jsx', 'components/passos/PedidosDaSuplica.jsx', 'components/passos/FolhaPedidosDaSuplica.jsx', 'components/passos/LinhaDoPedido.jsx', 'pedidos/usePedidos.js', 'pedidos/pedidosApi.js']
 check('a Súplica não chama a gravação por fora do orei.js', pecasDaSuplica.filter(f => /markPraying|unmarkPrayingToday|group_prayer_intentions/.test(ler(f))), [])
 check('a lista de pedidos usa o orarPor/desfazerOrei do orei.js', /orar: orarPor,\s*desfazer: desfazerOrei/.test(ler('pedidos/pedidosApi.js')), true)
 // Uma vez por pedido por dia: a marca é (pedido, pessoa, dia do aparelho) e repetir não cria outra.
@@ -167,13 +177,20 @@ check('o botão da lista não desmarca: só chama o "orei" quando ainda não ore
 check('um botão por pedido: "orei", com aria-pressed; sem "Orei por isso" nem "Arquivar"', [(cartao.match(/aria-label=\{t\('pedidosTx\.prayedAria'\)\}/g) ?? []).length, /aria-pressed=\{pedido\.prayedToday\}/.test(cartao), /Orei por isso|Arquivar/.test(cartao + telaLista)], [1, true, false])
 check('a lista e os cartões só mostram contagem — nenhum nome de quem orou', /prayedBy|sharers|quemOrou/.test(telaLista + cartao + ler('components/pedidos/BlocoRespondidos.jsx')), false)
 // A Súplica não mostra nome de quem orou nem abre comentário.
-const suplica = ler('components/passos/PedidosDaSuplica.jsx')
+const suplica = ler('components/passos/PedidosDaSuplica.jsx') + ler('components/passos/LinhaDoPedido.jsx') + ler('components/passos/FolhaPedidosDaSuplica.jsx')
 check('a Súplica só mostra texto, origem e contagem — sem nomes de quem orou, sem comentários', /prayedBy|comment|Comment/.test(suplica), false)
+// Ver todos os pedidos não sai da oração: o rótulo e "Ver os {n}" abrem a
+// folha; só a saída secundária da folha pausa e vai à lista.
+const telaOracao = ler('screens/PrayerScreen.jsx')
+check('o cartão da Súplica abre a folha, não a lista', [/onOpenAll=\{\(\) => setRequestsSheetOpen\(true\)\}/.test(telaOracao), /onOpenAll=\{\(\) => \{ pause\(\)/.test(telaOracao)], [true, false])
+check('a folha tem o relógio da etapa e só a "lista completa" pausa a oração', [/<FolhaPedidosDaSuplica[\s\S]*?clock=\{stageTimer\}/.test(telaOracao), /onOpenFullList=\{\(\) => \{ setRequestsSheetOpen\(false\); pause\(\); onNavigate\?\.\('prayerRequests'\) \}\}/.test(telaOracao)], [true, true])
+check('o cartão e a folha usam a mesma linha de pedido', [/<LinhaDoPedido /.test(ler('components/passos/PedidosDaSuplica.jsx')), /<LinhaDoPedido /.test(ler('components/passos/FolhaPedidosDaSuplica.jsx'))], [true, true])
 
 // ── Em inglês ─────────────────────────────────────────────────────────
 check('en: origem e linha de apoio', [originLabel({ origin: 'mine' }, 'en').text, originLabel({ origin: 'friend', anonymous: true }, 'en').text, peopleLine(0, 'en'), peopleLine(1, 'en'), peopleLine(5, 'en')], ['Mine', 'Anonymous', 'No one has prayed yet', '1 person has prayed', '5 people have prayed'])
 check('en: linha de apoio de um pedido meu', supportLine({ origin: 'mine', createdAt: new Date(agora - 3 * 86400000).toISOString(), prayedToday: true, commentCount: 2 }, { list: true, now: agora, lang: 'en' }), 'Praying for 3 days · prayed today · 2 comments')
 check('en: contador e "ver todos" da súplica', [prayedCounter(1, 3, 'en'), suplicaView(lista, { lang: 'en' }).counter.endsWith('prayed')], ['1 of 3 prayed', true])
+check('en: a folha da súplica', [suplicaSheetTabs(sete, 'en').map(x => x.label), suplicaSheetView(tres.map(p => ({ ...p, prayedToday: true })), 'ativos', 'en').allPrayed], [['Active · 7', 'Group · 1', 'Friends · 2'], "You've prayed for every request today."])
 check('en: abas', pedidosTabs(lista, 'en').map(x => x.label.split(' · ')[0]).slice(0, 3), ['Active', 'Answered', 'Group'])
 check('en: respostas', answerOptions('en').map(o => o.title), ['Yes', 'No', 'Wait', 'Learn', 'Move'])
 check('en: formulário', [requestFormState({ body: 'x', choice: 'friends', lang: 'en' }).button, requestFormState({ body: 'x', lang: 'en' }).button, whoSeesOptions({ friendsCount: 1, lang: 'en' }).map(o => `${o.title}/${o.sub}`)], ['Post request', 'Save request', ['Only me/in your journal', 'My friends/1 person']])
