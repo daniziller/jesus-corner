@@ -85,14 +85,18 @@ export default function WeeklySummaryTextScreen({ session, summaries, selectedIn
       </div>
 
       <div style={s.body}>
-        <div style={s.darkCard}>
-          <div style={s.darkLabelRow}>
-            <span style={s.diamond} />
-            <p style={s.darkLabel}>{L('writtenByAiLabel')}</p>
+        {/* O texto escrito só existe pra quem assina (api/send-weekly-digest.js);
+            no grátis o resumo vem sem ele e este cartão não aparece. */}
+        {current.summary && (
+          <div style={s.darkCard}>
+            <div style={s.darkLabelRow}>
+              <span style={s.diamond} />
+              <p style={s.darkLabel}>{L('writtenByAiLabel')}</p>
+            </div>
+            <p style={s.openingParagraph}>{current.summary.openingParagraph}</p>
+            <p style={s.closingParagraph}>{current.summary.closingParagraph}</p>
           </div>
-          <p style={s.openingParagraph}>{current.summary.openingParagraph}</p>
-          <p style={s.closingParagraph}>{current.summary.closingParagraph}</p>
-        </div>
+        )}
 
         {current.chapters.length > 0 && (
           <div style={s.card}>

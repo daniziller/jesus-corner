@@ -14,6 +14,7 @@
 // — este endpoint não persiste nada, só gera.
 import { createClient } from '@supabase/supabase-js'
 import { findThemePassages } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { ALLOWED_STUDY_DAYS } from '../src/studies/studyDurationOptions.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { isAdminEmail } from './_lib/adminAuth.js'
@@ -114,6 +115,8 @@ export default async function handler(req, res) {
   // client) e exige o tier Premium + IA.
   const ent = await fetchEntitlement(supabase, caller.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, caller.id))) return
 
   // Limite de 4 planos por tema a cada 30 dias (não confia só na trava do
   // client — reconfere aqui, mesmo espírito da checagem de assinatura
@@ -178,7 +181,7 @@ export default async function handler(req, res) {
 
   let passages, overview, aiTitle
   try {
-    const aiResult = await findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords, cleanDays)
+    const aiResult = await meterAi(caller.id, 'plano-por-tema', () => findThemePassages(cleanScope, CANONICAL_BOOKS, cleanLang, targetWords, cleanDays))
     passages = aiResult.passages
     overview = (aiResult.overview ?? '').trim()
     // Cap defensivo — a IA já recebe a instrução de ser curta, mas isso

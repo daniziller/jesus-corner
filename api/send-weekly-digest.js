@@ -33,6 +33,8 @@ import { mondayOf, computeRecentWeeksStatus, DEFAULT_WEEKLY_GOAL_DAYS } from '..
 import { totalsByStep, totalsByDay, averageSessionSeconds } from '../src/metrics/sessionDurationMath.js'
 import { weekRangeFor, daysMetForWeek, isBlankWeek, longestDayOf } from '../src/recap/weeklySummaryMath.js'
 import { generateWeeklySummaryText } from './_lib/ai.js'
+import { meterAi, readBudget } from './_lib/aiBudget.js'
+import { isActive } from './_lib/entitlement.js'
 import { sendEmail } from './_lib/resend.js'
 import { emailFooterLinksHtml } from './_lib/emailFooter.js'
 
@@ -228,9 +230,9 @@ export default async function handler(req, res) {
   const endExclusiveIso = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7).toISOString()
   const startIso = monday.toISOString()
 
-  let userDataRows, sessionRows, chapterRows, intentionRows, memberRows, commentRows, pushSubs, aiChatRows
+  let userDataRows, sessionRows, chapterRows, intentionRows, memberRows, commentRows, pushSubs, aiChatRows, subscriptionRows
   try {
-    [userDataRows, sessionRows, chapterRows, intentionRows, memberRows, commentRows, pushSubs, aiChatRows] = await Promise.all([
+    [userDataRows, sessionRows, chapterRows, intentionRows, memberRows, commentRows, pushSubs, aiChatRows, subscriptionRows] = await Promise.all([
       fetchAllPaged('user_data', 'user_id, plan_id, reading_order, notes, daily_routine, weekly_goal_days, weekly_summaries'),
       fetchAllPaged('session_seconds', 'user_id, data, passo, segundos, created_at', q => q.gte('data', startKey).lte('data', endKey)),
       fetchAllPaged('chapters_read', 'user_id, livro, capitulo, created_at', q => q.gte('created_at', startIso).lt('created_at', endExclusiveIso)),
@@ -241,6 +243,9 @@ export default async function handler(req, res) {
       // "Perguntas à IA" (31a) — só as mensagens que a PRÓPRIA pessoa
       // mandou (role='user'), não a resposta da IA junto.
       fetchAllPaged('text_ai_chats', 'user_id, created_at', q => q.eq('role', 'user').gte('created_at', startIso).lt('created_at', endExclusiveIso)),
+      // Quem assina: só o Premium recebe o texto escrito do resumo (pedido
+      // dela, 2026-11-18 — a conta grátis não usa IA nenhuma).
+      fetchAllPaged('subscriptions', 'user_id, status, access_type'),
     ])
   } catch (err) {
     console.error('Failed to load weekly digest source data:', err.message)
@@ -248,6 +253,7 @@ export default async function handler(req, res) {
   }
 
   const sessionByUser = groupBy(sessionRows, r => r.user_id)
+  const premiumUsers = new Set(subscriptionRows.filter(isActive).map(r => r.user_id))
   const chaptersByUser = groupBy(chapterRows, r => r.user_id)
   const membershipByUser = groupBy(memberRows, r => r.user_id)
   const aiQuestionCountByUser = new Map()
@@ -305,12 +311,18 @@ export default async function handler(req, res) {
 
       const applicationLine = application ? `"${application.text}"${application.fulfilled ? ' (cumprida)' : ' (não marcada como cumprida)'}` : null
 
-      let summaryText
-      try {
-        summaryText = await generateWeeklySummaryText({ lang, notesText, applicationLine })
-      } catch (err) {
-        console.error('Failed to generate weekly summary text for', row.user_id, err.message)
-        continue
+      // O texto escrito do resumo é gerado por IA: só pra quem assina e
+      // ainda tem saldo no limite mensal (api/_lib/aiBudget.js). Os outros
+      // recebem o resumo com os números, sem o texto (summary: null — a
+      // tela do texto some, ver WeeklySummaryTextScreen.jsx).
+      let summaryText = null
+      if (premiumUsers.has(row.user_id) && !(await readBudget(row.user_id)).exhausted) {
+        try {
+          summaryText = await meterAi(row.user_id, 'resumo-da-semana', () => generateWeeklySummaryText({ lang, notesText, applicationLine }))
+        } catch (err) {
+          console.error('Failed to generate weekly summary text for', row.user_id, err.message)
+          continue
+        }
       }
 
       const myGroups = membershipByUser.get(row.user_id) ?? []

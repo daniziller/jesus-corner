@@ -7,6 +7,7 @@
 // borda. Gerar exige conta com o plano com IA (requireCaller): sem isso,
 // qualquer um na internet disparava chamadas pagas variando a URL.
 import { suggestPassageQuestions } from './_lib/ai.js'
+import { meterAi } from './_lib/aiBudget.js'
 import { requireCaller } from './_lib/caller.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
 import { BIBLE_BLOCKS } from '../src/data/bibleBlocks.js'
@@ -38,7 +39,9 @@ export default async function handler(req, res) {
 
   // O menu "Perguntar" só aparece pra quem tem o plano com IA (ver
   // ReadingBlockView); quem chama sem ele cai nas três sugestões fixas.
-  if (!(await requireCaller(req, res, { needsAI: true }))) return
+  // Gerar exige o Premium e saldo no limite mensal de IA (api/_lib/aiBudget.js).
+  const who = await requireCaller(req, res, { needsAI: true, budget: true })
+  if (!who) return
 
   const { book, chapter, verseStart, verseEnd, lang } = req.query
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -62,7 +65,7 @@ export default async function handler(req, res) {
 
   let result
   try {
-    result = await suggestPassageQuestions({ book, chapter: chapterNum, verseRange: vs === ve ? `${vs}` : `${vs}-${ve}`, passageText, lang: cleanLang })
+    result = await meterAi(who.caller.id, 'sugestoes-de-pergunta', () => suggestPassageQuestions({ book, chapter: chapterNum, verseRange: vs === ve ? `${vs}` : `${vs}-${ve}`, passageText, lang: cleanLang }))
   } catch (err) {
     console.error('[suggest-passage-questions] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

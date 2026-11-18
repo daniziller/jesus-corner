@@ -52,7 +52,7 @@ export default function CreateGroupChallengeScreen({ session, groupId, onBack, o
       const challenge = await generateGroupChallenge(groupId, text.trim(), lang)
       onProposalReady({ challenge, startsAt, pauseGroupPlan })
     } catch (err) {
-      setError(err.message === 'subscription_required' ? L('subscriptionRequiredError') : L('genericError'))
+      setError(err.message === 'ai_budget_reached' ? t('aiChat.budgetReached') : err.message === 'subscription_required' ? L('subscriptionRequiredError') : L('genericError'))
     } finally {
       setGenerating(false)
     }

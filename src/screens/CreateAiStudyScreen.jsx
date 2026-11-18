@@ -106,7 +106,7 @@ export default function CreateAiStudyScreen({ session, quota, initialText = '', 
     } catch (err) {
       console.error('Failed to generate study', err)
       setError(
-        err.message === 'subscription_required' ? L('errorSubscription')
+        err.message === 'ai_budget_reached' ? t('aiChat.budgetReached') : err.message === 'subscription_required' ? L('errorSubscription')
         : err.message === 'plan_limit_reached' ? L('errorLimit')
         : L('errorGeneric')
       )

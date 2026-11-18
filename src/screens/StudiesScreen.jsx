@@ -59,7 +59,7 @@ export default function StudiesScreen({ session, authUser, onNavigate, onContinu
     } catch (err) {
       console.error('Failed to generate study', err)
       setGenError(
-        err.message === 'subscription_required' ? t('studies.createByThemeSubscriptionRequired', undefined, lang)
+        err.message === 'ai_budget_reached' ? t('aiChat.budgetReached') : err.message === 'subscription_required' ? t('studies.createByThemeSubscriptionRequired', undefined, lang)
         : err.message === 'study_limit_reached' ? t('studies.createByThemeLimitReached', undefined, lang)
         : t('studies.createByThemeError', undefined, lang)
       )

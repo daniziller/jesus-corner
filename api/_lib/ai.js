@@ -1,12 +1,24 @@
-// Wrapper fino sobre o AI SDK (Vercel AI Gateway) — usado só por
-// api/generate-theme-plan.js. Mesmo espírito de api/_lib/apple.js/
+// Wrapper fino sobre o AI SDK (Vercel AI Gateway) — usado por todos os
+// endpoints que geram texto (api/*.js) e pelo resumo semanal. Mesmo espírito de api/_lib/apple.js/
 // googlePlay.js: config do provedor fica só aqui, nunca exposta ao client.
 //
 // Autenticação: em produção na Vercel funciona sozinho via OIDC (nenhuma
 // env var precisa ser setada); localmente precisa de AI_GATEWAY_API_KEY no
 // .env (ver .env.example).
-import { generateText, Output } from 'ai'
+import { generateText as sdkGenerateText, Output } from 'ai'
 import { z } from 'zod'
+import { recordModelUsage } from './aiBudget.js'
+
+// Toda chamada ao modelo passa por aqui: depois da resposta, os tokens
+// usados vão pro medidor aberto pelo endpoint (meterAi, api/_lib/aiBudget.js),
+// que soma o custo na conta de quem pediu — é o limite mensal de US$2 por
+// pessoa (pedido dela, 2026-11-18). As funções abaixo chamam generateText
+// como sempre; só o import mudou.
+async function generateText(options) {
+  const result = await sdkGenerateText(options)
+  recordModelUsage(options.model, result.totalUsage ?? result.usage)
+  return result
+}
 
 // Sempre o mais recente disponível no Gateway na hora em que isso foi
 // escrito — nunca confiar num id de memória (ver skill vercel:ai-sdk),

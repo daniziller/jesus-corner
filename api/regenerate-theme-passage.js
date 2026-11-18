@@ -6,6 +6,7 @@
 // quem chama decide se salva (ver src/themePlans/themePlansStore.js).
 import { createClient } from '@supabase/supabase-js'
 import { regenerateThemePassage } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { BIBLE_BLOCKS, WORDS_PER_MINUTE, PLANS } from '../src/data/bibleBlocks.js'
 import { BIBLE_VERSIONS } from '../src/data/bibleVersions.js'
@@ -48,6 +49,8 @@ export default async function handler(req, res) {
 
   const ent = await fetchEntitlement(supabase, userData.user.id)
   if (!ent.hasAI) return res.status(403).json({ error: 'subscription_required' })
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, userData.user.id))) return
 
   const { scope, paceId, lang, otherPassages } = req.body ?? {}
   const cleanScope = (scope ?? '').trim()
@@ -68,7 +71,7 @@ export default async function handler(req, res) {
 
   let raw
   try {
-    raw = await regenerateThemePassage(cleanScope, cleanOthers, cleanLang, targetWords, CANONICAL_BOOKS)
+    raw = await meterAi(userData.user.id, 'trocar-passagem', () => regenerateThemePassage(cleanScope, cleanOthers, cleanLang, targetWords, CANONICAL_BOOKS))
   } catch (err) {
     console.error('[regenerate-theme-passage] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

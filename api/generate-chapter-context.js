@@ -15,6 +15,7 @@
 // vezes" é a tabela, não o CDN.
 import { createClient } from '@supabase/supabase-js'
 import { generateChapterContext } from './_lib/ai.js'
+import { meterAi } from './_lib/aiBudget.js'
 import { requireCaller } from './_lib/caller.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
@@ -97,7 +98,9 @@ export default async function handler(req, res) {
   // sempre no cache): só pra quem tem o plano com IA, como a tela de
   // contexto (ver ReadingBlockView). O nome do livro em inglês vem sempre
   // do mapa, nunca de quem chama — o resultado é gravado sob `book`.
-  if (!(await requireCaller(req, res, { needsAI: true }))) return
+  // Gerar exige o Premium e saldo no limite mensal de IA (api/_lib/aiBudget.js).
+  const who = await requireCaller(req, res, { needsAI: true, budget: true })
+  if (!who) return
 
   const bookNameForFolder = cleanLang === 'en' ? BOOK_EN_BY_PT[book] : book
   const versions = BIBLE_VERSIONS[cleanLang] ?? BIBLE_VERSIONS.pt
@@ -113,7 +116,7 @@ export default async function handler(req, res) {
 
   let context
   try {
-    context = await generateChapterContext({ book, chapter: chapterNum, chapterText, bookInfo, priorSectionsText, lang: cleanLang })
+    context = await meterAi(who.caller.id, 'contexto-do-capitulo', () => generateChapterContext({ book, chapter: chapterNum, chapterText, bookInfo, priorSectionsText, lang: cleanLang }))
   } catch (err) {
     console.error('[generate-chapter-context] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

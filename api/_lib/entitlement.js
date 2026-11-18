@@ -16,7 +16,7 @@
 // Mesma regra de isPremiumActive (src/billing/subscriptionStore.js): free e
 // vitalício não têm ciclo de cobrança, então só valem com status 'active';
 // recorrente também vale em 'trialing'.
-function isActive(sub) {
+export function isActive(sub) {
   if (!sub) return false
   if (sub.access_type === 'free' || sub.access_type === 'lifetime') {
     return sub.status === 'active'

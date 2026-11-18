@@ -7,6 +7,7 @@
 // estruturados em vez de confiar só no texto livre gerado).
 import { createClient } from '@supabase/supabase-js'
 import { answerTextQuestion } from './_lib/ai.js'
+import { ensureAiBudget, meterAi } from './_lib/aiBudget.js'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { BOOK_INFO } from '../src/data/bookInfo.js'
 import { BOOK_INFO_EN } from '../src/data/bookInfo.en.js'
@@ -94,6 +95,8 @@ export default async function handler(req, res) {
   const auth = await authenticateAndCheckPremium(req, res)
   if (!auth) return
   const { supabase, caller } = auth
+  // Limite mensal de IA por pessoa (api/_lib/aiBudget.js).
+  if (!(await ensureAiBudget(res, caller.id))) return
 
   const { book, chStart, chEnd, message, lang } = req.body ?? {}
   const cleanMessage = (message ?? '').trim()
@@ -135,7 +138,7 @@ export default async function handler(req, res) {
 
   let answer
   try {
-    answer = await answerTextQuestion({ book, chStart, chEnd, bookInfo, message: cleanMessage, history, lang: cleanLang })
+    answer = await meterAi(caller.id, 'pergunta-texto', () => answerTextQuestion({ book, chStart, chEnd, bookInfo, message: cleanMessage, history, lang: cleanLang }))
   } catch (err) {
     console.error('[chat-about-text] AI call failed:', err.message)
     return res.status(502).json({ error: 'ai_generation_failed' })

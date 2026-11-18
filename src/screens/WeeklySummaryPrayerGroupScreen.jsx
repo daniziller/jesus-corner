@@ -31,13 +31,20 @@ export default function WeeklySummaryPrayerGroupScreen({ session, summaries, sel
   const prayerMinutes = Math.round((current.stepSeconds.prayer ?? 0) / 60)
   const chaptersLabel = chaptersRangeLabel(current.chapters, lang)
 
+  // O texto escrito (tema, pergunta da próxima semana) só existe pra quem
+  // assina (api/send-weekly-digest.js); no grátis o resumo vem sem ele.
+  const written = current.summary ?? null
+
   async function shareWeek() {
-    const text = L('shareMessage', { theme: current.summary.openingParagraph.split('.')[0], chapters: chaptersLabel || '—' })
+    const text = written
+      ? L('shareMessage', { theme: written.openingParagraph.split('.')[0], chapters: chaptersLabel || '—' })
+      : L('shareMessagePlain', { chapters: chaptersLabel || '—' })
     await copyText(text)
   }
 
   async function takeQuestionTo(destinationKey) {
-    const ok = await copyText(current.summary.nextWeekQuestion)
+    if (!written) return
+    const ok = await copyText(written.nextWeekQuestion)
     if (ok) window.alert?.(L(destinationKey))
   }
 
@@ -86,14 +93,14 @@ export default function WeeklySummaryPrayerGroupScreen({ session, summaries, sel
           </div>
         )}
 
-        <div style={s.card}>
+        {written && <div style={s.card}>
           <p style={s.cardLabel}>{L('nextWeekQuestionLabel')}</p>
-          <p style={s.questionText}>"{current.summary.nextWeekQuestion}"</p>
+          <p style={s.questionText}>"{written.nextWeekQuestion}"</p>
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" style={s.takeToReflectionBtn} onClick={() => takeQuestionTo('takeToReflectionConfirm')}>{L('takeToReflectionBtn')}</button>
             <button type="button" style={s.takeToGroupBtn} onClick={() => takeQuestionTo('takeToGroupConfirm')}>{L('takeToGroupBtn')}</button>
           </div>
-        </div>
+        </div>}
 
         <div style={s.sandCard}>
           <p style={s.sandText}>{L('privacyNote')}</p>

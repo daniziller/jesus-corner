@@ -135,7 +135,9 @@ export default function HomeScreen({
   useEffect(() => {
     let alive = true
     const groups = session.myGroups ?? []
-    if (groups.length === 0) { setGroupChallenge(null); return }
+    // Comunidade (e o desafio gerado do grupo) é Premium: no grátis a
+    // linha do desafio não aparece no Hoje.
+    if (!session.hasPremium || groups.length === 0) { setGroupChallenge(null); return }
     Promise.all(groups.map(g => getActiveGroupChallenge(g.groupId).catch(() => null))).then(results => {
       if (!alive) return
       const active = results.find(Boolean)
@@ -156,7 +158,7 @@ export default function HomeScreen({
       })
     })
     return () => { alive = false }
-  }, [session.myGroups])
+  }, [session.myGroups, session.hasPremium])
 
   async function handleMarkChallengeDone() {
     if (!groupChallenge || groupChallenge.doneToday) return

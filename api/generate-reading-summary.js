@@ -11,6 +11,7 @@
 // meio-verificada (mesmo espírito de verifyCitation em
 // api/ask-about-passage.js).
 import { generateReadingSummary } from './_lib/ai.js'
+import { meterAi } from './_lib/aiBudget.js'
 import { requireCaller } from './_lib/caller.js'
 import { pickMoments, summaryHasText, verificationReport } from './_lib/readingSummaryCheck.js'
 import { describeAiFailure } from './_lib/aiErrorReport.js'
@@ -54,9 +55,9 @@ function chapterFullText(chapterData) {
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' })
 
-  // Gerar custa uma chamada de IA: só pra quem tem conta. A tela de fecho
-  // aparece pra todo mundo (com ou sem plano), então basta estar logado.
-  if (!(await requireCaller(req, res))) return
+  // Gerar exige o Premium e saldo no limite mensal de IA (api/_lib/aiBudget.js).
+  const who = await requireCaller(req, res, { needsAI: true, budget: true })
+  if (!who) return
 
   const { book, chStart, chEnd, lang } = req.query
   const cleanLang = lang === 'en' ? 'en' : 'pt'
@@ -87,7 +88,7 @@ export default async function handler(req, res) {
   for (let attempt = 1; attempt <= 2 && !result; attempt++) {
     let candidate
     try {
-      candidate = await generateReadingSummary({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang })
+      candidate = await meterAi(who.caller.id, 'resumo-da-leitura', () => generateReadingSummary({ book, chStart: startNum, chEnd: endNum, chapterText, bookInfo, lang: cleanLang }))
     } catch (err) {
       // Só a forma do problema (qual regra do formato falhou), nunca o texto gerado.
       console.error(`[generate-reading-summary] AI call failed (attempt ${attempt}) ${book} ${startNum}-${endNum} ${cleanLang}: ${describeAiFailure(err)}`)
