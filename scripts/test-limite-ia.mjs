@@ -88,9 +88,11 @@ const db5 = fakeDb()
 await meterAi('v', 'voz-natural', async () => { recordSpeechUsage(VOZ, 3500) }, { db: db5, nowMs: agora })
 check('voz gerada é gravada na conta de quem ouviu, junto com o texto', db5.rpcCalls.map(([, a]) => [a.p_user_id, a.p_cost_micros, a.p_input_tokens]), [['v', 70_525, 875]])
 const tts = ler('api/tts.js')
-check('tts.js: Premium, depois o teto, depois gera medindo', [/if \(!ent\.hasPremium\)[^\n]*\n[^\n]*\n\s*if \(!\(await ensureAiBudget\(res, userId\)\)\) return/.test(tts), /meterAi\(userId, 'voz-natural'/.test(tts), /recordSpeechUsage\(MODEL, clean\.length\)/.test(tts)], [true, true, true])
+const ordem = (...trechos) => trechos.map(t => tts.indexOf(t))
+check('tts.js: Premium, depois o cache, depois o teto, depois gera medindo', (([a, b, c, d]) => [a > 0, a < b, b < c, c < d])(ordem('if (!ent.hasPremium)', 'findCachedAudio(cachePath)', 'ensureAiBudget(res, userId)', 'generateSpeech({')), [true, true, true, true])
+check('tts.js: o áudio gerado é medido e cobrado de quem pediu', [/meterAi\(userId, 'voz-natural'/.test(tts), /recordSpeechUsage\(MODEL, clean\.length\)/.test(tts)], [true, true])
 const fala = ler('src/audio/premiumSpeech.js')
-check('app: sem saldo, para de pedir a voz natural e lê com a voz do aparelho', [/if \(res\.status === 429\) \{ budgetReached = true; throw new Error\('tts_budget_reached'\) \}/.test(fala), /if \(budgetReached\) throw new Error\('tts_budget_reached'\)/.test(fala)], [true, true])
+check('app: sem saldo, o trecho cai pra voz do aparelho, mas os guardados continuam vindo', [/if \(res\.status === 429\) throw new Error\('tts_budget_reached'\)/.test(fala), /budgetReached = true/.test(fala)], [true, false])
 
 // ── Toda geração passa pelo limite ──────────────────────────────────────
 const ai = ler('api/_lib/ai.js')

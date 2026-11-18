@@ -38,7 +38,9 @@ const FALLBACK_PRICE = Object.values(MODEL_PRICES).reduce((a, b) => (b.outputPer
 export const MONTHLY_BUDGET_USD = 1.5
 export const MONTHLY_BUDGET_MICROS = Math.round(MONTHLY_BUDGET_USD * 1_000_000)
 
-// Voz natural (api/tts.js). O AI SDK não devolve tokens de áudio, então o
+// Voz natural (api/tts.js). Só o áudio GERADO conta: o que já está guardado
+// no servidor (api/_lib/ttsCache.js) sai de graça pra todo mundo. O AI SDK
+// não devolve tokens de áudio, então o
 // custo é estimado pelo tamanho do texto: preço de tabela do
 // gpt-4o-mini-tts — cerca de US$0,015 por minuto de áudio gerado, mais
 // US$0,60 por milhão de tokens de texto (~4 caracteres por token) — e uma
