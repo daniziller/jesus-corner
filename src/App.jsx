@@ -616,9 +616,29 @@ export default function App() {
   const completedSetRef = useRef(completedSet)
   completedSetRef.current = completedSet
   const guidedAdvanceTimerRef = useRef(null)
-  // Remonta Oração/Reflexão a cada passo concluído (ver o key no JSX).
+  // Remonta Oração/Reflexão a cada passo concluído (ver o key no JSX) — mas
+  // só depois que a pessoa sai da tela. No modo guiado, o fim da Reflexão
+  // espera GUIDED_ADVANCE_MS antes de abrir o "Dia concluído"; remontar na
+  // hora fazia a Reflexão nova nascer ainda "na frente" (active) e ligar o
+  // relógio sozinha, que reaparecia zerado no pill flutuante do fim do dia
+  // (achado em 18/11). Agora o passo concluído só marca que precisa
+  // recomeçar, e a troca acontece quando a aba já é outra.
   const [prayerRunKey, setPrayerRunKey] = useState(0)
   const [reflectionRunKey, setReflectionRunKey] = useState(0)
+  const prayerNeedsResetRef = useRef(false)
+  const reflectionNeedsResetRef = useRef(false)
+  // A aba da frente agora — para quem termina o passo pelo pill flutuante,
+  // de outra aba: aí a tela já não está na frente e pode recomeçar na hora.
+  const activeTabNowRef = useRef(activeTab)
+  activeTabNowRef.current = activeTab
+  function resetStepScreenLater(step) {
+    if (activeTabNowRef.current !== step) { (step === 'prayer' ? setPrayerRunKey : setReflectionRunKey)(k => k + 1); return }
+    ;(step === 'prayer' ? prayerNeedsResetRef : reflectionNeedsResetRef).current = true
+  }
+  useEffect(() => {
+    if (activeTab !== 'prayer' && prayerNeedsResetRef.current) { prayerNeedsResetRef.current = false; setPrayerRunKey(k => k + 1) }
+    if (activeTab !== 'reflection' && reflectionNeedsResetRef.current) { reflectionNeedsResetRef.current = false; setReflectionRunKey(k => k + 1) }
+  }, [activeTab])
   // Biblioteca recarrega a cada visita à aba (ver BibliotecaScreen/refreshKey).
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
   useEffect(() => { if (activeTab === 'notes') setNotesRefreshKey(k => k + 1) }, [activeTab])
@@ -1362,7 +1382,7 @@ export default function App() {
   // próximo passo, contra o quadro (36b/36c → 36f → 35f/37c).
   function finishPrayerStep() {
     markRoutineStep('prayer')
-    setPrayerRunKey(k => k + 1)
+    resetStepScreenLater('prayer')
     const gf = guidedFlowRef.current
     if (gf && gf.steps[gf.idx] === 'prayer') {
       // Próximo passo ainda NÃO feito hoje (varredura 2026-10-25) — quem
@@ -2785,7 +2805,7 @@ export default function App() {
   // reler session.todayRoutine.reflection.
   function finishReflectionStep() {
     markRoutineStep('reflection')
-    setReflectionRunKey(k => k + 1)
+    resetStepScreenLater('reflection')
     const gf = guidedFlowRef.current
     if (gf && gf.steps[gf.idx] === 'reflection') { advanceGuided('reflection'); return }
     const nextKey = (session.todaysSteps ?? []).find(k => k !== 'reflection' && !session.todayRoutine?.[k])

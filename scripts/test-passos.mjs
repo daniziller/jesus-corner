@@ -173,5 +173,13 @@ check('nenhum texto fixo em português dentro da imagem', /['"`](Dia|Minha frase
 const { STRINGS: S2 } = await import('../src/i18n/translations.js')
 check('os textos novos da imagem existem nos dois idiomas', ['sealLeftOne', 'sealLeftMany', 'sealDone'].every(k => S2.pt.dayComplete[k] && S2.en.dayComplete[k]), true)
 
+// ── O relógio não recomeça sozinho no fim do dia (18/11) ──────────────
+const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const corpo = nome => app.slice(app.indexOf(`function ${nome}(`), app.indexOf('\n  }\n', app.indexOf(`function ${nome}(`)))
+check('terminar a Reflexão/Oração não recria a tela na hora (ela ligaria o relógio sozinha)', [/setReflectionRunKey/.test(corpo('finishReflectionStep')), /setPrayerRunKey/.test(corpo('finishPrayerStep'))], [false, false])
+check('a tela recomeça só quando a aba já é outra', [/resetStepScreenLater\('reflection'\)/.test(corpo('finishReflectionStep')), /resetStepScreenLater\('prayer'\)/.test(corpo('finishPrayerStep')), /activeTab !== 'reflection' && reflectionNeedsResetRef\.current/.test(app), /activeTab !== 'prayer' && prayerNeedsResetRef\.current/.test(app)], [true, true, true, true])
+const reflexaoTela = readFileSync(new URL('../src/screens/ReflectionScreen.jsx', import.meta.url), 'utf8')
+check('a Reflexão só liga o relógio sozinha quando está na frente, e para ao terminar o dia', [/!active \|\| autoStartedRef\.current/.test(reflexaoTela), /async function finishDay\(\) \{[\s\S]*?pause\(\)/.test(reflexaoTela)], [true, true])
+
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes dos passos (parte pura) passaram.')
