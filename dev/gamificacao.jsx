@@ -309,6 +309,27 @@ const todaySession = estado === 'inteira'
 // &lang=en: a pré-visualização em inglês (a sessão e o t() sem idioma).
 const previewLang = params.get('lang') === 'en' ? 'en' : 'pt'
 try { localStorage.setItem('jc_app_language', previewLang) } catch { /* sem localStorage */ }
+// Em inglês, o que as pessoas escreveram (pedidos, mensagens, nomes de
+// grupo) também aparece em inglês — é o que as capturas da loja em en-US
+// mostram. Nomes de pessoas ficam como estão.
+const conteudoEn = {
+  'Sabedoria para decidir sobre a mudança de cidade': 'Wisdom about whether to move to a new city',
+  'A cirurgia da mãe da Marina, na quinta': "Marina's mom's surgery on Thursday",
+  'Meu pai voltar a falar com meu irmão': 'For my dad and my brother to talk again',
+  'Emprego para o Lucas, que está há oito meses procurando': 'A job for Lucas, eight months into the search',
+  'Paciência com as crianças nas manhãs': 'Patience with the kids in the mornings',
+  'Prova de residência no sábado': 'Residency exam on Saturday',
+  'Um diagnóstico que ainda não contei a ninguém': "A diagnosis I haven't told anyone about yet",
+  'Nunca tinha reparado que Nicodemos vem de noite e sai sem resposta pronta.': 'Never noticed that Nicodemus comes at night and leaves without a neat answer.',
+  'Grupo Semente': 'Seed Group',
+  'Batista Central': 'Central Baptist',
+  'Família Almeida': 'Almeida Family',
+  'Manhã com a Palavra': 'Mornings in the Word',
+  'Jovens da Central': 'Central Youth',
+  'Casais': 'Couples',
+  'Discipulado': 'Discipleship',
+}
+const tc = texto => (previewLang === 'en' ? conteudoEn[texto] ?? texto : texto)
 
 const session = {
   lang: previewLang, userName: 'Diego', avatarInitials: 'DZ', todaySession,
@@ -460,17 +481,17 @@ function pedidosDeExemplo() {
   const ha = dias => new Date(Date.now() - dias * 86400000).toISOString()
   const meu = (id, body, dias, extra = {}) => ({ id, body, scope: 'only_me', groupId: null, groupName: '', isMine: true, status: 'open', resposta: null, notaResposta: null, createdAt: ha(dias), respondidoEm: null, prayCount: 0, diasOrados: 0, prayedToday: false, prayedEver: false, commentCount: 0, ...extra })
   const tres = [
-    meu('p1', 'Sabedoria para decidir sobre a mudança de cidade', 24, { diasOrados: 9, prayedToday: true, prayedEver: true }),
-    { ...meu('p2', 'A cirurgia da mãe da Marina, na quinta', 2), scope: 'group', groupId: 'g1', groupName: 'Grupo Semente', isMine: false, prayCount: 5 },
-    meu('p3', 'Meu pai voltar a falar com meu irmão', 92),
+    meu('p1', tc('Sabedoria para decidir sobre a mudança de cidade'), 24, { diasOrados: 9, prayedToday: true, prayedEver: true }),
+    { ...meu('p2', tc('A cirurgia da mãe da Marina, na quinta'), 2), scope: 'group', groupId: 'g1', groupName: tc('Grupo Semente'), isMine: false, prayCount: 5 },
+    meu('p3', tc('Meu pai voltar a falar com meu irmão'), 92),
   ]
   const mais = [
-    { ...meu('p4', 'Emprego para o Lucas, que está há oito meses procurando', 5), scope: 'group', groupId: 'g2', groupName: 'Batista Central', isMine: false, prayCount: 1 },
-    meu('p5', 'Paciência com as crianças nas manhãs', 11),
+    { ...meu('p4', tc('Emprego para o Lucas, que está há oito meses procurando'), 5), scope: 'group', groupId: 'g2', groupName: tc('Batista Central'), isMine: false, prayCount: 1 },
+    meu('p5', tc('Paciência com as crianças nas manhãs'), 11),
   ]
   const amigos = [
-    { id: 'p6', authorName: 'Marina Alves', body: 'Prova de residência no sábado', anonymous: false, scope: 'friends', createdAt: ha(1), prayCount: 0, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
-    { id: 'p7', authorName: null, body: 'Um diagnóstico que ainda não contei a ninguém', anonymous: true, scope: 'friends', createdAt: ha(3), prayCount: 12, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
+    { id: 'p6', authorName: 'Marina Alves', body: tc('Prova de residência no sábado'), anonymous: false, scope: 'friends', createdAt: ha(1), prayCount: 0, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
+    { id: 'p7', authorName: null, body: tc('Um diagnóstico que ainda não contei a ninguém'), anonymous: true, scope: 'friends', createdAt: ha(3), prayCount: 12, prayingByMe: false, prayedEver: false, isMine: false, status: 'open' },
   ]
   // Respondidos (O1): doze, os dois mais recentes como no quadro.
   const respostas = ['sim', 'aprenda', 'nao', 'se_mova', 'sim', 'sim', 'aprenda', 'nao', 'sim', 'se_mova', 'sim', 'aprenda']
@@ -892,12 +913,12 @@ function SuaBibliaPreview({ onBack }) {
 // app (a foto é recortada de verdade; o envio é de mentira).
 const pessoas = ['Marina Costa', 'Rafael Souza', 'Ana Ribeiro', 'Tiago Lima', 'Júlia Almeida']
 const gruposDeExemplo = [
-  { groupId: 'g1', name: 'Grupo Semente', myRole: 'member', readingMode: 'shared' },
-  { groupId: 'g2', name: 'Família Almeida', myRole: 'moderator', readingMode: 'individual' },
-  { groupId: 'g3', name: 'Manhã com a Palavra', myRole: 'member', readingMode: 'individual' },
-  { groupId: 'g4', name: 'Jovens da Central', myRole: 'member', readingMode: 'shared' },
-  { groupId: 'g5', name: 'Casais', myRole: 'member', readingMode: 'individual' },
-  { groupId: 'g6', name: 'Discipulado', myRole: 'moderator', readingMode: 'shared' },
+  { groupId: 'g1', name: tc('Grupo Semente'), myRole: 'member', readingMode: 'shared' },
+  { groupId: 'g2', name: tc('Família Almeida'), myRole: 'moderator', readingMode: 'individual' },
+  { groupId: 'g3', name: tc('Manhã com a Palavra'), myRole: 'member', readingMode: 'individual' },
+  { groupId: 'g4', name: tc('Jovens da Central'), myRole: 'member', readingMode: 'shared' },
+  { groupId: 'g5', name: tc('Casais'), myRole: 'member', readingMode: 'individual' },
+  { groupId: 'g6', name: tc('Discipulado'), myRole: 'moderator', readingMode: 'shared' },
 ]
 function ComunidadePreview() {
   const n = (k, padrao) => Number(params.get(k) ?? padrao)
@@ -905,8 +926,8 @@ function ComunidadePreview() {
   const novas = n('novas', 4)
   const [avatarUrl, setAvatarUrl] = useState(params.get('foto') === 'sim' ? 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#7A4A1E"/><circle cx="32" cy="26" r="12" fill="#E6DACB"/><rect x="12" y="42" width="40" height="30" rx="14" fill="#E6DACB"/></svg>') : null)
   const [espera, setEspera] = useState(n('espera', 2) === 0 ? { planos: [], convites: [], pedidos: [] } : {
-    planos: n('espera', 2) >= 3 ? [{ planId: 'p1', book: 'Marcos', bookEn: 'Mark', groupName: 'Grupo Semente' }] : [],
-    convites: [{ groupId: 'g9', groupName: 'Batista Central', invitedByName: 'Rafael' }],
+    planos: n('espera', 2) >= 3 ? [{ planId: 'p1', book: 'Marcos', bookEn: 'Mark', groupName: tc('Grupo Semente') }] : [],
+    convites: [{ groupId: 'g9', groupName: tc('Batista Central'), invitedByName: 'Rafael' }],
     pedidos: [{ friendshipId: 'f9', name: 'Lucas Mendes', avatarUrl: null }],
   })
   return (
@@ -916,7 +937,7 @@ function ComunidadePreview() {
       photoApi={{ prepare: squareAvatarBlob, upload: async blob => { await new Promise(r => setTimeout(r, 400)); if (params.get('envio') === 'falha') throw new Error('sem rede'); window.__fotoEnviada = { tipo: blob.type, bytes: blob.size }; return URL.createObjectURL(blob) } }}
       loaded={params.get('carregando') !== 'sim'} groups={groups} memberCounts={{ g1: 12, g2: 6, g3: 8, g4: 1, g5: 14, g6: 3 }}
       messagesSummary={novas === 0 ? [] : novas === 1 ? [{ groupId: 'g1', unreadCount: 1 }] : [{ groupId: 'g1', unreadCount: 3 }, { groupId: 'g2', unreadCount: 1 }]}
-      messages={params.get('trecho') === 'nao' ? [] : [{ isRead: false, locked: false, body: 'Nunca tinha reparado que Nicodemos vem de noite e sai sem resposta pronta.', authorName: 'Marina', groupName: 'Grupo Semente', kind: 'sala_capitulo', contextBook: 'João', contextChapter: 3 }]}
+      messages={params.get('trecho') === 'nao' ? [] : [{ isRead: false, locked: false, body: tc('Nunca tinha reparado que Nicodemos vem de noite e sai sem resposta pronta.'), authorName: 'Marina', groupName: tc('Grupo Semente'), kind: 'sala_capitulo', contextBook: 'João', contextChapter: 3 }]}
       planInvites={espera.planos} groupInvites={espera.convites} friendRequests={espera.pedidos}
       friends={pessoas.slice(0, n('amigos', 5)).map((name, i) => ({ friendshipId: `f${i}`, name, avatarUrl: null }))}
       onOpenMessages={() => alert('abrir Mensagens')} onOpenProfile={() => alert('abrir Meu perfil')} onOpenGroup={id => alert(`abrir o grupo ${id}`)}

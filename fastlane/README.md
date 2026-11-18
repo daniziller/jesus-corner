@@ -17,25 +17,33 @@ os dois completos (texto + capturas + ícone).
 
 ## O que já está aqui
 
-- **Capturas pt-BR e en-US**, na ordem exata de `handoff-lojas/README.md`
-  (não reordenar — as três primeiras são o que a busca da loja mostra):
-  `01` Hoje/Today, `02` Meu Plano/My Plan, `03` Bíblia/Bible, `04`
-  Métricas/Metrics, `05` Comunidade/Community, `06` Oração/Prayer.
-  - iOS: `screenshots/{pt-BR,en-US}/` (1290×2796, originais, sem
-    recorte/recompressão)
+- **Capturas pt-BR e en-US**, refeitas em 2026-11-18 com as telas atuais
+  do app (não reordenar — as três primeiras são o que a busca da loja
+  mostra): `01` Hoje/Today, `02` Meu Plano/My Plan, `03` Bíblia/Bible,
+  `04` Sua Bíblia/Your Bible, `05` Comunidade/Community, `06`
+  Oração/Prayer. A 04 era Métricas; a tela que mostra o progresso hoje é a
+  Sua Bíblia (a roda dos livros e os selos).
+  - iOS: `screenshots/{pt-BR,en-US}/` (1290×2796). O `Deliverfile` usa
+    `overwrite_screenshots(true)`, então subir troca as da loja por estas.
   - Android: `metadata/android/{pt-BR,en-US}/images/phoneScreenshots/`
-    (1080×1920, idem)
+    (1080×1920). O `supply` já troca as capturas do Play por estas.
   - Imagem de destaque do Play: `metadata/android/{pt-BR,en-US}/images/
-    featureGraphic.png` (1024×500), uma por locale
-  - As capturas em inglês não são tradução das telas em pt-BR: são versões
-    de verdade do app em inglês — separador decimal, datas, dias
-    abreviados, horário em 12h e Escritura na World English Bible — e as
-    frases de venda foram escritas em inglês, não traduzidas ao pé da
-    letra (ex.: "Sua rotina com Deus cabe no dia" virou "Time with God
-    that fits your day", não uma tradução literal). Duas telas do app
-    precisaram ser traduzidas pra isso (Comunidade e Pedidos de oração) —
-    as capturas soltas dessas duas também estão em
-    `handoff-screenshots-en/app-en/`, caso o site venha a usá-las.
+    featureGraphic.png` (1024×500), uma por locale, com a tela Hoje atual.
+  - De onde vêm: as telas de verdade do app na pré-visualização
+    (`dev/gamificacao.html?tela=hoje|meuPlano&plano=p1|biblia&livro=Salmos&cap=23&parabens=nao|suaBiblia|comunidade&grupos=3&amigos=5&novas=1|pedidos&pedidos=7&respondidos=12`,
+    com `&lang=en` para o inglês), capturadas a 390 px de largura em 3×,
+    com a frase de venda em cima e a tela num quadro de celular que sai
+    pela borda de baixo. Fundo claro nas telas 1, 3 e 5; escuro nas 2, 4 e 6.
+  - As capturas em inglês não são tradução das telas em pt-BR: são o app
+    de verdade em inglês (separador decimal, datas, horário em 12h), com o
+    que as pessoas escreveram (pedidos, mensagens, nomes de grupo) também
+    em inglês, e as frases de venda foram escritas em inglês, não
+    traduzidas ao pé da letra (ex.: "Sua rotina com Deus cabe no dia" virou
+    "Time with God that fits your day").
+  - A Escritura na tela de leitura é a versão que o app usa (NVT em
+    português, NLT em inglês), com a sigla visível no topo da tela. São
+    poucos versículos (Salmo 23), dentro do que a Tyndale permite citar
+    com crédito.
 
 ## Textos da ficha — preenchidos (pt-BR e en-US)
 
