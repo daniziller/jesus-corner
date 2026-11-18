@@ -188,15 +188,15 @@ export default function HomeScreen({
   useEffect(() => {
     let alive = true
     setLoading(true)
-    const chapterForVerse = !todaySession.needsThemePick && todaySession.type !== 'reflection'
-      ? { book: todaySession.book, chapter: todaySession.chStart }
-      : null
     // getPinnedApplicationEntry funciona pra convidado também
     // (userDataStore.js resolve local vs. Supabase por dentro); uma falha
-    // isolada não derruba a outra busca nem o resto da tela.
+    // isolada não derruba a outra busca nem o resto da tela. O versículo
+    // do dia não depende mais da sessão de leitura (é um dos 500 mais
+    // lidos, ver home/homeVerseStore.js) — aparece todo dia, inclusive em
+    // dia só de reflexão.
     Promise.allSettled([
       getPinnedApplicationEntry(email),
-      chapterForVerse ? getHomeVerse({ ...chapterForVerse, lang }) : Promise.resolve(null),
+      getHomeVerse({ lang }),
     ]).then(([pinned, homeVerse]) => {
       if (!alive) return
       if (pinned.status === 'fulfilled') setPinnedEntry(pinned.value)
@@ -205,7 +205,7 @@ export default function HomeScreen({
     })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, todaySession.book, todaySession.chStart, lang, applicationRefreshKey])
+  }, [email, lang, applicationRefreshKey])
 
   const verseData = verse ?? { text: '', ref: '', version: null }
   const dateLabel = formatToday(lang)
@@ -297,9 +297,11 @@ export default function HomeScreen({
   }
 
   // ── Bloco 4 — PARA HOJE (handoff-hoje-50 §6) ──
-  // A frase escrita na Reflexão de HOJE só vira "aplicação de ontem"
-  // amanhã; e a preferência de mostrar/esconder (Perfil → ProfileSheet,
-  // por dispositivo, applicationCardVisibilityStore.js) continua valendo.
+  // A frase escrita (ou trocada) na Reflexão de HOJE aparece como "Sua
+  // aplicação de hoje" — pedido dela (2026-11-18): ao trocar a frase ela
+  // sumia até o dia seguinte. A preferência de mostrar/esconder (Perfil →
+  // ProfileSheet, por dispositivo, applicationCardVisibilityStore.js)
+  // continua valendo.
   const wroteApplicationToday = pinnedEntry?.key === `application:${todayKeyStr}`
 
   // "Cumpri": exatamente o que o botão do cartão antigo fazia — a mesma

@@ -193,8 +193,9 @@ export function nextAchievement(closest, lang = 'pt') {
 //   resumo da semana (só com resumo NÃO lido);
 //   versículo do dia (sempre que houver versículo; enquanto carrega, a
 //     linha fica com o subtítulo em esqueleto);
-//   aplicação de ontem (só com frase fixada que não seja a de hoje, e com
-//     o cartão ligado no Perfil);
+//   aplicação (com frase fixada e o cartão ligado no Perfil; escrita ou
+//     trocada hoje, o título vira "Sua aplicação de hoje" — pedido dela,
+//     2026-11-18: antes a frase sumia até o dia seguinte);
 //   pedidos de oração (sempre — pedido dela, 2026-11-18: um acesso aos
 //     pedidos na página inicial; o subtítulo diz quantos ainda esperam a
 //     oração de hoje, ver requestsLine);
@@ -254,9 +255,9 @@ export function paraHojeRows({ challenge, summary, verse, verseLoading, applicat
   } else if (verse?.text) {
     rows.push({ key: 'verse', title: tx(lang, 'verseTitle'), subtitle: `${quoted(verse.text)} ${verseShortRef(verse)}`.trim(), right: { kind: 'chevron' } })
   }
-  if (application?.text && application.visible && !application.writtenToday) {
+  if (application?.text && application.visible) {
     rows.push({
-      key: 'application', title: tx(lang, 'applicationTitle'), subtitle: quoted(application.text),
+      key: 'application', title: tx(lang, application.writtenToday ? 'applicationTitleToday' : 'applicationTitle'), subtitle: quoted(application.text),
       right: application.fulfilled ? { kind: 'done', label: tx(lang, 'applicationDone') } : { kind: 'button', label: tx(lang, 'applicationMark') },
     })
   }
