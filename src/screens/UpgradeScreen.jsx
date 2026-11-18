@@ -1,13 +1,14 @@
 // Tela de assinatura — duas versões (pedido dela, 2026-11-18): a grátis,
-// com recursos limitados, e o Premium, um plano só, mensal — R$27 no
-// Brasil, US$7 no resto do mundo (PAID_PLAN em ../billing/storeTiers, o
-// mesmo valor das lojas nativas e do Stripe/web). O comparativo vem de
+// com recursos limitados, e o Premium, pago por mês (R$27 no Brasil, US$7
+// no resto do mundo) ou por ano (R$267 / US$57) —
+// PAID_PLANS em ../billing/storeTiers, os mesmos valores das lojas nativas
+// e do Stripe/web. O comparativo vem de
 // ../billing/planFeatures, a mesma lista que o onboarding mostra.
 //
 // Aparece tanto pra quem está no grátis e quer assinar (via aba
 // "Assinatura" ou por um cadeado de recurso Premium) quanto pelo link
 // "Minha assinatura" no Perfil (pra quem já assina, ver e gerenciar).
-// Quem assinou um plano que não se vende mais (anual, "Premium + IA")
+// Quem assinou um plano que não se vende mais (o antigo "Premium + IA")
 // continua nele, no preço que paga — a tela só mostra o que é e o caminho
 // pra gerenciar.
 //
@@ -23,7 +24,7 @@ import {
   getDigitalGoodsService, getPlaySkuDetails, startPlayBillingPurchase,
   isIOSApp, getIOSProducts, startIOSPurchase,
 } from '../billing/subscriptionStore'
-import { PAID_PLAN, GOOGLE_PLAY_SUBSCRIPTION_ID, paidPlanCents, currencyForCountry } from '../billing/storeTiers'
+import { PAID_PLANS, GOOGLE_PLAY_SUBSCRIPTION_ID, paidPlanCents, annualFreeMonths, currencyForCountry } from '../billing/storeTiers'
 import { FREE_FEATURES, PREMIUM_FEATURES } from '../billing/planFeatures'
 import { formatAmount } from '../billing/formatAmount'
 import { redeemInviteCode } from '../invites/inviteStore'
@@ -34,6 +35,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
   const { lang } = session
   const [currency, setCurrency] = useState(() => currencyForCountry(null, lang))
   const currencyTouchedRef = useRef(false)
+  const [interval, setBillingInterval] = useState('month') // 'month' | 'year'
   // "Não encontramos uma cobrança ativa vinculada" (portal do Stripe sem
   // assinatura): mostra o botão de assinar de novo mesmo com o status ativo.
   const [resubscribing, setResubscribing] = useState(false)
@@ -77,7 +79,7 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
         const details = await getPlaySkuDetails([GOOGLE_PLAY_SUBSCRIPTION_ID])
         if (!cancelled) setStorePrices(details)
       } else {
-        const details = await getIOSProducts([PAID_PLAN.appleProductId])
+        const details = await getIOSProducts(Object.values(PAID_PLANS).map(pl => pl.appleProductId))
         if (!cancelled) setStorePrices(details)
       }
     }
@@ -91,12 +93,18 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
   const isStoreContext = storeContext !== 'stripe'
 
   // Na loja, o preço que aparece é o que a loja vai cobrar; fora dela, o
-  // de PAID_PLAN na moeda escolhida.
-  const storeKey = storeContext === 'google_play' ? PAID_PLAN.googlePlayBasePlan : PAID_PLAN.appleProductId
-  const storePrice = isStoreContext ? storePrices[storeKey] : null
-  const displayCurrency = storePrice?.currency ? storePrice.currency.toLowerCase() : currency
-  const amountCents = storePrice ? Math.round(parseFloat(storePrice.value) * 100) : paidPlanCents(currency)
-  const priceLabel = formatAmount(amountCents, displayCurrency)
+  // de PAID_PLANS na moeda escolhida.
+  function priceOf(iv) {
+    const option = PAID_PLANS[iv]
+    const storeKey = storeContext === 'google_play' ? option.googlePlayBasePlan : option.appleProductId
+    const storePrice = isStoreContext ? storePrices[storeKey] : null
+    const cur = storePrice?.currency ? storePrice.currency.toLowerCase() : currency
+    const cents = storePrice ? Math.round(parseFloat(storePrice.value) * 100) : paidPlanCents(currency, iv)
+    return formatAmount(cents, cur)
+  }
+  const plan = PAID_PLANS[interval]
+  const priceLabel = priceOf(interval)
+  const freeMonths = annualFreeMonths(currency)
 
   function switchCurrency(next) {
     currencyTouchedRef.current = true
@@ -113,13 +121,13 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
     trackOnboardingEvent('checkout_started')
     try {
       if (storeContext === 'google_play') {
-        await startPlayBillingPurchase({ sku: GOOGLE_PLAY_SUBSCRIPTION_ID, basePlanId: PAID_PLAN.googlePlayBasePlan })
+        await startPlayBillingPurchase({ sku: GOOGLE_PLAY_SUBSCRIPTION_ID, basePlanId: plan.googlePlayBasePlan })
         window.location.href = '/?checkout=success'
       } else if (storeContext === 'apple') {
-        await startIOSPurchase({ productId: PAID_PLAN.appleProductId, mode: 'monthly' })
+        await startIOSPurchase({ productId: plan.appleProductId, mode: interval === 'year' ? 'annual' : 'monthly' })
         window.location.href = '/?checkout=success'
       } else {
-        const url = await startCheckout({ currency })
+        const url = await startCheckout({ currency, interval })
         window.location.href = url
       }
     } catch (err) {
@@ -159,9 +167,10 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
 
   const showPicker = !isLifetime && (!isRecurringActive || resubscribing)
   const perMonth = t('billing.perMonth', undefined, lang)
+  const unit = t(interval === 'year' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)
   const submitLabel = submitting
     ? t('billing.redirecting', undefined, lang)
-    : t('billing.subscribeBtn', { amount: priceLabel, unit: perMonth }, lang)
+    : t('billing.subscribeBtn', { amount: priceLabel, unit }, lang)
 
   return (
     <div style={s.screen}>
@@ -174,7 +183,8 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
         <div style={s.hero}>
           <span style={s.heroIcon}><AppIcon name="Crown" size={22} color="var(--bento-ink)" /></span>
           <p style={s.heroTitle}>{t('billing.heroTitle', undefined, lang)}</p>
-          <p style={s.heroPrice}>{priceLabel}<span style={s.heroPriceUnit}>{perMonth}</span></p>
+          <p style={s.heroPrice}>{priceOf('month')}<span style={s.heroPriceUnit}>{perMonth}</span></p>
+          <p style={s.heroOr}>{t('billing.orAnnual', { amount: priceOf('year') }, lang)}</p>
           <p style={s.heroSub}>{t('billing.heroSub', undefined, lang)}</p>
         </div>
 
@@ -230,6 +240,30 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
 
         {showPicker && !isFreeGrant && (
           <>
+            {/* Mensal ou anual: cada opção com o próprio preço; o anual diz
+                quantos meses sai de graça. */}
+            <div style={s.intervalRow} role="radiogroup" aria-label={t('billing.intervalLabel', undefined, lang)}>
+              {['month', 'year'].map(iv => {
+                const on = interval === iv
+                return (
+                  <button
+                    key={iv} type="button" role="radio" aria-checked={on}
+                    style={{ ...s.intervalCard, ...(on ? s.intervalCardOn : null) }}
+                    onClick={() => { setBillingInterval(iv); setError('') }}
+                  >
+                    {iv === 'year' && freeMonths > 0 && (
+                      <span style={s.intervalBadge}>{t(freeMonths === 1 ? 'billing.freeMonthsOne' : 'billing.freeMonthsMany', { n: freeMonths }, lang)}</span>
+                    )}
+                    <span style={{ ...s.intervalName, color: on ? 'rgba(255,255,255,.6)' : 'var(--bento-t3)' }}>{t(iv === 'year' ? 'billing.modeAnnual' : 'billing.modeMonthly', undefined, lang)}</span>
+                    <span style={{ ...s.intervalPrice, color: on ? '#fff' : 'var(--bento-ink)' }}>
+                      {priceOf(iv)}
+                      <span style={{ ...s.intervalUnit, color: on ? 'rgba(255,255,255,.5)' : 'var(--bento-t3)' }}>{t(iv === 'year' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
             {!isStoreContext && (
               <>
                 <div style={s.currencyRow}>
@@ -297,6 +331,7 @@ const s = {
   heroTitle:   { fontFamily: FONT, fontSize: 15, fontWeight: 800, color: '#fff', marginTop: 4, letterSpacing: '-0.2px' },
   heroPrice:   { fontFamily: FONT, fontSize: 30, fontWeight: 900, color: 'var(--bento-accent)', letterSpacing: '-0.6px', display: 'flex', alignItems: 'baseline', gap: 3, margin: '2px 0 4px' },
   heroPriceUnit: { fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)' },
+  heroOr:      { fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.7)', margin: '-2px 0 6px' },
   heroSub:     { fontFamily: FONT, fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,.55)', lineHeight: 1.5, maxWidth: 290, margin: 0 },
 
   card:        { borderRadius: 24, background: 'var(--bento-card)', padding: '16px 18px' },
@@ -318,6 +353,13 @@ const s = {
   statusActions:{ display: 'flex', gap: 8, width: '100%', marginTop: 8 },
 
 
+  intervalRow: { display: 'flex', gap: 10, paddingTop: 8 },
+  intervalCard:{ position: 'relative', flex: 1, minWidth: 0, border: 'none', borderRadius: 20, background: 'var(--bento-card)', padding: '16px 14px 14px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, cursor: 'pointer', fontFamily: FONT, textAlign: 'left' },
+  intervalCardOn: { background: 'var(--bento-ink)' },
+  intervalBadge: { position: 'absolute', top: -9, right: 10, background: 'var(--bento-accent)', color: 'var(--bento-ink)', fontFamily: FONT, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, padding: '3px 8px', borderRadius: 7 },
+  intervalName:{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.1em' },
+  intervalPrice:{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px', display: 'flex', alignItems: 'baseline', gap: 3 },
+  intervalUnit:{ fontSize: 11, fontWeight: 700 },
   currencyRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   currencyLabel:{ fontFamily: FONT, fontSize: 12, fontWeight: 700, color: 'var(--bento-ink)' },
   segmentToggle:{ display: 'flex', gap: 4, background: 'var(--bento-line)', borderRadius: 12, padding: 3 },

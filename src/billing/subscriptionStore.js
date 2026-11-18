@@ -46,15 +46,15 @@ async function authorizedPost(path, body) {
 
 // Devolve a URL do Stripe Checkout — quem chamar é responsável por
 // redirecionar (window.location.href = url), já que isso sai do domínio do
-// app. Um plano só, mensal (ver PAID_PLAN em storeTiers.js). currency:
-// 'brl' ou 'usd', escolhida
+// app. interval: 'month' ou 'year' (ver PAID_PLANS em storeTiers.js).
+// currency: 'brl' ou 'usd', escolhida
 // pela pessoa na tela — não dá pra confiar só na geolocalização por IP pra
 // isso (cartão de banco brasileiro usado fora do Brasil, ou vice-versa,
 // quebra a cobrança na moeda errada). O preço em si é sempre fixo,
 // calculado no servidor (ver FIXED_PRICES_CENTS em
 // api/create-checkout-session.js) — nunca mandado daqui.
-export async function startCheckout({ currency }) {
-  const { url } = await authorizedPost('/api/create-checkout-session', { currency })
+export async function startCheckout({ currency, interval = 'month' }) {
+  const { url } = await authorizedPost('/api/create-checkout-session', { currency, interval })
   return url
 }
 
@@ -97,7 +97,7 @@ export async function getPlaySkuDetails(skus) {
 // backend confirmar depois (ver api/verify-google-play-purchase.js) que o
 // token pertence mesmo a quem está chamando — nunca confiamos no
 // purchaseToken sozinho. `sku` é o productId da assinatura;
-// `basePlanId` é o base plan do plano pago (PAID_PLAN.googlePlayBasePlan).
+// `basePlanId` é o base plan escolhido (PAID_PLANS.month/year.googlePlayBasePlan).
 export async function startPlayBillingPurchase({ sku, basePlanId }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('not_authenticated')
@@ -130,7 +130,7 @@ export function isIOSApp() {
 
 const StoreKitPlugin = registerPlugin('StoreKitPlugin')
 
-// productIds: os produtos da Apple (PAID_PLAN.appleProductId, storeTiers.js).
+// productIds: os produtos da Apple (PAID_PLANS.*.appleProductId, storeTiers.js).
 // Devolve preço localizado real (o que a App Store vai cobrar), mesma ideia
 // de getPlaySkuDetails.
 export async function getIOSProducts(productIds) {

@@ -3,8 +3,8 @@
 // claro o que o app oferece). Até aqui a pessoa montou um plano com
 // oração, leitura e reflexão e viu uma demonstração — sem saber que parte
 // disso é paga. Esta tela diz, antes do cadastro: o que é grátis para
-// sempre, o que o Premium acrescenta e quanto custa (R$27/mês no Brasil,
-// US$7/mês no resto do mundo).
+// sempre, o que o Premium acrescenta e quanto custa (R$27/mês ou R$267/ano
+// no Brasil, US$7/mês ou US$57/ano no resto do mundo).
 //
 // A lista é a mesma da tela de assinatura (billing/planFeatures.js), pra
 // as duas nunca prometerem coisas diferentes. Ninguém assina aqui: a conta
@@ -13,14 +13,14 @@ import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import { FREE_FEATURES, PREMIUM_FEATURES } from '../billing/planFeatures'
-import { paidPlanCents, currencyForCountry } from '../billing/storeTiers'
+import { paidPlanCents, annualFreeMonths, currencyForCountry } from '../billing/storeTiers'
 import { formatAmount } from '../billing/formatAmount'
 
 const FONT = 'var(--font-bento)'
 
 export default function OnboardingPlans({ lang, onContinue, onBack }) {
-  const L = k => t(`onb.${k}`, undefined, lang)
-  const B = k => t(`billing.${k}`, undefined, lang)
+  const L = (k, vars) => t(`onb.${k}`, vars, lang)
+  const B = (k, vars) => t(`billing.${k}`, vars, lang)
   // Brasil paga em reais; o resto do mundo, em dólar. Até o país chegar,
   // o idioma decide.
   const [currency, setCurrency] = useState(() => currencyForCountry(null, lang))
@@ -31,7 +31,9 @@ export default function OnboardingPlans({ lang, onContinue, onBack }) {
     }).catch(() => {})
     return () => { cancelled = true }
   }, [lang])
-  const price = formatAmount(paidPlanCents(currency), currency)
+  const price = formatAmount(paidPlanCents(currency, 'month'), currency)
+  const annualPrice = formatAmount(paidPlanCents(currency, 'year'), currency)
+  const freeMonths = annualFreeMonths(currency)
 
   return (
     <div style={s.screen}>
@@ -63,6 +65,7 @@ export default function OnboardingPlans({ lang, onContinue, onBack }) {
             <p style={s.premiumLabel} id="plano-premium">{B('tiers.premium')}</p>
             <p style={s.premiumPrice}>{price}<span style={s.premiumUnit}>{B('perMonth')}</span></p>
           </div>
+          <p style={s.premiumOr}>{L('plansOrAnnual', { amount: annualPrice, free: B(freeMonths === 1 ? 'freeMonthsOne' : 'freeMonthsMany', { n: freeMonths }) })}</p>
           <p style={s.premiumLead}>{L('plansPremiumLead')}</p>
           {PREMIUM_FEATURES.map(key => (
             <div key={key} style={s.row}>
@@ -102,6 +105,7 @@ const s = {
   premiumLabel: { fontFamily: FONT, fontSize: 10, fontWeight: 800, lineHeight: 1, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--bento-accent)', margin: 0 },
   premiumPrice: { fontFamily: FONT, fontSize: 22, fontWeight: 900, lineHeight: 1, letterSpacing: '-.6px', color: '#fff', margin: 0, display: 'flex', alignItems: 'baseline', gap: 2 },
   premiumUnit: { fontSize: 11.5, fontWeight: 700, color: 'rgba(255,255,255,.5)' },
+  premiumOr: { fontFamily: FONT, fontSize: 12, fontWeight: 700, lineHeight: 1.3, color: 'var(--bento-accent)', margin: '-2px 0 10px', textAlign: 'right' },
   premiumLead: { fontFamily: FONT, fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: 'rgba(255,255,255,.55)', margin: '0 0 4px' },
 
   row: { display: 'flex', alignItems: 'flex-start', gap: 11, padding: '7px 0' },

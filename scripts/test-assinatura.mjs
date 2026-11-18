@@ -1,8 +1,9 @@
 // Testes da assinatura (pedido dela, 2026-11-18): só duas versões — grátis
-// e o Premium, um plano mensal de R$27 no Brasil e US$7 no resto do mundo.
+// e o Premium, por mês (R$27 no Brasil, US$7 fora) ou por ano (R$267 /
+// US$57).
 // node scripts/test-assinatura.mjs
 import { readFileSync } from 'node:fs'
-import { PAID_PLAN, STORE_TIERS, LEGACY_STORE_TIERS, paidPlanCents, currencyForCountry, findTierByAppleProductId, findTierByGooglePlayBasePlan } from '../src/billing/storeTiers.js'
+import { PAID_PLANS, STORE_TIERS, LEGACY_STORE_TIERS, paidPlanCents, annualFreeMonths, normalizeInterval, currencyForCountry, findTierByAppleProductId, findTierByGooglePlayBasePlan } from '../src/billing/storeTiers.js'
 import { FREE_FEATURES, PREMIUM_FEATURES } from '../src/billing/planFeatures.js'
 import { STRINGS } from '../src/i18n/translations.js'
 
@@ -15,15 +16,19 @@ function check(label, actual, expected) {
 const ler = caminho => readFileSync(new URL(`../${caminho}`, import.meta.url), 'utf8')
 
 // ── O preço ─────────────────────────────────────────────────────────────
-check('um plano só à venda, mensal', [Object.keys(STORE_TIERS), PAID_PLAN.interval], [['premium_monthly'], 'month'])
-check('R$27 no Brasil, US$7 fora', [paidPlanCents('brl'), paidPlanCents('usd')], [2700, 700])
+check('à venda: o Premium mensal e o anual, um tier só', [Object.keys(STORE_TIERS), Object.values(STORE_TIERS).map(p => [p.tier, p.interval])], [['premium_monthly', 'premium_annual'], [['premium', 'month'], ['premium', 'year']]])
+check('mensal: R$27 no Brasil, US$7 fora', [paidPlanCents('brl'), paidPlanCents('usd'), paidPlanCents('brl', 'month')], [2700, 700, 2700])
+check('anual: R$267 no Brasil, US$57 fora', [paidPlanCents('brl', 'year'), paidPlanCents('usd', 'year'), paidPlanCents('brl', 'annual')], [26700, 5700, 26700])
+check('intervalo inválido vira mensal', [normalizeInterval('week'), normalizeInterval(undefined), normalizeInterval('year')], ['month', 'month', 'year'])
+check('selo do anual nunca promete mais do que a conta: 2 meses (R$) e 3 meses (US$, 3,86)', [annualFreeMonths('brl'), annualFreeMonths('usd')], [2, 3])
+check('o anual reaproveita os IDs anuais que já existiam nas lojas', [PAID_PLANS.year.googlePlayBasePlan, PAID_PLANS.year.appleProductId], ['premium-annual', 'com.jesuscorner.app.premium.annual'])
 check('moeda desconhecida cai em dólar', paidPlanCents('eur'), 700)
 check('Brasil paga em reais; o resto do mundo, em dólar', [currencyForCountry('BR'), currencyForCountry('US'), currencyForCountry('PT'), currencyForCountry('JP', 'pt')], ['brl', 'usd', 'usd', 'usd'])
 check('sem país, o idioma decide', [currencyForCountry(null, 'pt'), currencyForCountry(null, 'en'), currencyForCountry('', 'pt')], ['brl', 'usd', 'brl'])
 
 // ── Quem já assinou um plano que não se vende mais ──────────────────────
-check('o plano atual é reconhecido nas duas lojas', [findTierByAppleProductId(PAID_PLAN.appleProductId)?.key, findTierByGooglePlayBasePlan(PAID_PLAN.googlePlayBasePlan)?.key], ['premium_monthly', 'premium_monthly'])
-check('anual e "Premium + IA" ainda renovam (Apple e Google)', Object.values(LEGACY_STORE_TIERS).map(tr => [!!findTierByAppleProductId(tr.appleProductId), !!findTierByGooglePlayBasePlan(tr.googlePlayBasePlan)]), [[true, true], [true, true], [true, true]])
+check('mensal e anual são reconhecidos nas duas lojas', Object.values(PAID_PLANS).map(p => [findTierByAppleProductId(p.appleProductId)?.key, findTierByGooglePlayBasePlan(p.googlePlayBasePlan)?.key]), [['premium_monthly', 'premium_monthly'], ['premium_annual', 'premium_annual']])
+check('o antigo "Premium + IA" ainda renova (Apple e Google)', Object.values(LEGACY_STORE_TIERS).map(tr => [!!findTierByAppleProductId(tr.appleProductId), !!findTierByGooglePlayBasePlan(tr.googlePlayBasePlan)]), [[true, true], [true, true]])
 check('produto desconhecido continua recusado', [findTierByAppleProductId('x'), findTierByGooglePlayBasePlan('x')], [null, null])
 
 // ── Acesso: qualquer assinatura ativa dá tudo ───────────────────────────
@@ -39,12 +44,12 @@ check('cliente: assinatura ativa dá Premium e IA juntos', /return \{ tier: 'pre
 
 // ── O checkout do site cobra o preço da tabela, só mensal ───────────────
 const checkout = ler('api/create-checkout-session.js')
-check('checkout usa paidPlanCents e ignora interval/tier do cliente', [/paidPlanCents\(currency\)/.test(checkout), /const interval = INTERVAL/.test(checkout), /FIXED_PRICES_CENTS/.test(checkout)], [true, true, false])
-check('o app manda só a moeda', /authorizedPost\('\/api\/create-checkout-session', \{ currency \}\)/.test(ler('src/billing/subscriptionStore.js')), true)
+check('checkout cobra da tabela, por moeda e intervalo, e ignora o tier do cliente', [/paidPlanCents\(currency, interval\)/.test(checkout), /const interval = normalizeInterval\(requestedInterval\)/.test(checkout), /const tier = TIER/.test(checkout), /FIXED_PRICES_CENTS/.test(checkout)], [true, true, true, false])
+check('o app manda moeda e intervalo', /authorizedPost\('\/api\/create-checkout-session', \{ currency, interval \}\)/.test(ler('src/billing/subscriptionStore.js')), true)
 
 // ── A tela de assinatura ────────────────────────────────────────────────
 const tela = ler('src/screens/UpgradeScreen.jsx')
-check('sem escolha de tier nem de anual', /selectedTier|modeAnnual|premium_ai|getStoreTier/.test(tela), false)
+check('um tier só, com escolha de mensal ou anual', [/selectedTier|premium_ai|getStoreTier/.test(tela), /\['month', 'year'\]\.map/.test(tela), /startCheckout\(\{ currency, interval \}\)/.test(tela)], [false, true, true])
 check('a tela compara pela mesma lista do onboarding', [/FREE_FEATURES/.test(tela), /PREMIUM_FEATURES/.test(tela)], [true, true])
 
 // ── A lista do que cada versão entrega ──────────────────────────────────
@@ -59,7 +64,7 @@ const fluxo = ler('src/screens/OnboardingFlow.jsx')
 check('"Grátis e Premium" vem logo antes do resultado', /'chooseStart', 'plans', 'result'\]/.test(fluxo), true)
 check('o passo novo é contado no funil do admin', /'chooseStart', 'plans', 'result'/.test(ler('api/track-onboarding-event.js')), true)
 const planos = ler('src/screens/OnboardingPlans.jsx')
-check('a tela do onboarding usa a mesma lista e o mesmo preço da assinatura', [/FREE_FEATURES/.test(planos), /PREMIUM_FEATURES/.test(planos), /paidPlanCents\(currency\)/.test(planos), /currencyForCountry/.test(planos)], [true, true, true, true])
+check('a tela do onboarding usa a mesma lista e o mesmo preço da assinatura', [/FREE_FEATURES/.test(planos), /PREMIUM_FEATURES/.test(planos), /paidPlanCents\(currency, 'year'\)/.test(planos), /currencyForCountry/.test(planos)], [true, true, true, true])
 check('as demonstrações de recurso pago dizem "No Premium"', /const premium = kind === 'ask' \|\| kind === 'group'/.test(ler('src/screens/OnboardingDemo.jsx')), true)
 check('a ordem cronológica aparece marcada como Premium para quem não assina', /!session\.hasPremium && <span style=\{s\.premiumTag\}>/.test(ler('src/screens/ChooseStartScreen.jsx')), true)
 check('a demonstração não promete versões que o app não tem', [/Cinco versões|Five Bible versions/.test(JSON.stringify(STRINGS)), STRINGS.pt.onb.demoReadingBody.includes('NVT'), STRINGS.en.onb.demoReadingBody.includes('NLT')], [false, true, true])

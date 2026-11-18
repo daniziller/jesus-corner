@@ -1,9 +1,10 @@
 // Cria uma Stripe Checkout Session pra quem já está logado no app — modelo
-// de assinatura com preço fixo: UM plano, mensal, em BRL ou USD (pedido
-// dela, 2026-11-18: R$27 no Brasil, US$7 no resto do mundo). Nunca confia
-// em valor mandado pelo cliente: o preço vem sempre de PAID_PLAN
-// (src/billing/storeTiers.js), calculado aqui no servidor a partir da
-// moeda (essa sim é escolha legítima de UI). Contribuição única (pagamento
+// de assinatura com preço fixo: o Premium, mensal ou anual, em BRL ou USD
+// (pedido dela, 2026-11-18: R$27/mês ou R$267/ano no Brasil, US$7/mês ou
+// US$57/ano no resto do mundo). Nunca confia em valor mandado pelo
+// cliente: o preço vem sempre de PAID_PLANS (src/billing/storeTiers.js),
+// calculado aqui no servidor a partir da moeda e do intervalo (essas sim
+// são escolhas legítimas de UI). Contribuição única (pagamento
 // avulso, acesso vitalício) foi descontinuada — só sobrevive o tratamento
 // de quem já tinha (ver api/stripe-webhook.js e
 // src/billing/subscriptionStore.js). Runtime Node (não edge, diferente de
@@ -18,7 +19,7 @@
 // rede do cartão — foi exatamente esse erro real que apareceu em produção.
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { paidPlanCents } from '../src/billing/storeTiers.js'
+import { paidPlanCents, normalizeInterval } from '../src/billing/storeTiers.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -29,9 +30,8 @@ const APP_URL = 'https://app.jesuscorner.app'
 // quem está comprando.
 const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-// O preço vem de PAID_PLAN (src/billing/storeTiers.js) — o mesmo das
-// lojas e da tela de assinatura: R$27/mês ou US$7/mês. Só mensal.
-const INTERVAL = 'month'
+// O preço vem de PAID_PLANS (src/billing/storeTiers.js) — o mesmo das
+// lojas e da tela de assinatura. Um tier só; o intervalo é mês ou ano.
 const TIER = 'premium'
 
 // Cache de módulo — sobrevive entre invocações "quentes" da function.
@@ -77,10 +77,10 @@ export default async function handler(req, res) {
   }
   const caller = userData.user
 
-  // Clientes antigos ainda mandam interval/tier: são ignorados — só existe
-  // um plano, mensal.
-  const { currency: requestedCurrency } = req.body ?? {}
-  const interval = INTERVAL
+  // Mensal ou anual ('month' se vier algo inválido/ausente). Clientes
+  // antigos ainda mandam `tier`: é ignorado — só existe o Premium.
+  const { currency: requestedCurrency, interval: requestedInterval } = req.body ?? {}
+  const interval = normalizeInterval(requestedInterval)
   const tier = TIER
 
   // Confia na escolha explícita da pessoa; só cai pro IP se o corpo não
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
     : (req.headers['x-vercel-ip-country'] === 'BR' ? 'brl' : 'usd')
 
   // Preço fixo — nunca vem do cliente.
-  const amountCents = paidPlanCents(currency)
+  const amountCents = paidPlanCents(currency, interval)
 
   // Convite de desconto pendente pro e-mail de quem está comprando (ver
   // api/admin/create-invite.js) — aplica o Coupon direto na sessão, sem
