@@ -11,6 +11,7 @@ import { markedWeekdayUnion } from '../routine/stepDaysMath.js'
 import { WEEKDAY_FULL } from '../routine/weeklyDaysMath.js'
 import { tr, trN } from '../i18n/tr.js'
 import { degrauName } from '../data/achievements.js'
+import { activePedidos } from '../pedidos/pedidosMath.js'
 
 // Textos em hojeTx (translations.js); `lang` vem de quem chama, com
 // português como padrão.
@@ -192,8 +193,12 @@ export function nextAchievement(closest, lang = 'pt') {
 //   resumo da semana (só com resumo NÃO lido);
 //   versículo do dia (sempre que houver versículo; enquanto carrega, a
 //     linha fica com o subtítulo em esqueleto);
-//   aplicação de ontem (só com frase fixada que não seja a de hoje, e com
-//     o cartão ligado no Perfil);
+//   aplicação (com frase fixada e o cartão ligado no Perfil; escrita ou
+//     trocada hoje, o título vira "Sua aplicação de hoje" — pedido dela,
+//     2026-11-18: antes a frase sumia até o dia seguinte);
+//   pedidos de oração (sempre — pedido dela, 2026-11-18: um acesso aos
+//     pedidos na página inicial; o subtítulo diz quantos ainda esperam a
+//     oração de hoje, ver requestsLine);
 //   anotar uma pregação (sempre).
 // `right`: { kind: 'chevron' } · { kind: 'button', label } · { kind:
 // 'done', label } (o botão depois de marcado vira texto).
@@ -212,7 +217,28 @@ function quoted(text) {
   return /^["“]/.test(t) ? t : `"${t}"`
 }
 
-export function paraHojeRows({ challenge, summary, verse, verseLoading, application, lang = 'pt' }) {
+// O resumo dos pedidos pra linha do Hoje: quantos estão ativos e quantos
+// ainda não receberam o "orei" de hoje. `list` é a lista unificada de
+// pedidosMath (mergePedidos); sem lista (não carregou, ou sem Premium),
+// null.
+export function requestsSummary(list) {
+  if (!list) return null
+  const active = activePedidos(list)
+  return { active: active.length, pending: active.filter(r => !r.prayedToday).length }
+}
+
+// O subtítulo da linha "Pedidos de oração": sem resumo, o que a linha é;
+// sem pedido ativo, o convite a fazer o primeiro; com pedidos por orar,
+// "2 de 7 esperando sua oração hoje"; todos orados, "Você orou por todos
+// os 7 hoje" (ou "pelo seu pedido", com um só).
+export function requestsLine(summary, lang = 'pt') {
+  if (!summary) return tx(lang, 'requestsSub')
+  if (summary.active === 0) return tx(lang, 'requestsNone')
+  if (summary.pending > 0) return tx(lang, summary.pending === 1 ? 'requestsPendingOne' : 'requestsPendingMany', { n: summary.pending, total: summary.active })
+  return tx(lang, summary.active === 1 ? 'requestsAllOne' : 'requestsAllMany', { n: summary.active })
+}
+
+export function paraHojeRows({ challenge, summary, verse, verseLoading, application, requests = null, lang = 'pt' }) {
   const rows = []
   if (challenge) {
     rows.push({
@@ -229,12 +255,13 @@ export function paraHojeRows({ challenge, summary, verse, verseLoading, applicat
   } else if (verse?.text) {
     rows.push({ key: 'verse', title: tx(lang, 'verseTitle'), subtitle: `${quoted(verse.text)} ${verseShortRef(verse)}`.trim(), right: { kind: 'chevron' } })
   }
-  if (application?.text && application.visible && !application.writtenToday) {
+  if (application?.text && application.visible) {
     rows.push({
-      key: 'application', title: tx(lang, 'applicationTitle'), subtitle: quoted(application.text),
+      key: 'application', title: tx(lang, application.writtenToday ? 'applicationTitleToday' : 'applicationTitle'), subtitle: quoted(application.text),
       right: application.fulfilled ? { kind: 'done', label: tx(lang, 'applicationDone') } : { kind: 'button', label: tx(lang, 'applicationMark') },
     })
   }
+  rows.push({ key: 'requests', title: tx(lang, 'requestsTitle'), subtitle: requestsLine(requests, lang), right: { kind: 'chevron' } })
   rows.push({ key: 'sermon', title: tx(lang, 'sermonTitle'), subtitle: tx(lang, 'sermonSub'), right: { kind: 'chevron' } })
   return rows
 }

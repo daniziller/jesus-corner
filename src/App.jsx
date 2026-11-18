@@ -3222,6 +3222,7 @@ export default function App() {
       onOpenWeeklySummary={openWeeklySummaryFromHome}
       onOpenBiblePassage={openBiblePassage} onOpenSermonNote={openSermonNoteFromHome}
       applicationRefreshKey={applicationRefreshVersion}
+      active={activeTab === 'home'}
       onOpenSuaBiblia={() => goToTab('suaBiblia')}
       onOpenEstante={() => openEstante()}
       onOpenFamilia={id => { setFamiliaId(id); goToTab('familia') }}

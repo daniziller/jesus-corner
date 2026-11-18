@@ -143,17 +143,56 @@ export function prayedCounter(prayed, total, lang = 'pt') {
 
 // O cartão "Pedidos de oração" da Súplica: os pedidos ativos, na ordem da
 // lista (O1); cinco de cada vez — com mais, a linha "Ver os {n} pedidos"
-// abre o resto no lugar. Sem pedido nenhum, `empty`.
-export function suplicaView(list, { expanded = false, lang = 'pt' } = {}) {
+// abre a folha da Súplica (abaixo), por cima da oração, com o relógio
+// correndo. Sem pedido nenhum, `empty`.
+export function suplicaView(list, { lang = 'pt' } = {}) {
   const active = activePedidos(list)
   const total = active.length
-  const rows = expanded ? active : active.slice(0, SUPLICA_LIMIT)
   return {
-    rows,
+    rows: active.slice(0, SUPLICA_LIMIT),
     total,
     empty: total === 0,
     counter: total ? prayedCounter(active.filter(r => r.prayedToday).length, total, lang) : null,
-    more: !expanded && total > SUPLICA_LIMIT ? tx(lang, 'seeAllRequests', { n: total }) : null,
+    more: total > SUPLICA_LIMIT ? tx(lang, 'seeAllRequests', { n: total }) : null,
+  }
+}
+
+// ── A folha de pedidos da Súplica ───────────────────────────────────────
+// Pedido dela (2026-11-18): ver TODOS os pedidos sem sair da oração — o
+// rótulo do cartão e "Ver os {n} pedidos" abriam a lista (O1), que pausava
+// o relógio e trocava de tela. Agora abrem uma folha por cima da Súplica,
+// com o relógio da etapa dentro dela, as abas e o mesmo "orei".
+
+// As abas da folha: Ativos sempre; "Do grupo" e "Amigos" só quando há
+// pedido de grupo ou de amigo (dentro da oração, uma aba vazia é só
+// ruído). Com uma aba só, a folha não mostra abas. Sem "Respondidos": na
+// Súplica se ora pelos pedidos ativos.
+export function suplicaSheetTabs(list, lang = 'pt') {
+  const tab = key => ({ key, label: `${tx(lang, `tab_${key}`)} · ${formatInt(pedidosOfTab(list, key).length, lang)}` })
+  const tabs = [tab('ativos')]
+  if (pedidosOfTab(list, 'grupo').length > 0) tabs.push(tab('grupo'))
+  if (pedidosOfTab(list, 'amigos').length > 0) tabs.push(tab('amigos'))
+  return tabs
+}
+
+// O que a folha mostra na aba escolhida: as linhas dessa aba, o contador
+// de TODOS os ativos ("2 de 7 orados", o mesmo do cartão) e, quando já
+// orei por todos hoje, a frase `allPrayed` no lugar do número.
+// Uma aba que não existe mais (o último pedido de amigo saiu) cai em
+// Ativos.
+export function suplicaSheetView(list, tab = 'ativos', lang = 'pt') {
+  const tabs = suplicaSheetTabs(list, lang)
+  const current = tabs.some(x => x.key === tab) ? tab : 'ativos'
+  const active = activePedidos(list)
+  const prayed = active.filter(r => r.prayedToday).length
+  return {
+    tabs: tabs.length > 1 ? tabs : [],
+    current,
+    rows: pedidosOfTab(list, current),
+    total: active.length,
+    empty: active.length === 0,
+    counter: active.length ? prayedCounter(prayed, active.length, lang) : null,
+    allPrayed: active.length > 0 && prayed === active.length ? tx(lang, 'allPrayedToday') : null,
   }
 }
 

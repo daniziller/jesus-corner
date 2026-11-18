@@ -33,7 +33,8 @@
 //      · sessão de hoje: os mesmos &plano= (p2 tem sessão · p3 leitura feita · p4 descanso)
 //      Passos do plano (handoff-passos-pedidos-53-54): tela=oracao — a oração ACTS (S1/S2), com os pedidos na memória.
 //      &etapa=1|2|3|4 (Adoração, Confissão, Gratidão, Súplica) · &pedidos=3|0|7|erro|carregando (a lista da Súplica;
-//      7 inclui amigo e anônimo) · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
+//      7 inclui amigo e anônimo, e o rótulo/"Ver os 7 pedidos" abrem a folha com todos, abas e o relógio da etapa)
+//      · &premium=nao (cartão de bloqueio) · &dia=estudo|um (quatro passos, ou só a oração)
 //      · &feitos=prayer,reading (passos já feitos hoje) · &minutos=12 (duração da oração) · &metodo=livre (36c, sem mudança)
 //      &plano=sim (com oracao/reflexao/biblia&leitura=plano) — a tela dentro do plano guiado, com o relógio do plano no topo.
 //      tela=reflexao — a reflexão com perguntas (S4), com as perguntas na memória. &pergunta=1|2|3 (a pergunta aberta)
@@ -56,7 +57,7 @@
 //      tela=nota — a nota em um versículo (N4). &nota=exemplo|nova|marcacao|comnota|escolher|sumiu · &grupos=0|2|3
 //      · &grupo=escolhido · &teclado=aberto · &rede=fora · &persistir=sim · tela=biblioteca&nova=abrir&rascunho=domingo|semtitulo (N1)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
-//      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
+//      com o desafio do grupo) · a linha "Pedidos de oração": &pedidos=3|0|7|erro (3: "2 de 3 esperando"; erro: genérica) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
@@ -1278,7 +1279,7 @@ function Preview() {
         onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}}
         onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')}
         onOpenWeeklySummary={k => alert(`resumo ${k}`)} onOpenBiblePassage={(b, c) => alert(`abrir ${b} ${c}`)} onOpenSermonNote={() => alert('anotar pregação')}
-        applicationRefreshKey={0}
+        applicationRefreshKey={0} pedidosApi={pedidosDePreview}
         onOpenSuaBiblia={() => setScreen('suaBiblia')} onOpenEstante={() => setScreen('estante')}
         onOpenFamilia={id => alert(`família ${id}`)}
         gamification={gami}

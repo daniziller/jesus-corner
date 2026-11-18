@@ -14,8 +14,10 @@
 // desabafo cru; o botão manda o texto atual e troca pelo pedido curto que
 // volta, que a pessoa ainda edita antes de guardar.
 //
-// `api` só existe para a pré-visualização de desenvolvimento trocar a
-// leitura de grupos e a gravação por versões de memória.
+// `over`: a folha abre por cima de outra (a folha de pedidos da Súplica) e
+// fica na frente dela. `api` só existe para a pré-visualização de
+// desenvolvimento trocar a leitura de grupos e a gravação por versões de
+// memória.
 import { useState, useEffect } from 'react'
 import { t } from '../../i18n'
 import AppIcon from '../../icons/AppIcon'
@@ -30,7 +32,7 @@ import { DEFAULT_WHO_SEES, whoSeesOptions, requestFormState, requestPayload } fr
 const FONT = 'var(--font-bento)'
 const realApi = { getMyGroups, getGroupMemberCounts, getFriendsCount, createPrayerRequest, composePrayerRequestDraft }
 
-export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice = DEFAULT_WHO_SEES, onClose, onCreated, api = realApi }) {
+export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice = DEFAULT_WHO_SEES, over = false, onClose, onCreated, api = realApi }) {
   const L = (k, vars) => t(`addPrayerRequest.${k}`, vars, lang)
   const Q = (k, vars) => t(`pedidosTx.${k}`, vars, lang)
   const email = authUser?.email
@@ -89,7 +91,7 @@ export default function FolhaFazerPedido({ lang, authUser, hasAI, initialChoice 
   }
 
   return (
-    <FolhaInferior onClose={onClose} labelledBy="fazer-pedido-titulo" fixed form focusField>
+    <FolhaInferior onClose={onClose} labelledBy="fazer-pedido-titulo" fixed form focusField over={over}>
       <h2 style={s.title} id="fazer-pedido-titulo">{Q('makeRequest')}</h2>
       <p style={s.sub}>{Q('makeRequestSub')}</p>
 
