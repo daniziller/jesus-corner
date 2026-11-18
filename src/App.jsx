@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Analytics } from '@vercel/analytics/react'
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
@@ -398,6 +398,25 @@ async function getPendingSocialCount() {
     getPendingGroupInvitesCount(),
   ])
   return friendRequests + groupInvites
+}
+
+// Estatísticas de acesso (Vercel Web Analytics, sem cookies): o link de
+// convite traz o nome de usuário no endereço (/d/fulano) — sai antes de
+// enviar (revisão de LGPD, 2026-11-18). Também tira query e âncora, que
+// podem carregar parâmetros de convite.
+function analyticsBeforeSend(event) {
+  try {
+    const u = new URL(event.url)
+    u.pathname = u.pathname.replace(/^\/d\/[^/]+/, '/d/[usuario]')
+    u.search = ''
+    u.hash = ''
+    return { ...event, url: u.toString() }
+  } catch {
+    return null
+  }
+}
+function Analytics() {
+  return <VercelAnalytics beforeSend={analyticsBeforeSend} />
 }
 
 export default function App() {

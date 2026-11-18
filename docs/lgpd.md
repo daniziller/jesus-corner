@@ -1,8 +1,49 @@
 # LGPD — o que o Jesus' Corner precisa adotar
 
-> **Estado em 10/08/2026.** As seções 3 e 4 foram implementadas — ver
-> "Situação atual" no fim do documento para o que ficou pronto, o que exige
-> ação manual e o que ainda falta.
+> **Estado em 18/11/2026.** Houve uma revisão completa de LGPD em duas
+> entregas. O resumo está em "Revisão de 18/11/2026", logo abaixo. O texto
+> de 10/08/2026 continua depois, como histórico.
+
+## Revisão de 18/11/2026
+
+**Primeira entrega**
+- **Exclusão completa:** feita pela função `erase_user_content`, nas
+  migrações 0082 e 0084, e por `api/_lib/eraseAccount.js`. A equipe pode
+  excluir a pedido pelo painel.
+- **Consentimentos por finalidade:** cada um tem a sua caixa (ConsentChoices,
+  migração 0083). São eles: 18+, termos, dados sobre a fé, escrita assistida
+  (`ai_processing`, conferida no servidor) e novidades. O portão de
+  consentimento falha fechado.
+- **E-mails:** o resumo semanal só manda o aviso, e os avisos em massa só vão
+  para quem consentiu. Todos têm link de descadastro (`api/unsubscribe.js`).
+- **Tela Perfil → Privacidade:** liga e desliga os consentimentos opcionais.
+
+**Segunda entrega**
+- **Exportação completa:** `api/export-my-data.js`, conferida por
+  `scripts/test-exportacao.mjs`.
+- **Retenção:** prazos novos em `api/retention.js`. A prova de consentimento
+  depois da exclusão fica em `consent_archive` (migração 0084). A exclusão
+  também apaga o cliente no Stripe.
+- **Painel do admin:** exige verificação em duas etapas (`AdminMfaGate`) e
+  registra cada acesso (`admin_access_log`, migração 0085).
+- **Moderador:** vê só a leitura do plano do grupo (migração 0087).
+- **Amizade por e-mail:** não revela quem tem conta e tem teto diário
+  (migração 0086).
+- **Logs:** não imprimem mais dados pessoais. As estatísticas de acesso não
+  levam o nome de usuário.
+- **Incidentes:** o procedimento está em `docs/incidente-de-seguranca.md`.
+
+**O que depende de ação manual**
+- **Contratos com fornecedores:** assinar ou confirmar os DPAs com as
+  cláusulas-padrão da ANPD (Res. 19/2024) com Vercel, Anthropic, OpenAI,
+  Resend e Stripe. O banco de dados (Supabase) fica em São Paulo.
+- **TOTP no Supabase:** manter ligado (Authentication → MFA) para o painel
+  do admin. A saída de emergência é a variável `ADMIN_REQUIRE_MFA=false`.
+- **Contas de menores antigas:** contas de 12 a 17 anos criadas antes da
+  trava de idade estão mantidas no código (`src/privacy/minAge.js`,
+  `App.jsx`). Falta decidir se elas são encerradas.
+- **Revisão jurídica:** pedir a um advogado de proteção de dados que revise
+  a política final.
 
 
 Levantamento feito a partir do código: migrations em `supabase/`, endpoints em
