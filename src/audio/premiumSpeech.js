@@ -57,11 +57,6 @@ async function getAudioBlob(text, lang) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ text, lang }),
   })
-  // Sem saldo no limite mensal (429): o servidor só recusa trechos que
-  // ainda precisariam ser gerados — os já guardados continuam vindo de
-  // graça. A sequência segue na voz do aparelho (speakSequence) e a
-  // próxima tenta de novo.
-  if (res.status === 429) throw new Error('tts_budget_reached')
   if (!res.ok) throw new Error(`tts_http_${res.status}`)
 
   // Trecho já guardado no servidor (api/_lib/ttsCache.js): a resposta é um

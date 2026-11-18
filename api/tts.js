@@ -5,19 +5,19 @@
 // Cache em duas camadas. No SERVIDOR (api/_lib/ttsCache.js, pedido dela,
 // 2026-11-18): o texto é o mesmo pra todo mundo, então cada trecho é
 // gerado uma vez, guardado no Supabase Storage e servido a todos os
-// assinantes — já guardado, a resposta é só um link assinado ({ url }), não
-// gera nada e não gasta o limite de ninguém. No APARELHO: o app guarda o
+// assinantes — já guardado, a resposta é só um link assinado ({ url }) e
+// não gera nada. No APARELHO: o app guarda o
 // mp3 no Cache Storage e depois toca de graça e offline.
 //
 // Custo: gpt-4o-mini-tts (~centavos por capítulo). Guardas: exige login +
-// assinatura ativa, limita o tamanho por requisição e entra no limite
-// mensal de IA por pessoa (US$1,50, somado ao texto gerado — ver
-// api/_lib/aiBudget.js). Sem saldo, responde 429 e o app passa a ler com
-// a voz do aparelho.
+// assinatura ativa e limita o tamanho por requisição. A voz NÃO entra no
+// limite mensal de IA por pessoa (pedido dela, 2026-11-18): é gerada
+// conforme o uso — o primeiro a pedir um trecho gera, e ele fica guardado
+// pra todos —, então o custo é do app, uma vez por trecho, e não de quem
+// ouviu primeiro.
 import { createClient } from '@supabase/supabase-js'
 import { generateSpeech } from 'ai'
 import { fetchEntitlement } from './_lib/entitlement.js'
-import { ensureAiBudget, meterAi, recordSpeechUsage } from './_lib/aiBudget.js'
 import { ttsCachePath, findCachedAudio, storeAudio } from './_lib/ttsCache.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -67,8 +67,7 @@ export default async function handler(req, res) {
   const cleanLang = lang === 'en' ? 'en' : 'pt'
   const instructions = INSTRUCTIONS[cleanLang]
 
-  // Já guardado no servidor: devolve o link, sem gerar e sem gastar o
-  // limite de ninguém.
+  // Já guardado no servidor: devolve o link, sem gerar.
   const cachePath = ttsCachePath({ model: MODEL, voice: VOICE, lang: cleanLang, instructions, text: clean })
   const cachedUrl = await findCachedAudio(cachePath)
   if (cachedUrl) {
@@ -76,25 +75,17 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: cachedUrl })
   }
 
-  // Ainda não existe: gera, e isso entra no limite mensal de IA de quem
-  // pediu (o mesmo do texto gerado).
-  if (!(await ensureAiBudget(res, userId))) return
-
+  // Ainda não existe: gera e guarda pra todos. Fora do limite mensal de
+  // IA da pessoa (ver o cabeçalho).
   try {
-    // Só o áudio que de fato saiu é cobrado da pessoa (a estimativa usa o
-    // tamanho do texto lido; as instruções entram como texto de entrada).
-    const { audio } = await meterAi(userId, 'voz-natural', async () => {
-      const result = await generateSpeech({
-        model: MODEL,
-        text: clean,
-        voice: VOICE,
-        outputFormat: 'mp3',
-        language: cleanLang,
-        instructions,
-        speed: 1,
-      })
-      recordSpeechUsage(MODEL, clean.length)
-      return result
+    const { audio } = await generateSpeech({
+      model: MODEL,
+      text: clean,
+      voice: VOICE,
+      outputFormat: 'mp3',
+      language: cleanLang,
+      instructions,
+      speed: 1,
     })
     const bytes = Buffer.from(audio.uint8Array)
     // Guarda pra todo mundo antes de responder (a função pode ser encerrada
