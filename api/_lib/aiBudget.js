@@ -1,6 +1,9 @@
 // Limite de gasto com IA por pessoa (pedido dela, 2026-11-18): cada conta
-// Premium pode gastar até US$2 de tokens por mês. Acabou, os recursos que
-// geram texto respondem `ai_budget_reached` até o mês seguinte. A conta
+// Premium pode gastar até US$1,50 por mês, somando o texto gerado e a voz
+// natural (api/tts.js). Acabou, os recursos que geram texto respondem
+// `ai_budget_reached` até o mês seguinte, e a voz natural cai pra voz do
+// aparelho (src/audio/premiumSpeech.js já faz isso quando o servidor
+// recusa). A conta
 // grátis nem chega aqui — não usa IA nenhuma (api/_lib/caller.js e
 // entitlement.js barram antes).
 //
@@ -30,9 +33,30 @@ export const MODEL_PRICES = {
 }
 const FALLBACK_PRICE = Object.values(MODEL_PRICES).reduce((a, b) => (b.outputPerM > a.outputPerM ? b : a))
 
-// O teto mensal por pessoa, em dólares.
-export const MONTHLY_BUDGET_USD = 2
-export const MONTHLY_BUDGET_MICROS = MONTHLY_BUDGET_USD * 1_000_000
+// O teto mensal por pessoa, em dólares (era US$2; baixou para US$1,50 em
+// 2026-11-18, pra sobrar margem até no plano anual vendido pela loja).
+export const MONTHLY_BUDGET_USD = 1.5
+export const MONTHLY_BUDGET_MICROS = Math.round(MONTHLY_BUDGET_USD * 1_000_000)
+
+// Voz natural (api/tts.js). O AI SDK não devolve tokens de áudio, então o
+// custo é estimado pelo tamanho do texto: preço de tabela do
+// gpt-4o-mini-tts — cerca de US$0,015 por minuto de áudio gerado, mais
+// US$0,60 por milhão de tokens de texto (~4 caracteres por token) — e uma
+// leitura calma de ~750 caracteres por minuto. Narração devocional é mais
+// lenta que isso na prática, então a estimativa sai ACIMA do real, como o
+// resto deste arquivo. Trocar o modelo de voz exige atualizar aqui.
+export const SPEECH_PRICES = {
+  'openai/gpt-4o-mini-tts': { usdPerMinute: 0.015, charsPerMinute: 750, inputPerM: 0.6 },
+}
+const FALLBACK_SPEECH_PRICE = SPEECH_PRICES['openai/gpt-4o-mini-tts']
+
+export function speechCostMicros(chars, model) {
+  const price = SPEECH_PRICES[model] ?? FALLBACK_SPEECH_PRICE
+  const n = Math.max(0, Math.round(chars) || 0)
+  const audio = (n / price.charsPerMinute) * price.usdPerMinute * 1_000_000
+  const text = Math.ceil(n / 4) * price.inputPerM
+  return Math.ceil(audio + text)
+}
 
 const BRAZIL_OFFSET_MS = 3 * 60 * 60 * 1000
 
@@ -121,6 +145,17 @@ export function recordModelUsage(model, usage) {
   meter.input += tokens.input
   meter.output += tokens.output
   meter.micros += costMicros(tokens, model)
+}
+
+// Chamado por api/tts.js depois de gerar o áudio de `chars` caracteres.
+export function recordSpeechUsage(model, chars) {
+  const meter = meterStore.getStore()
+  if (!meter) {
+    console.warn('[aiBudget] voz gerada fora de meterAi — custo não atribuído a ninguém:', model, chars)
+    return
+  }
+  meter.input += Math.ceil(Math.max(0, chars) / 4)
+  meter.micros += speechCostMicros(chars, model)
 }
 
 // Roda `fn` medindo toda chamada ao modelo feita dentro dela, e grava o

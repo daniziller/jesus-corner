@@ -1,6 +1,7 @@
 -- Limite de uso dos recursos com IA por pessoa (pedido dela, 2026-11-18):
--- cada conta Premium pode gastar até US$2 de tokens por mês; acabou, os
--- recursos que geram texto param até o mês seguinte. A conta grátis não
+-- cada conta Premium pode gastar até US$1,50 por mês, somando o texto
+-- gerado e a voz natural; acabou, os recursos que geram texto param até o
+-- mês seguinte e a voz natural dá lugar à voz do aparelho. A conta grátis não
 -- usa IA nenhuma (isso é conferido antes, em api/_lib/entitlement.js).
 --
 -- Uma linha por pessoa por mês (aaaa-mm, no fuso de Brasília — ver

@@ -1,10 +1,11 @@
 // Testes do limite de IA (pedido dela, 2026-11-18): a conta grátis não usa
-// IA nenhuma; cada conta Premium gasta até US$2 de tokens por mês.
+// IA nenhuma; cada conta Premium gasta até US$1,50 por mês, somando o texto
+// gerado e a voz natural.
 // node scripts/test-limite-ia.mjs
 import { readFileSync, readdirSync } from 'node:fs'
 import {
   MODEL_PRICES, MONTHLY_BUDGET_MICROS, budgetMonth, budgetResetsAt, tokensOf, costMicros, budgetState,
-  readBudget, meterAi, recordModelUsage,
+  readBudget, meterAi, recordModelUsage, speechCostMicros, recordSpeechUsage,
 } from '../api/_lib/aiBudget.js'
 import { STRINGS } from '../src/i18n/translations.js'
 
@@ -19,7 +20,7 @@ const ler = caminho => readFileSync(new URL(`../${caminho}`, import.meta.url), '
 // ── O preço e a conta ───────────────────────────────────────────────────
 const MODEL = ler('api/_lib/ai.js').match(/const MODEL = '([^']+)'/)[1]
 check('o modelo usado em ai.js tem preço na tabela', [MODEL, MODEL_PRICES[MODEL]], ['anthropic/claude-sonnet-5', { inputPerM: 2, outputPerM: 10 }])
-check('teto de US$2 por mês, em micro-dólares', MONTHLY_BUDGET_MICROS, 2_000_000)
+check('teto de US$1,50 por mês, em micro-dólares', MONTHLY_BUDGET_MICROS, 1_500_000)
 check('custo: 1M de entrada = US$2; 1M de saída = US$10', [costMicros({ input: 1_000_000 }, MODEL), costMicros({ output: 1_000_000 }, MODEL)], [2_000_000, 10_000_000])
 check('uma pergunta típica (3 mil de entrada, 600 de saída) custa ~1,2 centavo', costMicros({ input: 3000, output: 600 }, MODEL), 12_000)
 check('arredonda para cima, nunca de graça', costMicros({ input: 1 }, MODEL), 2)
@@ -34,10 +35,10 @@ check('virada de ano', budgetResetsAt(Date.UTC(2026, 11, 20, 12)), '2027-01-01T0
 
 // ── O estado do saldo ───────────────────────────────────────────────────
 const agora = Date.UTC(2026, 10, 18, 12)
-check('sem gasto: saldo inteiro', (({ remainingMicros, exhausted }) => [remainingMicros, exhausted])(budgetState(0, agora)), [2_000_000, false])
-check('quase no teto: ainda libera', budgetState(1_999_999, agora).exhausted, false)
-check('no teto: bloqueia', budgetState(2_000_000, agora).exhausted, true)
-check('acima do teto (a última chamada passou um pouco): bloqueia, saldo zero', (({ remainingMicros, exhausted }) => [remainingMicros, exhausted])(budgetState(2_050_000, agora)), [0, true])
+check('sem gasto: saldo inteiro', (({ remainingMicros, exhausted }) => [remainingMicros, exhausted])(budgetState(0, agora)), [1_500_000, false])
+check('quase no teto: ainda libera', budgetState(1_499_999, agora).exhausted, false)
+check('no teto: bloqueia', budgetState(1_500_000, agora).exhausted, true)
+check('acima do teto (a última chamada passou um pouco): bloqueia, saldo zero', (({ remainingMicros, exhausted }) => [remainingMicros, exhausted])(budgetState(1_550_000, agora)), [0, true])
 
 // Banco de mentira: guarda o que a RPC somaria.
 function fakeDb(start = 0) {
@@ -46,8 +47,8 @@ function fakeDb(start = 0) {
   db.rpc = async (name, args) => { db.rpcCalls.push([name, args]); db.total += args.p_cost_micros; return { data: db.total, error: null } }
   return db
 }
-const db = fakeDb(1_500_000)
-check('lê o gasto do mês', (await readBudget('u1', { db, nowMs: agora })).spentMicros, 1_500_000)
+const db = fakeDb(1_000_000)
+check('lê o gasto do mês', (await readBudget('u1', { db, nowMs: agora })).spentMicros, 1_000_000)
 
 // meterAi soma o que as chamadas ao modelo usaram e grava uma vez.
 await meterAi('u1', 'teste', async () => {
@@ -56,9 +57,9 @@ await meterAi('u1', 'teste', async () => {
   return 'ok'
 }, { db, nowMs: agora })
 check('meterAi grava a soma das chamadas, no mês certo', db.rpcCalls.map(([n, a]) => [n, a.p_user_id, a.p_month, a.p_cost_micros, a.p_input_tokens, a.p_output_tokens]), [['add_ai_usage', 'u1', '2026-11', 400_000, 150_000, 10_000]])
-check('com US$1,90 gastos, ainda libera', (await readBudget('u1', { db, nowMs: agora })).exhausted, false)
+check('com US$1,40 gastos, ainda libera', (await readBudget('u1', { db, nowMs: agora })).exhausted, false)
 await meterAi('u1', 'teste', async () => { recordModelUsage(MODEL, { outputTokens: 20_000 }) }, { db, nowMs: agora })
-check('passou de US$2: bloqueado até o mês seguinte', (await readBudget('u1', { db, nowMs: agora })).exhausted, true)
+check('passou de US$1,50: bloqueado até o mês seguinte', (await readBudget('u1', { db, nowMs: agora })).exhausted, true)
 
 // Falhou depois de gastar: o gasto conta do mesmo jeito.
 const db2 = fakeDb()
@@ -76,6 +77,20 @@ await Promise.all([
   meterAi('b', 'teste', async () => { recordModelUsage(MODEL, { outputTokens: 1000 }) }, { db: db4, nowMs: agora }),
 ])
 check('duas pessoas ao mesmo tempo: cada uma paga o seu', db4.rpcCalls.map(([, a]) => [a.p_user_id, a.p_cost_micros]).sort(), [['a', 2000], ['b', 10_000]])
+
+// ── A voz natural entra no mesmo limite ─────────────────────────────────
+const VOZ = ler('api/tts.js').match(/const MODEL = '([^']+)'/)[1]
+check('a voz usada em tts.js tem preço na tabela', VOZ, 'openai/gpt-4o-mini-tts')
+check('voz: um minuto de leitura (~750 caracteres) custa ~1,5 centavo', speechCostMicros(750, VOZ), 15_113)
+check('voz: um capítulo médio (~3.500 caracteres) custa ~7 centavos', speechCostMicros(3500, VOZ), 70_525)
+check('voz: nada lido, nada cobrado', [speechCostMicros(0, VOZ), speechCostMicros(-5, VOZ)], [0, 0])
+const db5 = fakeDb()
+await meterAi('v', 'voz-natural', async () => { recordSpeechUsage(VOZ, 3500) }, { db: db5, nowMs: agora })
+check('voz gerada é gravada na conta de quem ouviu, junto com o texto', db5.rpcCalls.map(([, a]) => [a.p_user_id, a.p_cost_micros, a.p_input_tokens]), [['v', 70_525, 875]])
+const tts = ler('api/tts.js')
+check('tts.js: Premium, depois o teto, depois gera medindo', [/if \(!ent\.hasPremium\)[^\n]*\n[^\n]*\n\s*if \(!\(await ensureAiBudget\(res, userId\)\)\) return/.test(tts), /meterAi\(userId, 'voz-natural'/.test(tts), /recordSpeechUsage\(MODEL, clean\.length\)/.test(tts)], [true, true, true])
+const fala = ler('src/audio/premiumSpeech.js')
+check('app: sem saldo, para de pedir a voz natural e lê com a voz do aparelho', [/if \(res\.status === 429\) \{ budgetReached = true; throw new Error\('tts_budget_reached'\) \}/.test(fala), /if \(budgetReached\) throw new Error\('tts_budget_reached'\)/.test(fala)], [true, true])
 
 // ── Toda geração passa pelo limite ──────────────────────────────────────
 const ai = ler('api/_lib/ai.js')
