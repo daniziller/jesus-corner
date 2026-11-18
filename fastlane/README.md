@@ -53,9 +53,12 @@ estranha em inglês; a estrutura e o sentido de cada seção foram mantidos).
 - `description.txt`/`full_description.txt` (4000 car., mesmo texto nas duas
   lojas em cada idioma): a descrição completa — como funciona, leitura
   bíblica, oração guiada, reflexão, estudos, comunidade, progresso,
-  disponível em pt/en, plano grátis vs. Premium vs. Premium + IA (sem citar
-  preço — preço é o que a própria loja mostra, e os valores em
-  `storeTiers.js` ainda não foram confirmados como finais)
+  disponível em pt/en, plano grátis vs. Premium (sem citar preço — o preço
+  é o que a própria loja mostra). Reescrita em 2026-11-18 para o app
+  atual: meta semanal (não sequência de dias), um plano pago só (sem o
+  "Premium + IA"), o que é grátis e o que é Premium igual a
+  `src/billing/planFeatures.js`, pedidos de oração, Biblioteca, estudos por
+  tema, selos e resumo da semana, e nenhum recurso chamado de "IA".
 - `keywords.txt` (iOS, 100 car.): termos que não repetem nome/subtítulo
 - `promotional_text.txt` (iOS, 170 car., atualizável sem novo binário)
 - `release_notes.txt` (iOS): nota de lançamento da primeira versão
