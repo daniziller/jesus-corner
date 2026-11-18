@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Analytics } from '@vercel/analytics/react'
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import AppIcon from './icons/AppIcon'
 import BottomNav from './components/BottomNav'
 import Sidebar from './components/Sidebar'
@@ -70,6 +70,7 @@ import GroupChallengeProposalScreen from './screens/GroupChallengeProposalScreen
 import ReportProblemScreen from './screens/ReportProblemScreen'
 import UpgradeScreen from './screens/UpgradeScreen'
 import AdminScreen from './screens/AdminScreen'
+import AdminMfaGate from './admin/AdminMfaGate'
 import HandsFreeScreen from './screens/HandsFreeScreen'
 import { getCurrentUser, logout, updateLanguage, needsPasswordChange } from './auth/authStore'
 import { getCompletedSet, markKeysDone, markKeysUndone } from './progress/progressStore'
@@ -397,6 +398,25 @@ async function getPendingSocialCount() {
     getPendingGroupInvitesCount(),
   ])
   return friendRequests + groupInvites
+}
+
+// Estatísticas de acesso (Vercel Web Analytics, sem cookies): o link de
+// convite traz o nome de usuário no endereço (/d/fulano) — sai antes de
+// enviar (revisão de LGPD, 2026-11-18). Também tira query e âncora, que
+// podem carregar parâmetros de convite.
+function analyticsBeforeSend(event) {
+  try {
+    const u = new URL(event.url)
+    u.pathname = u.pathname.replace(/^\/d\/[^/]+/, '/d/[usuario]')
+    u.search = ''
+    u.hash = ''
+    return { ...event, url: u.toString() }
+  } catch {
+    return null
+  }
+}
+function Analytics() {
+  return <VercelAnalytics beforeSend={analyticsBeforeSend} />
 }
 
 export default function App() {
@@ -3570,7 +3590,7 @@ export default function App() {
       : null,
     // Chave só existe pra quem é admin — evita montar (e disparar as
     // buscas de) AdminScreen pra qualquer conta comum.
-    ...(isAdmin ? { admin: <AdminScreen session={session} onExitAdmin={exitAdmin} /> } : {}),
+    ...(isAdmin ? { admin: <AdminMfaGate lang={session.lang} onExit={exitAdmin}><AdminScreen session={session} onExitAdmin={exitAdmin} /></AdminMfaGate> } : {}),
     // Notas e Estudos são Premium — pra assinante ficam montadas persistentes
     // (display:contents, mais abaixo); pra grátis caem aqui.
     ...(hasPremium ? {} : {

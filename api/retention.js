@@ -52,6 +52,89 @@ const POLICIES = [
     // há muito tempo.
     reason: 'alertas in-app — 90 dias',
   },
+  // ── Revisão de LGPD, 2026-11-18 (segunda entrega) ───────────────────
+  {
+    table: 'ai_answer_reports',
+    days: 365,
+    // Pergunta e resposta que a pessoa denunciou como erradas. Servem pra
+    // revisar o assistente; um ano cobre a revisão e a comparação.
+    reason: 'respostas denunciadas — 12 meses',
+  },
+  {
+    table: 'group_message_reports',
+    days: 365,
+    column: 'decided_at',
+    // Denúncia de mensagem em grupo, com cópia do texto. Só depois de
+    // decidida: 12 meses pra eventual recurso ou reincidência.
+    reason: 'denúncias decididas — 12 meses após a decisão',
+  },
+  {
+    table: 'admin_reports',
+    days: 365,
+    // Relatos de moderadores à equipe — mesmo horizonte das denúncias.
+    reason: 'relatos à equipe — 12 meses',
+  },
+  {
+    table: 'moderation_actions',
+    days: 730,
+    // Registro do que a moderação fez (e de quem viu a conta de quem):
+    // prestação de contas — 24 meses.
+    reason: 'registro de moderação — 24 meses',
+  },
+  {
+    table: 'master_alerts',
+    days: 180,
+    // Alertas internos do painel — só valem enquanto recentes.
+    reason: 'alertas do painel — 6 meses',
+  },
+  {
+    table: 'admin_invites',
+    days: 180,
+    apply: q => q.neq('status', 'pending'),
+    // Convite de acesso grátis/desconto mandado pro e-mail de alguém. Depois
+    // de usado ou revogado, 6 meses bastam pra conferir a cortesia.
+    reason: 'convites usados ou revogados — 6 meses',
+  },
+  {
+    table: 'tts_daily_usage',
+    days: 30,
+    column: 'day',
+    dateOnly: true,
+    // Contador diário de trechos de voz (limite do dia) — passado o dia,
+    // só serve pra conferir abuso recente.
+    reason: 'contador diário de voz — 30 dias',
+  },
+  {
+    table: 'ai_usage_monthly',
+    days: 400,
+    column: 'month',
+    monthOnly: true,
+    // Gasto mensal com a escrita assistida — 13 meses pra comparar com o
+    // mesmo mês do ano anterior.
+    reason: 'uso mensal da escrita assistida — 13 meses',
+  },
+  {
+    table: 'friend_email_requests',
+    days: 2,
+    // Só conta as tentativas de pedido de amizade por e-mail do último dia
+    // (teto de 20, migração 0086) — não serve pra mais nada depois.
+    reason: 'contador do limite de pedidos por e-mail — 2 dias',
+  },
+  {
+    table: 'admin_access_log',
+    days: 730,
+    // Quem do time abriu o quê no painel (0085) — prestação de contas,
+    // 24 meses, igual ao registro de moderação.
+    reason: 'registro de acesso ao painel — 24 meses',
+  },
+  {
+    table: 'consent_archive',
+    days: 1826,
+    column: 'archived_at',
+    // Prova de consentimento de contas excluídas (0084) — 5 anos, prazo de
+    // prescrição de reclamação de consumidor (CDC art. 27).
+    reason: 'prova de consentimento de contas excluídas — 5 anos',
+  },
 ]
 
 // Referências que seguram a lápide (perfil "Conta removida") viva.
@@ -85,18 +168,19 @@ export default async function handler(req, res) {
 
   const results = []
 
-  for (const { table, days, reason } of POLICIES) {
-    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  for (const { table, days, reason, column = 'created_at', apply, dateOnly, monthOnly } of POLICIES) {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    const cutoff = monthOnly ? cutoffDate.toISOString().slice(0, 7)
+      : dateOnly ? cutoffDate.toISOString().slice(0, 10)
+      : cutoffDate.toISOString()
     try {
-      const { data, error } = await supabaseAdmin
-        .from(table)
-        .delete()
-        .lt('created_at', cutoff)
-        .select('id')
+      let q = supabaseAdmin.from(table).delete({ count: 'exact' }).lt(column, cutoff)
+      if (apply) q = apply(q)
+      const { count, error } = await q
       if (error) throw error
-      results.push({ table, reason, cutoff, deleted: data?.length ?? 0 })
+      results.push({ table, reason, cutoff, deleted: count ?? 0 })
     } catch (err) {
-      console.error(`retention: falha ao limpar ${table}`, err)
+      console.error(`retention: falha ao limpar ${table}:`, err.message)
       results.push({ table, reason, cutoff, error: err.message })
     }
   }
@@ -134,12 +218,12 @@ export default async function handler(req, res) {
           removed++
         }
       } catch (err) {
-        console.error(`retention: falha ao limpar lápide ${user_id}`, err)
+        console.error('retention: falha ao limpar uma lápide:', err.message)
       }
     }
     results.push({ table: 'profiles (lápides órfãs)', deleted: removed })
   } catch (err) {
-    console.error('retention: falha ao limpar lápides', err)
+    console.error('retention: falha ao limpar lápides:', err.message)
     results.push({ table: 'profiles (lápides órfãs)', error: err.message })
   }
 

@@ -224,7 +224,8 @@ export default async function handler(request) {
   })
 
   if (!emailRes.ok) {
-    console.error('[auth-email-hook] Resend error:', await emailRes.text().catch(() => ''))
+    // Só o status: o corpo pode repetir o destinatário.
+    console.error('[auth-email-hook] Resend error:', emailRes.status)
     return new Response(JSON.stringify({ error: 'send_failed' }), { status: 500 })
   }
 

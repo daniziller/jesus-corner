@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     .select('id, group_id')
 
   if (error) {
-    console.error('escalate-group-reports: falha ao escalar', error)
+    console.error('escalate-group-reports: falha ao escalar:', error.message)
     return res.status(500).json({ error: error.message })
   }
 

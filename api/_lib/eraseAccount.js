@@ -34,11 +34,13 @@ export async function eraseAccount({ userId, email, db, stripe }) {
 
   // 1. Assinatura
   let storeSubscription = false
+  let stripeCustomerId = null
   try {
     const { data: sub, error } = await db.from('subscriptions')
-      .select('stripe_subscription_id, billing_provider, status')
+      .select('stripe_subscription_id, stripe_customer_id, billing_provider, status')
       .eq('user_id', userId).maybeSingle()
     if (error) throw error
+    stripeCustomerId = sub?.stripe_customer_id ?? null
     if (sub?.stripe_subscription_id && sub.status !== 'canceled') {
       await stripe.subscriptions.cancel(sub.stripe_subscription_id)
     }
@@ -58,6 +60,20 @@ export async function eraseAccount({ userId, email, db, stripe }) {
   } catch (err) {
     fail('content', err)
     return { ok: false, steps }
+  }
+
+  // 2b. O cliente no Stripe (revisão de LGPD, segunda entrega): apagar o
+  // cliente tira de lá nome, e-mail e cartões guardados. As faturas e
+  // cobranças já feitas o Stripe mantém, por obrigação fiscal (art. 16, I).
+  // Falha aqui não trava a exclusão — fica no log pra apagar à mão.
+  if (stripeCustomerId) {
+    try {
+      await stripe.customers.del(stripeCustomerId)
+      ok('stripe_customer')
+    } catch (err) {
+      if (err?.code === 'resource_missing') ok('stripe_customer')
+      else fail('stripe_customer', err)
+    }
   }
 
   // 3. Foto

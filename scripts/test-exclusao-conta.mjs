@@ -24,7 +24,7 @@ function fakeDb({ sub = null, rpcError = null, deleteError = null, files = [] } 
     auth: { admin: { deleteUser: async id => { log.push(`deleteUser:${id}`); return { error: deleteError } } } },
   }
 }
-const fakeStripe = (err = null) => { const s = { canceled: [] }; s.subscriptions = { cancel: async id => { if (err) throw err; s.canceled.push(id) } }; return s }
+const fakeStripe = (err = null, customerErr = null) => { const s = { canceled: [], deletedCustomers: [] }; s.subscriptions = { cancel: async id => { if (err) throw err; s.canceled.push(id) } }; s.customers = { del: async id => { if (customerErr) throw customerErr; s.deletedCustomers.push(id) } }; return s }
 const silencio = console.error
 console.error = () => {}
 
@@ -58,7 +58,26 @@ console.error = () => {}
   const r = await eraseAccount({ userId: 'u1', email: 'a@x.com', db: fakeDb({ sub: { billing_provider: 'google_play' } }), stripe: fakeStripe() })
   check('assinatura da loja: avisa (só a pessoa cancela na loja)', r.storeSubscription, true)
 }
+{
+  const db = fakeDb({ sub: { stripe_subscription_id: 'sub_1', stripe_customer_id: 'cus_1', status: 'active' } })
+  const stripe = fakeStripe()
+  const r = await eraseAccount({ userId: 'u1', email: 'a@x.com', db, stripe })
+  check('cliente do Stripe apagado (nome, e-mail e cartões saem de lá)', [r.ok, stripe.deletedCustomers], [true, ['cus_1']])
+}
+{
+  const db = fakeDb({ sub: { stripe_customer_id: 'cus_1', status: 'canceled' } })
+  const r = await eraseAccount({ userId: 'u1', email: 'a@x.com', db, stripe: fakeStripe(null, new Error('stripe fora')) })
+  check('falha ao apagar o cliente no Stripe não trava a exclusão (fica no log)', [r.ok, r.steps.find(x => x.step === 'stripe_customer').ok], [true, false])
+}
 console.error = silencio
+
+// ── Prova de consentimento e retenção ───────────────────────────────────
+const arquivo = ler('supabase/migrations/0084_arquivo_de_consentimentos.sql')
+check('consentimentos arquivados antes de apagar, só com o hash do e-mail', [/insert into public\.consent_archive \(email_hash, purpose, granted, policy_version, consented_at\)/.test(arquivo), /encode\(sha256\(convert_to\(v_email, 'UTF8'\)\), 'hex'\)/.test(arquivo), /\bip\b|user_agent/.test(arquivo.slice(arquivo.indexOf('create table'), arquivo.indexOf(');')))], [true, true, false])
+const ret = ler('api/retention.js')
+const prazos = ['ai_answer_reports', 'group_message_reports', 'admin_reports', 'moderation_actions', 'master_alerts', 'admin_invites', 'tts_daily_usage', 'ai_usage_monthly', 'consent_archive']
+check('prazos novos na limpeza diária', prazos.filter(t => !ret.includes(`table: '${t}'`)), [])
+check('denúncias só saem depois de decididas; convites pendentes ficam', [/table: 'group_message_reports',\n\s*days: 365,\n\s*column: 'decided_at'/.test(ret), /apply: q => q\.neq\('status', 'pending'\)/.test(ret)], [true, true])
 
 // ── A função do banco ───────────────────────────────────────────────────
 const sql = ler('supabase/migrations/0082_exclusao_completa.sql')

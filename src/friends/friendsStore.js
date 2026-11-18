@@ -96,33 +96,27 @@ export async function getFriendFriendsList(targetUserId) {
   return { isPublic: !!data?.isPublic, friends: data?.friends ?? [] }
 }
 
-// Envia um pedido de amizade por email — resolve o email pro user_id via
-// a RPC find_user_by_email (não expõe busca livre de usuários) e insere
-// o pedido. Se o email não pertence a ninguém cadastrado, manda um convite
-// por email em vez de dar erro (ver api/invite-friend.js) — o retorno tem
-// `invited: true` nesse caso, pra UI mostrar uma mensagem diferente de erro.
+// Pedido de amizade por e-mail (revisão de LGPD, 2026-11-18): o servidor
+// procura o e-mail e grava o pedido se houver conta, ou manda um convite
+// se não houver (api/invite-friend.js). A resposta é a mesma nos dois
+// casos — o app não fica sabendo se o e-mail tem conta.
 export async function sendFriendRequest(email) {
-  const userId = await getUserId()
-  if (!userId) throw new Error('Você precisa estar logado.')
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData?.session?.access_token
+  if (!token) throw new Error('Você precisa estar logado.')
 
-  const { data: found, error: findError } = await supabase
-    .rpc('find_user_by_email', { target_email: email.trim().toLowerCase() })
-    .maybeSingle()
-  if (findError) throw new Error(findError.message)
-  if (found && found.user_id === userId) throw new Error('Você não pode adicionar a si mesmo.')
-
-  if (!found) {
-    return await inviteUnregisteredFriend(email)
+  const res = await fetch('/api/invite-friend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    if (body.error === 'self') throw new Error('Você não pode adicionar a si mesmo.')
+    if (body.error === 'rate_limited') throw new Error('rate_limited')
+    throw new Error('request_failed')
   }
-
-  const { error } = await supabase
-    .from('friendships')
-    .insert({ requester_id: userId, addressee_id: found.user_id })
-  if (error) {
-    if (error.code === '23505') throw new Error('Vocês já são amigos ou já existe um pedido pendente.')
-    throw new Error(error.message)
-  }
-  return { userId: found.user_id, name: found.name, invited: false }
+  return { sent: true }
 }
 
 // Envia um pedido de amizade direto por user_id (sem passar por
@@ -140,26 +134,6 @@ export async function sendFriendRequestByUserId(targetUserId) {
     if (error.code === '23505') throw new Error('Vocês já são amigos ou já existe um pedido pendente.')
     throw new Error(error.message)
   }
-}
-
-async function inviteUnregisteredFriend(email) {
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData?.session?.access_token
-  if (!token) throw new Error('Você precisa estar logado.')
-
-  const res = await fetch('/api/invite-friend', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ email: email.trim().toLowerCase() }),
-  })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    if (body.error === 'email_service_not_configured') {
-      throw new Error('Não encontramos ninguém com esse email no Jesus\' Corner, e o envio de convites ainda não está configurado.')
-    }
-    throw new Error('Não encontramos ninguém com esse email no Jesus\' Corner, e não foi possível enviar um convite agora.')
-  }
-  return { invited: true }
 }
 
 // Aceita ou recusa um pedido recebido — recusar simplesmente apaga a
