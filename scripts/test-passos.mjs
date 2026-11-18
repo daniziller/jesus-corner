@@ -173,5 +173,39 @@ check('nenhum texto fixo em português dentro da imagem', /['"`](Dia|Minha frase
 const { STRINGS: S2 } = await import('../src/i18n/translations.js')
 check('os textos novos da imagem existem nos dois idiomas', ['sealLeftOne', 'sealLeftMany', 'sealDone'].every(k => S2.pt.dayComplete[k] && S2.en.dayComplete[k]), true)
 
+// ── O relógio não recomeça sozinho no fim do dia (18/11) ──────────────
+const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const corpo = nome => app.slice(app.indexOf(`function ${nome}(`), app.indexOf('\n  }\n', app.indexOf(`function ${nome}(`)))
+check('terminar a Reflexão/Oração não recria a tela na hora (ela ligaria o relógio sozinha)', [/setReflectionRunKey/.test(corpo('finishReflectionStep')), /setPrayerRunKey/.test(corpo('finishPrayerStep'))], [false, false])
+check('a tela recomeça só quando a aba já é outra', [/resetStepScreenLater\('reflection'\)/.test(corpo('finishReflectionStep')), /resetStepScreenLater\('prayer'\)/.test(corpo('finishPrayerStep')), /activeTab !== 'reflection' && reflectionNeedsResetRef\.current/.test(app), /activeTab !== 'prayer' && prayerNeedsResetRef\.current/.test(app)], [true, true, true, true])
+const reflexaoTela = readFileSync(new URL('../src/screens/ReflectionScreen.jsx', import.meta.url), 'utf8')
+check('a Reflexão só liga o relógio sozinha quando está na frente, e para ao terminar o dia', [/!active \|\| autoStartedRef\.current/.test(reflexaoTela), /async function finishDay\(\) \{[\s\S]*?pause\(\)/.test(reflexaoTela)], [true, true])
+
+// ── O relógio do plano (18/11): conta para cima, pausa e play ─────────
+const pc = await import('../src/timer/planClockMath.js')
+{
+  let c = { accumulated: 0, startedAt: null }
+  c = pc.resumeClock(c, 1000)
+  check('o relógio do plano conta para cima', [pc.planSeconds(c, 61000), pc.formatElapsed(pc.planSeconds(c, 61000))], [60, '01:00'])
+  c = pc.pauseClock(c, 31000)
+  check('pausado, não anda', [pc.planSeconds(c, 999999), c.startedAt], [30, null])
+  check('retomar duas vezes não recomeça a conta', pc.planSeconds(pc.resumeClock(pc.resumeClock(c, 50000), 70000), 80000), 60)
+  check('passa a mostrar as horas depois da primeira hora', [pc.formatElapsed(59 * 60 + 59), pc.formatElapsed(3600 + 125)], ['59:59', '1:02:05'])
+  check('o tempo guardado só vale no mesmo dia', [pc.restoreSaved({ date: '2026-11-18', seconds: 300 }, '2026-11-18'), pc.restoreSaved({ date: '2026-11-17', seconds: 300 }, '2026-11-18'), pc.restoreSaved(null, '2026-11-18'), pc.restoreSaved({ date: '2026-11-18', seconds: -4 }, '2026-11-18')], [300, 0, 0, 0])
+  check('o leitor de tela ouve só os minutos', [pc.elapsedMinutes(59), pc.elapsedMinutes(61), pc.elapsedMinutes(-3)], [0, 1, 0])
+}
+{
+  const hook = readFileSync(new URL('../src/timer/useStepTimer.js', import.meta.url), 'utf8')
+  check('o relógio do passo não recomeça se já está andando', /const start = useCallback\(\(\) => \{\s*if \(startedAtRef\.current\) return/.test(hook), true)
+  const link = readFileSync(new URL('../src/timer/useStepClockInPlan.js', import.meta.url), 'utf8')
+  check('passo ligado ao plano: pausa junto, não volta depois de concluído, pausa ao sair do plano', [/if \(!plan\.running\) \{ pause\(\); return \}/.test(link), /if \(doneRef\.current\) return/.test(link), /wasInPlanRef\.current = false; pause\(\)/.test(link)], [true, true, true])
+  const telas = ['PrayerScreen', 'ReflectionScreen'].map(n => readFileSync(new URL(`../src/screens/${n}.jsx`, import.meta.url), 'utf8'))
+  check('Oração e Reflexão usam o relógio do plano dentro do plano', telas.map(x => /useStepClockInPlan\(\{ active, start, pause, doneRef \}\)/.test(x) && /const toggleClock = plan\.inPlan \? plan\.toggle : toggleRunning/.test(x) && !/onToggle=\{toggleRunning\}/.test(x) && /plan\.inPlan \|\| !/.test(x)), [true, true])
+  const leitura = readFileSync(new URL('../src/screens/ReadingBlockView.jsx', import.meta.url), 'utf8')
+  check('a Leitura também segue o relógio do plano', [/onToggle=\{toggleReadingClock\}/.test(leitura), /setClockPaused\(!planClock\.running\)/.test(leitura)], [true, true])
+  check('fora do plano, quem flutua é o relógio do passo; dentro, o do plano', [/const floatingTimer = inPlan \? null :/.test(app), /\{inPlan && \(\s*<PlanClockBar/.test(app)], [true, true])
+  check('o relógio do plano para em "Terminar o dia" e zera no Dia concluído', [/if \(nextIdx >= gf\.steps\.length\) planClock\.pause\(\)/.test(app), /activeTab === 'routineComplete'\) planClock\.reset\(\)/.test(app)], [true, true])
+}
+
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }
 console.log('\nTodos os testes dos passos (parte pura) passaram.')

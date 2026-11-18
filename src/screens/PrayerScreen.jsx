@@ -25,6 +25,7 @@ import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { playStageChime } from '../utils/chime'
 import { useStepTimer } from '../timer/useStepTimer'
 import { usePlanTotalToday } from '../timer/usePlanTotalToday'
+import { useStepClockInPlan } from '../timer/useStepClockInPlan'
 import { resolveMinutes } from '../meuPlano/meuPlanoMath'
 import { dayBarSegments, dayBarAria, stepSubtitle, actsTrail, actsTrailAria, stageCardLabel, actsFooter, stageClock, stageClockAria } from '../passos/passosMath'
 import { useKeyboardInset } from '../passos/useKeyboardInset'
@@ -109,16 +110,21 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
   const { running, elapsedSeconds: elapsed, start, toggle: toggleRunning, pause, computeElapsed } = useStepTimer({ onTick: handleTick })
   const planPriorSeconds = usePlanTotalToday()
   const planSeconds = planPriorSeconds + elapsed
+  // Dentro do plano guiado, o relógio da Oração anda junto com o do plano:
+  // pausar um pausa os dois (ver timer/useStepClockInPlan.js).
+  const doneRef = useRef(false)
+  const plan = useStepClockInPlan({ active, start, pause, doneRef })
+  const toggleClock = plan.inPlan ? plan.toggle : toggleRunning
 
   // ACTS: o relógio começa a contar quando a tela aparece — o cabeçalho
   // novo não tem botão de iniciar, só a pílula, que pausa e retoma. Uma
   // vez só: quem pausa (ou sai do app, que pausa) retoma pelo toque.
   const autoStartedRef = useRef(false)
   useEffect(() => {
-    if (!acts || !active || autoStartedRef.current) return
+    if (plan.inPlan || !acts || !active || autoStartedRef.current) return
     autoStartedRef.current = true
     start()
-  }, [acts, active, start])
+  }, [acts, active, start, plan.inPlan])
 
   // Avança pra próxima etapa. `redistribute`=true (Pular) devolve o que
   // sobrou da etapa atual pras seguintes; o botão nomeado (ex.:
@@ -158,6 +164,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
   }
 
   function finishPrayer() {
+    doneRef.current = true
     pause()
     logSessionSeconds('prayer', elapsed).catch(err => console.error('Failed to log prayer session seconds', err))
     incrementPrayerStat(email, 'timerCompletions').catch(() => {})
@@ -173,7 +180,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
   // efeito, sem re-render extra). O efeito só avisa o App quando
   // `running` muda de VERDADE (liga/pausa), não a cada tick de 250ms.
   if (timerControlsRef) {
-    timerControlsRef.current = { toggle: toggleRunning, finish: finishPrayer, computeElapsed, totalSeconds: TOTAL_SECONDS, label: L('pageTitle') }
+    timerControlsRef.current = { toggle: toggleClock, finish: finishPrayer, computeElapsed, totalSeconds: TOTAL_SECONDS, label: L('pageTitle') }
   }
   useEffect(() => { onTimerRunningChange?.(running) }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -195,7 +202,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
         <CabecalhoDoPasso
           title={stepName('prayer', lang)} subtitle={stepSubtitle(session.todaysSteps, 'prayer', 'ACTS', lang)}
           onBack={handleBack} backLabel={t('a11y.goBack', undefined, lang)}
-          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} flash={justZeroed} lang={lang} />}
+          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleClock} flash={justZeroed} lang={lang} />}
           segments={dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'prayer' })}
           barLabel={dayBarAria(session.todaysSteps, 'prayer', lang)}
         />
@@ -272,7 +279,7 @@ export default function PrayerScreen({ session, authUser, stepMinutes, active = 
           lang={lang}
           planSeconds={planSeconds} etapaSeconds={elapsed}
           etapaDurationSeconds={TOTAL_SECONDS}
-          running={running} onToggle={toggleRunning} onStop={finishPrayer}
+          running={running} onToggle={toggleClock} onStop={finishPrayer}
           playLabel={L('playBtn')} pauseLabel={L('pauseBtn')}
         />
 

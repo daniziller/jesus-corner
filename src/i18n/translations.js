@@ -1788,6 +1788,15 @@ export const STRINGS = {
       pauseFloating: 'Pausar',
       resumeFloating: 'Continuar',
       floatingOpenLabel: 'Voltar pra {step}',
+      // O relógio do plano (18/11): conta para cima o tempo no plano guiado.
+      planClockLabel: 'no plano',
+      planClockPaused: 'pausado',
+      planPauseOne: 'Pausar o plano. {count} minuto no plano',
+      planPauseMany: 'Pausar o plano. {count} minutos no plano',
+      planResumeOne: 'Continuar o plano. {count} minuto no plano',
+      planResumeMany: 'Continuar o plano. {count} minutos no plano',
+      planOpenOne: '{count} minuto no plano. Ir para o passo de agora',
+      planOpenMany: '{count} minutos no plano. Ir para o passo de agora',
     },
     prayer: {
       // Pacote 36-37 (2026-09-08) — reescreve por inteiro a execução da
@@ -5262,6 +5271,14 @@ export const STRINGS = {
       pauseFloating: 'Pause',
       resumeFloating: 'Resume',
       floatingOpenLabel: 'Back to {step}',
+      planClockLabel: 'in your plan',
+      planClockPaused: 'paused',
+      planPauseOne: 'Pause the plan. {count} minute in your plan',
+      planPauseMany: 'Pause the plan. {count} minutes in your plan',
+      planResumeOne: 'Resume the plan. {count} minute in your plan',
+      planResumeMany: 'Resume the plan. {count} minutes in your plan',
+      planOpenOne: '{count} minute in your plan. Go to the current step',
+      planOpenMany: '{count} minutes in your plan. Go to the current step',
     },
     prayer: {
       pageTitle: 'Prayer',

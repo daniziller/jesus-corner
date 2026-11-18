@@ -51,7 +51,10 @@ export function useStepTimer({ onTick } = {}) {
     clearInterval(intervalRef.current)
   }, [computeElapsed])
 
+  // Já andando: não recomeça a contagem (o relógio do plano pode pedir
+  // "anda" mais de uma vez — ver useStepClockInPlan.js).
   const start = useCallback(() => {
+    if (startedAtRef.current) return
     startedAtRef.current = Date.now()
     setRunning(true)
     requestWakeLock()

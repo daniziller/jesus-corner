@@ -44,6 +44,7 @@ import { orderedPlanSessions } from '../reading/bibleOrderMath'
 import LeituraTopo from '../components/biblia/LeituraTopo'
 import LeituraRodape from '../components/biblia/LeituraRodape'
 import RelogioDoPasso from '../components/passos/RelogioDoPasso'
+import { usePlanClockLink } from '../timer/PlanClockContext'
 import { dayBarSegments, dayBarAria, stepSubtitle } from '../passos/passosMath'
 import { resolveMinutes } from '../meuPlano/meuPlanoMath'
 import { formatClock } from '../timer/formatClock'
@@ -219,6 +220,16 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
   const [clockPaused, setClockPaused] = useState(false)
   const clockPausedRef = useRef(false)
   useEffect(() => { clockPausedRef.current = clockPaused }, [clockPaused])
+  // Dentro do plano guiado, o relógio da Leitura anda junto com o relógio
+  // do plano (ver timer/PlanClockContext.js): a pílula pausa e retoma o
+  // plano, e o plano pausado pausa a leitura.
+  const planClock = usePlanClockLink()
+  const planClockRef = useRef(planClock)
+  planClockRef.current = planClock
+  useEffect(() => {
+    if (planClock.inPlan && showReadingClock) setClockPaused(!planClock.running)
+  }, [planClock.inPlan, planClock.running, showReadingClock])
+  const toggleReadingClock = planClock.inPlan ? planClock.toggle : () => setClockPaused(p => !p)
   const [hasZeroed, setHasZeroed] = useState(false)
   const [zeroFlash, setZeroFlash] = useState(false)
   const [timeUpSheetOpen, setTimeUpSheetOpen] = useState(false)
@@ -232,7 +243,7 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
     if (!keepClockOnNextSessionChange.current) {
       setStepElapsedSeconds(0)
       setHasZeroed(false)
-      setClockPaused(false)
+      setClockPaused(planClockRef.current.inPlan ? !planClockRef.current.running : false)
     }
     keepClockOnNextSessionChange.current = false
     const interval = setInterval(() => {
@@ -1029,7 +1040,7 @@ export default function ReadingBlockView({ session, authUser, stepMinutes, onNav
         } : {
           plan: true,
           clock: showReadingClock
-            ? <RelogioDoPasso lang={lang} totalSeconds={targetClockSeconds} elapsedSeconds={stepElapsedSeconds} running={!clockPaused} onToggle={() => setClockPaused(p => !p)} flash={zeroFlash} />
+            ? <RelogioDoPasso lang={lang} totalSeconds={targetClockSeconds} elapsedSeconds={stepElapsedSeconds} running={!clockPaused} onToggle={toggleReadingClock} flash={zeroFlash} />
             : null,
           daySegments: dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'reading' }),
           dayLabel: dayBarAria(session.todaysSteps, 'reading', lang),

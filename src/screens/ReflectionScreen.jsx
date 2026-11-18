@@ -28,6 +28,7 @@ import { dateKey } from '../utils/dateKey'
 import { logSessionSeconds } from '../metrics/sessionDurationStore'
 import { useStepTimer } from '../timer/useStepTimer'
 import { usePlanTotalToday } from '../timer/usePlanTotalToday'
+import { useStepClockInPlan } from '../timer/useStepClockInPlan'
 import { resolveMinutes, stepName } from '../meuPlano/meuPlanoMath'
 import { bookNameFor } from '../utils/progress'
 import { dayBarSegments, dayBarAria, stepSubtitle } from '../passos/passosMath'
@@ -67,6 +68,11 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   const { running, elapsedSeconds: elapsed, start, toggle: toggleRunning, pause, computeElapsed } = useStepTimer()
   const planPriorSeconds = usePlanTotalToday()
   const planSeconds = planPriorSeconds + elapsed
+  // Dentro do plano guiado, o relógio da Reflexão anda junto com o do
+  // plano: pausar um pausa os dois (ver timer/useStepClockInPlan.js).
+  const doneRef = useRef(false)
+  const plan = useStepClockInPlan({ active, start, pause, doneRef })
+  const toggleClock = plan.inPlan ? plan.toggle : toggleRunning
 
   // Com perguntas: o relógio começa a contar quando a tela aparece — o
   // cabeçalho novo não tem botão de iniciar, só a pílula, que pausa e
@@ -74,10 +80,10 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   // toque.
   const autoStartedRef = useRef(false)
   useEffect(() => {
-    if (!withQuestions || !active || autoStartedRef.current) return
+    if (plan.inPlan || !withQuestions || !active || autoStartedRef.current) return
     autoStartedRef.current = true
     start()
-  }, [withQuestions, active, start])
+  }, [withQuestions, active, start, plan.inPlan])
 
   // O cartão areia do trecho (S4): o texto BÍBLICO do primeiro trecho
   // marcado hoje na leitura do plano ou, sem marcação, o primeiro
@@ -260,11 +266,15 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   async function finishDay() {
     if (finishingRef.current) return
     finishingRef.current = true
+    doneRef.current = true
     pause()
     try {
       await saveNoteText({ keepExisting: true })
       logSessionSeconds('reflection', elapsed).catch(err => console.error('Failed to log reflection session seconds', err))
       onReflectionCompleted?.()
+    } catch (err) {
+      doneRef.current = false
+      throw err
     } finally {
       finishingRef.current = false
     }
@@ -301,7 +311,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
   // (ver comentário lá) — Reflexão também fica sempre montada
   // (reflectionVisitedRef em App.jsx), só faltava expor os controles.
   if (timerControlsRef) {
-    timerControlsRef.current = { toggle: toggleRunning, finish: finishDay, computeElapsed, totalSeconds: TOTAL_SECONDS, label: L('pageTitle') }
+    timerControlsRef.current = { toggle: toggleClock, finish: finishDay, computeElapsed, totalSeconds: TOTAL_SECONDS, label: L('pageTitle') }
   }
   useEffect(() => { onTimerRunningChange?.(running) }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -327,7 +337,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
         <CabecalhoDoPasso
           title={stepName('reflection', lang)} subtitle={stepSubtitle(session.todaysSteps, 'reflection', P('withQuestions'), lang)}
           onBack={handleBack} backLabel={t('a11y.goBack', undefined, lang)}
-          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleRunning} lang={lang} />}
+          clock={<RelogioDoPasso totalSeconds={TOTAL_SECONDS} elapsedSeconds={elapsed} running={running} onToggle={toggleClock} lang={lang} />}
           segments={dayBarSegments({ todaysSteps: session.todaysSteps, minutes: resolveMinutes(stepMinutes, session.plan), dayEntry: session.todayRoutine, current: 'reflection' })}
           barLabel={dayBarAria(session.todaysSteps, 'reflection', lang)}
         />
@@ -407,7 +417,7 @@ export default function ReflectionScreen({ session, authUser, stepMinutes, activ
           lang={lang}
           planSeconds={planSeconds} etapaSeconds={elapsed}
           etapaDurationSeconds={TOTAL_SECONDS}
-          running={running} onToggle={toggleRunning} onStop={finishDay}
+          running={running} onToggle={toggleClock} onStop={finishDay}
         />
 
         <div style={styles.freeWriteCard}>
