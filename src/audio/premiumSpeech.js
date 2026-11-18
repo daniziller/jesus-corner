@@ -1,8 +1,8 @@
-// Voz premium (audiolivro) pro modo mãos-livres — busca o áudio gerado no
-// servidor (api/tts.js, OpenAI gpt-4o-mini-tts via AI Gateway), cacheia o
-// mp3 no Cache Storage (o texto bíblico nunca muda: cada trecho é gerado
-// UMA vez por dispositivo e depois toca de graça e offline) e reproduz com
-// um <audio> só, reaproveitado (pra pausar/retomar).
+// Voz premium (audiolivro) pro modo mãos-livres — busca o áudio no
+// servidor (api/tts.js, OpenAI gpt-4o-mini-tts via AI Gateway). O servidor
+// gera cada trecho uma vez e guarda pra todos (api/_lib/ttsCache.js); o app
+// ainda guarda o mp3 no Cache Storage, pra tocar de graça e offline, e
+// reproduz com um <audio> só, reaproveitado (pra pausar/retomar).
 //
 // Mesma interface do src/audio/speech.js (speakSequence / say / stop /
 // pause / resume / prime) — se qualquer coisa falhar (offline sem cache,
@@ -38,9 +38,6 @@ async function authToken() {
   return _authToken
 }
 
-// Bateu o limite mensal de IA nesta sessão (ver getAudioBlob).
-let budgetReached = false
-
 // Devolve um Blob de áudio pro texto — do cache, ou gerando no servidor.
 async function getAudioBlob(text, lang) {
   let cache = null
@@ -52,11 +49,6 @@ async function getAudioBlob(text, lang) {
     if (hit) return hit.blob()
   }
 
-  // Sem saldo no limite mensal (429 do servidor): nesta sessão o app não
-  // pede mais a voz natural — vai direto pra voz do aparelho, sem esperar
-  // uma recusa a cada trecho. O que já está no cache continua tocando.
-  if (budgetReached) throw new Error('tts_budget_reached')
-
   const token = await authToken()
   if (!token) throw new Error('no_auth')
 
@@ -65,15 +57,30 @@ async function getAudioBlob(text, lang) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ text, lang }),
   })
-  if (res.status === 429) { budgetReached = true; throw new Error('tts_budget_reached') }
+  // Sem saldo no limite mensal (429): o servidor só recusa trechos que
+  // ainda precisariam ser gerados — os já guardados continuam vindo de
+  // graça. A sequência segue na voz do aparelho (speakSequence) e a
+  // próxima tenta de novo.
+  if (res.status === 429) throw new Error('tts_budget_reached')
   if (!res.ok) throw new Error(`tts_http_${res.status}`)
-  const ctype = res.headers.get('content-type') || ''
+
+  // Trecho já guardado no servidor (api/_lib/ttsCache.js): a resposta é um
+  // link assinado e temporário — baixa o áudio direto do Storage. Gerado
+  // agora: o próprio áudio vem na resposta.
+  let audioRes = res
+  if ((res.headers.get('content-type') || '').includes('application/json')) {
+    const { url } = await res.json()
+    if (!url) throw new Error('tts_no_url')
+    audioRes = await fetch(url)
+    if (!audioRes.ok) throw new Error(`tts_storage_http_${audioRes.status}`)
+  }
+  const ctype = audioRes.headers.get('content-type') || ''
   if (!ctype.startsWith('audio/')) throw new Error(`tts_bad_type_${ctype}`)
 
   if (cache) {
-    try { await cache.put(key, res.clone()) } catch { /* cota cheia, tudo bem */ }
+    try { await cache.put(key, audioRes.clone()) } catch { /* cota cheia, tudo bem */ }
   }
-  return res.blob()
+  return audioRes.blob()
 }
 
 // Junta trechos pequenos (versículos) em lotes de ~BATCH_CHARS pra fazer
