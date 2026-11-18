@@ -10,7 +10,9 @@
 // mp3 no Cache Storage e depois toca de graça e offline.
 //
 // Custo: gpt-4o-mini-tts (~centavos por capítulo). Guardas: exige login +
-// assinatura ativa e limita o tamanho por requisição. A voz NÃO entra no
+// assinatura ativa, limita o tamanho por requisição (MAX_CHARS) e limita
+// os trechos NOVOS por pessoa por dia (api/_lib/ttsLimit.js — os já
+// guardados não contam). A voz NÃO entra no
 // limite mensal de IA por pessoa (pedido dela, 2026-11-18): é gerada
 // conforme o uso — o primeiro a pedir um trecho gera, e ele fica guardado
 // pra todos —, então o custo é do app, uma vez por trecho, e não de quem
@@ -19,6 +21,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateSpeech } from 'ai'
 import { fetchEntitlement } from './_lib/entitlement.js'
 import { ttsCachePath, findCachedAudio, storeAudio } from './_lib/ttsCache.js'
+import { claimTtsGeneration, releaseTtsGeneration } from './_lib/ttsLimit.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -30,7 +33,10 @@ const MODEL = 'openai/gpt-4o-mini-tts'
 // Vozes do OpenAI: alloy, ash, ballad, coral, echo, fable, onyx, nova,
 // sage, shimmer, verse. "sage" e "alloy" ficam bem calmas/neutras em pt.
 const VOICE = 'sage'
-const MAX_CHARS = 6000
+// O app manda trechos de até ~700 caracteres (BATCH_CHARS em
+// src/audio/premiumSpeech.js); 1.500 dá folga e, junto com o limite
+// diário, segura o custo de quem chame a API direto com textos longos.
+const MAX_CHARS = 1500
 // As instruções de narração entram na chave do cache: mudar o texto delas
 // gera áudios novos.
 const INSTRUCTIONS = {
@@ -76,7 +82,12 @@ export default async function handler(req, res) {
   }
 
   // Ainda não existe: gera e guarda pra todos. Fora do limite mensal de
-  // IA da pessoa (ver o cabeçalho).
+  // IA da pessoa, mas dentro do limite diário de trechos novos — bateu,
+  // responde 429 e o app lê esse trecho com a voz do aparelho.
+  if (!(await claimTtsGeneration(userId))) {
+    return res.status(429).json({ error: 'tts_daily_limit' })
+  }
+
   try {
     const { audio } = await generateSpeech({
       model: MODEL,
@@ -100,6 +111,8 @@ export default async function handler(req, res) {
     return res.status(200).send(bytes)
   } catch (err) {
     console.error('TTS generation failed:', err?.message || err)
+    // A falha foi do provedor: não gasta o dia de ninguém.
+    await releaseTtsGeneration(userId)
     return res.status(502).json({ error: 'tts_failed' })
   }
 }
