@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     .not('expires_at', 'is', null)
     .lt('expires_at', new Date().toISOString())
   if (error) {
-    console.error('expire-access-grants: falha ao buscar vencidos', error)
+    console.error('expire-access-grants: falha ao buscar vencidos:', error.message)
     return res.status(500).json({ error: error.message })
   }
 

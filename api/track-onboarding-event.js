@@ -26,10 +26,20 @@ export default async function handler(req, res) {
   }
   if (!ALLOWED_STEPS.has(step)) return res.status(400).json({ error: 'invalid_step' })
 
+  // A conta só entra no evento se o token de quem chama for dela (revisão
+  // de LGPD, 2026-11-18): sem isso, qualquer um gravava eventos com o id de
+  // outra pessoa. Sem token válido, o evento fica anônimo (só a sessão).
+  let verifiedUserId = null
+  const token = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '')
+  if (typeof userId === 'string' && userId && token) {
+    const { data } = await supabaseAdmin.auth.getUser(token).catch(() => ({ data: null }))
+    if (data?.user?.id === userId) verifiedUserId = userId
+  }
+
   const { error } = await supabaseAdmin.from('onboarding_events').insert({
     session_id: sessionId,
     step,
-    user_id: typeof userId === 'string' ? userId : null,
+    user_id: verifiedUserId,
     language: language === 'en' ? 'en' : 'pt',
   })
 

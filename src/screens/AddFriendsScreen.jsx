@@ -117,11 +117,11 @@ export default function AddFriendsScreen({ session, authUser, onBack, onChange, 
     try {
       await (target.by === 'email' ? api.requestByEmail : api.requestByUsername)(target.value)
       setQuery('')
-      setSearch({ state: 'sent', message: L('requestSent') })
+      setSearch({ state: 'sent', message: L(target.by === 'email' ? 'requestSentEmail' : 'requestSent') })
       onChange?.()
       reload()
     } catch (err) {
-      setSearch({ state: 'error', message: err.message === 'username_not_found' ? L('usernameNotFound') : L('requestFailed') })
+      setSearch({ state: 'error', message: err.message === 'username_not_found' ? L('usernameNotFound') : err.message === 'rate_limited' ? L('requestRateLimited') : L('requestFailed') })
     }
   }
 

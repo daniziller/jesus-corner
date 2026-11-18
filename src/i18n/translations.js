@@ -1306,6 +1306,8 @@ export const STRINGS = {
       requestSentShort: 'Pedido enviado',
       usernameNotFound: 'Não achei ninguém com esse @usuário.',
       requestFailed: 'Não deu para enviar o pedido agora. Tente de novo.',
+      requestSentEmail: 'Pronto. Se a pessoa já tem conta, recebe o seu pedido; se ainda não tem, recebe um convite por e-mail.',
+      requestRateLimited: 'Você já fez muitos pedidos por e-mail hoje. Tente de novo amanhã, ou mande o seu link.',
       requestsLabelOne: 'Quer te acompanhar · 1',
       requestsLabel: 'Querem te acompanhar · {n}',
       fromGroup: 'Do grupo {group}',
@@ -2648,7 +2650,7 @@ export const STRINGS = {
       // agentes de pequeno porte de nomear encarregado, desde que mantenham
       // um canal divulgado para receber pedidos e reclamações — este.
       lgpdTitle: 'Proteção de dados',
-      lgpdBody: 'Este também é o canal para exercer seus direitos sobre os seus dados pessoais: saber o que guardamos, corrigir, portar ou apagar. Para baixar seus dados ou excluir sua conta, o caminho mais rápido é o Perfil. Respondemos em até 30 dias.',
+      lgpdBody: 'Este também é o canal para exercer seus direitos sobre os seus dados pessoais: saber o que guardamos, corrigir, portar ou apagar. Para baixar seus dados ou excluir sua conta, o caminho mais rápido é o Perfil. Respondemos em até 15 dias, como pede a LGPD.',
       nameLabel: 'Nome',
       namePlaceholder: 'Seu nome',
       emailLabel: 'E-mail',
@@ -4953,6 +4955,8 @@ export const STRINGS = {
       requestSentShort: 'Request sent',
       usernameNotFound: 'I couldn’t find anyone with that @username.',
       requestFailed: 'Couldn’t send the request right now. Try again.',
+      requestSentEmail: 'Done. If they already have an account, they get your request; if not, they get an email invite.',
+      requestRateLimited: 'You’ve sent a lot of email requests today. Try again tomorrow, or share your link.',
       requestsLabelOne: 'Wants to follow you · 1',
       requestsLabel: 'Want to follow you · {n}',
       fromGroup: 'From the group {group}',
@@ -6103,7 +6107,7 @@ export const STRINGS = {
       heroSub: "Questions, suggestions, or something not working right? Write to us below.",
       // Data subject channel — see the pt entry for the LGPD rationale.
       lgpdTitle: 'Data protection',
-      lgpdBody: 'This is also the channel for exercising your rights over your personal data: finding out what we store, correcting it, porting it or erasing it. To download your data or delete your account, the fastest route is your Profile. We reply within 30 days.',
+      lgpdBody: 'This is also the channel for exercising your rights over your personal data: finding out what we store, correcting it, porting it or erasing it. To download your data or delete your account, the fastest route is your Profile. We reply within 15 days, as Brazil’s LGPD requires.',
       nameLabel: 'Name',
       namePlaceholder: 'Your name',
       emailLabel: 'Email',

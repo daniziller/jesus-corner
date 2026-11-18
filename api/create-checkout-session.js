@@ -149,7 +149,7 @@ export default async function handler(req, res) {
       customerId = customer.id
     }
   } catch (err) {
-    console.error('Stripe customer lookup failed', err)
+    console.error('Stripe customer lookup failed:', err?.message ?? err)
     return res.status(500).json({ error: 'checkout_failed' })
   }
 

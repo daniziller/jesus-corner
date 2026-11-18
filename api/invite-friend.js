@@ -1,6 +1,10 @@
-// Convite por email pra quem ainda não tem conta no Jesus' Corner — chamado
-// pelo client quando alguém tenta adicionar um amigo por um email que não
-// existe no banco (ver src/friends/friendsStore.js). Roda como Edge
+// Adicionar amigo por e-mail (src/friends/friendsStore.js). Revisão de
+// LGPD, 2026-11-18: o app não descobre mais se um e-mail tem conta (num
+// app bíblico isso revela convicção religiosa). Este endpoint chama
+// request_friend_by_email (migração 0086) com o service role: se o e-mail
+// tem conta, o pedido de amizade é gravado ali mesmo; se não tem, vai o
+// convite por e-mail. Para quem pediu, a resposta é a mesma nos dois casos.
+// Teto de 20 tentativas por dia por pessoa. Roda como Edge
 // Function pra ter acesso direto ao header de geolocalização da Vercel
 // (x-vercel-ip-country) — o idioma do email é o do IP de quem está
 // convidando (a pessoa logada fazendo a chamada), não do convidado, que
@@ -11,6 +15,7 @@ export const config = { runtime: 'edge' }
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = process.env.INVITE_FROM_EMAIL || "Jesus' Corner <convite@jesuscorner.app>"
 const APP_URL = 'https://app.jesuscorner.app'
@@ -79,10 +84,6 @@ export default async function handler(request) {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), { status: 405 })
   }
-  if (!RESEND_API_KEY) {
-    return new Response(JSON.stringify({ error: 'email_service_not_configured' }), { status: 500 })
-  }
-
   // Valida a sessão de quem chamou via o próprio Supabase Auth — sem isso,
   // qualquer um (sem estar logado no app) poderia usar esse endpoint pra
   // mandar email pra qualquer lugar.
@@ -109,6 +110,32 @@ export default async function handler(request) {
     return new Response(JSON.stringify({ error: 'invalid_email' }), { status: 400 })
   }
 
+  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+
+  // Procura e, se achar, grava o pedido — tudo no banco, com o service role.
+  const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/request_friend_by_email`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_caller: caller.id, p_email: email }),
+  })
+  if (!rpcRes.ok) {
+    console.error('invite-friend: request_friend_by_email falhou:', rpcRes.status)
+    return json({ error: 'request_failed' }, 502)
+  }
+  const outcome = await rpcRes.json()
+  if (outcome === 'rate_limited') return json({ error: 'rate_limited' }, 429)
+  if (outcome === 'self') return json({ error: 'self' }, 400)
+  if (outcome === 'invalid') return json({ error: 'invalid_email' }, 400)
+  // Tem conta (pedido gravado, ou já existia): mesma resposta de "convite
+  // enviado", sem e-mail nenhum.
+  if (outcome !== 'not_found') return json({ status: 'ok' })
+  if (!RESEND_API_KEY) {
+    // Sem o serviço de e-mail configurado, responde igual (senão a falha
+    // contaria que o e-mail não tem conta) — e avisa no log.
+    console.error('invite-friend: RESEND_API_KEY ausente; convite não enviado')
+    return json({ status: 'ok' })
+  }
+
   const country = request.headers.get('x-vercel-ip-country')
   const lang = country === 'BR' ? 'pt' : 'en'
   // Escapa HTML — o nome vem de user_metadata (editável pelo próprio
@@ -130,12 +157,10 @@ export default async function handler(request) {
   })
 
   if (!emailRes.ok) {
-    console.error('Resend error:', await emailRes.text().catch(() => ''))
-    return new Response(JSON.stringify({ error: 'send_failed' }), { status: 502 })
+    // Mesmo motivo: a falha só acontece quando não há conta — responder
+    // erro aqui revelaria isso. Fica no log.
+    console.error('invite-friend: Resend falhou:', emailRes.status)
   }
 
-  return new Response(JSON.stringify({ status: 'ok', lang }), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  })
+  return json({ status: 'ok' })
 }

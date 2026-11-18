@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
   const { error } = await supabaseAdmin.from('ai_answer_reports').insert(row)
   if (error) {
-    console.error('[report-ai-answer] insert failed', error)
+    console.error('[report-ai-answer] insert failed:', error.message)
     return res.status(500).json({ error: 'insert_failed' })
   }
   return res.status(200).json({ ok: true })

@@ -114,6 +114,13 @@ const POLICIES = [
     reason: 'uso mensal da escrita assistida — 13 meses',
   },
   {
+    table: 'friend_email_requests',
+    days: 2,
+    // Só conta as tentativas de pedido de amizade por e-mail do último dia
+    // (teto de 20, migração 0086) — não serve pra mais nada depois.
+    reason: 'contador do limite de pedidos por e-mail — 2 dias',
+  },
+  {
     table: 'admin_access_log',
     days: 730,
     // Quem do time abriu o quê no painel (0085) — prestação de contas,
@@ -216,7 +223,7 @@ export default async function handler(req, res) {
     }
     results.push({ table: 'profiles (lápides órfãs)', deleted: removed })
   } catch (err) {
-    console.error('retention: falha ao limpar lápides', err)
+    console.error('retention: falha ao limpar lápides:', err.message)
     results.push({ table: 'profiles (lápides órfãs)', error: err.message })
   }
 

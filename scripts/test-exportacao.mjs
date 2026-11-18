@@ -29,6 +29,7 @@ const FORA = {
   admin_broadcast_log: 'registro do que a equipe mandou; não é dado da pessoa',
   contact_messages: 'exportado à parte, pelo e-mail',
   group_prayer_comment_likes: 'tabela que não existe mais (0052)',
+  friend_email_requests: 'só um contador técnico do limite diário, apagado em 2 dias',
 }
 const exportadas = new Set(EXPORT_SOURCES.map(s => s[2]))
 check('toda tabela ligada a uma pessoa entra na exportação (ou tem motivo pra ficar de fora)', [...ligadas].filter(t => !exportadas.has(t) && !FORA[t]).sort(), [])
