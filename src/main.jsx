@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
+import { installAiConsentInterceptor } from './privacy/aiConsentGate'
 
 // Recarrega a página sozinha quando um novo service worker assume o
 // controle — achado corrigindo um caso real (2026-09-09): o registro do SW
@@ -37,6 +38,10 @@ if ('serviceWorker' in navigator) {
     else document.addEventListener('visibilitychange', reloadWhenHidden)
   })
 }
+
+// Pedido de consentimento da escrita assistida na hora do uso — ver
+// src/privacy/aiConsentGate.js.
+installAiConsentInterceptor()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

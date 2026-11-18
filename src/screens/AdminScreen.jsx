@@ -716,6 +716,7 @@ function BroadcastSection({ lang }) {
   const [sending, setSending] = useState(false)
   const [checking, setChecking] = useState(false)
   const [previewCount, setPreviewCount] = useState(null)
+  const [previewEmailCount, setPreviewEmailCount] = useState(null)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [log, setLog] = useState(null)
@@ -799,6 +800,7 @@ function BroadcastSection({ lang }) {
     try {
       const res = await sendBroadcast({ languages, titlePt, titleEn, bodyPt, bodyEn, sendEmail: alsoEmail, sendPush: alsoPush, ...recipientPayload, dryRun: true })
       setPreviewCount(res.recipients)
+      setPreviewEmailCount(alsoEmail ? res.emailRecipients ?? null : null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -951,6 +953,7 @@ function BroadcastSection({ lang }) {
 
         {error && <p style={styles.errorMsg}>{error}</p>}
         {previewCount != null && <p style={styles.hint}>{t('admin.broadcast.previewCount', { count: previewCount }, lang)}</p>}
+        {previewCount != null && previewEmailCount != null && <p style={styles.hint}>{t('admin.broadcast.previewEmailCount', { count: previewEmailCount }, lang)}</p>}
         {result && (
           <p style={styles.resultMsg}>
             {t('admin.broadcast.resultWithPush', { recipients: result.recipients, sent: result.emailsSent, failed: result.emailsFailed, pushSent: result.pushSent, pushFailed: result.pushFailed }, lang)}

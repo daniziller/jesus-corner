@@ -102,9 +102,43 @@ export async function readBudget(userId, { db = supabaseAdmin(), nowMs = Date.no
   return budgetState(data?.cost_micros ?? 0, nowMs)
 }
 
-// Confere o teto antes de gerar. Bateu: responde 429 com quando volta e
-// devolve false (`if (!(await ensureAiBudget(res, id))) return`).
+// Consentimento da escrita assistida (revisão de LGPD, 2026-11-18). Tudo
+// que passa por aqui manda texto que a pessoa escreveu (perguntas,
+// anotações, pedidos de oração, respostas de estudo) para o modelo, fora do
+// Brasil — e texto de fé é dado sensível (art. 5º II). Isso pede um
+// consentimento próprio, específico e destacado (art. 11 I e art. 33 VIII),
+// separado do aceite geral: ai_processing, opt-in, que a pessoa pode
+// desligar em Perfil → Privacidade. A linha mais recente vence.
+export async function readAiConsent(userId, { db = supabaseAdmin() } = {}) {
+  const { data, error } = await db.from('consents')
+    .select('granted')
+    .eq('user_id', userId).eq('purpose', 'ai_processing')
+    .order('created_at', { ascending: false })
+    .limit(1).maybeSingle()
+  if (error) throw error
+  return data?.granted === true
+}
+
+// Confere, antes de gerar: (1) o consentimento da escrita assistida — sem
+// ele, 403 `ai_consent_required` (o app pede o consentimento ali mesmo, ver
+// src/privacy/aiConsentGate.js); (2) o teto do mês — bateu, 429 com quando
+// volta. Devolve false nos dois casos (`if (!(await ensureAiBudget(res,
+// id))) return`). Todo endpoint que manda texto da pessoa pra IA passa por
+// aqui (direto ou por requireCaller com budget: true).
 export async function ensureAiBudget(res, userId, opts) {
+  let consented
+  try {
+    consented = await readAiConsent(userId, opts)
+  } catch (err) {
+    // Sem conseguir confirmar o consentimento, não manda texto pra fora.
+    console.error('[aiBudget] leitura do consentimento falhou:', err.message)
+    res.status(503).json({ error: 'consent_check_failed' })
+    return false
+  }
+  if (!consented) {
+    res.status(403).json({ error: 'ai_consent_required' })
+    return false
+  }
   const state = await readBudget(userId, opts)
   if (!state.exhausted) return true
   res.status(429).json({ error: 'ai_budget_reached', resetsAt: state.resetsAt })

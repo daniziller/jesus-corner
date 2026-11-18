@@ -37,6 +37,7 @@ import { meterAi, readBudget } from './_lib/aiBudget.js'
 import { isActive } from './_lib/entitlement.js'
 import { sendEmail } from './_lib/resend.js'
 import { emailFooterLinksHtml } from './_lib/emailFooter.js'
+import { EMAIL_PURPOSES, consentMap, unsubscribeUrl, unsubscribeHeaders } from './_lib/emailConsent.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -57,6 +58,7 @@ const COPY = {
     notifBody: 'O resumo da sua semana já está no app — toque pra ver.',
     emailSubject: 'Seu resumo da semana',
     weekLabel: 'Sua semana em resumo',
+    emailBody: 'O resumo da sua semana já está no app: os dias em que você leu, os capítulos e o que você anotou. Abra para ver.',
     ctaButton: 'Ver o resumo da semana',
   },
   en: {
@@ -64,6 +66,7 @@ const COPY = {
     notifBody: "Your weekly summary is ready in the app — tap to see it.",
     emailSubject: 'Your weekly summary',
     weekLabel: 'Your week in review',
+    emailBody: 'Your weekly summary is ready in the app: the days you read, the chapters and what you wrote down. Open it to see.',
     ctaButton: "See your week's summary",
   },
 }
@@ -179,8 +182,12 @@ function groupBy(rows, keyFn) {
   return map
 }
 
-function buildSummaryHtml({ lang, copy, summaryData }) {
-  const { openingParagraph, closingParagraph } = summaryData.summary
+// O e-mail é só um aviso de que o resumo está pronto, com um botão pro app.
+// Não leva o texto do resumo nem nada que a pessoa anotou (revisão de LGPD,
+// 2026-11-18): anotação de fé é dado sensível, e o e-mail passa por mais um
+// fornecedor (Resend) e fica na caixa de entrada. O resumo inteiro fica no
+// app, atrás do login.
+function buildSummaryHtml({ lang, copy, unsubscribe }) {
   return `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background:#F5F5F5;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -195,14 +202,13 @@ function buildSummaryHtml({ lang, copy, summaryData }) {
           </td></tr>
           <tr><td style="padding:32px 32px 8px;">
             <h1 style="margin:0 0 14px;font-size:20px;font-weight:800;color:#121212;line-height:1.3;">${copy.weekLabel}</h1>
-            <p style="margin:0 0 16px;font-size:14px;line-height:1.65;color:#525252;">${openingParagraph}</p>
-            <p style="margin:0 0 24px;font-size:14px;line-height:1.65;color:#525252;">${closingParagraph}</p>
+            <p style="margin:0 0 24px;font-size:14px;line-height:1.65;color:#525252;">${copy.emailBody}</p>
           </td></tr>
           <tr><td style="padding:0 32px 28px;">
             <a href="${APP_URL}" style="display:block;text-align:center;background:#9D4300;color:#ffffff;font-size:14px;font-weight:800;padding:14px;border-radius:12px;text-decoration:none;">${copy.ctaButton}</a>
           </td></tr>
           <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;text-align:center;">
-            ${emailFooterLinksHtml()}
+            ${emailFooterLinksHtml({ unsubscribe: { url: unsubscribe, lang } })}
           </td></tr>
         </table>
       </td></tr>
@@ -254,6 +260,22 @@ export default async function handler(req, res) {
 
   const sessionByUser = groupBy(sessionRows, r => r.user_id)
   const premiumUsers = new Set(subscriptionRows.filter(isActive).map(r => r.user_id))
+
+  // Consentimentos (revisão de LGPD, 2026-11-18): o texto escrito por IA
+  // lê as anotações da semana e vai pra fora do Brasil — só com o
+  // consentimento específico da escrita assistida (ai_processing, opt-in).
+  // E o e-mail só pra quem não desligou o resumo por e-mail (weekly_email).
+  let aiConsent, weeklyEmailConsent
+  try {
+    const ids = userDataRows.map(r => r.user_id)
+    ;[aiConsent, weeklyEmailConsent] = await Promise.all([
+      consentMap(supabaseAdmin, 'ai_processing', ids),
+      consentMap(supabaseAdmin, EMAIL_PURPOSES.WEEKLY, ids),
+    ])
+  } catch (err) {
+    console.error('Failed to load consents for weekly digest:', err.message)
+    return res.status(500).json({ error: 'consents_query_failed' })
+  }
   const chaptersByUser = groupBy(chapterRows, r => r.user_id)
   const membershipByUser = groupBy(memberRows, r => r.user_id)
   const aiQuestionCountByUser = new Map()
@@ -316,7 +338,7 @@ export default async function handler(req, res) {
       // recebem o resumo com os números, sem o texto (summary: null — a
       // tela do texto some, ver WeeklySummaryTextScreen.jsx).
       let summaryText = null
-      if (premiumUsers.has(row.user_id) && !(await readBudget(row.user_id)).exhausted) {
+      if (premiumUsers.has(row.user_id) && aiConsent.get(row.user_id) && !(await readBudget(row.user_id)).exhausted) {
         try {
           summaryText = await meterAi(row.user_id, 'resumo-da-semana', () => generateWeeklySummaryText({ lang, notesText, applicationLine }))
         } catch (err) {
@@ -372,15 +394,18 @@ export default async function handler(req, res) {
           if (err.statusCode === 404 || err.statusCode === 410) {
             await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
           } else {
-            console.error('Failed to send weekly summary push to', sub.endpoint, err.message)
+            console.error('Failed to send weekly summary push:', err.message)
           }
         }
       }
 
-      try {
-        await sendEmail({ to: userData.user.email, subject: copy.emailSubject, html: buildSummaryHtml({ lang, copy, summaryData: summaryEntry }) })
-      } catch (err) {
-        console.error('Failed to send weekly summary email for', row.user_id, err.message)
+      if (weeklyEmailConsent.get(row.user_id)) {
+        try {
+          const unsubscribe = unsubscribeUrl(row.user_id, EMAIL_PURPOSES.WEEKLY)
+          await sendEmail({ to: userData.user.email, subject: copy.emailSubject, html: buildSummaryHtml({ lang, copy, unsubscribe }), headers: unsubscribeHeaders(unsubscribe) })
+        } catch (err) {
+          console.error('Failed to send weekly summary email:', err.message)
+        }
       }
 
       sent++

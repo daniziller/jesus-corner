@@ -5,12 +5,15 @@
 // tem (Regra 5): "Dar acesso grátis" já existe em api/admin/access.js
 // (grantAccess aceita e-mail, sem endpoint novo); "Estender trial" e
 // "Entrar como este usuário" são novas, ficam aqui.
+import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminAuth.js'
+import { eraseAccount } from '../_lib/eraseAccount.js'
 import { deriveProgress, computeOverallStats } from '../../src/utils/progress.js'
 import { computeRoutineStreak } from '../../src/routine/routineStreak.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
 const BRAZIL_UTC_OFFSET_MS = -3 * 60 * 60 * 1000
 function brazilReferenceDate() { return new Date(Date.now() + BRAZIL_UTC_OFFSET_MS) }
 
@@ -133,6 +136,31 @@ async function enterAs(req, res, callerId) {
   return res.status(200).json({ ok: true })
 }
 
+// "Excluir conta a pedido" — quando a pessoa pede a exclusão por e-mail
+// (caminho da página pública jesuscorner.app/excluir-conta, sem precisar
+// do app). Faz exatamente o que a exclusão no app faz (eraseAccount). A
+// equipe precisa digitar o e-mail da conta pra confirmar, igual à pessoa.
+// Fica registrado em moderation_actions — a linha de profiles sobrevive
+// como "Conta removida", então o registro continua apontando pra ela.
+async function deleteAccountOnRequest(req, res, callerId) {
+  const { userId, confirmEmail } = req.body ?? {}
+  if (!userId) return res.status(400).json({ error: 'missing_user_id' })
+  if (userId === callerId) return res.status(400).json({ error: 'cannot_delete_self' })
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId)
+  if (error || !data?.user) return res.status(404).json({ error: 'user_not_found' })
+  const email = data.user.email ?? ''
+  if (!email || (confirmEmail ?? '').trim().toLowerCase() !== email.toLowerCase()) {
+    return res.status(400).json({ error: 'confirmation_mismatch' })
+  }
+  const result = await eraseAccount({ userId, email, db: supabaseAdmin, stripe })
+  if (!result.ok) return res.status(500).json({ error: 'deletion_incomplete', steps: result.steps })
+  await supabaseAdmin.from('moderation_actions').insert({
+    scope: 'platform', actor_id: callerId, target_user_id: userId,
+    action: 'deleted_account_on_request', reason: null, source: 'manual',
+  })
+  return res.status(200).json({ ok: true, storeSubscription: !!result.storeSubscription })
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' })
   const caller = await requireAdmin(req, res)
@@ -143,5 +171,6 @@ export default async function handler(req, res) {
   if (op === 'extend_trial') return extendTrial(req, res, caller.id)
   if (op === 'enter_as') return enterAs(req, res, caller.id)
   if (op === 'block_account') return blockAccount(req, res, caller.id)
+  if (op === 'delete_account') return deleteAccountOnRequest(req, res, caller.id)
   return res.status(400).json({ error: 'invalid_op' })
 }

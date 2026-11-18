@@ -20,6 +20,7 @@ import { fetchAllPaged } from '../_lib/paged.js'
 import { sendEmail } from '../_lib/resend.js'
 import { listAllUsers } from '../_lib/adminUsers.js'
 import { emailFooterLinksHtml } from '../_lib/emailFooter.js'
+import { EMAIL_PURPOSES, consentMap, unsubscribeUrl, unsubscribeHeaders } from '../_lib/emailConsent.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const NOTIFICATION_TYPE = 'admin_broadcast'
@@ -117,7 +118,11 @@ async function resolveRecipientIds({ recipientMode, recipientUserId, segment }, 
   return allowed
 }
 
-function buildBroadcastHtml(title, body) {
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+function buildBroadcastHtml(title, body, unsubscribe) {
+  title = escapeHtml(title)
+  body = escapeHtml(body)
   return `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background:#F5F5F5;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -135,7 +140,7 @@ function buildBroadcastHtml(title, body) {
             <p style="margin:0;font-size:14px;line-height:1.6;color:#525252;white-space:pre-wrap;">${body}</p>
           </td></tr>
           <tr><td style="padding:0 32px 28px;border-top:1px solid #F5F5F5;text-align:center;">
-            ${emailFooterLinksHtml()}
+            ${emailFooterLinksHtml({ unsubscribe })}
           </td></tr>
         </table>
       </td></tr>
@@ -150,7 +155,10 @@ async function sendEmailBatches(recipients) {
   for (let i = 0; i < recipients.length; i += EMAIL_CONCURRENCY) {
     const chunk = recipients.slice(i, i + EMAIL_CONCURRENCY)
     const results = await Promise.allSettled(
-      chunk.map(r => sendEmail({ to: r.email, subject: r.title, html: buildBroadcastHtml(r.title, r.body) }))
+      chunk.map(r => {
+        const url = unsubscribeUrl(r.id, EMAIL_PURPOSES.MARKETING)
+        return sendEmail({ to: r.email, subject: r.title, html: buildBroadcastHtml(r.title, r.body, { url, lang: r.lang }), headers: unsubscribeHeaders(url) })
+      })
     )
     for (const result of results) {
       if (result.status === 'fulfilled') emailsSent++
@@ -221,12 +229,29 @@ export default async function handler(req, res) {
     .map(u => ({
       id: u.id,
       email: u.email,
+      lang: u.lang,
       title: interpolate(u.lang === 'en' ? titleEn.trim() : titlePt.trim(), u),
       body: interpolate(u.lang === 'en' ? bodyEn.trim() : bodyPt.trim(), u),
     }))
 
+  // E-mail de aviso só pra quem aceitou receber novidades por e-mail
+  // (marketing_email, opt-in — LGPD art. 7º I e 8º). O aviso no app (sino)
+  // e o push continuam indo pra todos do segmento: o sino é parte do app, e
+  // o push a pessoa ligou por conta própria.
+  let emailable = []
+  if (shouldSendEmail) {
+    try {
+      const withEmail = recipients.filter(r => r.email)
+      const consent = await consentMap(supabaseAdmin, EMAIL_PURPOSES.MARKETING, withEmail.map(r => r.id))
+      emailable = withEmail.filter(r => consent.get(r.id))
+    } catch (err) {
+      console.error('Failed to load email consents for broadcast:', err.message)
+      return res.status(500).json({ error: 'consents_query_failed' })
+    }
+  }
+
   if (dryRun) {
-    return res.status(200).json({ ok: true, dryRun: true, recipients: recipients.length })
+    return res.status(200).json({ ok: true, dryRun: true, recipients: recipients.length, emailRecipients: emailable.length })
   }
 
   for (let i = 0; i < recipients.length; i += NOTIFICATION_BATCH_SIZE) {
@@ -243,7 +268,6 @@ export default async function handler(req, res) {
   let emailsSent = 0
   let emailsFailed = 0
   if (shouldSendEmail) {
-    const emailable = recipients.filter(r => r.email)
     ;({ emailsSent, emailsFailed } = await sendEmailBatches(emailable))
   }
 
@@ -271,7 +295,7 @@ export default async function handler(req, res) {
           if (err.statusCode === 404 || err.statusCode === 410) {
             await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
           } else {
-            console.error('Failed to send broadcast push to', sub.endpoint, err.message)
+            console.error('Failed to send broadcast push:', err.message)
           }
         }
       }
