@@ -21,7 +21,7 @@ import {
   getAdminGroupsList, getAdminGroupDetail, adminGroupAction, getGroupWall,
   getAccessGrants, grantAccess, GRANT_ERRORS, casePerson,
   getMasterAlerts, decideMasterAlert, markAllAlertsSeen,
-  getPersonDetail, extendPersonTrial, enterAsPerson, blockPersonAccount,
+  getPersonDetail, extendPersonTrial, enterAsPerson, blockPersonAccount, deletePersonAccount,
 } from '../admin/masterModerationStore'
 
 function M(key, vars, lang) { return t(`admin.mobile.${key}`, vars, lang) }
@@ -65,6 +65,7 @@ function describeModerationAction(h, lang) {
   if (action === 'ended_group') return M('modAction.endedGroup', undefined, lang)
   if (action === 'extended_trial') return M('modAction.extendedTrial', { detail: reason }, lang)
   if (action === 'viewed_as_user') return M('modAction.viewedAsUser', { actor: actorName }, lang)
+  if (action === 'deleted_account_on_request') return M('modAction.deletedAccountOnRequest', { actor: actorName }, lang)
   if (action.startsWith('muted_user')) {
     const days = action.match(/(\d+)d$/)?.[1] ?? '7'
     return M('modAction.mutedUser', { n: days, group: groupName }, lang)
@@ -533,6 +534,9 @@ function PersonDetailMobile({ lang, userId, onBack }) {
   const [busy, setBusy] = useState(false)
   const [blockSheetOpen, setBlockSheetOpen] = useState(false)
   const [blockReason, setBlockReason] = useState('')
+  const [deleteSheetOpen, setDeleteSheetOpen] = useState(false)
+  const [deleteEmail, setDeleteEmail] = useState('')
+  const [deleteMsg, setDeleteMsg] = useState('')
 
   const reload = useCallback(() => { getPersonDetail(userId).then(setPerson).catch(() => {}) }, [userId])
   useEffect(() => { reload() }, [reload])
@@ -551,6 +555,19 @@ function PersonDetailMobile({ lang, userId, onBack }) {
     if (!blockReason.trim()) return
     setBusy(true)
     try { await blockPersonAccount({ userId, reason: blockReason }); setBlockSheetOpen(false); setBlockReason(''); reload() } finally { setBusy(false) }
+  }
+  // Exclusão a pedido (a pessoa escreveu para info@ pedindo). Digitar o
+  // e-mail da conta confirma — o servidor confere de novo.
+  async function confirmDelete() {
+    setBusy(true)
+    setDeleteMsg('')
+    try {
+      const r = await deletePersonAccount({ userId, confirmEmail: deleteEmail })
+      window.alert(M(r?.storeSubscription ? 'deleteDoneStore' : 'deleteDone', undefined, lang))
+      onBack()
+    } catch (err) {
+      setDeleteMsg(M(String(err?.message).includes('confirmation_mismatch') ? 'deleteEmailMismatch' : 'deleteFailed', undefined, lang))
+    } finally { setBusy(false) }
   }
   async function handleEnterAs() {
     setBusy(true)
@@ -624,6 +641,14 @@ function PersonDetailMobile({ lang, userId, onBack }) {
             </div>
             <AppIcon name="ChevronRight" size={16} color="var(--bento-t4)" />
           </button>
+          <div style={styles.hairline} />
+          <button type="button" style={styles.listRow} onClick={() => { setDeleteEmail(''); setDeleteMsg(''); setDeleteSheetOpen(true) }} disabled={busy}>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <p style={{ ...styles.rowTitle, color: 'var(--bento-destructive)' }}>{M('deleteAccountBtn', undefined, lang)}</p>
+              <p style={styles.rowSub}>{M('deleteAccountSub', undefined, lang)}</p>
+            </div>
+            <AppIcon name="ChevronRight" size={16} color="var(--bento-t4)" />
+          </button>
         </div>
 
         {person.moderationHistory.length > 0 && (
@@ -651,6 +676,15 @@ function PersonDetailMobile({ lang, userId, onBack }) {
           <p style={styles.mutedLine}>{M('blockSheetIntro', { name: person.name || person.email }, lang)}</p>
           <textarea style={styles.textArea} placeholder={M('reasonPlaceholder', undefined, lang)} value={blockReason} onChange={e => setBlockReason(e.target.value)} />
           <button type="button" style={{ ...styles.footerBtnDestructiveOnDark, background: 'var(--bento-destructive)' }} disabled={busy || !blockReason.trim()} onClick={confirmBlock}>{M('blockAccountConfirmBtn', undefined, lang)}</button>
+        </Sheet>
+      )}
+
+      {deleteSheetOpen && (
+        <Sheet title={M('deleteAccountBtn', undefined, lang)} onClose={() => setDeleteSheetOpen(false)}>
+          <p style={styles.mutedLine}>{M('deleteSheetIntro', { name: person.name || person.email }, lang)}</p>
+          <input type="email" autoComplete="off" style={styles.textArea} placeholder={person.email} value={deleteEmail} onChange={e => setDeleteEmail(e.target.value)} />
+          {deleteMsg && <p style={styles.mutedLine}>{deleteMsg}</p>}
+          <button type="button" style={{ ...styles.footerBtnDestructiveOnDark, background: 'var(--bento-destructive)' }} disabled={busy || deleteEmail.trim().toLowerCase() !== (person.email ?? '').toLowerCase()} onClick={confirmDelete}>{M('deleteConfirmBtn', undefined, lang)}</button>
         </Sheet>
       )}
     </div>

@@ -94,3 +94,7 @@ export function enterAsPerson(userId) {
 export function blockPersonAccount({ userId, reason }) {
   return authorizedPost('/api/admin/person', { op: 'block_account', userId, reason })
 }
+// Exclusão a pedido por e-mail (LGPD art. 18, VI) — mesma exclusão do app.
+export function deletePersonAccount({ userId, confirmEmail }) {
+  return authorizedPost('/api/admin/person', { op: 'delete_account', userId, confirmEmail })
+}

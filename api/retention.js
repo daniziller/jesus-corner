@@ -54,6 +54,27 @@ const POLICIES = [
   },
 ]
 
+// Referências que seguram a lápide (perfil "Conta removida") viva.
+export const TOMBSTONE_REFERENCES = [
+  ['group_comments', 'user_id'],
+  ['group_chapter_posts', 'user_id'],
+  ['group_prayer_requests', 'user_id'],
+  ['reading_groups', 'created_by'],
+  ['reading_challenges', 'created_by'],
+  ['group_reading_plans', 'created_by'],
+  ['group_challenges', 'created_by'],
+  ['group_message_reports', 'reported_user_id'],
+  ['group_message_reports', 'reporter_id'],
+  ['group_message_reports', 'decided_by'],
+  ['moderation_actions', 'target_user_id'],
+  ['moderation_actions', 'actor_id'],
+  ['admin_reports', 'created_by'],
+  ['admin_reports', 'attached_user_id'],
+  ['blocked_accounts', 'user_id'],
+  ['blocked_accounts', 'blocked_by'],
+  ['access_grants', 'granted_by'],
+]
+
 export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET
   // Falha fechada sem o secret — este cron APAGA dados; não pode ficar
@@ -91,14 +112,15 @@ export default async function handler(req, res) {
     let removed = 0
     for (const { user_id } of tombstones ?? []) {
       try {
+        // TODA tabela que aponta pra profiles com conteúdo de outras pessoas
+        // ou registro que deve ficar: com ON DELETE CASCADE, apagar a lápide
+        // levaria junto conversa e planos do grupo inteiro (ver 0082). Só
+        // sai quando nenhuma delas aponta mais pra ela.
         const counts = await Promise.all(
-          // group_prayer_comments saiu do banco na migration 0052 (pedido de
-          // oração não aceita mais comentário no design novo).
-          ['group_comments', 'group_prayer_requests', 'reading_groups', 'reading_challenges']
-            .map(t => supabaseAdmin
-              .from(t)
-              .select('*', { count: 'exact', head: true })
-              .eq((t === 'reading_groups' || t === 'reading_challenges') ? 'created_by' : 'user_id', user_id)),
+          TOMBSTONE_REFERENCES.map(([t, col]) => supabaseAdmin
+            .from(t)
+            .select('*', { count: 'exact', head: true })
+            .eq(col, user_id)),
         )
         const stillReferenced = counts.some(c => (c.count ?? 0) > 0)
         if (!stillReferenced) {
