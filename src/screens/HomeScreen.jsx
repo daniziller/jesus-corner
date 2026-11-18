@@ -44,7 +44,8 @@ import { computeBibleProgress } from '../gamification/bibleProgressMath'
 import { bookInfo } from '../data/gamificationBlocks'
 import { loadGamificationStats } from '../gamification/evaluate'
 import { recentSeals } from '../gamification/sealDetails'
-import { bibleFinishedIso, buildPlanCard, nextAchievement, paraHojeRows } from '../hoje/hojeMath'
+import { bibleFinishedIso, buildPlanCard, nextAchievement, paraHojeRows, requestsSummary } from '../hoje/hojeMath'
+import { pedidosApi as realPedidosApi } from '../pedidos/pedidosApi'
 import { bookNameFor } from '../utils/progress'
 
 
@@ -76,6 +77,7 @@ export default function HomeScreen({
   onStartGuided, onNavigate, onOpenProfile,
   onOpenWeeklySummary, weeklySummaries, onOpenBiblePassage, onOpenSermonNote,
   applicationRefreshKey, onOpenSuaBiblia, onOpenEstante, onOpenFamilia, gamification,
+  active = true, pedidosApi = realPedidosApi,
 }) {
   const {
     lang, userName, avatarInitials, todaySession,
@@ -312,6 +314,22 @@ export default function HomeScreen({
     }
   }
 
+  // Pedidos de oração no Hoje (pedido dela, 2026-11-18): a linha em "Para
+  // hoje" diz quantos pedidos ainda esperam a oração de hoje. Pedidos são
+  // da Comunidade (Premium): sem assinatura a linha fica genérica e leva ao
+  // aviso do Premium. A Home fica montada a sessão inteira, então o resumo
+  // recarrega cada vez que a aba volta à frente (`active`) — orar na
+  // Súplica ou na lista muda o número. Falha de leitura: linha genérica.
+  const [requests, setRequests] = useState(null)
+  useEffect(() => {
+    if (!active || !session.hasPremium) return
+    let alive = true
+    pedidosApi.load()
+      .then(r => { if (alive) setRequests(requestsSummary(r.pedidos)) })
+      .catch(err => { console.error('[hoje] pedidos de oração', err); if (alive) setRequests(null) })
+    return () => { alive = false }
+  }, [active, session.hasPremium, pedidosApi])
+
   const latestSummary = (weeklySummaries ?? [])[0]
   const challengeDay = groupChallenge?.day
   const paraHoje = paraHojeRows({
@@ -322,6 +340,7 @@ export default function HomeScreen({
     summary: latestSummary ? { seen: !!latestSummary.seen, period: recapPeriodLabel(latestSummary, lang) } : null,
     verse: verseData, verseLoading: loading,
     application: pinnedEntry ? { text: pinnedEntry.text, fulfilled: !!pinnedEntry.fulfilled, writtenToday: wroteApplicationToday, visible: getShowApplicationCard() } : null,
+    requests: session.hasPremium ? requests : null,
     lang,
   })
   function handleParaHojeOpen(key) {
@@ -329,6 +348,7 @@ export default function HomeScreen({
     else if (key === 'summary') onOpenWeeklySummary?.(latestSummary.weekKey)
     else if (key === 'verse') { if (verseData.text) setVerseOpen(true) }
     else if (key === 'application') onNavigate?.('applicationPhrases')
+    else if (key === 'requests') onNavigate?.('prayerRequests')
     else if (key === 'sermon') onOpenSermonNote?.()
   }
   function handleParaHojeAction(key) {

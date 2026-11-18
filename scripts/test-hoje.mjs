@@ -7,7 +7,7 @@ import { recentSeals } from '../src/gamification/sealDetails.js'
 import { computeMeuPlano, stepShortDetail, tomorrowCard } from '../src/meuPlano/meuPlanoMath.js'
 import {
   chaptersLine, bibleBookLine, bibleFinishedIso, bibleCardAria, weeksAria, daysAria, sealsAria, dayDotKind,
-  buildPlanCard, planCardKind, nextAchievement, paraHojeRows, verseShortRef,
+  buildPlanCard, planCardKind, nextAchievement, paraHojeRows, verseShortRef, requestsSummary, requestsLine,
 } from '../src/hoje/hojeMath.js'
 import { messagesBadgeText, communityTabLabel, totalUnreadMessages } from '../src/groups/messagesBadge.js'
 import { FAMILIES } from '../src/data/achievements.js'
@@ -173,23 +173,29 @@ const versiculo = { text: 'O Senhor estava com José e lhe mostrou sua fiel bond
 const aplicacao = { text: 'Hoje eu espero sem cobrar resposta.', fulfilled: false, writtenToday: false, visible: true }
 const keys = input => paraHojeRows(input).map(r => r.key)
 const h1rows = paraHojeRows({ challenge: null, summary: null, verse: versiculo, application: aplicacao })
-check('H1: versículo, aplicação e pregação, nesta ordem', h1rows.map(r => r.key), ['verse', 'application', 'sermon'])
+check('H1: versículo, aplicação, pedidos e pregação, nesta ordem', h1rows.map(r => r.key), ['verse', 'application', 'requests', 'sermon'])
 check('versículo: entre aspas + referência abreviada', h1rows[0].subtitle, '"O Senhor estava com José e lhe mostrou sua fiel bondade." Gn 39:21')
 check('aplicação: entre aspas, botão "Cumpri"', [h1rows[1].title, h1rows[1].subtitle, h1rows[1].right], ['Sua aplicação de ontem', '"Hoje eu espero sem cobrar resposta."', { kind: 'button', label: 'Cumpri' }])
-check('pregação: texto fixo e chevron', [h1rows[2].title, h1rows[2].subtitle, h1rows[2].right.kind], ['Anotar uma pregação', 'Abre a Bíblia com a folha de anotação', 'chevron'])
+check('pregação: texto fixo e chevron', [h1rows[3].title, h1rows[3].subtitle, h1rows[3].right.kind], ['Anotar uma pregação', 'Abre a Bíblia com a folha de anotação', 'chevron'])
 check('aplicação cumprida: o botão vira o texto "Cumprida"', paraHojeRows({ verse: versiculo, application: { ...aplicacao, fulfilled: true } })[1].right, { kind: 'done', label: 'Cumprida' })
 check('aplicação que já vem com aspas não ganha outras', paraHojeRows({ application: { ...aplicacao, text: '“Ligo para o meu irmão.”' } })[0].subtitle, '“Ligo para o meu irmão.”')
-check('sem aplicação: a linha não aparece', keys({ verse: versiculo, application: null }), ['verse', 'sermon'])
-check('aplicação escrita hoje só aparece amanhã', keys({ verse: versiculo, application: { ...aplicacao, writtenToday: true } }), ['verse', 'sermon'])
-check('cartão da aplicação desligado no Perfil: a linha não aparece', keys({ verse: versiculo, application: { ...aplicacao, visible: false } }), ['verse', 'sermon'])
-check('resumo não lido: primeira linha, "{dia} a {dia} de {mês} está pronto"', (() => { const r = paraHojeRows({ summary: { seen: false, period: '25 a 31 de agosto' }, verse: versiculo, application: aplicacao }); return [r.map(x => x.key), r[0].title, r[0].subtitle] })(), [['summary', 'verse', 'application', 'sermon'], 'Resumo da sua semana', '25 a 31 de agosto está pronto'])
-check('resumo já lido some', keys({ summary: { seen: true, period: '25 a 31 de agosto' }, verse: versiculo }), ['verse', 'sermon'])
-check('só pregação e versículo: duas linhas, nada pra preencher', keys({ verse: versiculo }), ['verse', 'sermon'])
-check('sem versículo disponível: a linha não aparece', keys({ verse: { text: '' } }), ['sermon'])
-check('versículo carregando: a linha fica, sem subtítulo ainda', (() => { const r = paraHojeRows({ verseLoading: true, verse: null }); return [r.map(x => x.key), r[0].subtitle] })(), [['verse', 'sermon'], null])
+check('sem aplicação: a linha não aparece', keys({ verse: versiculo, application: null }), ['verse', 'requests', 'sermon'])
+check('aplicação escrita hoje só aparece amanhã', keys({ verse: versiculo, application: { ...aplicacao, writtenToday: true } }), ['verse', 'requests', 'sermon'])
+check('cartão da aplicação desligado no Perfil: a linha não aparece', keys({ verse: versiculo, application: { ...aplicacao, visible: false } }), ['verse', 'requests', 'sermon'])
+check('resumo não lido: primeira linha, "{dia} a {dia} de {mês} está pronto"', (() => { const r = paraHojeRows({ summary: { seen: false, period: '25 a 31 de agosto' }, verse: versiculo, application: aplicacao }); return [r.map(x => x.key), r[0].title, r[0].subtitle] })(), [['summary', 'verse', 'application', 'requests', 'sermon'], 'Resumo da sua semana', '25 a 31 de agosto está pronto'])
+check('resumo já lido some', keys({ summary: { seen: true, period: '25 a 31 de agosto' }, verse: versiculo }), ['verse', 'requests', 'sermon'])
+check('só pregação, pedidos e versículo: três linhas, nada pra preencher', keys({ verse: versiculo }), ['verse', 'requests', 'sermon'])
+check('sem versículo disponível: a linha não aparece', keys({ verse: { text: '' } }), ['requests', 'sermon'])
+check('versículo carregando: a linha fica, sem subtítulo ainda', (() => { const r = paraHojeRows({ verseLoading: true, verse: null }); return [r.map(x => x.key), r[0].subtitle] })(), [['verse', 'requests', 'sermon'], null])
 const comDesafio = paraHojeRows({ challenge: { title: 'Romanos em 16 dias', ref: 'Romanos 8', dayTitle: 'Nenhuma condenação', done: false }, verse: versiculo })
-check('desafio do grupo: primeira linha, com o botão "Já li"', [comDesafio.map(r => r.key), comDesafio[0].title, comDesafio[0].subtitle, comDesafio[0].right], [['challenge', 'verse', 'sermon'], 'Desafio · Romanos em 16 dias', 'Romanos 8 · Nenhuma condenação', { kind: 'button', label: 'Já li' }])
+check('desafio do grupo: primeira linha, com o botão "Já li"', [comDesafio.map(r => r.key), comDesafio[0].title, comDesafio[0].subtitle, comDesafio[0].right], [['challenge', 'verse', 'requests', 'sermon'], 'Desafio · Romanos em 16 dias', 'Romanos 8 · Nenhuma condenação', { kind: 'button', label: 'Já li' }])
 check('desafio já lido hoje: "Lida"', paraHojeRows({ challenge: { title: 'Romanos em 16 dias', ref: 'Romanos 8', dayTitle: '', done: true } })[0].right, { kind: 'done', label: 'Lida' })
+// A linha "Pedidos de oração" (pedido dela, 2026-11-18): um acesso aos pedidos na página inicial.
+const pedidosLista = [{ id: 'a', status: 'open', prayedToday: true }, { id: 'b', status: 'open', prayedToday: false }, { id: 'c', status: 'open', prayedToday: false }, { id: 'z', status: 'closed', prayedToday: false }]
+check('pedidos: resumo — ativos e quantos ainda sem o "orei" de hoje (respondidos fora)', requestsSummary(pedidosLista), { active: 3, pending: 2 })
+check('pedidos: sem lista, sem resumo', requestsSummary(null), null)
+check('pedidos: a linha, sempre antes da pregação, com chevron', (r => [r.key, r.title, r.subtitle, r.right.kind])(paraHojeRows({ requests: requestsSummary(pedidosLista) })[0]), ['requests', 'Pedidos de oração', '2 de 3 esperando sua oração hoje', 'chevron'])
+check('pedidos: um esperando · nenhum ativo · todos orados · um só, orado · sem resumo (sem Premium ou falha)', [requestsLine({ active: 5, pending: 1 }), requestsLine({ active: 0, pending: 0 }), requestsLine({ active: 3, pending: 0 }), requestsLine({ active: 1, pending: 0 }), requestsLine(null)], ['1 de 5 esperando sua oração hoje', 'Nenhum pedido ativo. Faça o primeiro.', 'Você orou por todos os 3 hoje', 'Você orou pelo seu pedido hoje', 'Os seus, do grupo e dos amigos'])
 check('referência abreviada: sigla dos selos; sem dados crus, por extenso', [verseShortRef(versiculo), verseShortRef({ ref: 'Salmos 23:1' }), verseShortRef({ bookPt: 'Jonas', chapter: 2, verseNum: 2 })], ['Gn 39:21', 'Salmos 23:1', 'Jn 2:2'])
 
 // ── Número na aba Comunidade (HANDOFF §7) ───────────────────────────────
@@ -205,7 +211,8 @@ check('total = soma dos grupos', [totalUnreadMessages([{ unreadCount: 4 }, { unr
 
 // ── Em inglês ───────────────────────────────────────────────────────────
 check('inglês: arias da caminhada', [weeksAria(1, 'en'), daysAria(2, 5, 'en'), sealsAria(3, 66, 'en')], ['1 week on target', '2 of 5 days on target this week', '3 seals of 66 books'])
-check('inglês: linhas do Para hoje', paraHojeRows({ summary: { seen: false, period: 'Nov 9–15' }, verse: null, verseLoading: false, application: null, lang: 'en' }).map(r => [r.title, r.subtitle]), [['Your week summary', 'Nov 9–15 is ready'], ['Take sermon notes', 'Opens the Bible with the note sheet']])
+check('inglês: linhas do Para hoje', paraHojeRows({ summary: { seen: false, period: 'Nov 9–15' }, verse: null, verseLoading: false, application: null, requests: { active: 3, pending: 2 }, lang: 'en' }).map(r => [r.title, r.subtitle]), [['Your week summary', 'Nov 9–15 is ready'], ['Prayer requests', '2 of 3 waiting for your prayer today'], ['Take sermon notes', 'Opens the Bible with the note sheet']])
+check('inglês: pedidos — nenhum, um só orado, todos orados, sem resumo', [requestsLine({ active: 0, pending: 0 }, 'en'), requestsLine({ active: 1, pending: 0 }, 'en'), requestsLine({ active: 4, pending: 0 }, 'en'), requestsLine(null, 'en')], ['No active requests. Make the first one.', 'You prayed for your request today', 'You prayed for all 4 today', "Yours, your group's and your friends'"])
 check('inglês: cartão do plano em dia de descanso', (({ title, line, button }) => [title, line, button.label])(buildPlanCard({ loadError: false, stepDays: { prayer: [true, false, false, false, false, false, false], reading: Array(7).fill(false), study: Array(7).fill(false), reflection: Array(7).fill(false) }, routineModules: ['prayer'], state: { kind: 'rest', steps: [] }, ctx: {}, nextWeekdayIdx: 0, lang: 'en' })), ['Today is a rest day', 'Back on Monday.', 'I want to read today anyway'])
 
 if (failures > 0) { console.error(`\n${failures} teste(s) falharam.`); process.exit(1) }

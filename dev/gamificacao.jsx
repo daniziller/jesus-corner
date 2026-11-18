@@ -57,7 +57,7 @@
 //      tela=nota — a nota em um versículo (N4). &nota=exemplo|nova|marcacao|comnota|escolher|sumiu · &grupos=0|2|3
 //      · &grupo=escolhido · &teclado=aberto · &rede=fora · &persistir=sim · tela=biblioteca&nova=abrir&rascunho=domingo|semtitulo (N1)
 //      Para hoje: &aplicacao=ontem|cumprida|hoje|nenhuma · &resumo=novo|lido|nenhum · &parahoje=todas (as cinco linhas,
-//      com o desafio do grupo) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
+//      com o desafio do grupo) · a linha "Pedidos de oração": &pedidos=3|0|7|erro (3: "2 de 3 esperando"; erro: genérica) · barra de abas: &msgs=0|1|9|99|100 · &pendente=1 (bolinha de pedidos/convites)
 //      &livro=Jonas (G10/G8) &bloco=poeticos (G9 rolada até a prateleira)
 //      &estado=exemplo|nova|inteira|carregando &modo=livros|capitulos
 //      &familia=constancia|leitura|tempo|oracao|livros (G6)
@@ -1279,7 +1279,7 @@ function Preview() {
         onNavigate={t => alert(`navegar: ${t}`)} onOpenProfile={() => {}}
         onStartGuided={() => alert('abrir o passo de agora e emendar os seguintes')}
         onOpenWeeklySummary={k => alert(`resumo ${k}`)} onOpenBiblePassage={(b, c) => alert(`abrir ${b} ${c}`)} onOpenSermonNote={() => alert('anotar pregação')}
-        applicationRefreshKey={0}
+        applicationRefreshKey={0} pedidosApi={pedidosDePreview}
         onOpenSuaBiblia={() => setScreen('suaBiblia')} onOpenEstante={() => setScreen('estante')}
         onOpenFamilia={id => alert(`família ${id}`)}
         gamification={gami}
