@@ -9,6 +9,11 @@ skip_app_version_update(true)
 skip_screenshots(false)
 skip_metadata(false)
 
+# Troca as capturas que já estão na App Store Connect pelas desta pasta, em
+# vez de somar (sem isso, uma captura renomeada — como a 04, que era
+# Métricas e virou Sua Bíblia — ficaria duplicada lá).
+overwrite_screenshots(true)
+
 # Não pede confirmação interativa no terminal antes de subir — o pipeline é
 # não-interativo. Revise o diff dos arquivos em fastlane/metadata e
 # fastlane/screenshots antes de rodar.
