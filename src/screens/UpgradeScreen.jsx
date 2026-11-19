@@ -20,7 +20,7 @@ import { useState, useEffect, useRef } from 'react'
 import { t } from '../i18n'
 import AppIcon from '../icons/AppIcon'
 import {
-  startCheckout, isPremiumActive, getManageSubscriptionUrl,
+  startCheckout, isPremiumActive, isCancelScheduled, getManageSubscriptionUrl,
   getDigitalGoodsService, getPlaySkuDetails, startPlayBillingPurchase,
   isIOSApp, getIOSProducts, startIOSPurchase,
 } from '../billing/subscriptionStore'
@@ -89,6 +89,13 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
 
   const isLifetime = subscription?.access_type === 'lifetime' && subscription?.status === 'active'
   const isRecurringActive = subscription?.access_type === 'recurring' && isPremiumActive(subscription)
+  // Cancelada, valendo até o fim do período (2026-11-19): o cartão mostra
+  // até quando vai o Premium e o botão vira "Reativar".
+  const cancelScheduled = isRecurringActive && isCancelScheduled(subscription)
+  const premiumUntil = subscription?.current_period_end
+    ? new Date(subscription.current_period_end).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+  const billedBy = subscription?.billing_provider === 'google_play' ? 'google_play' : subscription?.billing_provider === 'apple' ? 'apple' : 'stripe'
   const isFreeGrant = subscription?.access_type === 'free' && subscription?.status === 'active'
   const isStoreContext = storeContext !== 'stripe'
 
@@ -213,7 +220,22 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
           </div>
         )}
 
-        {isRecurringActive && !resubscribing && (
+        {isRecurringActive && !resubscribing && cancelScheduled && (
+          <div style={s.statusCard}>
+            <p style={s.statusLabel}>{t('billing.currentContributionTitle', undefined, lang)}</p>
+            <p style={s.statusTitle}>{t('billing.canceledTitle', undefined, lang)}</p>
+            <p style={s.statusAmount}>{premiumUntil ? t('billing.premiumUntil', { date: premiumUntil }, lang) : t('billing.premiumUntilEnd', undefined, lang)}</p>
+            <p style={s.statusSub}>{t('billing.canceledSub', undefined, lang)}</p>
+            <div style={s.statusActions}>
+              <button style={s.secondaryBtn} onClick={handleManagePayment}>
+                {t('billing.reactivateBtn', undefined, lang)}
+              </button>
+            </div>
+            <p style={s.statusSub}>{t(`billing.reactivateWhere.${billedBy}`, undefined, lang)}</p>
+          </div>
+        )}
+
+        {isRecurringActive && !resubscribing && !cancelScheduled && (
           <div style={s.statusCard}>
             <p style={s.statusLabel}>{t('billing.currentContributionTitle', undefined, lang)}</p>
             <p style={s.statusTitle}>{t('billing.tiers.premium', undefined, lang)}</p>
@@ -222,12 +244,15 @@ export default function UpgradeScreen({ session, subscription, onSubscriptionRef
                 ? `${formatAmount(subscription.amount_cents, subscription.currency)}${t(subscription.plan === 'annual' ? 'billing.perYear' : 'billing.perMonth', undefined, lang)}`
                 : '—'}
             </p>
-            <p style={s.statusSub}>{t('billing.allIncludedSub', undefined, lang)}</p>
+            <p style={s.statusSub}>{premiumUntil ? t('billing.renewsOn', { date: premiumUntil }, lang) : t('billing.allIncludedSub', undefined, lang)}</p>
             <div style={s.statusActions}>
               <button style={s.secondaryBtn} onClick={handleManagePayment}>
                 {t('billing.managePaymentBtn', undefined, lang)}
               </button>
             </div>
+            {/* Antes de cancelar, o que acontece (2026-11-19): o Premium vai
+                até o fim do período e nada do que a pessoa escreveu some. */}
+            <p style={s.statusSub}>{t(`billing.cancelHow.${billedBy}`, undefined, lang)}</p>
           </div>
         )}
 

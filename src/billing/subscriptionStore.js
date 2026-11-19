@@ -14,14 +14,24 @@ export async function getMySubscription() {
   return data
 }
 
-export function isPremiumActive(subscription) {
+export function isPremiumActive(subscription, nowMs = Date.now()) {
   if (!subscription) return false
   // Grátis e vitalício não têm ciclo de cobrança — uma vez ativados, ficam
   // ativos pra sempre (não existe "trialing"/"past_due" pra esses tipos).
   if (subscription.access_type === 'free' || subscription.access_type === 'lifetime') {
     return subscription.status === 'active'
   }
+  // Cancelada valendo até o fim do período: o Premium vai até a data e
+  // depois para, mesmo que o aviso de expiração do provedor atrase — a
+  // mesma regra de api/_lib/entitlement.js (2026-11-19).
+  if (isCancelScheduled(subscription) && subscription.current_period_end && Date.parse(subscription.current_period_end) <= nowMs) return false
   return subscription.status === 'active' || subscription.status === 'trialing'
+}
+
+// Assinatura recorrente cancelada pela pessoa que ainda vale até
+// current_period_end (renovação desligada no Stripe, no Play ou na Apple).
+export function isCancelScheduled(subscription) {
+  return !!subscription && subscription.access_type === 'recurring' && subscription.cancel_at_period_end === true
 }
 
 async function authorizedPost(path, body) {

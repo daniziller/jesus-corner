@@ -251,7 +251,7 @@ export default async function handler(req, res) {
       fetchAllPaged('text_ai_chats', 'user_id, created_at', q => q.eq('role', 'user').gte('created_at', startIso).lt('created_at', endExclusiveIso)),
       // Quem assina: só o Premium recebe o texto escrito do resumo (pedido
       // dela, 2026-11-18 — a conta grátis não usa IA nenhuma).
-      fetchAllPaged('subscriptions', 'user_id, status, access_type'),
+      fetchAllPaged('subscriptions', 'user_id, status, access_type, cancel_at_period_end, current_period_end'),
     ])
   } catch (err) {
     console.error('Failed to load weekly digest source data:', err.message)
@@ -259,7 +259,7 @@ export default async function handler(req, res) {
   }
 
   const sessionByUser = groupBy(sessionRows, r => r.user_id)
-  const premiumUsers = new Set(subscriptionRows.filter(isActive).map(r => r.user_id))
+  const premiumUsers = new Set(subscriptionRows.filter(r => isActive(r)).map(r => r.user_id))
 
   // Consentimentos (revisão de LGPD, 2026-11-18): o texto escrito por IA
   // lê as anotações da semana e vai pra fora do Brasil — só com o

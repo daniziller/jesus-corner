@@ -7,7 +7,7 @@
 // subscriptions não libera INSERT/UPDATE pra usuário comum).
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { getSubscriptionPurchase, mapPlaySubscriptionState } from './_lib/googlePlay.js'
+import { getSubscriptionPurchase, playSubscriptionState } from './_lib/googlePlay.js'
 import { findTierByGooglePlayBasePlan } from '../src/billing/storeTiers.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
     })
   }
 
-  const status = mapPlaySubscriptionState(purchase.subscriptionState)
+  const { status, cancelAtPeriodEnd } = playSubscriptionState(purchase)
   const lineItem = purchase.lineItems?.[0]
   const currentPeriodEnd = lineItem?.expiryTime ?? null
   // Play decide a moeda pelo país da conta de quem compra, não por escolha
@@ -98,6 +98,7 @@ export default async function handler(req, res) {
     plan: tier.interval === 'year' ? 'annual' : 'monthly',
     tier: tier.tier,
     status,
+    cancel_at_period_end: cancelAtPeriodEnd,
     amount_cents: Math.round(tier[currency] * 100),
     currency,
     current_period_end: currentPeriodEnd,

@@ -7,7 +7,7 @@
 // uma notificação de verdade da Apple — revisar com cuidado, principalmente
 // a forma de extrair os campos da notificação decodificada.
 import { createClient } from '@supabase/supabase-js'
-import { decodeSignedNotification, decodeSignedTransaction, getSubscriptionStatuses, mapAppleSubscriptionState, findSubscriptionStatus, Environment } from './_lib/apple.js'
+import { decodeSignedNotification, decodeSignedTransaction, getSubscriptionStatuses, mapAppleSubscriptionState, appleCancelAtPeriodEnd, findSubscriptionStatus, Environment } from './_lib/apple.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -58,6 +58,7 @@ export default async function handler(req, res) {
   }
   const rawStatus = findSubscriptionStatus(statusResponse, originalTransactionId)
   const status = mapAppleSubscriptionState(rawStatus)
+  const cancelAtPeriodEnd = status === 'active' && await appleCancelAtPeriodEnd(statusResponse, originalTransactionId, environment, notification.data?.signedRenewalInfo)
   const currentPeriodEnd = transaction.expiresDate ? new Date(transaction.expiresDate).toISOString() : null
 
   const { data: existing, error: findErr } = await supabaseAdmin
@@ -77,7 +78,7 @@ export default async function handler(req, res) {
 
   const { error: updateErr } = await supabaseAdmin
     .from('subscriptions')
-    .update({ status, current_period_end: currentPeriodEnd, updated_at: new Date().toISOString() })
+    .update({ status, cancel_at_period_end: cancelAtPeriodEnd, current_period_end: currentPeriodEnd, updated_at: new Date().toISOString() })
     .eq('apple_original_transaction_id', originalTransactionId)
 
   if (updateErr) {

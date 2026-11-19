@@ -10,7 +10,7 @@
 // OIDC assinado que o Pub/Sub também manda — considerar migrar pra isso
 // depois, é a opção mais correta.
 import { createClient } from '@supabase/supabase-js'
-import { getSubscriptionPurchase, mapPlaySubscriptionState } from './_lib/googlePlay.js'
+import { getSubscriptionPurchase, playSubscriptionState } from './_lib/googlePlay.js'
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'refetch_failed' })
   }
 
-  const status = mapPlaySubscriptionState(purchase.subscriptionState)
+  const { status, cancelAtPeriodEnd } = playSubscriptionState(purchase)
   const currentPeriodEnd = purchase.lineItems?.[0]?.expiryTime ?? null
 
   const { data: existing, error: findErr } = await supabaseAdmin
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
 
   const { error: updateErr } = await supabaseAdmin
     .from('subscriptions')
-    .update({ status, current_period_end: currentPeriodEnd, updated_at: new Date().toISOString() })
+    .update({ status, cancel_at_period_end: cancelAtPeriodEnd, current_period_end: currentPeriodEnd, updated_at: new Date().toISOString() })
     .eq('google_play_purchase_token', purchaseToken)
 
   if (updateErr) {
