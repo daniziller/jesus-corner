@@ -45,7 +45,7 @@
 //      um minuto só, ou nenhum registrado) · &frase=nao (sem frase escrita hoje) · &dia=estudo (oração, estudo e
 //      reflexão: "Estudo · Ansiedade, dia 2" e "dia 2 de 7 / no estudo") · &dia=um (só a oração)
 //      · "Compartilhar meu dia" abre o editor da imagem (37d)
-//      tela=assinatura — a tela de assinatura (grátis × Premium). &assinatura=nenhuma|ativa|anual · tela=planos — "Grátis e Premium" do onboarding
+//      tela=assinatura — a tela de assinatura (grátis × Premium). &assinatura=nenhuma|ativa|anual|cancelada · &loja=play|apple · tela=planos — "Grátis e Premium" do onboarding
 //      tela=pedidos — a lista de pedidos (O1), com os pedidos na memória. &aba=ativos|respondidos|grupo|amigos
 //      · &pedidos=3|0|7|erro|carregando (7 traz dois de amigos e a aba Amigos) · &respondidos=12|2|0
 //      · &oracoes=47|0|49|1200 (o cartão "orações pelos outros") · &comentarios=2 (contagem na linha de um pedido)
@@ -1232,8 +1232,13 @@ function Preview() {
     body = <DiaPreview />
   } else if (screen === 'assinatura') {
     const qual = params.get('assinatura') ?? 'nenhuma'
-    const sub = qual === 'ativa' ? { access_type: 'recurring', status: 'active', plan: 'monthly', amount_cents: 2700, currency: 'brl', tier: 'premium' }
-      : qual === 'anual' ? { access_type: 'recurring', status: 'active', plan: 'annual', amount_cents: 11990, currency: 'brl', tier: 'premium' } : null
+    // &assinatura=cancelada: cancelou, Premium até daqui a 12 dias (2026-11-19).
+    const fim = new Date(Date.now() + 12 * 86400000).toISOString()
+    const loja = params.get('loja') === 'play' ? 'google_play' : params.get('loja') === 'apple' ? 'apple' : 'stripe'
+    const base = { access_type: 'recurring', status: 'active', currency: 'brl', tier: 'premium', current_period_end: fim, billing_provider: loja }
+    const sub = qual === 'ativa' ? { ...base, plan: 'monthly', amount_cents: 2700 }
+      : qual === 'anual' ? { ...base, plan: 'annual', amount_cents: 26700 }
+      : qual === 'cancelada' ? { ...base, plan: 'monthly', amount_cents: 2700, cancel_at_period_end: true } : null
     body = <UpgradeScreen session={session} subscription={sub} onBack={() => alert('voltar')} />
   } else if (screen === 'planos') {
     body = <OnboardingPlans lang={params.get('lang') === 'en' ? 'en' : 'pt'} onContinue={() => alert('continuar')} onBack={() => alert('voltar')} />

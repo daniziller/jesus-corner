@@ -5,7 +5,7 @@ import AppIcon from '../icons/AppIcon'
 import { getMyProfile, updateProfile } from '../profile/profileStore'
 import { getFriendsCount } from '../friends/friendsStore'
 import { termsUrl, privacyUrl } from '../utils/legalLinks'
-import { getManageSubscriptionUrl } from '../billing/subscriptionStore'
+import { getManageSubscriptionUrl, isCancelScheduled } from '../billing/subscriptionStore'
 import { formatAmount } from '../billing/formatAmount'
 import { exportMyData, deleteMyAccount } from '../privacy/privacyStore'
 import { getOptionalConsentState, setConsent, PURPOSES } from '../privacy/consent'
@@ -228,6 +228,11 @@ export default function ProfileScreen({ session, authUser, subscription, isAdmin
     if (subscription?.access_type === 'lifetime') return t('billing.subscriptionLifetimeSub', undefined, lang)
     if (session.hasPremium) {
       const tierName = t('billing.tiers.premium', undefined, lang)
+      // Cancelada, valendo até o fim do período (2026-11-19).
+      if (isCancelScheduled(subscription) && subscription.current_period_end) {
+        const date = new Date(subscription.current_period_end).toLocaleDateString(lang === 'en' ? 'en-US' : 'pt-BR', { day: 'numeric', month: 'short' })
+        return t('billing.subscriptionCanceledSub', { date }, lang)
+      }
       if (subscription?.access_type === 'recurring' && subscription.amount_cents != null && subscription.currency) {
         const key = subscription.plan === 'annual' ? 'billing.subscriptionRecurringAnnualSub' : 'billing.subscriptionRecurringSub'
         return `${tierName} · ${t(key, { amount: formatAmount(subscription.amount_cents, subscription.currency) }, lang)}`

@@ -71,6 +71,10 @@ async function upsertFromSubscription(subscription, eventCreatedSeconds) {
     p_currency: item?.price?.currency ?? null,
     p_current_period_end: periodEndSeconds ? new Date(periodEndSeconds * 1000).toISOString() : null,
     p_event_at: new Date(eventCreatedSeconds * 1000).toISOString(),
+    // Cancelada pelo portal, valendo até o fim do período (2026-11-19). O
+    // portal grava cancel_at_period_end; versões novas da API podem gravar
+    // cancel_at (uma data) no lugar — os dois contam.
+    p_cancel_at_period_end: !!(subscription.cancel_at_period_end || subscription.cancel_at),
   })
   // Falhou: responde erro pro Stripe tentar de novo (ver o catch do
   // handler) — antes respondia "ok" e o pagante ficava sem acesso.

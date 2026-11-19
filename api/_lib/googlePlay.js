@@ -54,3 +54,23 @@ const STATE_MAP = {
 export function mapPlaySubscriptionState(subscriptionState) {
   return STATE_MAP[subscriptionState] ?? 'incomplete'
 }
+
+// Estado completo de uma compra do Play (2026-11-19). No Play,
+// SUBSCRIPTION_STATE_CANCELED quer dizer "a pessoa cancelou, mas o período
+// pago ainda não acabou" — o acesso continua até lineItems[].expiryTime, e
+// só depois vem EXPIRED. Antes isso virava 'canceled' na hora e a pessoa
+// perdia o Premium no mesmo minuto em que cancelava. Agora fica 'active'
+// com cancelAtPeriodEnd até a data; a renovação desligada
+// (autoRenewEnabled: false) num estado ACTIVE conta igual.
+export function playSubscriptionState(purchase, nowMs = Date.now()) {
+  const lineItem = purchase?.lineItems?.[0]
+  const expiry = lineItem?.expiryTime ? Date.parse(lineItem.expiryTime) : null
+  const stillPaid = expiry != null && expiry > nowMs
+  const state = purchase?.subscriptionState
+  if (state === 'SUBSCRIPTION_STATE_CANCELED') {
+    return stillPaid ? { status: 'active', cancelAtPeriodEnd: true } : { status: 'canceled', cancelAtPeriodEnd: false }
+  }
+  const status = mapPlaySubscriptionState(state)
+  const autoRenewOff = lineItem?.autoRenewingPlan?.autoRenewEnabled === false
+  return { status, cancelAtPeriodEnd: status === 'active' && autoRenewOff }
+}

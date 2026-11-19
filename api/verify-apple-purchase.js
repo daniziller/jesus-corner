@@ -10,7 +10,7 @@
 // confiar em produção (ver aviso em api/_lib/apple.js).
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { getSubscriptionStatuses, decodeSignedTransaction, mapAppleSubscriptionState, findSubscriptionStatus, Environment } from './_lib/apple.js'
+import { getSubscriptionStatuses, decodeSignedTransaction, mapAppleSubscriptionState, appleCancelAtPeriodEnd, findSubscriptionStatus, Environment } from './_lib/apple.js'
 import { findTierByAppleProductId } from '../src/billing/storeTiers.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-06-24.dahlia' })
@@ -78,6 +78,7 @@ export default async function handler(req, res) {
 
   const rawStatus = findSubscriptionStatus(statusResponse, originalTransactionId)
   const status = mapAppleSubscriptionState(rawStatus)
+  const cancelAtPeriodEnd = status === 'active' && await appleCancelAtPeriodEnd(statusResponse, originalTransactionId, environment)
 
   const { data: existing } = await supabase
     .from('subscriptions')
@@ -112,6 +113,7 @@ export default async function handler(req, res) {
     plan: tier.interval === 'year' ? 'annual' : 'monthly',
     tier: tier.tier,
     status,
+    cancel_at_period_end: cancelAtPeriodEnd,
     amount_cents: Math.round(applePrice * 100),
     currency,
     current_period_end: decoded.expiresDate ? new Date(decoded.expiresDate).toISOString() : null,

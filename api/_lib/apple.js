@@ -161,6 +161,27 @@ export function findSubscriptionStatus(statusResponse, originalTransactionId) {
   return groups[0]?.lastTransactions?.[0]?.status
 }
 
+// A renovação automática está desligada? (2026-11-19) A Apple mantém o
+// status ACTIVE até o fim do período mesmo depois de a pessoa cancelar — o
+// cancelamento só aparece no autoRenewStatus da renewal info (0 = desligada).
+// Usa a do próprio statusResponse (sempre buscado na fonte) quando houver,
+// senão a da notificação. Na dúvida (não deu para decodificar), false.
+export async function appleCancelAtPeriodEnd(statusResponse, originalTransactionId, environment, fallbackSignedRenewalInfo = null) {
+  let signed = fallbackSignedRenewalInfo
+  for (const g of statusResponse?.data ?? []) {
+    const hit = (g.lastTransactions ?? []).find(t => t.originalTransactionId === originalTransactionId)
+    if (hit?.signedRenewalInfo) { signed = hit.signedRenewalInfo; break }
+  }
+  if (!signed) return false
+  try {
+    const info = await getVerifier(environment).verifyAndDecodeRenewalInfo(signed)
+    return info?.autoRenewStatus === 0
+  } catch (err) {
+    console.error('Falha ao ler a renovação da Apple:', err?.message ?? err)
+    return false
+  }
+}
+
 export async function decodeSignedTransaction(signedTransactionInfo) {
   const verifier = getVerifier(environmentOfSignedTransaction(signedTransactionInfo))
   return verifier.verifyAndDecodeTransaction(signedTransactionInfo)

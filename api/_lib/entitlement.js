@@ -16,18 +16,21 @@
 // Mesma regra de isPremiumActive (src/billing/subscriptionStore.js): free e
 // vitalício não têm ciclo de cobrança, então só valem com status 'active';
 // recorrente também vale em 'trialing'.
-export function isActive(sub) {
+export function isActive(sub, nowMs = Date.now()) {
   if (!sub) return false
   if (sub.access_type === 'free' || sub.access_type === 'lifetime') {
     return sub.status === 'active'
   }
+  // Cancelada valendo até o fim do período: passada a data, não conta mais,
+  // mesmo que o aviso de expiração do provedor atrase (2026-11-19).
+  if (sub.cancel_at_period_end && sub.current_period_end && Date.parse(sub.current_period_end) <= nowMs) return false
   return sub.status === 'active' || sub.status === 'trialing'
 }
 
 export async function fetchEntitlement(supabase, userId) {
   const { data: sub } = await supabase
     .from('subscriptions')
-    .select('status, access_type, tier')
+    .select('status, access_type, tier, cancel_at_period_end, current_period_end')
     .eq('user_id', userId)
     .maybeSingle()
 
