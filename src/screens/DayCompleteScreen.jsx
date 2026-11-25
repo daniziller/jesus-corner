@@ -29,7 +29,7 @@ import { t } from '../i18n'
 const FONT = 'var(--font-bento)'
 
 export default function DayCompleteScreen({ session, authUser, completedSet, steps, readingSession, onBack }) {
-  const { lang, dailyRoutine, weeklyGoalDays, biblePercent, activeStudyId } = session
+  const { lang, dailyRoutine, weeklyGoalDays, activeStudyId } = session
   const email = authUser?.email
 
   // A frase de hoje (pergunta 3 da reflexão), os segundos reais de cada
@@ -56,6 +56,13 @@ export default function DayCompleteScreen({ session, authUser, completedSet, ste
   // O livro lido hoje, na estrutura da gamificação (lidos, total, bloco).
   const bookName = (steps ?? []).includes('reading') && readingSession?.type !== 'reflection' ? readingSession?.book : null
   const bibleProgress = useMemo(() => (completedSet ? computeBibleProgress(completedSet) : null), [completedSet])
+  // O "% da Bíblia" é o mesmo da roda do Hoje, da aba Bíblia e da Sua
+  // Bíblia: capítulos lidos sobre 1.189, direto do completedSet de agora —
+  // e não session.biblePercent, que conta sessões inteiras do plano fixo
+  // concluídas (computeOverallStats): esse só anda quando uma sessão fecha
+  // por completo, então o capítulo lido hoje muitas vezes não mexia nele e
+  // o dia fechava (e a imagem saía) com o percentual de ontem.
+  const biblePercent = bibleProgress?.percent ?? session.biblePercent ?? 0
   const book = useMemo(() => {
     const info = bookName && bookInfo(bookName)
     const progress = info && bibleProgress ? bibleProgress.porLivro[bookName] : null
@@ -66,7 +73,7 @@ export default function DayCompleteScreen({ session, authUser, completedSet, ste
 
   const [sharing, setSharing] = useState(false)
   if (sharing) {
-    return <DayShareScreen session={session} readingSession={readingSession} phrase={phrase} minutes={seconds} book={book} week={week} reads={reads} onBack={() => setSharing(false)} />
+    return <DayShareScreen session={session} readingSession={readingSession} phrase={phrase} minutes={seconds} book={book} week={week} reads={reads} biblePercent={biblePercent} onBack={() => setSharing(false)} />
   }
 
   const headline = minutesHeadline(seconds.prayer + seconds.reading + seconds.reflection, lang)
