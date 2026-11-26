@@ -24,19 +24,40 @@ import { installAiConsentInterceptor } from './privacy/aiConsentGate'
 // que a pessoa estava digitando. Agora só recarrega se já havia uma versão
 // controlando a página, e só quando ela não está à vista (trocou de app,
 // bloqueou a tela) — na volta, já é o código novo.
+//
+// Mais duas (2026-11-26, caso real no PC): ao abrir o app depois de um
+// deploy, o service worker antigo entrega o app antigo; o novo assume
+// segundos depois, mas a aba do PC fica à vista o tempo todo, então a
+// recarga "quando escondida" nunca vinha e a pessoa usou a versão velha
+// inteira (e caiu no reconsentimento antigo, que o servidor recusa).
+//   1. Se a pessoa ainda não mexeu na página (nenhum toque/tecla desde que
+//      abriu), recarrega na hora — não há nada a perder.
+//   2. Aba que fica aberta por horas: o navegador só procura SW novo ao
+//      navegar (e no máximo a cada 24h). Agora procura ao voltar pra aba e
+//      a cada 30 min.
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller
   let reloaded = false
-  const reloadWhenHidden = () => {
-    if (reloaded || !document.hidden) return
+  let interacted = false
+  const markInteracted = () => { interacted = true }
+  for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, markInteracted, { once: true, capture: true })
+  const reload = () => {
+    if (reloaded) return
     reloaded = true
     window.location.reload()
   }
+  const reloadWhenHidden = () => { if (document.hidden) reload() }
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController) return
-    if (document.hidden) reloadWhenHidden()
+    if (document.hidden || !interacted) reload()
     else document.addEventListener('visibilitychange', reloadWhenHidden)
   })
+
+  const checkForUpdate = () => {
+    navigator.serviceWorker.getRegistration().then(reg => reg?.update()).catch(() => {})
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate() })
+  setInterval(checkForUpdate, 30 * 60 * 1000)
 }
 
 // Pedido de consentimento da escrita assistida na hora do uso — ver
