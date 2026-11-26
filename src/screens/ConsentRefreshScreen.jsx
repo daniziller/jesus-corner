@@ -52,6 +52,15 @@ export default function ConsentRefreshScreen({ onAccepted, onDeclined, embedded 
       onAccepted()
     } catch (err) {
       console.error('Falha ao registrar consentimento', err)
+      // App desatualizado (bundle velho em cache, o servidor já está numa
+      // versão da política mais nova): recarrega pra pegar o app novo, que
+      // mostra as caixas certas. Uma vez só por sessão da aba, pra não
+      // entrar em loop se o cache insistir.
+      if (err?.message === 'policy_version_mismatch') {
+        let tried = false
+        try { tried = sessionStorage.getItem('jc_consent_reload') === '1'; sessionStorage.setItem('jc_consent_reload', '1') } catch { /* sem sessionStorage */ }
+        if (!tried) { window.location.reload(); return }
+      }
       setError(t('auth.consentRefreshError', undefined, lang))
       setLoading(false)
     }

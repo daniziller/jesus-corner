@@ -75,6 +75,10 @@ export async function recordConsents(consents, { silent = true } = {}) {
       },
       body: JSON.stringify({ consents, policyVersion: POLICY_VERSION }),
     })
+    // 409: este app é de uma versão da política anterior à do servidor
+    // (bundle velho em cache) — quem chama recarrega a página em vez de
+    // mostrar "tenta de novo", que nunca daria certo.
+    if (res.status === 409) throw new Error('policy_version_mismatch')
     if (!res.ok) throw new Error(`record_consent_failed_${res.status}`)
     return true
   } catch (err) {
@@ -115,10 +119,16 @@ export async function getMyConsents() {
 // a tela de consentimento.
 const CONFIRMED_KEY = userId => `jc_consent_ok:${userId}:${POLICY_VERSION}`
 
+// Consentimento dado a uma versão MAIS NOVA que a deste app (versões são
+// datas AAAA-MM-DD, comparáveis como texto) também vale: aconteceu de
+// verdade (2026-11-26) — a pessoa aceitou a política nova no celular e, no
+// PC, o app antigo em cache via a versão "diferente", pedia tudo de novo e
+// o servidor recusava o aceite (versão velha), num erro sem saída. A
+// pessoa já concordou com um texto que inclui o que este app conhece.
 export function isConsentMissing(latest) {
   return REQUIRED_PURPOSES.some(p => {
     const row = latest[p]
-    return !row || !row.granted || row.policy_version !== POLICY_VERSION
+    return !row || !row.granted || !row.policy_version || row.policy_version < POLICY_VERSION
   })
 }
 
