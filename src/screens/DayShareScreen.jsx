@@ -12,14 +12,17 @@ import { formatWeekdayDate } from '../utils/weekdayDateLabel'
 import { dateKey } from '../utils/dateKey'
 import { t } from '../i18n'
 import { bookNameFor } from '../utils/progress'
-import { formatInt, deOf } from '../gamification/format'
+import { formatInt, deOf, formatPct } from '../gamification/format'
 import AppIcon from '../icons/AppIcon'
 import CabecalhoDoPasso from '../components/passos/CabecalhoDoPasso'
 
 const CHIP_KEYS = ['phrase', 'times', 'whereInBible', 'name']
 
-export default function DayShareScreen({ session, readingSession, phrase, minutes, book = null, week = null, reads = {}, onBack }) {
-  const { lang, userName, dailyRoutine, weeksInGoal, biblePercent } = session
+// biblePercent chega de DayCompleteScreen: a conta por capítulos
+// (computeBibleProgress), a mesma da roda do Hoje — não a por sessões do
+// plano em session.biblePercent, que não acompanha o capítulo lido hoje.
+export default function DayShareScreen({ session, readingSession, phrase, minutes, book = null, week = null, reads = {}, biblePercent = null, onBack }) {
+  const { lang, userName, dailyRoutine, weeksInGoal } = session
   const L = (k, vars) => t(`dayComplete.${k}`, vars, lang)
 
   const [include, setInclude] = useState({ phrase: true, times: true, whereInBible: true, name: true })
@@ -28,7 +31,7 @@ export default function DayShareScreen({ session, readingSession, phrase, minute
   const totalSeconds = minutes.prayer + minutes.reading + minutes.reflection
   const dayNumber = Object.keys(dailyRoutine ?? {}).filter(d => d <= dateKey()).length
   const dateLabel = formatWeekdayDate(dateKey(), lang)
-  const percentRead = `${(biblePercent ?? 0).toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+  const percentRead = formatPct(biblePercent ?? session.biblePercent ?? 0, lang)
   const chapterShort = readingSession && readingSession.type !== 'reflection'
     ? `${bookNameFor(readingSession.book, lang)} ${readingSession.chStart}`
     : null
