@@ -118,6 +118,17 @@ check('Privacidade: liga/desliga escrita assistida, resumo por e-mail e novidade
 check('perfil público registra o consentimento a cada troca; idade < 18 recusada', [/setConsent\(PURPOSES\.PUBLIC_PROFILE, editIsPublic\)/.test(profile), /isUnderMinAge\(birthdate\)/.test(profile)], [true, true])
 check('o app abre o pedido quando o servidor responde ai_consent_required', [/ai_consent_required/.test(ler('src/privacy/aiConsentGate.js')), /installAiConsentInterceptor\(\)/.test(ler('src/main.jsx')), /<AiConsentSheet \/>/.test(ler('src/App.jsx'))], [true, true, true])
 
+// App antigo em cache (caso real, 2026-11-26): aceite da política nova
+// feito em outro aparelho vale aqui; o servidor responde 409 antes do 400
+// de idade, e o app novo se recarrega nesse 409.
+const fonte = ler('src/privacy/consent.js')
+const corpo = fonte.slice(fonte.indexOf('export function isConsentMissing'), fonte.indexOf('export async function needsConsentRefresh'))
+const isConsentMissing = new Function('REQUIRED_PURPOSES', 'POLICY_VERSION', `${corpo.replace('export ', '')}; return isConsentMissing`)(['terms', 'sensitive_data', 'adult'], POLICY_VERSION)
+const linhas = v => Object.fromEntries(['terms', 'sensitive_data', 'adult'].map(p => [p, { granted: true, policy_version: v }]))
+check('consentimento da versão atual ou mais nova vale; o de versão anterior não', [isConsentMissing(linhas(POLICY_VERSION)), isConsentMissing(linhas('2999-01-01')), isConsentMissing(linhas('2026-09-02')), isConsentMissing({})], [false, false, true, true])
+check('servidor confere a versão antes da idade (app antigo recebe 409)', rec.indexOf('policy_version_mismatch') < rec.indexOf('adult_required'), true)
+check('reconsentimento recarrega o app quando o servidor diz que a versão mudou', /policy_version_mismatch[\s\S]*window\.location\.reload\(\)/.test(ler('src/screens/ConsentRefreshScreen.jsx')), true)
+
 // ── E-mails ─────────────────────────────────────────────────────────────
 const digest = ler('api/send-weekly-digest.js')
 check('resumo por e-mail só para quem não desligou, com descadastro', [/if \(weeklyEmailConsent\.get\(row\.user_id\)\)/.test(digest), /headers: unsubscribeHeaders\(unsubscribe\)/.test(digest)], [true, true])

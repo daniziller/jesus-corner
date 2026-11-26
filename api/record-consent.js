@@ -40,16 +40,19 @@ export default async function handler(req, res) {
   const invalid = consents.find(c => !PURPOSES.includes(c.purpose) || typeof c.granted !== 'boolean')
   if (invalid) return res.status(400).json({ error: 'invalid_purpose' })
 
+  // A versão gravada é a do servidor, não a que o app mandou: um app
+  // desatualizado não consegue registrar aceite de uma versão que não viu.
+  // Vem antes da conferência de idade: um app antigo (sem a caixa de
+  // maioridade) precisa receber o 409 — é ele que faz o app novo se
+  // recarregar (ConsentRefreshScreen) — e não um 400 que parece erro.
+  if (String(policyVersion) !== POLICY_VERSION) return res.status(409).json({ error: 'policy_version_mismatch' })
+
   // Idade mínima (18+) conferida aqui, no servidor: aceitar os termos exige
   // a declaração de maioridade no mesmo envio. Sem ela, nada é gravado — e
   // sem termos gravados o app não deixa entrar (needsConsentRefresh).
   const grantsTerms = consents.some(c => c.purpose === 'terms' && c.granted)
   const declaresAdult = consents.some(c => c.purpose === 'adult' && c.granted)
   if (grantsTerms && !declaresAdult) return res.status(400).json({ error: 'adult_required' })
-
-  // A versão gravada é a do servidor, não a que o app mandou: um app
-  // desatualizado não consegue registrar aceite de uma versão que não viu.
-  if (String(policyVersion) !== POLICY_VERSION) return res.status(409).json({ error: 'policy_version_mismatch' })
 
   // O IP compõe a prova de origem do ato. x-forwarded-for pode trazer uma
   // cadeia de proxies — o primeiro endereço é o do cliente.
